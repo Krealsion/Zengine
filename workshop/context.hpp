@@ -46,15 +46,22 @@
 namespace zengine::workshop {
 
 /// THE SUBJECT KINDS a contextual request can truthfully name -- and there are exactly
-/// three, because that is what Workshop's own resolvers can answer at a pointed position:
+/// four, because that is what Workshop's own resolvers can answer at a pointed position:
 /// a pane it placed (`occupied_at` -> the setup row that resolves to that kind), an
-/// authored document object (`object_at`), or nothing at all, which is the empty room and
-/// is a real subject with no identity. Do not generalize these into a type-erased
-/// container: each kind's identity already has its own owned type.
+/// authored document object (`object_at`), a painted layout tab (`band_tab_at`), or
+/// nothing at all, which is the empty room and is a real subject with no identity. Do not
+/// generalize these into a type-erased container: each kind's identity already has its own
+/// owned type.
+///
+/// A LAYOUT'S IDENTITY IS ITS POSITION (WUX-11), which is the same thing the tab run, the
+/// keyboard's stepping and the session file all mean by a layout -- no id is minted here
+/// either. It is captured at the press and re-judged by the owner at spend, exactly as a
+/// `PaneRef` is: a position is only a layout for as long as the run it indexes says so.
 namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
 inline constexpr std::int64_t kObject = 2; ///< a document object, by minted identity
+inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by maker position
 } // namespace context_subject
 
 /// One subject kind as a declaration bit, so a row can be meaningful for several kinds
@@ -66,12 +73,14 @@ inline constexpr std::int64_t context_bit(std::int64_t subject) noexcept {
 inline constexpr std::int64_t kOnRoot = context_bit(context_subject::kRoot);
 inline constexpr std::int64_t kOnPane = context_bit(context_subject::kPane);
 inline constexpr std::int64_t kOnObject = context_bit(context_subject::kObject);
+inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
 
 /// THE SURFACE'S OWN STATE -- a mode in the picker's family: open, a captured subject,
 /// which group level is showing, and a cursor. Session, emphatically not content, and it
 /// holds an IDENTITY and a cursor, never a snapshot: no bounds, no rows, no resolved
-/// handles. `pane` is read exactly when `subject == kPane` and `object` exactly when
-/// `subject == kObject`; the other fields rest at their defaults.
+/// handles. `pane` is read exactly when `subject == kPane`, `object` exactly when
+/// `subject == kObject` and `layout` exactly when `subject == kLayout`; the other fields
+/// rest at their defaults.
 ///
 /// THE ANCHOR IS THE GESTURE'S PLACE, NOT THE SUBJECT'S (ARR-0). A pointer-opened
 /// surface belongs beside the press that asked for it, so the opening press's canvas
@@ -87,6 +96,7 @@ struct ContextMenu {
     std::int64_t subject = context_subject::kRoot;
     PaneRef pane;
     std::int64_t object = 0;
+    std::size_t layout = 0; ///< read exactly when `subject == kLayout`
     /// The open presentation group, "" for the top level. A group is its name -- it has
     /// no identity, no gesture and no dispatch arm, and an empty one is never shown.
     std::string group;
@@ -142,6 +152,22 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.remove", kOnPane, ""},
     // -- a document object -------------------------------------------------------------
     {"object.delete", kOnObject, ""},
+    // -- a layout tab (WUX-11) ---------------------------------------------------------
+    //
+    // THE FIVE OPERATIONS A MAKER CAN DO TO A TAB, on the tab they pointed at. Rename is
+    // first because it is the one a double-click already performs, so the menu names the
+    // gesture's slower twin at the top; the two reorder steps are a group for the reason
+    // `Order` is one -- they are the same intent twice, and a maker reads them together.
+    //
+    // ⚠ THEY ACT ON THE CAPTURED POSITION AND NOT ON THE LIVE LAYOUT. `manage.remove`'s
+    // pane rows established the shape: the subject is what the press named, and the owner
+    // re-asks the run about it at spend. Closing an inactive tab therefore leaves the live
+    // desk exactly where it was, which is the whole difference between this and `^w`.
+    {"layout.rename", kOnLayout, ""},
+    {"layout.duplicate", kOnLayout, ""},
+    {"layout.move-left", kOnLayout, "Order"},
+    {"layout.move-right", kOnLayout, "Order"},
+    {"layout.remove", kOnLayout, ""},
 };
 
 inline constexpr std::size_t kContextCatalogCount =

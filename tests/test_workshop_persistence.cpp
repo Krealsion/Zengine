@@ -1664,7 +1664,7 @@ TEST_CASE("a fresh Workshop's active setup and its open panels agree from the fi
     CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
     // UNSAVED, and structurally so: nothing has been written, and the copy the
     // comparison is made against has an empty name no legal setup can equal.
-    CHECK_FALSE(t.session().setup.saved());
+    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
 }
 
 TEST_CASE("opening a panel through the picker moves the setup's intent, not only the screen") {
@@ -1702,65 +1702,53 @@ TEST_CASE("a panel change makes the setup UNSAVED, and changing it back makes it
     (void)mount_tool(t, "zengine-snake");
 
     name_setup(t, "Working");
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(t.session().setup.active.name == "Working");
     CHECK(t.notice().find("saved setup \"Working\"") == 0);
 
     open_builder(t);
-    CHECK_FALSE(t.session().setup.saved());
+    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
 
     // OPENING THEN CLOSING BACK TO THE SAVED INTENT SAYS SAVED AGAIN, which is
     // what a comparison buys and a dirty flag could not: there is no hand to
     // forget to unset.
     pick(t, panel::kBuilder);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 
     // A rename with no pane moved is still a change, because the name is part of
     // the value.
     Setup renamed = t.session().setup.active;
     renamed.name = "Other";
-    CHECK_FALSE(renamed == t.session().setup.on_file);
+    CHECK_FALSE(renamed == t.session().setup.active_link.known);
 }
 
-TEST_CASE("the `s` that opens the name editor does not type itself into the name") {
-    // The trap WG-0 measured and named: a key transition and the character it
-    // produced are two facts that were simultaneously true, and both arrive.
-    TempDir dir("setup-swallow");
+TEST_CASE("WUX-11/SC-3: the rename editor opens on the tab's own name and writes nothing") {
+    TempDir dir("layout-rename");
     Live t;
     t.host.setup_path = dir.file("setup.json");
 
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
-    // IT OPENED ON THE NAME THE SETUP ALREADY HAS, with no `s` appended.
+    // IT OPENED ON THE NAME THE LAYOUT ALREADY HAS, with the caret at its end.
     CHECK(t.session().setup.naming.line.text() == "Default");
     CHECK(t.session().setup.naming.line.caret() == std::string("Default").size());
+    CHECK(t.session().setup.naming.at == t.session().setup.active_at);
 
-    // A real keystroke arriving straight after IS taken -- the swallow belongs
-    // to one moment and cannot eat the next character a maker meant.
+    // ⭐ AND `s` NO LONGER OPENS IT (WUX-11). Saving a Setup and naming a layout were one
+    // gesture until this phase, which is the coupling P-WORK-12 recorded.
+    t.key(input::scan::kEscape);
+    t.key(input::scan::kS);
     t.text("s");
-    CHECK(t.session().setup.naming.line.text() == "Defaults");
-
-    // AND THE SHIFTED KEY IS A DIFFERENT GESTURE SINCE KEY-0 (exact matching): shift+s
-    // is not `s`, so it opens nothing -- the accidental subset alias this clause used to
-    // pin is gone on purpose -- and the capital it produced lands nowhere, because
-    // command mode takes no text. (The capital-owed half of the old claim lives on where
-    // it is still true: a maker who AUTHORS a shift+letter binding gets its capital
-    // swallowed by the same case-folding match; see the keymap cases.)
-    Live shifted;
-    shifted.host.setup_path = dir.file("other.json");
-    shifted.key(input::scan::kS, input::mod::kShift);
-    shifted.text("S");
-    CHECK_FALSE(shifted.session().setup.naming.open);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(std::filesystem::exists(t.host.setup_path)); // it SAVED instead
 }
 
-TEST_CASE("escape leaves the setup name exactly as it was, and saves nothing") {
+TEST_CASE("escape leaves the layout name exactly as it was, and writes nothing") {
     TempDir dir("setup-cancel");
     Live t;
     t.host.setup_path = dir.file("setup.json");
 
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     t.text("!");
     REQUIRE(t.session().setup.naming.line.text() == "Default!");
     t.key(input::scan::kEscape);
@@ -1776,8 +1764,7 @@ TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
     Live t;
     t.host.setup_path = dir.file("setup.json");
 
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     for (int i = 0; i < 8; ++i) {
         t.key(input::scan::kBackspace);
     }
@@ -1799,15 +1786,22 @@ TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == "Fixed");
-    CHECK(t.session().setup.saved());
+    // ⭐ SC-4: A RENAME WRITES NO SETUP ARTIFACT. The layout is named and the file the
+    // host configured was never opened, in either direction.
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    CHECK(live_status(t.session().setup) == setup_link::kNone);
 }
 
-TEST_CASE("with no setup file, naming and restoring say so and change nothing") {
+TEST_CASE("with no setup file, saving and restoring say so and change nothing") {
     Live t; // no --setup was given
     t.key(input::scan::kS);
-    CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("--setup") != std::string::npos);
+    // ...AND RENAMING STILL WORKS, because it touches no artifact (WUX-11). The refusal
+    // that used to guard this editor belonged to the save it used to perform.
+    open_rename_on_tab(t, t.session().setup.active_at);
+    CHECK(t.session().setup.naming.open);
+    t.key(input::scan::kEscape);
 
     const Setup before = t.session().setup.active;
     t.key(input::scan::kR);
@@ -1827,18 +1821,18 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     open_builder(t);
     pick(t, panel::kInfo); // Builder open, Info removed
     name_setup(t, "Build only");
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     // Wander away from it.
     pick(t, panel::kInfo);
     pick(t, panel::kBuilder);
-    REQUIRE_FALSE(t.session().setup.saved());
+    REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
     REQUIRE(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
 
     t.key(input::scan::kR);
     CHECK(t.session().setup.active.name == "Build only");
     CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(t.notice().find("restored setup \"Build only\"") == 0);
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 }
@@ -2036,8 +2030,8 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     CHECK(t.notice().find("third.party.tools/history") != std::string::npos);
     CHECK(t.notice().find("unavailable") == std::string::npos);
 
-    // The setup LINE says it too, as a count beside the name.
-    CHECK(setup_row(t.canvases.back(), sc).find("1 unresolved") != std::string::npos);
+    // The setup LINE says it too, as a count beside the association.
+    CHECK(band_status(t.session(), sc).text.find("1 unresolved") != std::string::npos);
 
     // NO PROVIDER TRAFFIC WAS CREATED. The one ask that happened is the Builder
     // panel's own, and nothing was sent on the unknown reference's behalf.
@@ -2073,7 +2067,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
 
     open_builder(t);
     name_setup(t, "Both");
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
     const std::string bytes = slurp(t.host.setup_path);
     const Setup authored = t.session().setup.active;
 
@@ -2102,7 +2096,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
     // still saved -- which is the control that makes this a claim about
     // persisted geometry rather than about recomposition.
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // Restoring under the new extent produces the same intent and the current
@@ -2116,7 +2110,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
     // A text metric moves the same picture again, and the setup is untouched.
     t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 8, 18}));
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // And no RESOLVED rectangle, placement, column, row or metric is in the file at all.
@@ -2162,7 +2156,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         pick(a, panel::kInfo);
         name_setup(a, "Morning build");
 
-        REQUIRE(a.session().setup.saved());
+        REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
         REQUIRE(open_kinds(a.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
         bytes = slurp(path);
         REQUIRE_FALSE(bytes.empty());
@@ -2184,7 +2178,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         CHECK(b.session().setup.active.name == "Morning build");
         CHECK(b.session().panels.has(panel::kBuilder));
         CHECK_FALSE(b.session().panels.has(panel::kInfo));
-        CHECK(b.session().setup.saved());
+        CHECK((live_status(b.session().setup) == setup_link::kCurrent));
 
         // BUILDER ASKS ITS STILL-INDEPENDENT TOOL FOR CURRENT STATUS -- the
         // tool's own answer, not a copy that rode the file.
@@ -2230,12 +2224,12 @@ TEST_CASE("saving and restoring a setup does not touch the document or its saved
     t.key(input::scan::kO, input::mod::kCtrl);
     CHECK(t.notice().find("loaded " + t.host.document_path) == 0);
     CHECK(t.session().setup.active == setup_before);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 }
 
 // ---- What a maker reads --------------------------------------------------------------
 
-TEST_CASE("the setup line names the setup, its file, whether it is saved, and its gestures") {
+TEST_CASE("WUX-11/SC-7: the top row says the ACTIVE layout's Setup association") {
     TempDir dir("setup-line");
     Live t;
     t.host.setup_path = dir.file("s.json");
@@ -2244,41 +2238,59 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     const std::string fresh = setup_row(first_frame(t), sc);
     INFO(fresh);
     CHECK(fresh.find(">Default<") == 0); // the live layout tab leads the row (WUX-9, QR-15)
-    CHECK(fresh.find("UNSAVED") != std::string::npos);
+    // ⭐ `none` MEANS "RELATED TO NO ARTIFACT", NOT "UNSAVED". The session remembers this
+    // desk automatically; what it has not got is an explicit standalone Setup file.
+    CHECK(fresh.find("setup: none") != std::string::npos);
+    CHECK(fresh.find("UNSAVED") == std::string::npos);
+    // ...AND THE HOST'S CONFIGURED PATH IS NOT SHOWN, because no layout is related to it
+    // yet. It is the acquisition door, never a default association.
+    CHECK(fresh.find("s.json") == std::string::npos);
 
-    name_setup(t, "Named");
+    // A SUCCESSFUL SAVE ESTABLISHES THE ASSOCIATION, and the row says the artifact and
+    // the verdict.
+    save_setup(t);
     const std::string saved = setup_row(t.canvases.back(), sc);
-    CHECK(saved.find(">Named< | saved") == 0);
+    INFO(saved);
+    CHECK(saved.find(">Default<") == 0);
+    CHECK(saved.find("setup: ") != std::string::npos);
+    CHECK(saved.find("| current") != std::string::npos);
 
-    // AT THE MINIMUM COMPOSITION WITH THE DEFAULT FILE NAME THE WHOLE LINE FITS,
-    // and that is the measurement the ORDER of that line was chosen against: the
-    // name, the marker, the file and both gestures, in 78 cells with room over.
+    // ...AND MUTATING THE DESK MAKES IT `modified`, DERIVED rather than flagged.
+    pick(t, panel::kBuilder);
+    const std::string moved = setup_row(t.canvases.back(), sc);
+    INFO(moved);
+    CHECK(moved.find("| modified") != std::string::npos);
+    CHECK(moved.find("| current") == std::string::npos);
+
+    // AT THE MINIMUM COMPOSITION WITH THE DEFAULT FILE NAME THE WHOLE LINE FITS, and that
+    // is the measurement the ORDER of that line was chosen against.
     Live plain;
     plain.host.setup_path = kDefaultSetupFileName;
     const std::string minimal = setup_row(first_frame(plain), screen_of(plain.session()));
     INFO(minimal);
-    CHECK(minimal.find(">Default< | UNSAVED") == 0);
-    CHECK(minimal.find(kDefaultSetupFileName) != std::string::npos);
-    CHECK(minimal.find("s name/save") != std::string::npos);
+    CHECK(minimal.find(">Default<") == 0);
+    CHECK(minimal.find("setup: none") != std::string::npos);
+    CHECK(minimal.find("s save") != std::string::npos);
     CHECK(minimal.find("r restore") != std::string::npos);
     CHECK(static_cast<std::int64_t>(minimal.size()) <= kMinScreen.w);
-    CHECK(minimal.find("...") == std::string::npos);
 
-    // AND A LINE TOO LONG FOR THE ROOM IS CUT WITH A MARK rather than silently --
-    // which is what a canvas label buys that the status slot could not, and the
-    // reason the identity is at the front: it is never what elides.
+    // AND A PATH TOO LONG FOR THE ROOM IS ELIDED BEFORE THE VERDICT IS (§9's ordering).
     Live wordy;
     wordy.host.setup_path = std::string(90, 'p');
-    const std::string cut = setup_row(first_frame(wordy), screen_of(wordy.session()));
-    CHECK(static_cast<std::int64_t>(cut.size()) == kMinScreen.w);
-    CHECK(cut.substr(cut.size() - 3) == "...");
-    CHECK(cut.find(">Default< | UNSAVED") == 0);
+    (void)first_frame(wordy);
+    save_setup(wordy);
+    const std::string cut = setup_row(wordy.canvases.back(), screen_of(wordy.session()));
+    INFO(cut);
+    CHECK(static_cast<std::int64_t>(cut.size()) <= kMinScreen.w);
+    CHECK(cut.find(">Default<") == 0);
+    CHECK(cut.find("setup: ") != std::string::npos);
+    CHECK(cut.find("| current") != std::string::npos);
+    CHECK(cut.find("...") != std::string::npos); // the cut is marked, never silent
 
-    // A wider surface spends the room it gained on the rest of the sentence,
-    // which needs nothing from anybody but room.
-    wordy.publish(loom::to_value(surface::SurfaceExtent{160, 40, 0, 0}));
+    // A wider surface spends the room it gained on the path itself.
+    wordy.publish(loom::to_value(surface::SurfaceExtent{200, 40, 0, 0}));
     const std::string roomy = setup_row(wordy.canvases.back(), screen_of(wordy.session()));
-    CHECK(roomy.find("...") == std::string::npos);
+    INFO(roomy);
     CHECK(roomy.find(std::string(90, 'p')) != std::string::npos);
     CHECK(roomy.find("r restore") != std::string::npos);
 }
@@ -2288,17 +2300,16 @@ TEST_CASE("the setup line becomes the name editor while a maker is typing") {
     Live t;
     t.host.setup_path = dir.file("s.json");
 
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     const Screen sc = screen_of(t.session());
     const std::string row = setup_row(t.canvases.back(), sc);
     INFO(row);
-    CHECK(row.find("setup name> Default") == 0);
+    CHECK(row.find("layout name> Default") == 0);
     // THE CARET IS IN THE TEXT, at the end where `s` left it. A one-cell-tall
     // bounded region would hold zero rows of a real face (HD-6), so this editor
     // says its caret the way the cell projection says a region's.
     CHECK(row.find(std::string("Default") + surface::kCaretGlyph) != std::string::npos);
-    CHECK(row.find("enter saves") != std::string::npos);
+    CHECK(row.find("enter renames") != std::string::npos);
     CHECK(row.find("esc cancels") != std::string::npos);
     CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
 
@@ -2316,8 +2327,7 @@ TEST_CASE("the name editor takes the keys, and the picker and the document keep 
     Live t;
     t.host.setup_path = dir.file("s.json");
 
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
 
     // `p` DOES NOT OPEN THE PICKER while the editor has the keys: it is a
@@ -2505,7 +2515,7 @@ TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     const Screen sc = screen_of(t.session());
     const std::string row = setup_row(t.canvases.back(), sc);
@@ -2515,7 +2525,7 @@ TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it
     // tabs paint the authored bytes bare, so the identity's boundary is no longer a
     // delimiter IN the text -- it is the tab's own recorded extent, written as the row
     // was composed (`LayoutTab::column`/`columns`, HD-3's one geometry).
-    const BandStatus band = band_status(t.session(), t.host.setup_path, sc);
+    const BandStatus band = band_status(t.session(), sc);
     REQUIRE(band.tabs.size() == 1);
     const LayoutTab live = band.tabs.front();
     const std::int64_t ends = live.column + live.columns;
@@ -2533,10 +2543,10 @@ TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it
                            static_cast<std::size_t>(live.columns))
               .find('\\') == std::string::npos);
 
-    // ...AND EXACTLY ONE SAVED MARKER, the real one, OUTSIDE the span. The decoy word
-    // inside the name is not it, and the proof is positional exactly as it was before --
-    // the status begins where the identity's extent ends.
-    CHECK(band.text.compare(static_cast<std::size_t>(ends), 9, " | saved ") == 0);
+    // ...AND EXACTLY ONE `setup:` SLOT, the real one, OUTSIDE the span. The decoy words
+    // inside the name are not it, and the proof is positional exactly as it was before --
+    // the status begins after the identity's extent ends.
+    CHECK(band.text.find("setup: ") > static_cast<std::size_t>(ends));
     CHECK(band.text.find("UNSAVED", static_cast<std::size_t>(ends)) == std::string::npos);
 
     // ⚠ AND THE HALF QR-15 GAVE BACK, PINNED RATHER THAN LEFT TO BE DISCOVERED. To a
@@ -2546,6 +2556,7 @@ TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it
     // defect -- what may never become true again is the MACHINE losing the boundary.
     CHECK(band.text.find("UNSAVED") < static_cast<std::size_t>(ends));
     CHECK(band.text.find(" | ") < static_cast<std::size_t>(ends));
+    CHECK(band.text.find("setup: ") > static_cast<std::size_t>(ends));
 
     // The row is still one bounded row of the band, and the file is still named on it.
     CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
@@ -2554,7 +2565,7 @@ TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it
     // AND THE AUTHORED BYTES NEVER MOVED. The presentation is prose and reaches neither
     // the live setup nor the copy `saved()` compares against; the FILE still escapes.
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.on_file.name == authored);
+    CHECK(t.session().setup.active_link.known.name == authored);
     CHECK(slurp(t.host.setup_path).find("\\\" UNSAVED") != std::string::npos);
 }
 
@@ -2619,8 +2630,7 @@ TEST_CASE("WS-0a: the name editor edits the authored bytes, never the escaped sp
 
     // REOPENED ON THE NAME IT ALREADY HAS -- and what the editor holds is the ORIGINAL
     // bytes. A maker does not have to type `\"` to mean `"` in their own name.
-    t.key(input::scan::kS);
-    t.text("s");
+    open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     CHECK(t.session().setup.naming.line.text() == authored);
     CHECK(t.session().setup.naming.line.text()[6] == '\\'); // the raw backslash, stored as one
@@ -2630,22 +2640,23 @@ TEST_CASE("WS-0a: the name editor edits the authored bytes, never the escaped sp
     INFO(row);
     // The editing row is not a quoted sentence, so it is not an escaped one either: the
     // prompt, the raw name, the caret where the maker's hand left it, and the hint.
-    CHECK(row.find(std::string("setup name> ") + authored + surface::kCaretGlyph) == 0);
+    CHECK(row.find(std::string("layout name> ") + authored + surface::kCaretGlyph) == 0);
     CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
 
     // ESCAPE CHANGES NOTHING, and the name is still the authored one.
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 
-    // AND ENTER SAVES THE AUTHORED BYTES, not the spelling they are presented with.
-    t.key(input::scan::kS);
-    t.text("s");
+    // AND ENTER RENAMES TO THE AUTHORED BYTES, not to the spelling they are presented
+    // with -- then `s` writes exactly those bytes (WUX-11: two gestures, one value).
+    open_rename_on_tab(t, t.session().setup.active_at);
     t.text("!");
     t.key(input::scan::kReturn);
     const std::string grown = authored + "!";
     CHECK(t.session().setup.active.name == grown);
+    save_setup(t);
     const setup_persist::LoadedSetup back = setup_persist::load_file(t.host.setup_path);
     REQUIRE(back.outcome.accepted);
     CHECK(back.setup.name == grown);
@@ -2663,11 +2674,13 @@ TEST_CASE("WS-0a: an ordinary setup name presents exactly as it did before") {
 
     const Screen sc = screen_of(t.session());
     const std::string fresh = setup_row(first_frame(t), sc);
-    CHECK(fresh.find(">Default< | UNSAVED") == 0);
+    CHECK(fresh.find(">Default<") == 0);
+    CHECK(fresh.find("setup: none") != std::string::npos);
 
     name_setup(t, "Morning build");
     CHECK(t.notice().find("saved setup \"Morning build\" to ") == 0);
-    CHECK(setup_row(t.canvases.back(), sc).find(">Morning build< | saved") == 0);
+    CHECK(setup_row(t.canvases.back(), sc).find(">Morning build<") == 0);
+    CHECK(setup_row(t.canvases.back(), sc).find("| current") != std::string::npos);
 
     t.key(input::scan::kR);
     CHECK(t.notice().find("restored setup \"Morning build\" from ") == 0);
@@ -2690,7 +2703,7 @@ TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is sti
     INFO(easy);
     CHECK(easy.compare(0, 14, ">" + repeated(12, '"') + "<") == 0);
     CHECK(easy.find("\\\"") == std::string::npos); // not one escape on the row
-    CHECK(easy.find(" saved") != std::string::npos);
+    CHECK(easy.find("| current") != std::string::npos);
 
     // THE PATHOLOGICAL LEGAL NAME: thirty-two bytes at the bound, every one of them a
     // quote -- thirty-four cells of a seventy-eight cell row now, where the escaped
@@ -2701,7 +2714,7 @@ TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is sti
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     const std::string cut = setup_row(t.canvases.back(), screen_of(t.session()));
     INFO(cut);
@@ -2711,14 +2724,14 @@ TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is sti
     // the whole of the answer -- the sentence is fitted once, at the presentation
     // boundary, after the token is formed -- so nothing downstream of the identity is
     // shown as though it were complete.
-    CHECK(cut.find("s name/save") == std::string::npos);
+    CHECK(cut.find("r restore") == std::string::npos);
     CHECK(cut.find(t.host.setup_path) == std::string::npos);
 
     // THE CUT IS PRESENTATION AND NOTHING ELSE: the name, the saved comparison and the
     // file are all untouched by it, and a wider surface spends the room on the rest of
     // the same sentence.
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(setup_persist::load_file(t.host.setup_path).setup.name == authored);
 
     t.publish(loom::to_value(surface::SurfaceExtent{240, 40, 0, 0}));
@@ -2726,10 +2739,10 @@ TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is sti
     INFO(roomy);
     CHECK(roomy.find("...") == std::string::npos);
     CHECK(roomy.compare(0, authored.size() + 2, ">" + authored + "<") == 0);
-    CHECK(roomy.find("s name/save") != std::string::npos);
+    CHECK(roomy.find("s save") != std::string::npos);
     // ...and the extent changed what fits, never the setup or its saved status.
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 }
 
 TEST_CASE("WS-0a: a name carrying a quote and a backslash survives its file exactly") {
@@ -2964,10 +2977,16 @@ TEST_CASE("WUX-0 B: the second session replaces the first, room and desk both") 
         t.publish(loom::to_value(surface::SurfaceReady{}));
         REQUIRE(t.session().setup.active.name == "First");
         REQUIRE(t.session().screen_w == 100);
-        REQUIRE(setup_persist::save_file(t.host.setup_path, second).accepted);
+        // ⚠ THE RESTORED LAYOUT CAME BACK WITH ITS ASSOCIATION (WUX-11), and `r` acts on
+        // THAT artifact rather than on whatever `--setup` this run happens to name: an
+        // association is what a maker deliberately related this desk to, and the host's
+        // configured path is only the door a layout with NO association acquires one
+        // through. So the file rewritten here is the one the layout actually refers to.
+        REQUIRE(t.session().setup.active_link.path == dir.file("first-setup.json"));
+        REQUIRE(setup_persist::save_file(t.session().setup.active_link.path, second).accepted);
         t.publish(loom::to_value(surface::SurfaceExtent{140, 50}));
         t.key(input::scan::kR);
-        REQUIRE(t.session().setup.active == second);
+        REQUIRE_MESSAGE(t.session().setup.active == second, t.notice());
         t.close_requested(); // the close BOX, and it is the same door `q` is
         REQUIRE(t.host.quit);
     }
@@ -3026,9 +3045,9 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":4");
+             const std::size_t at = text.find("\"version\":5");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":4").size(), "\"version\":7");
+             text.replace(at, std::string("\"version\":5").size(), "\"version\":7");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
@@ -3068,9 +3087,9 @@ TEST_CASE("WUX-0 D/MIG-0: an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"version\":4");
+    const std::size_t at = text.find("\"version\":5");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":4").size(), "\"version\":7");
+    text.replace(at, std::string("\"version\":5").size(), "\"version\":7");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
@@ -3080,7 +3099,7 @@ TEST_CASE("WUX-0 D/MIG-0: an unreadable session names its version by NUMBER") {
     // named, because it is a fact this host knows and a maker can look for.
     CHECK(refused.outcome.refusal ==
           "session version 7 cannot be read: no live conversion from `WorkshopSession` v7 to "
-          "v4 (`zengine.migrate.WorkshopSession.v7-to-v4`)");
+          "v5 (`zengine.migrate.WorkshopSession.v7-to-v5`)");
     // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
     // one should be installed. There is no unloaded discovery in this system to be honest
     // about, so the sentence does not pretend there is.
@@ -3098,12 +3117,12 @@ TEST_CASE("MIG-0: a current-version file whose own field says otherwise is a for
     const std::size_t at = text.find("\"format_version\":\"7\"");
     REQUIRE(at == std::string::npos);
     // ⚠ THE SESSION'S OWN FIELD AND A LAYOUT'S ARE TWO DIFFERENT FACTS AND, SINCE WUX-10,
-    // TWO DIFFERENT NUMBERS -- a v4 session nests desks that still say 3. The case edits
+    // TWO DIFFERENT NUMBERS -- a v5 session nests desks that still say 3. The case edits
     // the session's and asserts the session's sentence; the desk's own is a separate claim
     // with a separate owner, and the case below it proves that one.
-    const std::size_t field = text.find("\"format_version\":\"4\"");
+    const std::size_t field = text.find("\"format_version\":\"5\"");
     REQUIRE(field != std::string::npos);
-    text.replace(field, std::string("\"format_version\":\"4\"").size(),
+    text.replace(field, std::string("\"format_version\":\"5\"").size(),
                  "\"format_version\":\"7\"");
 
     op::Catalog conversions;
@@ -3112,7 +3131,7 @@ TEST_CASE("MIG-0: a current-version file whose own field says otherwise is a for
         session_persist::from_text(text, &conversions);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "this session claims version 4 and its own format_version field says 7");
+          "this session claims version 5 and its own format_version field says 7");
     // ...and it did not become a conversion request on the way past.
     CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
@@ -3220,7 +3239,7 @@ TEST_CASE("WUX-0 F: a restored session never touches the file a maker named, eit
     // file over the restored session; `s` writes the named file and nothing else.
     t.key(input::scan::kR);
     CHECK(t.session().setup.active == named);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     const std::string session_bytes = slurp(session);
     name_setup(t, "Renamed");
     CHECK(setup_persist::load_file(setup).setup.name == "Renamed");
@@ -4098,7 +4117,7 @@ void layout_next(Live& t) {
     t.key(g.scancode, g.modifiers);
 }
 
-/// Copy the live layout and stand on the copy, as a maker does.
+/// Make a fresh blank layout and stand on it, as a maker does (WUX-11: it is blank).
 void layout_new(Live& t) {
     const Gesture g = t.session().keymap.gesture_of(Act::kLayoutNew);
     t.key(g.scancode, g.modifiers);
@@ -4139,10 +4158,13 @@ TEST_CASE("WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone") 
     const std::vector<Setup> after = shelf_of(t);
     REQUIRE(after.size() == before.size());
     CHECK(after[0] == before[0]);
-    // The saved marker is about the live layout against the file, and says so.
-    CHECK(t.session().setup.saved());
-    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("| saved") !=
+    // The verdict is about the LIVE layout against its own artifact, and says so.
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("| current") !=
           std::string::npos);
+    // ...AND THE SHELVED LAYOUT GAINED NO ASSOCIATION (WUX-11): saving one desk is not a
+    // reason for an unrelated one to acquire a relationship to that file.
+    CHECK(link_at(t.session().setup, 0).path.empty());
 }
 
 TEST_CASE("WUX-9/SC-12: `r` restores into the live layout and clears no shelf") {
@@ -4216,18 +4238,18 @@ TEST_CASE("WUX-10/SC-13: the whole layout run rides the session, and comes back"
         REQUIRE(t.host.quit);
     }
 
-    // THE FILE CARRIES THE RUN AND THE POSITION, at version 4.
+    // THE FILE CARRIES THE RUN AND THE POSITION, at version 5.
     const session_persist::LoadedSession read = session_persist::load_file(session);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     REQUIRE(read.layouts.size() == 3);
     CHECK(read.active == 1);
-    CHECK(read.layouts[0].name == "First");
-    CHECK(read.layouts[1].name == "Second");
-    CHECK(read.layouts[2].name == "Third");
+    CHECK(read.layouts[0].desk.name == "First");
+    CHECK(read.layouts[1].desk.name == "Second");
+    CHECK(read.layouts[2].desk.name == "Third");
     CHECK(live_layout(read) == second_authored);
-    CHECK(has_pane(read.layouts[1], ref_of(panel::kBuilder)));
-    CHECK_FALSE(has_pane(read.layouts[0], ref_of(panel::kBuilder)));
-    CHECK(slurp(session).find("\"version\":4") != std::string::npos);
+    CHECK(has_pane(read.layouts[1].desk, ref_of(panel::kBuilder)));
+    CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(panel::kBuilder)));
+    CHECK(slurp(session).find("\"version\":5") != std::string::npos);
     CHECK(slurp(session).find("\"layouts\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, standing on the one it left on.
@@ -4283,14 +4305,14 @@ TEST_CASE("WUX-9/SC-14: crossing media never writes a device value into any layo
         CAPTURE(round);
         t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 8, 18, 12}));
         layout_next(t);
-        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        (void)paint(t.doc(), t.session());
         layout_next(t);
-        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        (void)paint(t.doc(), t.session());
         t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 0, 0, 0}));
         layout_next(t);
-        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        (void)paint(t.doc(), t.session());
         layout_next(t);
-        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        (void)paint(t.doc(), t.session());
     }
 
     // EVERY LAYOUT'S AUTHORED NUMBERS ARE THE ONES THAT WENT IN. Looking is not
@@ -4395,9 +4417,10 @@ TEST_CASE("MIG-0/SC-7: the shipped artifact supplies exactly the conventional ed
     // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
     // convention rather than a list somebody typed twice.
     const std::vector<std::string> supplied = history.catalog.identities();
-    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v4",
-                                               "zengine.migrate.WorkshopSession.v2-to-v4",
-                                               "zengine.migrate.WorkshopSession.v3-to-v4"});
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v5",
+                                               "zengine.migrate.WorkshopSession.v2-to-v5",
+                                               "zengine.migrate.WorkshopSession.v3-to-v5",
+                                               "zengine.migrate.WorkshopSession.v4-to-v5"});
     // ...and each of them declares the edge its name claims.
     for (const std::string& identity : supplied) {
         CAPTURE(identity);
@@ -4506,7 +4529,7 @@ TEST_CASE("MIG-0: an old session's OWN law still runs -- the conversion skips no
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
         // The conversion that refused is named, because a maker who has one converter
         // mounted and another missing needs to know which spoke.
-        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v4") !=
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v5") !=
               std::string::npos);
     }
     SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
@@ -4607,7 +4630,7 @@ TEST_CASE("MIG-0/SC-13: reading an old session does not rewrite it; the next clo
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
     CHECK(now != original);
-    CHECK(now.find("\"version\":4") != std::string::npos);
+    CHECK(now.find("\"version\":5") != std::string::npos);
     CHECK(now.find("\"format_version\":\"3\"") != std::string::npos);
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
@@ -4720,8 +4743,8 @@ TEST_CASE("MIG-0/SC-8: the session reader owns no historical shape and no conver
         CHECK(source.find(forbidden) == std::string::npos);
     }
     // ...and the one number it does carry is the one it writes.
-    CHECK(session_persist::kFormatVersion == 4);
-    CHECK(session_persist::WorkshopSession::zen_version == 4u);
+    CHECK(session_persist::kFormatVersion == 5);
+    CHECK(session_persist::WorkshopSession::zen_version == 5u);
 }
 
 TEST_CASE("MIG-0/SC-13: a session this run could not read is never written over") {
@@ -4752,9 +4775,9 @@ TEST_CASE("MIG-0/SC-13: a session this run could not read is never written over"
         {"a version this build has never written", [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":4");
+             const std::size_t at = text.find("\"version\":5");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":4").size(), "\"version\":9");
+             text.replace(at, std::string("\"version\":5").size(), "\"version\":9");
              return text;
          }(), true},
         {"bytes that are not a session at all", std::string("{"), true},
@@ -4907,13 +4930,17 @@ Setup layout_of(const std::string& name, std::int64_t nudge) {
 
 /// THE RUN THREE AUTHORED LAYOUTS MAKE, each different from the others in name, in geometry
 /// and in which pane is in front.
-std::vector<Setup> three_layouts() {
+std::vector<Setup> three_desks() {
     std::vector<Setup> run{layout_of("Home", 7), layout_of("Code", 19), layout_of("Art", 31)};
     // ...and a distinct FRONT order in the middle one, which is authored data the file
     // carries and no geometry can stand in for.
     REQUIRE(send_to_front(run[1], ref_of(panel::kInfo)));
     return run;
 }
+
+/// ...AS A RUN OF LAYOUTS, each related to no Setup artifact (WUX-11). What most cases
+/// about the durable run mean: three desks, in this order, and nothing about associations.
+std::vector<Layout> three_layouts() { return plain_run(three_desks()); }
 
 /// A CURRENT SESSION VALUE BUILT BY HAND, for the cases that need one this build would
 /// never write -- an empty run, a ninth layout, a position that is not a layout.
@@ -4923,8 +4950,9 @@ session_persist::WorkshopSession hand_built(std::size_t layouts, std::int64_t ac
     out.format_version = session_persist::kFormatVersion;
     out.viewport = session_persist::WorkshopViewport{110, 40};
     for (std::size_t i = 0; i < layouts; ++i) {
-        out.layouts.push_back(
-            setup_persist::to_setup(setup_of("L" + std::to_string(i), {panel::kInfo})));
+        out.layouts.push_back(session_persist::WorkshopLayout{
+            setup_persist::to_setup(setup_of("L" + std::to_string(i), {panel::kInfo})),
+            session_history::absent_link()});
     }
     out.active = active;
     out.placement = session_history::absent_placement();
@@ -4957,7 +4985,7 @@ std::string as_text(const session_history::v3::WorkshopSession& old) {
 // ---- A: the durable shape -------------------------------------------------
 
 TEST_CASE("WUX-10/SC-8: a whole layout run round-trips exactly, active in the middle") {
-    const std::vector<Setup> run = three_layouts();
+    const std::vector<Layout> run = three_layouts();
     session_persist::Placement place;
     place.known = true;
     place.x = -1200;
@@ -4973,15 +5001,15 @@ TEST_CASE("WUX-10/SC-8: a whole layout run round-trips exactly, active in the mi
     CHECK(read.layouts == run);
     CHECK(read.active == 1);
     REQUIRE(read.layouts.size() == 3);
-    CHECK(read.layouts[0].name == "Home");
-    CHECK(read.layouts[1].name == "Code");
-    CHECK(read.layouts[2].name == "Art");
+    CHECK(read.layouts[0].desk.name == "Home");
+    CHECK(read.layouts[1].desk.name == "Code");
+    CHECK(read.layouts[2].desk.name == "Art");
     CHECK(live_layout(read).name == "Code");
     // ...and the facts a value comparison could pass on by being empty on both sides.
-    CHECK(read.layouts[0].panes[0].place.x == subs(3) + 7);
-    CHECK(read.layouts[2].panes[0].place.x == subs(3) + 31);
-    CHECK(read.layouts[1].panes[0].front > read.layouts[1].panes[1].front);
-    CHECK(read.layouts[0].panes[0].front < read.layouts[0].panes[1].front);
+    CHECK(read.layouts[0].desk.panes[0].place.x == subs(3) + 7);
+    CHECK(read.layouts[2].desk.panes[0].place.x == subs(3) + 31);
+    CHECK(read.layouts[1].desk.panes[0].front > read.layouts[1].desk.panes[1].front);
+    CHECK(read.layouts[0].desk.panes[0].front < read.layouts[0].desk.panes[1].front);
     // The room and the placement are still siblings of the run, unchanged by the plural.
     CHECK(read.viewport_w == 120);
     CHECK(read.viewport_h == 44);
@@ -4993,9 +5021,9 @@ TEST_CASE("WUX-10/SC-8: a whole layout run round-trips exactly, active in the mi
     // normalised on the way through" a fact rather than a hope.
     CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                    read.viewport_h, read.placement) == text);
-    // AND THE FILE SAYS WHAT IT IS: version 4, a run, and a position.
-    CHECK(text.find("\"version\":4") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"4\"") != std::string::npos);
+    // AND THE FILE SAYS WHAT IT IS: version 5, a run, and a position.
+    CHECK(text.find("\"version\":5") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"5\"") != std::string::npos);
     CHECK(text.find("\"layouts\":") != std::string::npos);
     CHECK(text.find("\"active\":\"1\"") != std::string::npos);
     // ...and every layout in it is an ordinary setup, at the setup format's own version.
@@ -5006,7 +5034,7 @@ TEST_CASE("WUX-10/SC-8: every position in the run is a position a session can be
     // NOT ONLY THE MIDDLE. `layout.new` leaves a maker on the LAST layout, so a save that
     // wrote `shelved.size()` instead of `active_at` passes a middle-only case and fails a
     // maker who pressed `,` once.
-    const std::vector<Setup> run = three_layouts();
+    const std::vector<Layout> run = three_layouts();
     for (std::size_t at = 0; at < run.size(); ++at) {
         CAPTURE(at);
         const session_persist::LoadedSession read = session_persist::from_text(
@@ -5017,7 +5045,7 @@ TEST_CASE("WUX-10/SC-8: every position in the run is a position a session can be
     }
 }
 
-TEST_CASE("WUX-10/SC-12: a v4 run this Workshop could not have made is refused as CURRENT data") {
+TEST_CASE("WUX-10/SC-12: a current run this Workshop could not have made is refused as CURRENT data") {
     // ⭐ THE NARROWNESS THAT MAKES MIGRATION SAFE, ASSERTED FROM THE OTHER SIDE. A malformed
     // CURRENT file is wrong, not old: it must meet this version's own law and get this
     // version's own sentence, and it must never become a search for something willing to
@@ -5032,7 +5060,7 @@ TEST_CASE("WUX-10/SC-12: a v4 run this Workshop could not have made is refused a
         std::string says;
     };
     session_persist::WorkshopSession illegal_desk = hand_built(2, 0);
-    illegal_desk.layouts[1].panes[0].pane = "two words";
+    illegal_desk.layouts[1].desk.panes[0].pane = "two words";
 
     const std::vector<Case> cases = {
         {"no layouts at all", as_text(hand_built(0, 0)),
@@ -5079,7 +5107,7 @@ TEST_CASE("WUX-10: a session may hold as much as it may hold, and be read back")
     // and the key length all come from the constants that enforce them, so raising any of
     // them re-measures this case instead of stranding it.
     const std::string long_key(kMaxPaneKeyLen, 'k');
-    std::vector<Setup> run;
+    std::vector<Layout> run;
     for (std::size_t i = 0; i < kMaxLayouts; ++i) {
         Setup s = layout_of(std::string(kMaxSetupNameLen - 2, 'n') + std::to_string(i),
                             static_cast<std::int64_t>(i) + 1);
@@ -5091,7 +5119,7 @@ TEST_CASE("WUX-10: a session may hold as much as it may hold, and be read back")
             REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
                                         long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
         }
-        run.push_back(std::move(s));
+        run.push_back(Layout{std::move(s), SetupLink{}});
     }
     const std::string text =
         session_persist::to_text(run, kMaxLayouts - 1, 120, 44, session_persist::Placement{});
@@ -5099,6 +5127,15 @@ TEST_CASE("WUX-10: a session may hold as much as it may hold, and be read back")
     // derived bound, asserted rather than reasoned about.
     CHECK(text.size() > setup_persist::kMaxSetupBytes);
     CHECK(text.size() <= session_persist::kMaxSessionBytes);
+    // ⭐ AND THE BOUND IS PROVEN FROM THE FORMAT'S OWN NUMBERS, not from this measurement.
+    // `kMaxSetupBytes` is deliberately more than an order of magnitude above the largest
+    // legal desk, so a maximal file today has slack whatever the multiplier is -- which
+    // means a ceiling left at one desk per layout would go on passing a size case while
+    // being wrong about what a layout MAY hold. What must be true is that the read bound
+    // admits everything the per-field bounds allow a layout to carry: its desk, the desk
+    // its association remembers, and the path.
+    CHECK(session_persist::kMaxSessionBytes >=
+          static_cast<std::uintmax_t>(kMaxLayouts) * 2u * setup_persist::kMaxSetupBytes);
 
     TempDir dir("wux10-full");
     const std::string path = dir.file("session.json");
@@ -5147,7 +5184,7 @@ TEST_CASE("WUX-10/SC-3: a retired shape's wire identity is the identity it was w
     // ...and the current shape is none of them, which is what makes them history.
     const std::shared_ptr<const loom::Schema> current =
         loom::schema_of<session_persist::WorkshopSession>();
-    CHECK(current->version() == 4u);
+    CHECK(current->version() == 5u);
     for (const Vintage& v : history) {
         CAPTURE(v.what);
         CHECK_FALSE(loom::same_identity(*current, *v.shape));
@@ -5161,21 +5198,22 @@ TEST_CASE("WUX-10/SC-9: the run and the lifted-active representation are one fac
     // with one element taken out, so putting it back and lifting it again must be the
     // identity -- no duplication of the live value, no reorder, no drift in which one is
     // active.
-    const std::vector<Setup> run = three_layouts();
+    const std::vector<Layout> run = three_layouts();
     for (std::size_t at = 0; at < run.size(); ++at) {
         CAPTURE(at);
         SetupState state;
         REQUIRE(install_layout_run(state, run, at));
 
         // WHAT RUNTIME HOLDS: one lifted value, the rest on the shelf, in order.
-        CHECK(state.active == run[at]);
+        CHECK(state.active == run[at].desk);
+        CHECK(state.active_link == run[at].link);
         CHECK(state.active_at == at);
         CHECK(layout_count(state) == run.size());
         CHECK(state.shelved.size() == run.size() - 1);
         // ...and the live value is NOT also on the shelf. One live desk, one copy of it.
-        for (const Setup& shelved : state.shelved) {
-            CHECK_FALSE(&shelved == &state.active);
-            CHECK(shelved.name != run[at].name);
+        for (const Layout& shelved : state.shelved) {
+            CHECK_FALSE(&shelved.desk == &state.active);
+            CHECK(shelved.desk.name != run[at].desk.name);
         }
         // THE READ PUTS IT BACK EXACTLY WHERE IT WAS.
         CHECK(layout_run(state) == run);
@@ -5183,7 +5221,8 @@ TEST_CASE("WUX-10/SC-9: the run and the lifted-active representation are one fac
         // durable one position for position, which is what makes them one order.
         for (std::size_t i = 0; i < run.size(); ++i) {
             CAPTURE(i);
-            CHECK(layout_at(state, i) == run[i]);
+            CHECK(layout_at(state, i) == run[i].desk);
+            CHECK(link_at(state, i) == run[i].link);
         }
         // AND READING IS NOT A WRITE: the same answer twice, from an untouched state.
         CHECK(layout_run(state) == run);
@@ -5192,23 +5231,23 @@ TEST_CASE("WUX-10/SC-9: the run and the lifted-active representation are one fac
 }
 
 TEST_CASE("WUX-10/SC-9: installing a run touches nothing else the session owns") {
-    // PER-LAYOUT IS THE VALUE'S OWN FIELDS AND NOTHING ELSE (WUX-9). `on_file` in
-    // particular is this run's copy of what is in the SETUP file, and a session restore has
-    // not read that file -- so a restored session still says UNSAVED, meaning what it has
-    // always meant.
+    // THE NAME EDITOR IS NOT TOUCHED, and neither is anything outside the run: this is the
+    // container's own operation and it knows nothing about presentations. Since WUX-11 the
+    // associations ride IN the run, so what is asserted here is that the run's own contents
+    // arrive whole and that nothing beside them was reached for.
     SetupState state;
-    state.on_file = setup_of("From the setup file", {panel::kInfo});
     state.naming.open = true;
+    state.naming.at = 7;
 
     REQUIRE(install_layout_run(state, three_layouts(), 2));
-    CHECK(state.on_file == setup_of("From the setup file", {panel::kInfo}));
     CHECK(state.naming.open);
-    CHECK_FALSE(state.saved());
+    CHECK(state.naming.at == 7);
+    CHECK(live_status(state) == setup_link::kNone);
 
     // AND THE TYPE'S OWN FLOOR IS KEPT WHATEVER THE CALLER SAYS: a run this could not lift
     // from is refused, and nothing moved.
     const SetupState before = state;
-    CHECK_FALSE(install_layout_run(state, std::vector<Setup>{}, 0));
+    CHECK_FALSE(install_layout_run(state, std::vector<Layout>{}, 0));
     CHECK_FALSE(install_layout_run(state, three_layouts(), 3));
     CHECK(state.active == before.active);
     CHECK(state.shelved == before.shelved);
@@ -5240,8 +5279,13 @@ TEST_CASE("WUX-10/SC-5: a version-3 session becomes exactly one layout, live at 
     // EXACTLY ONE LAYOUT, AND IT IS THE DESK THAT WAS LIVE.
     REQUIRE(read.layouts.size() == 1);
     CHECK(read.active == 0);
-    CHECK(read.layouts[0] == predecessor);
-    CHECK(read.layouts[0] == arranged_desk("Yesterday"));
+    CHECK(read.layouts[0].desk == predecessor);
+    CHECK(read.layouts[0].desk == arranged_desk("Yesterday"));
+    // ...AND IT IS RELATED TO NO SETUP ARTIFACT (WUX-11): a version-3 file could not say
+    // that a desk came from one, so inventing an association would be this reader deciding
+    // something the maker never wrote down.
+    CHECK(read.layouts[0].link.path.empty());
+    CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kNone);
     // EVERY NON-LAYOUT FACT OF THAT VINTAGE, UNCHANGED -- including a REAL placement, which
     // is the fact version 3 had and versions 1 and 2 did not.
     CHECK(read.viewport_w == 120);
@@ -5288,9 +5332,9 @@ TEST_CASE("WUX-10/SC-4: three DIRECT edges, and no chain to walk even if one wan
         CAPTURE(absent);
         CHECK(history.catalog.find(absent) == nullptr);
     }
-    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v4",
-                             "zengine.migrate.WorkshopSession.v2-to-v4",
-                             "zengine.migrate.WorkshopSession.v3-to-v4"}) {
+    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v5",
+                             "zengine.migrate.WorkshopSession.v2-to-v5",
+                             "zengine.migrate.WorkshopSession.v3-to-v5"}) {
         CAPTURE(live);
         REQUIRE(history.catalog.find(live) != nullptr);
     }
@@ -5320,7 +5364,7 @@ TEST_CASE("WUX-10/SC-6: a version-3 file with no conversion live refuses and is 
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
-        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v4`") !=
+        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v5`") !=
               std::string::npos);
         CHECK(t.session().setup.active == default_setup());
         CHECK(layout_count(t.session().setup) == 1);
@@ -5355,7 +5399,7 @@ TEST_CASE("WUX-10/SC-13: three layouts, closed on the middle, come back and stay
     // quit; and come back to the same run.
     TempDir dir("wux10-run");
     const std::string session = dir.file("session.json");
-    std::vector<Setup> authored;
+    std::vector<Layout> authored;
 
     {
         Live t;
@@ -5398,7 +5442,7 @@ TEST_CASE("WUX-10/SC-13: three layouts, closed on the middle, come back and stay
         while (back.session().setup.active_at != at) {
             layout_next(back);
         }
-        CHECK(back.session().setup.active == authored[at]);
+        CHECK(back.session().setup.active == authored[at].desk);
     }
     // ...AND THE WORKSHOP-GLOBAL FACTS ARE STILL GLOBAL: one document, one project, one
     // browser location, one keymap, one window. A layout is a desk and nothing more.
@@ -5410,10 +5454,10 @@ TEST_CASE("WUX-10/SC-13: three layouts, closed on the middle, come back and stay
         layout_next(back);
     }
     REQUIRE(add_pane(live(back).setup.active, stranger()));
-    CHECK(layout_at(back.session().setup, 1) == authored[1]);
-    CHECK(layout_at(back.session().setup, 2) == authored[2]);
+    CHECK(layout_at(back.session().setup, 1) == authored[1].desk);
+    CHECK(layout_at(back.session().setup, 2) == authored[2].desk);
     CHECK(setup_persist::to_text(layout_at(back.session().setup, 1)) ==
-          setup_persist::to_text(authored[1]));
+          setup_persist::to_text(authored[1].desk));
 }
 
 TEST_CASE("WUX-10/SC-13: the position that comes back is the one the maker stood on") {
@@ -5461,7 +5505,7 @@ TEST_CASE("WUX-10/SC-10: `s` and `r` still mean the live layout, across a save a
     TempDir dir("wux10-setupfile");
     const std::string session = dir.file("session.json");
     const std::string setup = dir.file("s.json");
-    std::vector<Setup> after_save;
+    std::vector<Layout> after_save;
 
     {
         Live t;
@@ -5519,7 +5563,7 @@ TEST_CASE("WUX-10/SC-12: crossing media never rewrites a persisted layout's geom
     // saved, is byte-identical to a run that never crossed.
     TempDir dir("wux10-media");
     const std::string session = dir.file("session.json");
-    const std::vector<Setup> authored = three_layouts();
+    const std::vector<Layout> authored = three_layouts();
     const std::string never_crossed =
         session_persist::to_text(authored, 1, 120, 44, session_persist::Placement{});
 
@@ -5532,7 +5576,7 @@ TEST_CASE("WUX-10/SC-12: crossing media never rewrites a persisted layout's geom
 
     // LOOK AT EVERY LAYOUT, on a medium whose cells cannot say a sub-cell remainder.
     for (std::size_t i = 0; i < authored.size() * 2; ++i) {
-        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        (void)paint(t.doc(), t.session());
         layout_next(t);
     }
     while (t.session().setup.active_at != 1) {
@@ -5543,4 +5587,411 @@ TEST_CASE("WUX-10/SC-12: crossing media never rewrites a persisted layout's geom
 
     CHECK(slurp(session) == never_crossed);
     CHECK(slurp(session).find("pixels") == std::string::npos);
+}
+
+// ---- F: the Setup ASSOCIATION, through the real weave (WUX-11) -------------
+
+TEST_CASE("WUX-11/SC-9: `s` establishes the association only after a successful write") {
+    TempDir dir("wux11-save");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+    (void)first_frame(t);
+
+    // ⭐ A FRESH LAYOUT IS `none`, and that is not "unsaved": the session remembers it.
+    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    REQUIRE(t.session().setup.active_link.path.empty());
+
+    // A REFUSED WRITE ADVANCES NOTHING. The destination is a DIRECTORY, so the writer
+    // cannot open it -- and a failed save may not leave a layout claiming a relationship
+    // to a file it was never written to.
+    Live blocked;
+    blocked.host.setup_path = dir.file("wall");
+    std::filesystem::create_directories(blocked.host.setup_path);
+    (void)first_frame(blocked);
+    const Setup was = blocked.session().setup.active;
+    blocked.key(input::scan::kS);
+    CHECK(blocked.session().notice_is_bad);
+    CHECK(live_status(blocked.session().setup) == setup_link::kNone);
+    CHECK(blocked.session().setup.active_link.path.empty());
+    CHECK(blocked.session().setup.active == was); // and the live desk is untouched
+
+    // A SUCCESSFUL ONE ESTABLISHES IT, at the host's configured path -- the acquisition
+    // door for a layout that had none.
+    save_setup(t);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.session().setup.active_link.path == t.host.setup_path);
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.session().setup.active_link.known == t.session().setup.active);
+
+    // MUTATING THE DESK MAKES IT `modified`, DERIVED and never flagged...
+    pick(t, panel::kBuilder);
+    CHECK(live_status(t.session().setup) == setup_link::kModified);
+    // ...and saving again re-establishes `current` on the SAME artifact.
+    save_setup(t);
+    CHECK(t.session().setup.active_link.path == t.host.setup_path);
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+}
+
+TEST_CASE("WUX-11/SC-10+SC-11: `r` establishes on success and changes nothing on refusal") {
+    TempDir dir("wux11-restore");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+    const Setup authored = arranged_desk("Restored");
+    REQUIRE(setup_persist::save_file(t.host.setup_path, authored).accepted);
+    (void)first_frame(t);
+    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+
+    // A SUCCESSFUL RESTORE INSTALLS THE DESK AND ESTABLISHES THE ASSOCIATION, whose known
+    // value is exactly what was admitted.
+    t.key(input::scan::kR);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.session().setup.active == authored);
+    CHECK(t.session().setup.active_link.path == t.host.setup_path);
+    CHECK(t.session().setup.active_link.known == authored);
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+
+    // ⭐ A REFUSED RESTORE LEAVES THE DESK AND THE ASSOCIATION EXACTLY AS THEY WERE. The
+    // loader RETURNS a candidate, so there is no path by which half a desk is installed --
+    // and nothing about association truth may advance on the way past a refusal either.
+    spillout(t.host.setup_path, "{ this is not a setup");
+    t.key(input::scan::kR);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.session().setup.active == authored);
+    CHECK(t.session().setup.active_link.path == t.host.setup_path);
+    CHECK(t.session().setup.active_link.known == authored);
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+
+    // A LAYOUT WITH NO ASSOCIATION SURVIVES A REFUSAL AS `none`, which is the other half:
+    // a failed acquisition is not an acquisition.
+    Live bad;
+    bad.host.setup_path = dir.file("broken.json");
+    spillout(bad.host.setup_path, "{ nor is this");
+    (void)first_frame(bad);
+    const Setup before = bad.session().setup.active;
+    bad.key(input::scan::kR);
+    CHECK(bad.session().notice_is_bad);
+    CHECK(bad.session().setup.active == before);
+    CHECK(live_status(bad.session().setup) == setup_link::kNone);
+    CHECK(bad.session().setup.active_link.path.empty());
+}
+
+TEST_CASE("WUX-11/SC-12: two layouts sharing one artifact cannot both claim `current`") {
+    // ⭐ THE SHARED-ARTIFACT LAW, THROUGH THE REAL DOORS. Both layouts refer to one file;
+    // one of them overwrites it; the other must stop claiming to match it.
+    TempDir dir("wux11-shared");
+    Live t;
+    t.host.setup_path = dir.file("shared.json");
+    (void)first_frame(t);
+
+    save_setup(t); // the first layout acquires the artifact
+    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    // A SECOND LAYOUT ON THE SAME FILE: made blank, then saved to the same configured path.
+    layout_new(t);
+    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    pick(t, panel::kBuilder); // make it a genuinely different desk
+    save_setup(t);
+    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    REQUIRE(layout_count(t.session().setup) == 2);
+
+    // THE ONE THAT JUST WROTE IT SAYS `current`; the one whose value it replaced says
+    // `modified`. Updating only the saving layout's baseline is the defect this refuses.
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(link_at(t.session().setup, 0).path == t.host.setup_path);
+    CHECK(link_status(layout_at(t.session().setup, 0), link_at(t.session().setup, 0)) ==
+          setup_link::kModified);
+    // ...and both baselines are the SAME value, which is what the file now holds.
+    CHECK(link_at(t.session().setup, 0).known == t.session().setup.active_link.known);
+    CHECK(setup_persist::load_file(t.host.setup_path).setup ==
+          t.session().setup.active_link.known);
+
+    // AND READING IT BACK FROM THE OTHER SIDE TEACHES BOTH TOO.
+    layout_next(t);
+    REQUIRE(t.session().setup.active_at == 0);
+    t.key(input::scan::kR);
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(link_status(layout_at(t.session().setup, 1), link_at(t.session().setup, 1)) ==
+          setup_link::kCurrent);
+}
+
+TEST_CASE("WUX-11/SC-7: the standing verdict performs no filesystem read") {
+    // ⭐ THE SHARPEST FALSIFIER FOR "current MEANS WORKSHOP'S KNOWLEDGE". The artifact is
+    // DELETED after the save; a composition that went to disk to decide what to paint
+    // would have to change its answer, and this one does not -- because `current` is a
+    // claim about what this run last successfully wrote, and that fact did not move.
+    TempDir dir("wux11-noread");
+    Live t;
+    t.host.setup_path = dir.file("gone.json");
+    (void)first_frame(t);
+    save_setup(t);
+    REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+
+    std::error_code ec;
+    std::filesystem::remove(t.host.setup_path, ec);
+    REQUIRE_FALSE(std::filesystem::exists(t.host.setup_path));
+
+    const Screen sc = screen_of(t.session());
+    for (int again = 0; again < 3; ++again) {
+        CHECK(band_status(t.session(), sc).text.find("| current") != std::string::npos);
+        CHECK(link_status(t.session().setup.active, t.session().setup.active_link) ==
+              setup_link::kCurrent);
+    }
+    // ...AND THE MISSING FILE IS DISCOVERED ONLY WHEN A MAKER ASKS FOR IT, which is the
+    // honest boundary: an explicit operation touches the artifact, and it says so.
+    t.key(input::scan::kR);
+    CHECK(t.session().notice_is_bad);
+}
+
+TEST_CASE("WUX-11/SC-14: the whole run and every association come back after a restart") {
+    // ⭐ THE COMPLETION SENTENCE'S DURABLE HALF. Three layouts: one associated and matching,
+    // one associated and diverged, one with no association at all -- and the run's order,
+    // names, active position and every one of those three verdicts return.
+    TempDir dir("wux11-durable");
+    const std::string session = dir.file("session.json");
+    const std::string artifact = dir.file("code.json");
+
+    std::vector<Layout> authored;
+    {
+        Live t;
+        t.host.session_path = session;
+        t.host.setup_path = artifact;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
+
+        // ⚠ ONE `--setup` PATH MEANS ONE ARTIFACT PER RUN, so both saves land on the same
+        // file and the shared-artifact law decides the two verdicts: the layout that wrote
+        // it last matches it, and the one whose value it replaced does not.
+        rename_live_layout(t, "Home");
+        save_setup(t);
+        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+
+        layout_new(t);
+        rename_live_layout(t, "Code");
+        pick(t, panel::kBuilder); // a genuinely different desk
+        save_setup(t); // Code: associated and current; Home: associated and MODIFIED
+        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+        REQUIRE(link_status(layout_at(t.session().setup, 0),
+                            link_at(t.session().setup, 0)) == setup_link::kModified);
+
+        layout_new(t);
+        rename_live_layout(t, "Art"); // Art: no association at all
+        REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+
+        layout_next(t); // wrap to Home, and close standing on it
+        REQUIRE(t.session().setup.active_at == 0);
+        authored = layout_run(t.session().setup);
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+
+    // THE FILE SAYS IT, at the current version, with a link per layout.
+    const session_persist::LoadedSession read = session_persist::load_file(session);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.layouts == authored);
+    CHECK(read.active == 0);
+    CHECK(slurp(session).find("\"version\":5") != std::string::npos);
+    CHECK(slurp(session).find("\"link\":") != std::string::npos);
+
+    // AND THE NEXT RUN COMES BACK ON ALL THREE, with all three verdicts.
+    Live back;
+    back.host.session_path = session;
+    back.host.setup_path = dir.file("somewhere-else.json");
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
+
+    REQUIRE(layout_count(back.session().setup) == 3);
+    CHECK(layout_run(back.session().setup) == authored);
+    CHECK(back.session().setup.active_at == 0);
+    CHECK(back.session().setup.active.name == "Home"); // SC-5: the rename survived
+    CHECK(link_status(layout_at(back.session().setup, 0), link_at(back.session().setup, 0)) ==
+          setup_link::kModified);
+    CHECK(link_status(layout_at(back.session().setup, 1), link_at(back.session().setup, 1)) ==
+          setup_link::kCurrent);
+    CHECK(link_status(layout_at(back.session().setup, 2), link_at(back.session().setup, 2)) ==
+          setup_link::kNone);
+    CHECK(link_at(back.session().setup, 0).path == artifact);
+    CHECK(link_at(back.session().setup, 2).path.empty());
+    // ...and the standing row says the one a maker is standing on, and only that one.
+    CHECK(band_status(back.session(), screen_of(back.session())).text.find("| modified") !=
+          std::string::npos);
+
+    // AND THE STANDALONE SETUP FILE IS STILL EXACTLY ONE DESK, with no layout run and no
+    // association in it (SC-13).
+    const setup_persist::LoadedSetup file = setup_persist::load_file(artifact);
+    REQUIRE(file.outcome.accepted);
+    const std::string bytes = slurp(artifact);
+    CHECK(bytes.find("layouts") == std::string::npos);
+    CHECK(bytes.find("\"link\"") == std::string::npos);
+    CHECK(bytes.find("\"active\"") == std::string::npos);
+    CHECK(bytes.find("\"known\"") == std::string::npos);
+}
+
+TEST_CASE("WUX-11/SC-14: every position and every association combination round-trips") {
+    // SWEPT, because the durable representation has two independent axes now: which
+    // position is live, and which layouts are associated.
+    const std::vector<Setup> desks = three_desks();
+    for (std::size_t active = 0; active < desks.size(); ++active) {
+        for (int mask = 0; mask < 8; ++mask) {
+            CAPTURE(active);
+            CAPTURE(mask);
+            std::vector<Layout> run;
+            for (std::size_t at = 0; at < desks.size(); ++at) {
+                if ((mask & (1 << at)) != 0) {
+                    // Associated, and deliberately DIVERGED for one of them, so the two
+                    // verdicts are both exercised rather than only the equal one.
+                    Setup known = desks[at];
+                    if (at == 1) {
+                        known.name = "Whatever the file held";
+                    }
+                    run.push_back(Layout{desks[at],
+                                         SetupLink{"/w/" + desks[at].name + ".json", known}});
+                } else {
+                    run.push_back(Layout{desks[at], SetupLink{}});
+                }
+            }
+            const std::string text = session_persist::to_text(run, active, 120, 44,
+                                                              session_persist::Placement{});
+            const session_persist::LoadedSession read = session_persist::from_text(text);
+            REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+            CHECK(read.layouts == run);
+            CHECK(read.active == active);
+            // AND THE RUNTIME LIFT IS THE INVERSE, associations included.
+            SetupState state;
+            REQUIRE(install_layout_run(state, read.layouts, read.active));
+            CHECK(layout_run(state) == run);
+            for (std::size_t at = 0; at < run.size(); ++at) {
+                CAPTURE(at);
+                CHECK(link_at(state, at) == run[at].link);
+                CHECK(link_status(layout_at(state, at), link_at(state, at)) ==
+                      (run[at].link.path.empty()
+                           ? setup_link::kNone
+                           : (at == 1 ? setup_link::kModified : setup_link::kCurrent)));
+            }
+        }
+    }
+}
+
+TEST_CASE("WUX-11/SC-15: a current-version session with half an association is refused") {
+    // A LAYOUT THAT NAMES NO FILE AND REMEMBERS A DESK ANYWAY says two contradictory things
+    // about itself, and absence has exactly one spelling here -- WIND-2's law, which
+    // `placement_in` keeps one field over.
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    session_persist::WorkshopSession forged = hand_built(2, 0);
+    forged.layouts[1].link.known = setup_persist::to_setup(arranged_desk("Invented"));
+    const session_persist::LoadedSession refused =
+        session_persist::from_text(as_text(forged), &history.catalog);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal.find("layout at position 1") == 0);
+    CHECK(refused.outcome.refusal.find("remembers nothing") != std::string::npos);
+
+    // ...AND AN ASSOCIATION WHOSE REMEMBERED DESK IS NOT A LEGAL SETUP is refused too, in
+    // the setup owner's own words behind this file's position.
+    session_persist::WorkshopSession illegal = hand_built(2, 0);
+    illegal.layouts[0].link.path = "/w/desk.json";
+    illegal.layouts[0].link.known = setup_persist::to_setup(arranged_desk("Fine"));
+    illegal.layouts[0].link.known.panes[0].pane = "two words";
+    const session_persist::LoadedSession no =
+        session_persist::from_text(as_text(illegal), &history.catalog);
+    CHECK_FALSE(no.outcome.accepted);
+    CHECK(no.outcome.refusal.find("layout at position 0") == 0);
+    CHECK(no.outcome.refusal.find("remembered Setup value") != std::string::npos);
+}
+
+TEST_CASE("WUX-11/SC-15: a version-4 session opens with its run whole and every link none") {
+    // ⭐ FIELD DEFAULTING AND NOT INFERRED INTENT. A version-4 session could not say that a
+    // desk was related to a standalone artifact, so the truthful reading is *these desks,
+    // in this order, standing on that one, and no artifact is known for any of them*.
+    // Inventing an association out of the host's configured `--setup` path would be this
+    // reader deciding something the maker never wrote down.
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+
+    session_history::v4::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = session_history::kV4FormatVersion;
+    old.viewport = session_persist::WorkshopViewport{132, 41};
+    for (const Setup& desk : three_desks()) {
+        old.layouts.push_back(setup_persist::to_setup(desk));
+    }
+    old.active = 2;
+    old.placement.mode = session_persist::kPlacementDesktop;
+    old.placement.x = -640;
+    old.placement.y = 96;
+    old.placement.window = session_persist::kWindowMaximized;
+
+    const session_persist::LoadedSession read = session_persist::from_text(
+        loom::compat::serialize(loom::to_value(old)), &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+
+    // THE RUN IS THE OLD RUN, EXACTLY -- order, names, authored geometry and the position
+    // that was live.
+    REQUIRE(read.layouts.size() == 3);
+    CHECK(read.active == 2);
+    CHECK(desks_of(read.layouts) == three_desks());
+    // ...AND EVERY ASSOCIATION IS `none`.
+    for (const Layout& layout : read.layouts) {
+        CHECK(layout.link.path.empty());
+        CHECK(link_status(layout.desk, layout.link) == setup_link::kNone);
+    }
+    // EVERY NON-LAYOUT FACT CROSSES UNCHANGED, including a REAL placement.
+    CHECK(read.viewport_w == 132);
+    CHECK(read.viewport_h == 41);
+    CHECK(read.honoured);
+    CHECK(read.placement.known);
+    CHECK(read.placement.x == -640);
+    CHECK(read.placement.maximized);
+
+    // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
+    const std::uint64_t before = op::invocations();
+    (void)session_persist::from_text(loom::compat::serialize(loom::to_value(old)),
+                                     &history.catalog);
+    CHECK(op::invocations() == before + 1);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v5") != nullptr);
+    // ...and no intermediate rung was added for the older vintages to be routed through.
+    CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v1-to-v4") == nullptr);
+    CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v3-to-v4") == nullptr);
+}
+
+TEST_CASE("WUX-11/SC-14: a maximal legal session is still one this build can read back") {
+    // ⭐ THE DERIVED CEILING, RE-MEASURED FOR THE SECOND DESK PER LAYOUT. `kMaxLayouts`
+    // layouts of a maximal desk AND a maximal remembered value is the largest legal file
+    // this build writes; a ceiling left at one desk per layout would let `q` write a file
+    // the next launch refuses, which is the worst thing a durable owner can do.
+    const std::string long_key(kMaxPaneKeyLen, 'k');
+    std::vector<Layout> run;
+    for (std::size_t i = 0; i < kMaxLayouts; ++i) {
+        Setup s = setup_of(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)), {});
+        while (s.panes.size() < kMaxSetupPanes) {
+            const std::string tail = std::to_string(s.panes.size());
+            REQUIRE(add_pane(s, PaneRef{long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail,
+                                        long_key.substr(0, kMaxPaneKeyLen - tail.size()) + tail}));
+        }
+        // ...AND ITS ASSOCIATION REMEMBERS A MAXIMAL DESK TOO, which is the whole point.
+        run.push_back(Layout{s, SetupLink{std::string(256, 'p') + ".json", s}});
+    }
+    const std::string text =
+        session_persist::to_text(run, kMaxLayouts - 1, 120, 44, session_persist::Placement{});
+    CHECK(text.size() <= session_persist::kMaxSessionBytes);
+    // ...AND IT IS BIGGER THAN A SINGLE DESK MAY BE, which is WUX-10's half of the same
+    // argument and is why the ceiling stopped being the desk's.
+    CHECK(text.size() > setup_persist::kMaxSetupBytes);
+    // ⭐ AND THE ASSOCIATIONS ARE WHAT MADE IT GROW AGAIN, measured rather than reasoned
+    // about: the same run with every link cleared is barely half the size, so a ceiling
+    // derived from one desk per layout would be a bound this build can write past.
+    std::vector<Layout> bare = run;
+    for (Layout& layout : bare) {
+        layout.link = SetupLink{};
+    }
+    const std::string without =
+        session_persist::to_text(bare, kMaxLayouts - 1, 120, 44, session_persist::Placement{});
+    CHECK(text.size() > without.size() * 3 / 2);
+
+    TempDir dir("wux11-full");
+    const std::string path = dir.file("session.json");
+    REQUIRE(session_persist::save_file(path, run, kMaxLayouts - 1, 120, 44,
+                                       session_persist::Placement{})
+                .accepted);
+    const session_persist::LoadedSession read = session_persist::load_file(path);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.layouts == run);
 }

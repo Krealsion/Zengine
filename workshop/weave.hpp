@@ -1066,6 +1066,29 @@ public:
         session_.context = next;
     }
 
+    /// OPEN ON A PAINTED LAYOUT TAB (WUX-11) -- the same surface, on the one subject the
+    /// band owns.
+    ///
+    /// THE POSITION IS CAPTURED, NOT THE LAYOUT. `ContextMenu`'s whole rule: what is kept
+    /// is only what a file could hold, and a layout's identity in this program is its
+    /// position -- never a resolved desk, a name or a shelf pointer. Every spend arm
+    /// re-asks the run about it, so a menu left open across a removal refuses rather than
+    /// acting on whoever moved into that slot.
+    ///
+    /// IT DOES NOT SWITCH. Asking what can be done with a tab is not standing on it, so
+    /// the live layout is exactly where the maker left it -- which is what lets Close and
+    /// the two reorder steps mean the tab that was pointed at.
+    void open_context_on_layout(const PointedAt& at, std::size_t layout) {
+        ContextMenu next;
+        next.open = true;
+        next.anchored = true;
+        next.anchor_x = at.cell.x;
+        next.anchor_y = at.cell.y;
+        next.subject = context_subject::kLayout;
+        next.layout = layout;
+        session_.context = next;
+    }
+
     /// OPEN BY KEY, on the subject command mode can truthfully name: the selected object
     /// while one resolves, else the room. This is the route that keeps the capability
     /// honest on a medium whose environment never delivers the second button -- and it
@@ -1183,6 +1206,18 @@ public:
         case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
         // -- the pointed object -------------------------------------------------------
         case Act::kObjectDelete: context_delete_object(spent.object); break;
+        // -- the pointed LAYOUT TAB (WUX-11) ------------------------------------------
+        //
+        // EVERY ONE OF THESE TAKES THE CAPTURED POSITION and none of them switches first.
+        // The subject is the tab the press named; the owner re-asks the run about it at
+        // spend, exactly as the pane rows re-ask about a `PaneRef`, so a run that changed
+        // while the menu was open refuses rather than acting on whoever moved into that
+        // slot.
+        case Act::kLayoutRename: open_layout_rename(spent.layout); break;
+        case Act::kLayoutDuplicate: duplicate_layout(spent.layout, mail); break;
+        case Act::kLayoutMoveLeft: shift_layout(spent.layout, -1); break;
+        case Act::kLayoutMoveRight: shift_layout(spent.layout, +1); break;
+        case Act::kLayoutRemove: drop_layout(spent.layout, mail); break;
         // -- the room -----------------------------------------------------------------
         case Act::kObjectNew: create_object(); break;
         case Act::kPicker: open_picker(); break;
@@ -1192,7 +1227,7 @@ public:
         case Act::kHotkeys: toggle_hotkeys(); break;
         case Act::kSaveDocument: save_document(); break;
         case Act::kOpenDocument: load_document(); break;
-        case Act::kSetupName: open_setup_name(); break;
+        case Act::kSetupSave: save_setup(); break;
         case Act::kSetupRestore: restore_setup(mail); break;
         case Act::kManageResetOrder: reset_front_order(); break;
         default: break;
@@ -1465,6 +1500,11 @@ public:
         // the release — ending the sweep is not unselecting — so only the gesture record is
         // cleared here.
         session_.text_drag = TextDrag{};
+        // ...and so does the tab drag (WUX-11). The run's new order is on screen and the
+        // moves were already narrated one step at a time, so a release has nothing to add;
+        // what it must do is end the gesture, wherever the hand happens to be, for this
+        // function's whole stated reason.
+        session_.tab_drag = LayoutTabDrag{};
         return out;
     }
 
@@ -1646,7 +1686,18 @@ public:
         // opens; a release of button 3 falls through to the gate below and is dropped, as
         // every non-primary transition always was.
         if (b.pressed && b.button == 3 && at.understood) {
-            open_context_at(at);
+            // ...AND A TAB IS A SUBJECT IT CAN NAME (WUX-11). Asked first, out of the same
+            // composition the paint and the left press spend, so the menu's subject is the
+            // tab under the hand and not whatever pane happens to sit behind the band. A
+            // right press on the create affordance names the room, not a layout: `+` is an
+            // action rather than a thing, so there is nothing to ask about it.
+            const LayoutTabPress tab =
+                band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
+            if (tab.hit && !tab.create) {
+                open_context_on_layout(at, tab.at);
+            } else {
+                open_context_at(at);
+            }
             repaint(mail);
             return;
         }
@@ -1669,9 +1720,37 @@ public:
             // it lifts nothing while its pane is absent, and it means something again when
             // the pane participates again.
             const LayoutTabPress tab =
-                band_tab_at(session_, host_->setup_path, screen_of(session_), b.space, b.x,
-                            b.y);
+                band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
+            if (tab.hit && tab.create) {
+                // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE
+                // (WUX-11): the same door, the same ceiling, the same refusal in the same
+                // words. It arms no double-click and begins no drag -- it is not a tab.
+                session_.tab_click = TabClickMemory{};
+                new_layout(mail);
+                repaint(mail);
+                return;
+            }
             if (tab.hit) {
+                // A SECOND PRESS ON THE SAME TAB RENAMES IT (WUX-11), and the first one
+                // has already made that tab live -- which is why the editor's subject and
+                // the switch cannot disagree. `press_selects_word`'s discipline exactly:
+                // the completing press SPENDS the arming, so there is no triple-click, and
+                // a first press is an ordinary switch with an arming left beside it.
+                const std::int64_t now = interaction_now();
+                if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
+                    session_.tab_click = TabClickMemory{};
+                    open_layout_rename(tab.at);
+                    repaint(mail);
+                    return;
+                }
+                session_.tab_click = TabClickMemory{true, tab.at, now};
+                // AND THE PRESS TAKES HOLD OF THE TAB (WUX-11). A press that becomes a
+                // drag reorders; a press that does not is exactly the switch it always
+                // was, because a drag that never moved lands the layout back where it
+                // started. The record holds no position: the switch below has just made
+                // this tab the live one, so what is being carried is always
+                // `setup.active_at`.
+                session_.tab_drag.active = true;
                 switch_layout(tab.at, mail);
                 repaint(mail);
                 return;
@@ -1920,13 +1999,35 @@ public:
         const bool pointer_is_spent = session_.terminal.open || session_.arrange.open ||
                                       session_.context.open || session_.hotkeys.open ||
                                       session_.attention.open || session_.text_drag.active ||
-                                      session_.drag.active || session_.pane_drag.active;
+                                      session_.drag.active || session_.pane_drag.active ||
+                                      session_.tab_drag.active;
         const Revealed want =
             pointer_is_spent ? Revealed{}
                              : reveal_for(state_, session_, m.space, m.x, m.y);
         if (!want.same_as(session_.reveal)) {
             session_.reveal = want;
             repaint(mail);
+        }
+        // ---- CARRYING A LAYOUT TAB ALONG THE RUN (WUX-11) --------------------------------
+        //
+        // THE HAND IS HOLDING THE LIVE LAYOUT, because the press that began this made that
+        // tab live. So a motion asks the same inverse the press asked -- against the run as
+        // it is painted RIGHT NOW, which has already reordered under any earlier step of
+        // this same drag -- and moves the live layout to whatever tab it is over.
+        //
+        // NOTHING IS CACHED AND NOTHING IS RECONCILED. `move_layout` changes order and only
+        // order; no desk is replaced, so there is no `apply_setup` and no provider hears a
+        // thing. A motion that is over no tab, over the create affordance or over the live
+        // tab's own span moves nothing -- which is what makes dragging past the end of the
+        // run rest rather than wrap.
+        if (session_.tab_drag.active) {
+            const LayoutTabPress over =
+                band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
+            if (over.hit && !over.create &&
+                move_layout(session_.setup, session_.setup.active_at, over.at)) {
+                repaint(mail);
+            }
+            return;
         }
         if (session_.terminal.open) {
             // THE OVERLAY HAS THE INPUT, and since TEXT-0 one motion matters inside it: a
@@ -3565,17 +3666,31 @@ private:
         // refusal names a gesture that works where the maker is standing.
         case Act::kEditorDiscard: discard_source_edits(); break;
         // THE TWO SETUP GESTURES (WS-0): ordinary maker commands beside `+ panel`,
-        // deliberately not another `^`-pair beside the document's.
-        case Act::kSetupName: open_setup_name(); break;
+        // deliberately not another `^`-pair beside the document's. Since WUX-11 they are
+        // both FILE operations and nothing else -- `s` writes, `r` reads, and naming a
+        // layout is `layout.rename`'s.
+        case Act::kSetupSave: save_setup(); break;
         case Act::kSetupRestore: restore_setup(mail); break;
         // THE LAYOUT SHELF (WUX-9): four ordinary command-mode gestures over the run of
         // desk arrangements this Workshop is holding. Stepping is over the WHOLE
         // population, painted or not, which is what keeps the band's derived tab window a
         // presentation rather than a bound on what a maker can reach.
+        //
+        // THE FOUR THAT TAKE A POSITION REACH THE KEYBOARD ONLY THROUGH THE LIVE LAYOUT,
+        // and that is deliberate: `^w` closes the layout a maker is standing on, and the
+        // rest are the contextual menu's, on the tab a maker pointed at. A keyboard with
+        // no captured subject can truthfully name one layout, which is the live one --
+        // `open_context_ambient`'s own rule about panes, one surface over.
         case Act::kLayoutNext: step_layout(+1, mail); break;
         case Act::kLayoutPrevious: step_layout(-1, mail); break;
         case Act::kLayoutNew: new_layout(mail); break;
-        case Act::kLayoutRemove: drop_layout(mail); break;
+        case Act::kLayoutRemove: drop_layout(session_.setup.active_at, mail); break;
+        case Act::kLayoutRename: open_layout_rename(session_.setup.active_at); break;
+        case Act::kLayoutDuplicate:
+            duplicate_layout(session_.setup.active_at, mail);
+            break;
+        case Act::kLayoutMoveLeft: shift_layout(session_.setup.active_at, -1); break;
+        case Act::kLayoutMoveRight: shift_layout(session_.setup.active_at, +1); break;
         // ARRANGE THE DESK (WIND-2's mode, rescoped by ARR-0): a printable trigger pays
         // the swallow rule -- armed centrally from the binding since KEY-0 -- and buys a
         // mode whose own keys need no modifier at all (P48).
@@ -3871,38 +3986,45 @@ private:
         }
     }
 
-    /// OPEN THE ONE-LINE SETUP-NAME EDITOR, on the name the setup already has.
+    /// OPEN THE ONE-LINE NAME EDITOR ON THE LAYOUT AT `at` (WUX-11).
     ///
-    /// IT OPENS ON THE CURRENT NAME RATHER THAN ON NOTHING, because the common
-    /// gesture is "save this again" and retyping `Morning build` to do it would
-    /// make the shortest path the least likely one. Enter commits and saves;
-    /// Escape leaves the name exactly as it was.
+    /// IT OPENS ON THAT LAYOUT'S CURRENT NAME RATHER THAN ON NOTHING, because the
+    /// common gesture is adjusting a word rather than replacing a sentence, and
+    /// retyping `Morning build` to fix one letter would make the shortest path the
+    /// least likely one. Enter commits the rename; Escape leaves the name exactly
+    /// as it was. NOTHING IS WRITTEN TO ANY FILE by either.
     ///
-    /// AND IT SWALLOWS ITS OWN `s`. The key transition and the character it
+    /// ⚠ AND IT NO LONGER NEEDS A SETUP FILE TO EXIST. Until this phase this door
+    /// refused when the host had chosen no setup path, because committing it wrote
+    /// that file; a rename touches no artifact, so a Workshop launched without one
+    /// can still name its desks. That refusal moved to `save_setup`, which is the
+    /// operation it was always about.
+    ///
+    /// AND IT SWALLOWS ITS OWN TRIGGER. The key transition and the character it
     /// produced are two facts that were simultaneously true and both arrive --
     /// the trap WG-0 measured and named -- so without this the gesture that
-    /// opened the editor would also type an `s` into the name it opened.
-    void open_setup_name() {
-        if (host_->setup_path.empty()) {
-            say(kNoSetupFile, true);
-            return;
+    /// opened the editor would also type its own letter into the name it opened.
+    /// The swallow is central since KEY-0: `on(KeyPressed)` arms the expectation
+    /// from the consumed binding, whatever gesture a maker authored.
+    void open_layout_rename(std::size_t at) {
+        if (at >= layout_count(session_.setup)) {
+            return; // the belt: a captured position the run no longer holds
         }
-        SetupNaming& naming = session_.setup.naming;
+        LayoutNaming& naming = session_.setup.naming;
         naming.open = true;
-        naming.line.set(session_.setup.active.name, session_.setup.active.name.size());
-        // The trigger's own character is swallowed centrally since KEY-0: `on(KeyPressed)`
-        // arms the expectation from the consumed binding, whatever gesture the maker
-        // authored for `setup.name`, so this door no longer hard-codes an `s`.
-        say("name this setup -- " + hotkey(Act::kNamingCommit) + " saves it, " +
+        naming.at = at;
+        const std::string& name = layout_at(session_.setup, at).name;
+        naming.line.set(name, name.size());
+        say("rename this layout -- " + hotkey(Act::kNamingCommit) + " renames it, " +
                 hotkey(Act::kNamingCancel) + " cancels",
             false);
     }
 
-    /// The name editor's keys. Return commits and saves; Escape cancels and
+    /// The name editor's keys. Return commits the rename; Escape cancels and
     /// changes nothing; the rest is the ordinary editing of one line, through
     /// the component that owns the text, the caret and the window together.
     void naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
-        SetupNaming& naming = session_.setup.naming;
+        LayoutNaming& naming = session_.setup.naming;
         // The line's own vocabulary first (TEXT-0) — the third of the four switches the
         // component call collapsed. What stays is the policy pair every consumer keeps to
         // itself: what a committed name MEANS and what abandoning one leaves standing.
@@ -3910,68 +4032,168 @@ private:
             return;
         }
         switch (session_.keymap.action_for(KeyContext::kNaming, k.scancode, k.modifiers)) {
-        case Act::kNamingCommit: commit_setup_name(); break;
+        case Act::kNamingCommit: commit_layout_rename(); break;
         case Act::kNamingCancel:
-            naming.open = false;
-            naming.line.clear();
-            say("the setup name is unchanged", false);
+            close_naming();
+            say("the layout name is unchanged", false);
             break;
         default: break;
         }
     }
 
-    /// TAKE THE TYPED NAME AND WRITE THE SETUP.
+    /// Close the editor whole: open, subject and line together, so a later open
+    /// cannot inherit a stale position or a stale draft (`close_context`'s rule).
+    void close_naming() {
+        session_.setup.naming = LayoutNaming{};
+    }
+
+    /// TAKE THE TYPED NAME AND RENAME THE LAYOUT (WUX-11).
     ///
-    /// The name meets `check_setup_name` -- the SAME function a file's name
-    /// meets -- and a refusal leaves the editor open with the text still in it,
-    /// so a maker fixes what they typed rather than retyping it. Nothing is
-    /// written and the active setup's name does not move until the whole thing
-    /// is legal AND the file has been replaced.
-    void commit_setup_name() {
-        SetupNaming& naming = session_.setup.naming;
+    /// ⭐ IT WRITES NO FILE, AND THAT IS THE WHOLE OF WHAT THIS PHASE CHANGED HERE.
+    /// This function used to validate a name, write the setup artifact, and only
+    /// then move the live setup's name -- one gesture doing two things, which is
+    /// the coupling P-WORK-12 recorded: a maker who wanted to fix a typo in a tab
+    /// had to accept a write to a named artifact they may not have meant to touch.
+    /// Renaming is a layout operation; saving is a file operation; `s` is the
+    /// other one.
+    ///
+    /// THE NAME MEETS `check_setup_name` -- the SAME function a file's name meets
+    /// -- and a refusal leaves the editor open with the text still in it, so a
+    /// maker fixes what they typed rather than retyping it. The whole desk then
+    /// meets `check_setup`, because a name is a field of a value that has its own
+    /// law, and nothing moves until every layer has passed.
+    ///
+    /// AND THE POSITION IS RE-JUDGED. The editor captured a position, and a
+    /// position is only a layout for as long as the run says so; `rename_layout`
+    /// answers false when it is not one, and the editor closes saying so rather
+    /// than renaming whatever moved into that slot.
+    void commit_layout_rename() {
+        LayoutNaming& naming = session_.setup.naming;
+        const std::size_t at = naming.at;
         const std::string wanted = naming.line.text();
         const Written legal = check_setup_name(wanted);
         if (!legal.accepted) {
             say(legal.refusal + " -- " + hotkey(Act::kNamingCommit) + " tries again, " +
-                hotkey(Act::kNamingCancel) + " cancels",
-            true);
+                    hotkey(Act::kNamingCancel) + " cancels",
+                true);
             return;
         }
-        Setup candidate = session_.setup.active;
+        if (at >= layout_count(session_.setup)) {
+            close_naming();
+            say("that layout is no longer here -- nothing was renamed", true);
+            return;
+        }
+        Setup candidate = layout_at(session_.setup, at);
         candidate.name = wanted;
         const Written whole = check_setup(candidate);
         if (!whole.accepted) {
             say(whole.refusal, true);
             return;
         }
-        const Written written = setup_persist::save_file(host_->setup_path, candidate);
+        rename_layout(session_.setup, at, wanted);
+        close_naming();
+        // NO `apply_setup`. A name is the one authored field of a desk that no
+        // presentation reads: which panes participate, where they are and how big
+        // they are have not moved, so there is nothing to reconcile. What DOES
+        // change is the row this layout is painted on and, where the layout is
+        // associated, whether it still matches its artifact -- both derived at the
+        // next composition, from the value that just moved.
+        say("renamed layout " + quoted_setup_name(wanted) + link_note(at), false);
+    }
+
+    /// WHAT TO SAY ABOUT A LAYOUT'S SETUP ASSOCIATION AFTER AN OPERATION (WUX-11)
+    /// -- nothing when there is none, and the artifact plus the verdict when there
+    /// is.
+    ///
+    /// IT IS THE NOTICE'S SPELLING OF THE STANDING ROW, and it is derived from the
+    /// same `link_status` the row derives from, so the sentence a maker reads once
+    /// and the sentence they can keep reading cannot disagree. The path is spelled
+    /// WHOLE here: a notice is a line of its own with the bottom band's width, and
+    /// it is the surface where knowing exactly which file was meant is worth its
+    /// columns.
+    std::string link_note(std::size_t at) const {
+        const SetupLink& link = link_at(session_.setup, at);
+        const std::int64_t status = link_status(layout_at(session_.setup, at), link);
+        if (status == setup_link::kNone) {
+            return {};
+        }
+        return std::string(" -- ") + link.path + " is " +
+               (status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified);
+    }
+
+    /// WHICH ARTIFACT `s` AND `r` ACT ON FOR THE LIVE LAYOUT (WUX-11): its own
+    /// association where it has one, and the host's configured setup path where it
+    /// does not.
+    ///
+    /// THE CONFIGURED PATH IS THE ACQUISITION DOOR AND NOT A DEFAULT ASSOCIATION.
+    /// A layout with no association is not silently related to `--setup`; it is
+    /// related to nothing, and says so. What the configured path buys is a way to
+    /// establish a first association without a file chooser -- so `s` on an
+    /// unassociated layout writes there and the association follows the successful
+    /// write, never the intention to make one.
+    ///
+    /// EMPTY MEANS THERE IS NOWHERE TO ACT, which is the host having chosen no
+    /// setup file at all, and the two callers say so in the sentence that already
+    /// existed for it.
+    const std::string& setup_artifact() const {
+        return session_.setup.active_link.path.empty() ? host_->setup_path
+                                                       : session_.setup.active_link.path;
+    }
+
+    /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (WUX-11's `s`).
+    ///
+    /// IT NO LONGER NAMES ANYTHING. `s` used to open the name editor and write the
+    /// file when that editor committed; it writes, now, and the editor is
+    /// `layout.rename`'s. A maker who presses save gets a save.
+    ///
+    /// THE ASSOCIATION FOLLOWS THE WRITE AND NEVER PRECEDES IT. Nothing about
+    /// association truth moves until `setup_persist::save_file` has accepted: a
+    /// failed write leaves the last good file intact, the live desk untouched, and
+    /// a `none` layout still `none`. On success the artifact becomes this layout's
+    /// association if it did not have one, and EVERY layout associated with that
+    /// same artifact learns the value it now holds (`adopt_known_setup`) -- which
+    /// is what stops a second layout claiming `current` against bytes this write
+    /// just replaced.
+    void save_setup() {
+        const std::string path = setup_artifact();
+        if (path.empty()) {
+            say(kNoSetupFile, true);
+            return;
+        }
+        const Setup& desk = session_.setup.active;
+        const Written whole = check_setup(desk);
+        if (!whole.accepted) {
+            say(whole.refusal, true);
+            return;
+        }
+        const Written written = setup_persist::save_file(path, desk);
         if (!written.accepted) {
-            // THE LAST GOOD SETUP FILE IS INTACT and so is the live one: the
-            // writer never opened the destination, and this function has not
-            // assigned anything yet. The editor stays open over the name the
-            // maker was trying to save.
+            // THE LAST GOOD SETUP FILE IS INTACT and so is every association: the
+            // writer never opened the destination, and nothing below this line has
+            // run.
             say(written.refusal, true);
             return;
         }
-        session_.setup.active = candidate;
-        // What is on disk is now what is in memory. A COPY, never a flag --
-        // `SetupState::saved()` compares, so it cannot drift.
-        session_.setup.on_file = candidate;
-        naming.open = false;
-        naming.line.clear();
-        say("saved setup " + quoted_setup_name(candidate.name) + " to " + host_->setup_path +
-                unresolved_note(candidate),
+        session_.setup.active_link.path = path;
+        adopt_known_setup(session_.setup, path, desk);
+        say("saved setup " + quoted_setup_name(desk.name) + " to " + path +
+                unresolved_note(desk),
             false);
     }
 
-    /// RESTORE THE SETUP IN THE SELECTED FILE.
+    /// RESTORE THE LIVE LAYOUT FROM ITS SETUP ARTIFACT (WUX-11's `r`).
     ///
     /// A TRANSACTION, and structurally so: `setup_persist::load_file` RETURNS a
     /// candidate rather than writing into anything, so there is no path here by
     /// which a panel closes before a bad field near the end of the file has been
     /// met. A refusal costs a maker the notice and nothing else -- the active
-    /// setup, the open panels, the Builder panel's copied status and the document
-    /// are all exactly as they were.
+    /// setup, the open panels, the Builder panel's copied status, the document and
+    /// every association are all exactly as they were.
+    ///
+    /// IT CHANGES THE LIVE LAYOUT AND NOTHING ELSE IN THE RUN. No other layout's
+    /// desk is replaced, reordered, duplicated or removed; what other layouts may
+    /// gain is a corrected BASELINE, and only those already associated with this
+    /// same artifact, because Workshop has just learned what that artifact holds.
     ///
     /// AN UNRESOLVED REFERENCE IS NOT A FAILURE. It loads, it stays in the setup,
     /// it is counted, it is named, and it is saved again unchanged. A malformed
@@ -3984,27 +4206,29 @@ private:
     /// and the key routing puts the name editor and the picker ahead of it. So a
     /// maker cannot be part-way through typing anything when this runs.
     void restore_setup(loom::Mail& mail) {
-        if (host_->setup_path.empty()) {
+        const std::string path = setup_artifact();
+        if (path.empty()) {
             say(kNoSetupFile, true);
             return;
         }
-        const setup_persist::LoadedSetup loaded = setup_persist::load_file(host_->setup_path);
+        const setup_persist::LoadedSetup loaded = setup_persist::load_file(path);
         if (!loaded.outcome.accepted) {
             say(loaded.outcome.refusal, true);
             return;
         }
         session_.setup.active = loaded.setup;
-        session_.setup.on_file = loaded.setup;
+        session_.setup.active_link.path = path;
+        adopt_known_setup(session_.setup, path, loaded.setup);
         apply_setup(mail);
-        say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " +
-                host_->setup_path + unresolved_note(loaded.setup),
+        say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
+                unresolved_note(loaded.setup),
             false);
     }
 
     // ---- THE LAYOUT SHELF: several desks, one of them live (WUX-9) ------------
     //
-    // A LAYOUT IS A SETUP AND A SWITCH IS `restore_setup` MINUS THE FILE READ. The four
-    // doors below all end the same way -- the active `Setup` value is exchanged, and
+    // A LAYOUT IS A DESK AND A SWITCH IS `restore_setup` MINUS THE FILE READ. The doors
+    // below all end the same way -- the active `Setup` value is exchanged, and
     // `apply_setup` reconciles the presentations through the one membership path every
     // other whole-desk replacement in this file already goes through. There is no
     // tab-switch reconcile, no teardown path for a removal, and nothing here knows what a
@@ -4019,6 +4243,12 @@ private:
     // selection whose pane is absent lifts nothing and anchors nothing by
     // `selected_pane`'s own resolution, and it means something again when its pane
     // participates again (WUX-5's discipline, spent one lattice out).
+    //
+    // AND THE THREE THAT TAKE A POSITION DO NOT SWITCH (WUX-11). Duplicating, closing or
+    // moving a tab a maker pointed at acts on THAT tab; only duplication makes something
+    // live, and it makes the copy live because the copy is what the maker just asked for.
+    // Closing an inactive tab leaves the live desk exactly where it was, which is why
+    // those doors go through the value operations rather than through a switch.
 
     /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
     std::string layout_note() const {
@@ -4035,11 +4265,13 @@ private:
             // NOTHING MOVED: the position is the live layout's own, or is not a layout.
             // Said rather than silent, because a maker who pressed the tab they are
             // already on has aimed at something and is owed the row's own answer.
-            say(layout_note(), false);
+            say(layout_note() + link_note(session_.setup.active_at), false);
             return;
         }
         apply_setup(mail);
-        say(layout_note() + unresolved_note(session_.setup.active), false);
+        say(layout_note() + link_note(session_.setup.active_at) +
+                unresolved_note(session_.setup.active),
+            false);
     }
 
     /// STEP ONE ALONG THE RUN, wrapping -- over the WHOLE population, including the
@@ -4053,40 +4285,104 @@ private:
         switch_layout(layout_step(session_.setup, by), mail);
     }
 
-    /// ONE MORE LAYOUT: A COPY OF THIS ONE, APPENDED, AND LIVE.
+    /// What to say when the run is already as long as one Workshop keeps. One sentence,
+    /// because both doors that can hit the ceiling deserve the same words.
+    std::string layout_ceiling_note() const {
+        return "that is the most layouts one Workshop keeps (" +
+               std::to_string(kMaxLayouts) + ") -- " + hotkey(Act::kLayoutRemove) +
+               " drops this one";
+    }
+
+    /// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE (WUX-11).
     ///
-    /// IT CHANGES NO WORKSHOP-GLOBAL STATE, and the reason is that there is nothing for it
-    /// to change: the copy names exactly the panes the original named, so `apply_setup`
-    /// reconciles to the identical membership and opens, closes and asks nothing. It is
-    /// called anyway, because "the setup moved" and "the presentations were reconciled"
-    /// are one transaction here and the day a copy stops being identical is the day a
-    /// second door would be wrong.
+    /// NEW MEANS NEW. WUX-9's `=` copied the live desk; a copy is what Duplicate is for,
+    /// and this is the empty desk a maker asking for a new one means. `apply_setup` does
+    /// the real work here now: the blank names no panes, so entering it withdraws the
+    /// presentations the previous layout had, through the one membership path.
     void new_layout(loom::Mail& mail) {
         if (!add_layout(session_.setup)) {
-            say("that is the most layouts one Workshop keeps (" +
-                    std::to_string(kMaxLayouts) + ") -- " + hotkey(Act::kLayoutRemove) +
-                    " drops this one",
-                true);
+            say(layout_ceiling_note(), true);
             return;
         }
         apply_setup(mail);
-        say("new " + layout_note() + " -- a copy of the one you were on", false);
+        say("new " + layout_note() + " -- an empty desk", false);
     }
 
-    /// DROP THE LIVE LAYOUT AND STAND ON A NEIGHBOUR.
+    /// COPY THE LAYOUT AT `at`, INSERT THE COPY AFTER IT, AND STAND ON THE COPY (WUX-11).
+    ///
+    /// ⭐ THE COPY IS `setup: none` AND THAT IS THE LAW, not a convenience: an inherited
+    /// association would have the duplicate claim an artifact it has never been written
+    /// to, and the first `s` would overwrite the file the maker was duplicating in order
+    /// not to touch. `duplicate_layout` clears it; this door only reports it.
+    void duplicate_layout(std::size_t at, loom::Mail& mail) {
+        if (at >= layout_count(session_.setup)) {
+            return; // the belt: a captured position the run no longer holds
+        }
+        if (!::zengine::workshop::duplicate_layout(session_.setup, at)) {
+            say(layout_ceiling_note(), true);
+            return;
+        }
+        apply_setup(mail);
+        say("duplicated " + layout_note() + " -- the desk was copied, its setup file was not",
+            false);
+    }
+
+    /// DROP THE LAYOUT AT `at` AND, WHERE IT WAS THE LIVE ONE, STAND ON A NEIGHBOUR.
     ///
     /// THE FLOOR IS SAID PLAINLY: Workshop always has a desk, so the last layout cannot be
-    /// removed and the refusal names the fact rather than the mechanism. Where there are
-    /// others the neighbour becomes live through the ordinary switch -- the same value
-    /// exchange and the same `apply_setup` -- so a removal has no teardown of its own.
-    void drop_layout(loom::Mail& mail) {
-        const std::string gone = quoted_setup_name(session_.setup.active.name);
-        if (!remove_layout(session_.setup)) {
+    /// removed and the refusal names the fact rather than the mechanism. Where the removed
+    /// layout WAS live, the neighbour becomes live through the ordinary value exchange and
+    /// the ordinary `apply_setup`, so a removal has no teardown of its own; where it was
+    /// not, the live desk is untouched and there is nothing to reconcile.
+    ///
+    /// AND NOTHING RUNTIME OWNS IS DESTROYED EITHER WAY. A layout is an arrangement; the
+    /// providers, their instances and their state are Workshop-global and outlive every
+    /// presentation that named them (WUX-9).
+    void drop_layout(std::size_t at, loom::Mail& mail) {
+        if (at >= layout_count(session_.setup)) {
+            return; // the belt: a captured position the run no longer holds
+        }
+        const bool was_live = at == session_.setup.active_at;
+        const std::string gone = quoted_setup_name(layout_at(session_.setup, at).name);
+        if (!remove_layout(session_.setup, at)) {
             say("this is the only layout -- Workshop always has one desk", true);
             return;
         }
-        apply_setup(mail);
+        if (was_live) {
+            apply_setup(mail);
+        }
         say("removed layout " + gone + " -- now on " + layout_note(), false);
+    }
+
+    /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE MAKER'S ORDER (WUX-11).
+    ///
+    /// ORDER IS THE ONLY THING THAT CHANGES. The same desk stays live, every association
+    /// travels with its own desk, no value is copied and no provider hears anything -- so
+    /// there is no `apply_setup` here, only the repaint the caller already owes. What the
+    /// repaint re-derives is the tab run and its spans, which is exactly why a press
+    /// immediately afterwards lands on the newly painted order.
+    ///
+    /// THE END OF THE RUN IS SAID RATHER THAN SILENTLY IGNORED, because a maker who asked
+    /// twice is owed the reason the second one did nothing.
+    void shift_layout(std::size_t at, std::int64_t by) {
+        const std::size_t n = layout_count(session_.setup);
+        if (at >= n) {
+            return; // the belt: a captured position the run no longer holds
+        }
+        if ((by < 0 && at == 0) || (by > 0 && at + 1 == n)) {
+            say("layout " + quoted_setup_name(layout_at(session_.setup, at).name) +
+                    " is already at the " + (by < 0 ? "start" : "end") + " of the run",
+                false);
+            return;
+        }
+        const std::size_t to = by < 0 ? at - 1 : at + 1;
+        const std::string moved = quoted_setup_name(layout_at(session_.setup, at).name);
+        if (!move_layout(session_.setup, at, to)) {
+            return;
+        }
+        say("moved layout " + moved + " to " + std::to_string(to + 1) + " of " +
+                std::to_string(n),
+            false);
     }
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
@@ -4118,13 +4414,18 @@ private:
     // ASKED -- `s` names a desk and writes it, `r` reads one back. These two happen because
     // Workshop started and because Workshop is leaving, and there is no key for either.
     //
-    // NEITHER TOUCHES `setup_path`, IN EITHER DIRECTION, which is the property that keeps an
-    // automatic save from eating an explicit one. A restored session becomes the ACTIVE
-    // setup and nothing else: `on_file` is deliberately left alone, because it is this run's
-    // copy of what is in the SETUP file and this run has not read that file. So a restored
-    // session still says UNSAVED, meaning exactly what it has always meant here -- "this
-    // arrangement has not been written to the setup file" -- and `s` still writes that file,
-    // `r` still reads it, and neither has learnt anything about the other.
+    // NEITHER OPENS A SETUP FILE, IN EITHER DIRECTION, which is the property that keeps an
+    // automatic save from eating an explicit one. Closing writes a session and leaves the
+    // standalone artifact byte-identical; restoring reads no setup file at all.
+    //
+    // ⚠ AND SINCE WUX-11 THE SESSION CARRIES THE ASSOCIATIONS WITHOUT READING WHAT THEY
+    // REFER TO. A restored layout comes back saying `current` or `modified` against the
+    // value this Workshop last successfully knew that artifact to hold -- which is a fact
+    // about Workshop's own knowledge, and is therefore a fact a session may legitimately
+    // remember. What it must NOT become is a read: a restore that opened every associated
+    // artifact to re-check it would be exactly the automatic file access the standing status
+    // is defined not to perform, and would turn a launch into N opens of files a maker did
+    // not ask about.
 
     /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
     ///
@@ -6841,7 +7142,7 @@ private:
         // empty, which is why the disappearance needs no path of its own.
         mail.publish(zengine::surface::SurfaceText{
             zengine::surface::kSlotScore, attention_compact(attention_shown(session_, frontier))});
-        mail.publish(paint(state_, session_, host_->setup_path, frontier));
+        mail.publish(paint(state_, session_, frontier));
     }
 
     /// LEAVE -- and write down what was on the desk on the way out (WUX-0).

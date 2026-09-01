@@ -465,17 +465,68 @@ inline Setup setup_for(const Panels& panels) {
 /// about a session and nothing about the plural. The session format carries the maker's run
 /// and the position that was live, so a case that means "one desk" says so once, here,
 /// rather than writing `{desk}, 0` at sixty call sites.
-inline std::vector<Setup> one_layout(Setup desk) {
-    std::vector<Setup> run;
-    run.push_back(std::move(desk));
+///
+/// ITS ASSOCIATION IS `none` (WUX-11), which is what a case that says nothing about Setup
+/// artifacts means: the layout is durable and is related to no standalone file.
+inline std::vector<Layout> one_layout(Setup desk) {
+    std::vector<Layout> run;
+    run.push_back(Layout{std::move(desk), SetupLink{}});
     return run;
+}
+
+/// A RUN OF PLAIN DESKS, EACH WITH NO ASSOCIATION -- the same convenience for the cases
+/// that mean several layouts and nothing about their Setup relationships.
+inline std::vector<Layout> plain_run(std::vector<Setup> desks) {
+    std::vector<Layout> run;
+    run.reserve(desks.size());
+    for (Setup& desk : desks) {
+        run.push_back(Layout{std::move(desk), SetupLink{}});
+    }
+    return run;
+}
+
+/// ONE LAYOUT ASSOCIATED WITH AN ARTIFACT WHOSE KNOWN VALUE IS `known` (WUX-11).
+inline Layout linked_layout(Setup desk, std::string path, Setup known) {
+    return Layout{std::move(desk), SetupLink{std::move(path), std::move(known)}};
+}
+
+/// THE DESKS OF A RUN, in order -- for the cases that compare arrangements and mean nothing
+/// about associations.
+inline std::vector<Setup> desks_of(const std::vector<Layout>& run) {
+    std::vector<Setup> out;
+    out.reserve(run.size());
+    for (const Layout& layout : run) {
+        out.push_back(layout.desk);
+    }
+    return out;
 }
 
 /// THE LAYOUT A LOADED SESSION WAS STANDING ON. `at()` rather than `[]` deliberately: a
 /// case that reads this off a session that was NOT admitted has asked the wrong question,
 /// and an exception says so where a default-constructed desk would quietly pass.
 inline const Setup& live_layout(const session_persist::LoadedSession& loaded) {
-    return loaded.layouts.at(loaded.active);
+    return loaded.layouts.at(loaded.active).desk;
+}
+
+/// ...AND THE SETUP ASSOCIATION IT WAS STANDING ON, by the same rule (WUX-11).
+inline const SetupLink& live_link(const session_persist::LoadedSession& loaded) {
+    return loaded.layouts.at(loaded.active).link;
+}
+
+/// THE LIVE LAYOUT'S SETUP-ASSOCIATION VERDICT (WUX-11) -- `none`, `current` or `modified`,
+/// asked of the layout that owns it. This is what `SetupState::saved()` used to answer for
+/// a whole Workshop, and the difference is the phase: a fresh desk is now `none` ("related
+/// to no artifact") rather than UNSAVED ("differs from the one file"), and two layouts can
+/// give two different answers.
+inline std::int64_t live_status(const SetupState& s) {
+    return link_status(s.active, s.active_link);
+}
+
+/// RELATE THE LIVE LAYOUT TO `path`, WITH ITS CURRENT DESK AS THE KNOWN VALUE -- the state a
+/// successful `s` leaves behind, staged directly for the cases that are about something
+/// else.
+inline void link_live_setup(SetupState& s, std::string path) {
+    s.active_link = SetupLink{std::move(path), s.active};
 }
 
 /// THE INFO PANEL'S BODY, resolved the way the painter resolves it — through `bounds_of` and
@@ -1459,9 +1510,162 @@ inline std::string forged_setup(const Setup& s, const std::string& from, const s
 /// IT SENDS THE TRIGGER'S OWN TEXT EVERY TIME, deliberately. The backends report
 /// `s` as `KeyPressed{S}` AND `TextEntered{"s"}`, and a fixture that sent only
 /// the first would make the swallow untestable from every case that uses it.
-inline void name_setup(Live& t, const std::string& name) {
-    t.key(input::scan::kS);
-    t.text("s");
+/// WHERE A PAINTED TAB'S FIRST CELL IS, out of the SAME composition the painter wrote
+/// (WUX-11) -- never a column a case computed, which is HD-3's rule spent on a rig.
+inline std::int64_t tab_column(Live& t, std::size_t at) {
+    const BandStatus band = band_status(t.session(), screen_of(t.session()));
+    for (const LayoutTab& tab : band.tabs) {
+        if (tab.at == at) {
+            return tab.column;
+        }
+    }
+    return -1;
+}
+
+/// PRESS A PAINTED LAYOUT TAB. The band is the canvas's first row.
+inline void press_tab(Live& t, std::size_t at) {
+    const std::int64_t column = tab_column(t, at);
+    REQUIRE(column >= 0);
+    t.press_canvas(column, 0);
+    t.release_canvas(column, 0);
+}
+
+/// ...AND ASK IT WHAT CAN BE DONE WITH IT (WUX-11).
+inline void right_press_tab(Live& t, std::size_t at) {
+    const std::int64_t column = tab_column(t, at);
+    REQUIRE(column >= 0);
+    t.right_press_canvas(column, 0);
+}
+
+/// CHOOSE A CONTEXTUAL ROW BY ITS ACTION ID, driving the open surface with its own keys --
+/// so a case names the operation it means and never a cursor index. A row inside a
+/// presentation group is reached by descending into that group, exactly as a maker reaches
+/// it, and which group that is comes from the declaration table rather than from a guess.
+inline bool choose_context_action(Live& t, const char* id) {
+    std::string group;
+    bool declared = false;
+    for (const ContextRow& row : kContextCatalog) {
+        if (std::string(row.action) == id &&
+            (row.subjects & context_bit(t.menu().subject)) != 0) {
+            group = row.group;
+            declared = true;
+            break;
+        }
+    }
+    if (!declared) {
+        return false;
+    }
+    const auto step_to = [&t](std::size_t at) {
+        for (int guard = 0; guard < 32 && t.menu().cursor < at; ++guard) {
+            t.key(input::scan::kDown);
+        }
+        for (int guard = 0; guard < 32 && t.menu().cursor > at; ++guard) {
+            t.key(input::scan::kUp);
+        }
+        return t.menu().cursor == at;
+    };
+    if (!group.empty()) {
+        const std::vector<ContextEntry> top = context_population(t.menu().subject, "");
+        bool entered = false;
+        for (std::size_t at = 0; at < top.size(); ++at) {
+            if (top[at].is_group && group == top[at].group) {
+                if (!step_to(at)) {
+                    return false;
+                }
+                t.key(input::scan::kReturn);
+                entered = t.menu().group == group;
+                break;
+            }
+        }
+        if (!entered) {
+            return false;
+        }
+    }
+    const std::vector<ContextEntry> rows =
+        context_population(t.menu().subject, t.menu().group);
+    for (std::size_t at = 0; at < rows.size(); ++at) {
+        if (!rows[at].is_group && rows[at].row != nullptr &&
+            std::string(rows[at].row->id) == id) {
+            if (!step_to(at)) {
+                return false;
+            }
+            t.key(input::scan::kReturn);
+            return true;
+        }
+    }
+    return false;
+}
+
+/// OPEN THE RENAME EDITOR ON A TAB THE WAY A MAKER DOES: two presses, close enough together
+/// to be one gesture (WUX-11).
+inline void open_rename_on_tab(Live& t, std::size_t at) {
+    // THE PACE IS SET BEFORE THE FIRST PRESS, because `InteractionClock::read` hands out
+    // the current instant and THEN advances by the step -- so a `together()` between the
+    // two presses would set the pace for the gesture after this one.
+    t.clock.together();
+    press_tab(t, at);
+    press_tab(t, at);
+    t.clock.apart();
+}
+
+/// THE SAME GESTURE ON THE LIVE LAYOUT'S TAB, FOR ANY RIG that publishes raw input --
+/// written against `publish` rather than against a workspace translation, because the pane
+/// rig has no document room to speak in.
+template <typename Rig>
+inline void open_rename_on_live_tab(Rig& r) {
+    const BandStatus band = band_status(r.session(), screen_of(r.session()));
+    std::int64_t column = -1;
+    for (const LayoutTab& tab : band.tabs) {
+        if (tab.at == r.session().setup.active_at) {
+            column = tab.column;
+        }
+    }
+    REQUIRE(column >= 0);
+    r.clock.together();
+    for (int press = 0; press < 2; ++press) {
+        r.publish(loom::to_value(input::PointerButton{1, true, column,
+                                                      surface::kTuiCanvasTopRow,
+                                                      input::space::kCells, input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, false, column,
+                                                      surface::kTuiCanvasTopRow,
+                                                      input::space::kCells, input::mod::kNone}));
+    }
+    r.clock.apart();
+}
+
+/// DUPLICATE THE LIVE LAYOUT THROUGH THE CONTEXTUAL MENU ON ITS OWN TAB (WUX-11) -- the
+/// shipped route, for the rigs whose cases mean "two layouts holding the same desk".
+template <typename Rig>
+inline void duplicate_live_layout(Rig& r) {
+    const BandStatus band = band_status(r.session(), screen_of(r.session()));
+    std::int64_t column = -1;
+    for (const LayoutTab& tab : band.tabs) {
+        if (tab.at == r.session().setup.active_at) {
+            column = tab.column;
+        }
+    }
+    REQUIRE(column >= 0);
+    r.publish(loom::to_value(input::PointerButton{3, true, column, surface::kTuiCanvasTopRow,
+                                                  input::space::kCells, input::mod::kNone}));
+    REQUIRE(r.session().context.open);
+    REQUIRE(r.session().context.subject == context_subject::kLayout);
+    for (int guard = 0; guard < 32 && r.session().context.open; ++guard) {
+        const std::vector<ContextEntry> rows =
+            context_population(r.session().context.subject, r.session().context.group);
+        REQUIRE(r.session().context.cursor < rows.size());
+        const ContextEntry& here = rows[r.session().context.cursor];
+        if (!here.is_group && here.row != nullptr &&
+            std::string(here.row->id) == "layout.duplicate") {
+            r.key(input::scan::kReturn);
+            return;
+        }
+        r.key(input::scan::kDown);
+    }
+    REQUIRE_FALSE(r.session().context.open);
+}
+
+/// TYPE A WHOLE NAME INTO THE OPEN EDITOR AND COMMIT IT.
+inline void type_name(Live& t, const std::string& name) {
     REQUIRE(t.session().setup.naming.open);
     for (int guard = 0; guard < 64 && !t.session().setup.naming.line.empty(); ++guard) {
         t.key(input::scan::kBackspace);
@@ -1471,6 +1675,28 @@ inline void name_setup(Live& t, const std::string& name) {
         t.text(std::string(1, c));
     }
     t.key(input::scan::kReturn);
+}
+
+/// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A MAKER USES (WUX-11) -- a double-click on
+/// its own tab, then the name. NO FILE IS WRITTEN by any part of this.
+inline void rename_live_layout(Live& t, const std::string& name) {
+    open_rename_on_tab(t, t.session().setup.active_at);
+    type_name(t, name);
+}
+
+/// SAVE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT -- `s`, and only that (WUX-11).
+inline void save_setup(Live& t) { t.key(input::scan::kS); }
+
+/// NAME THE LIVE LAYOUT AND WRITE IT TO THE SETUP FILE.
+///
+/// ⚠ TWO GESTURES SINCE WUX-11, and that is the phase: `s` used to open a name editor and
+/// write the file when it committed, so this helper was one keystroke and a word. Renaming
+/// is a layout operation and saving is a file operation now, so the cases that meant "a
+/// named desk that matches its file" say both -- and the ones that meant only one of them
+/// say only that one.
+inline void name_setup(Live& t, const std::string& name) {
+    rename_live_layout(t, name);
+    save_setup(t);
 }
 
 /// The identity row as a maker reads it, off the canvas at the place the painter

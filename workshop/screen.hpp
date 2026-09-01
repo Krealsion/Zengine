@@ -1805,6 +1805,53 @@ inline bool doubles_a_click(const ClickMemory& prior, std::int64_t place, std::u
 
 /// The arming a press leaves behind -- written from the same three facts the test above
 /// reads, so an arming that could not qualify cannot be written.
+/// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double (WUX-11).
+///
+/// A SECOND RECORD BECAUSE IT IS A SECOND POPULATION, not a second opinion. `ClickMemory` is
+/// one record for all of Workshop's editable BOXES and its identity is a line, a draft and a
+/// word; a tab is none of those, and squeezing a position into a word span would be a lie
+/// with the right arithmetic. What the two share is the constant and the discipline: an
+/// identity and an instant, arming on the way out, spent by the completing press, and no
+/// triple.
+///
+/// THE IDENTITY IS THE POSITION, which is what a tab IS (no id is minted anywhere for a
+/// layout). A run that reorders under the hand between two presses therefore ends the
+/// gesture, which is the honest answer: the second press is aimed at whatever is there now.
+struct TabClickMemory {
+    bool armed = false;
+    std::size_t at = 0;      ///< the position the press landed on
+    std::int64_t at_ms = 0;  ///< `interaction_now_ms()` when it landed
+};
+
+/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK ON THE SAME TAB (WUX-11)? Pure, total,
+/// and time is an argument for `doubles_a_click`'s reason exactly -- nothing in this header
+/// knows what time it is, so every condition is falsifiable by a case rather than by a
+/// stopwatch.
+inline bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
+                                std::int64_t now_ms) noexcept {
+    if (!prior.armed || prior.at != at) {
+        return false;
+    }
+    const std::int64_t since = now_ms - prior.at_ms;
+    return since >= 0 && since <= kDoubleClickMs;
+}
+
+/// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING (WUX-11) -- the fourth gesture record, beside
+/// the object drag, the pane drag and the text drag, and a fourth for their own stated
+/// reason: a document object, a pane, a run of text and a tab are four different things to
+/// be holding, and one variable for all of them would make "a release ends the gesture it
+/// began" a question about what was underneath rather than a fact about the press.
+///
+/// IT HOLDS NOTHING BUT WHETHER IT IS ACTIVE, and that is exact rather than thrifty: a press
+/// on a tab has already made that layout live (the tab press's own law), so the layout being
+/// carried is always `setup.active_at` and a copy of it here would be a second answer to a
+/// question the run already answers. A motion moves the live layout to whatever position the
+/// pointer is over; there is no cached span and nothing to go stale as the run reorders
+/// underneath the hand.
+struct LayoutTabDrag {
+    bool active = false;
+};
+
 inline ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
                                 const component::WordSpan& word, std::int64_t now_ms) noexcept {
     return ClickMemory{true, place, epoch, word.begin, word.end, now_ms};
@@ -2004,6 +2051,12 @@ struct Session {
     /// ...and what their LAST press on an editable line named, so the next one can be a
     /// double-click (WUX-7). See `ClickMemory`: an identity and an instant, no place.
     ClickMemory click;
+    /// ...and what their LAST press on a LAYOUT TAB named, so the next one can be a
+    /// double-click (WUX-11). See `TabClickMemory`.
+    TabClickMemory tab_click;
+    /// ...and the layout tab their pointer is dragging along the run, if any (WUX-11). The
+    /// fourth gesture record, for the other three's own reason; see `LayoutTabDrag`.
+    LayoutTabDrag tab_drag;
     /// ...and which clipped row their pointer is currently reading past the ellipsis
     /// (WUX-7). See `Revealed`: presentation only, and the most transient state here.
     Revealed reveal;
@@ -2428,6 +2481,14 @@ inline std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
                                      row.context != KeyContext::kNoText &&
                                      row.context != KeyContext::kNoEditor;
             if (is_concrete != concrete || !active_in(row.context, ctx)) {
+                continue;
+            }
+            // A ROW WITH NO GESTURE TEACHES NO KEY (WUX-11). The legend's whole job is
+            // `gesture label` pairs, and its scarcest resource is columns; a pair whose
+            // gesture half is `?` spends them saying that a key does not exist. The action
+            // is still reachable -- from the surface that names it, and from a maker's own
+            // binding, which puts the row back here the moment there is one to spell.
+            if (!is_bound(k.row_gesture(row))) {
                 continue;
             }
             const Fold* holds = nullptr;
@@ -5963,7 +6024,24 @@ inline std::string context_annotation(const Session& s, const ContextEntry& entr
     if (!requestable) {
         return std::string();
     }
+    // ...AND NEITHER DOES A ROW WITH NO GESTURE (WUX-11). The four layout-tab operations
+    // are reached from this very menu and from no key; annotating them with `?` would
+    // teach a maker a binding that does not exist, in the one surface whose annotation
+    // exists to teach the faster way of doing what they just chose.
+    if (!is_bound(s.keymap.gesture_of(entry.row->act))) {
+        return std::string();
+    }
     if (entry.row->act == Act::kObjectDelete && s.context.object != s.selected) {
+        return std::string();
+    }
+    // ⚠ AND THE SAME REFINEMENT FOR A LAYOUT TAB (WUX-11), found by the live TUI witness
+    // rather than by a case. `^w` closes the LIVE layout; this menu's row closes the
+    // CAPTURED one. The two are the same act exactly when the tab a maker pointed at is
+    // the one they are standing on, so the annotation is shown then and only then --
+    // anything else teaches a key that acts on a different layout than the row it sits
+    // beside, which is `object.delete`'s own reason one subject over.
+    if (s.context.subject == context_subject::kLayout &&
+        s.context.layout != s.setup.active_at) {
         return std::string();
     }
     return hotkey_text(s.keymap, entry.row->act);
@@ -8430,9 +8508,13 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
 
 /// What the one-line name editor puts before and after the name a maker is typing. The
 /// hint is spelled from the effective keymap (KEY-0), like every other gesture claim.
-inline constexpr const char* kSetupNamePrompt = "setup name> ";
+///
+/// IT SAYS LAYOUT AND IT SAYS RENAME (WUX-11). The editor named a setup and wrote its file
+/// in one gesture until this phase; it renames the layout it was opened on and writes
+/// nothing, so a prompt promising a save would be promising the half that left.
+inline constexpr const char* kSetupNamePrompt = "layout name> ";
 inline std::string setup_name_hint(const Keymap& k) {
-    return "  " + hotkey_text(k, Act::kNamingCommit) + " saves  " +
+    return "  " + hotkey_text(k, Act::kNamingCommit) + " renames  " +
            hotkey_text(k, Act::kNamingCancel) + " cancels";
 }
 
@@ -8442,12 +8524,9 @@ inline std::string setup_name_hint(const Keymap& k) {
 /// pair, and abbreviating one a maker uses constantly to advertise one they may not would be
 /// paying for the new thing with the old.
 inline std::string setup_hints(const Keymap& k) {
-    return hotkey_text(k, Act::kSetupName) + " name/save  " +
+    return hotkey_text(k, Act::kSetupSave) + " save  " +
            hotkey_text(k, Act::kSetupRestore) + " restore";
 }
-
-/// What the line says where a path would be when the host chose none.
-inline constexpr const char* kNoSetupFileShown = "no setup file";
 
 /// The fewest columns the name editor will claim for the name itself, so that a surface
 /// narrow enough for the chrome to exceed it still shows some of what is being typed.
@@ -8498,24 +8577,77 @@ inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
 
-/// WHAT THE STATUS ROW SAYS BESIDE THE TABS, IN THE ORDER A MAKER NEEDS IT.
+// ---- THE `setup:` SLOT: what the ACTIVE layout's association is (WUX-11) -----------------
+//
+// THE ROW USED TO SAY `UNSAVED | workshop-setup.json`, which was one comparison for a whole
+// Workshop, made against one file, on a screen showing several desks. Two layouts read the
+// same word about a value only one of them had anything to do with, and `UNSAVED` said
+// "your work is not written down" about a layout the session had been remembering all along.
+//
+// THREE SENTENCES REPLACE IT, and each is about THE ACTIVE LAYOUT and nothing else:
+//
+//     setup: none                            no artifact is associated with this layout
+//     setup: <artifact> | current            this desk IS the last known value of that file
+//     setup: <artifact> | modified           it is associated, and it has since diverged
+//
+// `none` DOES NOT MEAN UNSAVED. The session remembers every layout automatically; an
+// association is the optional, explicit relationship to a standalone Setup artifact a maker
+// asked for with `s` or `r`. A layout can be `none` for its whole life and lose nothing.
+//
+// AND `current` IS ABOUT WORKSHOP'S KNOWLEDGE, NOT ABOUT THE DISK -- `link_status`
+// (setup.hpp) owns that sentence. Nothing here stats, reloads, polls or rereads anything: a
+// standing status that went to the filesystem would spend a syscall on every composition and
+// would still be a claim about a moment that has passed.
+
+/// The word before the association, and the three the association is said in. Spelled as
+/// their own constants because the row's own budget is DERIVED from their widths below --
+/// the reservation and the words cannot drift apart if the reservation is measured from
+/// them.
+inline constexpr const char* kSetupSlot = "setup: ";
+inline constexpr const char* kSetupLinkNone = "none";
+inline constexpr const char* kSetupLinkCurrent = "current";
+inline constexpr const char* kSetupLinkModified = "modified";
+
+/// The separator this row puts between its facts, and the one place its width is known.
+inline constexpr const char* kStatusJoin = " | ";
+inline constexpr std::int64_t kStatusJoinCols =
+    static_cast<std::int64_t>(std::char_traits<char>::length(kStatusJoin));
+
+/// THE ACTIVE LAYOUT'S ASSOCIATION, AS THE ROW SAYS IT -- the standing half of the status,
+/// composed against a budget for the PATH alone.
 ///
-/// The saved marker first, computed by comparison and never flagged; then the unresolved
-/// count, which is the only dynamic truth on the line; then the file; then the two
-/// gestures. THE NAME IS NOT HERE ANY MORE (WUX-9): the tab run on the left of this same
-/// row already carries it, marked, and saying it twice would spend the row's scarcest
-/// resource on a fact a maker is already reading two cells to the left. What the marker is
-/// ABOUT is unchanged -- `setup.active != setup.on_file`, the live layout against the setup
-/// file's copy, and not a claim about the layout shelf, which no file holds.
+/// ⚠ THE PATH IS WHAT ELIDES, AND THAT IS THE ORDERING THIS FUNCTION EXISTS TO KEEP. A row
+/// too narrow for everything must go on distinguishing `none` from `current` from
+/// `modified`; what it may stop showing is which artifact. So the path meets `fit_path`
+/// against `path_columns` here, BEFORE the words are appended, rather than the whole
+/// sentence meeting `fit` afterwards -- which would cut `modified` off the end and leave a
+/// maker reading a file name and no verdict.
 ///
-/// MEASURED AT THE MINIMUM COMPOSITION: with the default file name and nothing unresolved
-/// this half is 54 cells and the default tab run is 12, so the whole row is 69 of 78. A
-/// setup with an unresolved reference runs 15 cells longer and `detail::fit` marks the cut,
-/// which falls on the tail of the static hint rather than on any of the truths above it --
-/// which is why they are in this order rather than in the order they were designed in.
-inline std::string setup_status_text(const SetupState& setup, const std::string& path,
-                                     const RuntimeCatalog& runtime, const Keymap& keymap) {
-    std::string line = setup.saved() ? "saved" : "UNSAVED";
+/// THE SESSION FILE IS NEVER SHOWN HERE. This slot names the standalone Setup artifact a
+/// maker chose to relate this layout to; the session is Workshop's own machine-local
+/// continuity and is not a maker-facing artifact at all. `path` is the host's configured
+/// setup path or the layout's own association, and there is no third source.
+inline std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) {
+    const std::int64_t status = link_status(setup.active, setup.active_link);
+    std::string line = kSetupSlot;
+    if (status == setup_link::kNone) {
+        line += kSetupLinkNone;
+        return line;
+    }
+    line += detail::fit_path(setup.active_link.path, path_columns);
+    line += kStatusJoin;
+    line += status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified;
+    return line;
+}
+
+/// WHAT THE ROW SAYS AFTER THE ASSOCIATION: the unresolved count, then the two gestures.
+///
+/// THIS HALF IS THE ONE THAT MAY BE CUT. `detail::fit` takes the row from the right, so
+/// everything here degrades before a byte of the sentence above it does -- which is why the
+/// dynamic truth is in front of the static hint rather than the other way round.
+inline std::string setup_rest_text(const SetupState& setup, const RuntimeCatalog& runtime,
+                                   const Keymap& keymap) {
+    std::string line;
     // THE RUNTIME CATALOG IS ASKED, AND THIS IS THE LINE THAT MADE IT A REQUIRED ARGUMENT
     // (WP-0). A pane a maker can SEE must not be counted as unresolved on the row directly
     // beneath it, and the built-in-only resolver would have said exactly that about every
@@ -8526,11 +8658,9 @@ inline std::string setup_status_text(const SetupState& setup, const std::string&
         // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these
         // references; it knows nothing whatever about whoever could, and a word implying
         // otherwise would be a claim made out of silence.
-        line += " | " + std::to_string(waiting.size()) + " unresolved";
+        line += kStatusJoin + std::to_string(waiting.size()) + " unresolved";
     }
-    line += " | ";
-    line += path.empty() ? std::string(kNoSetupFileShown) : path;
-    line += " | ";
+    line += kStatusJoin;
     line += setup_hints(keymap);
     return line;
 }
@@ -8600,12 +8730,15 @@ struct LayoutTab {
     bool active = false;
 };
 
-/// The tab run as it will be painted: the text, the tabs inside it, and what it left out.
+/// The tab run as it will be painted: the text, the tabs inside it, what it left out, and
+/// where the create affordance landed if there was room for one.
 struct LayoutTabRun {
     std::string text;
     std::vector<LayoutTab> tabs;
     std::size_t before = 0; ///< layouts omitted ahead of the first painted one
     std::size_t after = 0;  ///< layouts omitted after the last painted one
+    std::int64_t create_column = 0;  ///< where `+` begins in the composed row...
+    std::int64_t create_columns = 0; ///< ...and how many bytes it is; 0 means unpainted
 };
 
 /// What one end of a fitted tab run says about the layouts it could not paint. `<2` and
@@ -8647,24 +8780,38 @@ inline std::string layout_tab_text(const SetupState& setup, std::size_t at) {
     return tab;
 }
 
-/// The room the saved marker must keep whatever the tab run wants.
+/// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
 ///
 /// THE ONE RESERVATION THIS ROW MAKES, and it is made against the tabs rather than by them:
-/// a run of long names must never be the reason a maker stops being told their desk is
-/// unsaved. It is the marker's own width, not the whole right half's -- everything after it
-/// degrades through `detail::fit` exactly as it always has.
+/// a run of long names must never be the reason a maker stops being told what their desk's
+/// relationship to a Setup artifact is. Everything after this sentence -- the unresolved
+/// count and the two gesture hints -- degrades through `detail::fit` exactly as it always
+/// has.
+///
+/// ⚠ IT RESERVES THE WORDS AND THE ELISION MARK, NOT THE PATH (WUX-11). Which artifact is
+/// the part a narrow row may stop showing; whether the desk is `none`, `current` or
+/// `modified` is the part it may not (`setup_link_text` owns that ordering). So this is
+/// `" | setup: " + <a path elided to its mark> + " | modified"`, and the path takes whatever
+/// the tabs left over.
 ///
 /// ⚠ AND THE ROW'S OWN CUT MARK IS PART OF THE PRICE, which is the half a reservation
 /// naturally forgets. This row is longer than any real screen, so `detail::fit` cuts it and
-/// spends `kElided` on saying so; reserving only `" | UNSAVED"` therefore leaves the marker
-/// three cells short of surviving, and at the 78-column minimum with a full-budget run a
-/// maker reads `| UNSA...` instead. MEASURED on the shipped terminal by WUX-9's own live
-/// witness, not by a case -- the suite's crowded run happened to stop three tabs short of
-/// the budget, which is exactly the near-miss a witness exists to find.
-inline constexpr std::int64_t kSavedMarkCols =
-    3 +                                                          // `" | "`
-    7 +                                                          // `"UNSAVED"`, the longer word
+/// spends `kElided` on saying so; a reservation that stopped at the last real character
+/// therefore leaves the verdict three cells short of surviving, and at the 78-column
+/// minimum with a full-budget run a maker reads `| modifi...` instead. MEASURED on the
+/// shipped terminal by WUX-9's own live witness, not by a case -- the suite's crowded run
+/// happened to stop three tabs short of the budget, which is exactly the near-miss a witness
+/// exists to find.
+inline constexpr std::int64_t kElidedCols =
     static_cast<std::int64_t>(std::char_traits<char>::length(detail::kElided));
+
+inline constexpr std::int64_t kSetupStatusCols =
+    kStatusJoinCols +                                   // `" | "` before the slot
+    static_cast<std::int64_t>(std::char_traits<char>::length(kSetupSlot)) +
+    kElidedCols +                                       // the least a path can honestly say
+    kStatusJoinCols +                                   // `" | "` before the verdict
+    static_cast<std::int64_t>(std::char_traits<char>::length(kSetupLinkModified)) +
+    kElidedCols;                                        // the row's own cut mark
 
 /// The fewest columns the tab run keeps even where the reservation would leave it less, so a
 /// surface too narrow for both still says which layout is live. `setup_name_columns`' own
@@ -8672,9 +8819,24 @@ inline constexpr std::int64_t kSavedMarkCols =
 inline constexpr std::int64_t kLayoutTabMinCols = 8;
 
 inline std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept {
-    const std::int64_t room = row_columns - kSavedMarkCols;
+    const std::int64_t room = row_columns - kSetupStatusCols;
     return room > kLayoutTabMinCols ? room : kLayoutTabMinCols;
 }
+
+/// THE POINTER'S SPELLING OF `layout.new` (WUX-11): one cell of ink at the end of the run.
+///
+/// AN ACTION, NOT A DURABLE PSEUDO-LAYOUT. It has a span so a press can reach it and
+/// nothing else: it is not in `layout_count`, not in the maker's order, not steppable, and
+/// not something the session has ever heard of. Pressing it does exactly what the key does,
+/// including refusing a ninth layout in the same words.
+///
+/// IT IS THE LAST THING PAID FOR. The window is grown, the omission markers are reserved and
+/// the tabs are written first; this is appended only out of what is genuinely left over, so
+/// the active tab's visibility (rule 2) and the association's reservation both outrank it.
+/// A row too narrow for it simply does not have it, and the keyboard is unaffected -- which
+/// is the honest answer for an affordance that is a convenience rather than a truth.
+inline constexpr char kLayoutCreate = '+';
+inline constexpr std::int64_t kLayoutCreateCols = 2; // one pad cell and the mark
 
 /// THE VISIBLE TAB WINDOW, DERIVED AT EVERY PAINT AND STORED NOWHERE.
 ///
@@ -8789,6 +8951,17 @@ inline LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns
     if (tail_cost > 0) {
         run.text += tail;
     }
+    // ...AND THE CREATE AFFORDANCE OUT OF WHAT IS GENUINELY LEFT (WUX-11). Last, and out of
+    // the same budget: an affordance written once the budget was already gone would be the
+    // bound-that-grows rule 3 refuses, and it would push the association's own reservation
+    // off a narrow row to advertise a key that still works.
+    const std::int64_t written = static_cast<std::int64_t>(run.text.size());
+    if (written + kLayoutCreateCols <= columns) {
+        run.create_column = written + 1; // the pad cell belongs to the gap, not to the mark
+        run.create_columns = 1;
+        run.text += kLayoutTabPad;
+        run.text += kLayoutCreate;
+    }
     return run;
 }
 
@@ -8803,10 +8976,11 @@ struct BandStatus {
     std::vector<LayoutTab> tabs;
     std::size_t before = 0;
     std::size_t after = 0;
+    std::int64_t create_column = 0;
+    std::int64_t create_columns = 0;
 };
 
-inline BandStatus band_status(const Session& s, const std::string& setup_path,
-                              const Screen& sc) {
+inline BandStatus band_status(const Session& s, const Screen& sc) {
     const surface::RegionFit fit = top_band_fit(sc);
     BandStatus out;
     if (fit.rows <= 0 || fit.columns <= 0) {
@@ -8815,26 +8989,61 @@ inline BandStatus band_status(const Session& s, const std::string& setup_path,
     const LayoutTabRun run = layout_tab_run(s.setup, layout_tab_columns(fit.columns));
     out.before = run.before;
     out.after = run.after;
-    std::string line = run.text;
-    line += " | ";
-    line += setup_status_text(s.setup, setup_path, s.panels.runtime, s.keymap);
+    const std::int64_t left = static_cast<std::int64_t>(run.text.size());
+    std::string rest = setup_rest_text(s.setup, s.panels.runtime, s.keymap);
     // THE WORKSPACE FACT FOLDS IN WHERE THE TOP BAND HAS NO SECOND ROW FOR IT -- WUX-1's
     // fold, unchanged in kind and re-measured against the band it is now on (QR-14). A
     // character medium gives the fact its own row; the shipped face's single row carries
-    // both.
+    // both. It folds into the CUTTABLE half, because a room's size is the one fact here a
+    // maker can also read by looking at their window.
     if (fit.rows < 2) {
-        line += " | " + workspace_text(s);
+        rest += kStatusJoin + workspace_text(s);
     }
+    // WHAT IS LEFT FOR THE ARTIFACT'S NAME: what the tabs did not take, less the words of
+    // the sentence, less everything that follows it.
+    //
+    // ⚠ THE PATH IS THE PART THAT SHRINKS, AND IT SHRINKS FOR THE WHOLE ROW. Taking the
+    // remainder for the path alone reads as generous and starves the dynamic truth behind
+    // it: at the 78-column minimum a real temporary path swallowed every cell after the
+    // verdict, and a maker with an unresolved pane stopped being told so -- measured by the
+    // suite, not reasoned about. So the path yields to the unresolved count and to the two
+    // gestures as well, and only what THEN does not fit is cut from the right, which is the
+    // ordering §9 asks for: the verdict is reserved, the tail degrades, the path absorbs.
+    const std::int64_t path_columns = fit.columns - left - kSetupStatusCols + kElidedCols -
+                                      static_cast<std::int64_t>(rest.size());
+    std::string standing = setup_link_text(
+        s.setup, path_columns > kElidedCols ? path_columns : kElidedCols);
+    // THE STATUS IS RIGHT-ADJUSTED WHERE THERE IS ROOM TO ADJUST IT (WUX-11). The run is the
+    // row's left and the status is its right, so the gap between them is the row's own slack
+    // -- which pins the association to the screen's edge instead of letting it drift with
+    // however many tabs happen to exist. Combined with QR-15's equal-width marker, that
+    // makes the right-hand sentence perfectly still: neither switching layouts nor adding
+    // one moves a cell of it while the row still fits.
+    std::string line = run.text;
+    const std::int64_t joined =
+        left + kStatusJoinCols + static_cast<std::int64_t>(standing.size() + rest.size());
+    if (joined < fit.columns) {
+        line.append(static_cast<std::size_t>(fit.columns - joined + kStatusJoinCols), ' ');
+    } else {
+        line += kStatusJoin;
+    }
+    line += standing;
+    line += rest;
     out.text = detail::fit(std::move(line), fit.columns);
     // A SPAN THE ROW'S OWN CUT REMOVED IS NOT A TAB ANY MORE. The reservation above makes
     // this unreachable at every honest extent -- the tabs are composed against the row less
-    // the saved marker -- and it is written anyway, because a span that outlived the bytes
-    // it describes is exactly the stale geometry a press must never be answered from.
+    // the association's own room -- and it is written anyway, because a span that outlived
+    // the bytes it describes is exactly the stale geometry a press must never be answered
+    // from. The create affordance is judged by the same rule and for the same reason.
     const std::int64_t painted = static_cast<std::int64_t>(out.text.size());
     for (const LayoutTab& tab : run.tabs) {
         if (tab.column + tab.columns <= painted) {
             out.tabs.push_back(tab);
         }
+    }
+    if (run.create_columns > 0 && run.create_column + run.create_columns <= painted) {
+        out.create_column = run.create_column;
+        out.create_columns = run.create_columns;
     }
     return out;
 }
@@ -8867,13 +9076,13 @@ inline std::int64_t band_tab_row(const Session& s, const Screen& sc) noexcept {
 /// answer nothing. A tab the window did not paint has no span and cannot be pressed; the
 /// keyboard reaches it, which is what makes that honest rather than a hole.
 struct LayoutTabPress {
-    bool hit = false;
-    std::size_t at = 0;
+    bool hit = false;      ///< this press was answered by the run
+    std::size_t at = 0;    ///< the layout it landed on, when `create` is false
+    bool create = false;   ///< it landed on the `+` affordance instead (WUX-11)
 };
 
-inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_path,
-                                  const Screen& sc, std::int64_t space, std::int64_t x,
-                                  std::int64_t y) {
+inline LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t space,
+                                  std::int64_t x, std::int64_t y) {
     const std::int64_t row = band_tab_row(s, sc);
     if (row == kNoBandRow) {
         return {};
@@ -8888,10 +9097,15 @@ inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_pat
     if (!at.understood || at.row != row) {
         return {};
     }
-    for (const LayoutTab& tab : band_status(s, setup_path, sc).tabs) {
+    const BandStatus band = band_status(s, sc);
+    for (const LayoutTab& tab : band.tabs) {
         if (at.column >= tab.column && at.column < tab.column + tab.columns) {
-            return LayoutTabPress{true, tab.at};
+            return LayoutTabPress{true, tab.at, false};
         }
+    }
+    if (band.create_columns > 0 && at.column >= band.create_column &&
+        at.column < band.create_column + band.create_columns) {
+        return LayoutTabPress{true, 0, true};
     }
     return {};
 }
@@ -8941,9 +9155,7 @@ inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_pat
 /// caret (a bar in a medium with a face, the same inserted glyph as ever in the cell
 /// projection) and its selection is the region's, said the way every other selection on this
 /// screen is said. While it holds the row, the workspace fact yields to the name being typed.
-inline surface::SurfaceTextRegion top_band_region(const Session& s,
-                                                  const std::string& setup_path,
-                                                  const Screen& sc) {
+inline surface::SurfaceTextRegion top_band_region(const Session& s, const Screen& sc) {
     const ui::Rect b = top_band_bounds(sc);
     const surface::RegionFit fit = top_band_fit(sc);
     surface::SurfaceTextRegion band;
@@ -8985,7 +9197,7 @@ inline surface::SurfaceTextRegion top_band_region(const Session& s,
         // THE LAYOUT TABS AND THE STATUS ARE ONE COMPOSITION (WUX-9), and the painter takes
         // it whole -- the workspace fold and the row's own cut included, so the spans
         // `band_tab_at` answers a press from are the spans that were written here.
-        identity = band_status(s, setup_path, sc).text;
+        identity = band_status(s, sc).text;
     }
 
     band.rows.push_back(surface::SurfaceTextRow{std::move(identity), surface::role::kMuted});
@@ -9131,12 +9343,13 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc
 /// is what makes "what you see is what the hit test answers about" structural
 /// rather than a claim: the two read one value.
 ///
-/// THE SETUP PATH IS AN ARGUMENT (WS-0), and it is the only thing this function has ever
-/// needed that is neither authored content nor session. It is the HOST's choice, exactly as
-/// `document_path` is, and the document's path avoids this by only ever being said in the
-/// status slot, which the weave composes. The setup's identity is painted ON the canvas, so
-/// the canvas has to be told. It is defaulted so that a caller with no host -- every screen
-/// case in the suite -- paints a truthful line saying no setup file was chosen.
+/// ⚠ THE SETUP PATH STOPPED BEING AN ARGUMENT (WUX-11), and the reason is the whole of what
+/// the top row now says. WS-0 had to be told the HOST's configured setup file because the
+/// row named that file for the whole application; the row names the ACTIVE LAYOUT'S OWN
+/// ASSOCIATION now, which is session -- so this function is a pure projection of authored
+/// content plus session again, with one fewer thing a caller could hand it wrongly. A
+/// Workshop whose host chose no setup file paints `setup: none`, which is the truth about
+/// every layout in it.
 ///
 /// THE PROJECT FRONTIER IS AN ARGUMENT FOR THE SAME REASON (BLD-2): it is a reading of the
 /// living realization owner, taken by the weave at the moment it repaints, and this function
@@ -9144,7 +9357,6 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc
 /// caller with no realization owner -- every screen case in the suite, and any host that
 /// wired none -- paints the ordinary Builder panel.
 inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
-                                    const std::string& setup_path = std::string(),
                                     const ProjectFrontier& frontier = {}) {
     const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
@@ -9352,7 +9564,7 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // own voice. The bands occupy no pointer space except the layout tabs themselves
     // (`band_tab_at`, WUX-9), so `occupied_at` still answers the pane for those cells.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        layer.texts.push_back(top_band_region(s, setup_path, sc));
+        layer.texts.push_back(top_band_region(s, sc));
         if (!s.terminal.open) {
             layer.texts.push_back(band_region(s, sc));
         }

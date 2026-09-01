@@ -1466,11 +1466,11 @@ EXECUTION   the owner that performs it                             untouched -- 
 
 ## What can I do with this? The contextual surface (CTX-0, placed beside the hand by ARR-0)
 
-A maker points at a thing — a pane, a document object, or the empty room — and Workshop
-lists the actions declared meaningful for that KIND of thing, in a bounded popup BESIDE
-the press. Right-click opens it on the pointed subject (every backend already delivered
-button 3; Workshop used to drop it); `workshop.context` (`a`, command mode) opens it on
-the subject command mode can truthfully name: the selected object, else the room. Two laws
+A maker points at a thing — a pane, a document object, a LAYOUT TAB (WUX-11), or the empty
+room — and Workshop lists the actions declared meaningful for that KIND of thing, in a bounded
+popup BESIDE the press. Right-click opens it on the pointed subject (every backend already
+delivered button 3; Workshop used to drop it); `workshop.context` (`a`, command mode) opens it
+on the subject command mode can truthfully name: the selected object, else the room. Two laws
 bound the whole surface:
 
 ```text
@@ -1482,7 +1482,8 @@ SELECTION IS A STATE A MAKER ENTERED.        changes no selection, no keyboard c
                                              passes admission (`enter_arrange_pane` -> the
                                              target-taking `arrange_geometry_ready`).
 OPEN REMEMBERS AN IDENTITY.                  `ContextMenu` holds a `PaneRef`, an object id,
-SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, row or handle.
+SPEND RE-ASKS ITS OWNER.                     a layout POSITION, or nothing -- never a
+                                             rectangle, row or handle.
                                              The owner answers absence in its own words; a
                                              ref outside the setup gets ONE truthful
                                              absence sentence, not a geometry refusal.
@@ -1523,23 +1524,32 @@ SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, ro
   declared it). `context_population` is the ONE population owner — painter, cursor bound,
   keyboard choose and pointer press all spend it. The pane's top level since ARR-0:
   `arrange`, `Order >` (front/back/raise/lower — renamed from `Arrange`, which an
-  `arrange` action row one level up made a lie), `Reset >`, `remove`.
+  `arrange` action row one level up made a lie), `Reset >`, `remove`. **A LAYOUT TAB's, since
+  WUX-11**: `layout.rename`, `layout.duplicate`, `Order >` (move-left/move-right — the same
+  intent twice, so a maker reads them together), `layout.remove`.
 - **A ROW MAY TEACH ITS SHORTCUT, AND ONLY A TRUTHFUL ONE (ARR-0).** `context_annotation`
   shows an entry's effective gesture (through `hotkey_text` — a remap moves it) exactly
   when the action owns a declared row `active_in` the context the maker RETURNS to when
   the surface closes (`keyboard_context_beneath_menu`) — so room rows teach their command
   keys over command mode, globals teach everywhere, a mode beneath that swallows bare keys
   suppresses the command annotations, and pane rows never annotate (their contexts are the
-  arrangement scopes). One semantic refinement: `object.delete` is taught exactly when the
-  captured object IS the selection, because the key deletes the selection.
+  arrangement scopes). **TWO semantic refinements, and they are the same rule:**
+  `object.delete` is taught exactly when the captured object IS the selection, and a LAYOUT
+  row exactly when the captured tab IS the active layout (WUX-11) — because `^w` closes the
+  live layout while the menu's row closes the pointed one, and anything else teaches a key
+  that acts on a different subject than the row it sits beside. ⚠ **And a row whose action
+  answers to no key never annotates at all** (`is_bound`): the four tab operations are reached
+  from this very menu, and a `?` there would teach a binding that does not exist.
   `context_row_text` is the one composition of label + annotation column; the painter and
   the width both spend it (HD-3).
 - **Spending is one seam per subject kind**: `spend_pane_action(Act, PaneRef, Mail&)` (the
   one switch; `arrange_key` passes its addressed pane, the menu its captured ref — mode
   bookkeeping stays with the keyboard caller), `delete_object_at(id)` (`delete_selected`
   reused exactly when the id IS the selection, so its neighbour repair stays authoritative;
-  a live draft holds the contextual delete back with `finish_draft_first`), and the room's
-  rows call their zero-target owners directly (deliberate one-line duplication — a
+  a live draft holds the contextual delete back with `finish_draft_first`), the LAYOUT rows
+  call the position-taking doors (`open_layout_rename`, `duplicate_layout`, `shift_layout`,
+  `drop_layout` — each of which re-asks the run whether that position is still a layout), and
+  the room's rows call their zero-target owners directly (deliberate one-line duplication — a
   zero-target call has no target to drift).
 - **Paint is not policy**: the menu shows what is DECLARED for the subject kind and renders
   the captured identity (an identity, not an existence claim); the owner refuses at spend.
@@ -1720,19 +1730,40 @@ and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, besid
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
   pane protocol's law: [`panes.md`](panes.md).
 
-## Several desks, one of them live (WUX-9)
+## Several desks, one of them live (WUX-9; per-layout association WUX-11)
 
-A maker's **layout** is a `Setup`, and there is no `Layout` type. The plural cost one vector of
-the value that already existed and the gestures that exchange it — no new geometry owner, no
-new membership notion, no per-medium fork, no protocol widening, no durable format.
+A maker's **layout** is a desk plus its optional relationship to one standalone Setup file. The
+desk is a `Setup`: the plural cost one vector of the value that already existed and the
+gestures that exchange it — no new geometry owner, no new membership notion, no per-medium
+fork, no protocol widening.
 
 ```text
 SetupState
-    active      THE live desk. Every consumer still reads this member; none indexes a list.
-    on_file     the setup FILE's copy -- `saved()` is still that comparison and nothing else
-    shelved     the INACTIVE layouts, values only: no panel, provider, room or selection
-    active_at   where the live one sits in the maker's order
+    active        THE live desk, a `Setup`. Every consumer still reads this member.
+    active_link   its SETUP ASSOCIATION -- the lifted half of the pair (WUX-11)
+    shelved       the INACTIVE layouts as `Layout` (desk + link), values only: no panel,
+                  provider, room or selection belongs to one
+    active_at     where the live one sits in the maker's order
+    naming        the one-line RENAME editor and the position it is about
+
+SetupLink         path (empty = none) + `known`, the last value Workshop successfully knew
+                  that artifact to hold. `link_status` derives none / current / modified.
+Layout            desk + link -- the shelf's element and the RUN's element, one type
 ```
+
+- **⚠ THERE IS NO `on_file` AND NO `saved()`.** One comparison copy for a whole Workshop was
+  already the wrong shape the moment there were several desks: two layouts both read `UNSAVED`,
+  or both read `saved`, against a value only one of them had anything to do with. Every layout
+  owns its own association now, and `link_status(desk, link)` is the ONE place the question is
+  decided. It is a claim about WORKSHOP'S KNOWLEDGE and never about the disk — no stat, no
+  reload, no watcher, so it is not invalidated by another process editing the file, and a
+  paint path never goes near a filesystem.
+- **`Layout` IS NOT THE TYPE THE LIVE DESK IS**, and that asymmetry is the lift. `active` is a
+  bare `Setup` so every reader in Workshop still reads a `Setup`; the lifted element is the
+  pair `active` + `active_link`, and `Layout` is that same pair for the layouts that are not
+  live. It is one struct rather than two parallel vectors because a shelf of desks beside a
+  shelf of links is two containers whose indices somebody has to keep equal, and the first
+  `erase` that forgets one is a layout wearing another layout's association.
 
 - **`shelved` + `active_at` IS the run with exactly one element lifted out**, and that is what
   lets the order be STABLE while the live value stays in one member. `activate_layout` puts the
@@ -1740,9 +1771,23 @@ SetupState
   is the shorter spelling and is wrong: it leaves the departing layout wherever the arriving one
   happened to sit, so the run reorders itself every time a maker looks at it. Measured by the
   suite's every-destination sweep, which is green for the swap on the first hop and red on the
-  second. `add_layout` puts a COPY back and takes the appended position; `remove_layout`
-  discards the live value and takes the survivor now standing at `active_at` (the NEXT
+  second. `add_layout` puts the ORIGINAL back and takes the appended position with a BLANK
+  desk; `remove_layout(at)` erases one shelf element where `at` is not live, and where it IS
+  live discards that value and takes the survivor now standing at `active_at` (the NEXT
   neighbour), or the one before it when the removed layout was last.
+- **THE SIX VALUE OPERATIONS, AND WHICH OF THEM COPY (WUX-11).** `add_layout` makes a
+  `default_setup()` with NO association — new means new, and copying is `duplicate_layout`'s
+  job. `duplicate_layout(at)` copies that layout's desk (its NAME included: duplicate names are
+  legal and position is the identity), inserts the copy directly after its source, makes it
+  live, and **always clears the association** — an inherited one would have the copy claim an
+  artifact it has never been written to, and the first `s` would overwrite the very file the
+  maker duplicated in order not to touch. `move_layout(from,to)` and `duplicate_layout` are
+  spelled THROUGH the inverse pair (`layout_run` → one erase and one insert → `install_layout_run`)
+  rather than by index surgery on `shelved` + `active_at`, because that surgery is a third
+  spelling of the lift in the one operation that crosses it; the live element's new position is
+  COMPUTED from the erase and the insert, never searched for, since two layouts may hold equal
+  values. `rename_layout(at,name)` writes one name and no file. `adopt_known_setup(path,known)`
+  is the shared-artifact sweep.
 - **A SWITCH IS `restore_setup` MINUS THE FILE READ.** `switch_layout` → `activate_layout` →
   `apply_setup` → one sentence → the repaint the gesture already earns. There is no tab-switch
   reconcile path and no teardown path for a removal; `apply_setup` remains the one door
@@ -1771,13 +1816,34 @@ SetupState
 - **THE CEILING IS A BOUND ON WORK, NOT A CLAIM ABOUT THE ROW.** `kMaxLayouts` (8) refuses a
   ninth rather than dropping one; the tab run is composed against whatever the band's row has
   and says what it could not paint, so raising the number is a number change.
-- **THE FILES DID NOT MOVE.** `s` writes the LIVE layout to the setup file and `r` reads that
-  file into the LIVE layout; neither touches the shelf, and a Setup file still means one named
-  desk arrangement. **THE SESSION CARRIES THE WHOLE RUN SINCE WUX-10** (version 4, below), so
-  the set, the order, the names and which one was live all come back — and the ownership split
-  is unchanged by the plural: the SESSION owns *these are the desks I was using on this
-  machine*, the SETUP FILE owns *this is one desk I named*. `s` and `r` still act on the live
-  layout and on nothing else.
+- **THE FILES DID NOT MOVE.** `s` writes the LIVE layout to a setup file and `r` reads one into
+  the LIVE layout; neither touches the shelf, and a Setup file still means one desk. **THE
+  SESSION CARRIES THE WHOLE RUN SINCE WUX-10 AND EVERY ASSOCIATION SINCE WUX-11** (version 5,
+  below), so the set, the order, the names, which one was live and what each is related to all
+  come back — and the ownership split is unchanged by the plural: the SESSION owns *these are
+  the desks I was using on this machine*, the SETUP FILE owns *this is one desk I named*.
+- **⭐ RENAMING IS A LAYOUT OPERATION; SAVING IS A FILE OPERATION (WUX-11, retiring P-WORK-12).**
+  `s` used to open the name editor and write the artifact when it committed, so a maker fixing
+  a typo in a tab had to accept a write to a named file they may not have meant to touch. Now:
+  ```text
+  layout.rename   double-click a tab, or the tab's contextual menu. Writes NO file.
+  setup.name (s)  writes the active layout's desk. Names NOTHING. Identity kept so an
+                  authored override keeps working -- `workshop.manage`'s precedent.
+  setup.restore   reads into the active layout, and only it.
+  ```
+  Both file gestures act on the ACTIVE LAYOUT'S OWN ASSOCIATION where it has one, and on the
+  host's configured `--setup` path where it does not — the configured path is the ACQUISITION
+  DOOR, never a default association. **The association follows a SUCCESS and never an
+  intention**: a failed write or a refused read leaves the desk, the file and every association
+  exactly as they were, and a `none` layout still `none`.
+- **⭐ THE SHARED-ARTIFACT LAW.** Two layouts may honestly refer to one Setup file. When
+  Workshop successfully learns what that file now holds — because this run wrote it or read it
+  — `adopt_known_setup` updates the baseline of EVERY association to that path, and each layout
+  then answers `current` or `modified` by comparing its own desk. Advancing only the acting
+  layout's baseline leaves the other claiming to match bytes that were just replaced, which is
+  a status wrong about the only thing it is for. It ESTABLISHES nothing: a layout with no
+  association, or one pointing elsewhere, is not touched. ⚠ Paths are compared BY BYTES and are
+  never canonicalised — the artifact is the path as the host named it.
 - **THE RUN LEAVES THIS FILE THROUGH ONE INVERSE PAIR, AND ONLY THAT PAIR** (WUX-10):
   `layout_run(const SetupState&)` puts the lifted value back at `active_at` and answers with a
   NEW vector (so no save can reorder what it is saving), and `install_layout_run(SetupState&,
@@ -1788,9 +1854,37 @@ SetupState
 ## The tab run is the left of the band's existing status row (WUX-9)
 
 ```text
- Code >Build< Inspect | UNSAVED | workshop-setup.json | s name/save  r restore
- ^ the layout tabs                ^ the existing non-tab status, composing from the right
+ Code >Build< Inspect +          setup: workshop-setup.json | modified | s save  r restore
+ ^ the layout tabs    ^ create   ^ the ACTIVE LAYOUT's association, adjusted to the row's edge
 ```
+
+- **⭐ THE STATUS IS THE ACTIVE LAYOUT'S ASSOCIATION, IN THREE SENTENCES (WUX-11).**
+  `setup: none` — no artifact is associated; `setup: <artifact> | current` — this desk IS the
+  last value Workshop knew that file to hold; `setup: <artifact> | modified` — associated, and
+  it has since diverged. **`none` DOES NOT MEAN UNSAVED**: the session remembers every layout
+  automatically, and an association is the optional explicit relationship a maker asked for with
+  `s` or `r`. The word `UNSAVED` is retired here and must not come back as a synonym; the
+  session file is never shown in this slot.
+- **THE PATH IS WHAT ELIDES, AND THAT ORDERING IS THE WHOLE OF `setup_link_text`.** A row too
+  narrow for everything must go on distinguishing the three verdicts; WHICH artifact is what it
+  may stop showing. So the path meets `fit_path` against its own budget BEFORE the words are
+  appended, rather than the sentence meeting `fit` afterwards — which would cut `modified` off
+  the end and leave a maker reading a file name and no verdict. ⚠ And the path yields to the
+  UNRESOLVED COUNT and the two hints as well (`path_columns` subtracts `rest`): taking the whole
+  remainder for the path reads as generous and starved the dynamic truth behind it at the
+  78-column minimum, measured by the suite.
+- **THE RESERVATION IS THE WORDS AND THE MARKS, NOT THE PATH.** `kSetupStatusCols` is
+  `" | setup: " + <a path elided to its mark> + " | modified"` plus the row's own cut mark, and
+  it is DERIVED from those constants' own widths so the reservation and the words cannot drift.
+- **THE STATUS IS ADJUSTED TO THE ROW'S RIGHT EDGE where the row still fits.** Combined with
+  QR-15's equal-width marker that makes the right-hand sentence perfectly still: neither
+  switching layouts nor adding one moves a cell of it.
+- **`+` IS AN ACTION, NOT A DURABLE PSEUDO-LAYOUT.** One cell with a span of its own at the end
+  of the run — not in `layout_count`, not in the maker's order, not steppable, and unknown to
+  the session. It is the LAST thing paid for out of the run's budget, so the active tab's
+  visibility and the association's reservation both outrank it; a row too narrow simply does
+  not have one and the key is unaffected. Pressing it does exactly what `layout.new` does,
+  refusal included.
 
 - **NO BAND ROW WAS ADDED AND THE BODY'S EXTENT NEVER MOVED.** WUX-9 put the run on the
   bottom band's status row, which was the row that already named the arrangement; QR-14 moved
@@ -1840,17 +1934,37 @@ SetupState
   outward from the live layout, right then left, alternating, so there is no offset to go stale
   after a switch or a removal and nothing reorders to keep the live tab first. Keyboard stepping
   traverses the WHOLE population, painted or not, and the window follows.
-- **THE SAVED MARKER HAS THE ROW'S ONE RESERVATION.** The run is composed against the row's
-  columns less `kSavedMarkCols`, so a run of long names can never be the reason a maker stops
-  being told their desk is unsaved. Everything after the marker degrades through `detail::fit`
-  exactly as it always did, and `setup_status_text` no longer says the name at all — the tabs
-  carry it, and a row that said it twice would spend its scarcest resource on a repeat.
-- **THE TABS ARE THE ONLY POINTER SPACE THE BAND OWNS.** The arm sits at the TOP of the pressed
-  branch — above every layer, because the band is painted in front of the panes (WIND-2a) — and
-  above the line that writes `Panels::selected`/`keyboard`, because pressing a tab is not
-  pointing at a pane and must not clear the pane a maker chose. A press on the status, on the
-  blank between, on another band row, or on an omitted tab answers nothing and falls through
-  exactly as it always has.
+- **THE ASSOCIATION HAS THE ROW'S ONE RESERVATION.** The run is composed against the row's
+  columns less `kSetupStatusCols`, so a run of long names can never be the reason a maker stops
+  being told what their desk is related to. Everything after that sentence — the unresolved
+  count and the two hints — degrades through `detail::fit` exactly as it always did, and the
+  status half no longer says the NAME at all: the tabs carry it, and a row that said it twice
+  would spend its scarcest resource on a repeat.
+- **THE TABS AND THE `+` ARE THE ONLY POINTER SPACE THE BAND OWNS.** The arm sits at the TOP of
+  the pressed branch — above every layer, because the band is painted in front of the panes
+  (WIND-2a) — and above the line that writes `Panels::selected`/`keyboard`, because pressing a
+  tab is not pointing at a pane and must not clear the pane a maker chose. A press on the
+  status, on the blank between, on another band row, or on an omitted tab answers nothing and
+  falls through exactly as it always has.
+  - **A SECOND PRESS ON THE SAME TAB RENAMES IT (WUX-11).** `TabClickMemory` /
+    `doubles_a_tab_click` — a SECOND record beside `ClickMemory` because it is a second
+    population, not a second opinion: that one's identity is a line, a draft and a WORD, and a
+    tab is none of those. What the two share is `kDoubleClickMs`, the arm-on-the-way-out
+    discipline and the spend-the-arming rule, so there is no triple-click. The first press has
+    already made the tab live, which is why the editor's subject and the live layout cannot
+    disagree.
+  - **A PRESS ALSO TAKES HOLD OF THE TAB.** `LayoutTabDrag` is the FOURTH gesture record beside
+    the object drag, the pane drag and the text drag, for their own stated reason — and it holds
+    nothing but whether it is active, because the press has just made that tab live, so what the
+    hand carries is always `setup.active_at`. A motion re-asks the SAME inverse against the run
+    as it is painted right now and calls `move_layout`; nothing is cached, nothing is
+    reconciled, and a release ends the gesture wherever the hand is (`end_held_gestures`).
+  - **A RIGHT PRESS ON A TAB NAMES IT AS A SUBJECT** — `context_subject::kLayout`, whose
+    identity is the POSITION, captured at the press and re-judged by the owner at spend. Asking
+    about a tab does NOT stand on it, which is what lets Close and the two reorder steps mean
+    the tab that was pointed at. ⚠ `^w` is annotated beside Close only when the captured tab IS
+    the active one, because otherwise the row and the key act on different layouts —
+    `object.delete`'s own refinement, found by the live TUI witness.
 - **THE GESTURES ARE ORDINARY KEY-0 ROWS**: `layout.next` (`.`), `layout.previous` (`,`),
   `layout.new` (`=`), `layout.remove` (`^w`). Three unshifted printables and one plain ctrl
   chord, and the selection criterion is narrow: the POSIX wire carries an unshifted printable
@@ -1861,6 +1975,18 @@ SetupState
   bare letter does something harmless. `x` was the obvious mnemonic and is refused — BLD-0 bound
   it to "close the Builder" and a later phase took that back on purpose, so a maker's hand may
   still mean the panel by it.
+- **⚠ AND FOUR ROWS ANSWER TO NO KEY AT ALL (WUX-11)**: `layout.rename`, `layout.duplicate`,
+  `layout.move-left`, `layout.move-right` declare `kNoGesture` and are reached from a tab's
+  contextual menu (and rename from the double-click). The criterion above is the whole reason —
+  four more of that free set spent on operations a maker reaches by pointing would be four
+  gestures taken from whatever asks next. `kNoGesture` is `scan::kUnknown`, the one scancode
+  that can never be a binding, and `is_bound` guards THREE places, each a different kind of
+  wrong without it: **dispatch** (one unnamed key would otherwise request every unbound action
+  at once), **admission's collision check** (two actions answering to no key are not two actions
+  holding one gesture, and a whole keymap file would be refused for a clash that cannot be
+  pressed), and **the surfaces that SPELL bindings** (the band legend and a menu annotation must
+  not teach a key that does not exist; `gesture_text` answers `unbound`). A maker may still bind
+  any of them in their own keymap file, and then every one of those surfaces spells it.
 
 ## The desk comes back on its own, and the window with it (WUX-0, roots WUX-3)
 
@@ -1923,42 +2049,71 @@ executable, authored per project when named.)
   `setup_persist::setup_in` is the one function that turns a written setup into a live one. A
   desk cannot be legal in one file and illegal in the other. Do NOT add a second desk format
   because one save is automatic.
-- **...AND SINCE WUX-10 THE SESSION HOLDS A RUN OF THEM (version 4).** `layouts` is the maker's
-  order WHOLE — the live one IN it rather than lifted out of it — and `active` is which position
-  that was. The wire shape is deliberately NOT the runtime container: `shelved` + `active_at` is
-  how a running Workshop holds one live desk with no second copy of it, and what a saved session
-  MEANS is *these desks, in this order, and I was standing on that one*. Position remains a
-  layout's whole identity (duplicate names are legal; **no durable layout id is minted**).
-  - **THE RUN'S OWN ADMISSION IS FOUR QUESTIONS** (`layouts_in`), and each is asked against a
-    number this build already enforces elsewhere: non-empty (runtime's floor is the TYPE's —
-    `active` is a value); within `kMaxLayouts` (the SAME number the `=` gesture refuses a ninth
-    layout with); `active` in range; and every contained desk legal by `setup_persist::setup_in`,
-    whose sentence is quoted with the layout's position in front of it. All four are refusals of
-    CURRENT-version data and none of them may become a search for a conversion.
+- **...AND SINCE WUX-10 THE SESSION HOLDS A RUN OF THEM, WITH THEIR ASSOCIATIONS SINCE WUX-11
+  (version 5).** `layouts` is the maker's order WHOLE — the live one IN it rather than lifted
+  out of it — and `active` is which position that was. Each entry is a `WorkshopLayout`: the
+  desk, and a `WorkshopSetupLink` holding the artifact's path and the last value Workshop knew
+  it to contain. The wire shape is deliberately NOT the runtime container: `shelved` +
+  `active_at` is how a running Workshop holds one live desk with no second copy of it, and what
+  a saved session MEANS is *these desks, in this order, related to these files, and I was
+  standing on that one*. Position remains a layout's whole identity (duplicate names are legal;
+  **no durable layout id is minted**).
+  - **AN EMPTY PATH IS THE ABSENCE AND IT HAS EXACTLY ONE SPELLING.** Loom's admission has no
+    optional fields, so `none` has to be WRITTEN — and unlike the placement, which needs a
+    `mode` word because 0,0 is a legal coordinate, "" is not a legal path, so the path IS the
+    mode and no word is spent on it. `link_in` refuses the half-association (no path, a desk
+    remembered anyway) because a value nobody means must not have two ways of being written;
+    a non-empty path's `known` meets `setup_persist::setup_in`, the same whole law the layout's
+    own desk just met.
+  - **⚠ AN ASSOCIATION REMEMBERS A WHOLE DESK, NOT A HASH.** The comparison it feeds is exact
+    equality with a live `Setup`, so carrying the value IS carrying the answer; a digest buys a
+    smaller file and costs the ability to say why. **And a restore never re-reads what it refers
+    to** — that would be exactly the automatic file access the standing status is defined not to
+    perform, N opens of files a maker did not ask about, at every launch.
+  - **THE RUN'S OWN ADMISSION IS FOUR QUESTIONS PLUS THE LINK** (`layouts_in`), and each is
+    asked against a number this build already enforces elsewhere: non-empty (runtime's floor is
+    the TYPE's — `active` is a value); within `kMaxLayouts` (the SAME number the `=` gesture
+    refuses a ninth layout with); `active` in range; every contained desk legal by
+    `setup_persist::setup_in`, whose sentence is quoted with the layout's position in front of
+    it; and every link legal by `link_in`. All are refusals of CURRENT-version data and none of
+    them may become a search for a conversion.
   - **THE READ CEILING IS DERIVED AND THAT IS LOAD-BEARING.** `kMaxSessionBytes` is
-    `kMaxLayouts * setup_persist::kMaxSetupBytes` because a maximal legal session — eight desks
-    of thirty-two rows at the key bound — is **larger than one desk's ceiling**, and a session
-    this build writes must never be one it refuses to read. A case measures exactly that
-    inequality; a mutation back to one desk's number reddens it.
+    `kMaxLayouts * (2 * setup_persist::kMaxSetupBytes + kMaxLinkPathBytes)` — a layout holds a
+    desk AND the desk its association remembers, so the bound is TWO desks and a path, and a
+    session this build writes must never be one it refuses to read. ⚠ `kMaxSetupBytes` carries
+    an order of magnitude of slack over a real desk, so a MEASURED maximal file passes whichever
+    multiplier is used: the case therefore asserts the bound against the FORMAT's own numbers
+    (`kMaxSessionBytes >= kMaxLayouts * 2 * kMaxSetupBytes`), which is what a mutation back to
+    one desk per layout reddens.
 - **⚠ THE SESSION READER KNOWS ONE SHAPE, AND YESTERDAY BELONGS TO A CONVERSION (MIG-0).**
   `session_persist` carries `kFormatVersion` and no second number: the retained `v1`/`v2`
   shapes and their two roads are GONE, and `workshop/session_history.hpp` owns them — an
   artifact's material, shipped as `zengine-workshop-session-history`
   (`workshop/session_migration_provider.cpp`), an ordinary operator provider and not a weave.
-  **⭐ WUX-10 SPENT THAT AND IS WHAT IT LOOKS LIKE WORKING**: the format moved 3 → 4 and the
-  cost in the reader was one number and one shape. Version 3's struct was copied VERBATIM into
-  `session_history::v3` (its wire identity — name, version and content id — is what an old
-  file's bytes claim, so a reordered field silently strands every one of them; a case pins all
-  three historical content ids, v3's measured against the build that wrote it). The three edges
-  RETARGETED THEMSELVES: `conversions()` reads `current` off the reader's own schema, so
-  `v*-to-v3` became `v*-to-v4` with no string edited, the shipped plans needed no new row, and
-  `operator/migration.hpp` did not change. Each edge is DIRECT — `v1 -> v4` is one authored
-  conversion whose body composes `session_v1_to_v3` and `session_v3_to_v4` in C++, which is
-  what authored means; the catalog holds no `v1 -> v3` at all, so there is nothing to walk.
-  - **A HISTORICAL SESSION IS EXACTLY ONE LAYOUT, LIVE AT POSITION ZERO.** v1, v2 and v3 could
+  **⭐ WUX-10 SPENT THAT AND WUX-11 SPENT IT AGAIN, AND THAT IS WHAT IT LOOKS LIKE WORKING**:
+  the format moved 3 → 4 and then 4 → 5, and the cost in the reader was one number and one shape
+  each time. The retired struct is copied VERBATIM into `session_history::v<n>` (its wire
+  identity — name, version and content id — is what an old file's bytes claim, so a reordered
+  field silently strands every one of them; a case pins all four historical content ids, each
+  measured against the build that wrote it — **v4's is `0xb621c9f3616c7bb1`, read off Zengine
+  a39795e**). The edges RETARGET THEMSELVES: `conversions()` reads `current` off the reader's
+  own schema, so `v*-to-v4` became `v*-to-v5` with no string edited, the shipped plans needed no
+  new row either time, and `operator/migration.hpp` did not change. Each edge is DIRECT —
+  `v1 -> v5` is one authored conversion whose body composes `session_v1_to_v3`,
+  `session_v3_to_v4` and `session_v4_to_v5` in C++, which is what authored means; the catalog
+  holds no `v1 -> v3` or `v3 -> v4` at all, so there is nothing to walk.
+  - **A v1/v2/v3 SESSION IS EXACTLY ONE LAYOUT, LIVE AT POSITION ZERO.** Those vintages could
     not say how many layouts a maker had, so the plurality is DEFAULTED and not inferred —
     `absent_placement()`'s argument, one field over. Never zero, never two, and every
     non-layout fact of that vintage crosses unchanged (v3's real placement included).
+  - **AND EVERY HISTORICAL LAYOUT IS RELATED TO NOTHING (WUX-11).** A v4 session could not say
+    that a desk came from a standalone artifact, because a v4 Workshop had one comparison copy
+    for the whole application; so the truthful reading is *these desks, in this order, standing
+    on that one, and no artifact is known for any of them*. `absent_link()` is the one canonical
+    spelling, exactly as `absent_placement()` is one field over. ⚠ Inventing an association out
+    of the host's configured `--setup` path would be this reader deciding something the maker
+    never wrote down — which is precisely what an association IS, and precisely what those bytes
+    cannot say.
   The reader's whole knowledge of history is one arm: *this shape's name at another version*
   is a historical claim, and it asks `op::migrate` for one live direct edge to
   `schema_of<WorkshopSession>()` ([operators.md](operators.md#a-conversion-is-an-operator-whose-signature-is-the-edge-mig-0)
@@ -2063,11 +2218,12 @@ executable, authored per project when named.)
   floor and names the value. Clamping 100000 to 640 would still open a window nobody chose, on
   a display Workshop cannot see — and whether a size fits the CURRENT DISPLAY is not a question
   Workshop can put to anybody, so this is a plausibility bound and is named as one.
-- **NEITHER DIRECTION TOUCHES THE NAMED SETUP FILE.** Closing writes a session and leaves
-  `workshop-setup.json` byte-identical; restoring a session reads no setup file at all.
-  `setup.on_file` is deliberately NOT written by a session restore — it is this run's copy of
-  what is in the SETUP file, and this run has not read that file — so a restored session still
-  says `UNSAVED`, meaning what it has always meant here.
+- **NEITHER DIRECTION OPENS A SETUP FILE.** Closing writes a session and leaves the standalone
+  artifact byte-identical; restoring a session reads no setup file at all. ⚠ **And since WUX-11
+  the session carries the ASSOCIATIONS without reading what they refer to**: a restored layout
+  comes back saying `current` or `modified` against the value this Workshop last successfully
+  knew that artifact to hold, which is a fact about Workshop's own knowledge and therefore a
+  fact a session may legitimately remember. What it must not become is a read.
 
 ## Do not assume
 

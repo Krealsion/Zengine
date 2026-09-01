@@ -167,6 +167,31 @@ struct Gesture {
     }
 };
 
+/// IS THIS A GESTURE A MAKER CAN PRESS (WUX-11)?
+///
+/// `input::scan::kUnknown` is what the wire reports for a key this build has no name for,
+/// so it is the one scancode that can never be a binding -- which makes it the honest
+/// spelling of "this action answers to no key". An action may declare it
+/// (`kNoGesture` below); a maker may still bind that action in their own file, and
+/// `row_gesture` then answers the authored gesture like any other.
+///
+/// ⚠ THREE PLACES SPEND THIS AND EACH IS A DIFFERENT KIND OF WRONG WITHOUT IT. Dispatch:
+/// one unnamed key would otherwise request every unbound action at once, and the first in
+/// declaration order would win. Admission's collision check: two actions answering to no
+/// key are not two actions holding one gesture, so a maker's whole keymap would be refused
+/// for a clash that does not exist. And the surfaces that SPELL bindings: a row that
+/// teaches `?` is a row teaching a key that does not exist.
+inline constexpr bool is_bound(const Gesture& g) noexcept {
+    return g.scancode != input::scan::kUnknown;
+}
+
+/// The declaration a row makes when the action is reachable from a surface that names it
+/// and from no key at all. WUX-11's four layout-tab operations are the first: rename,
+/// duplicate and the two reorder steps are contextual-menu rows, and command mode has no
+/// free gesture left that both backends can deliver (the catalog's own note beside
+/// `layout.next` states that criterion).
+inline constexpr Gesture kNoGesture{input::scan::kUnknown, input::mod::kNone};
+
 /// THE ACTION IDENTITIES, as the code spells them. The durable spelling is the dotted
 /// string on each declaration row; this enum exists so a dispatch site can `switch` on the
 /// answer, and it is deliberately not persisted, not on any wire, and not stable across
@@ -203,12 +228,16 @@ enum class Act : std::uint8_t {
     kRecipeNext,
     kRecipeBack,
     kBuildFrontier,
-    kSetupName,
+    kSetupSave,
     kSetupRestore,
     kLayoutNext,
     kLayoutPrevious,
     kLayoutNew,
     kLayoutRemove,
+    kLayoutRename,
+    kLayoutDuplicate,
+    kLayoutMoveLeft,
+    kLayoutMoveRight,
     kArrangeDesk,
     kPaneTitles,
     kEditSource,
@@ -390,7 +419,13 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kC, mod::kShift}},
     {Act::kBuildFrontier, "builder.frontier", "frontier", KeyContext::kCommand,
      {scan::kF, mod::kNone}},
-    {Act::kSetupName, "setup.name", "name/save setup", KeyContext::kCommand,
+    // SAVING A SETUP STOPPED NAMING A LAYOUT (WUX-11), and the IDENTITY is deliberately the
+    // old `setup.name` -- a maker's authored override for it keeps working, exactly as
+    // `workshop.manage` kept working when ARR-0 changed what it opens. What moved is the
+    // meaning: `s` writes the live layout's desk to its associated artifact (or, with no
+    // association, to the host's configured setup path, establishing the association on
+    // success) and it no longer opens the name editor. Renaming is `layout.rename` below.
+    {Act::kSetupSave, "setup.name", "save setup", KeyContext::kCommand,
      {scan::kS, mod::kNone}},
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
@@ -436,6 +471,26 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kEquals, mod::kNone}},
     {Act::kLayoutRemove, "layout.remove", "remove layout", KeyContext::kCommand,
      {scan::kW, mod::kCtrl}},
+    // ...AND FOUR THAT ANSWER TO NO KEY (WUX-11). Rename, duplicate and the two reorder
+    // steps are reached from a tab's contextual menu -- and rename also from a double-click
+    // on the tab, which is where a maker's hand goes first. They are DECLARED here anyway,
+    // because a contextual row references a `kActionCatalog` id and because a maker may
+    // bind any of them in their own keymap file; what they do not have is a shipped
+    // gesture.
+    //
+    // WHY NOT A DEFAULT. The criterion beside `layout.next` above is the whole answer:
+    // command mode's free set is bare printables and plain ctrl chords that BOTH backends
+    // deliver, `<`/`>`/`+` are bytes the POSIX wire cannot name, and ctrl+shift+letter
+    // cannot be said at all. Four more of that set spent on operations a maker reaches by
+    // pointing would be four gestures taken from whatever asks next -- and a chord chosen
+    // for symmetry rather than for use is the unreachable default KEY-0 exists to end.
+    {Act::kLayoutRename, "layout.rename", "rename layout", KeyContext::kCommand, kNoGesture},
+    {Act::kLayoutDuplicate, "layout.duplicate", "duplicate layout", KeyContext::kCommand,
+     kNoGesture},
+    {Act::kLayoutMoveLeft, "layout.move-left", "move layout left", KeyContext::kCommand,
+     kNoGesture},
+    {Act::kLayoutMoveRight, "layout.move-right", "move layout right", KeyContext::kCommand,
+     kNoGesture},
     // ARRANGE THE DESK (ARR-0): the global arrangement scope. The IDENTITY is the old
     // `workshop.manage` -- a maker's authored override for it keeps working -- and what
     // changed is the meaning's scope: it opens the desk-wide arrangement state, never a
@@ -577,8 +632,13 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kD, mod::kNone}},
     {Act::kAttentionClose, "attention.close", "close", KeyContext::kAttention,
      {scan::kEscape, mod::kNone}},
-    // -- the setup-name editor's controls ----------------------------------------------
-    {Act::kNamingCommit, "naming.commit", "save the name", KeyContext::kNaming,
+    // -- the layout-name editor's controls ---------------------------------------------
+    //
+    // THE IDENTITIES ARE THE OLD ONES AND THE MEANING NARROWED (WUX-11): this editor
+    // renamed a setup and wrote its file in one gesture, and it now renames the layout and
+    // writes nothing at all. `naming.commit` is still the key that finishes it, so an
+    // authored override keeps working; the LABEL is what stopped being true.
+    {Act::kNamingCommit, "naming.commit", "rename", KeyContext::kNaming,
      {scan::kReturn, mod::kNone}},
     {Act::kNamingCancel, "naming.cancel", "cancel", KeyContext::kNaming,
      {scan::kEscape, mod::kNone}},
@@ -840,6 +900,13 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 /// `enter`, `esc`. One function, so a remapped binding is spelled identically on every
 /// surface that names it.
 inline std::string gesture_text(const Gesture& g) {
+    // AN ACTION THAT ANSWERS TO NO KEY SAYS SO (WUX-11). `key_name_of` has no name for
+    // `kUnknown` and the fall-through below spells it `?`, which in a two-column legend
+    // reads as a key a maker cannot find rather than as one that is not there. `-` is a
+    // real binding on this keyboard, so a dash would be worse than the question mark.
+    if (!is_bound(g)) {
+        return "unbound";
+    }
     const bool shift = (g.modifiers & mod::kShift) != 0;
     const bool capital = shift && is_letter_scan(g.scancode);
     std::string out;
@@ -1107,6 +1174,12 @@ struct Keymap {
     Act action_for(KeyContext current, std::int64_t scancode,
                    std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
+        // A KEY THIS BUILD CANNOT NAME REQUESTS NOTHING (WUX-11). Without this an unnamed
+        // key would match every row that declares `kNoGesture` and the first one in
+        // declaration order would run -- a press with no name performing an operation.
+        if (!is_bound(pressed)) {
+            return Act::kNone;
+        }
         for (const ActionRow& row : kActionCatalog) {
             if (active_in(row.context, current) && row_gesture(row) == pressed) {
                 return row.act;
@@ -1125,6 +1198,9 @@ struct Keymap {
     Act above_mode_action(KeyContext current, std::int64_t scancode,
                           std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
+        if (!is_bound(pressed)) {
+            return Act::kNone; // `action_for`'s rule, for `action_for`'s reason
+        }
         for (const ActionRow& row : kActionCatalog) {
             const bool above = row.context == KeyContext::kGlobal ||
                                row.context == KeyContext::kNoText ||
@@ -1141,6 +1217,9 @@ struct Keymap {
     /// the OPENER's binding wherever the maker moved it.
     bool matches(Act a, std::int64_t scancode, std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
+        if (!is_bound(pressed)) {
+            return false; // `action_for`'s rule, for `action_for`'s reason
+        }
         for (const ActionRow& row : kActionCatalog) {
             if (row.act == a && row_gesture(row) == pressed) {
                 return true;
@@ -1267,6 +1346,12 @@ inline Written apply_overrides(
             const ActionRow& a = kActionCatalog[i];
             const ActionRow& b = kActionCatalog[j];
             if (a.act == b.act || !contexts_intersect(a.context, b.context)) {
+                continue;
+            }
+            // TWO ACTIONS THAT ANSWER TO NO KEY ARE NOT TWO ACTIONS HOLDING ONE GESTURE
+            // (WUX-11). Without this, every keymap file would be refused the moment a
+            // second `kNoGesture` row was declared, naming a clash that cannot be pressed.
+            if (!is_bound(candidate.row_gesture(a))) {
                 continue;
             }
             if (candidate.row_gesture(a) == candidate.row_gesture(b)) {

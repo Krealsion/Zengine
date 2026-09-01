@@ -287,7 +287,7 @@ TEST_CASE("WIND-2: a version-1 file leaves the live setup and its on-file copy u
 
     // A LIVE, ARRANGED, SAVED SETUP -- so a refusal has something to damage.
     name_setup(t, "Mine");
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
     const Setup live = t.session().setup.active;
     const std::string good_bytes = slurp(path);
 
@@ -303,7 +303,7 @@ TEST_CASE("WIND-2: a version-1 file leaves the live setup and its on-file copy u
     t.key(input::scan::kR);
     CHECK(t.notice().find("setup version 1") != std::string::npos);
     CHECK(t.session().setup.active == live);
-    CHECK(t.session().setup.on_file == live);
+    CHECK(t.session().setup.active_link.known == live);
     CHECK(t.session().panels.has(panel::kInfo));
     // AND THE FILE ON DISK IS NOT REWRITTEN BY A REFUSAL EITHER.
     CHECK(slurp(path) != good_bytes); // the case wrote it, not Workshop
@@ -360,27 +360,27 @@ TEST_CASE("WIND-2: dirty is structural -- an inverse edit makes a setup clean ag
     // pane first, which is itself the reserved-column law being visible.
     open_pane(t, ref_of(panel::kBuilder));
     name_setup(t, "Clean");
-    REQUIRE(t.session().setup.saved());
+    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     enter_arrange_desk(t);
     select_pane(t, ref_of(panel::kBuilder));
     // A GEOMETRY EDIT DIRTIES IT...
     t.key(input::scan::kRight);
-    CHECK_FALSE(t.session().setup.saved());
+    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
     // ...AND THE EXACT INVERSE MAKES IT CLEAN, because `saved()` COMPARES rather than
     // remembering that a gesture happened. A dirty FLAG would still be set here.
     t.key(input::scan::kLeft);
-    CHECK_FALSE(t.session().setup.saved()); // the place is now authored, and it was not
+    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent)); // authored, and it was not
     t.key(input::scan::k0);
     t.key(input::scan::kP);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 
     // THE SAME, SAID ABOUT ORDER: a permutation returned to the identity is byte-identical
     // to a setup that was never reordered.
     t.key(input::scan::kF);
     t.key(input::scan::k0);
     t.key(input::scan::kO);
-    CHECK(t.session().setup.saved());
+    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(setup_persist::to_text(t.session().setup.active) == slurp(path));
 }
 
@@ -2250,8 +2250,10 @@ TEST_CASE("WUX-9/SC-6: a pane in two layouts is one pane, one provider, one room
     const std::int64_t said_before = seat->said;
     const std::size_t catalog_before = r.session().panels.runtime.entries.size();
 
-    // A SECOND LAYOUT NAMING THE SAME PANE -- `new` copies the live one, so both do.
-    layout_key(r, Act::kLayoutNew);
+    // A SECOND LAYOUT NAMING THE SAME PANE. Since WUX-11 `new` is BLANK, so the second
+    // layout is made by DUPLICATING the first -- which is the gesture that copies a desk,
+    // and the one a maker reaches for when they want the same panes twice.
+    duplicate_live_layout(r);
     REQUIRE(layout_count(r.session().setup) == 2);
     REQUIRE(has_pane(r.session().setup.active, hello_ref()));
 
@@ -2285,9 +2287,9 @@ TEST_CASE("WUX-9/SC-6: leaving a layout withdraws a presentation and unloads not
     REQUIRE(r.session().panels.external_pane(kind)->heard);
     const std::int64_t said_before = seat->said;
 
-    // A LAYOUT THAT DOES NOT NAME IT -- removed through the picker, the one door.
+    // A LAYOUT THAT DOES NOT NAME IT -- which since WUX-11 is what a NEW layout is: a
+    // fresh blank desk, whose membership `apply_setup` reconciles to.
     layout_key(r, Act::kLayoutNew);
-    r.pick(hello_ref());
     REQUIRE_FALSE(has_pane(r.session().setup.active, hello_ref()));
     REQUIRE_FALSE(r.session().panels.has(kind));
 

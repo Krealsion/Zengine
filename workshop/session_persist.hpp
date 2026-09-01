@@ -201,25 +201,40 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 /// ⚠ WUX-10 IS THE FIRST PHASE TO SPEND THAT, and what it did is what a format moving is
 /// supposed to look like from here: version 3 went to `workshop/session_history.hpp` beside
 /// versions 1 and 2, this number became 4, and NOT ONE LINE about version 3 was added here.
-inline constexpr std::int64_t kFormatVersion = 4;
+/// ⚠ AND WUX-11 IS THE SECOND, for the reason a format version exists: a saved layout grew
+/// a fact no version-4 file could carry -- the optional Setup ASSOCIATION -- so version 4
+/// went to `workshop/session_history.hpp` beside versions 1, 2 and 3, this number became 5,
+/// and NOT ONE LINE about version 4 was added here.
+inline constexpr std::int64_t kFormatVersion = 5;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
 /// (`kDefaultSetupFileName`), and a third name for the third promise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
 
-/// HOW LARGE A SESSION MAY BE, DERIVED FROM WHAT ONE MAY HOLD (WUX-10).
+/// HOW LARGE A SESSION MAY BE, DERIVED FROM WHAT ONE MAY HOLD (WUX-10, re-derived WUX-11).
 ///
-/// A session was a setup plus two integers and its ceiling was the setup's. It is now up to
-/// `kMaxLayouts` desks plus a viewport and a placement, so its ceiling is the desk's
-/// ceiling times the ceiling on desks -- DERIVED rather than typed, because both bounds are
-/// already written down and a session this build writes must never be one it refuses to
-/// read back. Raising either number therefore cannot strand a maker's file.
+/// A session was a setup plus two integers and its ceiling was the setup's. WUX-10 made it
+/// up to `kMaxLayouts` desks; WUX-11 gave each of those a Setup association, and an
+/// association carries the last KNOWN VALUE of its artifact -- which is another whole desk.
+/// So a maximal legal session is `kMaxLayouts` layouts of TWO desks each, and the ceiling is
+/// DERIVED from exactly that rather than typed, because a session this build writes must
+/// never be one it refuses to read back. Raising `kMaxLayouts`, or the desk's own ceiling,
+/// therefore cannot strand a maker's file.
+///
+/// ⚠ THE MULTIPLIER IS THE THING TO GET RIGHT, and a case measures it: leaving this at one
+/// desk per layout would let an eight-layout run with eight associations write a file this
+/// same build then refused to open, which is the one failure a derived bound exists to make
+/// unsayable. `kMaxLinkPathBytes` is the third term, because a path is the one part of a
+/// layout that is neither a desk nor a fixed-width number.
 ///
 /// IT IS STILL THE READ SIDE OF THE SAME LAW -- a hostile file does not get to choose the
 /// cost of refusing it -- and the bound it buys costs a read and a compare.
+inline constexpr std::uintmax_t kMaxLinkPathBytes = 4096;
+
 inline constexpr std::uintmax_t kMaxSessionBytes =
-    static_cast<std::uintmax_t>(kMaxLayouts) * setup_persist::kMaxSetupBytes;
+    static_cast<std::uintmax_t>(kMaxLayouts) *
+    (2u * setup_persist::kMaxSetupBytes + kMaxLinkPathBytes);
 
 // ---- The file's own shapes ----------------------------------------------------
 
@@ -273,8 +288,47 @@ struct WorkshopPlacement {
               ZEN_FIELD(window));
 };
 
+/// A LAYOUT'S SETUP ASSOCIATION AS WRITTEN (WUX-11): which standalone artifact it refers
+/// to, and the last value Workshop successfully knew that artifact to hold.
+///
+/// AN EMPTY `path` IS THE ABSENCE AND IT HAS EXACTLY ONE SPELLING. Loom's admission has no
+/// optional fields, so "no association" has to be WRITTEN -- and unlike the placement, which
+/// needs a `mode` word because 0,0 is a legal desktop coordinate, "" is not a legal path.
+/// So the path IS the mode, and `link_in` refuses every other way of saying absence: an
+/// empty path beside a `known` desk claiming to be something would be a file saying two
+/// contradictory things about one layout.
+///
+/// `known` IS A WHOLE `WorkshopSetup`, NOT A HASH. The comparison this feeds is exact
+/// equality with a live `Setup`, so carrying the value is carrying the answer; a digest
+/// would buy a smaller file and cost the ability to say WHY, and would have to be re-derived
+/// on every read anyway. It is the same shape a desk is written in, admitted by the same
+/// `setup_persist::setup_in`, for `WorkshopSession`'s own stated reason: there is one
+/// durable representation of a desk in this program.
+struct WorkshopSetupLink {
+    std::string path;
+    setup_persist::WorkshopSetup known;
+
+    ZEN_SHAPE(WorkshopSetupLink, 1, ZEN_FIELD(path), ZEN_FIELD(known));
+};
+
+/// ONE SAVED LAYOUT (WUX-11): the desk, and the artifact it is associated with.
+///
+/// THE WRAPPER IS A PERSISTENCE REPRESENTATION AND NOT A RUNTIME ONE. Runtime holds the live
+/// desk as a bare `Setup` in `SetupState::active` with its link beside it, because there
+/// must be exactly one live desk that every consumer reads (WUX-9); this shape exists
+/// because a FILE has no lift and no live element, so what it says is simply *a layout is a
+/// desk and an association*. `setup.hpp`'s `Layout` is the run's element on the other side
+/// of the same translation, and the pair `layout_run` / `install_layout_run` is the whole of
+/// the crossing.
+struct WorkshopLayout {
+    setup_persist::WorkshopSetup desk;
+    WorkshopSetupLink link;
+
+    ZEN_SHAPE(WorkshopLayout, 1, ZEN_FIELD(desk), ZEN_FIELD(link));
+};
+
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
-/// DESKS that were in the room and which one the maker was standing on, and where the
+/// LAYOUTS that were in the room and which one the maker was standing on, and where the
 /// room's window sat on the desktop.
 ///
 /// EVERY LAYOUT IS A `setup_persist::WorkshopSetup`, not a copy of its fields. That is the
@@ -291,7 +345,7 @@ struct WorkshopSession {
     std::string format;
     std::int64_t format_version = 0;
     WorkshopViewport viewport;
-    std::vector<setup_persist::WorkshopSetup> layouts;
+    std::vector<WorkshopLayout> layouts;
     std::int64_t active = 0;
     WorkshopPlacement placement;
 
@@ -301,7 +355,9 @@ struct WorkshopSession {
     /// Version 3 (WUX-3): the desktop placement, carried as the words above.
     /// Version 4 (WUX-10): the one `desk` became the whole ordered layout run
     /// and the position that was live.
-    ZEN_SHAPE(WorkshopSession, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    /// Version 5 (WUX-11): each of those layouts became a desk AND its optional
+    /// Setup association, so the run's element grew a shape of its own.
+    ZEN_SHAPE(WorkshopSession, 5, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
               ZEN_FIELD(placement));
 };
@@ -393,7 +449,14 @@ struct Placement {
 /// argument is a const vector, so no save can reorder the layouts it is saving, and the one
 /// place that undoes runtime's lift is `layout_run` (`setup.hpp`) rather than a second
 /// reading of `shelved` written here.
-inline WorkshopSession to_session(const std::vector<Setup>& run, std::size_t active,
+inline WorkshopSetupLink to_link(const SetupLink& link) {
+    // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
+    // an empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` --
+    // which has an empty name, and is therefore a value no maker's desk can equal.
+    return WorkshopSetupLink{link.path, setup_persist::to_setup(link.known)};
+}
+
+inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t active,
                                   std::int64_t viewport_w, std::int64_t viewport_h,
                                   const Placement& place) {
     WorkshopSession out;
@@ -401,8 +464,9 @@ inline WorkshopSession to_session(const std::vector<Setup>& run, std::size_t act
     out.format_version = kFormatVersion;
     out.viewport = WorkshopViewport{viewport_w, viewport_h};
     out.layouts.reserve(run.size());
-    for (const Setup& desk : run) {
-        out.layouts.push_back(setup_persist::to_setup(desk));
+    for (const Layout& layout : run) {
+        out.layouts.push_back(
+            WorkshopLayout{setup_persist::to_setup(layout.desk), to_link(layout.link)});
     }
     out.active = static_cast<std::int64_t>(active);
     out.placement.mode = place.known ? kPlacementDesktop : kPlacementNone;
@@ -413,7 +477,7 @@ inline WorkshopSession to_session(const std::vector<Setup>& run, std::size_t act
     return out;
 }
 
-inline std::string to_text(const std::vector<Setup>& run, std::size_t active,
+inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
                            std::int64_t viewport_w, std::int64_t viewport_h,
                            const Placement& place) {
     return loom::compat::serialize(
@@ -439,8 +503,9 @@ inline std::string to_text(const std::vector<Setup>& run, std::size_t active,
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
-    std::vector<Setup> layouts; ///< the maker's ordered run, when `outcome.accepted`; a
-                                ///< session that was admitted holds at least one
+    std::vector<Layout> layouts; ///< the maker's ordered run -- each desk WITH its Setup
+                                 ///< association -- when `outcome.accepted`; a session that
+                                 ///< was admitted holds at least one
     std::size_t active = 0; ///< which position of `layouts` was the live desk
     std::int64_t viewport_w = 0; ///< the room, when `honoured`
     std::int64_t viewport_h = 0;
@@ -521,12 +586,49 @@ inline std::string in_layout(std::size_t at, const std::string& why) {
     return "layout at position " + std::to_string(at) + ": " + why;
 }
 
+/// AN ASSOCIATION THAT SAYS TWO THINGS AT ONCE (WUX-11). Absence has exactly one spelling
+/// here -- no path, and the canonical no-desk beside it -- because Loom's admission has no
+/// optional fields and a value nobody means must not have two ways of being written
+/// (WIND-2's law, the same one `placement_in` keeps one field over).
+inline std::string half_a_link(std::size_t at) {
+    return in_layout(at,
+                     "this layout names no Setup file and carries a remembered Setup value "
+                     "anyway -- a layout with no association remembers nothing");
+}
+
+/// A LAYOUT'S ASSOCIATION, AS THE LIVE VALUE IT NAMES -- or why it is not one (WUX-11).
+///
+/// AN EMPTY PATH IS `none` AND ITS `known` IS NOT JUDGED AS A DESK, because there is no desk
+/// there to judge: it is required to be the canonical absence, and a file that put a real
+/// arrangement in it would be claiming a baseline for an artifact it does not name. A
+/// non-empty path means there IS one, so `known` meets `setup_persist::setup_in` -- the same
+/// whole law, in the same words, that the layout's own desk just met.
+inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink& out) {
+    if (file.path.empty()) {
+        Setup nothing;
+        if (setup_persist::setup_in(file.known, nothing).accepted) {
+            return Written::no(half_a_link(at));
+        }
+        out = SetupLink{};
+        return Written::ok();
+    }
+    Setup known;
+    const Written understood = setup_persist::setup_in(file.known, known);
+    if (!understood.accepted) {
+        return Written::no(in_layout(at, "its remembered Setup value is not one this "
+                                         "Workshop can read -- " +
+                                             understood.refusal));
+    }
+    out = SetupLink{file.path, std::move(known)};
+    return Written::ok();
+}
+
 /// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
 ///
 /// THE CANDIDATE IS BUILT INTO A LOCAL and only handed over once every layer has passed,
 /// which is `setup_persist::setup_in`'s own structural guarantee spent one level up: a
 /// malformed layout near the end of a run cannot leave the earlier ones installed.
-inline Written layouts_in(const WorkshopSession& file, std::vector<Setup>& run,
+inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
                           std::size_t& active) {
     if (file.layouts.empty()) {
         return Written::no(no_layouts());
@@ -537,7 +639,7 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Setup>& run,
     if (file.active < 0 || static_cast<std::size_t>(file.active) >= file.layouts.size()) {
         return Written::no(active_out_of_range(file.active, file.layouts.size()));
     }
-    std::vector<Setup> candidate;
+    std::vector<Layout> candidate;
     candidate.reserve(file.layouts.size());
     for (std::size_t at = 0; at < file.layouts.size(); ++at) {
         // EVERY LAYOUT MEETS THE SETUP OWNER'S WHOLE LAW, in the setup owner's own words.
@@ -545,11 +647,16 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Setup>& run,
         // that admits one; a session holding several of them holds several desks, not a
         // different kind of thing.
         Setup desk;
-        const Written understood = setup_persist::setup_in(file.layouts[at], desk);
+        const Written understood = setup_persist::setup_in(file.layouts[at].desk, desk);
         if (!understood.accepted) {
             return Written::no(in_layout(at, understood.refusal));
         }
-        candidate.push_back(std::move(desk));
+        SetupLink link;
+        const Written related = link_in(file.layouts[at].link, at, link);
+        if (!related.accepted) {
+            return Written::no(related.refusal);
+        }
+        candidate.push_back(Layout{std::move(desk), std::move(link)});
     }
     run = std::move(candidate);
     active = static_cast<std::size_t>(file.active);
@@ -608,7 +715,7 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
 
 /// The shared tail of every read road: an admitted layout run, and the viewport judged
 /// against this file's own band, into a loaded session.
-inline LoadedSession loaded_from(std::vector<Setup> run, std::size_t active,
+inline LoadedSession loaded_from(std::vector<Layout> run, std::size_t active,
                                  std::int64_t viewport_w, std::int64_t viewport_h,
                                  const Placement& place) {
     LoadedSession loaded;
@@ -654,7 +761,7 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     // an active position out of range or a ninth layout is WRONG, not old, and is refused
     // here in current-data words. Nothing about an admission failure sends a file looking
     // for a conversion; only a historical CLAIM does that, in `from_text`.
-    std::vector<Setup> run;
+    std::vector<Layout> run;
     std::size_t active = 0;
     const Written understood = layouts_in(file, run, active);
     if (!understood.accepted) {
@@ -741,7 +848,7 @@ inline LoadedSession from_text(std::string_view bytes,
 /// It writes THROUGH `persist::write_file_making_room` since WUX-3: the ordinary home of
 /// this file is the per-user state root, which is created on first write and never on a
 /// read -- a run that persists nothing leaves no trace.
-inline Written save_file(const std::string& path, const std::vector<Setup>& run,
+inline Written save_file(const std::string& path, const std::vector<Layout>& run,
                          std::size_t active, std::int64_t viewport_w,
                          std::int64_t viewport_h, const Placement& place) {
     return persist::write_file_making_room(
