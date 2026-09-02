@@ -122,14 +122,14 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`,
-`SurfacePlacement`, `placement_within`; `surface/vocabulary.hpp` `SurfacePlacement`,
-`SurfacePlacementRemembered`, `placement_within`; `tests/test_workshop_persistence.cpp` case
-`"WUX-3: a session with a placement round-trips byte-identically"`, case `"WUX-3: the
-placement's words are judged; its coordinates are not"`, case `"WUX-3: the desk remembers where
-its window sat, and offers it back"`, case `"WUX-3: a run whose medium reports no placement
-RETAINS the remembered one"`; `tests/test_surface.cpp` case `"WUX-3: placement is reported
-BEFORE the extent, at every door"`.
+PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`;
+`surface/vocabulary.hpp` `SurfacePlacement`, `SurfacePlacementRemembered`;
+`surface/skin_sdl_plan.hpp` `placement_within`; `tests/test_workshop_persistence.cpp` case
+`"WUX-3: a session with a placement round-trips byte-identically"`, case `"WUX-3: the placement's
+words are judged; its coordinates are not"`, case `"WUX-3: the desk remembers where its window
+sat, and offers it back"`, case `"WUX-3: a run whose medium reports no placement RETAINS the
+remembered one"`; `tests/test_surface.cpp` case `"WUX-3: placement is reported BEFORE the extent,
+at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's

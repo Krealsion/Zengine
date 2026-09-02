@@ -100,9 +100,9 @@ MEANS
 - a movable Info would change the resolved size of objects in a maker's document;
 - the Layouts pane's authored geometry is spent: it moves, and its tabs with it.
 
-PROVEN BY — `workshop/screen.hpp` `project_pane`, `arrange_geometry_ready`;
-`workshop/panel.hpp` `place_is_authorable`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3:
-authored geometry moves the Layouts pane, and the tabs with it"`;
+PROVEN BY — `workshop/screen.hpp` `project_pane`; `workshop/panel.hpp` `place_is_authorable`;
+`workshop/weave.hpp` `arrange_geometry_ready`; `tests/test_workshop_screen.cpp` case
+`"WUX-12/SC-3: authored geometry moves the Layouts pane, and the tabs with it"`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is setup-valid,
 projection-refused, and never falls back"`.
 WHY — `agents/decisions/three-places.md`

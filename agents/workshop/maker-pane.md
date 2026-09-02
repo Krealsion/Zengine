@@ -33,7 +33,7 @@ MEANS
 - there is no singleton `Defined` ref whose meaning follows the open file.
 
 PROVEN BY — `workshop/panel.hpp` `kMakerPaneProvider`, `zengine.workshop.maker`,
-`maker_pane_ref`, `kMakerPaneKind`; `workshop/setup.hpp` `admit_pane_offer`, `resolve_pane`;
+`kMakerPaneKind`; `workshop/setup.hpp` `admit_pane_offer`, `resolve_pane`, `maker_pane_ref`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-4: a maker pane's identity is its name
 under Workshop's namespace -- not a singleton that follows the open file"`, case
 `"WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its
@@ -66,7 +66,7 @@ MEANS
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
 PROVEN BY — `workshop/screen.hpp` `paint_panels`, `bounds_of`, `pane_inside`,
-`paint_maker_pane`, `present_region`, `fit_region_subs`, `kGroundOwn`;
+`paint_maker_pane`, `present_region`, `fit_region_subs`; `surface/vocabulary.hpp` `kGroundOwn`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed relative to the
 pane's INTERIOR and painted through the ordinary pane path in cells"`, case `"WUX-14/SC-8: one
 authored fine value, read in pixels on the window and projected to cells on a terminal, and

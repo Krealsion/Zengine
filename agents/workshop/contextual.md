@@ -27,11 +27,11 @@ LAW — Arrange binds the scope and selects the subject, and only after its expl
 DOES NOT MEAN
 - that any other contextual action selects, binds or focuses — Arrange is the one exception.
 
-PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `spend_context_choice`;
-`workshop/screen.hpp` `arrange_geometry_ready`; `tests/test_workshop_panels.cpp` case
-`"CTX-0/ARR-0: contextual Arrange admission precedes binding"`; `tests/test_workshop_screen.cpp`
-case `"WUX-7: contextual Arrange lifts the pane it addressed, not the one in front"`, case
-`"WUX-7: a refused Arrange leaves the selection exactly where it was"`.
+PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `spend_context_choice`,
+`arrange_geometry_ready`; `tests/test_workshop_panels.cpp` case `"CTX-0/ARR-0: contextual Arrange
+admission precedes binding"`; `tests/test_workshop_screen.cpp` case `"WUX-7: contextual Arrange
+lifts the pane it addressed, not the one in front"`, case `"WUX-7: a refused Arrange leaves the
+selection exactly where it was"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-03 — The popup is local and its bounds are derived

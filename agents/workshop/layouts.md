@@ -169,9 +169,9 @@ MEANS
 - `x` is refused: it once closed the Builder, and a maker's hand may still mean that.
 
 PROVEN BY — `workshop/keymap.hpp` `layout.next`, `layout.previous`, `layout.new`,
-`layout.remove`, `terminal_byte_scancode`; `tests/test_workshop_panels.cpp` case `"WUX-9/SC-10:
-four ordinary command-mode actions reach the layout shelf"`, case `"WUX-9/SC-10: the layout
-gestures stay in command mode"`.
+`layout.remove`; `input/translate.hpp` `terminal_byte_scancode`; `tests/test_workshop_panels.cpp`
+case `"WUX-9/SC-10: four ordinary command-mode actions reach the layout shelf"`, case
+`"WUX-9/SC-10: the layout gestures stay in command mode"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## Do not assume
