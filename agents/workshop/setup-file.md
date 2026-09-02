@@ -12,9 +12,11 @@ MEANS
 - an unresolved reference round-trips every authored field exactly;
 - setup bytes carry no descriptor, room, handle or runtime fact.
 
-PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `to_text`;
-`workshop/setup.hpp` `PaneRef`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a fresh
-setup is version 3, sparse, and carries the identity ranks"`, case `"WIND-2: an unresolved
+PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `to_text`,
+`WorkshopPaneSize`, `WorkshopSetupPane`; `workshop/setup.hpp` `PaneRef`, `kMaxPaneKeyLen`,
+`PaneSize`, `SetupPane`, `pane_ref_of`, `kNoPaneRow`; `workshop/panel.hpp` `kWorkshopProvider`,
+`PanelKind`, `every_kind_is_referable`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a
+fresh setup is version 3, sparse, and carries the identity ranks"`, case `"WIND-2: an unresolved
 reference round-trips every authored field exactly"`; `tests/test_workshop_panes_seam.cpp` case
 `"setup bytes carry no descriptor, room or handle"`.
 WHY — `agents/decisions/setup-format-v3.md`
@@ -27,11 +29,11 @@ MEANS
 - an old desk resolves to the identical pixels and characters; the next explicit save writes v3;
 - this is one namespace and one multiply, not a migration framework.
 
-PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`;
-`surface/vocabulary.hpp` `kCellSubs`; `tests/test_workshop_screen.cpp` case `"WUX-2: a
-version-2 whole-cell setup loads at exactly its old picture"`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a version-1 file is refused BY NUMBER,
-before its rows are judged"`.
+PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`, `setup_in_v2`;
+`surface/vocabulary.hpp` `kCellSubs`; `workshop/session_history.hpp` `place_v2_to_v3`,
+`desk_v2_to_v3`; `tests/test_workshop_screen.cpp` case `"WUX-2: a version-2 whole-cell setup loads
+at exactly its old picture"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a version-1
+file is refused BY NUMBER, before its rows are judged"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
@@ -42,9 +44,9 @@ MEANS
 - admission has no optional field, so absence cannot be spelled by omitting one;
 - a magic coordinate is a value a maker could otherwise mean.
 
-PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a default mode carries no numbers, and
-that is one canonical spelling"`.
+PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
+`check_pane_place_coord`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a default mode
+carries no numbers, and that is one canonical spelling"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
@@ -55,10 +57,10 @@ MEANS
 - the in-memory numbers are arbitrary: a renumber would silently change every saved arrangement;
 - `pixels` offered to a place is a word that field's vocabulary does not have.
 
-PROVEN BY — `workshop/setup_persist.hpp` `from_text`; `workshop/setup.hpp` `pane_unit`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: an unknown mode word names what it found
-and what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels
-included"`.
+PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSubcells`,
+`kPlaceWords`, `unit_word`; `workshop/setup.hpp` `pane_unit`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: an unknown mode word names what it found and
+what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels included"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-05 — The format version and the envelope's version are one number
@@ -70,9 +72,9 @@ MEANS
 - the refusal leaves the live setup and its on-file copy untouched.
 
 PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `from_text`,
-`format_version`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a version-1 file is
-refused BY NUMBER, before its rows are judged"`, case `"WIND-2: a version-1 file leaves the
-live setup and its on-file copy untouched"`.
+`format_version`, `wrong_version`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a
+version-1 file is refused BY NUMBER, before its rows are judged"`, case `"WIND-2: a version-1 file
+leaves the live setup and its on-file copy untouched"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-06 — `pixels` is declared, valid everywhere, and refused at projection
@@ -87,10 +89,10 @@ DOES NOT MEAN
 - that fixed placement is permission to present an unsupported unit as understood.
 
 PROVEN BY — `workshop/screen.hpp` `pane_unit_projectable`, `pane_state_of`; `workshop/setup.hpp`
-`pane_unit`; `workshop/weave.hpp` `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp`
-case `"WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back"`;
-`tests/test_workshop_screen.cpp` case `"WIND-2a: a pixel axis refuses every current pane
-projection, Info included"`.
+`pane_unit`, `kMaxPanePixels`, `kPixels`; `workshop/weave.hpp` `arrange_geometry_ready`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is setup-valid,
+projection-refused, and never falls back"`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a
+pixel axis refuses every current pane projection, Info included"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-07 — `front` is a canonical rank, never a counter
@@ -105,10 +107,10 @@ DOES NOT MEAN
 - that `max + 1` would do — it is an operation trace, and a legal gesture would eventually fail.
 
 PROVEN BY — `workshop/setup.hpp` `send_to_front`, `send_to_back`, `raise_one`, `lower_one`,
-`reset_front`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: every ordering operation
-is an exact permutation, ends included"`, case `"WIND-2: a gapped or duplicated rank is
-refused, and a fresh one is not"`, case `"WIND-2: 10,000 alternating ordering operations stay
-inside 0..n-1"`.
+`reset_front`, `check_setup`, `add_pane`, `remove_pane`, `pane_at_front`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: every ordering operation is an exact
+permutation, ends included"`, case `"WIND-2: a gapped or duplicated rank is refused, and a fresh
+one is not"`, case `"WIND-2: 10,000 alternating ordering operations stay inside 0..n-1"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
 ## WL-SETUP-08 — The value doors are atomic

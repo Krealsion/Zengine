@@ -26,11 +26,12 @@ MEANS
 - origin is generated once, never persisted, never moved, and not renamed "the project";
 - the location is one absolute, lexically normal, generic-slash string, and it is not persisted.
 
-PROVEN BY — `workshop/weave.hpp` `project_dir`; `workshop/marks.hpp` `LocationMarks`, `origin`;
-`workshop/files.hpp` `current_dir`; `tests/test_workshop_files.cpp` case `"PROJ-2: origin is
-generated for the run, is a mark, and is not the project"`, case `"PROJ-2: marks survive a
-restart, and the browsing location deliberately does not"`, case `"PROJ-2: a location is one
-absolute spelling, admitted the same way every time"`.
+PROVEN BY — `workshop/weave.hpp` `project_dir`, `files_dir`, `ensure_marks`;
+`workshop/marks.hpp` `LocationMarks`, `origin`, `settled`; `workshop/files.hpp` `current_dir`;
+`tests/test_workshop_files.cpp` case `"PROJ-2: origin is generated for the run, is a mark, and is
+not the project"`, case `"PROJ-2: marks survive a restart, and the browsing location deliberately
+does not"`, case `"PROJ-2: a location is one absolute spelling, admitted the same way every
+time"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-03 — Parent is lexical and stops at the filesystem, not at the project
@@ -40,20 +41,20 @@ LAW — `parent_path()` until the fixed point `p.parent_path() == p`, which POSI
 MEANS
 - going up from a linked directory returns the maker to where they walked in.
 
-PROVEN BY — `workshop/marks.hpp` `parent_location`, `parent_path`;
-`workshop/weave.hpp` `files_parent`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: parent is lexical and stops where a path stops,
-not where a project does"`, case `"PROJ-2: parent walks straight past the project and stops at
-the filesystem"`, case `"EDIT-1: entering a directory walks in, and parent walks back to where
-you were"`.
+PROVEN BY — `workshop/marks.hpp` `parent_location`, `parent_path`, `at_filesystem_root`;
+`workshop/weave.hpp` `files_parent`; `tests/test_workshop_files.cpp` case `"PROJ-2: parent is
+lexical and stops where a path stops, not where a project does"`, case `"PROJ-2: parent walks
+straight past the project and stops at the filesystem"`, case `"EDIT-1: entering a directory walks
+in, and parent walks back to where you were"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-04 — A linked directory is marked and enterable
 
 LAW — A directory row is `linked` when following it says directory and not following it does not (`symlink_status()`), never `is_symlink()`, which a Windows junction answers false.
 
-PROVEN BY — `workshop/files.hpp` `symlink_status`; `tests/test_workshop_files.cpp` case
-`"PROJ-2: a linked directory is marked, entered, and left again LEXICALLY"`.
+PROVEN BY — `workshop/files.hpp` `symlink_status`, `linked`; `workshop/screen.hpp`
+`files_row_text`; `tests/test_workshop_files.cpp` case `"PROJ-2: a linked directory is marked,
+entered, and left again LEXICALLY"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
@@ -64,20 +65,22 @@ MEANS
 - Files is the first consumer, not the owner: a fact inside a pane is `close_panel`'s to destroy.
 
 PROVEN BY — `workshop/marks.hpp` `LocationMarks`; `workshop/screen.hpp` `marks`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: the marks owner is session truth, and Files is
-only its first reader"`, case `"PROJ-2: one address is one traversal stop, however many ways it
-is known"`, case `"PROJ-2: a maker marks a place, leaves, and comes back to it"`.
+`workshop/weave.hpp` `files_mark`; `tests/test_workshop_files.cpp` case `"PROJ-2: the marks owner
+is session truth, and Files is only its first reader"`, case `"PROJ-2: one address is one
+traversal stop, however many ways it is known"`, case `"PROJ-2: a maker marks a place, leaves, and
+comes back to it"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
 
 LAW — Origin, the maker's marks sorted bytewise, then `host_filesystem_roots()` asked fresh; one address is one stop, and there is no standing selected mark — the cycle starts where the browser is.
 
-PROVEN BY — `workshop/marks.hpp` `somewhere_to_go`; `workshop/filesystem_roots.hpp`
-`host_filesystem_roots`; `workshop/weave.hpp` `host_filesystem_roots`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: traversal is cyclic, has no standing selection,
-and both directions work"`, case `"PROJ-2: the host's filesystem roots are asked for, never
-invented"`, case `"PROJ-2: a run with no origin can still reach a place it remembers"`.
+PROVEN BY — `workshop/marks.hpp` `somewhere_to_go`, `destinations`;
+`workshop/filesystem_roots.hpp` `host_filesystem_roots`; `workshop/weave.hpp`
+`host_filesystem_roots`, `files_jump_mark`; `tests/test_workshop_files.cpp` case `"PROJ-2:
+traversal is cyclic, has no standing selection, and both directions work"`, case `"PROJ-2: the
+host's filesystem roots are asked for, never invented"`, case `"PROJ-2: a run with no origin can
+still reach a place it remembers"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-07 — Roots are host-reported, asked at the gesture, and never on the paint path
@@ -90,9 +93,10 @@ MEANS
 - the residual — no origin and no marks declines the keyboard — is named, not solved.
 
 PROVEN BY — `workshop/filesystem_roots.hpp` `host_filesystem_roots`, `GetLogicalDrives`;
-`workshop/screen.hpp` `files_has_keyboard`; `workshop/marks.hpp` `somewhere_to_go`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: the host's filesystem roots are asked for, never
-invented"`, case `"EDIT-1: with no origin the pane refuses in words and guesses nothing"`.
+`workshop/screen.hpp` `files_has_keyboard`; `workshop/marks.hpp` `somewhere_to_go`, `provenance`;
+`workshop/weave.hpp` `files_say_where`; `tests/test_workshop_files.cpp` case `"PROJ-2: the host's
+filesystem roots are asked for, never invented"`, case `"EDIT-1: with no origin the pane refuses
+in words and guesses nothing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-08 — Maker marks are durable, ride the machine-local root, and refuse by row
@@ -104,11 +108,11 @@ MEANS
 - "unusable" is a spelling test, never an existence test: a marked directory that is gone is kept;
 - a mark is an absolute path, so it describes this machine's disks — state, not configuration.
 
-PROVEN BY — `workshop/marks_persist.hpp` `kFormatVersion`, `from_text`; `workshop/weave.hpp`
-`marks_refused_`, `load_marks`; `tests/test_workshop_files.cpp` case `"PROJ-2: a persisted mark
-is admitted, never re-based, and never quietly dropped"`, case `"PROJ-2: a marks file this run
-could not read is never overwritten"`, case `"PROJ-2: marks survive a restart, and the browsing
-location deliberately does not"`.
+PROVEN BY — `workshop/marks_persist.hpp` `kFormatVersion`, `from_text`, `WorkshopMark`;
+`workshop/weave.hpp` `marks_refused_`, `load_marks`, `save_marks`; `tests/test_workshop_files.cpp`
+case `"PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped"`, case
+`"PROJ-2: a marks file this run could not read is never overwritten"`, case `"PROJ-2: marks
+survive a restart, and the browsing location deliberately does not"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
@@ -128,11 +132,12 @@ LAW — Names are `u8string()` bytes: a printable-ASCII name is exact and openab
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
 
-PROVEN BY — `workshop/files.hpp` `printable_ascii_name`, `openable`, `admit_filename`;
-`workshop/path_admission.hpp` `admit_filename`; `tests/test_workshop_files.cpp` case `"EDIT-1: a
-name outside printable ASCII keeps its row, marked, and cannot be opened"`, case `"EDIT-1: the
-browser does not judge contents -- the editor's door does"`, case `"EDIT-1: a name the path
-custody cannot carry refuses at the browser, in its words"`.
+PROVEN BY — `workshop/files.hpp` `printable_ascii_name`, `openable`, `admit_filename`, `name`,
+`shown_name`; `workshop/path_admission.hpp` `admit_filename`; `workshop/screen.hpp`
+`files_row_text`; `tests/test_workshop_files.cpp` case `"EDIT-1: a name outside printable ASCII
+keeps its row, marked, and cannot be opened"`, case `"EDIT-1: the browser does not judge contents
+-- the editor's door does"`, case `"EDIT-1: a name the path custody cannot carry refuses at the
+browser, in its words"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
@@ -145,22 +150,22 @@ MEANS
 - a second `generic_string()` anywhere is a second way for the process to die.
 
 PROVEN BY — `workshop/path_admission.hpp` `carried`, `exact`, `admit_path`, `admit_filename`,
-`launch_project_dir`, `u8string`; `workshop/weave.hpp` `files_open`, `files_use_recipes`;
-`tests/test_workshop_files.cpp` case `"QR-12: an ordinary path and an ordinary name are carried
-exactly as they were"`, case `"QR-12: a name this platform will not spell is one inert row, not
-the end of it"`, case `"QR-12: a name this platform will not spell refuses at the browser's
-door"`.
+`launch_project_dir`, `u8string`, `AdmittedPath`, `AdmittedName`; `workshop/weave.hpp`
+`files_open`, `files_use_recipes`; `tests/test_workshop_files.cpp` case `"QR-12: an ordinary path
+and an ordinary name are carried exactly as they were"`, case `"QR-12: a name this platform will
+not spell is one inert row, not the end of it"`, case `"QR-12: a name this platform will not spell
+refuses at the browser's door"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-12 — A listing is not a per-paint population
 
 LAW — A listing is recomputed at open, enter, parent, `files.refresh`, and on a finished build gated on `build_news`; no watcher, no timer, no poll, and staleness between those moments is named, not solved.
 
-PROVEN BY — `workshop/weave.hpp` `build_news`; `workshop/keymap.hpp` `files.refresh`;
-`docs/workshop/limitations.md` `listing`; `tests/test_workshop_files.cpp` case `"EDIT-1: the
-listing is a snapshot -- painting does not re-walk the directory"`, case `"EDIT-1: reopening the
-pane takes a fresh listing"`, case `"EDIT-1: a finished build gives the browser a fresh listing,
-and nothing else does"`.
+PROVEN BY — `workshop/weave.hpp` `build_news`, `files_refresh`, `files_build_settled`;
+`workshop/keymap.hpp` `files.refresh`; `docs/workshop/limitations.md` `listing`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: the listing is a snapshot -- painting does not
+re-walk the directory"`, case `"EDIT-1: reopening the pane takes a fresh listing"`, case `"EDIT-1:
+a finished build gives the browser a fresh listing, and nothing else does"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-13 — Bounds and order
@@ -171,10 +176,10 @@ MEANS
 - no locale, no natural sort, no extension grouping, no configuration;
 - a directory that cannot be listed is a refusal, not an empty listing.
 
-PROVEN BY — `workshop/files.hpp` `kMaxListedEntries`; `tests/test_workshop_files.cpp` case
-`"EDIT-1: a bound claims what it read, and never a total it never reached"`, case `"EDIT-1: a
-listing is directories first, then files, bytewise inside each"`, case `"EDIT-1: a directory
-that cannot be listed is a refusal, not an empty listing"`.
+PROVEN BY — `workshop/files.hpp` `kMaxListedEntries`, `row_before`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: a bound claims what it read, and never a total it
+never reached"`, case `"EDIT-1: a listing is directories first, then files, bytewise inside
+each"`, case `"EDIT-1: a directory that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## Do not assume

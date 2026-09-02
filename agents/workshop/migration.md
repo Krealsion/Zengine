@@ -8,9 +8,9 @@ Router: [`../workshop.md`](../workshop.md). The conversion convention itself is
 
 LAW — The session reader carries one format number and no second; the retired shapes live in their own history header, shipped as `zengine-workshop-session-history`, an operator provider.
 
-PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`; `workshop/session_history.hpp`
-`conversions`; `workshop/session_migration_provider.cpp` `conversions`;
-`workshop/CMakeLists.txt` `zengine-workshop-session-history`;
+PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`, `loaded_from`;
+`workshop/session_history.hpp` `conversions`; `workshop/session_migration_provider.cpp`
+`conversions`; `workshop/CMakeLists.txt` `zengine-workshop-session-history`;
 `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-8: the session reader owns no historical
 shape and no conversion"`, case `"MIG-0/SC-7: the shipped artifact supplies exactly the
 conventional edges"`.
@@ -25,11 +25,12 @@ MEANS
 - the catalog holds no `v1` to `v3` or `v3` to `v4` edge, so there is no chain to walk.
 
 PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `conversions`,
-`session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a retired shape's wire identity is the
-identity it was written at"`, case `"WUX-10/SC-4: three DIRECT edges, and no chain to walk even
-if one wanted to"`, case `"MIG-0/SC-7: a conversion owns yesterday's semantics and does not
-rewrite history"`.
+`session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
+`v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`, `session_v2_to_v3`,
+`session_v1_to_v6`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a retired shape's
+wire identity is the identity it was written at"`, case `"WUX-10/SC-4: three DIRECT edges, and no
+chain to walk even if one wanted to"`, case `"MIG-0/SC-7: a conversion owns yesterday's semantics
+and does not rewrite history"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-03 — Version 6 moved the number without moving a field
@@ -42,10 +43,11 @@ MEANS
 - a desk already at `kMaxSetupPanes` refuses rather than dropping either fact.
 
 PROVEN BY — `workshop/session_history.hpp` `session_v5_to_v6`, `desk_v5_to_v6`,
-`kMaxSetupPanes`; `tests/test_workshop_persistence.cpp` case `"WUX-12/SC-11: a real pre-WUX-12
-session comes back with nothing lost"`, case `"WUX-12/SC-11: an explicit historical row is
-preserved, never duplicated"`, case `"WUX-12: a full desk refuses the conversion rather than
-losing either fact"`.
+`v5::WorkshopSession`, `names_layouts`; `workshop/session_persist.hpp` `WorkshopSession`;
+`workshop/setup.hpp` `kMaxSetupPanes`; `tests/test_workshop_persistence.cpp` case `"WUX-12/SC-11:
+a real pre-WUX-12 session comes back with nothing lost"`, case `"WUX-12/SC-11: an explicit
+historical row is preserved, never duplicated"`, case `"WUX-12: a full desk refuses the conversion
+rather than losing either fact"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-04 — A retained old branch would compile, so a source tripwire forbids it
@@ -80,11 +82,11 @@ MEANS
 DOES NOT MEAN
 - that a rung may be added to the reader: that is the thing this seam exists to prevent.
 
-PROVEN BY — `workshop/session_persist.hpp` `op::migrate`, `schema_of`, `kFormatVersion`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0/SC-5: nothing but a historical claim of THIS
-shape asks for a conversion"`, case `"MIG-0/SC-14: a current session bypasses conversion
-entirely"`, case `"MIG-0/SC-5: an old session with no conversion live refuses and changes
-nothing"`.
+PROVEN BY — `workshop/session_persist.hpp` `op::migrate`, `schema_of`, `kFormatVersion`,
+`could_not_convert`, `from_text`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-5: nothing
+but a historical claim of THIS shape asks for a conversion"`, case `"MIG-0/SC-14: a current
+session bypasses conversion entirely"`, case `"MIG-0/SC-5: an old session with no conversion live
+refuses and changes nothing"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-07 — A conversion cannot skip a check
@@ -92,9 +94,10 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — This format's whole law is one function with two callers — off the gate, and out of a conversion's answer — so no conversion skips a check; the format word crosses untouched, the version cannot.
 
 PROVEN BY — `workshop/session_persist.hpp` `current_in`, `forged_version`, `format_version`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0: an old session's OWN law still runs -- the
-conversion skips no check"`, case `"MIG-0: a current-version file whose own field says otherwise
-is a forgery"`, case `"WUX-0 D/MIG-0: an unreadable session names its version by NUMBER"`.
+`workshop/session_history.hpp` `mismatched_version`; `tests/test_workshop_persistence.cpp` case
+`"MIG-0: an old session's OWN law still runs -- the conversion skips no check"`, case `"MIG-0: a
+current-version file whose own field says otherwise is a forgery"`, case `"WUX-0 D/MIG-0: an
+unreadable session names its version by NUMBER"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-08 — The catalog reaches the reader as a reading, never a power
@@ -104,10 +107,10 @@ LAW — The conversion catalog reaches the reader as a read-only pointer the hos
 MEANS
 - an old file's version claim is a lookup key that reaches no load door.
 
-PROVEN BY — `workshop/weave.hpp` `conversions`; `workshop/session_persist.hpp` `op::migrate`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6: with the conversion mounted, the desk
-comes back through the weave"`, case `"MIG-0/SC-11: unmounting the artifact takes the conversion
-with it"`.
+PROVEN BY — `workshop/weave.hpp` `conversions`; `workshop/session_persist.hpp` `op::migrate`,
+`from_text`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6: with the conversion mounted,
+the desk comes back through the weave"`, case `"MIG-0/SC-11: unmounting the artifact takes the
+conversion with it"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-09 — The ordering is authored plan order, and nothing else

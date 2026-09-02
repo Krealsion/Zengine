@@ -2450,9 +2450,9 @@ private:
     }
 
     // ---- The terminal overlay ------------------------------------------------
-    // WL-TERM-02 -- agents/workshop/terminal.md
 
     /// Open or close the pane. The whole of the mode change.
+    // WL-TERM-01 -- agents/workshop/terminal.md
     void toggle_terminal() {
         session_.terminal.open = !session_.terminal.open;
         if (!session_.terminal.open) {
@@ -3072,7 +3072,6 @@ private:
 
     /// OPEN THE KIND THE CURSOR IS ON, OR REMOVE IT. The picker is the one owner
     /// of panel presence, and this is the whole of that ownership.
-    // WL-ARR-03 -- agents/workshop/arrangement.md
     // WL-PED-05 -- agents/workshop/pane-manager.md
     // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void choose_panel(loom::Mail& mail) {
@@ -3145,7 +3144,6 @@ private:
     }
 
     // ---- The setup: name it, save it, restore it ------------------------------
-    // WL-LAYOUT-09 -- agents/workshop/layouts.md; WL-SESSION-04 -- agents/workshop/session.md
 
     /// MAKE THE OPEN PANELS BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
     /// the only thing in this file that opens or closes a panel.
@@ -3180,7 +3178,6 @@ private:
 
     /// OPEN THE ONE-LINE NAME EDITOR ON THE LAYOUT AT `at`.
     // WL-CTX-07 -- agents/workshop/contextual.md
-    // WL-KEY-12 -- agents/workshop/keyboard.md
     // WL-LAYOUT-10 -- agents/workshop/layouts.md
     void open_layout_rename(std::size_t at) {
         if (at >= layout_count(session_.setup)) {
@@ -3334,7 +3331,6 @@ private:
     }
 
     // ---- THE LAYOUT SHELF: several desks, one of them live --------------------
-    // WL-LAYOUT-05, WL-LAYOUT-06 -- agents/workshop/layouts.md
 
     /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
     std::string layout_note() const {
@@ -3663,7 +3659,6 @@ private:
     }
 
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
-    // WL-ARR-06, WL-ARR-13 -- agents/workshop/arrangement.md
 
     /// THE ROWS A MAKER MAY ARRANGE: the shared inventory, restricted to what the setup
     /// names.
@@ -4412,7 +4407,6 @@ private:
     }
 
     /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED.
-    // WL-PROJ-07 -- agents/workshop/project.md
     void choose_recipe(int by, loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // an unbound key with no Builder panel open, exactly as `b` is
@@ -5037,7 +5031,6 @@ private:
     }
 
     // ---- THE PANE EDITOR: a pane as a subject ------------------------------------------------
-    // WL-PED-05 -- agents/workshop/pane-manager.md
 
     /// A FRESH VIEW OF THE SUBJECT, TAKEN AT A GESTURE.
     // WL-PED-03 -- agents/workshop/pane-manager.md
@@ -5246,7 +5239,6 @@ private:
     }
 
     // ---- THE PANE CREATOR: a pane made of authored data ---------------------------------------
-    // WL-MAKER-08, WL-MAKER-10 -- agents/workshop/maker-pane.md
 
     /// REBUILD THE PANE MANAGER'S SUBJECT ROWS WITHOUT CHANGING THE SUBJECT.
     // WL-PED-04 -- agents/workshop/pane-manager.md
@@ -5663,7 +5655,7 @@ private:
     }
 
     /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority.
-    // WL-DOC-15 -- agents/workshop/document.md; WL-EDIT-01 -- agents/workshop/editor.md
+    // WL-EDIT-01 -- agents/workshop/editor.md
     void save_source() {
         EditorState& e = session_.editor;
         if (!e.open_document()) {
@@ -5992,7 +5984,7 @@ private:
 
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- the
     /// same call `refresh_inspector` makes for a property draft.
-    // WL-TEXT-04 -- agents/workshop/text-box.md
+    // WL-TEXT-03 -- agents/workshop/text-box.md
     void refresh_setup_name() {
         if (!session_.setup.naming.open) {
             return;
@@ -6070,7 +6062,6 @@ private:
     }
 
     /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM -- the whole of the input seam.
-    // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     // WL-PRESS-04 -- agents/workshop/press-chain.md
     void external_press(std::int64_t kind, const zengine::input::PointerButton& b,
                         loom::Mail& mail) {

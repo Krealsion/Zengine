@@ -12,12 +12,14 @@ MEANS
 - a ref outside the setup gets one truthful absence sentence, not a geometry refusal;
 - `load_document()` drops a captured object subject — the one identity-aliasing door.
 
-PROVEN BY — `workshop/context.hpp` `ContextMenu`; `workshop/keymap.hpp` `workshop.context`;
-`workshop/weave.hpp` `load_document`, `spend_context_choice`; `tests/test_workshop_panels.cpp`
-case `"CTX-0: a right press captures a subject and selects nothing"`, case `"CTX-0: a captured
-pane that left the setup is refused truthfully"`, subcase `"the keyboard door opens on what
-command mode can name"`; `tests/test_workshop_document.cpp` case `"CTX-0: replacing the document
-drops a captured object subject"`.
+PROVEN BY — `workshop/context.hpp` `ContextMenu`, `context_subject`; `workshop/keymap.hpp`
+`workshop.context`; `workshop/weave.hpp` `load_document`, `spend_context_choice`,
+`open_context_at`, `open_context_ambient`; `workshop/screen.hpp` `object_at`; `workshop/panel.hpp`
+`selected`; `tests/test_workshop_panels.cpp` case `"CTX-0: a right press captures a subject and
+selects nothing"`, case `"CTX-0: a captured pane that left the setup is refused truthfully"`,
+subcase `"the keyboard door opens on what command mode can name"`;
+`tests/test_workshop_document.cpp` case `"CTX-0: replacing the document drops a captured object
+subject"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-02 — Arrange is the one exception
@@ -56,9 +58,10 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 LAW — There is no title row and no hint row: painted row i is population row i, and the width is the widest action row, so the popup shrinks to its content.
 
-PROVEN BY — `workshop/screen.hpp` `context_press_at`, `paint_context`, `context_row_text`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: the contextual surface is its actions, and its
-width is theirs"`, case `"CTX-0: the contextual surface is painted where it is hit"`.
+PROVEN BY — `workshop/screen.hpp` `context_press_at`, `paint_context`, `context_row_text`,
+`context_entry_text`; `tests/test_workshop_screen.cpp` case `"WUX-5: the contextual surface is its
+actions, and its width is theirs"`, case `"CTX-0: the contextual surface is painted where it is
+hit"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-05 — `kContextCatalog` declares, and owns no power
@@ -71,11 +74,12 @@ MEANS
 - groups are their names, and an empty group cannot exist.
 
 PROVEN BY — `workshop/context.hpp` `kContextCatalog`, `context_actions_resolve`,
-`context_population`, `kOnPane`, `kOnObject`, `kOnLayout`, `kOnRoot`; `workshop/keymap.hpp`
-`kActionCatalog`; `tests/test_workshop_panels.cpp` case `"CTX-0: the declared populations are
-the researched ones, keyed by id"`; `tests/test_workshop_document.cpp` case `"CTX-0: the shipped
-catalog stays admissible with the new rows"`; `tests/test_workshop_screen.cpp` case `"CTX-0: an
-open group paints its own rows and its own way out"`.
+`context_population`, `kOnPane`, `kOnObject`, `kOnLayout`, `kOnRoot`, `context_same_id`;
+`workshop/keymap.hpp` `kActionCatalog`; `tests/test_workshop_panels.cpp` case `"CTX-0: the
+declared populations are the researched ones, keyed by id"`; `tests/test_workshop_document.cpp`
+case `"CTX-0: the shipped catalog stays admissible with the new rows"`;
+`tests/test_workshop_screen.cpp` case `"CTX-0: an open group paints its own rows and its own way
+out"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-06 — A row may teach its shortcut, and only a truthful one
@@ -103,10 +107,10 @@ MEANS
 - no owner predicate runs on the paint path: the menu renders an identity, not an existence.
 
 PROVEN BY — `workshop/weave.hpp` `spend_pane_action`, `delete_object_at`, `delete_selected`,
-`finish_draft_first`, `open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`;
-`tests/test_workshop_panels.cpp` case `"CTX-0: a contextual action acts on the pointed pane, not
-the selection"`, case `"CTX-0: a contextual remove removes the pointed pane"`, case
-`"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`;
+`finish_draft_first`, `open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`,
+`context_delete_object`; `tests/test_workshop_panels.cpp` case `"CTX-0: a contextual action acts
+on the pointed pane, not the selection"`, case `"CTX-0: a contextual remove removes the pointed
+pane"`, case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`;
 `tests/test_workshop_document.cpp` case `"CTX-0: contextually deleting the selected object uses
 the existing repair"`, case `"CTX-0: a live draft holds a contextual deletion back"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
@@ -122,9 +126,10 @@ DOES NOT MEAN
 - that anything crosses the provider seam — no second-button `PanePressed`, no provider rows.
 
 PROVEN BY — `workshop/keymap.hpp` `kContext`; `workshop/screen.hpp` `keyboard_context`,
-`context_press_at`; `workshop/weave.hpp` `spend_context_choice`;
-`tests/test_workshop_panels.cpp` case `"CTX-0: input spent on the open surface does not leak
-through it"`, case `"CTX-0: navigation backtracks cleanly and every way out closes"`;
-`tests/test_workshop_panes_window.cpp` case `"CTX-0: a right press over a provider's pane crosses
-the seam not at all"`, case `"CTX-0: input spent on the open surface reaches no provider"`.
+`context_press_at`, `ContextPressAt`; `workshop/weave.hpp` `spend_context_choice`,
+`choose_context_row`, `context_press`; `tests/test_workshop_panels.cpp` case `"CTX-0: input spent
+on the open surface does not leak through it"`, case `"CTX-0: navigation backtracks cleanly and
+every way out closes"`; `tests/test_workshop_panes_window.cpp` case `"CTX-0: a right press over a
+provider's pane crosses the seam not at all"`, case `"CTX-0: input spent on the open surface
+reaches no provider"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`

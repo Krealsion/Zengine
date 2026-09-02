@@ -110,7 +110,6 @@ struct WorkshopSetup {
 };
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE SETUP FORMAT VERSION ARE ONE NUMBER.
-// WL-SETUP-05 -- agents/workshop/setup-file.md
 static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the setup file's format version and its envelope's shape version are one "
               "number: a version-1 file must be refused by ITS NUMBER, before its rows are "
@@ -163,7 +162,6 @@ inline std::string to_text(const Setup& s) {
 // ---- Reading -------------------------------------------------------------------
 
 /// What reading produced: whether it worked, and the setup if it did.
-// WL-SETUP-05 -- agents/workshop/setup-file.md
 struct LoadedSetup {
     Written outcome;
     Setup setup;
@@ -451,7 +449,6 @@ inline LoadedSetup from_text(std::string_view bytes) {
 
 /// Save a setup to a file, through the document's own safe write: a complete
 /// candidate to a sibling, then a rename over the destination.
-// WL-DOC-15 -- agents/workshop/document.md
 inline Written save_file(const std::string& path, const Setup& s) {
     return persist::write_file(path, to_text(s));
 }

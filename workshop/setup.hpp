@@ -38,10 +38,8 @@ inline constexpr const char* kDefaultSetupName = "Default";
 inline constexpr const char* kDefaultSetupFileName = "workshop-setup.json";
 
 // ---- The bounds, and why each one is the number it is -----------------------
-// WL-SETUP-01 -- agents/workshop/setup-file.md
 
 /// How long a setup's human name may be.
-// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxSetupNameLen = 32;
 
 /// How long either half of a `PaneRef` may be.
@@ -53,7 +51,6 @@ inline constexpr std::size_t kMaxPaneKeyLen = 64;
 inline constexpr std::size_t kMaxSetupPanes = 32;
 
 /// How long a RUNTIME pane descriptor's two prose fields may be.
-// WL-PED-01 -- agents/workshop/pane-manager.md
 inline constexpr std::size_t kMaxPaneNameLen = 32;
 inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
@@ -208,7 +205,6 @@ struct CatalogRow {
 };
 
 /// The one line the picker reads under a maker-made pane's name.
-// WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
 
 inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
@@ -236,7 +232,6 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
 /// The NAME a maker reads for a kind that may be a runtime one -- the catalog's
 /// own for a built-in, the offered descriptor's for a runtime pane, and empty for
 /// a kind neither knows. A COPY, for `CatalogRow`'s reason.
-// WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::string kind_name(const Panels& panels, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
         if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
@@ -271,7 +266,6 @@ inline std::string quoted_setup_name(const std::string& name) {
 }
 
 // ---- The law: what this application will accept as a setup -------------------
-// WL-SESSION-04 -- agents/workshop/session.md
 
 /// What this application accepts as a setup's human name.
 ///

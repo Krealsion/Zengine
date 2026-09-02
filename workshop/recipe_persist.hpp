@@ -37,7 +37,6 @@ inline constexpr const char* kFormat = "zengine-build-recipes";
 inline constexpr std::int64_t kFormatVersion = 1;
 
 /// THE CATALOG WORKSHOP SHIPS, by the name it is staged under BESIDE THE EXECUTABLE.
-// WL-PROJ-02 -- agents/workshop/project.md
 inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 
 /// A recipe catalog is small, and its ceiling says so. Thirty-two recipes of a name, an
@@ -238,7 +237,6 @@ inline LoadedRecipes from_text(std::string_view bytes) {
 // ---- The file itself ---------------------------------------------------------------
 
 /// Save a catalog to a file, through the document's own safe write.
-// WL-PROJ-02 -- agents/workshop/project.md
 inline Written save_file(const std::string& path, const std::vector<builder::Recipe>& recipes) {
     return persist::write_file(path, to_text(recipes));
 }

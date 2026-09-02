@@ -11,17 +11,18 @@ MEANS
 - what moved is who owns the rectangle, hence what a maker may do to it; the composition did not;
 - removing the pane strands nobody: the keys still step the run and the picker brings it back.
 
-PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`; `workshop/screen.hpp` `paint_layouts`,
-`layouts_body`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-2: the Layouts pane's developer
-default IS the historical rectangle"`, case `"WUX-12/SC-3: authored geometry moves the Layouts
-pane, and the tabs with it"`, case `"WUX-12/SC-10: removing the Layouts pane strands nobody"`.
+PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`, `kDefaultPanels`; `workshop/screen.hpp`
+`paint_layouts`, `layouts_body`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-2: the Layouts
+pane's developer default IS the historical rectangle"`, case `"WUX-12/SC-3: authored geometry
+moves the Layouts pane, and the tabs with it"`, case `"WUX-12/SC-10: removing the Layouts pane
+strands nobody"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-02 — The status is the active layout's association, in three sentences
 
 LAW — `setup: none`, `setup: <artifact> | current`, `setup: <artifact> | modified`; `none` does not mean unsaved, `UNSAVED` is retired here, and the session file is never shown in this slot.
 
-PROVEN BY — `workshop/screen.hpp` `setup_link_text`, `band_status`;
+PROVEN BY — `workshop/screen.hpp` `setup_link_text`, `band_status`, `kSetupSlot`;
 `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-7: the top row says the ACTIVE layout's
 Setup association"`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-7: the three verdicts, and
 what makes a fresh desk `none`"`.
@@ -36,9 +37,9 @@ MEANS
 - the status is adjusted to the row's right edge where the row still fits.
 
 PROVEN BY — `workshop/screen.hpp` `setup_link_text`, `path_columns`, `kSetupStatusCols`,
-`fit_path`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-24: the association's verdict
-survives the row's cut, at every width"`, case `"WUX-9/SC-7: the status row is tabs on the left
-and the existing status right"`.
+`fit_path`, `kElidedCols`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-24: the association's
+verdict survives the row's cut, at every width"`, case `"WUX-9/SC-7: the status row is tabs on the
+left and the existing status right"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-04 — `+` is an action, not a durable pseudo-layout
@@ -59,11 +60,11 @@ MEANS
 - narrowing the pane narrows the run; markers, reservation and `+` degrade by their own rules;
 - a tab's span is recorded as the row is written, so there is no second measurement to drift.
 
-PROVEN BY — `workshop/screen.hpp` `text`, `tabs`, `band_status`, `paint_layouts`,
-`band_tab_at`, `layouts_body`, `band_tab_row`, `kNoBandRow`; `tests/test_workshop_screen.cpp`
-case `"WUX-9/SC-7: the tab run is one composition on both media"`, case `"WUX-9/SC-9: a press
-answers a painted tab and nothing else on the band"`, case `"WUX-9/SC-8: the run never spends
-more columns than it was given"`.
+PROVEN BY — `workshop/screen.hpp` `text`, `tabs`, `band_status`, `paint_layouts`, `band_tab_at`,
+`layouts_body`, `band_tab_row`, `kNoBandRow`, `BandStatus`; `tests/test_workshop_screen.cpp` case
+`"WUX-9/SC-7: the tab run is one composition on both media"`, case `"WUX-9/SC-9: a press answers a
+painted tab and nothing else on the band"`, case `"WUX-9/SC-8: the run never spends more columns
+than it was given"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-06 — The marker brackets the live name, one cell each side
@@ -99,11 +100,11 @@ MEANS
 - it grows outward from the live layout, so no offset goes stale after a switch or a removal;
 - keyboard stepping traverses the whole population, painted or not, and the window follows.
 
-PROVEN BY — `workshop/screen.hpp` `layouts_omitted_text`, `band_status`, `list_window`;
-`tests/test_workshop_screen.cpp` case `"WUX-9/SC-8: the visible window is derived, keeps the live
-tab, and marks its ends"`, case `"WUX-9/SC-8: the live tab is cut rather than dropped when even
-it will not fit"`, case `"WUX-9/SC-10: stepping wraps over the whole population, painted or
-not"`.
+PROVEN BY — `workshop/screen.hpp` `layouts_omitted_text`, `band_status`, `list_window`,
+`layout_tab_run`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-8: the visible window is
+derived, keeps the live tab, and marks its ends"`, case `"WUX-9/SC-8: the live tab is cut rather
+than dropped when even it will not fit"`, case `"WUX-9/SC-10: stepping wraps over the whole
+population, painted or not"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-09 — A press on a painted tab is a press on the Layouts pane
@@ -113,11 +114,12 @@ LAW — A press on a painted tab is answered through ordinary occupancy and then
 MEANS
 - the status, the blank between and an omitted tab answer nothing.
 
-PROVEN BY — `workshop/screen.hpp` `band_tab_at`, `occupied_at`; `workshop/weave.hpp`
-`take_hold`; `tests/test_workshop_panels.cpp` case `"WUX-12/SC-4+SC-8: a tab press IS a press on
-the Layouts pane, and still switches"`, case `"WUX-9/SC-9: pressing a painted tab switches, and
-the rest of the row does not"`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane
-in front of the Layouts pane takes the press"`.
+PROVEN BY — `workshop/screen.hpp` `band_tab_at`, `occupied_at`, `LayoutTabPress`;
+`workshop/weave.hpp` `take_hold`, `layouts_press`; `tests/test_workshop_panels.cpp` case
+`"WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches"`, case
+`"WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not"`;
+`tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
+takes the press"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-10 — A second press on the same tab renames it
@@ -155,6 +157,7 @@ MEANS
 - `^w` is annotated beside Close only when the captured tab is the active one.
 
 PROVEN BY — `workshop/context.hpp` `kLayout`; `workshop/screen.hpp` `context_annotation`;
-`tests/test_workshop_panels.cpp` case `"WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab"`,
-case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`.
+`workshop/weave.hpp` `open_context_on_layout`; `tests/test_workshop_panels.cpp` case
+`"WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab"`, case `"WUX-11/SC-4: Move Left and
+Move Right reorder from the tab that was pointed at"`.
 WHY — `agents/decisions/the-layouts-pane.md`

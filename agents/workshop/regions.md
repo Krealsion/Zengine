@@ -8,7 +8,7 @@ band, and the name on a maker's material. One law per heading; cite by ID. Route
 
 LAW — `panel_prose_place` + `panel_prose_region` is the one call for the picker, the popup and an external pane: the prose rows and columns the active medium fits inside the panel's own rectangle.
 
-PROVEN BY — `workshop/screen.hpp` `panel_prose_place`, `panel_prose_region`;
+PROVEN BY — `workshop/screen.hpp` `panel_prose_place`, `panel_prose_region`, `PanelProsePlace`;
 `tests/test_workshop_screen.cpp` case `"TYPE-0: the picker is ONE bounded region, and its cells
 are what it used to write"`, case `"TYPE-0: the picker spends the ACTIVE medium's rows, and says
 what it omitted"`.
@@ -22,9 +22,10 @@ MEANS
 - header, recipe, the `project` frontier while one waits, last, exit, ran, realize, `said…`;
 - the catalog row costs one `said` row, and only where it is present.
 
-PROVEN BY — `workshop/screen.hpp` `paint_builder`; `tests/test_workshop_document.cpp` case
-`"WUX-1/SC-4: the Builder keeps the facts a maker acts on, by explicit priority"`, case `"PROJ-1:
-the catalog row costs one `said` row, and only where it is present"`.
+PROVEN BY — `workshop/screen.hpp` `paint_builder`, `panel_block`;
+`tests/test_workshop_document.cpp` case `"WUX-1/SC-4: the Builder keeps the facts a maker acts on,
+by explicit priority"`, case `"PROJ-1: the catalog row costs one `said` row, and only where it is
+present"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-03 — The foot band is the notice, then the legend
@@ -38,10 +39,10 @@ MEANS
 DOES NOT MEAN
 - that the notice is ever shortened — it is cut with a mark and kept whole in the session.
 
-PROVEN BY — `workshop/screen.hpp` `band_bounds`, `band_fit`, `band_region`, `help_rows`;
-`tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose their budgets, and
-the selector is row 0"`; `tests/test_workshop_screen.cpp` case `"TYPE-0/WUX-1: the notice is a
-band row, and the SENTENCE is never shortened"`.
+PROVEN BY — `workshop/screen.hpp` `band_bounds`, `band_fit`, `band_region`, `help_rows`,
+`kBottomRows`; `tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose their
+budgets, and the selector is row 0"`; `tests/test_workshop_screen.cpp` case `"TYPE-0/WUX-1: the
+notice is a band row, and the SENTENCE is never shortened"`.
 WHY — `agents/decisions/two-bands.md`
 
 ## WL-RGN-04 — The workspace object's name is a `kGroundBeneath` region over its own rectangle

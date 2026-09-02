@@ -64,7 +64,7 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 LAW — A reveal is bound to the item, not the row it is painted on, and eligibility is `rest != full`: a value that fits never moves, and a provider's shortened text is not recovered.
 
-PROVEN BY — `workshop/screen.hpp` `reveal_at`, `reveal_for`, `detail::reveal_shown`;
+PROVEN BY — `workshop/screen.hpp` `reveal_at`, `reveal_for`, `detail::reveal_shown`, `RevealAt`;
 `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row reads past its
 ellipsis, and nothing else"`; `tests/test_workshop_files.cpp` case `"WUX-7: a SCROLLED listing
 reveals the row it is showing, not the row it is at"`.

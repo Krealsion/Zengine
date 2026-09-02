@@ -15,10 +15,11 @@ DOES NOT MEAN
 - that the document is read at launch: it is not; the desk, the window and the preferences are.
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
-`document_path`, `setup_path`, `session_path`; `tests/test_workshop_persistence.cpp` case `"WUX-3:
-the two Windows roots are the platform's own conventions"`, case `"WUX-3: the two XDG roots, and
-their home fallbacks"`, case `"WUX-3: the host resolves the maker's files through the one
-precedence"`.
+`document_path`, `setup_path`, `session_path`, `marks_path`, `pane_path`, `keymap_path`,
+`prefs_path`; `workshop/workshop.cpp` `Arguments`; `tests/test_workshop_persistence.cpp` case
+`"WUX-3: the two Windows roots are the platform's own conventions"`, case `"WUX-3: the two XDG
+roots, and their home fallbacks"`, case `"WUX-3: the host resolves the maker's files through the
+one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-02 — The precedence is pinned and has one spelling
@@ -29,7 +30,7 @@ MEANS
 - `--isolated` is the flag every witness harness and executor live run must carry;
 - an environment with no resolvable root is the same absence, said once on the banner.
 
-PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`;
+PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp` `session`;
 `tests/test_workshop_persistence.cpp` case `"WUX-3: one precedence -- explicit path, then
 isolation, then the default"`, case `"WUX-3: the host resolves the maker's files through the one
 precedence"`.
@@ -42,12 +43,12 @@ LAW — `import_legacy_file`: a per-user default whose file does not exist, besi
 MEANS
 - an existing user-root file always wins; the legacy file is never deleted, moved or rewritten.
 
-PROVEN BY — `workshop/user_paths.hpp` `import_legacy_file`; `workshop/workshop.cpp`
-`import_legacy_file`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a legacy-only file is
-imported once, and the original is left in place"`, case `"WUX-3: an existing user-root file
-always wins over a legacy file"`, case `"WUX-3: repeated launches converge -- the import can never
-fire twice"`, case `"WUX-3: no legacy file, no destination -- the import does nothing,
-silently"`.
+PROVEN BY — `workshop/user_paths.hpp` `import_legacy_file`, `LegacyImport`;
+`workshop/workshop.cpp` `import_legacy_file`; `tests/test_workshop_persistence.cpp` case `"WUX-3:
+a legacy-only file is imported once, and the original is left in place"`, case `"WUX-3: an
+existing user-root file always wins over a legacy file"`, case `"WUX-3: repeated launches converge
+-- the import can never fire twice"`, case `"WUX-3: no legacy file, no destination -- the import
+does nothing, silently"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-04 — One representation of a desk, two files
@@ -74,11 +75,11 @@ MEANS
 - an association remembers a whole desk, not a hash; a restore never re-reads what it refers to.
 
 PROVEN BY — `workshop/session_persist.hpp` `layouts`, `active`, `kFormatVersion`,
-`WorkshopLayout`, `WorkshopSetupLink`, `link_in`, `layouts_in`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-8: a whole layout run round-trips
-exactly, active in the middle"`, case `"WUX-11/SC-14: every position and every association
-combination round-trips"`, case `"WUX-11/SC-15: a current-version session with half an
-association is refused"`.
+`WorkshopLayout`, `WorkshopSetupLink`, `link_in`, `layouts_in`, `WorkshopSession`, `to_link`,
+`in_layout`, `half_a_link`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-8: a whole
+layout run round-trips exactly, active in the middle"`, case `"WUX-11/SC-14: every position and
+every association combination round-trips"`, case `"WUX-11/SC-15: a current-version session with
+half an association is refused"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-06 — The run's own admission is four questions plus the link
@@ -90,11 +91,11 @@ MEANS
 - a session this build writes is never one it refuses to read.
 
 PROVEN BY — `workshop/session_persist.hpp` `active`, `link_in`, `layouts_in`,
-`kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`; `workshop/setup_persist.hpp` `setup_in`,
-`kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-12: a current run this
-Workshop could not have made is refused as CURRENT data"`, case `"WUX-11/SC-14: a maximal legal
-session is still one this build can read back"`, case `"WUX-10: a session may hold as much as it
-may hold, and be read back"`.
+`kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`, `no_layouts`; `workshop/setup_persist.hpp`
+`setup_in`, `kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-12: a current
+run this Workshop could not have made is refused as CURRENT data"`, case `"WUX-11/SC-14: a maximal
+legal session is still one this build can read back"`, case `"WUX-10: a session may hold as much
+as it may hold, and be read back"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-07 — The viewport is one level above the desk, and is declined, never clamped
@@ -106,11 +107,11 @@ MEANS
 - a restored window is the maker's chosen size floored to whole cells;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
-PROVEN BY — `workshop/session_persist.hpp` `desk`, `viewport_honoured`, `kScreenMinW`,
-`kScreenMaxW`, `kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"WUX-0
-E: a hostile room is declined, and the desk still comes back"`, case `"WUX-0 E: the band a room
-is honoured in is the one the screen is honest at"`, case `"WUX-0: a session file holds the desk
-and the room, and nothing runtime"`.
+PROVEN BY — `workshop/session_persist.hpp` `desk`, `viewport_honoured`, `WorkshopViewport`;
+`workshop/screen.hpp` `kScreenMinW`, `kScreenMaxW`, `kScreenMinH`, `kScreenMaxH`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0 E: a hostile room is declined, and the desk
+still comes back"`, case `"WUX-0 E: the band a room is honoured in is the one the screen is honest
+at"`, case `"WUX-0: a session file holds the desk and the room, and nothing runtime"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-08 — The desktop placement is remembered opaque and judged by the medium
@@ -122,14 +123,16 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`;
+PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`, `on`;
 `surface/vocabulary.hpp` `SurfacePlacement`, `SurfacePlacementRemembered`;
-`surface/skin_sdl_plan.hpp` `placement_within`; `tests/test_workshop_persistence.cpp` case
-`"WUX-3: a session with a placement round-trips byte-identically"`, case `"WUX-3: the placement's
-words are judged; its coordinates are not"`, case `"WUX-3: the desk remembers where its window
-sat, and offers it back"`, case `"WUX-3: a run whose medium reports no placement RETAINS the
-remembered one"`; `tests/test_surface.cpp` case `"WUX-3: placement is reported BEFORE the extent,
-at every door"`.
+`surface/skin_sdl_plan.hpp` `placement_within`; `workshop/session_persist.hpp` `kPlacementNone`,
+`WorkshopPlacement`, `Placement`; `workshop/screen.hpp` `placement_known`, `place_x`, `place_y`,
+`place_maximized`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a session with a placement
+round-trips byte-identically"`, case `"WUX-3: the placement's words are judged; its coordinates
+are not"`, case `"WUX-3: the desk remembers where its window sat, and offers it back"`, case
+`"WUX-3: a run whose medium reports no placement RETAINS the remembered one"`;
+`tests/test_surface.cpp` case
+`"WUX-3: placement is reported BEFORE the extent, at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
@@ -139,11 +142,10 @@ LAW — `Session::normal_w/h` tracks the screen except while this run's medium s
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking.
 
-PROVEN BY — `workshop/screen.hpp` `normal_w`; `workshop/weave.hpp` `normal_w`;
+PROVEN BY — `workshop/screen.hpp` `normal_w`; `workshop/weave.hpp` `normal_w`, `medium_placed_`;
 `tests/test_workshop_persistence.cpp` case `"WUX-3: a maximized close remembers the NORMAL room
 beside the maximized state"`, case `"WUX-3: unmaximizing reopens the gate, and the normal room
-tracks again"`, case `"WUX-3: a restored maximized flag alone does not gate this run's
-viewport"`.
+tracks again"`, case `"WUX-3: a restored maximized flag alone does not gate this run's viewport"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-11 — The first picture of a run is Workshop's floor
@@ -174,11 +176,11 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
-PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`; `workshop/persist.hpp`
-`write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the first,
-room and desk both"`, case `"WUX-0: a write that fails leaves the last good session where it
-was"`; `tests/test_workshop_document.cpp` case `"the native close request reaches the quit
+PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on`; `workshop/persist.hpp`
+`write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`; `workshop/session_persist.hpp`
+`save_file`; `tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the
+first, room and desk both"`, case `"WUX-0: a write that fails leaves the last good session where
+it was"`; `tests/test_workshop_document.cpp` case `"the native close request reaches the quit
 policy `q` already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
