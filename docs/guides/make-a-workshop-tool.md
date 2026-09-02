@@ -928,8 +928,12 @@ Two consequences worth designing for:
 
 ### What is deliberately absent
 
-Still no keyboard, focus, capture, hover, release, wheel, double-press, drag, hotkey or gesture
-forwarding of any kind, and no reply, disposition or acknowledgement. `PanePressed` carries no
+Still no focus, capture, hover, release, double-press, drag or hotkey forwarding of any kind, and
+no reply, disposition or acknowledgement. (Keys and text do cross, as `PaneKey` and
+`PaneTextInput`, once a maker has pressed into your pane; and the wheel crosses as `PaneWheel`
+`{pane, dx, dy}` — the notches over your body, unchanged, whether or not you hold the keys.
+Accept it and spend it as your own Up/Down step; a pane that does not accept it is unchanged.)
+`PanePressed` carries no
 button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
 arrival *is* that gesture.
 
@@ -1023,7 +1027,7 @@ Named here so you do not plan around it, and so a reader can tell a bounded seam
 no public plugin SDK, registry, marketplace or installation workflow
 no provider scan directory, autoload list, or --provider option on the Workshop host
 no package, publisher, signature or cross-restart author identity
-no provider keyboard, focus, capture, hover, release, wheel, drag or hotkey path
+no provider focus, capture, hover, release, drag or hotkey path
 no provider-owned placement, coordinates, docking, tabs, resize handles or geometry
 no multiple instances of one PaneRef
 no unload notification, timeout, heartbeat, liveness query or `unavailable` state

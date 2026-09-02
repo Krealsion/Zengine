@@ -215,6 +215,23 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   authored bytes and the refusal of `pixels` at projection are unchanged by any of it.
 - **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is
   reversible only by performing the inverse, and there is no undo. The help says `esc back`.
+  **Its LAST meaning is to put the selected pane down (QR-18):** every mode, overlay and
+  draft answers Escape with its own row first (`picker.close`, `draft.cancel`, `manage.close`,
+  `context.back`, `attention.close`, `naming.cancel`, `terminal.back`; the hotkey view above
+  them all), and a bare Escape that reaches a context where a LIST or NOTHING holds the keys
+  — Project Files, the Pane Editor, command mode — with no binding claiming it sheds
+  `Panels::selected` if a pane is selected, the keyboard candidate with it, exactly the
+  press-elsewhere gesture's two lines (`unselect_pane`, `escape_may_shed_selection`).
+  Nothing else moves: no pane closes, no rank, no geometry, no Pane Editor subject, no
+  provider state, no file. It is asked in `on(KeyPressed)` AFTER the resolved context has had
+  the key, and it is deliberately NOT a keymap action (the hotkey view's reason: a recovery
+  gesture must not be authorable into a lockout). ⚠ **A place a maker TYPES into keeps
+  Escape while it holds the keys:** the source editor's Escape is a pinned no-op (EDIT-0 —
+  a habitual Esc must not hand the next `d` to command mode), and a focused EXTERNAL pane
+  has already been sent the key with no `consumed` coming back (WP-R0), so Workshop cannot
+  see it decline — and the Composer does not decline it (its form goes back to its catalog
+  and the maker keeps typing, TEXT-0). The way out of either is the way in: press a pane
+  that takes no text (every desk has Layouts) or the workspace, then Escape.
 - **ARRANGEMENT IS TWO SCOPES AND ONE VOCABULARY (ARR-0).** `PaneArrange{open, desk, pane,
   resetting}` replaced the old selector-with-submodes: moving and resizing a pane are ONE
   maker intent, so there is no Move step, no Size step and no edge-picking step. The
@@ -488,6 +505,12 @@ authored/persisted pane order  +  the current selected-pane lift
   with a separate owner, and the two are not collapsed merely because they happen together.
   The contextual door spends the CAPTURED subject (`spend_context_choice`), so the pane that
   lifts is the pane the maker pointed at rather than whichever was topmost when they chose.
+- **ESCAPE'S FINAL FALLTHROUGH IS THE FOURTH WRITER (QR-18), and it writes only
+  `kNoPaneKind`.** `unselect_pane` is the press-on-nothing line spent from the keyboard:
+  selection and keyboard candidate cleared together, the lift gone with them, the authored
+  order untouched. It exists so a desk whose panes cover every usable cell still reaches
+  `selection = none` (press any pane that takes no text, then Escape); the picker is still
+  how presence changes.
 - **`effective_pane_order` (setup.hpp) IS THE ONE ANSWER**, and every consumer whose meaning
   is literally foreground order spends it: `paint_panels` ascending, `occupied_at` descending,
   `pane_is_covered`, and the arrangement desk's pointer walk. They cannot disagree because
@@ -902,14 +925,24 @@ the weave       every refusal sentence and every file door: `open_source(path, m
   `refresh_terminal` family): offsets always clamp; the caret is FOLLOWED when a gesture
   asked (`follow_caret` — every edit, navigation, placement) or the body's room changed
   (resize must not strand the caret), and deliberately NOT after the wheel, whose whole
-  meaning is looking elsewhere. `on(PointerWheel)` is Workshop's first and only wheel
-  consumer: modes keep their ownership, the TOPMOST occupancy must be the Editor, the
-  header row is not the body, fractional notches accumulate. Project Files is the SECOND
-  (EDIT-1) and it cost one more arm on the same topmost-occupancy answer — still no scroll
-  framework and no provider wheel protocol. Its wheel moves the CURSOR, because a list
-  derives its window from the cursor (`list_window`) and a second viewport would be a second
-  answer to one question; the editor's keeps the caret still because a caret is a place in a
-  document rather than a place you are looking.
+  meaning is looking elsewhere. `on(PointerWheel)` is Workshop's one wheel router: modes
+  keep their ownership, the TOPMOST occupancy decides (the picker first, then the effective
+  pane order — so a covered pane never scrolls through the one in front of it), the header
+  row is not the body, fractional notches accumulate (`spend_wheel`, one arithmetic). The
+  Editor was the first consumer and Project Files the second (EDIT-1); **QR-18 made it every
+  surface Workshop itself windows, and every external pane whose provider spends it — a pane
+  that says `... N more` is a pane the wheel reaches those N through (Loaded, holding no
+  cursor and no list origin, is the one shipped pane that still only counts):** the Pane
+  Editor's two lists (the list under the pointer, `pane_editor_wheel`,
+  without moving the keys between them), the picker (`picker_wheel`, the whole box), and an
+  external pane's body, where the notches cross the seam as `PaneWheel` and mean whatever
+  the provider's grammar says ([`panes.md`](panes.md#the-wheel-crosses-as-one-shape-qr-18)).
+  Every list's wheel moves its CURSOR, because a list derives its window from the cursor
+  (`list_window`) and a second viewport would be a second answer to one question
+  (`kListWheelRows`, three, over every list Workshop itself windows); the editor's keeps the
+  caret still because a caret is a place in a document rather than a place you are looking.
+  There is still no scroll framework, no scrollbar, no Workshop-global map of scroll
+  offsets and no persisted scroll position: each consumer spends its own cursor.
 - **A PASTE ANSWER LANDS WHERE THE MAKER ASKED OR NOWHERE** — QR-11's conversation with a
   stricter settlement: the pending record pins `doc_epoch` AND `buffer.revision()`, so a
   replaced document strands the payload silently (the dead draft's fate) and a document
@@ -1761,7 +1794,9 @@ and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, besid
   browser is the shape this repository refuses.
 - **The candidate is never cleared and the target is never stored.** A pane that closes, stops
   resolving, or loses its room stops being the answer with nothing to clear; if it comes back,
-  so does the keyboard. `bounds_of`'s discipline applied to a focus.
+  so does the keyboard. `bounds_of`'s discipline applied to a focus. (The two DELIBERATE
+  pointings that write `kNoPaneKind` — a press on nothing, and since QR-18 Escape's final
+  fallthrough — are the maker saying "nowhere", which is a pointing and not a clearing path.)
 - **The modes above it never reach that line**, so opening the Terminal or an arrangement
   scope leaves the candidate exactly where it was and closing it hands the keys straight back. The
   priority reads: the above-mode actions (the keymap's `kGlobal` rows — open, the
@@ -2416,6 +2451,12 @@ PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `cho
 - **THE PICKER'S NAME COLUMN IS TWELVE CELLS**, widened from ten to hold `Pane Editor` whole,
   at the measured cost of two summary cells at every width -- Info's own summary is cut and
   marked at the 78-column minimum. The properties WUX-5 left standing are untouched.
+- **BOTH LISTS SCROLL UNDER THE WHEEL (QR-18)** -- the list under the pointer, through
+  `pane_editor_move_in`, the same bounded step the keys take (a section heading is stepped
+  over, never onto). The wheel moves a cursor and never the keys: `on_rows` is untouched, the
+  subject is untouched, and the heading spends nothing. Escape with the editor selected sheds
+  the SELECTION (the final fallthrough) and leaves the subject standing -- the F1/F9 law, one
+  gesture more.
 - **What the Pane Editor is NOT:** a document editor (Info is), a Surface control primitive, a
   general property inspector, a wiring editor, or a safe mode. Recovery is the picker, `-`
   here or `0` in the arrangement, the default desk and `--isolated`, exactly as before.
@@ -2425,6 +2466,13 @@ PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `cho
 - The Pane Editor's subject is the selected pane, or that choosing a subject selects it --
   neither, and the F1/F9 cases pin both directions. A press into the editor selects the
   EDITOR; `choose_subject` touches no selection.
+- Escape with a pane selected does nothing, or that it closes the pane -- since QR-18 it puts
+  the selection down, LAST (after every mode, overlay and draft has answered, and never while
+  the source editor or an external pane holds the keys), and closes, moves, ranks and writes
+  nothing. A `... N more` row is unreachable -- the wheel over that
+  list reaches it (the Editor, Files, the Pane Editor, the picker, and any external pane whose
+  provider spends `PaneWheel`; Loaded is the one shipped pane that still counts what it
+  cannot show, because it holds no cursor and no list origin to spend).
 - Nothing Workshop persists is read at launch — the DESK, the window's size, the desktop
   placement, the keymap and the prefs are, automatically. The **document** still is not.
 - Workshop restores only the window's size — since WUX-3 the SDL path round-trips the

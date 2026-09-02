@@ -1854,3 +1854,59 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels.runtime)
                     .has_value());
 }
+
+// ---- QR-18: the picker's windowed inventory is reached by the wheel ---------------------
+
+TEST_CASE("QR-18/SC-5: the picker's windowed inventory is reached by the wheel") {
+    // ⚔ MUTATION (F5): dropping the picker's wheel arm while the `... N more` row stays --
+    // the last offered name never reaches the box.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    for (int i = 0; i < 6; ++i) {
+        r.drive(seat, [i](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{"p" + std::to_string(i), "Offer" + std::to_string(i),
+                                   "one of several"});
+        });
+    }
+    r.ready();
+    const std::vector<CatalogRow> inventory =
+        inventory_rows(r.session().setup.active, r.session().panels);
+    const Screen sc = screen_of(r.session());
+    const ui::Rect box = pane_body_cells(picker_bounds(sc));
+    REQUIRE(inventory.size() > static_cast<std::size_t>(box.h - 1)); // it must window
+
+    r.key(input::scan::kP);
+    REQUIRE(r.session().panels.picker.open);
+    REQUIRE(r.session().panels.picker.cursor == 0);
+    const auto shown = [&] {
+        std::vector<std::string> out;
+        for (const surface::SurfaceLabel& l : cell_text_of(r.last_canvas())) {
+            if (l.y >= box.y && l.y < box.y + box.h) {
+                out.push_back(l.text);
+            }
+        }
+        return out;
+    };
+    const std::string last_name = inventory.back().name;
+    REQUIRE(row_with_text(shown(), " more") >= 0);
+    REQUIRE(row_with_text(shown(), last_name) < 0);
+
+    // THE WHEEL OVER THE BOX MOVES THE CURSOR, the window follows, the last row arrives.
+    for (int i = 0; i < 8 && r.session().panels.picker.cursor + 1 < inventory.size(); ++i) {
+        r.wheel_cell(-1.0, box.x + 2, box.y + 2);
+    }
+    CHECK(r.session().panels.picker.cursor == inventory.size() - 1);
+    CHECK(row_with_text(shown(), last_name) >= 0);
+    CHECK(row_with_text(shown(), " more") < 0);
+    CHECK(row_with_text(shown(), " earlier") >= 0);
+    CHECK(r.session().panels.picker.open); // looking opened nothing and removed nothing
+    const std::size_t open_before = r.session().panels.open.size();
+    // AND BACK: the first row returns.
+    for (int i = 0; i < 8; ++i) {
+        r.wheel_cell(+1.0, box.x + 2, box.y + 2);
+    }
+    CHECK(r.session().panels.picker.cursor == 0);
+    CHECK(row_with_text(shown(), inventory.front().name) >= 0);
+    CHECK(r.session().panels.open.size() == open_before);
+}

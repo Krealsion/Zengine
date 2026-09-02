@@ -7600,3 +7600,224 @@ TEST_CASE("WUX-13: the subject stands across a layout switch, and clears only wh
     CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
     CHECK(editor_value(t, "State").find("closed") == 0);
 }
+
+// ---- QR-18: Escape puts the selected pane down, last; the wheel reaches the editor's lists --
+
+TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the Pane Editor's "
+          "subject stands") {
+    // MUTATION (F1): removing the final Escape branch -- `selected == kNoPaneKind` below
+    // goes red. MUTATION (F2): clearing the subject beside the selection -- the subject
+    // check goes red.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef layouts = ref_of(panel::kLayouts);
+    choose_by_keys(t, layouts);
+    REQUIRE(t.session().panels.selected == panel::kPaneEditor);
+    REQUIRE(t.session().pane_editor.subject == layouts);
+
+    // THE PROMPT'S OWN CASE: the subject is Layouts, the ordinary selection is another pane.
+    t.press(90, 35); // the workspace: the picker is command mode's
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(builder.x + 1, builder.y + 1);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kCommand); // the Builder takes no keys
+    const std::vector<std::int64_t> order_before = presentation_order(t.session().setup.active, t.session().panels);
+    const Setup setup_before = t.session().setup.active;
+    const std::size_t panes_before = t.session().panels.open.size();
+
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.session().pane_editor.subject == layouts); // SC-3: the subject is a different fact
+    CHECK(t.notice().find("unselected Builder") != std::string::npos);
+    // NOTHING ELSE MOVED (SC-10): no pane closed, no rank, no geometry, no file.
+    CHECK(t.session().panels.open.size() == panes_before);
+    CHECK(presentation_order(t.session().setup.active, t.session().panels) == order_before);
+    CHECK(t.session().setup.active == setup_before);
+    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().panels.has(panel::kPaneEditor));
+
+    // THE SAME WITH THE EDITOR ITSELF SELECTED AND HOLDING THE KEYS: its context binds
+    // nothing to Escape, so the selection is what Escape sheds -- and the subject stands.
+    press_into_editor(t);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
+    CHECK(t.session().pane_editor.subject == layouts);
+
+    // WITH NOTHING SELECTED, ESCAPE IS THE NO-OP IT ALWAYS WAS, and says nothing new.
+    const std::string notice = t.notice();
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.notice() == notice);
+}
+
+TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and deselection waits") {
+    // MUTATION (F3): asking the final fallthrough BEFORE the resolved context -- the
+    // picker would still be open, or the draft still live, with the selection already gone.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+
+    // THE PICKER: a mode above every pane. Select a pane that takes no keys so `p` still
+    // reaches command mode.
+    const Screen sc = screen_of(t.session());
+    const ui::Rect info =
+        cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
+    t.press_canvas(info.x + 1, info.y + 1);
+    REQUIRE(t.session().panels.selected == panel::kInfo);
+    t.key(input::scan::kP);
+    REQUIRE(t.session().panels.picker.open);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().panels.picker.open);      // `picker.close` answered...
+    CHECK(t.session().panels.selected == panel::kInfo); // ...and the selection stood
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind); // the next Escape sheds it
+
+    // A LIVE DRAFT in the Pane Editor: `draft.cancel` answers, then the pane, then nothing.
+    open_editor(t);
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    go_to_row(t, "X");
+    t.key(input::scan::kReturn);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kDraft);
+    REQUIRE(t.session().panels.selected == panel::kPaneEditor);
+    t.key(input::scan::kEscape);
+    CHECK(keyboard_context(t.session()) == KeyContext::kPaneEditor); // the draft is gone...
+    CHECK(t.session().panels.selected == panel::kPaneEditor);        // ...the selection is not
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+
+    // THE HOTKEY VIEW, keys-modal above everything: Escape closes it and nothing else.
+    t.press_canvas(info.x + 1, info.y + 1);
+    REQUIRE(t.session().panels.selected == panel::kInfo);
+    t.key(input::scan::kK, input::mod::kCtrl);
+    REQUIRE(t.session().hotkeys.open);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().hotkeys.open);
+    CHECK(t.session().panels.selected == panel::kInfo);
+}
+
+TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none") {
+    // THE RECOVERY CLAIM. Every cell between the two bands is some pane's, so there is no
+    // blank pixel to press; Escape is the way down.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    const Screen sc = screen_of(t.session());
+    // The Builder over the whole room, the side column included -- an authored window is
+    // canvas-absolute (WUX-2), and the room is what a pane may cover.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                              surface::subs_of_cells(0), surface::subs_of_cells(kTopRows))
+                .accepted);
+    const Written sized =
+        author_pane_size(live(t).setup.active, ref_of(panel::kBuilder),
+                         PaneSize{pane_unit::kSubcells, surface::subs_of_cells(sc.w)},
+                         PaneSize{pane_unit::kSubcells,
+                                  surface::subs_of_cells(sc.h - kTopRows - kBottomRows)});
+    REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 47, 0, 0})); // reseat
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    const Screen now = screen_of(t.session());
+    std::int64_t unoccupied = 0;
+    for (std::int64_t y = 0; y < now.h - kBottomRows; ++y) {
+        for (std::int64_t x = 0; x < now.w; ++x) {
+            if (!occupied_at(t.session().panels, t.session().setup.active, now, x, y).occupied) {
+                ++unoccupied;
+            }
+        }
+    }
+    REQUIRE(unoccupied == 0); // the desk is covered: top band's Layouts pane, then the Builder
+
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, now).rect);
+    t.press_canvas(builder.x + 3, builder.y + 3);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    t.key(input::scan::kEscape);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.session().panels.has(panel::kBuilder)); // still there, still that big
+}
+
+TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past their windows") {
+    // MUTATION (F5): dropping the Pane Editor's wheel arm while the `... N more` row stays
+    // -- the hidden name below never appears.
+    Live t; // the minimum screen: the sixth built-in makes the PANES list window (WUX-13)
+    open_editor(t);
+    const std::vector<CatalogRow> inventory =
+        inventory_rows(t.session().setup.active, t.session().panels);
+    const ui::Rect b = editor_cells(t);
+    const Screen sc = screen_of(t.session());
+    const auto body = [&] {
+        return pane_editor_body(
+            t.session(), sc,
+            bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc).rect);
+    };
+    REQUIRE(body().present);
+    REQUIRE(body().panes.after > 0); // the list is windowed: `... N more` is painted
+    const std::string last_name = inventory.back().name;
+    CHECK(editor_text(t).find(last_name) == std::string::npos);
+    CHECK(editor_text(t).find(" more") != std::string::npos);
+
+    // THE WHEEL OVER THE PANES LIST WALKS ITS CURSOR, the window follows, the hidden row
+    // arrives -- and the keys stay where they were (in the PANES list), the subject unchosen.
+    const std::int64_t panes_row = b.y + kPaneEditorHeadingRows; // the list's first row
+    for (int i = 0; i < 16; ++i) {
+        const std::size_t at = t.session().pane_editor.cursor;
+        t.wheel_canvas(-1.0, b.x + 2, panes_row); // toward the maker: later rows
+        if (t.session().pane_editor.cursor == at) {
+            break; // the tail: the window reached it a step before the cursor did
+        }
+    }
+    CHECK(body().panes.after == 0);
+    CHECK(t.session().pane_editor.cursor == inventory.size() - 1);
+    CHECK(editor_text(t).find(last_name) != std::string::npos);
+    CHECK_FALSE(t.session().pane_editor.on_rows);
+    CHECK_FALSE(t.session().pane_editor.addressed());
+    // AND BACK TO THE HEAD.
+    for (int i = 0; i < 8; ++i) {
+        t.wheel_canvas(+1.0, b.x + 2, panes_row);
+    }
+    CHECK(t.session().pane_editor.cursor == 0);
+    CHECK(body().panes.before == 0);
+
+    // THE SUBJECT'S ROWS: choose a subject, and the rows list windows too.
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    REQUIRE(body().fields.after > 0);
+    const std::size_t rows_total = t.session().pane_editor.rows.size();
+    const std::string last_row = t.session().pane_editor.rows.back().label();
+    CHECK(editor_text(t).find(last_row) == std::string::npos);
+    const std::int64_t fields_row =
+        b.y + kPaneEditorHeadingRows + static_cast<std::int64_t>(body().panes_rows);
+    const std::size_t row_cursor_before = t.session().pane_editor.row_cursor;
+    const std::size_t panes_cursor = t.session().pane_editor.cursor; // choosing moved it here
+    // Wheel until the row cursor stops: the window reaches the tail a row or two BEFORE the
+    // cursor does (`list_window` keeps the cursor inside, not at the edge).
+    for (int i = 0; i < 24; ++i) {
+        const std::size_t at = t.session().pane_editor.row_cursor;
+        t.wheel_canvas(-1.0, b.x + 2, fields_row);
+        if (t.session().pane_editor.row_cursor == at) {
+            break;
+        }
+    }
+    CHECK(body().fields.after == 0);
+    CHECK(t.session().pane_editor.row_cursor == rows_total - 1);
+    CHECK(t.session().pane_editor.row_cursor != row_cursor_before);
+    CHECK(editor_text(t).find(last_row) != std::string::npos);
+    // THE KEYS DID NOT MOVE BETWEEN THE LISTS, and the PANES cursor did not move either.
+    CHECK_FALSE(t.session().pane_editor.on_rows);
+    CHECK(t.session().pane_editor.cursor == panes_cursor);
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+
+    // THE HEADING SPENDS NOTHING.
+    const std::size_t at = t.session().pane_editor.row_cursor;
+    t.wheel_canvas(+1.0, b.x + 2, b.y);
+    CHECK(t.session().pane_editor.row_cursor == at);
+    CHECK(t.session().pane_editor.cursor == panes_cursor);
+}

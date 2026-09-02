@@ -193,6 +193,7 @@ using zengine::workshop::PaneOffered;
 using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
+using zengine::workshop::PaneWheel;
 using zengine::workshop::PowersRequested;
 using zengine::workshop::ResolvedArrangement;
 using zengine::workshop::ResolvedPowers;
@@ -249,9 +250,9 @@ class IntrospectionWeave
     : public loom::WeaveBase<
           IntrospectionWeave, IntrospectionState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, loom::Result, loom::Refused, ResolvedArrangement,
-                       ResolvedPowers, SourceSampled, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       PaneTextInput, PaneWheel, loom::Result, loom::Refused,
+                       ResolvedArrangement, ResolvedPowers, SourceSampled,
+                       surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneContent, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, PowersRequested, SampleRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
@@ -572,6 +573,41 @@ public:
             return;
         default:
             return; // a key this pane has no word for changes nothing and says nothing
+        }
+        say_powers(mail);
+    }
+
+    /// THE WHEEL TURNED OVER ONE OF THIS OFFICE'S PANES (QR-18). Powers spends it as the
+    /// cursor step Up and Down already are -- the window is derived from the cursor
+    /// (`powers_window`), so moving the cursor is the only honest way to move the window
+    /// -- and one notch is one row: the shipped room is four rows, and a notch that skipped
+    /// a row this pane never showed would be worse than a slow wheel. Fractional notches
+    /// accumulate until they are worth a row, and a wheel at the list's edge says nothing.
+    ///
+    /// LOADED AND THE ARRANGEMENT SPEND NOTHING, and that is a fact about them rather than
+    /// a decline: neither holds a cursor or a list origin. Loaded's window is anchored at
+    /// the head of the kernel's list and its one selection is an IDENTITY a press sets and
+    /// a publication follows (`LoadedSelected`), so a wheel that moved it would retarget
+    /// the Composer by looking. What a wheel over Loaded's `... N more` would need is a
+    /// list origin of its own; that is recorded as a seam, not invented here.
+    void on(const PaneWheel& wheel, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
+            return;
+        }
+        if (wheel.pane != kPowersPane) {
+            return;
+        }
+        powers_wheel_ += wheel.dy;
+        const std::int64_t rows = static_cast<std::int64_t>(powers_wheel_);
+        if (rows == 0) {
+            return;
+        }
+        powers_wheel_ -= static_cast<double>(rows);
+        const std::string was = powers_ui_.selected();
+        intro::move_cursor(powers_ui_, -rows);
+        if (powers_ui_.selected() == was) {
+            return; // at the edge, or nothing to walk: nothing moved, nothing is re-said
         }
         say_powers(mail);
     }
@@ -983,6 +1019,9 @@ private:
     /// owns -- the reading is a snapshot that is replaced whole and dropped at every
     /// grant, and it is the only thing in here the host ever said.
     intro::PowersUi powers_ui_;
+    /// Fractional wheel notches over Powers not yet worth a row (QR-18) -- presentation
+    /// interaction state, transient for the cursor's own reason.
+    double powers_wheel_ = 0.0;
 
     /// WHAT THAT PANE IS CURRENTLY SHOWING, and the map from its places back to what
     /// they mean. The presentation, never an inventory: it holds only what reached a

@@ -1808,7 +1808,7 @@ struct SeatState {
 class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                                          PaneTextInput, SeatDo>,
+                                          PaneTextInput, PaneWheel, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, PanePressed>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
@@ -1847,6 +1847,14 @@ public:
         ++said;
         typed.push_back(t);
         text_authors.push_back(std::string(mail.authored_role()));
+    }
+    /// A WHEEL THIS SEAT WAS TOLD ABOUT (QR-18), recorded and never interpreted, for the
+    /// press's reason exactly.
+    void on(const PaneWheel& w, loom::Mail& mail) {
+        ++state_.said;
+        ++said;
+        wheels.push_back(w);
+        wheel_authors.push_back(std::string(mail.authored_role()));
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -1891,6 +1899,8 @@ public:
     std::vector<std::string> key_authors;
     std::vector<PaneTextInput> typed;
     std::vector<std::string> text_authors;
+    std::vector<PaneWheel> wheels;
+    std::vector<std::string> wheel_authors;
     std::function<void(ProviderSeat&, loom::Mail&)> next;
 
 private:
@@ -2082,6 +2092,7 @@ struct PaneRig {
         speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
+        speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -2234,6 +2245,13 @@ struct PaneRig {
     void press_cell(std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerButton{1, true, cx, cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
+    }
+    /// THE WHEEL AT A CANVAS CELL, as the terminal medium reports it (QR-18) --
+    /// `press_cell`'s translation for the one other pointer gesture that crosses the seam.
+    /// `dy` is notches, +1 away from the maker, fractional as a precise wheel reports.
+    void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerWheel{0.0, dy, cx, cy + surface::kTuiCanvasTopRow,
+                                                   input::space::kCells, input::mod::kNone}));
     }
     /// The same gesture as the WINDOW reports it: an exact device pixel, untranslated.
     /// A graphical press is finer than a cell, so its cases have to be able to say one.

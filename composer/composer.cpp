@@ -109,6 +109,7 @@ using zengine::workshop::PaneOffered;
 using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
+using zengine::workshop::PaneWheel;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
@@ -157,6 +158,7 @@ public:
                 loom::schema_of<PanePressed>(),
                 loom::schema_of<PaneKey>(),
                 loom::schema_of<PaneTextInput>(),
+                loom::schema_of<PaneWheel>(),
                 loom::schema_of<LoadedSelected>(),
                 loom::schema_of<surface::ClipboardCopy>(),
                 loom::schema_of<surface::ClipboardText>(),
@@ -179,6 +181,8 @@ public:
             on_key(loom::from_value<PaneKey>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<PaneTextInput>(), shape)) {
             on_text(loom::from_value<PaneTextInput>(in.payload), mail);
+        } else if (loom::same_identity(*loom::schema_of<PaneWheel>(), shape)) {
+            on_wheel(loom::from_value<PaneWheel>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<LoadedSelected>(), shape)) {
             on_selected(loom::from_value<LoadedSelected>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardCopy>(), shape)) {
@@ -353,6 +357,35 @@ private:
         case input::scan::kEscape: back_to_catalog(mail); return;
         case input::scan::kTab: cycle_field(); break;
         default: return; // a key this pane has no word for changes nothing and says nothing
+        }
+        say(mail);
+    }
+
+    /// THE WHEEL TURNED OVER THIS PANE (QR-18): the cursor step Up and Down already are,
+    /// over whichever list the stage is showing -- the catalog's roots or the form's ring
+    /// -- because `window_of` derives the window from the cursor and a second position
+    /// would be a second answer. One notch is one row (the shipped room is small, and a
+    /// notch that skipped a row this pane never showed would be worse than a slow wheel);
+    /// fractional notches accumulate until they are worth one; a wheel at the list's edge
+    /// says nothing.
+    void on_wheel(const PaneWheel& wheel, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
+            return;
+        }
+        if (wheel.pane != kComposePane) {
+            return;
+        }
+        wheel_ += wheel.dy;
+        const std::int64_t rows = static_cast<std::int64_t>(wheel_);
+        if (rows == 0) {
+            return;
+        }
+        wheel_ -= static_cast<double>(rows);
+        const std::int64_t was = composing_.cursor;
+        move_cursor(-rows);
+        if (composing_.cursor == was) {
+            return;
         }
         say(mail);
     }
@@ -902,6 +935,9 @@ private:
     /// THE TARGET, THE VOCABULARY AND THE DRAFT -- transient, local, and in no state
     /// shape. See `ComposerState`.
     zengine::composer::Composing composing_;
+    /// Fractional wheel notches not yet worth a row (QR-18) -- interaction state, transient
+    /// for the cursor's own reason.
+    double wheel_ = 0.0;
     /// THE CLIPBOARD THIS PANE'S FIELDS OPERATE ON (TEXT-0) — transient for the draft's own
     /// reason: what a maker copied is part of what they are doing, and a revived
     /// incarnation holding a dead pane has no business resurrecting it. A MIRROR of the

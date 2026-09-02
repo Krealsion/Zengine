@@ -2658,3 +2658,249 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK_FALSE(r.session().arrange.open);
     CHECK_FALSE(r.session().terminal.open);
 }
+
+// ---- QR-18: the wheel crosses the seam, and Escape puts a pane down ----------------------
+
+TEST_CASE("QR-18: the wheel crosses the seam as PaneWheel -- a pane and its notches, nothing else") {
+    // THE EIGHTH SHAPE, WALKED AS A SCHEMA. It carries the notches the wire already
+    // carried and the pane they were over; no place, no button, no modifier, no rows-per-
+    // notch policy and no reply -- a provider gets the raw gesture exactly as it gets a key.
+    const std::shared_ptr<const loom::Schema> wheel = loom::schema_of<PaneWheel>();
+    REQUIRE(wheel != nullptr);
+    CHECK(wheel->name() == "PaneWheel");
+    CHECK(wheel->version() == 1u);
+    REQUIRE(wheel->fields().size() == 3);
+    CHECK(wheel->fields()[0].name == "pane");
+    CHECK(wheel->fields()[0].type.kind == loom::Kind::Text);
+    CHECK(wheel->fields()[1].name == "dx");
+    CHECK(wheel->fields()[1].type.kind == loom::Kind::Float);
+    CHECK(wheel->fields()[2].name == "dy");
+    CHECK(wheel->fields()[2].type.kind == loom::Kind::Float);
+    for (const loom::Field& f : wheel->fields()) {
+        CHECK(f.name != "row");
+        CHECK(f.name != "column");
+        CHECK(f.name != "x");
+        CHECK(f.name != "y");
+        CHECK(f.name != "rows");
+        CHECK(f.name != "modifiers");
+    }
+    // AND THE SEVEN OLDER SHAPES DID NOT MOVE. QR-18 added one; it revised none.
+    CHECK(loom::schema_of<PaneCatalogRequested>()->version() == 1u);
+    CHECK(loom::schema_of<PaneOffered>()->version() == 1u);
+    CHECK(loom::schema_of<PaneRoom>()->version() == 1u);
+    CHECK(loom::schema_of<PaneContent>()->version() == 1u);
+    CHECK(loom::schema_of<PanePressed>()->version() == 1u);
+    CHECK(loom::schema_of<PaneKey>()->version() == 1u);
+    CHECK(loom::schema_of<PaneTextInput>()->version() == 1u);
+    CHECK(loom::schema_of<PanePressed>()->fields().size() == 3u);
+    CHECK(loom::schema_of<PaneKey>()->fields().size() == 3u);
+}
+
+TEST_CASE("QR-18: a wheel over an external pane's body crosses unchanged, follows the pointer, "
+          "and the header sends nothing") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    REQUIRE(body.h > kExternalHeaderRows + 1);
+
+    // NOBODY HAS THE KEYBOARD, and the wheel still crosses: it follows the pointer, as a
+    // press does, not the keys.
+    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    REQUIRE(seat->wheels.empty());
+    r.wheel_cell(-1.0, body.x + 2, body.y + kExternalHeaderRows);
+    REQUIRE(seat->wheels.size() == 1);
+    CHECK(seat->wheels[0].pane == std::string(kHelloPane));
+    CHECK(seat->wheels[0].dy == doctest::Approx(-1.0));
+    CHECK(seat->wheels[0].dx == doctest::Approx(0.0));
+    CHECK(seat->wheel_authors[0] == std::string(kWorkshopProvider)); // authored as Workshop
+    // AND IT POINTED NOTHING: a wheel is looking, not pressing, so neither the selection nor
+    // the keyboard moved.
+    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.session().panels.selected == kNoPaneKind);
+
+    // A FRACTION CROSSES AS A FRACTION. Workshop accumulates nothing for a list it cannot
+    // see; how many rows a notch is worth is the provider's grammar.
+    r.wheel_cell(0.25, body.x + 2, body.y + kExternalHeaderRows + 1);
+    REQUIRE(seat->wheels.size() == 2);
+    CHECK(seat->wheels[1].dy == doctest::Approx(0.25));
+
+    // THE HEADER ROW IS NOT THE BODY: nothing is sent, `PanePressed`'s rule.
+    r.wheel_cell(-1.0, body.x + 2, body.y);
+    CHECK(seat->wheels.size() == 2);
+    // AND NEITHER IS THE WORKSPACE BESIDE IT.
+    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    r.wheel_cell(-1.0, panel.x + 1, panel.y + panel.h + 1);
+    CHECK(seat->wheels.size() == 2);
+    // A KEY IS STILL NOT SENT BY A WHEEL, and no press was manufactured out of one.
+    CHECK(seat->keys.empty());
+    CHECK(seat->presses.empty());
+}
+
+TEST_CASE("QR-18/SC-7: a wheel in an overlap reaches only the pane visibly in front, and the "
+          "selection lift moves it") {
+    // MUTATION (F4): routing the wheel by anything but `occupied_at`'s effective order --
+    // the covered pane would receive the notch and `wheels.back().pane` would name it.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"second", "Second", "the same office's other pane"});
+    });
+    r.extent(160, 60);
+    r.pick(hello_ref());
+    const PaneRef second_ref{kHelloOffice, "second"};
+    r.pick(second_ref);
+    std::int64_t hello_kind = kNoPaneKind;
+    std::int64_t second_kind = kNoPaneKind;
+    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+        (row.pane == std::string(kHelloPane) ? hello_kind : second_kind) = row.kind;
+    }
+    REQUIRE(hello_kind != kNoPaneKind);
+    REQUIRE(second_kind != kNoPaneKind);
+
+    // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
+    const ui::Rect hello = cells_covered(external_panel_rect(r.session(), hello_kind));
+    REQUIRE(author_pane_place(r.session().setup.active, second_ref,
+                              surface::subs_of_cells(hello.x + 4),
+                              surface::subs_of_cells(hello.y + 3))
+                .accepted);
+    r.extent(160, 61); // reseat at the authored place
+    const ui::Rect second = cells_covered(external_panel_rect(r.session(), second_kind));
+    REQUIRE(second.x == hello.x + 4);
+    REQUIRE(second.y == hello.y + 3);
+    // A CELL INSIDE BOTH BODIES, below both headers.
+    const std::int64_t cx = second.x + 2;
+    const std::int64_t cy = second.y + kChromeCells + kExternalHeaderRows + 1;
+    REQUIRE(cx < hello.x + hello.w - 1);
+    REQUIRE(cy < hello.y + hello.h - 1);
+    const Screen sc = screen_of(r.session());
+    const Occupancy owner = occupied_at(r.session().panels, r.session().setup.active, sc, cx, cy);
+    REQUIRE(owner.occupied);
+    REQUIRE((owner.kind == hello_kind || owner.kind == second_kind));
+    const std::int64_t front = owner.kind;
+    const std::int64_t back = front == hello_kind ? second_kind : hello_kind;
+    const std::string front_pane = front == hello_kind ? kHelloPane : "second";
+    const std::string back_pane = back == hello_kind ? kHelloPane : "second";
+
+    // THE FRONT PANE OWNS THE WHEEL AT THAT CELL, and the covered one hears nothing.
+    seat->wheels.clear();
+    r.wheel_cell(-1.0, cx, cy);
+    REQUIRE(seat->wheels.size() == 1);
+    CHECK(seat->wheels[0].pane == front_pane);
+
+    // SELECTING THE COVERED PANE LIFTS IT (WUX-5), and the same cell is then its own.
+    // A press on a strip of the back pane the front one does not cover.
+    const ui::Rect back_rect = cells_covered(external_panel_rect(r.session(), back));
+    const ui::Rect front_rect = cells_covered(external_panel_rect(r.session(), front));
+    std::int64_t px = -1;
+    std::int64_t py = -1;
+    for (std::int64_t y = back_rect.y; y < back_rect.y + back_rect.h && px < 0; ++y) {
+        for (std::int64_t x = back_rect.x; x < back_rect.x + back_rect.w; ++x) {
+            const bool in_front = x >= front_rect.x && x < front_rect.x + front_rect.w &&
+                                  y >= front_rect.y && y < front_rect.y + front_rect.h;
+            if (!in_front) {
+                px = x;
+                py = y;
+                break;
+            }
+        }
+    }
+    REQUIRE(px >= 0);
+    r.press_cell(px, py);
+    REQUIRE(r.session().panels.selected == back);
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, cx, cy).kind == back);
+    seat->wheels.clear();
+    r.wheel_cell(-1.0, cx, cy);
+    REQUIRE(seat->wheels.size() == 1);
+    CHECK(seat->wheels[0].pane == back_pane);
+}
+
+TEST_CASE("QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes "
+          "no text, then Escape, puts the selection down") {
+    // MUTATION (F1): removing the final Escape branch -- `selected` stays `kInfo` below.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+    REQUIRE(r.session().panels.keyboard == kind);
+    const std::size_t panes_before = r.session().panels.open.size();
+    const Setup setup_before = r.session().setup.active;
+
+    // THE PANE HOLDS THE KEYS, SO THE PANE OWNS ESCAPE: it crosses the seam exactly as
+    // every other key does, and nothing on Workshop's side moves -- the seam carries no
+    // `consumed`, so Workshop cannot see the pane decline it, and the shipped Composer does
+    // not decline it (TEXT-0). The maker is still in the pane, keys and selection alike.
+    r.key(input::scan::kEscape);
+    REQUIRE(seat->keys.size() == 1);
+    CHECK(seat->keys[0].scancode == input::scan::kEscape);
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panels.keyboard == kind);
+    CHECK(keyboard_context(r.session()) == KeyContext::kPane);
+
+    // THE WAY OUT IS THE WAY IN: press a pane that takes no text -- Info here, Layouts on
+    // every desk -- and Escape is then nothing more specific's.
+    const Screen sc = screen_of(r.session());
+    const ui::Rect info =
+        cells_covered(bounds_of(r.session().panels, r.session().setup.active, panel::kInfo, sc).rect);
+    r.press_cell(info.x + 1, info.y + 1);
+    REQUIRE(r.session().panels.selected == panel::kInfo);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
+    r.key(input::scan::kEscape);
+    CHECK(seat->keys.size() == 1); // the pane no longer holds the keys: nothing crossed
+    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.last_notice().find("unselected") != std::string::npos);
+    // NOTHING ELSE MOVED: both panes are open, the setup is byte-identical, no file was written.
+    CHECK(r.session().panels.open.size() == panes_before);
+    CHECK(r.session().setup.active == setup_before);
+    CHECK(r.session().panels.has(kind));
+
+    // A SECOND ESCAPE HAS NOTHING TO SHED: the selection stays none, the notice is left alone.
+    const std::string notice = r.last_notice();
+    r.key(input::scan::kEscape);
+    CHECK(seat->keys.size() == 1);
+    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.last_notice() == notice);
+}
+
+TEST_CASE("QR-18/SC-5: the Composer's windowed catalog is reached by the wheel") {
+    // THE REAL COMPOSER, through the real seam. The Timer's catalog is eleven rows and the
+    // pane's room does not hold them: the last is hidden behind `...` until a wheel over the
+    // body walks the cursor to it -- through `move_cursor`, the same step Down takes.
+    ComposeRig r;
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    REQUIRE(r.shows("accepted messages -- 11"));
+    REQUIRE(r.shows("..."));
+    REQUIRE_FALSE(r.shows("zen.PokeResetState v1")); // the last root, hidden below
+
+    const ui::Rect body = external_body_rect(r.r.session(), r.kind);
+    const std::int64_t cx = body.x + 2;
+    const std::int64_t cy = body.y + kExternalHeaderRows + 1;
+    // NOBODY HAS THE KEYBOARD, and the wheel still moves the list: pointer, not keys.
+    REQUIRE(r.r.session().panels.keyboard == kNoPaneKind);
+    for (int i = 0; i < 12; ++i) {
+        r.r.wheel_cell(-1.0, cx, cy); // toward the maker: later rows
+    }
+    CHECK(r.shows("zen.PokeResetState v1"));
+    CHECK(r.r.session().panels.keyboard == kNoPaneKind);
+    // AND BACK: the first root returns, the last leaves.
+    for (int i = 0; i < 12; ++i) {
+        r.r.wheel_cell(+1.0, cx, cy);
+    }
+    CHECK(r.shows("StartTimer v1"));
+    CHECK_FALSE(r.shows("zen.PokeResetState v1"));
+    // A FRACTION IS CARRIED: two half-notches are one row, and one is none.
+    const std::vector<std::string> before = r.rows();
+    r.r.wheel_cell(-0.5, cx, cy);
+    CHECK(r.rows() == before);
+    r.r.wheel_cell(-0.5, cx, cy);
+    CHECK(r.rows() != before);
+}

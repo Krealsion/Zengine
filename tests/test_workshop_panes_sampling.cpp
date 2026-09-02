@@ -752,3 +752,67 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
     CHECK_FALSE(book.heard[0].ok);
     CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
 }
+
+// ---- QR-18: the Powers list past its window is reached by the wheel ----------------------
+
+TEST_CASE("QR-18/SC-5: the Powers list past its window is reached by the wheel, through the "
+          "real pane") {
+    // ⚔ MUTATION (F6): dropping `PaneWheel` from Workshop's send, from the grant, or from
+    // the provider's accept-set -- the marker below never leaves `-/N` and no hidden row
+    // arrives. A source grep would not notice a grant; this witness does.
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+
+    // THE OPERATORS VIEW, in a pane short enough to window its three operators: six cells is
+    // a chrome row and two list rows, one of them an entry and the other the marker.
+    make_taller(r, intro::kPowersPane, 6);
+    const std::int64_t ops = chrome_column(r, kind, "Operators");
+    REQUIRE(ops >= 0);
+    press_pane(r, kind, 0, ops);
+    REQUIRE(pane_rows(r, kind)[0].find("[Operators]") != std::string::npos);
+    press_outside(r, kind); // the keyboard back to Workshop: this is about the pointer
+    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    const std::vector<std::string> start = pane_rows(r, kind);
+    REQUIRE(any_row(start, " more"));
+    // The position marker `k/N` on the chrome row: nothing selected yet, N operators.
+    const std::size_t slash = start[0].find('/');
+    REQUIRE(slash != std::string::npos);
+    REQUIRE(start[0][slash - 1] == '-');
+    const std::int64_t total = std::stoll(start[0].substr(slash + 1));
+    REQUIRE(total > 2);
+
+    // WHEEL DOWN, ONE NOTCH AT A TIME, TO THE TAIL. The row the cursor ends on was not on the
+    // screen when it began: that is the hidden row the marker stood for.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::int64_t cx = body.x + 4;
+    const std::int64_t cy = body.y + kExternalHeaderRows + 1; // the list's first row
+    for (std::int64_t i = 0; i < total + 1; ++i) {
+        r.wheel_cell(-1.0, cx, cy);
+    }
+    const std::vector<std::string> end = pane_rows(r, kind);
+    std::string chosen;
+    for (const std::string& row : end) {
+        if (row.rfind(intro::kSelectedMark, 0) == 0) {
+            chosen = row;
+        }
+    }
+    REQUIRE_FALSE(chosen.empty());
+    CHECK_FALSE(any_row(start, chosen)); // reached, and it was hidden at the start
+    CHECK(end[0].find(std::to_string(total) + "/" + std::to_string(total)) != std::string::npos);
+    CHECK_FALSE(any_row(end, " more below"));
+    CHECK(r.session().panels.keyboard == kNoPaneKind); // looking pointed no keys
+    // AT THE TAIL A FURTHER NOTCH SAYS NOTHING: the content is identical, no frame is owed.
+    r.wheel_cell(-1.0, cx, cy);
+    CHECK(pane_rows(r, kind) == end);
+    // AND BACK UP, in halves -- fractional notches are carried, whole ones spent.
+    for (int i = 0; i < 2 * total; ++i) {
+        r.wheel_cell(+0.5, cx, cy);
+    }
+    CHECK(pane_rows(r, kind)[0].find("1/" + std::to_string(total)) != std::string::npos);
+    // THE HEADER ROW OF THE PANE SENDS NOTHING: the marker does not move.
+    r.wheel_cell(-1.0, body.x + 4, body.y);
+    CHECK(pane_rows(r, kind)[0].find("1/" + std::to_string(total)) != std::string::npos);
+}

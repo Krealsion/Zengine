@@ -1778,6 +1778,7 @@ struct PaneEditor {
     std::vector<Row> rows;         ///< the subject's rows, in the order the body paints them
     std::size_t row_cursor = 0;    ///< which of those rows the keys are on
     bool on_rows = false;          ///< the keys are in the rows (true) or the PANES list
+    double wheel_accum = 0.0;      ///< fractional wheel notches not yet worth a row (QR-18)
 
     bool addressed() const { return !subject.provider.empty(); }
 };
@@ -2436,6 +2437,21 @@ inline KeyContext keyboard_context(const Session& s) {
         return KeyContext::kContext;
     }
     return keyboard_context_beneath_menu(s);
+}
+
+/// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT (QR-18)? Three
+/// answers of the chain above say yes -- the project browser, the Pane Editor and command
+/// mode: a list or nothing holds the keys, and Workshop can SEE that Escape is unclaimed
+/// there (its keymap binds nothing to it). Every mode, overlay and draft answers Escape with
+/// a row of its own and is never asked. And the two places a maker TYPES into keep Escape
+/// while they hold the keys, whatever a maker's keymap says: the source editor, whose
+/// Escape is a pinned no-op (EDIT-0 -- a `d` typed after a habitual Esc must not delete a
+/// document object), and a focused external pane, whose Escape crosses the seam with no
+/// `consumed` coming back (WP-R0), so Workshop cannot know it declined -- and the shipped
+/// Composer does not decline it (its form goes back to its catalog and the maker keeps
+/// typing, TEXT-0). The way out of either is the press-elsewhere gesture, then Escape.
+inline bool escape_may_shed_selection(KeyContext c) {
+    return c == KeyContext::kFiles || c == KeyContext::kPaneEditor || c == KeyContext::kCommand;
 }
 
 // ---- Spelling the effective bindings (KEY-0) ---------------------------------------------
@@ -8177,10 +8193,26 @@ inline void paint_editor(surface::SurfaceLayer& layer, const Session& s, const F
 
 inline constexpr std::int64_t kFilesHeaderRows = 1;
 
-/// How many rows the wheel is worth in this list -- the editor's number, for its reason: a
-/// notch that moved one row would make a wheel feel broken, and one that moved a page would
-/// make it unusable for aiming.
-inline constexpr std::int64_t kFilesWheelRows = 3;
+/// How many rows the wheel is worth in a cursor-windowed list -- the editor's number, for
+/// its reason: a notch that moved one row would make a wheel feel broken, and one that moved
+/// a page would make it unusable for aiming. Project Files set it (EDIT-1); the Pane Editor's
+/// two lists and the picker spend the same number (QR-18), so one notch means one thing over
+/// every list Workshop itself windows.
+inline constexpr std::int64_t kListWheelRows = 3;
+inline constexpr std::int64_t kFilesWheelRows = kListWheelRows;
+
+/// TURN NOTCHES INTO WHOLE ROWS, CARRYING THE FRACTION (QR-18; the editor's and the
+/// browser's identical arithmetic, spelled once). +dy is a notch AWAY from the maker (the
+/// wire's own convention), which every desktop reads as "scroll up": earlier rows -- so the
+/// answer is how many rows to move TOWARD THE HEAD, negative for later rows. Fractional
+/// notches accumulate in `accum` until they are worth a whole row, so a precise wheel is not
+/// rounded to zero; a zero answer leaves the fraction exactly where it was.
+inline std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch) {
+    accum += dy * static_cast<double>(rows_per_notch);
+    const std::int64_t rows = static_cast<std::int64_t>(accum);
+    accum -= static_cast<double>(rows);
+    return rows;
+}
 
 /// The browser body's resolved place on this screen: the pane's rectangle less its header.
 /// Absent whenever the pane is closed, off-room, or too small for one row.
