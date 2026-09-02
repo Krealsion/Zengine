@@ -24,6 +24,14 @@ an office-authored external pane    you are a weave that is not Workshop
 Both are real, current, tested code. Neither is a plugin system — see
 [What does not exist yet](#what-does-not-exist-yet) before you plan around one.
 
+There is also a pane that is *not* a tool and needs neither path: a maker can make a pane of
+their own from inside Workshop — a name and one line of text, placed on the fine lattice
+inside the pane, kept in a project file — through the [Pane
+Creator](../workshop/panes.md#the-pane-creator--a-pane-made-of-data). It paints text and
+does nothing else; it is the first pane whose inside is authored data rather than code, and
+it is deliberately not a way to author behaviour, input or wiring. If your tool has to *do*
+something, you are on one of the two paths above.
+
 ## Which path are you on?
 
 | question | compiled-in Workshop panel | office-authored external pane |

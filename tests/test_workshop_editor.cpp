@@ -1303,7 +1303,7 @@ TEST_CASE("EDIT-0: the Editor is an ordinary catalog pane with a durable referen
     const PaneRef ref = pane_ref_of(panel::kEditor);
     CHECK(ref.provider == std::string(kWorkshopProvider));
     CHECK(ref.pane == std::string(pane_key::kEditor));
-    RuntimeCatalog empty;
+    Panels empty;
     const std::optional<std::int64_t> back = resolve_pane(ref, empty);
     REQUIRE(back.has_value());
     CHECK(*back == panel::kEditor);

@@ -1095,7 +1095,8 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     // waiting, because nothing is authored beyond what the minimum screen seats.
     //
     // ⚠ FITTED TO THE PICKER'S OWN COLUMNS SINCE WUX-13. The name column widened to hold
-    // `Pane Editor` whole, and at the 78-column minimum that is two cells off every summary
+    // `Pane Manager` whole (thirteen since WUX-14), and at the 78-column minimum that is
+    // three cells off every summary
     // -- Info's `objects and properties` is now cut there and MARKED, which is `detail::fit`
     // doing its job. What the picker owes is the row AS IT FITS IT; the case searches for
     // exactly that rather than for a sentence the room cannot hold.
@@ -6973,7 +6974,7 @@ TEST_CASE("WUX-13/SC-2: the Pane Editor is a built-in, and its list is the picke
     // a keyboard-taking pane, so its list has a cursor. Not in the default setup -- a new
     // kind never is (make-a-workshop-tool's law).
     const PanelKind& k = panel_kind(panel::kPaneEditor);
-    CHECK(std::string(k.name) == "Pane Editor");
+    CHECK(std::string(k.name) == "Pane Manager");
     CHECK(std::string(k.pane) == "pane-editor");
     CHECK(k.placed_in == placement::kOverlayStack);
     CHECK(k.takes_keyboard);
@@ -6996,7 +6997,7 @@ TEST_CASE("WUX-13/SC-2: the Pane Editor is a built-in, and its list is the picke
     const std::vector<CatalogRow> rows =
         inventory_rows(t.session().setup.active, t.session().panels);
     const std::string shown = editor_text(t);
-    CHECK(shown.find("PANE EDITOR *") != std::string::npos);
+    CHECK(shown.find("PANE MANAGER *") != std::string::npos);
     for (const CatalogRow& row : rows) {
         INFO(row.name);
         CHECK(shown.find(detail::pad(row.name, kPickerNameCols)) != std::string::npos);
@@ -7046,8 +7047,12 @@ TEST_CASE("WUX-13/SC-1: the subject is chosen, and interacting inside the editor
     // ...AND TYPING IN IT: the keys are the editor's, not command mode's, and the subject
     // stands.
     const std::size_t objects = t.doc().elements.size();
-    t.key(input::scan::kN); // `n` is command mode's `new object`; here it means nothing
+    t.key(input::scan::kN); // command mode's `new object`; here it is the Pane Creator's prompt
     CHECK(t.doc().elements.size() == objects);
+    CHECK(keyboard_context(t.session()) == KeyContext::kPaneNaming);
+    t.key(input::scan::kEscape); // ...cancelled: no pane was made, and the subject stands
+    CHECK_FALSE(t.session().panels.maker.open());
+    CHECK(keyboard_context(t.session()) == KeyContext::kPaneEditor);
     t.key(input::scan::kDown);
     t.key(input::scan::kUp);
     CHECK(t.session().pane_editor.subject == layouts);
@@ -7067,9 +7072,11 @@ TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, the
     open_editor(t);
     choose_by_keys(t, ref_of(panel::kLayouts));
     const std::vector<Row>& rows = t.session().pane_editor.rows;
+    // ...AND THEN INTERIOR (WUX-14): for a code-backed subject, one read-only capture row.
     const char* const expected[] = {"Name",   "Identity", "Provider", "Summary", "AUTHORED",
                                     "X",      "Y",        "Width",    "Height",  "Front",
-                                    "Open",   "RESOLVED", "Window",   "State"};
+                                    "Open",   "RESOLVED", "Window",   "State",   "INTERIOR",
+                                    "Interior"};
     REQUIRE(rows.size() == sizeof(expected) / sizeof(expected[0]));
     for (std::size_t i = 0; i < rows.size(); ++i) {
         INFO(i);
@@ -7101,7 +7108,7 @@ TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, the
         CHECK(editor_row(t, authored)->editable());
     }
     for (const char* derived : {"Name", "Identity", "Provider", "Summary", "Front", "Open",
-                                "Window", "State"}) {
+                                "Window", "State", "Interior"}) {
         INFO(derived);
         CHECK_FALSE(editor_row(t, derived)->editable());
     }
@@ -7477,7 +7484,7 @@ TEST_CASE("WUX-13/SC-15: the Pane Editor can be its own subject, and its own row
     open_editor(t);
     const PaneRef me = ref_of(panel::kPaneEditor);
     choose_by_keys(t, me);
-    CHECK(editor_value(t, "Name") == "Pane Editor");
+    CHECK(editor_value(t, "Name") == "Pane Manager");
     CHECK(editor_value(t, "Identity") == "zengine.workshop/pane-editor");
     CHECK(editor_value(t, "State") == "open");
     // THE COINCIDENCE IS BROKEN ON PURPOSE: select something else (the workspace: nothing),

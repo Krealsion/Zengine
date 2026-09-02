@@ -260,6 +260,11 @@ struct Arguments {
     /// shape as `--document` for the same reasons; a different file because a
     /// document and the arrangement it is looked at in are different facts.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
+    /// The pane-definition file (WUX-14): a pane the maker MADE, beside the document and
+    /// the setup as the third PROJECT file. A bare default like the document's, resolved
+    /// by `main()` against the project directory rather than against the process's own
+    /// working directory -- one spelling, one file, to the launch and to the save alike.
+    std::string pane = zengine::workshop::pane_definition_persist::kDefaultPaneFileName;
     /// The last-session file, written by nobody's gesture (WUX-0). EMPTY MEANS "NOT
     /// EXPLICITLY CHOSEN" since WUX-3 -- `main` resolves the per-user default through
     /// `user_paths.hpp` -- so unlike the document's, this default is not a bare name here:
@@ -311,8 +316,8 @@ Arguments parse_arguments(int argc, char** argv) {
             args.isolated = true;
             continue;
         }
-        if (arg == "--document" || arg == "--setup" || arg == "--session" ||
-            arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
+        if (arg == "--document" || arg == "--setup" || arg == "--pane" ||
+            arg == "--session" || arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
             arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
             arg == "--dump") {
             if (i + 1 >= argc) {
@@ -367,6 +372,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.dump = value;
             } else if (arg == "--setup") {
                 args.setup = value;
+            } else if (arg == "--pane") {
+                args.pane = value;
             } else {
                 args.document = value;
             }
@@ -382,6 +389,9 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
+    } else if (args.pane.empty()) {
+        args.ok = false;
+        args.complaint = "--pane needs a path";
     }
     return args;
 }
@@ -391,6 +401,7 @@ int main(int argc, char** argv) {
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
+                    "                        [--pane <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
                     "                        [--prefs <path>] [--marks <path>]\n"
                     "                        [--isolated]\n"
@@ -437,6 +448,18 @@ int main(int argc, char** argv) {
     host.project_dir = launch_project_dir();
     host.document_path = args.document;
     host.setup_path = args.setup;
+    // THE PANE-DEFINITION FILE IS RESOLVED AGAINST THE PROJECT, ONCE (WUX-14). A relative
+    // spelling means "under the project", and the project is the value captured on the line
+    // above -- not the process's working directory at whichever later moment a save or a
+    // launch happens to spend the path. A project this build cannot carry leaves a relative
+    // spelling nowhere to stand: that is the designed absence, said on the banner, and the
+    // pane file is simply off for the run (an absolute `--pane` still names a file).
+    {
+        const std::filesystem::path spelled(args.pane);
+        if (spelled.is_absolute() || !host.project_dir.empty()) {
+            host.pane_path = persist::resolved_against(host.project_dir, args.pane);
+        }
+    }
 
     // ---- THE MAKER'S OWN FILES, RESOLVED BY THE PINNED PRECEDENCE (WUX-3) --------
     //
@@ -521,6 +544,13 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
+    // THE PANE FILE, SAID AS RESOLVED: the one spelling every door will spend, or the
+    // absence and its cause.
+    std::printf("zengine-workshop - pane: %s\n",
+                host.pane_path.empty()
+                    ? "none (no project directory to resolve it under -- an absolute --pane "
+                      "<path> names one)"
+                    : host.pane_path.c_str());
     // THE PROJECT, SAID ONCE. It is where Project Files browses from and what a relative
     // source in a build recipe means, so a maker whose shell was somewhere unexpected can
     // read it here rather than deduce it from a listing. An absence is said on the same

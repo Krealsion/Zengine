@@ -300,9 +300,9 @@ reveals what was underneath, unchanged and unrebuilt. That is a real, proven cap
 The Loom's `Kernel::reload_from` exists and has open provider-custody caveats; nothing in
 Workshop reaches it.
 
-### The Pane Editor edits the pane grammar that exists, and no more
+### The Pane Manager edits the pane grammar that exists, and no more
 
-[The Pane Editor](panes.md#the-pane-editor--a-pane-as-a-subject) edits exactly what a pane's
+[The Pane Manager](panes.md#the-pane-manager--a-pane-as-a-subject) edits exactly what a pane's
 setup row can say today: an absolute place, a width, a height, a rank in the front order, and
 whether the pane is on the layout. It shows the resolved rectangle and state beside them. It
 does not author anchors, fill, docking, snapping, locks, sibling-relative or parent-relative
@@ -312,6 +312,20 @@ in the right-click menu — its own list is the door. Its default height is the 
 rows, which shows three panes and three rows at a time; `=` in the desk arrangement makes it
 usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
 every stacked pane has.
+
+### The Pane Creator makes one kind of pane, and it is text
+
+[The Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) is the first pane whose
+inside is authored data, and it is exactly that small: one region kind (`text`), one line of
+plain ASCII per region, one region seeded per pane, and one open pane definition at a time.
+There is no control, no button, no input region, no wiring, no state, no anchors, fill or
+nesting, no second region kind, and no way to rename a pane once it is made — its name is its
+durable identity. The region is placed by typing numbers into the Pane Manager's rows; there
+is no dragging or resizing of a region on the pane itself. A code-backed pane's `INTERIOR` is
+a read-only capture of its body, never a decomposition of its painter, and a loaded pane's is
+its provider's own: the Pane Creator's representation is one way a pane can be built, not a
+form every pane must be converted into. And a definition file holds presentation only —
+nothing in it can be made to send, sample, bind or load.
 
 ### No cross-pane interaction
 

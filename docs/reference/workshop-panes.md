@@ -566,6 +566,8 @@ project files keep following the project:
 --document   workshop.json           what you MADE                    (launch directory)
 --setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
                                      and read back with `r`
+--pane       workshop-pane.json      a PANE you made: its name and    (project directory)
+                                     its regions, never where it sits
 --session    workshop-session.json   the desk you were USING, the     (per-user state root)
                                      room it was in, and where the
                                      window sat

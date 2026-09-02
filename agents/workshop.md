@@ -219,10 +219,10 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   draft answers Escape with its own row first (`picker.close`, `draft.cancel`, `manage.close`,
   `context.back`, `attention.close`, `naming.cancel`, `terminal.back`; the hotkey view above
   them all), and a bare Escape that reaches a context where a LIST or NOTHING holds the keys
-  — Project Files, the Pane Editor, command mode — with no binding claiming it sheds
+  — Project Files, the Pane Manager, command mode — with no binding claiming it sheds
   `Panels::selected` if a pane is selected, the keyboard candidate with it, exactly the
   press-elsewhere gesture's two lines (`unselect_pane`, `escape_may_shed_selection`).
-  Nothing else moves: no pane closes, no rank, no geometry, no Pane Editor subject, no
+  Nothing else moves: no pane closes, no rank, no geometry, no Pane Manager subject, no
   provider state, no file. It is asked in `on(KeyPressed)` AFTER the resolved context has had
   the key, and it is deliberately NOT a keymap action (the hotkey view's reason: a recovery
   gesture must not be authorable into a lockout). ⚠ **A place a maker TYPES into keeps
@@ -2139,6 +2139,11 @@ and since WUX-3 they live in three OWNERSHIP DOMAINS with three different defaul
 PROJECT -- follows the project: the launch directory, or the path the maker typed
 --document   workshop.json           what a maker MADE
 --setup      workshop-setup.json     a desk they NAMED -- `s` writes it, `r` reads it
+--pane       workshop-pane.json      a PANE they made (WUX-14): its name and its authored
+                                     regions -- WHAT the pane is, never where it sits;
+                                     resolved by the host against `project_dir`, read at
+                                     the first surface, written only by `s` in the Pane
+                                     Manager; a refused file is never overwritten
 
 USER CONFIGURATION -- follows the maker: %APPDATA%\zengine-workshop | $XDG_CONFIG_HOME/...
 --keymap     workshop-keymap.json    the maker's HAND -- hand-edited overrides + the legend
@@ -2389,10 +2394,16 @@ executable, authored per project when named.)
   knew that artifact to hold, which is a fact about Workshop's own knowledge and therefore a
   fact a session may legitimately remember. What it must not become is a read.
 
-## The Pane Editor has a subject, and the subject is not the selection (WUX-13)
+## The Pane Manager has a subject, and the subject is not the selection (WUX-13; renamed WUX-14)
 
 `panel::kPaneEditor` (`pane-editor`, overlay stack, keyboard-taking) is the built-in whose
-subject is an ordinary Workshop pane. It replaces nothing: the Info panel still inspects
+subject is an ordinary Workshop pane. **Its maker-facing name is `Pane Manager` since
+WUX-14** -- it inventories, identifies, places, orders and opens panes; the name `Pane
+Editor` overclaimed a tool that edits a pane's INSIDE, which does not exist and which this
+name is reserved for. ⚠ The C++ symbols (`kPaneEditor`, `PaneEditor`, `pane_editor_*`), the
+durable pane key `pane-editor` and the `pane-editor.*` action ids are UNCHANGED: a key is a
+promise to every setup, session and keymap file that names it, and the internal vocabulary is
+history, not product. It replaces nothing: the Info panel still inspects
 DOCUMENT objects (`ui::Element`s named `panel`), and the two are different subjects behind
 rows that happen to share labels. What was quarried from Info is its grammar -- `Row`,
 `Property`, `share_body_rows`, `list_window`, the row-to-item inverses, the property row
@@ -2405,9 +2416,9 @@ PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `cho
 ```
 
 - **THE SUBJECT IS A `PaneRef`, HELD ON THE SESSION (`Session::pane_editor`), NEVER DERIVED
-  FROM `Panels::selected`.** Pressing into the Pane Editor selects the Pane Editor -- that is
+  FROM `Panels::selected`.** Pressing into the Pane Manager selects the Pane Manager -- that is
   what pointing at a pane means since WUX-12 -- and retargets nothing. That is what lets the
-  editor be its own subject: choose `Pane Editor` in its list, type into its own `X`, and the
+  manager be its own subject: choose `Pane Manager` in its list, type into its own `X`, and the
   pane the rows are painted in moves. It is not persisted: a subject is interaction state, and
   a layout file remembering what the editor was looking at would be a presentation preference
   riding an authored artifact.
@@ -2432,7 +2443,7 @@ PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `cho
   arrangement's own switch; `o` spends `toggle_participation`, which is `choose_panel`'s body
   quarried out so the picker and the editor are one membership door; and the reseat a place
   write owes is `apply_setup`, spent once on the commit path (`editing_key`) for every
-  accepted Pane Editor commit. There is no `PaneEditor` setter and no rectangle held anywhere.
+  accepted Pane Manager commit. There is no `PaneEditor` setter and no rectangle held anywhere.
   `pane_window_base` is `managed_window_base`'s body quarried out, so a typed axis measures
   the axis it did not type from the same window the arrangement's hands measure from.
 - **A TYPED VALUE IS REFUSED, NEVER CLAMPED.** `parse_face_amount` reads a whole number in the
@@ -2448,29 +2459,128 @@ PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `cho
   commit keys and the clipboard reach the draft the screen is pointing at. `draft_live`
   (Info's) and `pane_editor_draft_live` are deliberately two questions: a change of document
   selection cannot touch the editor's draft, so Info's refusals do not apply to it.
-- **THE PICKER'S NAME COLUMN IS TWELVE CELLS**, widened from ten to hold `Pane Editor` whole,
-  at the measured cost of two summary cells at every width -- Info's own summary is cut and
-  marked at the 78-column minimum. The properties WUX-5 left standing are untouched.
+- **THE PICKER'S NAME COLUMN IS THIRTEEN CELLS** (`kPickerNameCols`; ten before WUX-13,
+  twelve before WUX-14), widened to hold `Pane Manager` whole -- a name must be STRICTLY
+  shorter than the column, or it butts against the state word -- at the measured cost of
+  three summary cells at every width: Info's own summary is cut and marked at the 78-column
+  minimum. The properties WUX-5 left standing are untouched.
 - **BOTH LISTS SCROLL UNDER THE WHEEL (QR-18)** -- the list under the pointer, through
   `pane_editor_move_in`, the same bounded step the keys take (a section heading is stepped
   over, never onto). The wheel moves a cursor and never the keys: `on_rows` is untouched, the
   subject is untouched, and the heading spends nothing. Escape with the editor selected sheds
   the SELECTION (the final fallthrough) and leaves the subject standing -- the F1/F9 law, one
   gesture more.
-- **What the Pane Editor is NOT:** a document editor (Info is), a Surface control primitive, a
+- **What the Pane Manager is NOT:** a document editor (Info is), a Surface control primitive, a
   general property inspector, a wiring editor, or a safe mode. Recovery is the picker, `-`
   here or `0` in the arrangement, the default desk and `--isolated`, exactly as before.
 
+## A pane may exist because a maker described one (WUX-14)
+
+`workshop/pane_definition.hpp` is the first pane implementation whose interior is authored
+DATA: `PaneDefinition{name, regions[], next_id}` with `TextRegion{id, kind, x, y, w, h,
+text}` -- one admitted kind (`region_kind::kText`), ids minted and never reused, geometry in
+sub-units RELATIVE TO THE PANE'S INTERIOR. `Panels::maker` (`MakerPane{path, definition,
+saved}`) is the one open definition; `workshop/pane_definition_persist.hpp` is its file
+(`zengine-workshop-pane`, version 1, `WorkshopPaneDefinition v1` / `WorkshopPaneRegion v1`,
+64 KiB ceiling derived from the region bounds, the family's safe write). The maker-facing
+workflow is the **Pane Creator**: `n` in the Pane Manager opens a name prompt
+(`KeyContext::kPaneNaming`, `Session::pane_naming`), Return makes the pane
+(`new_maker_pane`), `s` saves (`save_maker_pane`), `ctrl+d` discards
+(`discard_maker_pane_edits`); the region's rows are the Pane Manager's `INTERIOR` section.
+
+```text
+PaneRef        maker_pane_ref(name) == {kMakerPaneProvider, name}    which pane a maker MEANT
+SetupPane      an ordinary row naming that ref                       where it participates
+PaneDefinition what is INSIDE it -- its own file, never the session, never the setup
+```
+
+- **⚠⚠ THIS IS ONE WAY A PANE CAN BE IMPLEMENTED, NOT THE ONTOLOGY OF PANE.** A built-in's
+  interior is still code; a provider's is still behind its seam; neither must be converted
+  into this representation before Workshop can describe it, and a future tool that works on
+  an arbitrary pane asks that pane what regions it honestly exposes. The limitation to one
+  region kind and static text is this first implementation's, not a law about panes. Do
+  not build a `CustomizablePane`, a widget set, a control kind, anchors, fill, nesting, or a
+  second renderer on the back of this value.
+- **THE IDENTITY IS MINTED FROM THE NAME AND FROM NOTHING ELSE.** `kMakerPaneProvider`
+  (`zengine.workshop.maker`) is a Workshop-OWNED namespace: no office may offer a pane in it
+  (`admit_pane_offer` refuses), nothing is addressed to it, and `resolve_pane` answers
+  `kMakerPaneKind` exactly when the ref's pane equals the OPEN definition's name. A
+  definition file moving changes nothing; a definition not open leaves every row naming it
+  RETAINED and `unresolved`, the same posture a stranger's reference has. There is no
+  singleton `Defined` ref whose meaning follows the open file.
+- **`kMakerPaneKind` IS A HANDLE, NOT AN IDENTITY** -- a third kind class beside built-ins
+  and runtime handles (`is_maker_kind`, `kind_takes_keyboard`, `placement_of` are the arms;
+  nothing else switches on the number). `resolve_pane`, `resolvable`, `seat_panes`,
+  `unresolved_panes` and `setup_rest_text` take the whole `Panels` since WUX-14 -- the
+  session's resolution table grew a row, and a spelling handed the runtime catalog alone
+  would count a maker's pane unresolved beneath a pane they can see (WP-0's own argument).
+- **THE PANE ON THE DESK IS THE PREVIEW; THERE IS NO SECOND RENDERER.** `paint_maker_pane`
+  is one more arm in `paint_panels`: `bounds_of` -> `pane_inside` -> `present_region` (interior
+  origin + authored place, clipped to the interior, `fit_region_subs` with the face's metric)
+  -> one `kGroundOwn` `SurfaceTextRegion` per region over one region owning the whole
+  interior. On the window a region authored at 126 px sits at pixel 126 of the interior; on a
+  terminal the same value reads `~10 cells (~ projected)` and covers the cells the one
+  quantization law says. Too small for the face is the face's own answer (HD-5: `presented
+  as cells`, `no room`), and nothing rewrites the authored number to fit.
+- **LOOKING NEVER AUTHORS.** Every `INTERIOR` row reads through `maker_region` at display
+  time; `Resolved` and `Shown` are `present_region` re-run; the region MARK
+  (`paint_creator_region_mark`, a later plane: an accent rect at the exact resolved bounds
+  with the text written over it `kGroundBeneath`) is derived from the same resolution and
+  writes nothing. Proven by byte identity of `pane_definition_persist::to_text` across faces,
+  extents and repaints.
+- **ONE OWNER DOOR PER FACT.** `write_region_text` -> `set_region_text`; `write_region_axis`
+  -> `parse_face_amount` -> `author_region_axis`, refuse-never-clamp per axis, in the face's
+  unit; `-` is refused in words (a region has no default mode). The Pane Manager's rows are
+  the typed adapters; the definition's doors are the law; Info is untouched and owns no
+  pane-definition truth.
+- **THE LIFECYCLE IS EDIT-0'S, INHERITED WHOLE.** One session-owned open definition
+  (`Panels::maker`, which `close_panel` never touches); dirty DERIVES (`definition != saved`,
+  so a never-saved pane is dirty by arithmetic); a dirty definition refuses `n`, refuses the
+  open door and refuses `quit()` from all three arrival doors, naming `s` and `ctrl+d`;
+  `open_maker_pane` is the ONE open door (normalize against the project -> dirty refusal ->
+  bounded read -> whole admission -> `check_definition` -> install -> `apply_setup`), spent
+  by startup and by nothing else yet; a refused file at the host's own path is a standing
+  wall (`kPaneWallKey`, `pane_refused_`) that the save door honours -- bytes this run could
+  not read are never written over.
+- **⚠ STARTUP ORDER IS THE RELAUNCH STORY.** `load_pane_definition` runs in
+  `on(SurfaceReady)` BEFORE `restore_last_session`, because `apply_setup` seats a reference
+  only if it resolves at that moment; a definition opened after the restore would leave the
+  saved pane `unresolved` on the row it came back on. The session carries the ROW and not one
+  byte of the interior (a case reads the session bytes for the text and finds none).
+- **A NEW PANE MAY LAND `waiting`.** At the minimum composition the Pane Manager holds the
+  one overlay slot; `new_maker_pane` authors the row anyway and SAYS so, because the maker's
+  list names the state and the pane is still fully editable (`Resolved` reads `-`). This is
+  deliberately not the picker's refusal: the maker asked for a pane by name and is told where
+  it stands.
+- **THE DEFAULT REGION IS AUTHORED THE MOMENT IT EXISTS** (`kNewRegionX/Y/W/H`: 0, 0, 24
+  cells, 2 cells -- two cells tall so the shipped face sets one row of type in it). A region
+  has no `default` mode; those are ordinary values the maker reads and retypes.
+- **THE CODE-BACKED ANSWER IS A CAPTURE.** For every subject that is not the maker's pane,
+  `INTERIOR` is one read-only row (`interior_capture_text`): `code-backed -- body @..., N
+  rows x M columns in type; no authored interior`, or the provider's own, or `unresolved --
+  nothing to inspect`. No decompilation, no inferred controls, no pretence.
+- **WHAT THE FILE CANNOT SAY IS THE ENFORCEMENT.** The two shapes hold a name, a mint, and
+  per region an id, a kind WORD, four lattice numbers and a line of text -- pinned by field
+  name in the suite -- and the two headers are tripwired against every bus, kernel, grant,
+  operator and keymap spelling. A stranger holding the maker namespace as an office hears no
+  `PaneRoom`, `PanePressed`, `PaneKey`, `PaneTextInput` or `PaneWheel` across a load, a
+  press, a key and a wheel.
+
 ## Do not assume
 
-- The Pane Editor's subject is the selected pane, or that choosing a subject selects it --
-  neither, and the F1/F9 cases pin both directions. A press into the editor selects the
-  EDITOR; `choose_subject` touches no selection.
+- The Pane Manager's subject is the selected pane, or that choosing a subject selects it --
+  neither, and the F1/F9 cases pin both directions. A press into the manager selects the
+  MANAGER; `choose_subject` touches no selection.
+- A pane made by the Pane Creator is an external pane, or that `Panels::maker` is a
+  presentation's copy -- neither. It is Workshop-owned authored material presented through
+  the ordinary pane path (no office, no offer, no room grant), `close_panel` never touches
+  it, and the `pane-editor.*` ids and `pane-editor` key are the Pane MANAGER's historical
+  spelling, not evidence that the tool edits a pane's inside.
 - Escape with a pane selected does nothing, or that it closes the pane -- since QR-18 it puts
   the selection down, LAST (after every mode, overlay and draft has answered, and never while
   the source editor or an external pane holds the keys), and closes, moves, ranks and writes
   nothing. A `... N more` row is unreachable -- the wheel over that
-  list reaches it (the Editor, Files, the Pane Editor, the picker, and any external pane whose
+  list reaches it (the Editor, Files, the Pane Manager, the picker, and any external pane whose
   provider spends `PaneWheel`; Loaded is the one shipped pane that still counts what it
   cannot show, because it holds no cursor and no list origin to spend).
 - Nothing Workshop persists is read at launch — the DESK, the window's size, the desktop
