@@ -260,13 +260,14 @@ activation cursor and the header-only vocabularies).
   every WHY target exists and each record's **Laws supported** is exactly the laws whose WHY
   names it; every `// WL-…` pointer names entries of the register on its line and every
   `// Workshop law:` header names existing files; registers ≤ 16 KB, the router ≤ 8 KB,
-  `AGENTS.md` ≤ 20 KB. Two stricter checks — an identifier must occur as a whole token in the
-  named file's *code*, comments stripped, and the declaration under a pointer must be named by
-  a law on that line — sit behind `LAW_REGISTER_STRICT` (default OFF: they print their lists
-  and a count and do not fail) until the lists are cleared. It cannot know that a phase edited
-  a witnessed test; that rule is procedural and lives in the router
-  ([`workshop.md`](workshop.md)). By hand: `cmake -P tests/check_law_register.cmake`, or with
-  `-DLAW_REGISTER_STRICT=ON`.
+  `AGENTS.md` ≤ 20 KB; a law that writes `witness: none` is repeated under its register's
+  `## Do not assume`, and only such a law is. Two stricter checks — an identifier must occur
+  as a whole token in the named file's *code*, comments stripped, and the declaration under a
+  pointer must be named by a law on that line — sit behind `LAW_REGISTER_STRICT`, ON by
+  default since their lists were cleared; `-DLAW_REGISTER_STRICT=OFF` prints the lists and a
+  count without failing, the setting for a phase working one down. It cannot know that a
+  phase edited a witnessed test; that rule is procedural and lives in the router
+  ([`workshop.md`](workshop.md)). By hand: `cmake -P tests/check_law_register.cmake`.
 
 ## Platform traps
 
