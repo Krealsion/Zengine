@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_VOCABULARY_HPP
 
-// THE TWO SENTENCES AN EXPLICIT SAMPLE COSTS (SOURCE-1), and there is not a third.
+// THE TWO SENTENCES AN EXPLICIT SAMPLE COSTS, and there is not a third.
 //
 //     SampleRequested   asker  ->  zengine.sources   "sample this identity, now."
 //     SourceSampled     the door -> the asker        "here is what it said."
@@ -22,7 +22,7 @@
 //
 // THE ASK CARRIES AN IDENTITY AND NOTHING ELSE. There is no argument pack, no
 // schema, no provider preference, no timeout and no "give me the fresh one"
-// flag: a Source is an operator with zero maker inputs (SOURCE-0), so an identity
+// flag: a Source is an operator with zero maker inputs, so an identity
 // IS the whole question, and every other field would be a policy the asker was
 // never entitled to author.
 //
@@ -60,7 +60,7 @@ namespace zengine::workshop {
 /// survives its holder being replaced, and a loaded artifact names it without
 /// ever learning a `WeaveId`.
 ///
-/// IT IS A SECOND OFFICE AND NOT A SECOND MECHANISM. The seam is the one INTR-1
+/// IT IS A SECOND OFFICE AND NOT A SECOND MECHANISM. The seam is the one introspection
 /// already built -- ask an office, hear an answer -- pointed at the one act the
 /// observation door refuses to perform. A host that mounts no sample door holds
 /// no such office and an ask sent to it reaches nobody, which is the correct

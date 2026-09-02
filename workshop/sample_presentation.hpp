@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_PRESENTATION_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_PRESENTATION_HPP
 
-// WHAT A SAMPLED VALUE LOOKS LIKE TO A PERSON (SOURCE-1) -- one pure function.
+// WHAT A SAMPLED VALUE LOOKS LIKE TO A PERSON -- one pure function.
 //
 //     render_value(value)  ->  the logical lines a maker reads
 //

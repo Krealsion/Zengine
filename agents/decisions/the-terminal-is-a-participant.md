@@ -51,6 +51,16 @@ a plan sixteen times cheaper. `SurfaceTextRow` gained `background` for the selec
 the pane mid-drag no longer strands a gesture; clicking a completion row selects it and Tab
 accepts; Tab, Up and Down are unbound in this mode.
 
+Wrapping earned its place by one measurement: the pane's own syntax notice is 111 characters and
+the pane was 56 columns wide, so a maker who asked how to send a message read the first 53
+characters and `...` -- the truncation was in the fitting, not in the room (`detail::wrap`,
+`terminal_wrapped`).
+
+`kCompletionMinRows` is one, measured rather than reasoned: with a floor of two, `send * s` showed
+nothing at all, because no shape begins with a lowercase `s` and a heading with no candidate rows
+was refused for being one row tall -- so the one sentence that tells a maker the vocabulary lacks
+what they reached for never appeared.
+
 **Laws supported.** [WL-TERM-01](../workshop/terminal.md), [WL-TERM-02](../workshop/terminal.md),
 [WL-TERM-03](../workshop/terminal.md), [WL-TERM-04](../workshop/terminal.md),
 [WL-TERM-05](../workshop/terminal.md), [WL-TERM-06](../workshop/terminal.md),

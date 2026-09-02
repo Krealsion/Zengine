@@ -31,8 +31,8 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — `attention_conditions` reads the held set and the derived owners, ranks, and owns nothing; `attention_shown` is that list less this session's dismissals, the one population every consumer spends.
 
-PROVEN BY — `workshop/attention.hpp` `attention_conditions`; `workshop/screen.hpp`
-`attention_shown`; `tests/test_workshop_panels.cpp` case `"WUX-4: the view shows every current
+PROVEN BY — `workshop/screen.hpp` `attention_conditions`, `attention_shown`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: the view shows every current
 condition in its owner's own words"`, case `"WUX-4: the view never publishes more rows than its
 region can show"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
@@ -41,9 +41,9 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — A condition derived from a live owner — a pane's refusal, a pane's state, the project frontier — is never copied into the held set; the owner's next truth clears it with no retraction call.
 
-PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`;
-`workshop/screen.hpp` `pane_state_of`; `workshop/attention.hpp` `ProjectFrontier`,
-`HeldConditions`; `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and
+PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`, `ProjectFrontier`;
+`workshop/screen.hpp` `pane_state_of`; `workshop/attention.hpp` `HeldConditions`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and
 leaves attention with its subject"`, case `"WUX-4: the project frontier is a condition while it
 waits and nothing after"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
@@ -52,8 +52,8 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — `refused`, `waiting` and `off-room` are conditions; `closed` is the maker's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
 
-PROVEN BY — `workshop/attention.hpp` `attention_conditions`; `workshop/screen.hpp`
-`pane_state_of`; `tests/test_workshop_panels.cpp` case `"WUX-4: not every true pane state deserves
+PROVEN BY — `workshop/screen.hpp` `attention_conditions`, `pane_state_of`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: not every true pane state deserves
 ambient attention"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 

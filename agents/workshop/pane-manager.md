@@ -29,7 +29,7 @@ MEANS
 - that is what lets the manager be its own subject: choose it, type into its `X`, and it moves;
 - it is not persisted: a subject is interaction state, not a preference riding an artifact.
 
-PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `pane_editor`, `choose_subject`;
+PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `pane_editor`;
 `workshop/weave.hpp` `choose_subject`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the
 subject is chosen, and interacting inside the editor does not retarget it"`, case
 `"WUX-13/SC-15: the Pane Editor can be its own subject, and its own rows do not retarget it"`,
@@ -75,8 +75,9 @@ MEANS
 - `pane_window_base` is `managed_window_base`'s body: typed axes measure from the hands' window.
 
 PROVEN BY — `workshop/screen.hpp` `write_pane_axis`, `editing_key`, `pane_window_base`;
-`workshop/setup.hpp` `author_pane_window`, `reset_pane_place`, `managed_window_base`;
-`workshop/weave.hpp` `apply_setup`, `spend_pane_action`, `toggle_participation`, `choose_panel`;
+`workshop/setup.hpp` `author_pane_window`, `reset_pane_place`;
+`workshop/weave.hpp` `apply_setup`, `spend_pane_action`, `toggle_participation`, `choose_panel`,
+`managed_window_base`;
 `tests/test_workshop_panels.cpp` case `"WUX-13/SC-6+SC-11: a typed place moves Layouts through
 the gesture door, and its tabs follow"`, case `"WUX-13/SC-6: a typed place reseats the stack
 through `apply_setup`"`, case `"WUX-13/SC-12: moving, resizing and closing Layouts through the

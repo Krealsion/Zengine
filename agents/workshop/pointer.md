@@ -12,8 +12,8 @@ MEANS
 - `HostContext::interaction_now` is the one clock reading: steady, never persisted, never wired;
 - the interval is a product constant, not a preference: one gesture means one thing everywhere.
 
-PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`, `kDoubleClickMs`;
-`workshop/screen.hpp` `doubles_a_click`, `ClickMemory`, `click`; `workshop/weave.hpp`
+PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/screen.hpp`
+`kDoubleClickMs`, `doubles_a_click`, `ClickMemory`, `click`; `workshop/weave.hpp`
 `interaction_now`; `tests/test_workshop_screen.cpp` case `"WUX-7: what makes two presses one
 double-click, and what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`

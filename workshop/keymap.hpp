@@ -4,43 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_KEYMAP_HPP
 #define ZENGINE_WORKSHOP_KEYMAP_HPP
 
-// ONE EXECUTABLE BINDING TRUTH (KEY-0).
-//
-// Before this file, Workshop's keyboard was two independently authored worlds: ~100
-// executable gestures in hand-written switches, and ~20 claim sites -- band rows, headings,
-// notice hints, a boot line, a cheat sheet -- each spelling the same bindings again by hand.
-// KEY-R0 measured the two drifting in six places. This file is the repair's shape:
-//
-//   ACTION     a stable identity and a human meaning        (the declaration rows below)
-//   BINDING    the gesture that requests the action         (default here + maker override)
-//   EXECUTION  the owner that performs it                   (untouched -- see below)
-//
-// The keymap owns BINDING TRUTH and nothing else. Every dispatch site still calls its own
-// existing operations; what changed is only how a gesture becomes an action identity:
-//
-//     switch (session_.keymap.action_for(ctx, k.scancode, k.modifiers)) {
-//     case Act::kCreate: create_object(); break;            // the owner's own function
-//     ...
-//
-// There is deliberately NO callback, NO std::function, NO command bus, NO registry object
-// and NO new wire shape here. The keymap can NAME actions and gestures; it can perform
-// nothing -- a remap changes how an action is requested, never who may perform it. The
-// declaration rows are constexpr because that is the honest shape of what exists
-// (kPanelCatalog's and kTerminalVerbs' own argument): there are no parties unknown adding
-// entries, and provider-contributed declarations are deliberately out of KEY-0.
-//
-// EXACT MODIFIER MATCHING. An application binding matches exactly the observed modifier
-// state -- `n` does not also mean `Ctrl+N`, and the accidental subset aliases the old
-// per-site `held()` tests produced (Ctrl+N created, Alt+Q quit) are gone on purpose. The
-// component's editable-text vocabulary keeps its own modifier grammar behind
-// `TextBox::consume`; this rule governs the application keymap only.
-//
-// THE CONTEXT IS RESOLVED, NEVER STORED. `keyboard_context()` (screen.hpp, beside Session)
-// derives the current context from live session state, spelling the routing chain ONCE --
-// it replaced the two hand-kept mirrors KEY-R0 found (`editable_text_has_keyboard`,
-// `paste_owner_now`), each annotated "MIRRORS THE CHAIN branch for branch". There is no
-// context stack, no registration order and no focus framework: the chain's fixed written
-// order, as a value.
+// ONE EXECUTABLE BINDING TRUTH.
+// Workshop law: agents/workshop/keyboard.md (+13 registers; agents/workshop.md routes)
 
 #include "property.hpp" // Written -- the one refusal-with-reason shape this package has
 
@@ -56,45 +21,13 @@
 namespace zengine::workshop {
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
-///
-/// The first thirteen are the resolvable contexts: exactly the branches of
-/// `WorkshopWeave::on(KeyPressed)`'s chain. Arrangement is TWO SCOPES and a reset prompt
-/// (ARR-0): `kArrangePane` is one pane being arranged -- moving and resizing it are one
-/// vocabulary, not two submodes -- and `kArrangeDesk` is the same vocabulary over the
-/// whole desk, plus the keys that step between panes. `kArrangeReset` is the one
-/// remaining prompt step: `0`, then which authored dimension. `kEditor` is the built-in
-/// source editor holding the keyboard with a document open, `kFiles` the built-in
-/// project browser holding it with a project to browse, and `kPaneEditor` the built-in
-/// Pane Editor holding it (WUX-13) -- all three are PLACES a maker pressed into, in the
-/// focused pane's family, not modes: they answer only while a press has pointed the keys
-/// there, and the same press pointed elsewhere takes the keys straight back. None takes
-/// TEXT, which is what keeps `^c` and `^s` meaning what they mean everywhere a maker is
-/// not typing; a draft the Pane Editor opens on one of its rows is `kDraft`'s, exactly as
-/// the Info panel's is. The last three are DECLARATION-ONLY
-/// activity classes -- `keyboard_context()` never returns them:
-///
-///   kGlobal    active in every context: answered above the whole chain, the `^o`
-///              position. A focused pane does not receive these, exactly as it never
-///              received the old four.
-///   kNoText    active wherever no editable text has the keyboard -- `^c`-quit's measured
-///              activity set (TEXT-0's gate, now a declarable fact instead of a predicate
-///              mirroring the chain by hand).
-///   kNoEditor  active wherever the source editor does NOT have the keyboard -- the
-///              document's `^s` position: `document.save` keeps its above-every-mode
-///              meaning everywhere a maker is not editing source, and the same physical
-///              chord travels the chain to the editor where they are. The `^c` law's
-///              shape, one chord over: a global that collides with an editing surface's
-///              own meaning is resolved by following the keyboard, and the resolution is
-///              DECLARED rather than special-cased, so admission's collision law, the
-///              help surfaces and dispatch all read one fact.
+// WL-KEY-03, WL-KEY-05 -- agents/workshop/keyboard.md
 enum class KeyContext : std::uint8_t {
     kCommand,
     kTerminal,
     kNaming,
-    /// THE PANE CREATOR'S NAME PROMPT: one line a maker types a new pane's name into,
-    /// the layout-name editor's shape with its own two keys, because "use this name to
-    /// make a pane" and "rename this layout" are different sentences and a legend that
-    /// read `rename` over a pane being created would be a legend about the wrong act.
+    /// THE PANE CREATOR'S NAME PROMPT: one line a maker types a new pane's name into.
+    // WL-MAKER-11 -- agents/workshop/maker-pane.md
     kPaneNaming,
     kPicker,
     kAttention,
@@ -112,11 +45,10 @@ enum class KeyContext : std::uint8_t {
     kNoEditor,
 };
 
-/// Does this context hand ordinary keys to something that takes text? The `^c` gate's one
-/// question (TEXT-0), now derived from the resolved context instead of mirrored by hand.
-/// A focused runtime pane counts: it receives every bare key and every character precisely
-/// because it may hold editable text, and Workshop cannot see whether it currently does.
-/// The source editor counts for the plain reason: it IS editable text.
+/// Does this context hand ordinary keys to something that takes text?
+// WL-EDIT-04 -- agents/workshop/editor.md
+// WL-FOCUS-09 -- agents/workshop/focus.md
+// WL-KEY-03 -- agents/workshop/keyboard.md
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
     return c == KeyContext::kTerminal || c == KeyContext::kNaming ||
            c == KeyContext::kPaneNaming || c == KeyContext::kPane || c == KeyContext::kDraft ||
@@ -124,9 +56,8 @@ inline constexpr bool context_takes_text(KeyContext c) noexcept {
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
-/// context? This is the whole activity rule; there is no priority between simultaneously
-/// active rows because same-gesture collisions across intersecting contexts are refused
-/// at admission (below), never resolved by order.
+/// context?
+// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-08 -- agents/workshop/keyboard.md
 inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcept {
     if (declared == KeyContext::kGlobal) {
         return true;
@@ -140,11 +71,8 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
     return declared == current;
 }
 
-/// Can two declared contexts ever be active at the same moment? The collision question's
-/// other half: two actions conflict only when a maker could press their shared gesture in
-/// a state where both are requestable. Reusing one gesture across mutually exclusive
-/// contexts is the working norm (`w` opens the desk arrangement in command mode and
-/// resets a width inside the reset prompt), and stays legal.
+/// Can two declared contexts ever be active at the same moment?
+// WL-KEY-06, WL-KEY-08 -- agents/workshop/keyboard.md
 inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     if (a == b || a == KeyContext::kGlobal || b == KeyContext::kGlobal) {
         return true;
@@ -164,9 +92,8 @@ inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     return false;
 }
 
-/// One gesture as the wire reports it: a named scancode and the EXACT observed modifier
-/// bits. This is the whole binding grammar -- KEY-R0's floor, deliberately: no sequences,
-/// no leaders, no macros, no timing, and nothing a `KeyPressed` cannot carry.
+/// One gesture as the wire reports it: a named scancode and the EXACT observed modifier bits.
+// WL-KEY-04 -- agents/workshop/keyboard.md
 struct Gesture {
     std::int64_t scancode = 0;
     std::int64_t modifiers = 0;
@@ -176,35 +103,19 @@ struct Gesture {
     }
 };
 
-/// IS THIS A GESTURE A MAKER CAN PRESS (WUX-11)?
-///
-/// `input::scan::kUnknown` is what the wire reports for a key this build has no name for,
-/// so it is the one scancode that can never be a binding -- which makes it the honest
-/// spelling of "this action answers to no key". An action may declare it
-/// (`kNoGesture` below); a maker may still bind that action in their own file, and
-/// `row_gesture` then answers the authored gesture like any other.
-///
-/// ⚠ THREE PLACES SPEND THIS AND EACH IS A DIFFERENT KIND OF WRONG WITHOUT IT. Dispatch:
-/// one unnamed key would otherwise request every unbound action at once, and the first in
-/// declaration order would win. Admission's collision check: two actions answering to no
-/// key are not two actions holding one gesture, so a maker's whole keymap would be refused
-/// for a clash that does not exist. And the surfaces that SPELL bindings: a row that
-/// teaches `?` is a row teaching a key that does not exist.
+/// IS THIS A GESTURE A MAKER CAN PRESS?
+// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/keyboard.md
 inline constexpr bool is_bound(const Gesture& g) noexcept {
     return g.scancode != input::scan::kUnknown;
 }
 
 /// The declaration a row makes when the action is reachable from a surface that names it
-/// and from no key at all. WUX-11's four layout-tab operations are the first: rename,
-/// duplicate and the two reorder steps are contextual-menu rows, and command mode has no
-/// free gesture left that both backends can deliver (the catalog's own note beside
-/// `layout.next` states that criterion).
+/// and from no key at all.
+// WL-KEY-13 -- agents/workshop/keyboard.md
 inline constexpr Gesture kNoGesture{input::scan::kUnknown, input::mod::kNone};
 
-/// THE ACTION IDENTITIES, as the code spells them. The durable spelling is the dotted
-/// string on each declaration row; this enum exists so a dispatch site can `switch` on the
-/// answer, and it is deliberately not persisted, not on any wire, and not stable across
-/// builds -- the string is.
+/// THE ACTION IDENTITIES, as the code spells them.
+// WL-KEY-01 -- agents/workshop/keyboard.md
 enum class Act : std::uint8_t {
     kNone = 0,
     // -- above every mode -------------------------------------------------------------
@@ -265,7 +176,7 @@ enum class Act : std::uint8_t {
     kFilesMark,
     kFilesNextMark,
     kFilesPreviousMark,
-    // -- the Pane Editor's keys (WUX-13) ----------------------------------------------
+    // -- the Pane Editor's keys -------------------------------------------------------
     kPaneEditorUp,
     kPaneEditorDown,
     kPaneEditorChoose,
@@ -340,13 +251,7 @@ enum class Act : std::uint8_t {
 /// One declaration row: the identity, the human meaning, where it is requestable, and the
 /// developer's default gesture. Exactly what the common consumers need and nothing more --
 /// no callback, no availability flag, no ordering weight.
-///
-/// AN ACTION MAY OWN MORE THAN ONE ROW, and a maker's override moves ALL of an action's
-/// rows to the one authored gesture. `workshop.quit` uses it (`^c` wherever text cannot
-/// take the keyboard, `q` as a command), and so does the whole arrangement vocabulary
-/// (ARR-0): every gesture shared by the two arrangement scopes is one action with a row
-/// in each. Two rows of one action are one meaning twice requestable, so they are never
-/// a collision.
+// WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md; WL-ATTN-10 -- agents/workshop/attention.md
 struct ActionRow {
     Act act = Act::kNone;
     const char* id = "";
@@ -358,16 +263,10 @@ struct ActionRow {
 namespace scan = input::scan;
 namespace mod = input::mod;
 
-/// THE DECLARATIONS. Order inside a context group is presentation priority: the band's
-/// help rows pack these left to right and cut what does not fit, so the gestures a maker
-/// reaches for constantly come first.
-///
-/// The defaults are the shipped bindings KEY-R0 audited, with the phase's two decided
-/// changes: the Terminal opener is `ctrl+t` (the old `shift+space` cannot arrive from the
-/// POSIX terminal backend at all -- `ground_byte(' ')` infers Shift only on letters -- and
-/// an invisible unreachable default is exactly what this file exists to end), and the
-/// hotkey view is `ctrl+k` (from the measured portable free set; the conventional `?` and
-/// F1 are both structurally unavailable on the console backends).
+/// THE DECLARATIONS. Order inside a context group is presentation priority.
+// WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md
+// WL-ARR-08 -- agents/workshop/arrangement.md
+// WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ActionRow kActionCatalog[] = {
     // -- above every mode -------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kNoText, {scan::kC, mod::kCtrl}},
@@ -444,9 +343,9 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kC, mod::kShift}},
     {Act::kBuildFrontier, "builder.frontier", "frontier", KeyContext::kCommand,
      {scan::kF, mod::kNone}},
-    // SAVING A SETUP STOPPED NAMING A LAYOUT (WUX-11), and the IDENTITY is deliberately the
+    // SAVING A SETUP STOPPED NAMING A LAYOUT, and the IDENTITY is deliberately the
     // old `setup.name` -- a maker's authored override for it keeps working, exactly as
-    // `workshop.manage` kept working when ARR-0 changed what it opens. What moved is the
+    // `workshop.manage` kept working when arrangement changed what it opens. What moved is the
     // meaning: `s` writes the live layout's desk to its associated artifact (or, with no
     // association, to the host's configured setup path, establishing the association on
     // success) and it no longer opens the name editor. Renaming is `layout.rename` below.
@@ -454,7 +353,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kS, mod::kNone}},
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
-    // THE LAYOUT SHELF (WUX-9): step along the run of desk arrangements this Workshop is
+    // THE LAYOUT SHELF: step along the run of desk arrangements this Workshop is
     // holding, add one, drop one. Beside the two setup rows because they are the same
     // family -- a layout IS a setup, and these four are what makes the plural reachable.
     //
@@ -485,7 +384,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // undone -- this application has no undo, and the arrangement is gone with the value --
     // so it may not be one slipped keystroke away in the mode where every other bare letter
     // does something harmless. `x` was the obvious mnemonic and is deliberately refused:
-    // BLD-0 bound it to "close the Builder" and a later phase took that back on purpose, so
+    // An early phase bound it to "close the Builder" and a later one took that back on purpose, so
     // a maker's hand may still mean the panel by it, and the worst outcome for a key with a
     // half-remembered meaning is a new destructive one.
     {Act::kLayoutNext, "layout.next", "next layout", KeyContext::kCommand,
@@ -496,7 +395,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kEquals, mod::kNone}},
     {Act::kLayoutRemove, "layout.remove", "remove layout", KeyContext::kCommand,
      {scan::kW, mod::kCtrl}},
-    // ...AND FOUR THAT ANSWER TO NO KEY (WUX-11). Rename, duplicate and the two reorder
+    //...AND FOUR THAT ANSWER TO NO KEY. Rename, duplicate and the two reorder
     // steps are reached from a tab's contextual menu -- and rename also from a double-click
     // on the tab, which is where a maker's hand goes first. They are DECLARED here anyway,
     // because a contextual row references a `kActionCatalog` id and because a maker may
@@ -508,7 +407,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // deliver, `<`/`>`/`+` are bytes the POSIX wire cannot name, and ctrl+shift+letter
     // cannot be said at all. Four more of that set spent on operations a maker reaches by
     // pointing would be four gestures taken from whatever asks next -- and a chord chosen
-    // for symmetry rather than for use is the unreachable default KEY-0 exists to end.
+    // for symmetry rather than for use is the unreachable default the keymap exists to end.
     {Act::kLayoutRename, "layout.rename", "rename layout", KeyContext::kCommand, kNoGesture},
     {Act::kLayoutDuplicate, "layout.duplicate", "duplicate layout", KeyContext::kCommand,
      kNoGesture},
@@ -516,14 +415,14 @@ inline constexpr ActionRow kActionCatalog[] = {
      kNoGesture},
     {Act::kLayoutMoveRight, "layout.move-right", "move layout right", KeyContext::kCommand,
      kNoGesture},
-    // ARRANGE THE DESK (ARR-0): the global arrangement scope. The IDENTITY is the old
+    // ARRANGE THE DESK: the global arrangement scope. The IDENTITY is the old
     // `workshop.manage` -- a maker's authored override for it keeps working -- and what
     // changed is the meaning's scope: it opens the desk-wide arrangement state, never a
     // pane-selection prerequisite.
     {Act::kArrangeDesk, "workshop.manage", "arrange desk", KeyContext::kCommand,
      {scan::kW, mod::kNone}},
     // WHAT CAN I DO WITH THIS? -- the keyboard door to the contextual-action surface
-    // (CTX-0), on the subject command mode can truthfully name: the selected object, or
+    //, on the subject command mode can truthfully name: the selected object, or
     // the empty room. The pointer's door is a right press, which needs no row here; this
     // row exists because a surface reachable only by a mouse button would be Workshop's
     // first gesture with no catalog identity -- exactly the drift this file ended.
@@ -531,7 +430,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // are all chords, kNoText holds `^c`/`^a`, and no other kCommand row spends it).
     {Act::kContextOpen, "workshop.context", "actions", KeyContext::kCommand,
      {scan::kA, mod::kNone}},
-    // A PRESENTATION PREFERENCE WITH A KEY (WUX-1): whether the arrangeable panes paint
+    // A PRESENTATION PREFERENCE WITH A KEY: whether the arrangeable panes paint
     // their title rows. Last in the command group because the band packs these in order
     // and a toggle a maker reaches for occasionally must not displace the gestures they
     // reach for constantly. `t` bare: portable (a plain letter arrives from every
@@ -576,7 +475,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // and `r` is a bare letter, which is legal here for the arrangement scopes' reason:
     // nothing in this context takes text, so a letter cannot be swallowed by a buffer.
     // There is deliberately no ctrl+shift+letter anywhere -- the POSIX wire cannot say
-    // one at all (EDIT-0 measured it), so binding one would ship a door a terminal maker
+    // one at all (measured), so binding one would ship a door a terminal maker
     // could not open.
     //
     // BACKSPACE MEANS PARENT, AND THERE IS NO `..` ROW FOR IT TO PRESS. Going up is the
@@ -584,7 +483,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // parent and the gesture says so. That is the only boundary left here, and it is the
     // filesystem's rather than the project's.
     //
-    // SIX SINCE PROJ-1, AND THE SIXTH IS THE FIRST THING THIS BROWSER DOES THAT IS NOT
+    // SIX AND THE SIXTH IS THE FIRST THING THIS BROWSER DOES THAT IS NOT
     // ABOUT LOOKING. `u` is a bare letter for `r`'s reason exactly -- nothing in this
     // context takes text -- and it is free in EVERY context this build declares, so no
     // remap was needed to make room for it. It is a Files row rather than a contextual
@@ -602,7 +501,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kFilesUseRecipes, "files.use-recipes", "use as recipes", KeyContext::kFiles,
      {scan::kU, mod::kNone}},
-    // ...AND THREE MORE SINCE PROJ-2, WHICH ARE ABOUT PLACES RATHER THAN ABOUT ROWS. Once
+    //...AND THREE MORE WHICH ARE ABOUT PLACES RATHER THAN ABOUT ROWS. Once
     // the browser can leave the directory Workshop was launched in, "get me back there" and
     // "get me back to the other one" are gestures a maker needs and had no way to ask for.
     //
@@ -624,7 +523,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kFilesPreviousMark, "files.previous-mark", "previous mark", KeyContext::kFiles,
      {scan::kN, mod::kShift}},
     // -- the Terminal line's controls --------------------------------------------------
-    // THE PANE EDITOR'S KEYS (WUX-13): a list with a cursor and one gesture on the row it
+    // THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it
     // is on, in the Files pane's own shape. `up`/`down` step whichever list the keys are
     // in, `switch` moves them between the PANES list and the subject's rows, and `choose`
     // is the one Return: on a pane row it makes that pane the SUBJECT, on an editable row
@@ -705,7 +604,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kEscape, mod::kNone}},
     // -- the layout-name editor's controls ---------------------------------------------
     //
-    // THE IDENTITIES ARE THE OLD ONES AND THE MEANING NARROWED (WUX-11): this editor
+    // THE IDENTITIES ARE THE OLD ONES AND THE MEANING NARROWED: this editor
     // renamed a setup and wrote its file in one gesture, and it now renames the layout and
     // writes nothing at all. `naming.commit` is still the key that finishes it, so an
     // authored override keeps working; the LABEL is what stopped being true.
@@ -718,7 +617,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kDraftCancel, "draft.cancel", "cancel", KeyContext::kDraft,
      {scan::kEscape, mod::kNone}},
-    // -- arranging panes (ARR-0) -------------------------------------------------------
+    // -- arranging panes ---------------------------------------------------------------
     //
     // ONE VOCABULARY, TWO SCOPES. Moving and resizing a pane are one maker intent --
     // arrange it -- so the old move/size submodes are gone and their gestures live
@@ -745,7 +644,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // key merely so a menu has something to print; this one has a job in this scope).
     {Act::kArrange, "manage.arrange", "arrange", KeyContext::kArrangeDesk,
      {scan::kReturn, mod::kNone}},
-    // THE COARSE STEP COMES FIRST IN BOTH SCOPES (WUX-6), and that is this file's own
+    // THE COARSE STEP COMES FIRST IN BOTH SCOPES, and that is this file's own
     // priority rule spent deliberately: order inside a context group is what the band's
     // legend packs left to right and cuts from the right. `=` is the gesture a maker on a
     // shipped desk reaches for before any other -- it is the one that turns a pane they
@@ -834,7 +733,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kO, mod::kNone}},
     {Act::kManageDone, "manage.done", "back", KeyContext::kArrangeReset,
      {scan::kEscape, mod::kNone}},
-    // -- the contextual-action surface (CTX-0) -----------------------------------------
+    // -- the contextual-action surface -------------------------------------------------
     //
     // The picker's four, one purpose over: a list with a cursor and a gesture on the
     // selected row. `context.choose` is ONE action whose meaning the row decides -- a
@@ -966,12 +865,10 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
     return sc >= scan::kA && sc <= scan::kZ;
 }
 
-/// A gesture as the SCREEN spells it -- the band's own compact voice: `^s`, `B` (the
-/// capital IS shift+b, the Builder header's own long-standing spelling), `shift+space`,
-/// `enter`, `esc`. One function, so a remapped binding is spelled identically on every
-/// surface that names it.
+/// A gesture as the SCREEN spells it -- the band's own compact voice.
+// WL-KEY-02, WL-KEY-13 -- agents/workshop/keyboard.md
 inline std::string gesture_text(const Gesture& g) {
-    // AN ACTION THAT ANSWERS TO NO KEY SAYS SO (WUX-11). `key_name_of` has no name for
+    // AN ACTION THAT ANSWERS TO NO KEY SAYS SO. `key_name_of` has no name for
     // `kUnknown` and the fall-through below spells it `?`, which in a two-column legend
     // reads as a key a maker cannot find rather than as one that is not there. `-` is a
     // real binding on this keyboard, so a dash would be worse than the question mark.
@@ -1077,12 +974,8 @@ inline constexpr bool is_posix_editing_scan(std::int64_t sc) noexcept {
 }
 
 /// The measured reason a gesture cannot arrive from the POSIX terminal backend, or
-/// nullptr when no such gap is known. This is STATIC knowledge about a backend's honest
-/// reach (input/translate.hpp owns the details); Workshop cannot see which backend is
-/// feeding it, so an authored gesture with a known gap is ACCEPTED and the gap is SAID --
-/// never silently rewritten, which would be the exact silent default this family of files
-/// keeps refusing. The old `shift+space` Terminal opener shipped for months inside this
-/// gap with nothing saying so; this function is what that cost.
+/// nullptr when no such gap is known.
+// WL-KEY-08 -- agents/workshop/keyboard.md
 inline const char* posix_gap(const Gesture& g) noexcept {
     if ((g.modifiers & mod::kSuper) != 0) {
         return "super never arrives from a POSIX terminal";
@@ -1099,25 +992,15 @@ inline const char* posix_gap(const Gesture& g) noexcept {
     if ((g.modifiers & mod::kShift) != 0 && !is_letter_scan(g.scancode) &&
         !is_posix_editing_scan(g.scancode) && g.scancode != scan::kTab) {
         // Tab is the one non-letter whose shifted form a terminal spells on its own:
-        // `ESC [ Z` is back-tab, and the translator reads it (ARR-0).
+        // `ESC [ Z` is back-tab, and the translator reads it.
         return "shift is not observable on that key from a POSIX terminal";
     }
     return nullptr;
 }
 
 /// THE TEXT A CONSUMED PRINTABLE GESTURE'S OWN KEYSTROKE PRODUCES, or "" when none is
-/// expected. This is the swallow rule's narrow correspondence (KEY-0): when the
-/// application keymap consumes a gesture whose key also enters text, exactly that
-/// character is owed to the gesture and must not land in whatever takes text next -- and
-/// nothing else may ever be eaten, so this derives the expectation from the binding
-/// instead of swallowing the next text unconditionally.
-///
-/// The correspondence is the same one the old hard-coded sites assumed (`" "`, `"s"`,
-/// `"w"`): the key's US-layout face, matched by `same_keystroke`'s case-folding for
-/// letters. A layout that produces something else leaves the flag unmatched and the
-/// character through -- exactly the old sites' honest failure mode, not a new one. A
-/// chord with ctrl, alt or super produces no text on any supported backend; a shifted
-/// non-letter's face is the layout's own business, so nothing is claimed for it.
+/// expected.
+// WL-KEY-12 -- agents/workshop/keyboard.md
 inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifiers) {
     if ((modifiers & (mod::kCtrl | mod::kAlt | mod::kSuper)) != 0) {
         return std::string();
@@ -1160,12 +1043,8 @@ inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifier
 
 // ---- The legend preference ---------------------------------------------------------------
 
-/// How much of the effective bindings the bottom band's two help rows project. A WORD in
-/// the file and a closed set (WIND-2's mode-word law); `kDefault` is the file's one
-/// canonical spelling of "no authored difference", and this build's default projection is
-/// FULL. HIDDEN blanks the rows and does nothing else: the band's geometry is
-/// `screen_of`'s and stays reserved, and no binding -- the hotkey view's included -- is
-/// unbound by a maker choosing not to look at the legend.
+/// How much of the effective bindings the bottom band's two help rows project.
+// WL-KEY-09 -- agents/workshop/keyboard.md
 namespace legend_mode {
 inline constexpr std::int64_t kDefault = 0;
 inline constexpr std::int64_t kFull = 1;
@@ -1174,13 +1053,8 @@ inline constexpr std::int64_t kHidden = 3;
 } // namespace legend_mode
 
 /// One authored override row, exactly as written: an action id and a gesture, two
-/// strings. This is the AUTHORED truth and it is preserved byte-for-byte in authored
-/// order, whether or not this build can spend it -- the setup law's ACCEPTED clause,
-/// verbatim: a well-formed reference this build cannot resolve, with all of its authored
-/// intent, is not an error and must never become one. An unknown action's gesture string
-/// is deliberately not judged against this build's grammar either: it is intent addressed
-/// to whichever build declares the action, and the build that cannot spend a row is not
-/// the build entitled to normalise it.
+/// strings.
+// WL-KEY-06, WL-KEY-08 -- agents/workshop/keyboard.md
 struct AuthoredOverride {
     std::string action;
     std::string gesture;
@@ -1189,14 +1063,8 @@ struct AuthoredOverride {
 // ---- The keymap value --------------------------------------------------------------------
 
 /// THE EFFECTIVE BINDING TRUTH: the declaration defaults plus the maker's applied
-/// overrides, plus what could not be applied and is preserved. One value, read by
-/// dispatch, by every help surface, and by persistence -- which is the whole phase: no
-/// surface spells an executable gesture by hand any more.
-///
-/// It lives on the Session so the paint path -- a pure projection of what it is handed --
-/// reads the SAME value dispatch reads. Defaults are in code (this struct
-/// default-constructs to them); the authored file carries differences only; an absent
-/// file IS this struct's default state, so deleting the file is returning to defaults.
+/// overrides, plus what could not be applied and is preserved.
+// WL-KEY-01, WL-KEY-02, WL-KEY-07 -- agents/workshop/keyboard.md
 struct Keymap {
     std::int64_t legend = legend_mode::kDefault;
     /// Every override row the maker wrote, verbatim and in authored order -- what a save
@@ -1238,14 +1106,12 @@ struct Keymap {
         return Gesture{};
     }
 
-    /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone. Exact modifier
-    /// matching, over the rows active in the resolved context. Admission's collision
-    /// refusal is what makes "the first match" a non-answer: no two actions can hold one
-    /// gesture in intersecting contexts, so at most one action can match.
+    /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone.
+    // WL-KEY-04, WL-KEY-08 -- agents/workshop/keyboard.md
     Act action_for(KeyContext current, std::int64_t scancode,
                    std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
-        // A KEY THIS BUILD CANNOT NAME REQUESTS NOTHING (WUX-11). Without this an unnamed
+        // A KEY THIS BUILD CANNOT NAME REQUESTS NOTHING. Without this an unnamed
         // key would match every row that declares `kNoGesture` and the first one in
         // declaration order would run -- a press with no name performing an operation.
         if (!is_bound(pressed)) {
@@ -1260,12 +1126,8 @@ struct Keymap {
     }
 
     /// WHICH ABOVE-THE-MODES ACTION THIS GESTURE REQUESTS, or kNone -- `action_for`
-    /// restricted to the rows DECLARED kGlobal, kNoText or kNoEditor. The distinction
-    /// matters at exactly one place: `on(KeyPressed)`'s head answers these before any
-    /// mode (and before the hotkey view's swallow), while an action's ordinary context
-    /// row -- `workshop.quit`'s own `q` among them, and `editor.save`'s `^s` -- must
-    /// still travel the chain, or a modal surface could be quit through by the very key
-    /// it exists to intercept.
+    /// restricted to the rows DECLARED kGlobal, kNoText or kNoEditor.
+    // WL-FOCUS-06 -- agents/workshop/focus.md; WL-KEY-05 -- agents/workshop/keyboard.md
     Act above_mode_action(KeyContext current, std::int64_t scancode,
                           std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
@@ -1318,12 +1180,8 @@ inline const ActionRow* row_of_id(std::string_view id) noexcept {
 }
 
 /// Whether the component's editable-text vocabulary owns this gesture wherever text has
-/// the keyboard. The keymap consults the component's own declaration rows -- the same
-/// rows contextual help shows -- so the old "the TextBox vocabulary never binds ^s/^o"
-/// discipline, kept in two files and checkable nowhere, is checkable here for the first
-/// time. The component's key identities are its own local constants, pinned equal to
-/// `input::scan`'s in the input suite; this is the same reliance `TextBox::consume`
-/// itself already makes on every call.
+/// the keyboard.
+// WL-KEY-08 -- agents/workshop/keyboard.md
 inline bool component_owns_gesture(const Gesture& g) noexcept {
     for (const component::EditingGesture& row : component::kEditingVocabulary) {
         if (row.scancode == g.scancode && row.modifiers == g.modifiers) {
@@ -1335,28 +1193,7 @@ inline bool component_owns_gesture(const Gesture& g) noexcept {
 
 /// APPLY AUTHORED OVERRIDE ROWS TO A CANDIDATE KEYMAP -- the format-independent half of
 /// admission, shared by the file reader and by any suite staging overrides directly.
-///
-/// The candidate is refused WHOLE on the first illegal row, and the caller's live keymap
-/// is untouched (it is built into `out`, a local of the caller's). What is refused, in
-/// words:
-///
-///   an action authored twice        two rows for one id is a contradiction, not a list
-///   a gesture outside the grammar   for a KNOWN action -- this build would have to
-///                                   spend it; an unknown action's gesture is preserved
-///                                   unjudged (see AuthoredOverride)
-///   a bare printable on a global    a bare printable cannot be global once anything on
-///                                   the screen can take text -- the standing law the old
-///                                   chain kept as a comment, now enforced at the door
-///   a component-owned chord on a    the editing vocabulary would consume it first in
-///   global                          every text context, so the global could never mean
-///                                   what it says where it matters most
-///   a same-context collision        two actions holding one gesture in contexts that
-///                                   can be active together, named both, with the
-///                                   contested gesture -- refused at admission because a
-///                                   lockout must not be SAVABLE
-///
-/// Gestures with a known POSIX gap are ACCEPTED and noted (`Keymap::note`), never
-/// rewritten: AAF-R0's ladder -- warn, explain, allow.
+// WL-KEY-08 -- agents/workshop/keyboard.md
 inline Written apply_overrides(
     const std::vector<std::pair<std::string, std::string>>& rows, std::int64_t legend,
     Keymap& out) {
@@ -1420,7 +1257,7 @@ inline Written apply_overrides(
                 continue;
             }
             // TWO ACTIONS THAT ANSWER TO NO KEY ARE NOT TWO ACTIONS HOLDING ONE GESTURE
-            // (WUX-11). Without this, every keymap file would be refused the moment a
+            //. Without this, every keymap file would be refused the moment a
             // second `kNoGesture` row was declared, naming a clash that cannot be pressed.
             if (!is_bound(candidate.row_gesture(a))) {
                 continue;

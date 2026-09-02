@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 
-// THE HOST'S READ-ONLY OBSERVATION DOOR (INTR-1) -- two derivations and one weave.
+// THE HOST'S READ-ONLY OBSERVATION DOOR -- two derivations and one weave.
 //
 //     describe_arrangement   the realization owner: authored intent, where each row
 //                            has got to, and what resolved -> `ResolvedArrangement`
@@ -122,7 +122,7 @@ inline const char* state_token(load::RowState state) {
 /// loaded map and the catalog's provider list and guess which of them came from the
 /// same artifact.
 ///
-/// BOTH HALVES COME FROM THE OWNER SINCE BOOT-0, and that subtraction is the point: a
+/// BOTH HALVES COME FROM THE OWNER, and that subtraction is the point: a
 /// persistent owner holds the authored plan it is realizing, so a caller cannot hand
 /// this function one plan while the executor is realizing another. The two truths are
 /// still two -- `plan()` and `resolved()` are different questions with different
@@ -160,7 +160,7 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
         // ---- and where realization has got with it -----------------------------
         //
         // THE STATE IS ASKED FOR EVEN WHEN NOTHING RESOLVED, which is the whole
-        // BOOT-0 delta: `authored`, `loading` and `refused` are three different
+        // The boot repair's delta: `authored`, `loading` and `refused` are three different
         // sentences that used to be one absent row.
         row.state = state_token(realization.state_of(intent.stem));
         if (row.state != kResolvedToken) {
@@ -205,7 +205,7 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
 /// and no operator is run -- the question is who currently satisfies each identity,
 /// and running one to find out would be a side effect in a view.
 ///
-/// ...WHICH IS THE WHOLE CLAIM SINCE SOURCE-0, because this now also answers *what
+/// ...WHICH IS THE WHOLE CLAIM NOW, because this also answers *what
 /// would sampling yield*. That question has an obvious wrong implementation -- sample
 /// one and look at the answer -- and the right one costs nothing: a definition holds
 /// its output schema from the moment it was authored, so the identity is READ off the
@@ -277,12 +277,12 @@ struct ArrangementDoorState {
 /// came from. IT OWNS NONE OF THEM. A door that took copies would be a mirror; a door
 /// that took non-const references would be a controller.
 ///
-/// TWO REFERENCES RATHER THAN THREE SINCE BOOT-0, and the one that went was the
+/// TWO REFERENCES RATHER THAN THREE, and the one that went was the
 /// authored plan: the owner is persistent now and holds the plan it is realizing, so
 /// there is no second copy for this door to be handed and no way for the two to be
 /// different documents.
 ///
-/// ⚠ IT READS A LIVE OWNER, NOT A FINISHED ONE. Before BOOT-0 an ask could only
+/// ⚠ IT READS A LIVE OWNER, NOT A FINISHED ONE. Earlier an ask could only
 /// arrive after the whole plan had been performed, because the host was inside
 /// `run()` until then. Realization now proceeds through ordinary deliveries, so this
 /// door genuinely answers mid-flight -- which is the case the `loading` token exists

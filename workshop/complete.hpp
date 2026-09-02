@@ -6,41 +6,7 @@
 
 // WHAT THIS TERMINAL CAN SAY NEXT — the pane's discovery model, and the whole of
 // it that is not a picture.
-//
-// THE PRESSURE. A maker can type into the Terminal comfortably and still has to
-// already know what can be said: the vocabulary a host handed the participant is
-// real, exact and completely invisible. Everything needed to show it already
-// exists on `loom::TerminalSession` — `vocabulary().catalog()` lists the shapes,
-// `describe()` names their fields, and `compose()` runs the assumption ladder
-// WITHOUT authoring — so what was missing was never an API. It was a
-// presentation.
-//
-// ONE GRAMMAR, AND THIS IS NOT A SECOND PARSER. The line is decomposed with
-// `loom::tokenize` — the same tokenizer `submit_terminal_line` calls, from
-// <zen/terminal/input_lex.hpp>, which exists precisely so that every text
-// frontend shares one. What is added here is the question a submitter never has
-// to ask: not "what did this line say" but "which PART of the line is the maker
-// standing in". `read_command_line` answers it from the token positions
-// `submit_terminal_line` itself uses, and `kTerminalVerbs` below is the one place
-// the two verbs are written down — read by the completer and by the submitter,
-// so a third verb is one line and cannot be learned by only one of them.
-//
-// NOTHING HERE AUTHORS ANYTHING, and that is a property of the types rather than
-// a rule somebody keeps: every session method this file calls is `const`, and the
-// only non-const path on a `TerminalSession` — `author`, reached by `send`/`ask`
-// — takes the participant's own channel, which a `const&` cannot reach. Browsing
-// candidates therefore enqueues no traffic, creates no ask, changes no authority
-// and touches no pending conversation. Submission remains the only act with
-// effects, exactly as before.
-//
-// WHAT IT REFUSES TO INVENT. There is no fuzzy matching, no ranking, no history,
-// no filesystem, no learned ordering and no value suggestion. Candidates are the
-// entries the host declared, in the order the host declared them, filtered by
-// prefix. And there is no permission preflight: this participant cannot read its
-// own grant (it holds no Kernel, no Switchboard and no registry), so a candidate
-// says what this terminal KNOWS and never that it may send it — the Kernel
-// answers that at delivery, and §Authority below is where that difference is
-// spelled out to the maker rather than hidden from them.
+// Workshop law: agents/workshop/terminal.md
 
 #include <zen/terminal/input_lex.hpp>
 #include <zen/terminal/session.hpp>
@@ -58,22 +24,15 @@ namespace zengine::workshop {
 
 /// ONE VERB THIS PANE SPEAKS — its spelling, whether it remembers a conversation,
 /// and what it does, for a maker to read.
-///
-/// TWO CONSUMERS, ONE TABLE. `submit_terminal_line` resolves a typed word through
-/// `terminal_verb` and reads `ask` to choose which participant method to call;
-/// the completer lists the same rows. Before HD-2 the two verbs were string
-/// literals in one `if`, which was fine while nothing else needed to know them
-/// and would have become two answers the moment something did.
+// WL-TERM-04 -- agents/workshop/terminal.md
 struct TerminalVerb {
     const char* name;
     bool ask;             ///< does the participant remember this as a conversation?
     const char* meaning;  ///< one line, for the maker
 };
 
-/// The whole of what a Workshop Terminal pane says, and the smallness is
-/// deliberate (WT-1): `send` and `ask` are the two acts an ordinary participant
-/// has. Everything else the standalone REPL offers is a renderer, a convenience
-/// over these two, or a HOST power no participant holds.
+/// The whole of what a Workshop Terminal pane says.
+// WL-TERM-04 -- agents/workshop/terminal.md
 inline constexpr TerminalVerb kTerminalVerbs[] = {
     {"send", false, "author one message; a sender is not told its fate"},
     {"ask", true, "author one message and remember it until Loom's answer arrives"},
@@ -115,11 +74,8 @@ struct CommandLine {
     std::vector<loom::Token> tokens;
     bool open = false;   ///< the last token is still being typed
     bool quoted = false; ///< ...and it carries a double quote
-    /// How many tokens are FINISHED — `tokens.size()` less the one still being
-    /// typed. It is a field rather than an expression three readers recompute,
-    /// because it is also the index of the slot the caret is in, and two places
-    /// deriving one index is how they come to disagree about which word a maker
-    /// is standing in.
+    /// How many tokens are FINISHED — `tokens.size()` less the one still being typed.
+    // WL-TERM-04 -- agents/workshop/terminal.md
     std::size_t said = 0;
     LineSlot slot = LineSlot::Verb;
     std::string partial;
@@ -137,12 +93,7 @@ struct CommandLine {
 inline constexpr std::uint64_t kMaxShapeVersion = 0xFFFFFFFFull;
 
 /// DECOMPOSE ONE (POSSIBLY HALF-TYPED) COMMAND LINE.
-///
-/// Total over any string. The only judgement it makes beyond `loom::tokenize`'s
-/// is whether the final token is finished, which is a question about the LINE
-/// (does it end in a separator) rather than about the token — and it is the one
-/// fact a submitter never needs, because a submitter only ever sees finished
-/// lines.
+// WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
 inline CommandLine read_command_line(const std::string& line) {
     CommandLine cl;
     cl.tokens = loom::tokenize(line);
@@ -184,19 +135,7 @@ enum class CandidateKind : std::uint8_t {
 };
 
 /// ONE THING THE MAKER MAY SAY NEXT.
-///
-/// STRUCTURED, NOT FORMATTED, and the split is what lets a second presentation —
-/// the TUI, a help browser, a debug lens — show these differently without
-/// re-deriving them. `insert` is the exact text that replaces the partial token
-/// (trailing separator included where the grammar wants one, so acceptance can
-/// never duplicate or drop a space); `display` and `detail` are what a row SAYS,
-/// which is a different question and belongs to whoever is drawing.
-///
-/// `door` IS THE ONE AUTHORITY-ADJACENT FACT THAT IS HONESTLY KNOWABLE, and it is
-/// deliberately about the wrong direction to be mistaken for permission: a door
-/// is a shape this participant declared it is willing to RECEIVE
-/// (`TerminalVocabulary::accepts`). Whether it may SEND one is the Kernel's answer
-/// at delivery, and nothing here can ask it.
+// WL-TERM-04 -- agents/workshop/terminal.md
 struct Candidate {
     std::string insert;
     std::string display;
@@ -208,13 +147,7 @@ struct Candidate {
 };
 
 /// EVERYTHING THE PANE KNOWS ABOUT THE LINE BEING TYPED.
-///
-/// `heading` is always said and `candidates` may be empty — that pairing is the
-/// honesty rule this type is built around. A slot with nothing to offer is not
-/// the same as a slot whose prefix matched nothing, and neither is the same as a
-/// slot this terminal cannot enumerate at all; silence would render all three
-/// identically, and a maker cannot tell a tool with nothing to say from a tool
-/// that is broken.
+// WL-TERM-04 -- agents/workshop/terminal.md
 struct Completion {
     bool open = false;             ///< is there anything to show at all?
     LineSlot slot = LineSlot::Verb;
@@ -226,10 +159,8 @@ struct Completion {
 
 namespace detail {
 
-/// Case-sensitive prefix. Case follows the grammar: a schema name is wire
-/// identity (`loom::Schema::name()`), and a lexer that matched `surfacetext`
-/// against `SurfaceText` would be offering a completion that composes to
-/// `UnknownShape`.
+/// Case-sensitive prefix.
+// WL-TERM-02 -- agents/workshop/terminal.md
 inline bool starts_with(std::string_view s, std::string_view prefix) noexcept {
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
@@ -271,13 +202,8 @@ inline std::string missing_summary(const std::vector<loom::FieldDesc>& open) {
     return out;
 }
 
-/// The field names already assigned BY NAME earlier on this line. Offering one of
-/// them again would be offering a command the composer refuses ("field 'x'
-/// assigned more than once"), which is a worse answer than not offering it.
-///
-/// Only the NAMED rung is read. Positional and type-directed placement is the
-/// ladder's judgement over the whole argument list and changes as the list grows;
-/// re-deciding it here would be the second parser this file exists not to be.
+/// The field names already assigned BY NAME earlier on this line.
+// WL-TERM-04 -- agents/workshop/terminal.md
 inline bool named_already(const CommandLine& cl, std::string_view field) {
     const std::size_t said = cl.said;
     for (std::size_t i = 4; i < said; ++i) {
@@ -295,31 +221,7 @@ inline bool named_already(const CommandLine& cl, std::string_view field) {
 // ---- The completer ---------------------------------------------------------------------
 
 /// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far.
-///
-/// The session is `const&` throughout, which is the no-author proof stated in the
-/// type system rather than in a comment: `vocabulary()`, `describe()` and
-/// `compose()` are the only three things this function calls on it and all three
-/// are const, so there is no expression in here that could reach the
-/// participant's channel even by accident.
-///
-/// THE FIVE SLOTS, AND WHAT EACH CAN HONESTLY OFFER TODAY:
-///
-///     verb        READY. Two literals, from kTerminalVerbs.
-///     address     PARTIAL. `*` is a value; `#` and `@` are FORMS whose values
-///                 this participant cannot enumerate -- it holds no weave
-///                 directory and no role directory, deliberately (session.hpp:
-///                 "no weave enumeration, no role directory, no registry read").
-///                 So the sigils are offered as forms and the heading says why
-///                 there is nothing behind them.
-///     shape       READY. `vocabulary().catalog()`, in the host's declared order.
-///     version     READY. The versions the catalog holds for the typed name --
-///                 which is also where a shape known at two versions stays two
-///                 answers instead of collapsing into an ambiguous one.
-///     arguments   FIELD NAMES READY, VALUES NOT. `describe()` names the fields
-///                 and their types; a field's VALUE is a runtime datum nothing in
-///                 this process can enumerate, and guessing one would be inventing
-///                 the maker's intent. What the heading carries instead is
-///                 `compose()`'s own verdict on what has been typed.
+// WL-TERM-04, WL-TERM-05 -- agents/workshop/terminal.md
 inline Completion complete_line(const loom::TerminalSession& me, const std::string& line) {
     const CommandLine cl = read_command_line(line);
     Completion out;

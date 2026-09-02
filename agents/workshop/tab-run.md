@@ -83,7 +83,8 @@ LAW — Every name is painted bare, the authored bytes with no quoting; the mark
 MEANS
 - `Home >My Layout< Art` reads correctly; the notices still spend `quoted_setup_name`.
 
-PROVEN BY — `workshop/screen.hpp` `LayoutTab`, `layout_tab_text`, `quoted_setup_name`;
+PROVEN BY — `workshop/screen.hpp` `LayoutTab`, `layout_tab_text`; `workshop/setup.hpp`
+`quoted_setup_name`;
 `tests/test_workshop_screen.cpp` case `"QR-15/SC-5: a multi-word name is delimited by its own
 cells, not by quotes"`, case `"QR-15: the maker reads `Home >Code< Art` on Workshop's first
 row"`; `tests/test_workshop_persistence.cpp` case `"QR-15: a name that could impersonate the setup
@@ -127,7 +128,7 @@ MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
 
 PROVEN BY — `workshop/screen.hpp` `ClickMemory`, `TabClickMemory`, `doubles_a_tab_click`,
-`tab_click`; `workshop/interaction_time.hpp` `kDoubleClickMs`; `tests/test_workshop_panels.cpp`
+`tab_click`, `kDoubleClickMs`; `tests/test_workshop_panels.cpp`
 case `"WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file"`;
 `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor opens on the tab's
 own name and writes nothing"`.

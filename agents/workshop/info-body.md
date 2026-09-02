@@ -57,7 +57,7 @@ MEANS
 - an 18-pixel row against a 12-pixel cell would name the wrong property for most of the body.
 
 PROVEN BY — `workshop/screen.hpp` `inspector_focus`, `prose_row_of_property`,
-`property_at_prose_row`; `workshop/property.hpp` `prose_row_in_window`, `item_at_prose_row`;
+`property_at_prose_row`, `prose_row_in_window`, `item_at_prose_row`;
 `tests/test_workshop_panels.cpp` case `"HD-6: a press under HD row geometry names the property the
 eye is on"`, case `"HD-6: entering an edit and being refused both keep the row on screen"`,
 case `"HD-8: the graphical press is not rounded to a Workshop cell"`.
@@ -70,7 +70,7 @@ LAW — A resting value is fitted with a mark where it was cut, because a commit
 MEANS
 - at most one row is ever editing: `begin_edit` is reachable only from command mode.
 
-PROVEN BY — `workshop/screen.hpp` `detail::fit`, `begin_edit`; `workshop/weave.hpp`
+PROVEN BY — `workshop/screen.hpp` `detail::fit`; `workshop/weave.hpp` `begin_edit`,
 `refresh_inspector`; `component/text_box.hpp` `visible`; `tests/test_workshop_panels.cpp` case
 `"HD-6: a resting value that does not fit is MARKED, not dropped"`;
 `tests/test_workshop_document.cpp` case `"HD-5: a long property draft is a window, and no part

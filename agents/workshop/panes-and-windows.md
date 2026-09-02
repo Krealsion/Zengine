@@ -70,8 +70,9 @@ MEANS
 - a dragged edge, a widened room and a hidden title all reach the provider by this one door;
 - what a grant carries, and that an unchanged capacity sends none, is the protocol's law.
 
-PROVEN BY — `workshop/screen.hpp` `external_body_place`, `refresh_external_rooms`;
-`surface/region.hpp` `fit_region`; `tests/test_workshop_panes_seam.cpp` case `"WIND-1: an
+PROVEN BY — `workshop/screen.hpp` `external_body_place`; `workshop/weave.hpp`
+`refresh_external_rooms`; `surface/region.hpp` `fit_region`;
+`tests/test_workshop_panes_seam.cpp` case `"WIND-1: an
 external grant follows the widened body through fit_region"`, case `"opening an external pane
 grants exactly the fit_region room, authored as Workshop"`.
 WHY — `agents/decisions/half-the-surplus.md`

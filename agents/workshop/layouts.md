@@ -92,7 +92,8 @@ LAW — Leaving a layout withdraws the presentation (`close_panel`; no unload, n
 MEANS
 - a pane in both layouts at the same prose capacity hears nothing: no grant, no ask.
 
-PROVEN BY — `workshop/weave.hpp` `close_panel`, `apply_setup`; `workshop/setup.hpp` `shelved`;
+PROVEN BY — `workshop/weave.hpp` `apply_setup`; `workshop/panel.hpp` `close_panel`;
+`workshop/setup.hpp` `shelved`;
 `tests/test_workshop_panes_window.cpp` case `"WUX-9/SC-6: a pane in two layouts is one pane, one
 provider, one room"`, case `"WUX-9/SC-15: an inactive layout's rows are dormant, not
 maintained"`.
@@ -153,7 +154,6 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 LAW — The run leaves the state as a new vector with the live value back in place and returns by lifting one out again, one inverse pair; the durable owner never touches the shelf or the position.
 
 PROVEN BY — `workshop/setup.hpp` `shelved`, `active_at`, `layout_run`, `install_layout_run`;
-`workshop/session_persist.hpp` `layout_run`, `install_layout_run`;
 `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the lifted-active
 representation are one fact"`, case `"WUX-10/SC-9: installing a run touches nothing else the
 session owns"`, case `"WUX-10/SC-8: every position in the run is a position a session can be

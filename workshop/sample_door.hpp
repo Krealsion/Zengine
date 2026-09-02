@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 
-// THE ONE OFFICE THAT MAY CAUSE A SOURCE TO BE EVALUATED (SOURCE-1).
+// THE ONE OFFICE THAT MAY CAUSE A SOURCE TO BE EVALUATED.
 //
 //     SampleRequested{identity}  ->  op::sample(catalog, identity)
 //                                ->  render_value(...)
@@ -29,7 +29,7 @@
 // It is NOT a generic host-RPC door and must not become one. There is no method
 // name, no argument pack, no envelope, no dispatch table and no registration: one
 // shape in, one shape out, and the shape in carries an identity because a Source's
-// whole input contract is empty (SOURCE-0).
+// whole input contract is empty.
 //
 // ---- IT HOLDS A REFERENCE AND OWNS NOTHING -------------------------------------
 //
