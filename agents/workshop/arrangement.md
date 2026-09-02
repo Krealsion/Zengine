@@ -21,6 +21,9 @@ WHY — `agents/decisions/one-press-one-gesture.md`
 
 LAW — Every branch that can see a release calls `end_held_gestures()`, because a gesture begun under one mode may be released under another; what to tell the maker is the caller's.
 
+DOES NOT MEAN
+- that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
+
 PROVEN BY — `workshop/weave.hpp` `end_held_gestures`; `tests/test_workshop_screen.cpp` case
 `"WIND-2a: a release ends a pane gesture whatever mode sees it"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
@@ -70,6 +73,9 @@ LAW — A left or top pull authors place and size as one axis-local transaction,
 MEANS
 - `author_pane_window` is the one gesture door; a refused height never leaves a moved top edge;
 - a refused single-axis step cannot author a reactive place as a side effect.
+
+DOES NOT MEAN
+- that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_window`; `workshop/screen.hpp`
 `pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"WUX-2: a refused anchored resize
@@ -129,7 +135,7 @@ WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-10 — The coarse step is the fine step with a bigger delta
 
-LAW — `=` grows and `-` shrinks the addressed pane by `kCoarseStepCells` on both axes, through `arrange_grow` → `pane_window_proposal` at `kBottomRight` → `author_pane_window`.
+LAW — The coarse step resizes the addressed pane by the coarse count on both axes through the ordinary resize seam: one proposal at the bottom-right edge, into the one gesture door, and no second owner.
 
 MEANS
 - it meets the identical per-axis settlement a shifted arrow meets, and there is no second owner;

@@ -20,7 +20,7 @@ WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — One seam, both editable lines
 
-LAW — `press_selects_word` is spent by `terminal_press` and `info_press`, so a double-click selects the word under it on the Terminal's line and in a property draft alike.
+LAW — One word-selecting press serves both editable lines, so a double-click selects the word under it on the Terminal's line and in a property draft alike.
 
 DOES NOT MEAN
 - that the Editor's multiline machinery or the Composer's fields were taught it — neither was.
@@ -100,7 +100,7 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover
 
-LAW — `kTuiPointerOn` asks for `1002` — button-event tracking — so an idle pointer reaches nobody there; it is a documented medium fact, not a defect to repair with `1003`.
+LAW — The terminal medium asks for button-event tracking (`1002`), so an idle pointer reaches nobody there; it is a documented medium fact, not a defect to repair with `1003`.
 
 PROVEN BY — `surface/skin_tui.hpp` `kTuiPointerOn`; `docs/workshop/limitations.md` `hover`;
 `tests/test_surface.cpp` case `"the Skin's terminal claim includes pointer reporting, and leave

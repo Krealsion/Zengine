@@ -36,7 +36,7 @@ WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-03 — Three regions tile the screen exactly
 
-LAW — Rows 0..`kTopRows`-1 are reserved (the Layouts pane's default), `kWorkspaceY`..+`room_h`-1 is the body, the last `kBottomRows` are the foot; `kTopRows + kBottomRows == 6` is asserted.
+LAW — Three regions tile the screen exactly: the first rows are reserved (the Layouts pane's default), the body follows, and the last rows are the foot; the reserved and foot rows together are six, asserted.
 
 MEANS
 - `room_h` never moved: chrome that moves must not resize a maker's document;
@@ -52,7 +52,7 @@ WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-04 — `Panels::selected` is a press's memory
 
-LAW — `Panels::selected` is session-only, never persisted, `kNoPaneKind` at start, and `selected_pane` is its answer; it has four writers and no other.
+LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has four writers and no other.
 
 MEANS
 - the press line, `enter_arrange_pane` after admission, `open_source`, Escape's fallthrough;

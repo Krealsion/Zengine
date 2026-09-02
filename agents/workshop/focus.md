@@ -111,7 +111,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-10 — The screen says where typing goes, in two places, in characters
 
-LAW — `external_header` marks the pane with the keys (`> `), and the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`, chords from the keymap.
+LAW — The pane with the keys wears the `> ` mark in its header, and the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`, its chords from the keymap.
 
 PROVEN BY — `workshop/screen.hpp` `external_header`, `kTypingHere`, `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the
@@ -121,7 +121,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
 
-LAW — `workshop.pane-titles` (`t`) flips `Session::pane_titles` and writes the prefs file; `external_title_rows` is the one resolution of header rows, and the keyboard's pane always keeps its title.
+LAW — Pane titles are a preference with a key: the toggle flips the session's flag and writes the prefs file; one resolution answers a pane's header rows, and the keyboard's pane always keeps its title.
 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;

@@ -5,7 +5,7 @@ ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-MAKER-01 — The first pane whose interior is authored data
 
-LAW — `PaneDefinition{name, regions[], next_id}` with `TextRegion{id, kind, x, y, w, h, text}` is the first pane implementation whose interior is authored data; `Panels::maker` is the one open definition.
+LAW — A definition is a name, a list of text regions — each an id, a kind, a place, a size and a line of text — and a mint: the first pane implementation whose interior is authored data; one is open.
 
 MEANS
 - one admitted kind (`region_kind::kText`), ids minted and never reused, geometry in sub-units;
@@ -25,7 +25,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-03 — The identity is minted from the name and from nothing else
 
-LAW — `kMakerPaneProvider` is a Workshop-owned namespace no office may offer a pane in, and `resolve_pane` answers `kMakerPaneKind` exactly when the ref's pane equals the open definition's name.
+LAW — The maker's panes live in a Workshop-owned provider namespace no office may offer a pane in, and a reference resolves to the maker's kind exactly when its pane name equals the open definition's name.
 
 MEANS
 - `admit_pane_offer` refuses an offer in that namespace; nothing is addressed to it;
@@ -58,24 +58,25 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-05 — The pane on the desk is the preview; there is no second renderer
 
-LAW — The desk pane is the preview and there is no second renderer: `paint_maker_pane` is one more arm in `paint_panels`, `bounds_of`, `pane_inside`, `present_region`, then `kGroundOwn` regions.
+LAW — The desk pane is the preview and there is no second renderer: the maker's pane is one more arm of the ordinary pane painter — bounds, interior, each region presented, then owned-ground regions.
 
 MEANS
 - `present_region`: interior origin plus authored place, clipped, then `fit_region_subs`;
 - a region authored at 126 px sits at pixel 126 of the interior; a terminal reads `~10 cells`;
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
-PROVEN BY — `workshop/screen.hpp` `paint_maker_pane`, `present_region`, `fit_region_subs`,
-`kGroundOwn`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed
-relative to the pane's INTERIOR and painted through the ordinary pane path in cells"`, case
-`"WUX-14/SC-8: one authored fine value, read in pixels on the window and projected to cells on a
-terminal, and looking writes nothing back"`, case `"WUX-14/SC-8: a region too small for the face
-is the face's own answer, and the authored value is not rewritten to fit"`.
+PROVEN BY — `workshop/screen.hpp` `paint_panels`, `bounds_of`, `pane_inside`,
+`paint_maker_pane`, `present_region`, `fit_region_subs`, `kGroundOwn`;
+`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed relative to the
+pane's INTERIOR and painted through the ordinary pane path in cells"`, case `"WUX-14/SC-8: one
+authored fine value, read in pixels on the window and projected to cells on a terminal, and
+looking writes nothing back"`, case `"WUX-14/SC-8: a region too small for the face is the face's
+own answer, and the authored value is not rewritten to fit"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-06 — Looking never authors
 
-LAW — Every `INTERIOR` row reads through `maker_region` at display time, `Resolved` and `Shown` are `present_region` re-run, and the region mark is derived from the same resolution and writes nothing.
+LAW — Looking never authors: every interior row is read at display time, the resolved and shown rows are the presentation re-run, and the region mark is derived from that resolution and writes nothing.
 
 MEANS
 - `paint_creator_region_mark` is a later plane: an accent rect at the exact resolved bounds;
@@ -90,7 +91,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-07 — One owner door per fact
 
-LAW — `write_region_text` goes to `set_region_text`; `write_region_axis` through `parse_face_amount` to `author_region_axis`, refuse-never-clamp per axis in the face's unit; `-` is refused in words.
+LAW — One owner door per fact: a region's text and its four numbers go through the definition's own doors, a number read in the face's unit and refused, never clamped, per axis; `-` is refused in words.
 
 MEANS
 - a region has no default mode: those are ordinary values the maker reads and retypes;
@@ -104,14 +105,14 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-08 — The lifecycle is the source editor's
 
-LAW — One session-owned open definition, dirty derived by comparison, a dirty definition refusing `n`, the open door and `quit()`, and `open_maker_pane` the one open door.
+LAW — One session-owned open definition, dirty derived by comparison with its saved copy; a dirty definition refuses a new pane, a replacing open and an orderly quit, and there is one open door.
 
 MEANS
 - `close_panel` never touches `Panels::maker`; a never-saved pane is dirty by arithmetic;
 - refusals name `s` and `ctrl+d`; `open_maker_pane` is spent by startup and nothing else yet;
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
-PROVEN BY — `workshop/weave.hpp` `open_maker_pane`, `save_maker_pane`,
+PROVEN BY — `workshop/weave.hpp` `quit`, `open_maker_pane`, `save_maker_pane`,
 `discard_maker_pane_edits`, `pane_refused_`; `workshop/screen.hpp` `kPaneWallKey`;
 `workshop/panel.hpp` `new_maker_pane`; `tests/test_workshop_panels_creator.cpp` case
 `"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
@@ -122,13 +123,14 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-09 — Startup order is the relaunch story
 
-LAW — `load_pane_definition` runs in `on(SurfaceReady)` before `restore_last_session`, because `apply_setup` seats only what resolves at that moment; the session carries the row and no byte of the interior.
+LAW — The pane definition is loaded before the last session is restored, because the restore seats only what resolves at that moment; the session carries the row and no byte of the interior.
 
-PROVEN BY — `workshop/weave.hpp` `load_pane_definition`, `restore_last_session`,
-`pane_loaded_`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-16+SC-17: save, quit,
-relaunch -- the same pane returns on the same layout by its reference; remove the file and the
-row is kept unresolved"`, case `"WUX-14/SC-9: the maker's pane is edited, ordered and removed by
-the doors every pane has, and comes back through the session by its reference"`.
+PROVEN BY — `workshop/weave.hpp` `apply_setup`, `load_pane_definition`,
+`restore_last_session`, `pane_loaded_`; `tests/test_workshop_panels_creator.cpp` case
+`"WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its
+reference; remove the file and the row is kept unresolved"`, case `"WUX-14/SC-9: the maker's
+pane is edited, ordered and removed by the doors every pane has, and comes back through the
+session by its reference"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-10 — The pane file, and what it cannot say
@@ -150,7 +152,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-11 — The Pane Creator is the maker-facing workflow
 
-LAW — `n` in the Pane Manager opens a name prompt (`kPaneNaming`), Return makes the pane (`new_maker_pane`), `s` saves, `ctrl+d` discards; the default region is authored the moment it exists.
+LAW — `n` in the Pane Manager opens a name prompt, Return makes the pane, `s` saves and `ctrl+d` discards; the default region is authored the moment it exists.
 
 MEANS
 - `kNewRegionX/Y/W/H` are 0, 0, 24 cells, 2 cells: two tall so the face sets one row of type;
@@ -166,7 +168,7 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-12 — The code-backed answer is a capture
 
-LAW — For every subject that is not the maker's pane, `INTERIOR` is one read-only row (`interior_capture_text`): a code-backed capture, the provider's own, or `unresolved -- nothing to inspect`.
+LAW — For every subject that is not the maker's pane, the interior is one read-only row: a code-backed capture, the provider's own, or `unresolved -- nothing to inspect`.
 
 DOES NOT MEAN
 - that anything is decompiled or inferred: no controls, no pretence.

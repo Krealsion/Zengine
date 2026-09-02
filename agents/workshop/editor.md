@@ -6,7 +6,7 @@ by ID. Router: [`../workshop.md`](../workshop.md). Where a source path comes fro
 
 ## WL-EDIT-01 — One document, session-owned, presented by a pane
 
-LAW — `workshop/editor.hpp` owns the machinery, `Session::editor` (`EditorState`) owns the document, and the Editor pane (`panel::kEditor`, overlay stack) is only its presentation.
+LAW — The editor's machinery is its own file, the session owns the one open document — path, saved copy, line ending, epoch, viewport — and the Editor pane in the overlay stack is only its presentation.
 
 MEANS
 - `EditorState`: the path, the saved copy (dirty derives), line ending, `doc_epoch`, viewport;
@@ -22,16 +22,16 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-02 — The first multiline consumer owns its multiline machinery
 
-LAW — `component::TextBox` is untouched; `EditorBuffer`'s gestures are declared in `kEditorVocabulary` and swept against `consume` both ways, and a future backend replaces `EditorBuffer` as a unit.
+LAW — The single-line component is untouched; the editor's gestures are declared in its own vocabulary and swept against its consume both ways, and a future backend replaces the buffer as one unit.
 
 DOES NOT MEAN
 - that a replacement may touch path custody, save authority or the pane presentation.
 
 PROVEN BY — `workshop/editor.hpp` `EditorBuffer`, `kEditorVocabulary`, `consume`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: the editor's declared vocabulary and consume
-agree, both directions"`, case `"EDIT-0: undo groups typing, treats joins and pastes as one
-edit, and redo returns"`, case `"EDIT-0: set_lines wipes the history -- undo cannot resurrect
-another document"`.
+`component/text_box.hpp` `TextBox`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the editor's
+declared vocabulary and consume agree, both directions"`, case `"EDIT-0: undo groups typing,
+treats joins and pastes as one edit, and redo returns"`, case `"EDIT-0: set_lines wipes the
+history -- undo cannot resurrect another document"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-03 — The document is session state, and that is the no-silent-loss floor
@@ -55,11 +55,11 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-04 — `^s` follows the keyboard, as two declared identities
 
-LAW — `document.save` (`kNoEditor`) and `editor.save` (`kEditor`) are two rows for one chord; `^o` stays global, and `^c` is copy in the editor and quit where nothing takes text.
+LAW — `^s` is two declared rows — the document's save everywhere but the editor, and the editor's own — while `^o` stays global and `^c` is copy in the editor and quit where nothing takes text.
 
-PROVEN BY — `workshop/keymap.hpp` `document.save`, `editor.save`, `kNoEditor`,
-`context_takes_text`; `tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to
-the document's save or the editor's, by context"`, case `"EDIT-0: ^s in the editor saves the
+PROVEN BY — `workshop/keymap.hpp` `kEditor`, `document.save`, `editor.save`, `kNoEditor`,
+`context_takes_text`; `tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves
+to the document's save or the editor's, by context"`, case `"EDIT-0: ^s in the editor saves the
 SOURCE; elsewhere it keeps the document's meaning"`, case `"EDIT-0: ^o keeps its global
 object-document meaning while the editor has the keys"`, case `"EDIT-0: ^c in the editor copies
 -- it does not quit -- and quit stays a press away"`.
@@ -114,16 +114,16 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-08 — Tabs expand at presentation only
 
-LAW — Tabs expand only at presentation, at a four-column stop: `visual_col_of`/`byte_of_visual_col`/`expanded_slice` are the one measurer painter, press and drag spend; `first_col` is displayed columns.
+LAW — Tabs expand only at presentation, at a four-column stop, and one tab-geometry measurer — bytes to displayed columns and back, and the displayed slice — is what painter, press and drag spend.
 
 MEANS
 - `kEditorCaretCols` reserves the caret's column of every body row, `kTerminalCaretCols`' rule.
 
-PROVEN BY — `workshop/editor.hpp` `visual_col_of`, `byte_of_visual_col`, `expanded_slice`;
-`workshop/screen.hpp` `kEditorCaretCols`; `tests/test_workshop_editor.cpp` case `"EDIT-0: tab
-geometry maps bytes and displayed columns both ways, exactly"`, case `"EDIT-0: expanded_slice
-shows tabs as spaces and windows by displayed columns"`, case `"EDIT-0: a press places the caret
-through the same tab geometry the paint used"`.
+PROVEN BY — `workshop/editor.hpp` `first_col`, `visual_col_of`, `byte_of_visual_col`,
+`expanded_slice`; `workshop/screen.hpp` `kEditorCaretCols`; `tests/test_workshop_editor.cpp`
+case `"EDIT-0: tab geometry maps bytes and displayed columns both ways, exactly"`, case
+`"EDIT-0: expanded_slice shows tabs as spaces and windows by displayed columns"`, case `"EDIT-0:
+a press places the caret through the same tab geometry the paint used"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-09 — The viewport reconciles once per repaint
@@ -161,7 +161,7 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-11 — A paste answer lands where the maker asked or nowhere
 
-LAW — The pending record pins `doc_epoch` and `buffer.revision()`, so a replaced document strands the payload silently and a document that merely moved gets `paste again` instead of a relocated paste.
+LAW — A pending paste pins the document epoch and the buffer revision it was asked for, so a replaced document strands the payload silently and a document that merely moved is told to paste again.
 
 PROVEN BY — `workshop/weave.hpp` `open_source`; `workshop/editor.hpp` `doc_epoch`, `revision`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: a late paste answer may not land at a caret that
@@ -171,7 +171,7 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-12 — The pane paints one region
 
-LAW — `paint_editor` writes one region: a header row — dirty word first, then `L:C/N`, then the path, with the `> ` mark — and the document through the viewport, caret and selection as the region's own.
+LAW — The pane paints one region: a header row — dirty word first, then `L:C/N`, then the path, with the `> ` mark — and the document through the viewport, caret and selection as the region's own.
 
 MEANS
 - the body is `external_body_place` with `kEditorHeaderRows` — one arithmetic, not two.

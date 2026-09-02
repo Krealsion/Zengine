@@ -23,7 +23,7 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-02 — The precedence is pinned and has one spelling
 
-LAW — `resolve_durable_path`: an explicit path the maker typed, then `--isolated`, then the per-user default; `--isolated` resolves the per-user defaults to the designed empty-path absence.
+LAW — The precedence has one spelling: an explicit path the maker typed, then `--isolated`, then the per-user default; `--isolated` resolves the per-user defaults to the designed empty-path absence.
 
 MEANS
 - `--isolated` is the flag every witness harness and executor live run must carry;
@@ -52,7 +52,7 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-04 — One representation of a desk, two files
 
-LAW — `WorkshopSession` nests `WorkshopSetup` as a field and `setup_persist::setup_in` is the one function that turns a written setup into a live one; an automatic save never lands on `--setup`.
+LAW — The session's written shape nests the setup's written shape as a field, and one function turns a written setup into a live one, whichever file it came from; an automatic save never lands on `--setup`.
 
 MEANS
 - a desk cannot be legal in one file and illegal in the other;
@@ -67,49 +67,50 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version 6: `layouts` is the maker's order whole, the live one in it, `active` its position, each entry a `WorkshopLayout` (desk plus link); position is a layout's whole identity; no id is minted.
+LAW — Version 6 holds the maker's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
 - an association remembers a whole desk, not a hash; a restore never re-reads what it refers to.
 
-PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`, `WorkshopLayout`,
-`WorkshopSetupLink`, `link_in`, `layouts_in`; `tests/test_workshop_persistence.cpp` case
-`"WUX-10/SC-8: a whole layout run round-trips exactly, active in the middle"`, case
-`"WUX-11/SC-14: every position and every association combination round-trips"`, case
-`"WUX-11/SC-15: a current-version session with half an association is refused"`.
+PROVEN BY — `workshop/session_persist.hpp` `layouts`, `active`, `kFormatVersion`,
+`WorkshopLayout`, `WorkshopSetupLink`, `link_in`, `layouts_in`;
+`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-8: a whole layout run round-trips
+exactly, active in the middle"`, case `"WUX-11/SC-14: every position and every association
+combination round-trips"`, case `"WUX-11/SC-15: a current-version session with half an
+association is refused"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-06 — The run's own admission is four questions plus the link
 
-LAW — `layouts_in`: non-empty, within `kMaxLayouts`, `active` in range, every desk legal by `setup_in`, every link legal by `link_in`; refusals of current-version data, never a search for a conversion.
+LAW — Admitting a run is four questions plus the link: non-empty, within the ceiling, the live one in range, every desk and link legal by its own law; refusals of current data, never a conversion search.
 
 MEANS
 - the ceiling is `kMaxLayouts` * (2 * `kMaxSetupBytes` + `kMaxLinkPathBytes`): two desks, a path;
 - a session this build writes is never one it refuses to read.
 
-PROVEN BY — `workshop/session_persist.hpp` `layouts_in`, `kMaxSessionBytes`,
-`kMaxLinkPathBytes`, `kMaxLayouts`; `workshop/setup_persist.hpp` `kMaxSetupBytes`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-12: a current run this Workshop could not
-have made is refused as CURRENT data"`, case `"WUX-11/SC-14: a maximal legal session is still
-one this build can read back"`, case `"WUX-10: a session may hold as much as it may hold, and be
-read back"`.
+PROVEN BY — `workshop/session_persist.hpp` `active`, `link_in`, `layouts_in`,
+`kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`; `workshop/setup_persist.hpp` `setup_in`,
+`kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-12: a current run this
+Workshop could not have made is refused as CURRENT data"`, case `"WUX-11/SC-14: a maximal legal
+session is still one this build can read back"`, case `"WUX-10: a session may hold as much as it
+may hold, and be read back"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-07 — The viewport is one level above the desk, and is declined, never clamped
 
-LAW — `{width, height}` in canvas cells is a sibling of `desk`; a viewport outside `kScreenMinW..kScreenMaxW` by `kScreenMinH..kScreenMaxH` is declined (`viewport_honoured`), never clamped.
+LAW — The viewport, in canvas cells, sits one level above the desk in the file; a viewport outside the screen's minimum-to-maximum band on either axis is declined, never clamped.
 
 MEANS
 - Workshop then opens at its floor and names the value;
 - a restored window is the maker's chosen size floored to whole cells;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
-PROVEN BY — `workshop/session_persist.hpp` `viewport_honoured`, `kScreenMinW`, `kScreenMaxW`,
-`kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"WUX-0 E: a hostile room
-is declined, and the desk still comes back"`, case `"WUX-0 E: the band a room is honoured in is
-the one the screen is honest at"`, case `"WUX-0: a session file holds the desk and the room, and
-nothing runtime"`.
+PROVEN BY — `workshop/session_persist.hpp` `desk`, `viewport_honoured`, `kScreenMinW`,
+`kScreenMaxW`, `kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"WUX-0
+E: a hostile room is declined, and the desk still comes back"`, case `"WUX-0 E: the band a room
+is honoured in is the one the screen is honest at"`, case `"WUX-0: a session file holds the desk
+and the room, and nothing runtime"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-08 — The desktop placement is remembered opaque and judged by the medium
@@ -159,7 +160,7 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-12 — The room, and then the desk into it
 
-LAW — `apply_setup` seats panes against `stack_capacity(screen_of(...))`, so `adopt_screen` runs before the restored desk is installed; reversing the two leaves a pane waiting for room it already had.
+LAW — The desk is seated against the restored room's capacity, so the room is taken back before the restored desk is installed; reversing the two leaves a pane waiting for room it already had.
 
 PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `apply_setup`, `adopt_screen`;
 `workshop/screen.hpp` `stack_capacity`; `tests/test_workshop_persistence.cpp` case `"WUX-0: the
@@ -168,36 +169,38 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
 
-LAW — `q`, `Ctrl+C` and `SurfaceCloseRequested` all reach `quit()`, which calls `save_last_session()` before it stops the bus; no autosave, no dirty tracking, no background writer.
+LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which saves the session before it stops the bus; no autosave, no dirty tracking, no background writer.
 
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
 PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`; `workshop/persist.hpp`
-`write_file`; `tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces
-the first, room and desk both"`, case `"WUX-0: a write that fails leaves the last good session
-where it was"`; `tests/test_workshop_document.cpp` case `"the native close request reaches the
-quit policy `q` already had"`.
+`write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the first,
+room and desk both"`, case `"WUX-0: a write that fails leaves the last good session where it
+was"`; `tests/test_workshop_document.cpp` case `"the native close request reaches the quit
+policy `q` already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things
 
-LAW — `restored_` guards the restore once per process, because `SurfaceReady` arrives again when a Skin is replaced; `LoadedSession` carries `present`, `outcome`, `honoured` and `declined`.
+LAW — The restore runs once per process, guarded by a flag, because the surface's hello arrives again when a Skin is replaced; the answer carries present, outcome, honoured and declined.
 
 MEANS
 - the flag is set before the file is opened, so a refusal is final too;
 - `load_file` asks `exists` first, so a first launch is not an error and stays silent.
 
 PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `restored_`;
-`workshop/session_persist.hpp` `LoadedSession`, `load_file`, `honoured`, `declined`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0: the room is taken back only ONCE, however
-often a surface says hello"`, case `"WUX-0 C: a first launch is not an error, and needs no file
-to exist"`, case `"WUX-0 D: a malformed session costs the desk and nothing else"`.
+`workshop/session_persist.hpp` `present`, `outcome`, `LoadedSession`, `load_file`, `honoured`,
+`declined`; `surface/vocabulary.hpp` `SurfaceReady`; `tests/test_workshop_persistence.cpp` case
+`"WUX-0: the room is taken back only ONCE, however often a surface says hello"`, case `"WUX-0 C:
+a first launch is not an error, and needs no file to exist"`, case `"WUX-0 D: a malformed
+session costs the desk and nothing else"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-15 — A session this run could not read is never written over
 
-LAW — `session_refused_` is checked in `save_last_session`; a declined viewport is not a refusal; the standing consequence is a condition (`kSessionWallKey`), true all run, with a maker action.
+LAW — A session this run could not read is never written over: the save checks the refusal first; a declined viewport is not a refusal; the standing consequence is a condition, true all run, with an action.
 
 PROVEN BY — `workshop/weave.hpp` `session_refused_`, `save_last_session`, `kSessionWallKey`;
 `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13: a session this run could not read is

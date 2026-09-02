@@ -5,7 +5,7 @@ cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-FILES-01 — The browser owns no source truth
 
-LAW — `workshop/files.hpp` is the machinery and `Panels::files` its state; a row is `{name, kind, linked, openable}` and nothing else, and what it denotes is derived at activation from location plus name.
+LAW — The browser's machinery is its own file and its state lives on the panels; a row is a name, a kind, a linked flag and an openable flag and nothing else, and what it denotes is derived at activation.
 
 MEANS
 - no resolved path, recipe, artifact, build or editor state rides a row;
@@ -19,7 +19,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-02 — Four facts coincide at launch and are not the same fact
 
-LAW — `project_dir` is what a project-relative spelling means; `marks.origin` is where this run began; `FilesPane::current_dir` is where somebody is looking; the OS is what may be read, never modelled.
+LAW — The project is what a project-relative spelling means; the origin is where this run began; the location is where somebody is looking; the operating system is what may be read, never modelled.
 
 MEANS
 - the project has one writer, `main`; browsing, marking and a foreign catalog never move it;
@@ -81,7 +81,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-07 — Roots are host-reported, asked at the gesture, and never on the paint path
 
-LAW — `filesystem_roots.hpp` is the only place this repository asks an OS for roots (Windows: `GetLogicalDrives()`), and `files_has_keyboard` may not ask for them: its whole test is in memory.
+LAW — One header is the only place this repository asks an operating system for its roots, and the keyboard-readiness test may not ask for them: its whole test is in memory.
 
 MEANS
 - the test is `listing.known || !current_dir.empty() || marks.somewhere_to_go()`, all in memory;
@@ -96,7 +96,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-08 — Maker marks are durable, ride the machine-local root, and refuse by row
 
-LAW — `marks_persist.hpp` is its own file, version 1: the file's claims refuse it whole, an uncarriable row is skipped as a standing condition, and `marks_refused_` guards the first `m`.
+LAW — The marks file is its own format, version 1: the file's claims refuse it whole, an uncarriable row is skipped as a standing condition, and a refused file guards the first mark from overwriting it.
 
 MEANS
 - without the flag the first `m` would replace bytes this run could not read with an empty list;
@@ -136,15 +136,15 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
 
-LAW — `path_admission.hpp` alone asks: `admit_path` answers a value (`carried` plus the spelling), `admit_filename` a name with an `exact` flag, and `launch_project_dir()` is the capture `main` runs.
+LAW — One header alone asks for a path's bytes: a path is admitted as a value — carried or not, plus its spelling — a filename as a name with an exact flag, and the launch capture is the host's.
 
 MEANS
 - `exact`, never the bytes, is what `files_open` and `files_use_recipes` ask through `openable`;
 - a refused name's `?` projection is printable ASCII and would otherwise read as openable;
 - a second `generic_string()` anywhere is a second way for the process to die.
 
-PROVEN BY — `workshop/path_admission.hpp` `admit_path`, `admit_filename`, `launch_project_dir`,
-`u8string`; `workshop/weave.hpp` `files_open`, `files_use_recipes`;
+PROVEN BY — `workshop/path_admission.hpp` `carried`, `exact`, `admit_path`, `admit_filename`,
+`launch_project_dir`, `u8string`; `workshop/weave.hpp` `files_open`, `files_use_recipes`;
 `tests/test_workshop_files.cpp` case `"QR-12: an ordinary path and an ordinary name are carried
 exactly as they were"`, case `"QR-12: a name this platform will not spell is one inert row, not
 the end of it"`, case `"QR-12: a name this platform will not spell refuses at the browser's
