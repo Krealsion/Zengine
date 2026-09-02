@@ -4180,7 +4180,7 @@ private:
                     " order, " + hotkey_text(session_.keymap, Act::kManageDone) + " back",
                 false);
             break;
-        // The prompt closes exactly when the reset REACHED its operation (the pre-CTX-0
+        // The prompt closes exactly when the reset REACHED its operation (the earlier
         // behaviour, preserved: a refusal for want of an addressed pane leaves the maker
         // in the prompt they were in).
         case Act::kManageResetPlace:

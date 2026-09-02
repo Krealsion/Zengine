@@ -338,7 +338,7 @@ int main(int argc, char** argv) {
 
     // ---- ...AND THE ONE-TIME LEGACY TRANSITION, FOR EXACTLY THE DEFAULTED ONES ----
     //
-    // Only a fact that resolved to its per-user DEFAULT can have a pre-WUX-3 local file
+    // Only a fact that resolved to its per-user DEFAULT can have an earlier local file
     // to inherit: an explicit path is the maker's own answer, and an isolated run touches
     // nothing. The prefs file is newer and has no legacy to import. The rule
     // itself -- import once into an absent destination, never overwrite an existing one,
