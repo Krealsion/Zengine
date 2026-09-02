@@ -232,7 +232,7 @@ nothing else. Against a kernel-full Loom it still builds every weave library and
 tests; against a kernel-less one it configures and builds the kernel-independent surface (the
 activation cursor and the header-only vocabularies).
 
-## The repository checks its own documentation and vocabulary
+## The repository checks its own documentation, vocabulary and law
 
 - **`doc_links`** (kind `script`; `tests/check_doc_links.cmake`). Every relative link in a
   current-facing `*.md` and its `#anchor`, plus every repository-relative `*.md` path written
@@ -251,6 +251,22 @@ activation cursor and the header-only vocabularies).
   word *weave*: `zengine_weave()`, `WeaveId`, the weave ABI and weave-only guides all mean
   weave and must not be renamed. Its self-test makes the predicate say **yes** to a token in
   the tree and **no** to one that is absent before it answers.
+- **`law_register`** (kind `script`; `tests/check_law_register.cmake`). Workshop's law is
+  written once, in the registers under `agents/workshop/`, and this entry keeps the form and
+  the names honest: every `##` is a `WL-` entry or the one `## Do not assume`; ids are unique
+  under `agents/`; LAW is one line of at most 210 bytes, MEANS at most 3 and DOES NOT MEAN at
+  most 2, no SINCE line; every PROVEN BY path exists, every backticked identifier occurs in the
+  file named before it, every quoted witness is a `TEST_CASE`/`SUBCASE` literal under `tests/`;
+  every WHY target exists and each record's **Laws supported** is exactly the laws whose WHY
+  names it; every `// WL-…` pointer names entries of the register on its line and every
+  `// Workshop law:` header names existing files; registers ≤ 16 KB, the router ≤ 8 KB,
+  `AGENTS.md` ≤ 20 KB. Two stricter checks — an identifier must occur as a whole token in the
+  named file's *code*, comments stripped, and the declaration under a pointer must be named by
+  a law on that line — sit behind `LAW_REGISTER_STRICT` (default OFF: they print their lists
+  and a count and do not fail) until the lists are cleared. It cannot know that a phase edited
+  a witnessed test; that rule is procedural and lives in the router
+  ([`workshop.md`](workshop.md)). By hand: `cmake -P tests/check_law_register.cmake`, or with
+  `-DLAW_REGISTER_STRICT=ON`.
 
 ## Platform traps
 
