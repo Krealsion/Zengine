@@ -4,65 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_USER_PATHS_HPP
 #define ZENGINE_WORKSHOP_USER_PATHS_HPP
 
-// WHERE A MAKER'S OWN FILES LIVE WHEN THE HOST DOES NOT SAY OTHERWISE (WUX-3).
-//
-// Until WUX-3, every durable default resolved against the launch directory, which is the
-// right answer for exactly two of the six durable artifacts -- the document and the named
-// setup describe a PROJECT, and a project is where you are standing -- and the wrong answer
-// for the maker's own facts: launch Workshop from two directories and you had two keymaps,
-// two sessions, and no way to say "my settings". This header is the whole of the repair: the
-// conventional per-user roots, the precedence that decides one path per durable fact, and
-// the one-time import that keeps a maker's pre-WUX-3 local files from being silently
-// abandoned.
-//
-// TWO ROOTS, BECAUSE THEY ARE TWO KINDS OF FACT.
-//
-//   CONFIGURATION   the maker's hand: keymap overrides, presentation preferences. Durable
-//                   preference, meaningful on any machine this maker sits at.
-//   STATE           the maker's machine-local session: the desk in use, the viewport, and
-//                   (since WUX-3) the window's desktop placement. A viewport describes THIS
-//                   machine's window and a placement describes THIS machine's monitors, so
-//                   putting state under a roaming root would ship one desk's coordinates to
-//                   every desk -- machine-local is correctness here, not convention.
-//
-// THE ROOTS ARE THE PLATFORM'S OWN CONVENTIONS, nothing invented:
-//
-//   Windows   config  %APPDATA%\zengine-workshop         (the roaming application-data root)
-//             state   %LOCALAPPDATA%\zengine-workshop    (the machine-local one)
-//   else      config  $XDG_CONFIG_HOME/zengine-workshop, falling back to ~/.config/...
-//             state   $XDG_STATE_HOME/zengine-workshop,  falling back to ~/.local/state/...
-//                     (the XDG state directory's own worked example is exactly this class)
-//
-// `zengine-workshop` IS THE ARTIFACT'S OWN NAME -- the binary this repository ships -- and
-// deliberately not a development machine's path, a repository name, or a nested
-// vendor/product pair: one flat directory that matches the identity a maker already sees in
-// their process list. Both platform spellings are plain functions over an ENVIRONMENT VALUE
-// rather than reads of the live environment, so every lane pins both shapes; only
-// `host_environment()` touches the real process environment, and only the host calls it.
-//
-// AN UNRESOLVABLE ROOT IS AN ABSENCE, NEVER A FALLBACK TO CWD. A hostile or bare
-// environment (no %APPDATA%, no $HOME) yields an empty root, which resolves to an empty
-// path, which is the weave's designed "no persistence: restore nothing, write nothing"
-// (HostContext's contract since WUX-0). Falling back to the launch directory instead would
-// silently reintroduce the per-CWD behaviour this phase exists to end -- a quiet wrong
-// answer wearing a helpful face. The host says the absence once, on its banner.
-//
-// PRECEDENCE, PINNED (WUX-3): for each per-user durable fact,
-//
-//   1. an explicit path the maker typed (`--keymap`, `--prefs`, `--session`) is that fact's
-//      path, exactly as typed -- more specific than any policy;
-//   2. `--isolated` makes the fact ABSENT: this run reads and writes none of the maker's
-//      ordinary per-user configuration or session state;
-//   3. otherwise the per-user default under the root above.
-//
-// `--isolated` exists because the defaults flip INVERTS an accident. Before WUX-3, a
-// witness harness or executor run launched from a scratch directory was isolated by
-// accident (its CWD files were scratch files); after the flip, that same unflagged launch
-// would read and write the REAL maker's settings. Isolation must therefore be explicit and
-// whole-application, and it ships in the same phase as the flip. Explicit paths still win
-// over it, so an isolated witness that needs scratch persistence names its scratch files.
-// Project files (`--document`, `--setup`) are untouched by all of this: they follow the
-// project, which is the launch directory or the path the maker typed.
+// WHERE A MAKER'S OWN FILES LIVE WHEN THE HOST DOES NOT SAY OTHERWISE.
+// Workshop law: agents/workshop/session.md
 
 #include <cstdint>
 #include <cstdlib>
@@ -156,11 +99,7 @@ inline std::string state_root(const Environment& env) {
 }
 
 /// ONE PER-USER DURABLE FACT'S PATH, BY THE PINNED PRECEDENCE.
-///
-/// Empty is the designed absence at every step: an isolated run resolves to no file, and so
-/// does a default whose root this environment cannot supply. The caller distinguishes the
-/// two only for its banner -- the weave's behaviour at an empty path is identical, which is
-/// what makes `--isolated` a promise rather than a convention.
+// WL-SESSION-01, WL-SESSION-02 -- agents/workshop/session.md
 inline std::string resolve_durable_path(const std::string& explicit_path, bool isolated,
                                         const std::string& root, const char* default_name) {
     if (!explicit_path.empty()) {
@@ -175,28 +114,8 @@ inline std::string resolve_durable_path(const std::string& explicit_path, bool i
     return root + "/" + default_name;
 }
 
-// ---- The one-time legacy import (WUX-3's bounded transition) ---------------------------
-//
-// The pre-WUX-3 behaviour -- keymap and session resolved against the launch directory --
-// is shipped behaviour, and makers may have real settings in it. The transition is ONE
-// rule, applied per file, at startup, only for a path that resolved to the per-user
-// DEFAULT (an explicit path is the maker's own answer and an isolated run touches nothing):
-//
-//   the user-root file does not exist  AND  the old local file does
-//       -> copy the local file's bytes to the user root (creating the directory), and say so
-//
-//   anything else
-//       -> nothing. An existing user-root file is authoritative and is NEVER overwritten by
-//          a legacy file's presence; the legacy file itself is NEVER deleted, moved, or
-//          rewritten -- it simply stops being read, and the maker is told so.
-//
-// The import CONVERGES BY EXISTENCE: once the destination exists -- imported, or written by
-// an ordinary save -- the rule never fires again, so repeated launches cannot re-import or
-// overwrite current user data. The copy goes through `persist::write_file` (complete
-// sibling, then rename), so a torn import cannot leave a half-file standing where the
-// destination should be. The bytes are copied unjudged: what a file MEANS is its own
-// loader's law, and a legacy file the loader would refuse is refused in the same words at
-// the new path -- with the original still in place.
+// ---- The one-time legacy import --------------------------------------------------------
+// WL-SESSION-03 -- agents/workshop/session.md
 
 /// What one file's transition did, in words a banner can print.
 struct LegacyImport {
@@ -213,7 +132,7 @@ inline constexpr std::uintmax_t kMaxImportBytes = 1u << 20;
 
 /// Apply the transition rule for one durable fact. `destination` is the resolved per-user
 /// DEFAULT path (the caller must not pass an explicit or isolated resolution here);
-/// `legacy` is the pre-WUX-3 local file it replaces. `what` names the fact for the note
+/// `legacy` is the older local file it replaces. `what` names the fact for the note
 /// ("keymap", "session").
 inline LegacyImport import_legacy_file(const std::string& destination,
                                        const std::string& legacy, const char* what) {

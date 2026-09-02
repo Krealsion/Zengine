@@ -5,44 +5,7 @@
 #define ZENGINE_WORKSHOP_KEYMAP_PERSIST_HPP
 
 // THE MAKER'S KEYMAP FILE -- a sixth durable artifact, and a sixth KIND of durable fact.
-//
-// The other five are the work (document), a named desk (setup), the desk in use (session),
-// execution authority (load plan) and build procedure (recipes). None of them is the
-// maker's HAND: which gesture requests which action does not change per document or per
-// arrangement, and riding any of the five would make remapping a key an edit to a file
-// that promised to hold something else. So it is its own small file, under the standing
-// persistence law the family shares -- the Loom compat codec, the same gate the live bus
-// uses, safe-write through `persist::write_file`, a format identity that refuses the other
-// files by name, and deterministic bytes.
-//
-// DEFAULTS LIVE IN CODE; THE FILE CARRIES DIFFERENCES ONLY (WIND-2's standing doctrine).
-// An absent file IS the defaults, silently -- a host that did not choose a keymap path is
-// not a host with a problem -- and deleting or emptying the file is returning to the
-// defaults, with nothing else to reset. Workshop never writes this file on its own: it is
-// the maker's, hand-edited, and a save door exists (`save_file`) for whoever wants one.
-//
-// ---- What version 1 promises ----------------------------------------------------------
-//
-//   PROMISED   Workshop reads keymap format version 1. A load-save round trip preserves
-//              every override row byte-for-byte in authored order -- including rows whose
-//              action id this build does not declare, which are ACCEPTED and preserved
-//              with their authored intent whole (the setup law's clause, verbatim: that is
-//              not an error and must never become one).
-//   REFUSED    any other `format_version`, by number, read from the envelope's claim
-//              BEFORE the rows are judged (setup_persist's preflight, for its reason); a
-//              `format` that is not this one; a field the shape does not declare; a legend
-//              word outside the closed set, with what was found and what would have worked
-//              both named; a gesture outside the written grammar ON A ROW THIS BUILD WOULD
-//              SPEND (an unknown action's gesture is authored intent, not this build's to
-//              judge); an action authored twice; a bare printable or a component-owned
-//              chord on a global action; a same-context collision, naming both actions and
-//              the contested gesture -- a lockout must not be savable; a file larger than
-//              a keymap can be.
-//   ACCEPTED   a gesture with a measured backend gap (`shift+space` cannot arrive from a
-//              POSIX terminal), noted in words and never rewritten -- warn, explain,
-//              allow.
-//   NOT DONE   migration, a legacy reader, a version graph, an upgrade path. One version
-//              exists and nothing has been released to migrate from.
+// Workshop law: agents/workshop/keyboard.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
 #include "persist.hpp"
@@ -77,12 +40,7 @@ inline constexpr std::uintmax_t kMaxKeymapBytes = 1u << 16;
 inline constexpr const char* kDefaultKeymapFileName = "workshop-keymap.json";
 
 // ---- The legend's words, and why they are words -----------------------------------------
-//
-// The same decision the extent mode and the pane units made, for the same reason: the
-// in-memory values are arbitrary integers, and a renumbering must not be able to change
-// what a saved preference means. `default` is the one canonical spelling of "no authored
-// difference" -- this build projects it as `full`, and a maker who authored `full` has
-// pinned that word against any future default.
+// WL-KEY-09 -- agents/workshop/keyboard.md
 
 inline constexpr const char* kLegendDefault = "default";
 inline constexpr const char* kLegendFull = "full";
@@ -140,10 +98,8 @@ inline const char* legend_word(std::int64_t legend) {
     return kLegendDefault;
 }
 
-/// The keymap, as the value that gets written. SERIALIZATION IS OBSERVATION: the rows go
-/// out from `Keymap::authored` -- byte-for-byte what was read or staged, in authored
-/// order, canonicalised by nobody. A save that rewrote `shift+ctrl+k` as `ctrl+shift+k`
-/// would be a save that edited the work it was asked to preserve.
+/// The keymap, as the value that gets written.
+// WL-KEY-07 -- agents/workshop/keyboard.md
 inline WorkshopKeymap to_keymap(const Keymap& k) {
     WorkshopKeymap out;
     out.format = kFormat;
@@ -275,9 +231,8 @@ inline Written save_file(const std::string& path, const Keymap& k) {
 }
 
 /// Read a keymap from a file. The composition of every layer: the file, the format, and
-/// the override law. A missing file is not a refusal -- it is the defaults, silently --
-/// so the caller that wants to distinguish "no file" from "a file this build refused"
-/// asks `std::filesystem::exists` first, exactly as the session restore does.
+/// the override law.
+// WL-KEY-07 -- agents/workshop/keyboard.md
 inline LoadedKeymap load_file(const std::string& path) {
     const persist::FileText read =
         persist::read_file(path, kMaxKeymapBytes, "a Workshop keymap");

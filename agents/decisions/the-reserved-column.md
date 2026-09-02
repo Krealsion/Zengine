@@ -45,5 +45,10 @@ and its rows stay empty and `room_h` is the number it was — the same rule appl
 edge when the top rows became a pane. The nine cases for this pushed the old single test binary
 past COFF's section limit under MSVC.
 
+Before the pane's right edge became the workspace's, the cost was measured at every extent this
+composition lays out: the pane covered the full 28-column side region and between 8 and 37 of its
+rows, so the Info panel published its lists and its footer and a later region erased them in the
+same frame.
+
 **Laws supported.** [WL-GEO-02](../workshop/geometry.md), [WL-GEO-03](../workshop/geometry.md),
 [WL-GEO-04](../workshop/geometry.md), [WL-GEO-05](../workshop/geometry.md).

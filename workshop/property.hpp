@@ -5,50 +5,7 @@
 #define ZENGINE_WORKSHOP_PROPERTY_HPP
 
 // The typed connection between an editor and the property it presents.
-//
-// It exists because of a measured pain point rather than a design instinct: the
-// historical builder
-// (reference/src/apps/builder/build_state.cpp, archaeology only) hand-wrote,
-// per property, a label plus a current-value read plus an input filter plus a
-// parse plus a setter callback plus two refreshes -- dozens of times, with the
-// conversion logic copied into every one of them. The cost was not the typing.
-// The cost was that each copy could be subtly different, and several were.
-//
-// THE SHAPE, and why each piece is here:
-//
-//   Written        the outcome of a write: accepted, or refused WITH A REASON.
-//                  A setter that can only succeed cannot carry an invariant, and
-//                  an invariant that cannot be stated cannot be shown to a maker.
-//
-//   Property<T>    a read and a write over ONE property of ONE thing, as typed
-//                  operations. Two std::functions, never an address: it closes
-//                  over the SEMANTIC surface (document.hpp's operations), so a
-//                  write goes through whatever validation, invalidation or
-//                  ownership that operation carries. There is no path through
-//                  this type to a struct member.
-//
-//   TextForm<T>    how a T becomes text and text becomes a T -- written ONCE per
-//                  semantic type. This is the piece that deletes the old
-//                  builder's duplication: `Width` and `Height` are both extents,
-//                  so they share every line of conversion, and a third extent
-//                  property would cost a single call.
-//
-//   Row            one inspector line: a label, a typed property, and an editor
-//                  DRAFT. Type-erased, so the inspector holds a mixed list of
-//                  rows without a per-type row class and without the caller
-//                  knowing what T was.
-//
-// WHAT THIS DELIBERATELY IS NOT:
-//   - not reflection. Nothing enumerates a type's fields; a property exists
-//     because someone wrote it down.
-//   - not a registry. There is no global table of properties; a Row is a value
-//     the inspector happens to be holding.
-//   - not persistence. Nothing here serializes, and inspectability implies no
-//     save (the phase's §E: inspectable, editable and serializable are three
-//     different promises, and this file makes exactly one of them).
-//   - not universal. The whole file is Workshop-local by choice: no shape here
-//     crosses the bus, nothing lower than Workshop knows it exists, and if the
-//     idea turns out to be wrong it can be deleted without a migration.
+// Workshop law: agents/workshop/document.md (+2 registers; agents/workshop.md routes)
 
 #include <cstddef>
 #include <cstdint>
@@ -66,19 +23,7 @@
 namespace zengine::workshop {
 
 /// An authored context reference, in the spelling a maker reads and types.
-///
-/// It is a distinct type and not a bare `std::int64_t` for one reason and it is
-/// not aesthetics: `TextForm<std::int64_t>` is already spoken for by X and Y,
-/// and a context is not a number a maker should be typing. `root` and `#4` are
-/// the two things it can be, and `#4` is deliberately not spelled `4` -- the
-/// `#` is the same mark the object list and the Identity row already use, so a
-/// maker writes an IDENTITY rather than an ordinal. "The fourth object" is the
-/// mistake this whole vocabulary is arranged to make unsayable.
-///
-/// It is a PRESENTATION type, Workshop-local, and it is not what gets stored:
-/// `ui::Element::context` is the authored fact and it is a plain identity. This
-/// is one of the two directions that identity is spoken in (the other is the
-/// file's, in persist.hpp), and both are translations of the same number.
+// WL-DOC-11 -- agents/workshop/document.md
 struct ContextRef {
     std::int64_t id = ui::kRootContext;
 
@@ -96,10 +41,7 @@ struct Written {
 };
 
 /// A typed connection to one property of one thing: read it, or try to write it.
-///
-/// Holds operations, not storage. Constructing one is the act of saying "this
-/// label names that pair of semantic calls", and it is the only thing an editor
-/// ever needs to know about a property.
+// WL-DOC-02 -- agents/workshop/document.md
 template <class T>
 class Property {
 public:
@@ -116,12 +58,7 @@ private:
 
 /// How a semantic type becomes text and text becomes it again. One
 /// specialization per type, and every property of that type shares it.
-///
-/// `parse` returning nullopt means "this text is not a T at all" -- which is a
-/// DIFFERENT fact from a T the property refuses, and the two are kept apart all
-/// the way to the maker's eyes (see Commit below). `expected()` is what a valid
-/// draft looks like, so a refusal can say what would have worked instead of only
-/// that something did not.
+// WL-DOC-02, WL-DOC-04 -- agents/workshop/document.md
 template <class T> struct TextForm;
 
 template <> struct TextForm<std::string> {
@@ -174,17 +111,8 @@ template <> struct TextForm<ui::Extent> {
         return out;
     }
 
-    /// Accepts BOTH `70%` and `70p`, and the second one is not a convenience --
-    /// it is the only spelling a maker can currently type.
-    ///
-    /// The reason is worth keeping in the source: the Input package's locked
-    /// vocabulary carries a SCANCODE, which is a physical key, and it has no
-    /// modifier vocabulary at all (input/vocabulary.hpp says so). `%` is
-    /// Shift+5. So the character this type FORMATS is a character no maker can
-    /// ENTER through the current input path -- the display form of a value was
-    /// not reachable by the input that edits it. `p` is the smallest honest
-    /// bridge, and it stays until modifiers exist, at which point this branch
-    /// and this comment go together.
+    /// Accepts BOTH `70%` and `70p`.
+    // WL-DOC-04 -- agents/workshop/document.md
     static std::optional<ui::Extent> parse(std::string_view text) {
         if (text.empty()) {
             return std::nullopt;
@@ -201,12 +129,8 @@ template <> struct TextForm<ui::Extent> {
         return ui::Extent{mode, *amount};
     }
 
-    /// `70%`, because that is what a maker types -- the platform reports the
-    /// character, so no workaround spelling has to be recommended. A refusal that
-    /// recommends a workaround for a hole that has been filled is worse than no
-    /// recommendation. `70p` is still ACCEPTED (whether
-    /// this parser keeps a convenience spelling is its own question, and not
-    /// one persistence gets to answer); it is simply no longer advertised.
+    /// `70%`, because that is what a maker types.
+    // WL-DOC-04 -- agents/workshop/document.md
     static const char* expected() { return "cells (12) or a share (70%)"; }
 };
 
@@ -217,14 +141,8 @@ template <> struct TextForm<ContextRef> {
                                         : "#" + std::to_string(v.id);
     }
 
-    /// A CLOSED set of two spellings, for the same reason persist.hpp keeps a
-    /// closed set of extent modes: an unrecognised draft must be "that is not a
-    /// context" rather than something quietly defaulted. In particular a bare
-    /// number is NOT accepted -- `4` would read as an ordinal to anyone who has
-    /// used a layer panel, and the whole point of the field is that it is not
-    /// one -- and `#0` is not accepted either, because 0 is not an identity any
-    /// object can carry (see ui::kRootContext); the maker who means the root
-    /// says `root`.
+    /// A CLOSED set of two spellings.
+    // WL-DOC-11 -- agents/workshop/document.md
     static std::optional<ContextRef> parse(std::string_view text) {
         if (text == "root") {
             return ContextRef{ui::kRootContext};
@@ -240,11 +158,7 @@ template <> struct TextForm<ContextRef> {
         return ContextRef{*id};
     }
 
-    /// Whether the identity EXISTS is not this type's question -- that is the
-    /// document's, and it answers it with a refusal naming the number. Parsing
-    /// says what a context looks like; the property says what this document will
-    /// accept. The same division `TextForm<ui::Extent>` and `doc::check_extent`
-    /// already keep.
+    // WL-DOC-02, WL-DOC-11 -- agents/workshop/document.md
     static const char* expected() { return "root or an identity (#1)"; }
 };
 
@@ -257,36 +171,9 @@ enum class Commit {
     Refused      ///< it is a value of this type, and the property said no
 };
 
-// WHAT A CHARACTER IS MOVED OUT (HD-5). `is_continuation_byte`, `character_before`,
-// `character_after`, `character_boundary`, `character_boundary_at_or_after` and
-// `erase_one_character` were born here, because a property draft was the first thing in this
-// application that could be backspaced. The Terminal's caret then spent four of them, which
-// is why they were free functions rather than methods on anything.
-//
-// They now live in `component/text_box.hpp`, beside the one thing that spends them, because
-// after HD-5 BOTH of those consumers ARE that component: this row's draft and the Terminal's
-// command line are two `component::TextBox`es. Generic text-boundary arithmetic left owned by
-// property machinery would have been the filing accident outliving its reason.
-//
-// `erase_one_character` did not move -- it was DELETED. It erased from the END of a line,
-// which is the only edit a draft with no caret can make, and `TextBox::backspace` erases
-// before the caret through the same walk. Its last consumer was `Row::backspace`, three lines
-// below.
 
 /// One inspector line over one property, with an editor draft.
-///
-/// THE DRAFT IS NOT THE PROPERTY, and the whole class is arranged around that:
-/// `type()` and `backspace()` touch only `draft_`, the property is read for
-/// display and written by `commit()` alone, and a commit that does not succeed
-/// leaves the property exactly as it was while KEEPING the draft, so the maker
-/// can see and fix what they typed. `display()` marks a live draft so it can
-/// never be mistaken for a committed value.
-///
-/// Type-erased on purpose: `edit<T>()` is the only place T appears, and it is
-/// where TextForm<T> gets bound in. Everything after that is text, so the
-/// inspector holds `std::vector<Row>` with rows of different types in it and
-/// contains no per-type code whatsoever. That absence is the old builder's
-/// duplication, gone.
+// WL-DOC-02 -- agents/workshop/document.md; WL-TEXT-01 -- agents/workshop/text-box.md
 class Row {
 public:
     /// An editable row over a typed property. The one generic factory: the
@@ -314,13 +201,7 @@ public:
 
     /// A read-only row: something true about the object that is NOT one of its
     /// properties -- a resolved size, a derived count.
-    ///
-    /// It is a separate factory rather than a flag because the distinction is
-    /// structural: a shown row has no Property behind it, so there is no path by
-    /// which a maker could edit a resolved value under the impression they were
-    /// authoring one. The phase's §10 asked that a resolved pixel value never be
-    /// presented as though it were the authored property; here it cannot be,
-    /// because it has nothing to write to.
+    // WL-DOC-05 -- agents/workshop/document.md
     static Row show(std::string label, std::function<std::string()> read) {
         Row row;
         row.label_ = std::move(label);
@@ -329,14 +210,8 @@ public:
         return row;
     }
 
-    /// A SECTION HEADING INSIDE A LIST OF ROWS (WUX-13): a label with no value, never
-    /// editable, painted as a boundary between the rows above it and the rows below it.
-    /// The Pane Editor spends it to keep a pane's AUTHORED facts and its RESOLVED facts
-    /// visibly apart inside one windowed list -- the document inspector has one heading
-    /// (`PROPERTIES`) and its painter draws it itself, so nothing there changes. A section
-    /// is a row rather than a painter's insertion because the row arithmetic that maps a
-    /// prose row to an item (`prose_row_in_window`, `item_at_prose_row`) is written once
-    /// and must not learn about rows a painter added on its own.
+    /// A SECTION HEADING INSIDE A LIST OF ROWS: a label with no value, never editable.
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     static Row section(std::string label) {
         Row row;
         row.label_ = std::move(label);
@@ -354,14 +229,8 @@ public:
     const char* expected() const { return expected_; }
 
     /// THE DRAFT AS A COMPONENT — the text, the caret in it, and which part of it is on
-    /// screen (HD-5). Read-only: every change goes through the guarded operations below, so
-    /// "a draft exists only while this row is being edited" stays this class's invariant
-    /// rather than the caller's.
-    ///
-    /// This is what a presentation asks for its slice, its caret column and its window, and
-    /// it is where a maker's insertion point lives. It is NOT an entity: it has no identity,
-    /// nothing registers it, nothing persists it, and it dies with this row -- which is
-    /// rebuilt from scratch whenever the selection changes.
+    /// screen.
+    // WL-TEXT-01 -- agents/workshop/text-box.md
     const component::TextBox& editor() const { return draft_; }
 
     /// The draft's text as it currently stands — empty when not editing. Exposed because
@@ -375,26 +244,11 @@ public:
     std::string value() const { return read_(); }
 
     /// What the maker sees: the committed value, or the live draft.
-    ///
-    /// IT NO LONGER APPENDS A CURSOR (HD-5), and that is the caret becoming a published fact
-    /// rather than a character in the text. The `_` this used to add was truthful only
-    /// because the insertion point could only ever be at the end; it can be anywhere now, so
-    /// the position travels on the region the row is drawn in (`caret_row`/`caret_col`) and
-    /// each medium answers it in its own type -- a bar between two characters where a face
-    /// is setting the row, and, in a cell medium, `_` INSERTED at the caret's column, which
-    /// for a caret at the end is byte-for-byte what this line used to produce.
-    ///
-    /// What it was carrying -- a draft is never displayed as if it were committed -- is
-    /// carried by the caret and by the alert role the editing row is painted in.
+    // WL-INFO-05 -- agents/workshop/info-body.md
     std::string display() const { return editing_ ? draft_.text() : read_(); }
 
     /// Start editing from the current committed value, WITH THE CARET AT ITS END.
-    ///
-    /// The end rather than the start because that is where a value a maker is about to amend
-    /// leaves off, and because it is byte-for-byte where the insertion point already was
-    /// when the end was the only place it could be. `set` also starts the window over, so
-    /// the first reconcile scrolls to the caret and a long value opens with its TAIL on
-    /// screen -- the half a maker is about to type into.
+    // WL-INFO-05 -- agents/workshop/info-body.md; WL-TEXT-03 -- agents/workshop/text-box.md
     void begin() {
         if (!editable_ || editing_) {
             return;
@@ -421,15 +275,8 @@ public:
         }
     }
 
-    // THE EDITING GESTURES, EACH ONE LINE, EACH GUARDED (HD-5). They are forwarders rather
-    // than an exposed mutable component on purpose: "there is no draft unless this row is
-    // being edited" is THIS class's invariant, and a caller holding a mutable `TextBox&`
-    // could type into a row nobody opened. The component keeps its own invariant; this keeps
-    // the one above it.
-    //
-    // They are the same six gestures the Terminal binds, which is the whole point of the
-    // second consumer: a property value is now edited the way a text control is edited,
-    // rather than with the one gesture an append-only draft could offer.
+    // THE EDITING GESTURES, EACH ONE LINE, EACH GUARDED.
+    // WL-TEXT-01 -- agents/workshop/text-box.md
 
     /// Erase one CHARACTER before the caret, not one byte.
     void backspace() {
@@ -473,13 +320,13 @@ public:
         }
     }
 
-    /// SELECT THE WORD A POINTER LANDED IN — `place`'s other answer to one press (WUX-7),
+    /// SELECT THE WORD A POINTER LANDED IN — `place`'s other answer to one press,
     /// forwarded under the same guard: a row nobody opened has no word to select. The bool
     /// is the component's own — false where the position was in no word at all.
     bool select_word_at(std::size_t at) { return editing_ && draft_.select_word_at(at); }
 
     /// EXTEND THE SELECTION TO THE COLUMN A DRAG REACHED — `place`'s other half, forwarded
-    /// under the same guard (TEXT-0). The column is of the VALUE's visible slice, resolved
+    /// under the same guard. The column is of the VALUE's visible slice, resolved
     /// by whoever knows where this row's editable region is.
     void drag_to_column(std::int64_t column) {
         if (editing_) {
@@ -488,17 +335,14 @@ public:
     }
 
     /// SPEND ONE KEY TRANSITION ON THE DRAFT'S OWN VOCABULARY, or learn it is not the
-    /// draft's (TEXT-0). The component's `consume` contract verbatim — QR-2's bool, the
-    /// clipboard the owner's — behind this class's own invariant: a row nobody opened
-    /// consumes nothing, so a stray chord cannot edit a draft that does not exist.
+    /// draft's.
+    // WL-TEXT-06 -- agents/workshop/text-box.md
     bool consume(std::int64_t scancode, std::int64_t modifiers, component::Clipboard& clip) {
         return editing_ && draft_.consume(scancode, modifiers, clip);
     }
 
-    /// APPLY THE TEXT A CONSUMED PASTE REQUEST ASKED FOR (QR-11), under the same invariant
-    /// `consume` keeps: a row nobody opened takes no paste. The value arrives a turn after
-    /// the request, so the caller has already checked this is still the draft that asked
-    /// (`editor().draft_epoch()`); the guard here is the row's own, not that check's twin.
+    /// APPLY THE TEXT A CONSUMED PASTE REQUEST ASKED FOR.
+    // WL-TEXT-09 -- agents/workshop/text-box.md
     void paste(const component::Clipboard& clip) {
         if (editing_) {
             draft_.paste(clip);
@@ -506,10 +350,7 @@ public:
     }
 
     /// RECONCILE THE DRAFT'S WINDOW AGAINST THE ROOM THIS ROW HAS, once per repaint.
-    ///
-    /// The capacity is an ARGUMENT and is never remembered: this row and the Terminal's
-    /// command line are different widths in the same running application, and the number
-    /// belongs to whoever resolved the geometry (`property_edit_place`, screen.hpp).
+    // WL-TEXT-02, WL-TEXT-03 -- agents/workshop/text-box.md
     void keep_caret_visible(std::int64_t columns) {
         if (editing_) {
             draft_.keep_caret_visible(columns);
@@ -540,23 +381,8 @@ public:
         return Commit::Refused; // unreachable; -Werror wants the return
     }
 
-    /// TAKE OVER A DRAFT FROM THE ROW THIS ONE REPLACES (HD-5).
-    ///
-    /// The inspector's rows are DERIVED -- rebuilt from the document and the selection rather
-    /// than patched, which is why nothing in this package has a "refresh the inspector" call.
-    /// A draft is not derived from anything: it is what a maker has typed and not yet
-    /// committed, and a rebuild that happens for a reason having nothing to do with them
-    /// must not take it away.
-    ///
-    /// IT WAS TAKING IT AWAY, measured on the pristine HD-4 tree: one `SurfaceExtent` -- a
-    /// window dragged, no gesture aimed at the inspector at all -- rebuilt the rows and the
-    /// half-typed value was gone with no notice. Since HD-5 the loss is worse than a string,
-    /// because the caret and the window go with it.
-    ///
-    /// THE CALLER DECIDES WHETHER A DRAFT MAY BE CARRIED, and only one does (see
-    /// `refocus_keeping_draft`, screen.hpp). A rebuild that follows a change of SELECTION
-    /// must not carry one: `Name` is a row every object has, so a draft handed across a
-    /// selection would arrive on a different object's property wearing the same label.
+    /// TAKE OVER A DRAFT FROM THE ROW THIS ONE REPLACES.
+    // WL-INFO-06 -- agents/workshop/info-body.md; WL-TEXT-09 -- agents/workshop/text-box.md
     void resume(const Row& previous) {
         if (!editable_ || !previous.editing_) {
             return;
@@ -585,11 +411,8 @@ private:
     std::function<std::pair<Commit, std::string>(const std::string&)> commit_;
 
     bool editing_ = false;
-    /// THE DRAFT, AND ONLY THE DRAFT. The component holds text, a caret and a window and
-    /// knows nothing about properties: it cannot parse, cannot validate, cannot commit and
-    /// has never heard of `Written`, `Commit` or a refusal. What the text MEANS is decided
-    /// by `commit_` above, which is the whole reason one editing implementation can serve
-    /// both this and a terminal command line.
+    /// THE DRAFT, AND ONLY THE DRAFT.
+    // WL-TEXT-01 -- agents/workshop/text-box.md
     component::TextBox draft_;
     std::string refusal_;
 };

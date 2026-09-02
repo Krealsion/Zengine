@@ -40,7 +40,8 @@ LAW — `parent_path()` until the fixed point `p.parent_path() == p`, which POSI
 MEANS
 - going up from a linked directory returns the maker to where they walked in.
 
-PROVEN BY — `workshop/files.hpp` `parent_path`, `has_parent_path`;
+PROVEN BY — `workshop/marks.hpp` `parent_location`, `parent_path`;
+`workshop/weave.hpp` `files_parent`;
 `tests/test_workshop_files.cpp` case `"PROJ-2: parent is lexical and stops where a path stops,
 not where a project does"`, case `"PROJ-2: parent walks straight past the project and stops at
 the filesystem"`, case `"EDIT-1: entering a directory walks in, and parent walks back to where
@@ -114,7 +115,7 @@ WHY — `agents/decisions/the-marks-file-is-state.md`
 
 LAW — Every write to `current_dir` and every persisted mark goes through `admit_location`, so "absolute, lexically normal, carriable" holds after the seed, an enter, a parent and a jump.
 
-PROVEN BY — `workshop/path_admission.hpp` `admit_location`; `workshop/files.hpp`
+PROVEN BY — `workshop/path_admission.hpp` `admit_location`; `workshop/weave.hpp`
 `admit_location`; `workshop/marks.hpp` `admit_location`; `tests/test_workshop_files.cpp` case
 `"PROJ-2: a location is one absolute spelling, admitted the same way every time"`, case
 `"PROJ-2: origin is the ADMITTED spelling of the launch location, not the raw one"`.

@@ -100,7 +100,7 @@ MEANS
 - `Keymap::authored` is what a save writes back, so a round trip edits nothing.
 
 PROVEN BY — `workshop/keymap_persist.hpp` `zengine-workshop-keymap`, `kFormatVersion`,
-`Keymap::authored`; `workshop/weave.hpp` `load_keymap`; `tests/test_workshop_document.cpp` case
+`authored`; `workshop/weave.hpp` `load_keymap`; `tests/test_workshop_document.cpp` case
 `"KEY-0: an override survives restart, and deleting the file restores defaults"`.
 WHY — `agents/decisions/one-binding-truth.md`
 

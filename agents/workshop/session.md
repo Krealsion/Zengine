@@ -122,7 +122,7 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/session_persist.hpp` `SurfacePlacementRemembered`; `workshop/weave.hpp`
+PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`,
 `SurfacePlacement`, `placement_within`; `surface/vocabulary.hpp` `SurfacePlacement`,
 `SurfacePlacementRemembered`, `placement_within`; `tests/test_workshop_persistence.cpp` case
 `"WUX-3: a session with a placement round-trips byte-identically"`, case `"WUX-3: the

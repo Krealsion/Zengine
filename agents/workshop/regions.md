@@ -48,7 +48,7 @@ WHY — `agents/decisions/two-bands.md`
 
 LAW — The name is set in the medium's own type on the object's material: not an ordinary region, which erases the material, and not a role carried as a ground, which replaces `glyph_for_role`'s `#`.
 
-PROVEN BY — `workshop/screen.hpp` `kGroundBeneath`, `glyph_for_role`;
+PROVEN BY — `workshop/screen.hpp` `kGroundBeneath`; `surface/skin_tui.hpp` `glyph_for_role`;
 `tests/test_workshop_screen.cpp` case `"TYPE-1: the object's name is set in the medium's own type,
 ON its material"`, case `"TYPE-1: the character medium's picture did not move, and its `#` is
 why"`, case `"TYPE-1: the name is over every object's material and under nothing it should

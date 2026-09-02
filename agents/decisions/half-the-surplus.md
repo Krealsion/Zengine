@@ -34,5 +34,10 @@ minimum, 8x109 at 200x60, 5x71 and 5x163 under the 8x18 face; a dragged edge, a 
 a hidden title all reach it by that one door. What a grant carries, and that an unchanged
 capacity sends none, is the pane protocol's law.
 
+The header row's cost is measured: a nine-cell slot holds nine rows of a character medium and five
+of an 18-pixel face; with the header a cell row, `fit_region` over the remaining eight cells
+answered 5, and with the header a prose row of the whole region it answers 5 less one -- so a
+provider gets 4 rows there and 8 in a terminal, unchanged (`kExternalHeaderRows`).
+
 **Laws supported.** [WL-PANE-04](../workshop/panes-and-windows.md),
 [WL-PANE-05](../workshop/panes-and-windows.md), [WL-PANE-06](../workshop/panes-and-windows.md).

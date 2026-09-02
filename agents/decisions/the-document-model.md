@@ -65,6 +65,19 @@ the four resize keys were deleted in favour of Shift with the movement keys once
 carry a modifier. Signed arithmetic over poked values was repaired twice on the way, in
 `resolve_extent` and in `Rect::contains`.
 
+`kMaxNameLen` is 64 bytes, up from 32: the narrowest reader of a name, the OBJECTS body, is 28
+columns at the 78x22 minimum on a character medium, so a 32-byte name already came back cut, and a
+suite case needs a 43-byte name (case
+`"QR-3: what the authored name bound IS, and what it is not a statement about"`).
+
+`kMaxChainChars` cuts a broken chain by characters, not links: measured live, a two-object cycle
+printed one character too long and lost its closing bracket, and a fixed link count failed the
+same way one identity later, because an int64 identity is twenty characters.
+
+The safe write's rename replaces an existing destination on both lanes, measured: POSIX
+`rename(2)`, and on Windows libstdc++'s `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING` (case
+`"a detected write failure leaves the last good save readable and unchanged"`).
+
 **Laws supported.** [WL-DOC-01](../workshop/document.md), [WL-DOC-02](../workshop/document.md),
 [WL-DOC-03](../workshop/document.md), [WL-DOC-04](../workshop/document.md),
 [WL-DOC-05](../workshop/document.md), [WL-DOC-06](../workshop/document.md),

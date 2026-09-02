@@ -6,109 +6,24 @@
 
 // Workshop's own weave: the authored document, the session, and the bindings
 // from input MOMENTS to maker GESTURES.
-//
-// WHY IT IS A HEADER. A weave in the host's anonymous namespace is a weave no
-// suite can reach, which would leave `gesture -> document` provable and
-// `message -> gesture` not -- and the binding is the one part of the pointer
-// path nothing else witnesses. The claim that a press carries its own position
-// can only be tested end to end from here. That is the whole reason: no
-// framework, no registry, no test hooks. `main()` and the host's boot weave stay
-// in the .cpp, because those are the host's job and not Workshop's.
-//
-// WHAT IS AND IS NOT WORKSHOP'S HERE, because several phases turn on it:
-//
-//   the authored object   a real zengine::ui::Element in the weave's own state:
-//                         gated, schema-carrying, poke-inspectable. There is no
-//                         shadow model -- the element the maker selects IS the
-//                         element the canvas is painted from and the inspector
-//                         reads through. The TYPE is the UI package's; the
-//                         object is no less Workshop's state for being spelled
-//                         in a shared vocabulary.
-//   the geometry          NOT Workshop's. `ui::resolve` turns the authored
-//                         extents into a scene and `ui::hit` says what is under
-//                         a cell; this file computes neither, and the canvas,
-//                         the inspector and the pointer all read one scene.
-//   the session           selection, workspace extent, drafts, a drag in flight.
-//                         Plain members, never state (the Skin's `announced_`
-//                         stance).
-//   the screen            screen.hpp, pure, pinned by the suite -- and that
-//                         header owns the GESTURES too. This file binds messages
-//                         to them and reaches the document through nothing else,
-//                         so every maker action the suite drives is the same one
-//                         a maker's hand drives.
-//
-// THE INPUT REALITY, named where a reader will hit it. Three reconstructions
-// this file does NOT perform, because the Input vocabulary carries the facts
-// that were simultaneously true (docs/reference/input.md):
-//
-//   typing        `character_of(scancode)` is deleted. Characters arrive as
-//                 input::TextEntered, from the platform's own keyboard layout,
-//                 so `%` and capital letters are ordinary text and Workshop
-//                 computes no `Shift+5 -> %` table for anybody.
-//   resizing      the four literal keys `, . - =` are deleted. A second
-//                 directional gesture is `Shift + hjkl`, because a key event
-//                 now says what was held when it happened.
-//   pointing      `pointer_x_ / pointer_y_` are deleted. A press carries the
-//                 position it happened at, so nothing here remembers where the
-//                 pointer was in order to answer where the click landed.
+// Workshop law: agents/workshop/session.md (+23 registers; agents/workshop.md routes)
 
-// THE DOCUMENT HAS A LIFE LONGER THAN THE PROCESS, and the interesting part of
-// that is here rather than in the codec. Two bindings (`^s`, `^o`) and three
-// questions with them, each answered in the method that needs it:
-//
-//   what does Save do about an open editor draft   refuse (see save_document)
-//   what happens to the SESSION on a load          it is re-established, not
-//                                                  preserved (load_document)
-//   how does a maker know whether work is saved    the status line COMPARES the
-//                                                  live document with the one on
-//                                                  disk (`saved_`), rather than
-//                                                  keeping a dirty flag that
-//                                                  every write site would have to
-//                                                  remember to set
 
-// ONE AUTHORED OBJECT TAKES ITS CONTEXT FROM ANOTHER, and this file is where you
-// can see how little that costs. There is no message, no binding, no gesture and
-// no session field for it: the relationship is an ordinary editable property
-// (`Context` in the inspector), authored through the same Enter/type/Enter a
-// width takes and refused through the same one-line notice. The only two places
-// it shows here are a move notice that names the frame a position is authored
-// IN, and the delete refusal, which arrives from the document with the
-// dependents named.
-//
-// The opening document is deliberately FLAT. A maker's first screen shows two
-// independent rectangles; composition is something they do, not something they
-// arrive inside, and the simple case is not made more expensive by the
-// capability existing.
 
-// THE GRAPHICAL WORKSHOP HAS HANDS, and the measure of it is how little of this
-// file that takes. There is no graphical selection, no SDL drag state, no
-// graphical hit test and no second gesture path: a click in the SDL window
-// reaches `take_hold` and a drag reaches `drag_to`, the same functions the
-// terminal's pointer drives, writing through the same document operations with
-// the same clamp/refuse law. Two boundaries make that true:
-//
-//   pointer space   an event is PROJECTED (screen.hpp's `canvas_point_of`) from
-//                   whichever medium reported it. Pixels are not refused; they
-//                   are converted, once, by the package that knows the
-//                   conversion -- docs/reference/pointer-spaces.md. An event
-//                   this application cannot place is ignored rather than
-//                   mis-placed.
-//   close           a native close request arrives as surface truth and reaches
-//                   the quit policy `q` already had.
 
 #include "persist.hpp"
 #include "filesystem_roots.hpp" // which roots this system reports, asked at the gesture
-#include "interaction_time.hpp" // what monotonic time it is, and nothing else (WUX-7)
+#include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "marks_persist.hpp"    // the places a maker said they want back
-#include "pane_definition_persist.hpp" // the pane a maker made, as its own project file (WUX-14)
+#include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
 #include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
-#include "operator/catalog.hpp" // the conversions this run has, looked up at a load (MIG-0)
+#include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
@@ -128,7 +43,7 @@
 namespace zengine::workshop {
 
 /// What the weave needs from the host and cannot get by message: the stop
-/// lever, and — since WT-1 — the terminal participant the host mounted.
+/// lever, and the terminal participant the host mounted.
 /// `dir`/`so()` are the host's own boot bookkeeping and are filled in
 /// there — kept whole in this header so a suite can construct one without
 /// linking the host.
@@ -139,105 +54,25 @@ struct HostContext {
 
     /// THE PROJECT THIS WORKSHOP WAS LAUNCHED INTO -- the directory the process was
     /// started from, captured ONCE by the host and never recomputed.
-    ///
-    /// IT IS NOT A NEW LAW; IT IS AN EXISTING LAW'S MISSING VALUE. "A project is where
-    /// you are standing" is already how this application decides where a document and a
-    /// named setup live (user_paths.hpp), and until now that sentence had no variable
-    /// behind it: the launch directory was only ever spent IMPLICITLY, by whichever
-    /// relative path happened to be resolved against the process's own working
-    /// directory. Two parties resolving one relative spelling at two different moments
-    /// is exactly how a single authored source came to mean two files, so the directory
-    /// becomes a value the host holds and hands over, like the five paths beside it.
-    ///
-    /// IT IS NOT `dir`. `dir` is where this BINARY lives -- installation truth, and the
-    /// right answer for a generated workspace and an artifact's directory. This is where
-    /// the MAKER is standing, and one install serves two projects precisely because the
-    /// two are different facts. Nothing derives one from the other, and nothing derives
-    /// this from `--document`, `--recipes`, a generated workspace or an install prefix:
-    /// one file flag silently relocating a maker's project would be a second join of a
-    /// fact that already has an owner.
-    ///
-    /// EMPTY IS THE DESIGNED ABSENCE, exactly as it is for the five paths: a working
-    /// directory the platform will not report is refused in words wherever it is needed,
-    /// never guessed and never substituted. The host says the absence once, on its
-    /// banner (`user_paths.hpp`'s own rule for an unresolvable root).
+    // WL-FILES-02 -- agents/workshop/files.md; WL-PROJ-01 -- agents/workshop/project.md
     std::string project_dir;
 
     /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
     /// host mounted none.
-    ///
-    /// IT ARRIVES THE SAME WAY `request_stop` DOES, and that is the whole of the
-    /// composition's wiring: the host owns the bus, mounts an ordinary
-    /// `loom::TerminalSession` on it with `host_mount_terminal`, and hands the
-    /// weave the pointer it got back. There is no global, no registry, no
-    /// singleton and no lookup — a suite constructs a HostContext with whatever
-    /// participant it wants, or none, and the weave cannot reach one any other
-    /// way.
-    ///
-    /// A POINTER IS NOT AN IDENTITY AND IT IS NOT AUTHORITY. The bus owns the
-    /// participant; holding this changes nothing about who Workshop is. Every
-    /// message authored through it leaves through the PARTICIPANT'S own door,
-    /// stamped by the bus with the PARTICIPANT'S WeaveId and gated against the
-    /// PARTICIPANT'S grant — and `WorkshopWeave`'s own grant is untouched by any
-    /// of it. The two identities sit on one screen and stay two, which is the
-    /// invariant this whole phase exists to keep.
-    ///
-    /// LIFETIME: the bus owns it, so a pane can be built and destroyed without
-    /// ending the participant, and ending the participant is the host's explicit
-    /// act. After that act this pointer must not be used — which is why the pane
-    /// holds SNAPSHOTS (`TerminalPane::shown`, taken by value) and never reads a
-    /// transcript while painting.
+    // WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal.md
     loom::TerminalSession* terminal = nullptr;
 
-    /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE (BLD-2).
-    ///
-    /// IT ARRIVES THE SAME WAY `request_stop` DOES: the host owns the realization
-    /// owner as a local of its own `main`, wires a function that reads the owner's
-    /// derived answers (`waiting_on`, `behind`) at the moment of the call, and hands
-    /// the weave nothing else — no pointer, no state, no copy. The weave spends it
-    /// when it paints the Builder panel and when the maker asks for the frontier,
-    /// and holds the answer for exactly the length of that one spend, which is what
-    /// keeps the panel's frontier the OWNER's frontier rather than a mirror of it.
-    ///
-    /// EMPTY IS ORDINARY and means no realization owner is wired — every suite
-    /// fixture gets that by default, and the Builder panel then paints exactly as it
-    /// did before this seam existed. It is a READING and not a power: nothing a
-    /// holder of this function can do starts a build, performs a row, or moves the
-    /// frontier by so much as an ask.
+    /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE.
+    // WL-ATTN-04 -- agents/workshop/attention.md
     std::function<ProjectFrontier()> frontier;
 
-    /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST (WUX-7) -- `frontier`'s seam exactly:
-    /// a READING wired by whoever owns the process, spent at the gesture, stored nowhere, and
-    /// carrying no power at all. Nothing a holder of this function can do schedules anything,
-    /// wakes anything, or makes this application repaint.
-    ///
-    /// EMPTY IS ORDINARY and means `interaction_now_ms()` -- the steady-clock reading in
-    /// `workshop/interaction_time.hpp`. The host wires nothing; a SUITE wires a stepped
-    /// counter, which is what turns "two clicks too far apart" from a thing a case must
-    /// outrun into a thing a case can simply state.
-    ///
-    /// ONE QUESTION AND ONE CONSUMER. Double-click qualification is the only interaction in
-    /// this application that is temporal, and hover reveal deliberately is not (WUX-7): its
-    /// offset comes from where the pointer is, because a timed presentation would need a
-    /// repaint nothing here would ever publish.
+    /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST -- `frontier`'s seam exactly.
+    // WL-PTR-01 -- agents/workshop/pointer.md
     std::function<std::int64_t()> interaction_now;
 
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
-    /// HOST -- the party that read the recipes file and holds the completed catalog the
-    /// runner builds from. The Builder TOOL deliberately holds no source path
-    /// (`RecipeView`'s own subtraction), so asking it would first mean teaching it one;
-    /// and Workshop re-deriving the path from the file would be a second, subtly
-    /// different join of the same authored bytes.
-    ///
-    /// `source` IS THE FILE THE BUILD WILL ACTUALLY COMPILE, and that is the whole point
-    /// of asking the host rather than the file. The host completes each authored recipe
-    /// once -- a relative source resolved against the project it was launched into, an
-    /// absolute one left exactly as authored -- and the SAME completed value reaches the
-    /// runner's preflight and the generated project's `add_library`. So the editor cannot
-    /// open one file while the build reads another, and it is true by construction
-    /// instead of by three parties resolving one spelling the same way. `kind` is the
-    /// recipe file's own word for what this recipe is, so a refusal can speak the recipe
-    /// owner's vocabulary.
+    /// HOST.
+    // WL-EDIT-05 -- agents/workshop/editor.md; WL-PROJ-02 -- agents/workshop/project.md
     struct RecipeSource {
         bool known = false; ///< the id names an authored recipe of this project
         std::string kind;   ///< `single_source` or `cmake_target`, the file's own words
@@ -246,21 +81,12 @@ struct HostContext {
 
     /// `frontier`'s exact seam, one catalog over: the host wires a function over its own
     /// authored recipes, the weave spends it at the moment of the gesture and stores
-    /// nothing. Empty is ordinary -- every suite fixture gets it by default -- and the
-    /// edit-source door then refuses in words rather than guessing.
+    /// nothing.
+    // WL-EDIT-05 -- agents/workshop/editor.md
     std::function<RecipeSource(const std::string&)> recipe_source;
 
-    /// WHAT A MAKER'S CHOICE OF AUTHORED CATALOG ANSWERED (PROJ-1).
-    ///
-    /// One shape for both halves, because a maker needs both halves in one sentence: what
-    /// happened to their request, and what this session is using NOW. On acceptance those
-    /// are the same catalog; on a refusal they are not, and the second is the half that
-    /// keeps a failed replacement from reading as a lost one.
-    ///
-    /// ⚠ `path` AND `recipes` ALWAYS DESCRIBE WHAT IS IN FORCE, never the candidate. A
-    /// refusal that echoed the rejected path here would let a presentation say "using
-    /// <the file that was just refused>" by doing the obvious thing with the obvious
-    /// field, which is the one sentence this whole transaction exists to make false.
+    /// WHAT A MAKER'S CHOICE OF AUTHORED CATALOG ANSWERED.
+    // WL-PROJ-05, WL-PROJ-09 -- agents/workshop/project.md
     struct RecipeSwap {
         bool accepted = false;   ///< the candidate became this session's catalog
         std::string refusal;     ///< the owner's own words; empty exactly when accepted
@@ -268,194 +94,65 @@ struct HostContext {
         std::size_t recipes = 0; ///< how many that catalog holds
     };
 
-    /// USE THIS AUTHORED FILE AS THE CURRENT RECIPE CATALOG -- `recipe_source`'s seam
-    /// again, this time carrying the one thing a maker can CHANGE (PROJ-1).
-    ///
-    /// The host owns the catalog, so the host performs the replacement: it reads, parses,
-    /// completes against its own two directories and installs, all through the one
-    /// `install_recipes` seam its own launch went through. The weave hands over a path and
-    /// receives an answer; it holds no catalog, no parser, no completion rule and no copy
-    /// of the result, exactly as it holds no realization cursor behind `frontier`.
-    ///
-    /// ⚠ IT IS A REPLACEMENT AND NOT A PROJECT SWITCH. The file selected answers "which
-    /// authored recipes should this session use" and nothing else: `project_dir` does not
-    /// move, the catalog's own directory never becomes a source base, and Files' reach is
-    /// unchanged. A gesture that could relocate the project by naming a file somewhere
-    /// else would be two decisions wearing one press.
-    ///
-    /// EMPTY IS ORDINARY -- a suite fixture with no host answers the refusal in words
-    /// rather than pretending a catalog changed.
+    /// USE THIS AUTHORED FILE AS THE CURRENT RECIPE CATALOG.
+    // WL-PROJ-04, WL-PROJ-05 -- agents/workshop/project.md
     std::function<RecipeSwap(const std::string&)> use_recipes;
 
     /// The one file this Workshop saves to and loads from.
-    ///
-    /// It is the host's to choose (`--document <path>`, defaulted) and it is
-    /// SESSION, not document: a file cannot sensibly contain its own location,
-    /// and the same document opened from two places is the same document. There
-    /// is deliberately no recent-files list, no picker and no project concept —
-    /// one path is the smallest thing that lets a maker close Workshop and come
-    /// back to their work.
-    ///
-    /// Empty means no document file was chosen, and save/load say so rather
-    /// than guessing one.
+    // WL-SESSION-01 -- agents/workshop/session.md
     std::string document_path;
 
-    /// The one file this Workshop's SETUP saves to and restores from (WS-0).
-    ///
-    /// A SECOND PATH BESIDE THE DOCUMENT'S, AND NOT A PROJECT. It is the host's
-    /// to choose (`--setup <path>`, defaulted) for the same reasons the
-    /// document's is, and it is a different file for the reason setup_persist.hpp
-    /// gives: the same document is worth opening in two arrangements and the
-    /// same arrangement is worth using over two documents, and a single
-    /// container would make both unsayable.
-    ///
-    /// WORKSHOP MANAGES ONE ACTIVE PATH. Several setup files may exist because a
-    /// maker can launch with a different one; there is no catalog, no recent
-    /// list, no picker and no import. Empty means no setup file was chosen, and
-    /// naming/restoring say so rather than guessing one.
+    /// The one file this Workshop's SETUP saves to and restores from.
+    // WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string setup_path;
 
-    /// The one file this Workshop's LAST SESSION is written to and read from (WUX-0).
-    ///
-    /// A THIRD PATH, AND A THIRD PROMISE. `document_path` is what a maker MADE and
-    /// `setup_path` is a desk they deliberately NAMED; this is the desk and the window they
-    /// happened to be using when they left, written when Workshop quits and read when it
-    /// starts, with no gesture at either end. It is the host's to choose (`--session
-    /// <path>`, defaulted) for the reasons the other two are, and it is a different file for
-    /// the sharpest of them: an automatic save that could land on `setup_path` would rewrite
-    /// a maker's explicitly named desk every time they closed the window.
-    ///
-    /// Empty means no session file was chosen, and startup restores nothing and shutdown
-    /// writes nothing -- silently, both times, because a host that did not ask for
-    /// continuity is not a host with a problem. That is also what every suite fixture gets
-    /// by default, so a case has to opt IN to touching a file.
+    /// The one file this Workshop's LAST SESSION is written to and read from.
+    // WL-SESSION-01, WL-SESSION-04, WL-SESSION-13 -- agents/workshop/session.md
     std::string session_path;
 
-    /// The one file this Workshop's LOCATION MARKS live in (PROJ-2).
-    ///
-    /// A SIXTH PATH, AND AN EIGHTH DURABLE FACT: the maker's PLACES -- the directories they
-    /// said they want to be able to come back to. It is the host's to choose
-    /// (`--marks <path>`, defaulted to the per-user MACHINE-LOCAL state root, because a
-    /// mark is an absolute path and therefore describes this machine's disks exactly as a
-    /// viewport describes this machine's window). A separate file from the prefs for
-    /// `marks_persist.hpp`'s three reasons, the sharpest of which is that the prefs format
-    /// has one version and no migration, so growing a field there would refuse every
-    /// existing prefs file by number.
-    ///
-    /// Empty means no marks file was chosen: this run holds no maker marks, marking changes
-    /// the live set only, and nothing is read or written -- which is also what `--isolated`
-    /// resolves it to. Generated marks (this run's origin, the filesystem roots) are
-    /// unaffected, because neither was ever going to be written down.
+    /// The one file this Workshop's LOCATION MARKS live in.
+    // WL-FILES-08 -- agents/workshop/files.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string marks_path;
 
-    /// The one file this Workshop's open PANE DEFINITION is read from and written to
-    /// (WUX-14).
-    ///
-    /// A SEVENTH PATH, AND A NINTH DURABLE FACT: a pane a maker MADE -- its name and its
-    /// authored interior. It is PROJECT truth beside the document and the named setup
-    /// (`--pane <path>`, defaulted to `workshop-pane.json`), and the host resolves the
-    /// spelling against `project_dir` once, so the same relative name means one file to
-    /// the launch, the save door and the next launch alike -- never whatever the process's
-    /// working directory happened to be at the moment somebody spent it.
-    ///
-    /// IT IS AN INITIAL REQUEST AND NOT A STANDING AUTHORITY. The weave reads the file at
-    /// its first surface if one is there, through the same open door a later open would
-    /// take, and writes it only when a maker asks. Empty means no pane file was chosen (a
-    /// project this build cannot carry, or a fixture): a pane can still be made, edited and
-    /// presented for the length of the run, and the save door says in words that there is
-    /// nowhere to write it.
+    /// The one file this Workshop's open PANE DEFINITION is read from and written to.
+    // WL-MAKER-08, WL-MAKER-10 -- agents/workshop/maker-pane.md
+    // WL-SESSION-01 -- agents/workshop/session.md
     std::string pane_path;
 
-    /// The one file this Workshop's KEYMAP is read from (KEY-0).
-    ///
-    /// A FOURTH PATH, AND A SIXTH KIND OF DURABLE FACT: the maker's hand. It is the
-    /// host's to choose (`--keymap <path>`, defaulted) for the reasons the other three
-    /// are, and a separate file because binding overrides describe neither the work, nor
-    /// a desk, nor the desk in use -- see keymap_persist.hpp. Empty means no keymap file
-    /// was chosen and the defaults-in-code stand, silently; an ABSENT file at a chosen
-    /// path means exactly the same, because deleting the file is how a maker returns to
-    /// the defaults. Only a file that EXISTS and cannot be admitted is refused, out loud.
-    ///
-    /// SINCE WUX-3 THE HOST'S DEFAULT FOR IT IS THE PER-USER CONFIGURATION ROOT, not the
-    /// launch directory (user_paths.hpp owns the roots and the precedence; the host owns
-    /// calling them). The weave is deliberately ignorant of all of that: it gets one
-    /// string, and empty still means exactly what it has always meant here.
+    /// The one file this Workshop's KEYMAP is read from.
+    // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string keymap_path;
 
-    /// The one file this Workshop's presentation PREFERENCES live in (WUX-3).
-    ///
-    /// A FIFTH PATH, AND A SEVENTH DURABLE FACT: the maker's eyes -- see prefs_persist.hpp
-    /// for why it is not the keymap's file. The host's to choose (`--prefs <path>`,
-    /// defaulted to the per-user configuration root). Empty means no prefs file was
-    /// chosen: the defaults stand, a toggle changes the live preference only, and nothing
-    /// is read or written -- which is also what `--isolated` resolves it to.
+    /// The one file this Workshop's presentation PREFERENCES live in.
+    // WL-FOCUS-11 -- agents/workshop/focus.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string prefs_path;
 
-    /// WHICH CONVERSIONS THIS RUN ACTUALLY HAS, or nothing (MIG-0).
-    ///
-    /// The host's own operator catalog, held as a `const` reference it does not own --
-    /// `frontier`'s seam in the shape `SampleDoor` and `ArrangementDoor` already use, and
-    /// for their reason: what the weave needs is a LOOKUP, and a lookup is a reading. There
-    /// is nothing a holder of this pointer can do that mounts an artifact, realizes a plan
-    /// row, or makes any code become authorized; the persistence law that spends it
-    /// (`session_persist::from_text`) performs exactly one `find` and one `evaluate`.
-    ///
-    /// WHAT IT IS FOR is a durable file written by an older Workshop. Its version claim
-    /// selects among conversions this host ALREADY MOUNTED from its authored load plan, and
-    /// it can do nothing else -- which is why a pointer to the catalog is a safe thing for
-    /// a file to be able to influence at all.
-    ///
-    /// EMPTY IS ORDINARY and means this run has no conversions: a current session loads
-    /// exactly as it always did, and an older one is refused in words. Every suite fixture
-    /// gets that by default, so a case has to opt IN to having a conversion available.
-    ///
-    /// THE CATALOG OUTLIVES THIS WEAVE BY THE HOST'S DECLARATION ORDER, the same claim
-    /// `host_sources.hpp` and `SampleDoor` already make about the same object.
+    /// WHICH CONVERSIONS THIS RUN ACTUALLY HAS, or nothing.
+    // WL-MIG-08 -- agents/workshop/migration.md
     const op::Catalog* conversions = nullptr;
 
-    /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION (WUX-3), or empty.
-    ///
-    /// The HOST performs the one-time import of pre-WUX-3 local files into the per-user
-    /// roots (user_paths.hpp owns the rule) -- it happens before this weave exists, against
-    /// paths the weave never learns. What the weave owes the maker is the SENTENCE: a
-    /// transition that moved someone's settings must be said where they are looking, so
-    /// whatever the host puts here is spoken once on the notice line at startup, beside
-    /// the keymap's own word. The host also prints it to its banner; the two audiences
-    /// (a terminal launch, a shortcut launch) overlap in neither direction.
-    ///
-    /// IT CARRIES ONLY WHAT HAPPENED. An import is an EVENT -- it ran once, at
-    /// this launch, and converges by existence so it can never run again -- and that is what
-    /// belongs on a row whose next sentence replaces it. A file that is still SHADOWED is a
-    /// standing condition with a maker action, and travels in `standing_conditions` below.
+    /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION, or empty.
+    // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
     /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
-    ///
-    /// The conditions decided BEFORE this weave exists: today, exactly the shadowed legacy
-    /// files. The host resolves the per-user roots and runs the one-time import in `main`,
-    /// against paths the weave never learns, so the host is the owner of that truth and
-    /// hands it over as a condition -- key, compact statement, its own explanation, its own
-    /// role -- rather than as a sentence to be joined with somebody else's.
-    ///
-    /// IT IS NOT A CHANNEL. Nothing reads it back, nothing writes to it after startup, and
-    /// the weave copies it once (`take_host_conditions`). A host that has nothing standing
-    /// leaves it empty, which is what every suite fixture gets.
+    // WL-ATTN-01 -- agents/workshop/attention.md
     std::vector<Condition> standing_conditions;
 
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
-    /// THE ONE RULE, AND IT IS THE HOST'S (LOAD-0). A directory, a separator and a
+    /// THE ONE RULE, AND IT IS THE HOST'S. A directory, a separator and a
     /// suffix: that is the whole of what turns `zengine-timer` into a file, and
     /// keeping it here rather than in an authored plan is what makes ONE plan legal
     /// on Linux and on Windows -- no platform matrix, no per-OS field, no `.so` or
     /// `.dll` written down anywhere a person edits, and no package locator.
     ///
-    /// IT TAKES A VIEW since LOAD-0, because a stem now arrives as a `std::string`
+    /// IT TAKES A VIEW because a stem now arrives as a `std::string`
     /// read out of a file as often as it arrives as a literal. One signature that
     /// serves both is what keeps this the only place either spelling is resolved.
     std::string so(std::string_view stem) const { return so_in(dir, stem); }
 
-    /// THE SAME RULE, AIMED SOMEWHERE ELSE (BLD-1).
+    /// THE SAME RULE, AIMED SOMEWHERE ELSE.
     ///
     /// A build recipe may put its product somewhere other than beside this host -- an
     /// existing CMake target lands wherever its own project puts it -- so the Builder
@@ -519,20 +216,8 @@ public:
         open_on_first();
     }
 
-    /// READ THE MAKER'S KEYMAP, OR STAND ON THE DEFAULTS (KEY-0).
-    ///
-    /// Three quiet endings and two spoken ones: no path chosen and no file present are
-    /// both simply the defaults (deleting the file IS resetting the keymap, so an absent
-    /// file must never be a complaint); an admitted file is applied and announced; an
-    /// admitted file with a known backend gap carries the gap in the announcement; a file
-    /// that exists and cannot be admitted is refused in its own words and the defaults
-    /// stand -- Workshop does not rewrite, half-apply, or delete a file it could not
-    /// understand.
-    /// It runs on the FIRST `SurfaceReady`, the session restore's own moment and guard
-    /// shape: once per process, before the restore's repaint, so the first band a maker
-    /// reads is already projected from their own bindings. A key arriving before any
-    /// surface exists is answered by the defaults, exactly as it is answered by the
-    /// default desk -- the two files share one startup story.
+    /// READ THE MAKER'S KEYMAP, OR STAND ON THE DEFAULTS.
+    // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
     void load_keymap() {
         if (keymap_loaded_) {
             return;
@@ -569,18 +254,8 @@ public:
         }
     }
 
-    /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS (WUX-3).
-    ///
-    /// The keymap's startup story, one file over, with the same three quiet endings (no
-    /// path, no file, a file that changes nothing visible) and one spoken one (a file that
-    /// exists and cannot be admitted is refused in its own words and the defaults stand).
-    /// An applied preference speaks for itself on screen -- hidden titles are visibly
-    /// hidden -- so unlike the keymap there is no applied-and-announced sentence.
-    ///
-    /// A REFUSED FILE IS ALSO A STANDING WALL: `prefs_bad_` keeps every later toggle from
-    /// writing, because Workshop does not rewrite, half-apply or delete a file it could
-    /// not understand -- and unlike the keymap, THIS file is one Workshop ordinarily
-    /// writes, so the discipline needs the flag, not just restraint.
+    /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
+    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FOCUS-11 -- agents/workshop/focus.md
     void load_prefs() {
         if (prefs_loaded_) {
             return;
@@ -611,21 +286,7 @@ public:
     /// Say once what the startup file work DID, on the first surface that can show it --
     /// after the session restore, deliberately, so the sentence that survives on the one
     /// notice line is the one about this launch.
-    ///
-    /// THIS ROW CARRIES ONLY THE EVENT HALF, and the split is the whole point. A
-    /// startup produces two kinds of fact and they used to share one string and one
-    /// severity bit:
-    ///
-    ///     EVENT      `keymap <path> applied -- 3 overrides`, `imported your local keymap
-    ///                from ... (the original was left in place)`. True once, about a moment
-    ///                that has passed, and replaced by whatever is said next. THIS row.
-    ///     CONDITION  a refused keymap file, a refused prefs file, a legacy file that is
-    ///                still shadowed. Still true when it is read, an hour later and at the
-    ///                next launch. `Session::conditions`, under a key, with a lifetime.
-    ///
-    /// So the severity bit is gone from here: everything left is something that HAPPENED
-    /// and none of it is a wall. `keymap_bad_`/`prefs_bad_` remain what they always were
-    /// beyond the sentence -- one blocks nothing, the other blocks every later prefs write.
+    // WL-ATTN-01, WL-ATTN-02 -- agents/workshop/attention.md
     void speak_startup_notes(loom::Mail& mail) {
         if (startup_spoken_) {
             return;
@@ -649,17 +310,7 @@ public:
     }
 
     /// TAKE THE CONDITIONS THE HOST ALREADY KNEW.
-    ///
-    /// A shadowed legacy file is decided before this weave exists -- the host resolves the
-    /// per-user roots and runs the one-time import in `main`, against paths the weave never
-    /// learns -- so the host is the OWNER of that truth and hands it over rather than being
-    /// asked for it. Establishing them here, once, beside the two file loads, is what keeps
-    /// the whole standing-condition population arriving through one door on one occasion.
-    ///
-    /// THE HOST HANDS OVER CONDITIONS AND NOT SENTENCES. A refused file's word and a
-    /// shadowed file's word used to be the same kind of thing joined with `"; "`; they are
-    /// two kinds of thing now, and the host's own banner still prints both because a
-    /// scrollback launch and a shortcut launch overlap in neither direction.
+    // WL-ATTN-01, WL-ATTN-02 -- agents/workshop/attention.md
     void take_host_conditions() {
         for (const Condition& c : host_->standing_conditions) {
             session_.conditions.establish(c);
@@ -669,7 +320,7 @@ public:
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
     /// paint for the first time -- so load order decides nothing here either.
-    /// AND IT IS WHERE WORKSHOP ASKS THE ROOM WHO HAS PANES (WP-0).
+    /// AND IT IS WHERE WORKSHOP ASKS THE ROOM WHO HAS PANES.
     ///
     /// DISCOVERY MUST CONVERGE IN BOTH LOAD ORDERS, and this is the half that answers the
     /// awkward one. A provider loaded BEFORE Workshop announces itself on its own attested
@@ -699,7 +350,7 @@ public:
     /// does the work.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
-        // THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING (WUX-0).
+        // THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING.
         //
         // A medium that has not been told anything has only this picture to size itself
         // from, and whatever it makes of it, it must not be that Workshop can never again be
@@ -709,15 +360,15 @@ public:
         // Reversing the two costs a maker the ability to shrink their window, which is a
         // stranger thing to lose to a continuity feature than anything it could have bought.
         load_keymap();
-        // The prefs beside it (WUX-3), BEFORE the first paint: the first band and the
+        // The prefs beside it, BEFORE the first paint: the first band and the
         // first pane headers a maker reads are already wearing their own preference.
         load_prefs();
-        // ...and the maker's own places (PROJ-2), so a marks file this run cannot read is a
+        //...and the maker's own places, so a marks file this run cannot read is a
         // condition the FIRST picture already carries rather than one discovered whenever
         // the browser happens to open. It has its own once-guard, so a run that reaches the
         // browser before any surface exists reads them there instead, exactly once.
         load_marks();
-        // ...AND THE MAKER'S OWN PANE (WUX-14), BEFORE THE SESSION IS TAKEN BACK -- the
+        //...AND THE MAKER'S OWN PANE, BEFORE THE SESSION IS TAKEN BACK -- the
         // ordering is the whole of the relaunch story. The session's desks name a
         // maker-made pane by its durable reference, and `apply_setup` seats a reference
         // only if it resolves at that moment; a definition opened after the restore would
@@ -733,14 +384,8 @@ public:
         speak_startup_notes(mail);
     }
 
-    /// READ THE PROJECT'S PANE DEFINITION, OR STAND ON NONE (WUX-14).
-    ///
-    /// The keymap's startup story, one file over: no path chosen and no file present are
-    /// both simply "no pane is open" (a project with no maker-made pane is an ordinary
-    /// project); a file that exists goes through the ONE open door every open takes; and a
-    /// file that exists and cannot be admitted is a standing wall -- refused in its own
-    /// words, and never written over by anything this run makes (`pane_refused_`, the marks
-    /// file's own law, load-bearing here because this is a file Workshop WRITES).
+    /// READ THE PROJECT'S PANE DEFINITION, OR STAND ON NONE.
+    // WL-MAKER-08, WL-MAKER-09 -- agents/workshop/maker-pane.md
     void load_pane_definition(loom::Mail& mail) {
         if (pane_loaded_) {
             return;
@@ -756,12 +401,8 @@ public:
         open_maker_pane(path, mail);
     }
 
-    /// THE HOST'S PANE PATH IN THE ONE SPELLING THE DOORS COMPARE. A path is not its bytes:
-    /// the host may carry a native spelling (`C:\proj\pane.json`) while every door normalizes
-    /// what it is handed (`persist::resolved_against` -> `C:/proj/pane.json`), and the wall
-    /// (`pane_refused_`) is a comparison between the two. Both sides go through the same
-    /// function, or the wall fails to rise on Windows exactly when it is needed -- a file this
-    /// run could not read would then be written over. Empty stays empty: no pane file this run.
+    /// THE HOST'S PANE PATH IN THE ONE SPELLING THE DOORS COMPARE.
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
     std::string host_pane_path() const {
         if (host_->pane_path.empty()) {
             return std::string();
@@ -770,32 +411,14 @@ public:
     }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
-    ///
-    /// This is the one message that flows medium -> application in this whole tool, and it is
-    /// the whole of G-2's plumbing: a Skin measures its drawable, Workshop believes it, and a
-    /// larger window becomes a larger Workshop instead of a larger picture of a small one.
-    /// A medium with no opinion -- the terminal Skins -- never sends it, so a terminal run is
-    /// exactly the run it was before, at the minimum extent.
-    ///
-    /// IT IS TAKEN, NOT OBEYED. `adopt_screen` clamps into what this composition is honest
-    /// on, so an extent smaller than the minimum leaves the screen alone and lets the medium
-    /// clip, and an absurd one (this arrives as a `ZEN_SHAPE` off the bus, whose fields are
-    /// whatever the sender put in them) is bounded before any arithmetic touches it.
-    ///
-    /// IT REPAINTS ONLY ON A REAL CHANGE. The Skin already guards its own publishing, so this
-    /// second guard is not redundancy for its own sake -- it is what makes the clamps above
-    /// safe to state: two different extents that both clamp to the minimum are one screen,
-    /// and a maker dragging a window edge across that boundary should not see it flicker.
-    ///
-    /// The rows are rebuilt because the `Resolved` row closes over the workspace extent, and
-    /// the workspace extent is exactly what just changed.
+    // WL-DOC-17 -- agents/workshop/document.md; WL-GEO-08 -- agents/workshop/geometry.md
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
         if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
                           e.cell_px)) {
             return;
         }
         // THE NORMAL WINDOW'S ROOM FOLLOWS THE SCREEN, EXCEPT WHILE THIS RUN'S MEDIUM SAYS
-        // THE WINDOW IS MAXIMIZED (WUX-3). The medium reports placement BEFORE extent on
+        // THE WINDOW IS MAXIMIZED. The medium reports placement BEFORE extent on
         // its beat (skin.hpp says why once), so by the time a maximized room arrives the
         // gate is already closed and the remembered normal viewport survives to the save.
         // A run whose medium never reports placement -- every terminal -- never gates, and
@@ -805,16 +428,16 @@ public:
             session_.normal_w = session_.screen_w;
             session_.normal_h = session_.screen_h;
         }
-        // THE ROWS ARE REBUILT AND A LIVE DRAFT IS CARRIED ACROSS (HD-5). The resolved row
+        // THE ROWS ARE REBUILT AND A LIVE DRAFT IS CARRIED ACROSS. The resolved row
         // closes over the extent it resolves against, so the rebuild is not optional -- but
         // this is the ONE rebuild that happens for a reason having nothing to do with the
-        // maker. A window dragged is not a gesture aimed at the inspector, and until HD-5
+        // maker. A window dragged is not a gesture aimed at the inspector, and earlier
         // measured it on the pristine tree it silently threw away whatever was half-typed
         // into a property, its refusal and the cursor with it. Every OTHER caller of
         // `rebuild_rows` follows a change of selection or of document, where dropping the
         // draft is the right answer and carrying it would put it on a different object.
         refocus_keeping_draft(state_, session_);
-        // AND THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS (WP-0). A screen
+        // AND THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS. A screen
         // that grew may have gained an overlay slot, and one that shrank may have lost the
         // one a panel was standing in -- so this is the second reason a reconcile happens
         // and the only one that is not a maker's gesture. Growth opens an authored pane that
@@ -826,16 +449,8 @@ public:
         repaint(mail);
     }
 
-    /// THE MEDIUM SAID WHERE ITS WINDOW SITS (WUX-3). Remember it, whole and opaque.
-    ///
-    /// The second and last message that flows medium -> application here, and deliberately
-    /// the dumbest handler in this file: the coordinates are the medium's own desktop
-    /// units, which Workshop cannot interpret, cannot validate (its session law says so)
-    /// and does not paint -- a moved window changes no pixel of any canvas -- so there is
-    /// no adoption, no clamp, no repaint and no reconcile. What it buys is the memory the
-    /// next orderly close writes down and the next launch hands back to whichever medium
-    /// then holds the surface, plus the one live gate above: `medium_placed_` is what lets
-    /// the extent handler tell a maximized room from a normal one.
+    /// THE MEDIUM SAID WHERE ITS WINDOW SITS. Remember it, whole and opaque.
+    // WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session.md
     void on(const zengine::surface::SurfacePlacement& p, loom::Mail&) {
         medium_placed_ = true;
         session_.placement_known = true;
@@ -846,42 +461,11 @@ public:
 
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
-    ///
-    /// It is the SAME policy `q` and Ctrl+C reach, deliberately: a close box is a
-    /// new way for the request to ARRIVE, not a new thing for it to mean. In
-    /// particular it does not ask about unsaved work -- the status line says
-    /// `UNSAVED` and `^o` can already discard authored work without a
-    /// confirmation. Making the close box the one gesture that argues back would
-    /// be answering a product question nobody has asked, in whichever phase
-    /// happened to add the button.
-    ///
-    /// It is not a key. Nothing here reads a scancode, and no backend
-    /// synthesized one: a native close request and a maker pressing `q` are
-    /// different events that this application chooses to answer the same way,
-    /// and the choice is visible precisely because they arrive separately.
+    // WL-SESSION-13 -- agents/workshop/session.md
     void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&) { quit(); }
 
     /// A key TRANSITION: which key changed, and what was held when it did.
-    ///
-    /// SINCE KEY-0 THE GESTURE IS RESOLVED THROUGH ONE BINDING TRUTH. The context comes
-    /// from `keyboard_context(session_)` -- the routing chain, spelled once, where this
-    /// function used to spell it and two hand-kept mirrors spelled it again -- and the
-    /// gesture becomes an action identity through `session_.keymap`, exactly the value
-    /// every help surface projects. What each action DOES is untouched: every arm below
-    /// calls the same owner function it always called, because the keymap resolves names
-    /// and can perform nothing.
-    ///
-    /// FIVE ACTIONS ARE ANSWERED ABOVE EVERY MODE, in the position the old four chords
-    /// held. `document.save`/`document.open` are the document's two keys (a maker halfway
-    /// through a width still means "save my work"; the draft-open refusal is
-    /// save_document's own policy); `workshop.terminal` toggles the pane a maker must be
-    /// able to reach from inside anything (its default moved to `ctrl+t` in KEY-0 -- the
-    /// old `shift+space` cannot arrive from the POSIX backend at all, and is gone rather
-    /// than kept as an invisible alias); `workshop.hotkeys` opens the view that explains
-    /// the rest. `workshop.quit` is declared for exactly the contexts where nothing takes
-    /// text (TEXT-0's `^c` law, carried by the declaration's kNoText context now): where
-    /// text has the keyboard the chord travels the chain and the box's own vocabulary
-    /// answers it, and quitting stays one press-elsewhere away.
+    // WL-KEY-03, WL-KEY-05, WL-KEY-12 -- agents/workshop/keyboard.md
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
         // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a
@@ -890,7 +474,7 @@ public:
         // THE SWALLOW BELONGS TO ONE MOMENT: cleared on every key, armed only when this
         // keystroke is consumed as an application binding whose key also enters text
         // (`expected_text_of` derives the owed character from the binding -- the
-        // generalization of the three hard-coded `" "`/`"s"`/`"w"` sites KEY-R0 found,
+        // generalization of the three hard-coded `" "`/`"s"`/`"w"` sites the keymap research found,
         // and deliberately not a swallow-the-next-text rule: an unmatched or absent
         // expectation eats nothing).
         swallow_text_.clear();
@@ -940,7 +524,7 @@ public:
             repaint(mail);
             return;
         }
-        // THE CHAIN IS `keyboard_context`'S ANSWER NOW (KEY-0). Its order -- and every
+        // THE CHAIN IS `keyboard_context`'S ANSWER NOW. Its order -- and every
         // recorded rationale behind it: the modes that own the keyboard whole, the
         // reachability arguments that are written down anyway, the pressed-into-LAST
         // symmetry that puts a focused pane above a live draft, `keyboard_pane` resolved
@@ -948,19 +532,19 @@ public:
         // and the paste mirror read the same answer. This switch is what remains of four
         // hand-copies of that order: which owner the resolved context names.
         //
-        // A COPY ANYWHERE BELOW IS SAID TO THE PROCESS ONCE, HERE (TEXT-0). The component
+        // A COPY ANYWHERE BELOW IS SAID TO THE PROCESS ONCE, HERE. The component
         // bumps the clipboard's `writes` exactly when a copy or cut took text, so one
         // comparison around the whole chain notices it whichever consumer it happened in —
         // three handlers each publishing would be the fourth-copy accident arriving in the
         // routing. What is published is `ClipboardCopy`: the Skin offers it to the
         // platform's clipboard and every other text-holding participant mirrors it.
         //
-        // A PASTE ANYWHERE BELOW IS ASKED FOR ONCE, HERE, THE SAME WAY (QR-11). The
+        // A PASTE ANYWHERE BELOW IS ASKED FOR ONCE, HERE, THE SAME WAY. The
         // component bumps `paste_requests` instead of pasting, because the value a paste
         // means is the clipboard's CURRENT value and only this owner can obtain it — a
         // read performed BECAUSE this paste was requested, never a mirror kept fresh by
         // watching. The same one comparison notices it, `paste_owner_now()` (a derivation
-        // of the resolved context since KEY-0, not a second spelling of the chain) says
+        // of the resolved context not a second spelling of the chain) says
         // which draft asked, and `begin_clipboard_paste` opens the conversation with the
         // Skin. The text lands a turn later, in that draft or nowhere
         // (`on(ClipboardText)`).
@@ -983,7 +567,7 @@ public:
         case KeyContext::kDraft: editing_key(k, mail); break;
         default: command(k, mail); break;
         }
-        // ESCAPE'S FINAL MEANING IS TO PUT THE SELECTED PANE DOWN (QR-18). It is asked
+        // ESCAPE'S FINAL MEANING IS TO PUT THE SELECTED PANE DOWN. It is asked
         // LAST, after the resolved context has had the key: every mode, overlay and draft
         // answers Escape with a row of its own (`picker.close`, `draft.cancel`,
         // `manage.close`, `context.back`, `attention.close`, `naming.cancel`,
@@ -997,11 +581,11 @@ public:
         //
         // A PLACE A MAKER TYPES INTO KEEPS ESCAPE WHILE IT HOLDS THE KEYS
         // (`escape_may_shed_selection`). The source editor's Escape is a pinned no-op
-        // (EDIT-0) -- a maker's habitual Esc must not hand the next `d` to command mode. A
+        // -- a maker's habitual Esc must not hand the next `d` to command mode. A
         // focused external pane has already been sent the key and Workshop cannot see
-        // whether it spent it: the seam carries no `consumed` (WP-R0), by design, and the
+        // whether it spent it: the seam carries no `consumed`, by design, and the
         // shipped Composer does spend it (its form goes back to its catalog and the maker
-        // keeps typing, TEXT-0). So the pane keeps its keys, and the way out of either is
+        // keeps typing). So the pane keeps its keys, and the way out of either is
         // the way in: press a pane that takes no text -- every desk has one, Layouts --
         // or the workspace, then Escape.
         //
@@ -1028,13 +612,8 @@ public:
     /// `toggle_terminal`'s own shape, one screen element over.
     void toggle_hotkeys() { session_.hotkeys.open = !session_.hotkeys.open; }
 
-    /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed -- the
-    /// view is modal for exactly as long as it is being read, so a maker cannot execute
-    /// a binding while looking it up. The toggle itself is answered above (it is a
-    /// global), so both advertised ways out work; the heading's `esc closes` claim and
-    /// this branch are one pinned pair, and Escape is deliberately NOT a keymap action:
-    /// the view is not a context, and a modal surface's one structural way out must not
-    /// be authorable into a lockout.
+    /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed.
+    // WL-KEY-11 -- agents/workshop/keyboard.md
     void hotkeys_key(const zengine::input::KeyPressed& k) {
         if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone) {
             session_.hotkeys.open = false;
@@ -1042,33 +621,15 @@ public:
     }
 
     /// Open or close the current-condition view -- `toggle_hotkeys`' own shape,
-    /// one surface over. Opening it puts the cursor back on the loudest condition, because
-    /// a cursor left where the maker last was would point at whatever happens to be in that
-    /// position now: the population is recomputed from live owners and a row is a fact
-    /// about the world, not a slot.
-    ///
-    /// IT IS A MAKER'S GESTURE AND NOTHING ELSE CAN CALL IT. No severity opens this, no
-    /// count opens it, and no condition becoming true opens it -- a modal is earned by
-    /// required maker intent, never by diagnostic severity, and there is no branch anywhere
-    /// in this weave that reaches this function from an arrival.
+    /// one surface over.
+    // WL-ATTN-09, WL-ATTN-10 -- agents/workshop/attention.md
     void toggle_attention() {
         session_.attention.open = !session_.attention.open;
         session_.attention.cursor = 0;
     }
 
     /// THE VIEW'S OWN KEYS: move the cursor, hide the condition it is on, close.
-    ///
-    /// THE CURSOR IS REPAIRED THROUGH THE POPULATION'S OWN OWNER BEFORE ANYTHING INDEXES IT
-    /// -- the picker's rule, and this list needs it more, not less: its population is
-    /// DERIVED, so a pane recovering or a build finishing can shrink it between two
-    /// keystrokes with no gesture in between.
-    ///
-    /// DISMISSAL IS PRESENTATION-ONLY AND THIS IS THE WHOLE OF IT. It writes one entry in
-    /// the view's own set; it does not touch `HeldConditions`, any pane, any build, the
-    /// keymap, the prefs, or any file. The condition is still true afterwards, still
-    /// returned by `attention_conditions`, still readable by its owner -- and it comes back
-    /// on its own the moment its content changes, because the dismissal was scoped to the
-    /// statement rather than to the key alone (`AttentionView::hides`).
+    // WL-ATTN-08, WL-ATTN-09 -- agents/workshop/attention.md
     void attention_key(const zengine::input::KeyPressed& k) {
         AttentionView& view = session_.attention;
         std::vector<Condition> shown = attention_shown(session_, frontier_now());
@@ -1109,31 +670,17 @@ public:
         }
     }
 
-    // ---- What can I do with this? The contextual-action surface (CTX-0) -------
-    //
-    // POINTING NAMES A SUBJECT FOR ONE REQUEST. SELECTION IS A STATE A MAKER ENTERED.
-    // Opening this surface captures a temporary subject -- a `PaneRef`, an object id, or
-    // nothing -- and changes no persistent selection, no keyboard candidate and no focus.
-    // OPEN REMEMBERS AN IDENTITY; SPEND RE-ASKS ITS OWNER: a chosen row closes the
-    // surface and hands the captured identity to the same owner operation the keyboard
-    // reaches, which answers absence and refusal in its own words. The surface owns only
-    // its subject and its own interaction mode, and it performs nothing itself.
+    // ---- What can I do with this? The contextual-action surface ---------------
+    // WL-CTX-01 -- agents/workshop/contextual.md
 
-    /// OPEN ON WHAT IS POINTED AT. The subject resolvers are the pointer route's own --
-    /// `occupied_at` for a presentation, `object_at` for the authored material -- asked
-    /// once, at the press, for identity ONLY. A presentation that is not an arrangeable
-    /// pane (the picker's rectangle) and an empty cell both name the room: a subject with
-    /// no identity is a real subject here.
-    ///
-    /// DELIBERATELY UNWRITTEN: `session_.panels.keyboard`. A LEFT press points the
-    /// keyboard at what it lands on; a right press asks a question about it, and asking
-    /// about a pane must not steal the keys from wherever the maker was typing.
+    /// OPEN ON WHAT IS POINTED AT.
+    // WL-CTX-01 -- agents/workshop/contextual.md
     void open_context_at(const PointedAt& at) {
         ContextMenu next;
         next.open = true;
-        // THE PRESS'S OWN CELL IS THE ANCHOR (ARR-0): the surface opens beside the hand
+        // THE PRESS'S OWN CELL IS THE ANCHOR: the surface opens beside the hand
         // that asked, on both media at the cell grain -- the composition is settled in
-        // cells before any metric is consulted, HD-10's own medium-independence rule.
+        // cells before any metric is consulted, own medium-independence rule.
         // The bounds stay derived; only the gesture's place is captured.
         next.anchored = true;
         next.anchor_x = at.cell.x;
@@ -1164,18 +711,8 @@ public:
         session_.context = next;
     }
 
-    /// OPEN ON A PAINTED LAYOUT TAB (WUX-11) -- the same surface, on the one subject the
-    /// band owns.
-    ///
-    /// THE POSITION IS CAPTURED, NOT THE LAYOUT. `ContextMenu`'s whole rule: what is kept
-    /// is only what a file could hold, and a layout's identity in this program is its
-    /// position -- never a resolved desk, a name or a shelf pointer. Every spend arm
-    /// re-asks the run about it, so a menu left open across a removal refuses rather than
-    /// acting on whoever moved into that slot.
-    ///
-    /// IT DOES NOT SWITCH. Asking what can be done with a tab is not standing on it, so
-    /// the live layout is exactly where the maker left it -- which is what lets Close and
-    /// the two reorder steps mean the tab that was pointed at.
+    /// OPEN ON A PAINTED LAYOUT TAB -- the same surface, on the one subject the band owns.
+    // WL-TAB-12 -- agents/workshop/tab-run.md
     void open_context_on_layout(const PointedAt& at, std::size_t layout) {
         ContextMenu next;
         next.open = true;
@@ -1188,11 +725,8 @@ public:
     }
 
     /// OPEN BY KEY, on the subject command mode can truthfully name: the selected object
-    /// while one resolves, else the room. This is the route that keeps the capability
-    /// honest on a medium whose environment never delivers the second button -- and it
-    /// deliberately does not reach for a pane: pane management IS the keyboard's road to
-    /// the pane vocabulary, `manage.remove` included, and a subject the current state
-    /// does not name must not be guessed at.
+    /// while one resolves, else the room.
+    // WL-CTX-01 -- agents/workshop/contextual.md
     void open_context_ambient() {
         ContextMenu next;
         next.open = true;
@@ -1260,11 +794,8 @@ public:
         }
     }
 
-    /// CHOOSE THE ROW THE CURSOR IS ON. One action whose meaning the row decides
-    /// (`picker.choose`'s shape): a group row descends, an action row requests -- and a
-    /// request CLOSES THE SURFACE FIRST, because the maker's question is answered the
-    /// moment they choose; what remains is the operation, and the operation may open a
-    /// mode of its own.
+    /// CHOOSE THE ROW THE CURSOR IS ON.
+    // WL-CTX-07, WL-CTX-08 -- agents/workshop/contextual.md
     void choose_context_row(loom::Mail& mail) {
         ContextMenu& menu = session_.context;
         const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
@@ -1285,11 +816,8 @@ public:
         spend_context_choice(chosen.row->act, spent, mail);
     }
 
-    /// SPEND ONE CHOSEN ACTION against the captured subject. Every arm calls the owner
-    /// the keyboard calls: the pane rows go through the one target-taking seam with the
-    /// CAPTURED pane, the object row through the explicit-id delete, and the room rows
-    /// are the same zero-target owner calls `command()` makes -- duplicated one-line
-    /// arms, deliberately, because a zero-target call has no target to drift.
+    /// SPEND ONE CHOSEN ACTION against the captured subject.
+    // WL-CTX-01, WL-CTX-02, WL-CTX-07, WL-CTX-08 -- agents/workshop/contextual.md
     void spend_context_choice(Act a, const ContextMenu& spent, loom::Mail& mail) {
         switch (a) {
         // -- the pointed pane ---------------------------------------------------------
@@ -1304,7 +832,7 @@ public:
         case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
         // -- the pointed object -------------------------------------------------------
         case Act::kObjectDelete: context_delete_object(spent.object); break;
-        // -- the pointed LAYOUT TAB (WUX-11) ------------------------------------------
+        // -- the pointed LAYOUT TAB ---------------------------------------------------
         //
         // EVERY ONE OF THESE TAKES THE CAPTURED POSITION and none of them switches first.
         // The subject is the tab the press named; the owner re-asks the run about it at
@@ -1332,12 +860,8 @@ public:
         }
     }
 
-    /// A BUTTON-1 PRESS WHILE THE SURFACE IS OPEN. Inside the rectangle a press is the
-    /// pointer's choose -- the same population index the painter drew, through the
-    /// painter's inverse -- and the surface's own furniture consumes a press silently.
-    /// OUTSIDE it, the press is spent on dismissal: consumed whole, reaching no pane, no
-    /// provider, no object and no keyboard candidate, because a click that closes a menu
-    /// must not also operate what it happened to land on.
+    /// A BUTTON-1 PRESS WHILE THE SURFACE IS OPEN.
+    // WL-CTX-08 -- agents/workshop/contextual.md
     void context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
                        std::int64_t y, loom::Mail& mail) {
         const ContextPressAt hit =
@@ -1353,34 +877,15 @@ public:
         choose_context_row(mail);
     }
 
-    /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo
-    /// rule: the counter is left alone, because `writes` counts what THIS weave's boxes
-    /// copied and a mirror that bumped it would republish the fact back at the bus. Since
-    /// QR-11 this publication is the ONLY feed the mirror has — the platform's own
-    /// clipboard is read at paste time, through the Skin, and never watched — so
-    /// `session_.clipboard.text` means exactly "the freshest copy said IN this process",
-    /// which is also precisely what a paste falls back to on a medium whose platform
-    /// cannot be read (the terminal's standing state).
+    /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo rule.
+    // WL-TEXT-08 -- agents/workshop/text-box.md
     void on(const zengine::surface::ClipboardCopy& c, loom::Mail&) {
         session_.clipboard.text = c.text;
     }
 
     /// THE SKIN'S ANSWER TO A PASTE THIS WEAVE REQUESTED — the one road foreign clipboard
-    /// text has into this application, and it is walked only under a maker's paste (QR-11).
-    ///
-    /// TWO WALLS, THEN A VALIDITY CHECK, and each refusal discards the payload whole.
-    /// `answers_ask()` is Loom's own provenance — an unsolicited `ClipboardText`, however
-    /// well-formed, is somebody's helpful payload and settles nothing (the stronger bound
-    /// exists here because the Skin ANSWERS rather than relays, so it is taken — INTR-1's
-    /// rule). The book's correlation-plus-sender match then says WHICH paste this settles.
-    /// Last, the draft that asked must still be standing: the same owner, holding the same
-    /// draft (`draft_epoch`), because focus and mode changes between request and answer
-    /// must not redirect clipboard text into another box, and a draft that ended took its
-    /// paste with it.
-    ///
-    /// THE MIRROR IS UPDATED ONLY WHEN THE PASTE APPLIES. A readable answer for a draft
-    /// that no longer exists is dropped entirely — retaining it would keep foreign text in
-    /// application state on the strength of an intent that no longer has a home.
+    /// text has into this application, and it is walked only under a maker's paste.
+    // WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
     void on(const zengine::surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return; // not Loom's answer to anything this weave asked
@@ -1469,22 +974,10 @@ public:
         repaint(mail);
     }
 
-    // AN UNANSWERABLE ASK STAYS OPEN, VISIBLY, AND THAT IS DELIBERATE (QR-11). With no
-    // Skin holding the role — or a stale one that does not accept the shape — the ask is
-    // refused as a tap event and no message returns: Loom has no unanswerability notice,
-    // and the book does not pretend otherwise (its own doctrine). The cost is bounded by
-    // the book's capacity — after four asks into a void, paste goes quiet for this
-    // incarnation — and a process whose Skin cannot answer a clipboard read has no paste
-    // to deliver anyway. No `zen.Refused` handler is written here, because nothing sends
-    // one for this conversation and a handler would be a wall waiting for rain that
-    // cannot fall.
 
     /// TEXT the maker actually entered — the platform's answer, not a guess made
-    /// from a key identity. It edits a draft and can do nothing else: in command
-    /// mode there is no draft, so text is simply not a command, and the keys that
-    /// ARE commands were already delivered as their own transitions.
-    ///
-    /// Workshop maps no key to any character. `%` arrives here as "%".
+    /// from a key identity.
+    // WL-KEY-03 -- agents/workshop/keyboard.md
     void on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         if (!swallow_text_.empty()) {
             const std::string owed = swallow_text_;
@@ -1503,8 +996,8 @@ public:
             return;
         }
         // WHERE A CHARACTER GOES IS THE SAME QUESTION AS WHERE A KEY GOES, and since
-        // KEY-0 it is answered by the same resolver instead of by this function's own
-        // hand-copy of the chain (the second of the five spellings KEY-R0 measured).
+        // the keymap it is answered by the same resolver instead of by this function's own
+        // hand-copy of the chain (the second of the five spellings the research measured).
         // Per branch, the standing law is unchanged: a mode that owns the keyboard whole
         // takes the text or deliberately types none (arrangement and the picker are driven
         // by unmodified letters, so every character produced while they are open belongs
@@ -1522,10 +1015,10 @@ public:
             repaint(mail);
             return;
         case KeyContext::kTerminal:
-            // AT THE CARET, WHICH SINCE HD-3 IS NOT ALWAYS THE END. `type` is the only
+            // AT THE CARET, WHICH IS NOT ALWAYS THE END. `type` is the only
             // door that moves the text and the caret together, so a keystroke in the
             // middle of a line cannot leave one behind. The line changed, so what could
-            // be said next changed with it (HD-2): typing IS the completion gesture.
+            // be said next changed with it: typing IS the completion gesture.
             session_.terminal.input.type(t.text);
             refresh_terminal();
             repaint(mail);
@@ -1556,7 +1049,7 @@ public:
         }
     }
 
-    /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed (WIND-2a).
+    /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed.
     ///
     /// `pane` is meaningful only when `pane_held`; `document_id` only when `document`.
     struct GesturesEnded {
@@ -1567,24 +1060,7 @@ public:
     };
 
     /// END EVERY BUTTON-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
-    ///
-    /// ONE OWNER, THREE CALLERS, AND THAT IS THE WHOLE OF THE REPAIR (WIND-2a). A gesture
-    /// begins under one mode and is released under another: a maker drags a pane, opens the
-    /// Terminal over it with shift+space, and lets go. The mode that sees the release is not
-    /// the mode that owns the gesture, so every mode that answers a release first has to end
-    /// ALL of them -- and WIND-2's Terminal branch ended only the document's, because a
-    /// document drag was the only gesture that existed when that branch was written. The
-    /// symptom is a stranded `active` flag with the button up and a pane that follows the
-    /// pointer afterwards.
-    ///
-    /// IT SAYS NOTHING. What to tell a maker is the caller's, because the answer genuinely
-    /// differs: management names the pane it placed, the ordinary path names the object it
-    /// released, and the Terminal branch says nothing at all -- the notice line is not
-    /// painted while the pane covers it, so a sentence made there is one nobody can read
-    /// that would then reappear, stale, when the pane closes.
-    ///
-    /// IT IS NOT A CAPTURE FRAMEWORK. There is no focus, no target, no capture stack and no
-    /// registry -- two gesture records and one function that clears both.
+    // WL-ARR-02 -- agents/workshop/arrangement.md; WL-TAB-11 -- agents/workshop/tab-run.md
     GesturesEnded end_held_gestures() {
         GesturesEnded out;
         if (session_.drag.active) {
@@ -1598,11 +1074,11 @@ public:
             session_.pane_drag = PaneGesture{};
         }
         // The text-selection drag ends silently and is not reported: the selection it swept
-        // is on screen, which is the whole statement (TEXT-0). The selection itself SURVIVES
+        // is on screen, which is the whole statement. The selection itself SURVIVES
         // the release — ending the sweep is not unselecting — so only the gesture record is
         // cleared here.
         session_.text_drag = TextDrag{};
-        // ...and so does the tab drag (WUX-11). The run's new order is on screen and the
+        //...and so does the tab drag. The run's new order is on screen and the
         // moves were already narrated one step at a time, so a release has nothing to add;
         // what it must do is end the gesture, wherever the hand happens to be, for this
         // function's whole stated reason.
@@ -1611,33 +1087,10 @@ public:
     }
 
     /// A pointer button changed, AND the position it changed at.
-    ///
-    /// Press: take hold of the size handle if the pointer is on it, otherwise of
-    /// whatever object is under it, and select that object. Release: let go.
-    /// Between them, every PointerMoved authors a new position or a new size.
-    ///
-    /// THE WHOLE ROUTING RULE, in the order it is written below (PNL-2):
-    ///
-    ///     the terminal overlay, while it is open -- it has the pointer entirely
-    ///     a visible panel, where a press lands inside its resolved bounds
-    ///     the workspace and the document underneath
-    ///
-    /// The first is a MODE and the second is a PLACE, and the difference is the
-    /// whole design: the overlay takes every pointer event anywhere, because
-    /// while it is open it is what the maker is doing; a panel takes only the
-    /// presses that land on it, because a maker with a panel open is still
-    /// working in the workspace beside it. Neither is a focus object, a capture,
-    /// a z-order or a widget tree -- one `if` each, and the same shape the
-    /// keyboard's four modes already have.
-    ///
-    /// The position comes from the message. Reconstructing it from the last
-    /// motion event is wrong whenever the platform reported no motion in between
-    /// -- a console generates none while it lacks focus, so the first click after
-    /// refocusing would grab whatever the pointer had last been seen over.
-    /// Nothing here remembers a pointer.
+    // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
         // WHILE THE OVERLAY IS OPEN THE WORKSPACE GETS NOTHING, and that half is
-        // unchanged since PNL-2: the pane covers the bottom-right of the screen,
+        // unchanged: the pane covers the bottom-right of the screen,
         // workspace included, so a press there would take hold of an object the
         // maker cannot see -- and a press just outside it would move the document
         // out from under a mode they are typing in. One sentence covers both:
@@ -1645,7 +1098,7 @@ public:
         // focus object, no capture and no z-order; closing it restores every
         // gesture exactly.
         //
-        // WHAT HD-3 CHANGED IS THAT THE TERMINAL NOW DOES SOMETHING WITH IT --
+        // WHAT CHANGED IS THAT THE TERMINAL NOW DOES SOMETHING WITH IT --
         // and only inside itself. The mode is still a MODE: it takes every
         // pointer event anywhere, and `terminal_press` decides whether one of the
         // regions the Terminal OWNS wants it. A press that lands on none of them
@@ -1658,7 +1111,7 @@ public:
         // there is nothing to remove.
         if (session_.terminal.open) {
             // A RELEASE STILL ENDS A DRAG THAT BEGAN ON THE WORKSPACE, and this is a
-            // repair rather than a new rule (PNL-2's own: "a gesture that began on the
+            // repair rather than a new rule (own: "a gesture that began on the
             // workspace owns the pointer until it ends, so its release must end it
             // wherever the maker's hand happens to be"). Opening the pane mid-drag used
             // to swallow the release, leaving `drag.active` true with the button up --
@@ -1673,7 +1126,7 @@ public:
             // its own notice over it anyway. The gesture is ended; there is nobody to
             // tell.
             if (!b.pressed && b.button == 1) {
-                // EVERY BUTTON-1 GESTURE, and not only the document's (WIND-2a). A pane
+                // EVERY BUTTON-1 GESTURE, and not only the document's. A pane
                 // move or size begun in pane management is held in a second record, and
                 // the overlay used to swallow its release exactly as it once swallowed the
                 // document's: `pane_drag.active` stayed true with the button up, and the
@@ -1683,7 +1136,7 @@ public:
                 return;
             }
             // AND THE BOOL BELOW IS NOT THE PRESS-CHAIN'S BOOL, which is why it is given a
-            // name here (QR-2). The three handlers under `if (b.pressed)` answer whether they
+            // name here. The three handlers under `if (b.pressed)` answer whether they
             // CONSUMED the press, and the chain stops on a true. `terminal_press` answers
             // whether anything CHANGED, and the answer does not decide anything about routing:
             // the mode consumed the press the moment `session_.terminal.open` was true, three
@@ -1698,13 +1151,13 @@ public:
             }
             return;
         }
-        // ARRANGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN (WIND-2) -- the
+        // ARRANGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN -- the
         // Terminal's own shape, four lines up, for the same reason. While a maker is
         // arranging, every press is about a pane: letting one fall through to the
         // document would begin a drag on an object underneath a pane they are looking at,
-        // which is the defect PNL-2 removed from panels in the first place.
+        // which is the defect occupancy removed from panels in the first place.
         //
-        // A SECONDARY PRESS IS THIS STATE'S WAY BACK OUT (ARR-0). The active interaction
+        // A SECONDARY PRESS IS THIS STATE'S WAY BACK OUT. The active interaction
         // that can truthfully interpret a secondary press receives first refusal, and
         // leaving is what this one truthfully means by it: the press leaves the
         // arrangement -- whichever scope, the reset prompt included -- and is CONSUMED
@@ -1716,7 +1169,7 @@ public:
         // presses no active interaction claimed.
         //
         // A RELEASE STILL ENDS A DOCUMENT DRAG THAT BEGAN BEFORE THE MODE DID, and this is
-        // the same repair HD-3 made for the pane: entering a mode mid-drag must not swallow
+        // the same repair made for the pane: entering a mode mid-drag must not swallow
         // the release, or `drag.active` stays true with the button up and the next bare
         // motion drags an object nobody is holding.
         if (session_.arrange.open) {
@@ -1746,7 +1199,7 @@ public:
             repaint(mail);
             return;
         }
-        // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN (CTX-0) -- a mode in
+        // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN -- a mode in
         // the two above's family, below both because both existed first and neither can
         // be open at the same time as this one through any current door. A press inside
         // it navigates or chooses; a press outside it dismisses and is CONSUMED, so a
@@ -1781,14 +1234,14 @@ public:
             return;
         }
         const PointedAt at = canvas_point_of(b.space, b.x, b.y);
-        // A RIGHT PRESS ASKS "WHAT CAN I DO WITH THIS?" (CTX-0). Before this branch a
+        // A RIGHT PRESS ASKS "WHAT CAN I DO WITH THIS?". Before this branch a
         // second button meant nothing anywhere in Workshop, so consuming it displaces no
         // behaviour and steals nothing from any provider -- the pane seam cannot say a
         // second button, deliberately, and no `PanePressed` is sent for one. Only a press
         // opens; a release of button 3 falls through to the gate below and is dropped, as
         // every non-primary transition always was.
         if (b.pressed && b.button == 3 && at.understood) {
-            // ...AND A TAB IS A SUBJECT IT CAN NAME (WUX-11) -- BEHIND OCCUPANCY (WUX-12).
+            //...AND A TAB IS A SUBJECT IT CAN NAME -- BEHIND OCCUPANCY.
             // The tab inverse is asked only once the ordinary walk has answered that the
             // Layouts pane owns this point, so the menu's subject is the tab under the hand
             // when the tabs are what is under the hand, and is whatever pane a maker put in
@@ -1814,7 +1267,7 @@ public:
             return;
         }
         if (b.pressed) {
-            // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON (QR-2).
+            // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON.
             // That is the whole meaning of the three bools below, and it is the only meaning
             // any of them has -- not "something changed", not "the act succeeded", not "the
             // press was accepted". A layer that consumes may refuse in its own words, may say
@@ -1823,7 +1276,7 @@ public:
             // it. A consumed press does not have to change anything -- it only has to have
             // reached the layer that owns what the press means.
             //
-            // AND THE BODY IS RESOLVED ONCE, HERE, beside the canvas point above it (QR-2).
+            // AND THE BODY IS RESOLVED ONCE, HERE, beside the canvas point above it.
             // The three handlers under it are three questions about ONE place, and they used
             // to resolve it separately -- the same six lines three times, and up to three
             // resolutions of one body for one press. Holding it across the chain is safe for a
@@ -1831,8 +1284,8 @@ public:
             // nothing on the paths where it declines, so a handler that says "not mine" has
             // not moved the picture the next handler is about to ask about.
             const InfoBodyAt where = info_body_at(state_, session_, b.space, b.x, b.y);
-            // AND THE OCCUPANCY WALK IS RESOLVED HERE TOO SINCE MSG-0, beside the body and
-            // the canvas point, for the reason QR-2 hoisted the body: it is one question
+            // AND THE OCCUPANCY WALK IS RESOLVED HERE TOO beside the body and
+            // the canvas point, for the reason the body was hoisted: it is one question
             // about one place, every handler below changes nothing on the path where it
             // declines, and the answer is now needed BEFORE the chain rather than after it.
             // It is the same pure walk `occupied_at` always was -- the picker first, then
@@ -1840,7 +1293,7 @@ public:
             const Occupancy here =
                 occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
             // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
-            // ANY LAYER ANSWERS IT (MSG-0). Putting it in the routing arms instead would be
+            // ANY LAYER ANSWERS IT. Putting it in the routing arms instead would be
             // four decisions -- one per arm, one of them easy to forget -- about a single
             // fact: which presentation did the maker just point at. A press on an external
             // pane points the keyboard there; a press on Workshop's own furniture, on the
@@ -1873,7 +1326,7 @@ public:
             // afterwards would make every first press look like a press in a pane the
             // maker was already working in.
             const bool files_had_keyboard = files_has_keyboard(session_);
-            // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS (WUX-5).
+            // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS.
             // Selection is the wider of the two and the keyboard candidate is DERIVED
             // from it through the declared candidacy, rather than the occupancy being
             // tested twice: two reads of one press is how the desk comes to think one
@@ -1886,7 +1339,7 @@ public:
                         kind_takes_keyboard(session_.panels.selected)
                     ? session_.panels.selected
                     : kNoPaneKind;
-            // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
+            // A VISIBLE PANEL OCCUPIES POINTER SPACE, and this is the
             // whole of it: the press is asked what it landed on before the
             // document is asked anything, and a press that landed on a panel
             // never reaches `take_hold` -- so it cannot select, cannot begin a
@@ -1902,10 +1355,10 @@ public:
             // the only way a maker learns that the panel is a thing rather than
             // a picture, since `[ Build ]` is not clickable yet.
             //
-            // (`here` was resolved at the top of this branch since MSG-0 -- one walk, for
+            // (`here` was resolved at the top of this branch -- one walk, for
             // two questions that are about the same press.)
             // AND AN EXTERNAL PANE IS THE ONE PRESENTATION WHOSE PRESS GOES SOMEWHERE
-            // (SEL-0). It is the SAME occupancy answer -- one geometry walk, one topmost
+            //. It is the SAME occupancy answer -- one geometry walk, one topmost
             // rule, the picker still first -- asked one further question: this cell belongs
             // to a pane Workshop did not compile, so the press is that provider's.
             //
@@ -1915,7 +1368,7 @@ public:
             // provider: there is no reply shape, `external_press` sends and returns, and a
             // press that named no row of the body (the header, the padding under the last
             // prose line, the lattice's edge) is consumed exactly the same and simply
-            // travels no further. That is WP-R0's split -- the synchronous half of the
+            // travels no further. That is split -- the synchronous half of the
             // question is geometry Workshop already holds, so `consumed` never crosses the
             // wire.
             //
@@ -1926,7 +1379,7 @@ public:
             // provider's vocabulary, the answer arrives later as ordinary content, and
             // Workshop cannot name either. So the statement is the pane's to make, in its
             // own rows, and this layer leaves the line alone rather than writing a sentence
-            // it would have to guess (INT-R0: a refusal belongs to the deepest layer whose
+            // it would have to guess (a refusal belongs to the deepest layer whose
             // vocabulary contains the reason -- and this one's does not).
             if (here.occupied && is_runtime_kind(here.kind)) {
                 external_press(here.kind, b, mail);
@@ -1944,7 +1397,7 @@ public:
                 // and is consumed exactly as the editor's is.
                 files_press(b, files_had_keyboard, mail);
             } else if (here.occupied && here.kind == panel::kPaneEditor) {
-                // AND A PRESS INTO THE PANE EDITOR (WUX-13) -- Files' arm, one pane over:
+                // AND A PRESS INTO THE PANE EDITOR -- Files' arm, one pane over:
                 // a pane row chooses the SUBJECT, a field row moves the row cursor, the
                 // live draft's own row places the caret, and the heading or the padding
                 // is consumed as a focus statement. The selection line above has already
@@ -1954,7 +1407,7 @@ public:
                        (info_press(where, b.modifiers) || actions_press(where) ||
                         objects_press(where))) {
                 // THE INFO PANEL'S OWN THREE INVERSES, BEHIND THE OWNERSHIP DECISION LIKE
-                // EVERY OTHER PANE'S (WUX-12). They are unchanged -- same order, same
+                // EVERY OTHER PANE'S. They are unchanged -- same order, same
                 // disjointness, same `true means consumed` -- and what changed is only
                 // WHERE they are asked. Until this phase all three ran BEFORE the occupancy
                 // walk and never consulted the effective order, so a pane authored over the
@@ -1964,33 +1417,33 @@ public:
                 // moved down into the arm that already knew which pane owns the point.
                 //
                 // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a
-                // panel rather than a mode (HD-5): the innermost thing that owns the
+                // panel rather than a mode: the innermost thing that owns the
                 // pointer where it landed answers before the thing around it, and a press
                 // it declines falls through unchanged. It says nothing and consumes whether
                 // or not the caret moved -- the caret IS the statement, and a sentence
                 // repeating it would push off the line a refusal the maker may still need
-                // (QR-2).
+                //.
                 //
-                // THEN THE ACTION CONTROLS (HD-8), then the OBJECT LIST (HD-7). The three
+                // THEN THE ACTION CONTROLS, then the OBJECT LIST. The three
                 // runs of the body cannot fight over a press -- the footer, the object list
                 // and a live draft's own row are disjoint runs of ONE row budget, which is
-                // what HD-7 bought by making the body one region -- so this ordering is
+                // what making the body one region bought -- so this ordering is
                 // written down because an ordering resting on a disjointness proof is one
                 // refactor from being silently wrong, not because two of them could answer.
                 //
                 // ⚠ THE SHORT CIRCUIT IS THE CHAIN, and it is exact: `||` stops at the
                 // first `true`, and each of the three changes nothing on the path where it
-                // declines -- which is the property that let QR-2 hoist the body in the
+                // declines -- which is the property that let the body be hoisted in the
                 // first place. A press none of them owns falls to Info's own sentence
                 // below, which is what it always did.
                 repaint(mail);
                 return;
             } else if (here.occupied && here.kind == panel::kLayouts &&
                        layouts_press(b, mail)) {
-                // AND THE LAYOUTS PANE'S OWN INVERSE (WUX-12) -- the tabs, `+`, the rename
+                // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
                 // second press and the reorder drag, asked ONLY once the ordinary walk has
                 // said this point is that pane's. It is `files_press`' position exactly.
-                // The inverse itself is still specialised to Layouts and still HD-3's rule
+                // The inverse itself is still specialised to Layouts and still rule
                 // end to end (the spans come from `band_status`' own composition); what is
                 // gone is the coordinate exception that used to ask it first, above every
                 // pane, from a rectangle nothing else could name.
@@ -2023,7 +1476,7 @@ public:
             // drag, so a release after one finds none and does nothing at all.
             // The absence of a drag IS the memory.
             //
-            // THROUGH THE SAME OWNER AS EVERY OTHER MODE (WIND-2a), so there is one place
+            // THROUGH THE SAME OWNER AS EVERY OTHER MODE, so there is one place
             // that knows what a button-1 release ends and three places that decide what to
             // SAY about it. No pane gesture can reach this branch today -- one is begun
             // only while management is open, which routes above -- and asking the owner
@@ -2039,18 +1492,9 @@ public:
     /// The pointer moved. Outside a drag this weave has nothing to do with it:
     /// the job of remembering where the pointer is went away with the
     /// reconstruction it existed to serve.
-    ///
-    /// A PANEL DOES NOT OCCLUDE MOTION, and that is a decision rather than an
-    /// omission (PNL-2). Only a press can begin a gesture, so a motion that
-    /// matters here belongs to a drag that began on the workspace -- and
-    /// stopping that drag at a panel's edge would CLAMP the document: an object
-    /// could not be dragged to a cell a maker is entitled to put it at merely
-    /// because something is currently drawn over that cell. That is a panel's
-    /// presence becoming visible in the picture of the document, which is the
-    /// same rule that keeps the vacated Info column empty (screen.hpp). The
-    /// object goes where the hand puts it, and the panel goes on covering it.
+    // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-        // ---- READING PAST AN ELLIPSIS (WUX-7), BEFORE ANYTHING ELSE THIS MOTION MEANS ----
+        // ---- READING PAST AN ELLIPSIS, BEFORE ANYTHING ELSE THIS MOTION MEANS ------------
         //
         // IT IS A POINTING AND NOT A GESTURE, which is why it is resolved here rather than in
         // one of the branches below: nothing is held, nothing is claimed, and the answer is a
@@ -2078,7 +1522,7 @@ public:
             session_.reveal = want;
             repaint(mail);
         }
-        // ---- CARRYING A LAYOUT TAB ALONG THE RUN (WUX-11) --------------------------------
+        // ---- CARRYING A LAYOUT TAB ALONG THE RUN -----------------------------------------
         //
         // THE HAND IS HOLDING THE LIVE LAYOUT, because the press that began this made that
         // tab live. So a motion asks the same inverse the press asked -- against the run as
@@ -2100,7 +1544,7 @@ public:
             return;
         }
         if (session_.terminal.open) {
-            // THE OVERLAY HAS THE INPUT, and since TEXT-0 one motion matters inside it: a
+            // THE OVERLAY HAS THE INPUT, and one motion matters inside it: a
             // selection drag the mode's own press began on its editable line. The geometry
             // is re-resolved from the CURRENT screen — the same two calls the press spent —
             // and the ROW is deliberately not re-tested: a drag owns the gesture until
@@ -2134,7 +1578,7 @@ public:
             repaint(mail);
             return;
         }
-        // A SELECTION DRAG ON THE PANE EDITOR'S LIVE DRAFT (WUX-13) -- the property draft's
+        // A SELECTION DRAG ON THE PANE EDITOR'S LIVE DRAFT -- the property draft's
         // twin below, resolved through the Pane Editor's own body.
         if (session_.text_drag.active &&
             session_.text_drag.place == text_drag_place::kPaneEditorDraft) {
@@ -2147,7 +1591,7 @@ public:
             }
             return;
         }
-        // A SELECTION DRAG ON THE LIVE PROPERTY DRAFT (TEXT-0) — the Terminal branch's twin
+        // A SELECTION DRAG ON THE LIVE PROPERTY DRAFT — the Terminal branch's twin
         // on the ordinary path, before the document's drag for the same reason the press
         // chain asks the draft first: it is the narrower claim, and the two cannot both be
         // active (a press `info_press` consumed never reached `take_hold`).
@@ -2221,26 +1665,8 @@ public:
         repaint(mail);
     }
 
-    /// THE WHEEL TURNED. One arm per consumer, chosen by the SAME topmost-occupancy answer
-    /// the press uses -- still no scroll framework, no per-region wheel registry and no
-    /// Workshop-global map of scroll offsets. Over the source editor's text body the wheel
-    /// scrolls that viewport; over the project browser's body, the Pane Editor's two lists
-    /// and the picker it moves that list's CURSOR (a list derives its window from its
-    /// cursor, so a second scroll position would be a second answer to one question);
-    /// over an external pane's body it crosses the seam as `PaneWheel` and means whatever
-    /// that provider's grammar says; and everywhere else it means what it always meant
-    /// here, which is nothing. Since QR-18 that is every surface Workshop itself windows,
-    /// and every external pane whose provider spends the sentence: a pane that says
-    /// `... N more` is a pane the wheel can reach those N through (Loaded, which holds no
-    /// cursor and no list origin, is the one shipped pane that still only counts).
-    ///
-    /// THE MODES KEEP THEIR OWNERSHIP: while the Terminal or an arrangement scope owns
-    /// the pointer, the wheel is theirs to ignore, exactly as motion is -- a wheel that
-    /// scrolled a pane under the overlay would be the click-through defect, rolling.
-    ///
-    /// THE CARET STAYS PUT AND THE VIEW MOVES -- scrolling is looking, not editing --
-    /// so the follow flag is deliberately not set, and the next caret gesture brings
-    /// the view back to the caret through the ordinary reconcile.
+    /// THE WHEEL TURNED.
+    // WL-EDIT-10 -- agents/workshop/editor.md
     void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
         if (session_.terminal.open || session_.arrange.open || session_.context.open) {
             return;
@@ -2337,7 +1763,7 @@ public:
         // only the second is news. So the announcement below is made only for a
         // build this panel asked for and has not yet been answered about.
         //
-        // ASYNC-1 MADE THAT DISTINCTION WORTH MORE, NOT LESS. A build now has a
+        // THE ASYNC BUILD MADE THAT DISTINCTION WORTH MORE, NOT LESS. A build now has a
         // middle, so a panel opened while one is running is TOLD "running" and
         // must announce nothing -- it did not watch this build begin, and the
         // arrival of a status is not the arrival of an event. `awaiting` is
@@ -2350,7 +1776,7 @@ public:
         if (!zengine::builder::still_going(said.outcome)) {
             pane.awaiting = false;
         }
-        // ---- THE SECOND ANSWER, ANNOUNCED ON ITS OWN LATCH (BLD-1) ------------
+        // ---- THE SECOND ANSWER, ANNOUNCED ON ITS OWN LATCH --------------------
         //
         // Realization settles AFTER the build it followed, so by the time it does,
         // `awaiting` has already been released and the build's own ending announced.
@@ -2400,7 +1826,7 @@ public:
         switch (said.outcome) {
         case zengine::builder::outcome::kSucceeded:
             // TWO OUTCOMES, TWO SENTENCES, AND THE SECOND IS NOT SUPPRESSED BY THE
-            // FIRST (BLD-1). A maker who asked for BUILD & REALIZE and got a green
+            // FIRST. A maker who asked for BUILD & REALIZE and got a green
             // build has learned half of what they asked about; announcing only that
             // half would be the same conflation the Builder's own two fields exist to
             // prevent. The realization half arrives later, in its own status, and is
@@ -2426,35 +1852,8 @@ public:
         repaint(mail);
     }
 
-    /// THE BUILDER TOOL SAID WHAT THIS PROJECT CAN BUILD (BLD-1).
-    ///
-    /// A SECOND PUBLICATION FROM THE SAME WEAVE, held under the same rule as the
-    /// first: only while a panel is presenting it. It arrives once, in answer to the
-    /// `StatusRequested` an opening Builder panel sends, and it is the entire reason
-    /// this application can offer a maker a CHOICE of what to build without holding one
-    /// recipe of its own.
-    ///
-    /// THE CHOICE IS REVALIDATED HERE AND NOWHERE ELSE. A catalog that arrived shorter
-    /// than the last one -- a second panel, a re-ask -- must not leave a selection
-    /// pointing past its end, and doing it at the arrival is the one place that can be
-    /// true for every later reader.
-    ///
-    /// ⚠ STANDING INTENT SURVIVES BY RECIPE IDENTITY, NEVER BY ROW POSITION (PROJ-1).
-    /// Once a catalog can be REPLACED while Workshop runs, an index is no longer a
-    /// harmless shorthand for a choice: the same row number in a new catalog is a
-    /// different recipe, so keeping the number would silently re-aim `b`, `e` and `f` at
-    /// something the maker never picked -- the quietest possible wrong answer, because
-    /// the panel would look exactly as it did a moment ago. So the recipe the maker was
-    /// on is remembered by NAME across the arrival and looked up again:
-    ///
-    ///     the same identity is still here   -> follow it to its new row, pick intact
-    ///     the identity is gone              -> home, and the pick is not the maker's
-    ///
-    /// A catalog replacement is allowed to INVALIDATE a standing choice; it is not
-    /// allowed to REINTERPRET one. There is deliberately no fallback to the old index, to
-    /// the artifact stem, to a nearest row or to a similar name -- every one of those is
-    /// a rule that answers "which recipe did they mean" with a guess, and a cleared
-    /// selection is a thing a maker can see.
+    /// THE BUILDER TOOL SAID WHAT THIS PROJECT CAN BUILD.
+    // WL-PROJ-07 -- agents/workshop/project.md
     void on(const zengine::builder::RecipeCatalog& said, loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return;
@@ -2483,14 +1882,14 @@ public:
             return;
         }
         pane.chosen = 0;
-        // A SELECTION THAT NO LONGER NAMES ANYTHING IS NOT THE MAKER'S ANY MORE (BLD-2):
+        // A SELECTION THAT NO LONGER NAMES ANYTHING IS NOT THE MAKER'S ANY MORE:
         // the recipe their pick named is gone, and 0 is where the panel put them, not
         // where they went. The frontier action must not read it as an explicit choice.
         pane.picked = false;
         repaint(mail);
     }
 
-    // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says (WP-0)
+    // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says
     //
     // TWO DOORS AND THEY ARE DIFFERENT DOORS. Discovery adds a row a maker may choose;
     // content fills a pane a maker has already opened. `PaneContent` never creates a
@@ -2507,14 +1906,14 @@ public:
     // leniency.
     //
     // WHAT IT DOES NOT PROVE, said here because the temptation to read more into it is the
-    // failure mode WP-R0 was corrected for: a role is a LIVE, REPLACEMENT-STABLE SERVICE
+    // failure mode a research pass was corrected for: a role is a LIVE, REPLACEMENT-STABLE SERVICE
     // ROUTE on this bus in this process. It is not a package author, not a signature, not a
     // publisher, and not evidence that the same author came back after a restart.
 
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail) {
-        // READ AS A VIEW AND KEPT AS ONE (WP-0a). The stamp belongs to the delivery
+        // READ AS A VIEW AND KEPT AS ONE. The stamp belongs to the delivery
         // being handled and outlives every line below it; nothing here stores it, so
         // no view survives this handler. Making an owned string of it HERE would put
         // the copy before the law -- `admit_pane_offer` is the one place that decides
@@ -2578,7 +1977,7 @@ public:
         if (office.empty()) {
             return; // personal speech: no cache, no notice, no catalog change
         }
-        // IDENTITY IS ASKED OF WHAT WAS ALREADY ADMITTED, WITH VIEWS (WP-0a). The pair
+        // IDENTITY IS ASKED OF WHAT WAS ALREADY ADMITTED, WITH VIEWS. The pair
         // is compared against rows this session accepted under `check_pane_key`, so
         // the question is answered without owning either half and without building a
         // `PaneRef` out of an office no law here has judged. THIS IS NOT A SECOND
@@ -2676,15 +2075,7 @@ public:
 
 private:
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
-    ///
-    /// Byte equality, and one deliberate widening: a single ASCII LETTER matches
-    /// in either case. A trigger says which KEY changed; what character the
-    /// platform's layout made of it is a second fact, and Shift or a caps lock
-    /// makes it the capital. `s` opening the name editor and then typing an `S`
-    /// into it is the same defect as it typing an `s`, so both are owed.
-    ///
-    /// Nothing broader: this is not a case-folding rule for text, it is a
-    /// question about ONE keystroke that has already happened.
+    // WL-KEY-12 -- agents/workshop/keyboard.md
     static bool same_keystroke(const std::string& text, const std::string& owed) {
         if (text == owed) {
             return true;
@@ -2704,7 +2095,7 @@ private:
     /// band cannot spell one binding two ways.
     std::string hotkey(Act a) const { return hotkey_text(session_.keymap, a); }
 
-    /// THE PANE EDITOR'S LIVE DRAFT, if any (WUX-13) -- asked by its own name where the
+    /// THE PANE EDITOR'S LIVE DRAFT, if any -- asked by its own name where the
     /// caller already knows which inspector it is standing in.
     Row* pane_editor_editing_row() {
         for (Row& r : session_.pane_editor.rows) {
@@ -2715,12 +2106,8 @@ private:
         return nullptr;
     }
 
-    /// THE DRAFT UNDER THE KEYS. Two inspectors can each hold a live draft (WUX-13: the
-    /// Pane Editor's rows and the Info panel's), and `kDraft` is one context for both --
-    /// so this answers the question `keyboard_context` answers: the Pane Editor's draft
-    /// while the Pane Editor holds the keys, the Info panel's otherwise. Every consumer of
-    /// the draft (the commit keys, typed text, the clipboard) goes through here, which is
-    /// what keeps a character from landing in the draft the screen is not pointing at.
+    /// THE DRAFT UNDER THE KEYS.
+    // WL-PED-07 -- agents/workshop/pane-manager.md
     Row* editing_row() {
         if (pane_editor_has_keyboard(session_)) {
             if (Row* mine = pane_editor_editing_row()) {
@@ -2735,27 +2122,15 @@ private:
         return nullptr;
     }
 
-    // WHERE `editable_text_has_keyboard()` AND THE OLD `paste_owner_now()` CHAIN USED TO
-    // BE (TEXT-0, QR-11 -> KEY-0): both were hand-kept mirrors of the routing chain, each
-    // annotated "MIRRORS THE CHAIN branch for branch so the two cannot disagree" -- the
-    // discipline was real and it was still a discipline, held in three places by hand.
-    // `keyboard_context(session_)` (screen.hpp) is the chain now, and both questions are
-    // one-line derivations of its answer: `context_takes_text(ctx)` is the `^c` gate
-    // (carried by `workshop.quit`'s kNoText declaration context), and the paste owner
-    // below reads the same value. Per branch the old answers are unchanged, arm for arm.
 
     /// Which of this weave's own editable places a consumed paste request came from
-    /// (QR-11). `kNone` for every armless branch — a focused runtime pane's paste is the
-    /// provider's own conversation with the Skin, and the gesture branches that hold no
-    /// box cannot have bumped the counter this answers about.
+    /// `kNone` for every armless branch.
+    // WL-TEXT-09 -- agents/workshop/text-box.md
     enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft, kEditor };
 
-    /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? — `paste_requests`
-    /// bumped, so one of the box-holding branches ran; since KEY-0 this is a projection of
-    /// the one resolved context rather than a second spelling of the routing, which closes
-    /// the way two spellings could deliver a paste to a draft the keys never reached.
     /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's or the Pane
-    /// Creator's. Two modes, one kind of box, one question for the paste path (WUX-14).
+    /// Creator's.
+    // WL-MAKER-11 -- agents/workshop/maker-pane.md; WL-TEXT-09 -- agents/workshop/text-box.md
     component::TextBox* naming_line() {
         if (session_.setup.naming.open) {
             return &session_.setup.naming.line;
@@ -2778,12 +2153,8 @@ private:
     }
 
     /// ONE PASTE STILL IN FLIGHT: the conversation (by the book's own id) and the draft it
-    /// belongs to. The owner names the box; `epoch` says WHICH draft that box was holding
-    /// (`TextBox::draft_epoch` — set/clear bump it, so a submitted line, a cancelled
-    /// draft and a reopened editor all read as a different draft); `object`/`label`
-    /// identify a property row, whose box is one of many and is rebuilt freely (a carried
-    /// draft rides `Row::resume` with its epoch, so an extent change mid-flight does not
-    /// orphan the paste).
+    /// belongs to.
+    // WL-EDIT-11 -- agents/workshop/editor.md; WL-TEXT-09 -- agents/workshop/text-box.md
     struct PendingPaste {
         std::uint64_t ask = 0;
         PasteOwner owner = PasteOwner::kNone;
@@ -2791,23 +2162,14 @@ private:
         std::int64_t object = 0;
         std::string label;
         /// THE SOURCE EDITOR'S OWN IDENTITY PAIR, meaningful only for `kEditor`: which
-        /// document was open (`EditorState::doc_epoch` -- a replacement or close in
-        /// flight must strand the answer), and exactly where it stood
-        /// (`EditorBuffer::revision` -- every text, caret or selection change moves it).
-        /// A paste answer may not land at whatever caret happens to exist when it
-        /// arrives, so the editor pins the WHOLE position: the answer applies where the
-        /// maker asked or it does not apply at all.
+        /// document was open, and exactly where it stood.
+        // WL-EDIT-11 -- agents/workshop/editor.md
         std::uint64_t editor_doc = 0;
         std::uint64_t editor_revision = 0;
     };
 
-    /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR (QR-11). The
-    /// ask goes to the Skin's ROLE — the Medium owns the platform clipboard in both
-    /// directions — and the book is the asker's own record (`loom::AskBook`): at capacity
-    /// the NEW paste is refused and every outstanding one is untouched, the asker's half
-    /// of the settlement law. A refused open drops this paste silently; the book's
-    /// capacity is real pastes in flight, which one bus turn settles, so reaching it takes
-    /// a Skin that never answers.
+    /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR.
+    // WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
     void begin_clipboard_paste(loom::Mail& mail) {
         PendingPaste p;
         p.owner = paste_owner_now();
@@ -2865,13 +2227,11 @@ private:
     }
 
     /// Editing mode, KEY half: the three keys that are editor CONTROLS rather
-    /// than text. Commit, cancel, erase -- meanings that belong to Workshop and
-    /// that Input deliberately does not know. Everything else a key press might
-    /// have meant arrives as TextEntered instead, including `q`, which types a q
-    /// here and is the whole reason Ctrl+C is handled above this branch.
+    /// than text.
+    // WL-TEXT-02 -- agents/workshop/text-box.md
     void editing_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         Row* row = editing_row();
-        // A PANE EDITOR ROW'S COMMIT OWES A RESEAT (WUX-13). Its write closure spent the
+        // A PANE EDITOR ROW'S COMMIT OWES A RESEAT. Its write closure spent the
         // setup door; what a place write also changes is the SEATING -- an authored place
         // leaves the reactive stack and every reactive pane below it moves up a slot --
         // and `apply_setup` is the one path that reconciles it, exactly as it is for the
@@ -2879,16 +2239,16 @@ private:
         // write closure has to know which of the four axes it was.
         const bool pane_row = row != nullptr && pane_editor_has_keyboard(session_) &&
                               pane_editor_editing_row() == row;
-        // THE DRAFT'S OWN VOCABULARY FIRST (TEXT-0). One call owns what four switches used
+        // THE DRAFT'S OWN VOCABULARY FIRST. One call owns what four switches used
         // to spell separately — the six editing keys, and now selection, clipboard, word
-        // movement and history behind them — and a `true` is QR-2's bool: the gesture
+        // movement and history behind them — and a `true` is bool: the gesture
         // reached the layer that owns what it means, whether or not anything changed. The
         // component's vocabulary outranks the application keymap INSIDE a text context,
         // deliberately (owner-first refusal): a maker who remaps a draft control onto an
         // editing chord has authored a binding the box will answer first, and the hotkey
         // view shows both rows. What is left below is exactly the policy: what a draft
         // MEANS when a maker commits or abandons it, which the component is deliberately
-        // unable to know -- resolved through the keymap since KEY-0, executed here as
+        // unable to know -- resolved through the keymap executed here as
         // ever.
         if (row->consume(k.scancode, k.modifiers, session_.clipboard)) {
             return;
@@ -2921,34 +2281,11 @@ private:
         }
     }
 
-    /// THE ONE PLACE THE PROPERTY DRAFT'S HORIZONTAL WINDOW IS RECONCILED (HD-5).
-    ///
-    /// `refresh_terminal`'s argument, one editor over, and it is called from the same place
-    /// for the same reason: once per repaint, BEFORE anything is painted and before the next
-    /// press is mapped, so the window a press is answered with is the window the maker is
-    /// looking at. Four things must move it -- a keystroke, a press, opening a draft on a
-    /// value longer than the row, and a RESIZE that changed nothing but the room -- and only
-    /// the first three are edits, so a hook on the edits alone would have missed the fourth.
-    ///
-    /// ONLY THE EDITING ROW HAS A WINDOW TO RECONCILE, and at most one row is ever editing:
-    /// `begin_edit` is reachable only from command mode, which is precisely the state in
-    /// which no row is being edited. So this is one pass over eight rows doing nothing, plus
-    /// four integer comparisons on the one that matters. Nothing is pooled and no row is
-    /// given presentation state it is not using.
-    ///
-    /// A CLOSED PANEL IS NOT A ZERO CAPACITY. `bounds_of` answers with an empty rectangle for
-    /// a panel nobody has open and `info_body_place` refuses it, so the reconcile is
-    /// skipped rather than run against no room -- the draft is untouched, and the next
-    /// repaint after the panel comes back resolves the window against the room it then has.
-    ///
-    /// SINCE HD-6 THE CAPACITY IS THE BODY'S, NOT THE ROW'S, and it is the same number for
-    /// every row: the body is one region and `value_columns` is what any of its rows has left
-    /// after the mark, the name and the caret's own column. A resize therefore reconciles the
-    /// horizontal window of a live draft and the vertical window of the body from ONE resolved
-    /// place, which is the whole of what "one resize reconciles all of it" costs here.
+    /// THE ONE PLACE THE PROPERTY DRAFT'S HORIZONTAL WINDOW IS RECONCILED.
+    // WL-INFO-01, WL-INFO-05, WL-INFO-06 -- agents/workshop/info-body.md
     void refresh_inspector() {
         const Screen sc = screen_of(session_);
-        // THE PANE EDITOR'S DRAFT FIRST (WUX-13), against ITS body's capacity -- the same
+        // THE PANE EDITOR'S DRAFT FIRST, against ITS body's capacity -- the same
         // one measurer, one pane over; a closed Pane Editor is skipped, not a zero.
         const PanelBounds editor =
             bounds_of(session_.panels, session_.setup.active, panel::kPaneEditor, sc);
@@ -2976,69 +2313,8 @@ private:
         }
     }
 
-    /// A PRESS INSIDE THE ACTIVE PROPERTY EDITOR, and nothing else (HD-5).
-    ///
-    /// The pipeline, in the order §10 asks for it and with no step reconstructed from a
-    /// coarser one:
-    ///
-    ///     the raw pointer fact (its own space, its own numbers)
-    ///         -> the resolved Info panel body       info_body_place
-    ///         -> a row and a column of ITS prose    prose_at
-    ///         -> a semantic property row            property_at_prose_row
-    ///         -> a column of that row's VALUE       property_value_column
-    ///         -> a byte of the WHOLE draft          TextBox::position_at_column
-    ///         -> the caret                          Row::place
-    ///
-    /// THE VERTICAL HALF IS HD-6'S, and it is the half a bounded body made necessary: a prose
-    /// row is no longer the property's own index, because the body may be showing rows 4..7 of
-    /// eight with a `... 4 earlier` marker spending the first of them. `property_at_prose_row`
-    /// is the inverse of the function the painter positioned the caret with, so there is no
-    /// second copy of the window arithmetic to go one row out once the body has scrolled.
-    ///
-    /// AND IT IS STILL NOT ROUNDED TO A WORKSHOP CELL. A graphical body row is 18 device
-    /// pixels tall against a 12-pixel cell, so a press resolved through cells would name the
-    /// wrong property for two thirds of the body. `prose_at` divides by the resolution the
-    /// rows were DRAWN with -- `fit.line_px` -- which is the same fit the painter spent.
-    ///
-    /// THE RAW PIXEL IS USED AS A RAW PIXEL. `prose_at` branches on the `space` the backend
-    /// stamped, exactly as the Terminal's press does: a window's pixel is divided by the
-    /// resolution the row was drawn with, and a cell medium's position is already a
-    /// character and takes the other route entirely.
-    ///
-    /// IT IS A PLACE, NOT A MODE, AND IT BEGINS NOTHING. A press that lands on an editable
-    /// value which is NOT being edited is not a request to start editing it: that would have
-    /// to decide what happens to a draft already live somewhere else, which is a semantic
-    /// this phase has no measurement for and did not invent. `Return` opens a draft, and this
-    /// only moves the insertion point inside the one that is open. A press anywhere else on
-    /// the panel is answered by the panel exactly as it was.
-    ///
-    /// **TRUE MEANS CONSUMED — STOP ROUTING. FALSE MEANS NOT CONSUMED — CARRY ON (QR-2).**
-    /// It used to answer whether the CARET MOVED, and the two agree for exactly as long as
-    /// every press that lands on the draft also moves it -- which is to say until a maker
-    /// presses where the caret already is. Measured on the pristine tree: that press fell
-    /// through this handler, through the controls, through the object list, and was answered
-    /// by the panel with `Info is here -- nothing under it can be taken hold of`, over a
-    /// notice the maker was still reading. A press that reached the layer that owns what it
-    /// means is that layer's, whether or not anything moved.
-    /// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK, AND IF SO SELECT THE WORD (WUX-7).
-    ///
-    /// ONE SEAM FOR BOTH EDITABLE LINES, and that is the whole reason it is a function: the
-    /// Terminal's command line and the Inspector's live draft are two instances of one
-    /// component, so a maker's hand must mean the same thing in both. Nothing platform-
-    /// specific reaches here -- neither backend can say a click count on `PointerButton`, and
-    /// inventing one per medium would make a TUI and an SDL Workshop disagree about a
-    /// component's own grammar.
-    ///
-    /// IT ARMS ON THE WAY OUT, ALWAYS, AND THAT IS WHAT MAKES A FIRST PRESS A FIRST PRESS.
-    /// The record it writes is read only by a LATER press, so the click that merely pointed
-    /// the keyboard at a pane, opened the draft, or landed in a word for the first time is an
-    /// ordinary click with an arming beside it, and can never be counted as its own second
-    /// half.
-    ///
-    /// A MODIFIER-BEARING PRESS IS NOT AN ORDINARY CLICK. It neither doubles nor arms, and
-    /// its ordinary behaviour is left exactly where it was -- this path consumes nothing it
-    /// did not already own, which is what keeps a future shift-click free to mean something
-    /// without first having to be rescued from here.
+    /// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK, AND IF SO SELECT THE WORD.
+    // WL-PTR-02, WL-PTR-03 -- agents/workshop/pointer.md
     bool press_selects_word(std::int64_t modifiers, std::int64_t place,
                             component::TextBox& box, std::size_t at) {
         if (modifiers != zengine::input::mod::kNone) {
@@ -3098,7 +2374,7 @@ private:
             // component holds the offset the last repaint resolved, which is the one the
             // maker is looking at.
             //
-            // AND THE ROW'S OWN PROSE OFFSET COMES OFF FIRST (HD-6). A body row carries the
+            // AND THE ROW'S OWN PROSE OFFSET COMES OFF FIRST. A body row carries the
             // mark and the property's name before the value, exactly as the pane's row
             // carries `> ` before the command, so a pressed column is a column of the ROW and
             // the value's column is that minus what the name spent. `property_value_column`
@@ -3106,13 +2382,13 @@ private:
             // `property_caret_column` added.
             const std::size_t target =
                 row.editor().position_at_column(property_value_column(where.at.column));
-            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT (WUX-7). The first press is
+            //...AND A SECOND PRESS IN THE SAME WORD SELECTS IT. The first press is
             // still an ordinary press and still places the caret; only the second one means
             // something else, and it means it in the component's own word vocabulary.
             if (!press_selects_word(modifiers, row, target)) {
                 row.place(target);
             }
-            // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0). The press placed the caret,
+            //...AND THE PRESS OPENS A SELECTION DRAG. The press placed the caret,
             // which is the anchor; every motion until release extends from it. The record
             // holds WHICH line and nothing else — the geometry is re-resolved per motion by
             // the same functions this press just spent, `PaneGesture`'s no-live-position law.
@@ -3123,46 +2399,9 @@ private:
         return false; // no draft is live, so this panel has no editor to press
     }
 
-    /// A PRESS ON AN ACTION CONTROL PERFORMS THE ACT THE CONTROL NAMES (HD-8).
-    ///
-    /// THE GEOMETRY IS THE PAINTER'S, one run down from the two lists and with the same
-    /// pipeline, no step reconstructed from a coarser one:
-    ///
-    ///     the raw pointer fact (its own space, its own numbers)
-    ///         -> the resolved Info panel body       info_body_place
-    ///         -> a row and a column of ITS prose    prose_at
-    ///         -> a control of the footer            action_press_at
-    ///         -> availability                       action_availability
-    ///         -> the SAME operation `n` and `d` call
-    ///
-    /// `action_press_at` inverts `prose_row_of_action`, the function the painter placed the
-    /// control with, so what a maker aims at is what answers. It is never rounded to a
-    /// Workshop cell, for the reason the other two presses are not: a graphical body row is
-    /// eighteen device pixels against a twelve-pixel cell.
-    ///
-    /// **IT INVENTS NO SECOND PATH INTO THE DOCUMENT.** `create_object()` and
-    /// `delete_object()` are the operations `command()` binds `n` and `d` to, called here
-    /// unchanged -- so the pointer and the keyboard cannot come to create differently, delete
-    /// differently, select differently afterwards, or describe what they did in different
-    /// words. There is no copy of the create algorithm here and there is no registry, no
-    /// command id, no callback and no action bus: this function is a switch over two indices
-    /// of a table, which is what two controls actually cost.
-    ///
-    /// THE TWO REFUSALS ARE HANDLED DIFFERENTLY AND THAT IS THE POINT (`Availability`'s own
-    /// comment carries the argument). A live draft is refused HERE, because the operations
-    /// know nothing about one and would rebuild the inspector's rows out from under it. No
-    /// target is passed THROUGH, because `doc::remove` already refuses it, changes nothing,
-    /// and says so in the document's own words -- and a second sentence for one state is the
-    /// thing this file spends `move_notice` and `kNoDocumentFile` avoiding.
-    ///
-    /// AND A PRESS ON A CONTROL IS CONSUMED WHATEVER IT DECIDES — **true means consumed, stop
-    /// routing; false means not consumed, carry on** (QR-2, naming what this already did).
-    /// Returning false for an unavailable control would drop the press through to the object
-    /// list and then to the panel's occupancy answer, which would put a sentence about the
-    /// panel on the notice line in place of the reason the maker actually needs. One gesture,
-    /// one owner. This is the handler that was already answering the routing question the
-    /// chain asks, which is why nothing about it changes here beyond where its place comes
-    /// from.
+    /// A PRESS ON AN ACTION CONTROL PERFORMS THE ACT THE CONTROL NAMES.
+    // WL-CTRL-03, WL-CTRL-05 -- agents/workshop/info-controls.md
+    // WL-PRESS-01 -- agents/workshop/press-chain.md
     bool actions_press(const InfoBodyAt& where) {
         if (!where.present) {
             return false;
@@ -3183,48 +2422,9 @@ private:
         return true; // consumed, whatever the document then made of it
     }
 
-    /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there
-    /// (HD-7).
-    ///
-    /// THE GEOMETRY IS THE PAINTER'S, with no step reconstructed from a coarser one and no
-    /// second copy of the window arithmetic:
-    ///
-    ///     the raw pointer fact (its own space, its own numbers)
-    ///         -> the resolved Info panel body       info_body_place
-    ///         -> a row and a column of ITS prose    prose_at
-    ///         -> a visible object                   object_press_at
-    ///         -> the document's own identity        select
-    ///
-    /// `object_press_at` inverts `prose_row_of_object`, the same function the painter placed
-    /// the name with, so the row a maker sees IS the row the press names -- including when the
-    /// list has scrolled and an `... N earlier` marker is spending the body's first row, which
-    /// is the case a second copy of the arithmetic would get wrong. It is never rounded to a
-    /// Workshop cell: a graphical name row is eighteen device pixels tall against a
-    /// twelve-pixel cell, so a cell-rounded press names the wrong object for most of the list.
-    ///
-    /// THE MODE LAW, STATED ONCE AND PINNED: **while a property draft is live, a press on the
-    /// object list changes no selection and says so.** Changing objects rebuilds the inspector
-    /// rows, which is exactly what a live draft cannot survive -- and the three answers a
-    /// press could give instead (commit it, cancel it, carry it to a different object's `Name`)
-    /// are three different sentences about a maker's unfinished work that nothing has measured
-    /// a preference between. HD-6 refused the mirror of this question (a press does not BEGIN
-    /// an edit) for the same reason. `Esc` cancels, `Return` commits, and then the list is
-    /// live again; the notice says which.
-    ///
-    /// AND IT SELECTS, WHICH IS ALL IT DOES. It does not open the Builder, begin a drag, take
-    /// hold, rename, or start editing a property -- `select` is the same call `Tab` makes, so
-    /// a pointer and a key reach the document through one door.
-    ///
-    /// **TRUE MEANS CONSUMED — STOP ROUTING. FALSE MEANS NOT CONSUMED — CARRY ON (QR-2).**
-    /// AND ONE OF THE FALSES BELOW IS DELIBERATE RATHER THAN GEOMETRIC: a press on the row of
-    /// the object that is ALREADY selected lands squarely on this list and is still not
-    /// consumed, because there is nothing here for it to do and the sentence a maker should
-    /// get is the panel's -- the same one every other press on this rectangle gets. That is
-    /// the shape `info_press` had by accident and this one has on purpose, and the difference
-    /// is exactly why one bit could not be repaired by copying the other site: one of them was
-    /// answering the wrong question and the other was answering this one with a considered
-    /// `no`. Naming the bit does not merge them; it makes the deliberate `no` legible as a
-    /// choice instead of leaving it indistinguishable from a defect.
+    /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there.
+    // WL-INFO-01, WL-INFO-09 -- agents/workshop/info-body.md
+    // WL-PRESS-01, WL-PRESS-02 -- agents/workshop/press-chain.md
     bool objects_press(const InfoBodyAt& where) {
         if (!where.present) {
             return false;
@@ -3250,13 +2450,7 @@ private:
     }
 
     // ---- The terminal overlay ------------------------------------------------
-    //
-    // WORKSHOP PRESENTS A PARTICIPANT; IT DOES NOT BECOME ONE. Everything below
-    // reads a snapshot or calls an ordinary method on the participant the host
-    // mounted. Nothing here sends a message as Workshop, and nothing here can:
-    // `WorkshopWeave`'s own grant carries `SurfaceCanvas` and `SurfaceText` and
-    // nothing else, and it has no bus to speak through outside a handler anyway.
-    // The participant's door is the participant's.
+    // WL-TERM-02 -- agents/workshop/terminal.md
 
     /// Open or close the pane. The whole of the mode change.
     void toggle_terminal() {
@@ -3274,26 +2468,11 @@ private:
 
     /// Editing mode for the command line: the keys that are controls rather than
     /// text, exactly as the inspector's editor has.
-    ///
-    /// Escape CLEARS THE LINE AND DOES NOT CLOSE THE PANE. One gesture opens and
-    /// closes this thing, and giving Escape a second way out would mean a maker
-    /// who wanted to abandon a half-typed command sometimes lost the pane too.
-    ///
-    /// SINCE HD-2 IT HAS ONE MORE JOB BEFORE THAT ONE: dismissing the completion
-    /// list. The ordering is what a maker means by pressing it -- the list is the
-    /// most recent thing that appeared, so the first Escape puts it away and the
-    /// second abandons the line. Neither ever closes the pane, which is still the
-    /// property that makes this key safe to press.
-    ///
-    /// THE THREE NEW KEYS WERE ALL UNBOUND IN THIS MODE, source-traced before they
-    /// were taken: `terminal_key`'s switch had exactly Return, Backspace and
-    /// Escape, and everything else fell through `default: break`. Up/Down step the
-    /// INSPECTOR's rows and Tab selects the next OBJECT -- both in command mode,
-    /// which is a different mode and is not reachable while the pane is open. So
-    /// no gesture changed meaning anywhere.
+    // WL-TERM-01, WL-TERM-05 -- agents/workshop/terminal.md
+    // WL-TEXT-02, WL-TEXT-04 -- agents/workshop/text-box.md
     void terminal_key(const zengine::input::KeyPressed& k) {
         TerminalPane& pane = session_.terminal;
-        // THE LINE'S OWN VOCABULARY FIRST (TEXT-0): the six editing keys this switch used
+        // THE LINE'S OWN VOCABULARY FIRST: the six editing keys this switch used
         // to spell, and selection, clipboard, word movement and history behind them, all
         // through the one component call every consumer now makes. A consumed gesture
         // still reaches `refresh_terminal`, for the reason the caret keys always fell
@@ -3343,31 +2522,11 @@ private:
         refresh_terminal();
     }
 
-    /// A PRESS INSIDE THE TERMINAL MODE — the first place-within-a-mode (HD-3).
-    ///
-    /// Answers whether anything CHANGED, so the caller repaints for a press that did
-    /// something and stays quiet for one that landed on the pane's furniture. It never
-    /// answers "not mine": the mode consumes every press either way, which is what makes
-    /// click-through impossible without a z-order service to prevent it.
-    ///
-    /// **SO THIS BOOL IS NOT THE PRESS CHAIN'S BOOL, AND IT MUST NOT BE UNIFIED WITH IT**
-    /// (QR-2). `info_press`, `actions_press` and `objects_press` answer *did I consume this
-    /// press* and the chain stops on a true; this answers *is a repaint owed*, and consumption
-    /// was already decided one layer up by the MODE. A `false` here means "consumed by the
-    /// terminal, and nothing moved" -- the opposite of what a `false` means in the chain. Two
-    /// questions that happen to have two answers each are not one question, and the caller
-    /// names the result `repaint_needed` so the difference is visible at the only place both
-    /// kinds of bool are in view.
-    ///
-    /// THE ORDER IS THE PAINTER'S ORDER, BACKWARDS, and that is the whole of the arbitration:
-    /// `paint_terminal` pushes the pane and then the completion list, and painter's order
-    /// across `texts` is list order, so the list is on top -- therefore the list is asked
-    /// first. Two regions, one rule, and no z-order object to hold it.
-    ///
-    /// IT CONSUMES THE PLACEMENT THE PAINTER RESOLVED, never a second interpretation of it.
-    /// `completion_place` and `terminal_input_place` are each called with the same `Screen`
-    /// the painter uses, which is what makes "click the row you can see" true rather than
-    /// approximately true after the list has scrolled.
+    /// A PRESS INSIDE THE TERMINAL MODE — the first place-within-a-mode.
+    // WL-TERM-01, WL-TERM-09 -- agents/workshop/terminal.md
+    // WL-GEO-01 -- agents/workshop/geometry.md
+    // WL-PTR-02 -- agents/workshop/pointer.md
+    // WL-PRESS-02 -- agents/workshop/press-chain.md
     bool terminal_press(const zengine::input::PointerButton& b) {
         TerminalPane& pane = session_.terminal;
         const Screen sc = screen_of(session_);
@@ -3417,14 +2576,14 @@ private:
         if (at.understood && terminal_input_hit(place, at.column, at.row)) {
             const std::size_t was = pane.input.caret();
             const bool had_selection = pane.input.has_selection();
-            // THROUGH THE WINDOW THE ROW WAS DRAWN WITH (HD-4). A visible column names
+            // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
             // `first_visible + offset` of the WHOLE authored line, never the offset alone --
             // that is the one subtraction a horizontal viewport adds to a hit test, and
             // leaving it out is right for exactly as long as no line is long enough to
             // scroll. The offset read here is the one the last repaint resolved, which is
             // the one the maker is looking at.
             const std::size_t target = terminal_caret_of_column(place, pane.input, at.column);
-            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT (WUX-7), `info_press`'s twin
+            //...AND A SECOND PRESS IN THE SAME WORD SELECTS IT, `info_press`'s twin
             // over the other instance of one component: the first press still places the
             // caret and still means exactly what it always did.
             const bool word = press_selects_word(b.modifiers, text_drag_place::kTerminalLine,
@@ -3432,7 +2591,7 @@ private:
             if (!word) {
                 pane.input.place(target);
             }
-            // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0), `info_press`'s twin: the
+            //...AND THE PRESS OPENS A SELECTION DRAG, `info_press`'s twin: the
             // caret just placed is the anchor, and motion until release extends from it. A
             // press that selected a WORD opens one too -- the anchor is the word's start, so
             // dragging from it extends the selection rather than replacing it, which is what
@@ -3442,7 +2601,7 @@ private:
             // The caret moving is what changes whether completion may be asked, so a press
             // that moved it has to reach `refresh_terminal` exactly as a caret key does. A
             // press that COLLAPSED a selection changed the picture too, even where the
-            // caret stood still — the highlight has to leave the screen (TEXT-0).
+            // caret stood still — the highlight has to leave the screen.
             if (word || pane.input.caret() != was || had_selection) {
                 refresh_terminal();
                 return true;
@@ -3453,18 +2612,7 @@ private:
     }
 
     /// IS THERE A LIST ON SCREEN WITH SOMETHING IN IT TO CHOOSE?
-    ///
-    /// The three completion keys all ask this one question, and the "something to
-    /// choose" half is what keeps Escape's old meaning intact. A HEADING-ONLY list
-    /// -- "no shape here begins with that" -- is a real and useful answer, and it is
-    /// also transient: it goes away the moment the prefix changes, so a maker never
-    /// needs a gesture to be rid of it and Escape can go on meaning "clear the line"
-    /// there, exactly as it always did. A list with candidates in it is a chooser
-    /// sitting over the record, which is a thing a maker may genuinely want gone
-    /// while keeping what they have typed.
-    ///
-    /// Asked rather than assumed, because "there is something to say" and "a list is
-    /// showing" are different: a dismissed list still has candidates and is not there.
+    // WL-TERM-05 -- agents/workshop/terminal.md
     bool completion_selectable() const {
         const TerminalPane& pane = session_.terminal;
         return pane.open && pane.completion.open && !pane.dismissed &&
@@ -3472,11 +2620,7 @@ private:
     }
 
     /// Move the selection, and stop at the ends.
-    ///
-    /// It does not wrap. A list that wrapped would answer Up on the first row by
-    /// jumping to the last, which in a windowed list scrolls the whole thing out
-    /// from under the maker's eye -- and the gesture that recovers from it is the
-    /// one they just pressed.
+    // WL-TERM-05 -- agents/workshop/terminal.md
     void move_completion(int by) {
         if (!completion_selectable()) {
             return;
@@ -3491,25 +2635,7 @@ private:
     }
 
     /// TAKE THE SELECTED CANDIDATE INTO THE LINE.
-    ///
-    /// The edit is an ordinary end-of-line edit, which is what makes it compatible
-    /// with the caret this pane actually has: the token being completed is always
-    /// the LAST one, and the caret is always at the end, so accepting is "drop
-    /// what has been typed of this token, append what it was going to be". No
-    /// cursor position is needed, none is invented, and the trailing `_` still
-    /// sits exactly where the next keystroke lands.
-    ///
-    /// THE SEPARATOR COMES FROM THE CANDIDATE, not from here. `insert` carries the
-    /// trailing space where the grammar wants one and carries none after `field=`,
-    /// where a value follows immediately -- so acceptance can neither duplicate a
-    /// separator nor swallow one.
-    ///
-    /// HD-3 CHANGED WHERE THE CARET ENDS UP AND NOTHING ELSE, because there is now
-    /// somewhere else it could be. It ends at the end of the inserted result, which is
-    /// where a maker's next keystroke belongs -- and it is not an arbitrary choice: a
-    /// candidate is offered only when the caret is at the end (see `refresh_terminal`), so
-    /// "the end of the insert" and "the end of the line" are the same place, and leaving
-    /// the caret anywhere else would put it inside bytes the accept had just replaced.
+    // WL-TERM-05 -- agents/workshop/terminal.md
     void accept_completion() {
         if (!completion_selectable()) {
             return;
@@ -3533,28 +2659,7 @@ private:
     }
 
     /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
-    ///
-    /// The grammar is LOOM'S, not Workshop's: `tokenize`, `parse_address` and
-    /// `lex_arg` all come from <zen/terminal/input_lex.hpp>, which is the same
-    /// parser the standalone terminal uses. That is the whole reason WT-1 lifted
-    /// `parse_address` out of that REPL's anonymous namespace -- a second author
-    /// of one grammar is two grammars, and the day `#12` grows a second form only
-    /// one of them would learn it.
-    ///
-    /// TWO VERBS, and the smallness is deliberate: `send` and `ask` are the two
-    /// acts an ordinary participant has, and every other thing the standalone
-    /// REPL offers is either a renderer (`show`, `log`), a convenience over these
-    /// two (`request`, `approve`), or a HOST power no participant holds
-    /// (`weaves`, `tap`, `notify`). A pane that grew those would be growing a
-    /// second terminal, which is the one thing this phase is not allowed to do.
-    ///
-    /// The line is recorded on the participant BEFORE it is understood, so a
-    /// command that turns out to be nonsense is still part of that participant's
-    /// own chronology -- a record of effects with no causes is not a session.
-    /// SUBMISSION DOES NOT DEPEND ON WHERE THE CARET IS (HD-3). The parser receives the
-    /// whole line exactly as authored -- Return is not "submit up to the caret", it is
-    /// "submit this line", which is the reading that keeps a mis-typed middle repairable
-    /// without the repair changing what gets sent.
+    // WL-TERM-02 -- agents/workshop/terminal.md
     void submit_terminal_line() {
         const std::string line = session_.terminal.input.text();
         session_.terminal.input.clear();
@@ -3578,7 +2683,7 @@ private:
         me.record_command(line);
 
         const std::vector<loom::Token> tok = loom::tokenize(line);
-        // THE VERB TABLE IS THE COMPLETER'S TOO (HD-2, complete.hpp). It used to be
+        // THE VERB TABLE IS THE COMPLETER'S TOO (complete.hpp). It used to be
         // two string literals in the condition below, which was one answer while
         // one thing asked the question; a list a maker can be SHOWN is a second
         // asker, and two lists of two verbs is how the third verb gets learned by
@@ -3611,7 +2716,7 @@ private:
         // recorded on the participant, unshortened, exactly as every other entry is: the pane
         // wraps it across as many of its own rows as it needs (`detail::wrap`), so the length
         // of this string is a question about the GRAMMAR and never about the furniture. Before
-        // G-2 it was fitted into one 56-cell row and a maker asking how to send a message got
+        // wrapping it was fitted into one 56-cell row and a maker asking how to send a message got
         // `this pane speaks two verbs: \`send <addr> <Shape> <ver...` -- the answer truncated
         // at exactly the point it started being an answer.
         me.record_notice("this pane speaks two verbs, and `ask` takes the same form as `send`: "
@@ -3620,21 +2725,15 @@ private:
     }
 
     /// Take the pane's snapshot of the participant.
-    ///
-    /// BY VALUE, EVERY TIME, and never a retained reference into the transcript.
-    /// `Transcript::entries()`/`tail()` return copies precisely so a presentation
-    /// may hold the result across anything at all, including the destruction of
-    /// the participant it came from. So the canvas Workshop publishes cannot
-    /// contain a read of a freed transcript no matter when a Skin paints it, and
-    /// the only pointer in this composition is dereferenced here, inside a
-    /// handler, on the same thread the host pumps.
+    // WL-TERM-03, WL-TERM-08 -- agents/workshop/terminal.md
+    // WL-TEXT-04 -- agents/workshop/text-box.md
     void refresh_terminal() {
         TerminalPane& pane = session_.terminal;
         const Screen sc = screen_of(session_);
-        // THE ONE PLACE THE INPUT LINE'S HORIZONTAL WINDOW IS RECONCILED (HD-4).
+        // THE ONE PLACE THE INPUT LINE'S HORIZONTAL WINDOW IS RECONCILED.
         //
         // It is here because this function runs on EVERY repaint -- which is the property
-        // HD-2 met as a trap and this needs as a guarantee. The window has to follow the
+        // completion met as a trap and this needs as a guarantee. The window has to follow the
         // caret after a keystroke, after a press, after accepting a candidate AND after a
         // resize that changed nothing but the room; the first three are edits and the fourth
         // is not, so a hook on the edits would have missed exactly the witness §19 asks for.
@@ -3678,15 +2777,15 @@ private:
         // that must never send.
         //
         // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE
-        // (HD-3). HD-2's completer rests on an assumption that was free when the caret could
+        //. completer rests on an assumption that was free when the caret could
         // not move: the token being completed is the LAST one, so accepting is "drop what
         // has been typed of this token, append what it was going to be". With a caret in the
         // middle that edit would delete everything after it. The two honest repairs are to
         // teach the completer about a token under an arbitrary caret -- a second parser, on
         // a phase about carets and pointers -- or to say plainly that completion follows the
-        // end of the line. HD-3 says it plainly.
+        // end of the line.
         //
-        // AND IT SAYS IT OUT LOUD RATHER THAN GOING QUIET, which is HD-2's own measured rule
+        // AND IT SAYS IT OUT LOUD RATHER THAN GOING QUIET, which is own measured rule
         // arriving from a new direction: three different silences would otherwise render
         // identically, and a maker who moves the caret and watches the list vanish cannot
         // tell "not here" from "broken". So the list becomes a heading with no candidates in
@@ -3739,7 +2838,7 @@ private:
         // the caret rule cannot disagree about it -- there is no position in an empty string
         // that is not both 0 and the end.
         // AS MANY ENTRIES AS THIS PANE CAN SHOW WHOLE, which is no longer the same as "as
-        // many entries as it has rows": since G-2 a line too long for the pane WRAPS rather
+        // many entries as it has rows": a line too long for the pane WRAPS rather
         // than being cut, so one entry can cost several rows. `entries_that_fit` is the one
         // place that arithmetic lives, and `paint_terminal` carries out the same choice with
         // the same call -- two answers here would be a pane whose omission marker lied.
@@ -3759,35 +2858,9 @@ private:
     }
 
     /// Command mode.
-    ///
-    /// `hjkl` moves and `Shift+hjkl` resizes, which is one gesture family spelled
-    /// two ways rather than two families competing for free keys. It is spellable
-    /// only because the wire carries the modifiers held at the transition; with
-    /// no modifier vocabulary a second directional gesture costs four more
-    /// literal keys (`,` `.` `-` `=`), and those four bindings do not exist.
-    ///
-    /// The arrows step the inspector's rows and `hjkl` moves, which is why
-    /// neither pair had to be re-argued: the modifier bought a new gesture, not a
-    /// second meaning for an old key.
-    ///
-    /// `p` opens the picker and `b` asks the open Builder for a build. Both were
-    /// unbound before BLD-0, so no existing gesture changed meaning, and with no
-    /// Builder panel open `b` does exactly what it did before, which is nothing.
-    ///
-    /// `x` IS UNBOUND AGAIN, and that is PNL-0 answering the question BLD-0 wrote
-    /// down and declined: whose `x` is it? With a second panel kind the answer
-    /// would have to be either a per-panel binding or a focus rule, and this file
-    /// has refused both. So presence moved wholly to the picker -- one door,
-    /// which opens what is closed and removes what is open -- and the key that
-    /// used to close the Builder means nothing again.
-    ///
-    /// THE INSPECTOR'S KEYS NOW ANSWER FOR THEIR PANEL. `up`, `down` and Return
-    /// drive rows that only the Info panel shows, so with Info removed they say
-    /// so instead of quietly working on something invisible. That is not a focus
-    /// rule: it is the same sentence `b` says by doing nothing, said out loud
-    /// because unlike `b` these keys used to do something.
+    // WL-KEY-01 -- agents/workshop/keyboard.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what changed in KEY-0 is only
+        // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what the keymap changed is only
         // how a gesture becomes an action. Exact matching split the old `shift ?` pairs
         // into declared siblings (`object.left`/`object.narrower`,
         // `builder.build`/`builder.build-realize`) -- one gesture family spelled two ways
@@ -3812,7 +2885,7 @@ private:
         case Act::kWorkspaceNarrower: resize_workspace(-4); break;
         case Act::kWorkspaceWider: resize_workspace(+4); break;
         case Act::kPicker: open_picker(); break;
-        // BUILDING AND REALIZING stay two deliberate halves (BLD-1): realizing an
+        // BUILDING AND REALIZING stay two deliberate halves: realizing an
         // artifact is the one Builder gesture that changes what is running, and its
         // default is the chorded sibling of the plain build's.
         case Act::kBuild: build_now(mail, false); break;
@@ -3826,13 +2899,13 @@ private:
         // The editor's deliberate discard, reachable from command mode too so the quit
         // refusal names a gesture that works where the maker is standing.
         case Act::kEditorDiscard: discard_source_edits(); break;
-        // THE TWO SETUP GESTURES (WS-0): ordinary maker commands beside `+ panel`,
-        // deliberately not another `^`-pair beside the document's. Since WUX-11 they are
+        // THE TWO SETUP GESTURES: ordinary maker commands beside `+ panel`,
+        // deliberately not another `^`-pair beside the document's. they are
         // both FILE operations and nothing else -- `s` writes, `r` reads, and naming a
         // layout is `layout.rename`'s.
         case Act::kSetupSave: save_setup(); break;
         case Act::kSetupRestore: restore_setup(mail); break;
-        // THE LAYOUT SHELF (WUX-9): four ordinary command-mode gestures over the run of
+        // THE LAYOUT SHELF: four ordinary command-mode gestures over the run of
         // desk arrangements this Workshop is holding. Stepping is over the WHOLE
         // population, painted or not, which is what keeps the band's derived tab window a
         // presentation rather than a bound on what a maker can reach.
@@ -3852,14 +2925,14 @@ private:
             break;
         case Act::kLayoutMoveLeft: shift_layout(session_.setup.active_at, -1); break;
         case Act::kLayoutMoveRight: shift_layout(session_.setup.active_at, +1); break;
-        // ARRANGE THE DESK (WIND-2's mode, rescoped by ARR-0): a printable trigger pays
-        // the swallow rule -- armed centrally from the binding since KEY-0 -- and buys a
+        // ARRANGE THE DESK (a mode, rescoped to the desk): a printable trigger pays
+        // the swallow rule -- armed centrally from the binding -- and buys a
         // mode whose own keys need no modifier at all (P48).
         case Act::kArrangeDesk: open_arrange_desk(); break;
         // WHAT CAN I DO WITH THIS? -- the contextual-action surface, on the subject
-        // command mode can truthfully name (CTX-0).
+        // command mode can truthfully name.
         case Act::kContextOpen: open_context_ambient(); break;
-        // PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1). The flip is one
+        // PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY. The flip is one
         // session bit; everything it changes on screen -- the arrangeable panes' header
         // rows, the row returned to or taken back from each provider's budget -- follows
         // from the ordinary repaint this keystroke already earns (`refresh_external_rooms`
@@ -3868,7 +2941,7 @@ private:
         // watch nothing change; its second half names the one exception, which is the
         // keyboard-identity law, not a courtesy.
         //
-        // AND SINCE WUX-3 THE PREFERENCE IS DURABLE: a toggle is the maker STATING it, so
+        // AND THE PREFERENCE IS DURABLE: a toggle is the maker STATING it, so
         // this is the moment it is written -- to the prefs file, whose ordinary home is
         // the per-user configuration root, so the choice follows the maker across launch
         // directories rather than living exactly as long as the run. Three quiet walls:
@@ -3907,32 +2980,11 @@ private:
     }
 
     // ---- The dynamic panels --------------------------------------------------
-    //
-    // A WEAVE MAY PROVIDE A TOOL; A PANEL IS ITS PRESENTATION. Everything below
-    // is presentation: it opens and closes rows of this application's furniture,
-    // and the two places it touches the bus are ordinary sends to an office,
-    // authored as Workshop, gated against Workshop's own grant. Workshop gained
-    // exactly two new things it may SAY -- ask the Builder what it is, and ask
-    // it to build the target it just named -- and nothing it may DO.
-    //
-    // AND PNL-0 ADDED A SECOND PANEL KIND WITHOUT ADDING A THIRD THING. `Info`
-    // opens, presents and closes through exactly the machinery below, and the
-    // only line in this whole section that knows a bus exists is still the one
-    // `if (chosen.kind == panel::kBuilder)` in `choose_panel`. That is the
-    // clearest evidence available that the panel seam is not a weave seam: the
-    // second kind arrived and the grant did not move.
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 
     /// THE PICKER'S POPULATION — the shared recovery inventory, and there is exactly one of
-    /// it (WIND-2a).
-    ///
-    /// WIND-2 widened the picker's PAINTER to the union of the catalog and everything the
-    /// setup names, which is what finally gave an unresolved pane a row. It left the cursor
-    /// bound and the Return action reading `combined_catalog`, which is a fact about the
-    /// BUILD -- so the rows past the catalog were painted and could not be reached, and a
-    /// maker with an unresolved reference in their setup could see the row the phase had
-    /// added for them, read its state word, and not remove it without editing the file by
-    /// hand. Three owners of one population is how a list comes to disagree with itself
-    /// about which index means what; this is the one owner.
+    /// it.
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     std::vector<CatalogRow> picker_population() const {
         return inventory_rows(session_.setup.active, session_.panels);
     }
@@ -3947,11 +2999,8 @@ private:
             false);
     }
 
-    /// STEP THE PICKER'S CURSOR, BOUNDED BY THE PAINTED POPULATION (WIND-2a) -- which since
-    /// WIND-2 is the shared inventory rather than what this build could present.
-    /// `kPanelKinds` was the whole list until an office could offer one, and the combined
-    /// catalog was the whole list until the setup could name something neither half knew.
-    /// The two key arms' body, quarried out so the wheel spends the same step (QR-18).
+    /// STEP THE PICKER'S CURSOR, BOUNDED BY THE PAINTED POPULATION.
+    // WL-EDIT-10 -- agents/workshop/editor.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void picker_move(std::int64_t by) {
         PanelPicker& picker = session_.panels.picker;
         const std::size_t total = picker_population().size();
@@ -3971,12 +3020,8 @@ private:
         }
     }
 
-    /// THE WHEEL OVER THE PICKER MOVES ITS CURSOR (QR-18) -- `files_wheel`'s shape over the
-    /// one presentation with no kind. The picker windows the shared inventory around its
-    /// cursor (`list_window`), so the row a `... 1 more` marker stands for -- the seventh
-    /// of seven at the minimum screen, the sixth built-in's own cost (WUX-13) -- is reached
-    /// by the same step Down reaches it with. The whole box is the list: its heading is one
-    /// row of it and spends the gesture too.
+    /// THE WHEEL OVER THE PICKER MOVES ITS CURSOR.
+    // WL-EDIT-10 -- agents/workshop/editor.md
     void picker_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
         const std::int64_t rows = spend_wheel(picker.wheel_accum, w.dy, kListWheelRows);
@@ -3998,7 +3043,7 @@ private:
     void picker_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
         // THE CURSOR IS REPAIRED THROUGH THE POPULATION'S OWN OWNER, BEFORE ANYTHING INDEXES
-        // IT (WIND-2a). The list can shrink under an open picker -- a provider going away
+        // IT. The list can shrink under an open picker -- a provider going away
         // takes its runtime rows with it -- and every question below is about a row.
         const std::size_t population = picker_population().size();
         if (picker.cursor >= population) {
@@ -4014,7 +3059,7 @@ private:
             break;
         default:
             // THE KEY THAT OPENED IT CLOSES IT -- the terminal overlay's rule, and since
-            // KEY-0 it follows the OPENER'S effective binding wherever the maker moved
+            // the keymap it follows the OPENER'S effective binding wherever the maker moved
             // it: dispatch consults the same truth the row-0 hint spells, so `p` closes
             // exactly while `p` opens.
             if (session_.keymap.matches(Act::kPicker, k.scancode, k.modifiers)) {
@@ -4027,43 +3072,9 @@ private:
 
     /// OPEN THE KIND THE CURSOR IS ON, OR REMOVE IT. The picker is the one owner
     /// of panel presence, and this is the whole of that ownership.
-    ///
-    ///     closed panel  ->  select  ->  open
-    ///     open panel    ->  select  ->  remove
-    ///
-    /// BLD-0 REFUSED THE SECOND SELECTION with a sentence -- `Builder is already
-    /// open` -- because with one kind, `x` could say "remove" unambiguously and
-    /// the picker had nothing to add. The second kind took that away: `x` would
-    /// have had to choose a panel, and choosing means either a per-panel binding
-    /// or a focused panel, and both are frameworks this Workshop has declined to
-    /// grow. Selecting an open kind was already the gesture a maker reached for
-    /// and it was already spelled `p`, so the refusal became the removal and one
-    /// key went back to being unbound. That is the smallest layer this could be
-    /// resolved at: no new gesture, no new mode, no new state, one branch.
-    ///
-    /// IT IS STILL NOT A MULTI-INSTANCE POLICY. A kind is present or absent;
-    /// there is no second Builder for this to have an opinion about.
-    ///
-    /// NO DRAFT CAN BE ORPHANED BY A REMOVAL, and the reason is a reachability
-    /// one, so it is written where a reader would otherwise have to reconstruct
-    /// it: the picker is reachable only from command mode, command mode is by
-    /// definition the state in which no inspector row is being edited, and the
-    /// key routing in `on(KeyPressed)` puts editing ahead of command. So a maker
-    /// cannot be part-way through typing a value into a row and remove the panel
-    /// showing it. Nothing here guards against that, because nothing can reach
-    /// it -- and if the routing ever changes, this paragraph is the thing that
-    /// stops being true, which is why it names the routing rather than the fact.
-    /// THE PICKER NOW MOVES THE INTENT, AND THE INTENT MOVES THE PANELS (WS-0).
-    /// One line changed shape and it is the phase's coherence claim: this
-    /// gesture used to call `open_panel`/`close_panel` directly, which would
-    /// have left the active setup describing an arrangement the screen had
-    /// stopped showing the moment a maker pressed `p`. So the picker edits
-    /// `setup.active` and `apply_setup` is the only thing that opens or closes
-    /// anything -- the same path a restore goes through, so the two cannot
-    /// diverge about what "Builder is open" costs.
-    ///
-    /// A REMOVAL AND AN OPEN ARE STILL THE SAME TWO CASES a maker sees; what
-    /// changed is which value they are asked of.
+    // WL-ARR-03 -- agents/workshop/arrangement.md
+    // WL-PED-05 -- agents/workshop/pane-manager.md
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void choose_panel(loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
         const std::vector<CatalogRow> rows = picker_population();
@@ -4078,17 +3089,14 @@ private:
     }
 
     /// OPEN A CLOSED PANE, OR REMOVE AN OPEN ONE -- the picker's own two cases, as the ONE
-    /// membership door two consumers spend (WUX-13): the picker's Return, and the Pane
-    /// Editor's `open` on its subject. It edits `setup.active` and `apply_setup` is the
-    /// only thing that opens or closes anything, exactly as `choose_panel` has said since
-    /// WS-0; what moved is only that the sentence now names the gesture that reverses it
-    /// in the surface the maker is standing in (`again`), because `p removes it` is a true
-    /// sentence about the picker and a false one inside the editor.
+    /// membership door two consumers spend.
+    // WL-PED-05 -- agents/workshop/pane-manager.md
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void toggle_participation(const CatalogRow& chosen, const std::string& again,
                               loom::Mail& mail) {
         const PaneRef ref = chosen.ref;
         if (remove_pane(session_.setup.active, ref)) {
-            // A REMOVAL WORKS ON A WAITING ROW EXACTLY AS ON AN OPEN ONE (WP-0). The maker
+            // A REMOVAL WORKS ON A WAITING ROW EXACTLY AS ON AN OPEN ONE. The maker
             // authored the intent; whether this screen currently has room to seat it is
             // Workshop's problem and not a reason to make the intent unremovable.
             apply_setup(mail);
@@ -4102,7 +3110,7 @@ private:
                 false);
             return;
         }
-        // A NEW ROW IS REFUSED BEFORE THE SETUP MOVES IF IT COULD NOT BE SEATED (WP-0).
+        // A NEW ROW IS REFUSED BEFORE THE SETUP MOVES IF IT COULD NOT BE SEATED.
         // The order is the whole of the guarantee: the capacity question is asked against
         // the setup this gesture WOULD produce, and the active setup is left untouched when
         // the answer is no. Adding first and letting `reconcile` drop it into `waiting`
@@ -4137,36 +3145,17 @@ private:
     }
 
     // ---- The setup: name it, save it, restore it ------------------------------
-    //
-    // A SETUP IS AUTHORED CONFIGURATION AND THE DOCUMENT IS AUTHORED CONTENT, and
-    // everything below keeps them apart by the strongest means available: a
-    // different value, a different law, a different file, a different format
-    // identity and a different pair of gestures. Nothing here reads, writes,
-    // normalises or dirties `state_`, and `save_document`/`load_document` above
-    // are untouched.
+    // WL-LAYOUT-09 -- agents/workshop/layouts.md; WL-SESSION-04 -- agents/workshop/session.md
 
     /// MAKE THE OPEN PANELS BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
     /// the only thing in this file that opens or closes a panel.
-    ///
-    /// The presentation half is `reconcile` (setup.hpp), which is pure and takes
-    /// no bus. What it hands back is what it CHANGED, and this is where that
-    /// becomes speech: a kind that was closed and is now open performs whatever
-    /// asking that kind does on open, which for the Builder is the same
-    /// `StatusRequested` opening it through the picker has always sent, and for
-    /// Info is nothing at all.
-    /// SINCE WP-0 IT ALSO CARRIES THE SCREEN'S CURRENT CAPACITY, and it is the only
-    /// place that number is spent. `stack_capacity(screen_of(session_))` resolves it
-    /// from the same `placement_bounds` the painter and the pointer use, so a panel
-    /// cannot enter `Panels::open` unless the rectangle it would be drawn in fits above
-    /// the setup line. What does not fit is retained as authored intent and named --
-    /// never deleted, never remapped, and never given a placeholder.
-    ///
-    /// AND A NEWLY OPENED EXTERNAL PANE ASKS FOR NOTHING HERE. Its room is resolved on
-    /// the repaint path (`refresh_external_rooms`), because the room is a fact about the
-    /// screen this frame and not about the moment the panel opened -- and resolving it
-    /// twice, once here and once there, is exactly the two-measurers defect HD-1 named.
+    // WL-LAYOUT-05, WL-LAYOUT-07 -- agents/workshop/layouts.md
+    // WL-ARR-03 -- agents/workshop/arrangement.md
+    // WL-MAKER-09 -- agents/workshop/maker-pane.md
+    // WL-PED-05 -- agents/workshop/pane-manager.md
+    // WL-SESSION-12 -- agents/workshop/session.md
     void apply_setup(loom::Mail& mail) {
-        // MEMBERSHIP-DEPENDENT SESSION STATE FIRST (WIND-2a). This is the one door a setup's
+        // MEMBERSHIP-DEPENDENT SESSION STATE FIRST. This is the one door a setup's
         // membership changes through -- the picker's removal, a restore, a geometry edit
         // that reseats -- so it is the one place that has to notice a selection whose pane
         // is no longer named. Doing it here rather than at each caller is what keeps a
@@ -4189,26 +3178,10 @@ private:
         }
     }
 
-    /// OPEN THE ONE-LINE NAME EDITOR ON THE LAYOUT AT `at` (WUX-11).
-    ///
-    /// IT OPENS ON THAT LAYOUT'S CURRENT NAME RATHER THAN ON NOTHING, because the
-    /// common gesture is adjusting a word rather than replacing a sentence, and
-    /// retyping `Morning build` to fix one letter would make the shortest path the
-    /// least likely one. Enter commits the rename; Escape leaves the name exactly
-    /// as it was. NOTHING IS WRITTEN TO ANY FILE by either.
-    ///
-    /// ⚠ AND IT NO LONGER NEEDS A SETUP FILE TO EXIST. Until this phase this door
-    /// refused when the host had chosen no setup path, because committing it wrote
-    /// that file; a rename touches no artifact, so a Workshop launched without one
-    /// can still name its desks. That refusal moved to `save_setup`, which is the
-    /// operation it was always about.
-    ///
-    /// AND IT SWALLOWS ITS OWN TRIGGER. The key transition and the character it
-    /// produced are two facts that were simultaneously true and both arrive --
-    /// the trap WG-0 measured and named -- so without this the gesture that
-    /// opened the editor would also type its own letter into the name it opened.
-    /// The swallow is central since KEY-0: `on(KeyPressed)` arms the expectation
-    /// from the consumed binding, whatever gesture a maker authored.
+    /// OPEN THE ONE-LINE NAME EDITOR ON THE LAYOUT AT `at`.
+    // WL-CTX-07 -- agents/workshop/contextual.md
+    // WL-KEY-12 -- agents/workshop/keyboard.md
+    // WL-LAYOUT-10 -- agents/workshop/layouts.md
     void open_layout_rename(std::size_t at) {
         if (at >= layout_count(session_.setup)) {
             return; // the belt: a captured position the run no longer holds
@@ -4228,7 +3201,7 @@ private:
     /// the component that owns the text, the caret and the window together.
     void naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
         LayoutNaming& naming = session_.setup.naming;
-        // The line's own vocabulary first (TEXT-0) — the third of the four switches the
+        // The line's own vocabulary first — the third of the four switches the
         // component call collapsed. What stays is the policy pair every consumer keeps to
         // itself: what a committed name MEANS and what abandoning one leaves standing.
         if (naming.line.consume(k.scancode, k.modifiers, session_.clipboard)) {
@@ -4250,26 +3223,8 @@ private:
         session_.setup.naming = LayoutNaming{};
     }
 
-    /// TAKE THE TYPED NAME AND RENAME THE LAYOUT (WUX-11).
-    ///
-    /// ⭐ IT WRITES NO FILE, AND THAT IS THE WHOLE OF WHAT THIS PHASE CHANGED HERE.
-    /// This function used to validate a name, write the setup artifact, and only
-    /// then move the live setup's name -- one gesture doing two things, which is
-    /// the coupling P-WORK-12 recorded: a maker who wanted to fix a typo in a tab
-    /// had to accept a write to a named artifact they may not have meant to touch.
-    /// Renaming is a layout operation; saving is a file operation; `s` is the
-    /// other one.
-    ///
-    /// THE NAME MEETS `check_setup_name` -- the SAME function a file's name meets
-    /// -- and a refusal leaves the editor open with the text still in it, so a
-    /// maker fixes what they typed rather than retyping it. The whole desk then
-    /// meets `check_setup`, because a name is a field of a value that has its own
-    /// law, and nothing moves until every layer has passed.
-    ///
-    /// AND THE POSITION IS RE-JUDGED. The editor captured a position, and a
-    /// position is only a layout for as long as the run says so; `rename_layout`
-    /// answers false when it is not one, and the editor closes saying so rather
-    /// than renaming whatever moved into that slot.
+    /// TAKE THE TYPED NAME AND RENAME THE LAYOUT.
+    // WL-LAYOUT-04, WL-LAYOUT-10 -- agents/workshop/layouts.md
     void commit_layout_rename() {
         LayoutNaming& naming = session_.setup.naming;
         const std::size_t at = naming.at;
@@ -4304,16 +3259,10 @@ private:
         say("renamed layout " + quoted_setup_name(wanted) + link_note(at), false);
     }
 
-    /// WHAT TO SAY ABOUT A LAYOUT'S SETUP ASSOCIATION AFTER AN OPERATION (WUX-11)
+    /// WHAT TO SAY ABOUT A LAYOUT'S SETUP ASSOCIATION AFTER AN OPERATION
     /// -- nothing when there is none, and the artifact plus the verdict when there
     /// is.
-    ///
-    /// IT IS THE NOTICE'S SPELLING OF THE STANDING ROW, and it is derived from the
-    /// same `link_status` the row derives from, so the sentence a maker reads once
-    /// and the sentence they can keep reading cannot disagree. The path is spelled
-    /// WHOLE here: a notice is a line of its own with the bottom band's width, and
-    /// it is the surface where knowing exactly which file was meant is worth its
-    /// columns.
+    // WL-LAYOUT-02 -- agents/workshop/layouts.md
     std::string link_note(std::size_t at) const {
         const SetupLink& link = link_at(session_.setup, at);
         const std::int64_t status = link_status(layout_at(session_.setup, at), link);
@@ -4324,39 +3273,17 @@ private:
                (status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified);
     }
 
-    /// WHICH ARTIFACT `s` AND `r` ACT ON FOR THE LIVE LAYOUT (WUX-11): its own
+    /// WHICH ARTIFACT `s` AND `r` ACT ON FOR THE LIVE LAYOUT: its own
     /// association where it has one, and the host's configured setup path where it
     /// does not.
-    ///
-    /// THE CONFIGURED PATH IS THE ACQUISITION DOOR AND NOT A DEFAULT ASSOCIATION.
-    /// A layout with no association is not silently related to `--setup`; it is
-    /// related to nothing, and says so. What the configured path buys is a way to
-    /// establish a first association without a file chooser -- so `s` on an
-    /// unassociated layout writes there and the association follows the successful
-    /// write, never the intention to make one.
-    ///
-    /// EMPTY MEANS THERE IS NOWHERE TO ACT, which is the host having chosen no
-    /// setup file at all, and the two callers say so in the sentence that already
-    /// existed for it.
+    // WL-LAYOUT-10 -- agents/workshop/layouts.md
     const std::string& setup_artifact() const {
         return session_.setup.active_link.path.empty() ? host_->setup_path
                                                        : session_.setup.active_link.path;
     }
 
-    /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (WUX-11's `s`).
-    ///
-    /// IT NO LONGER NAMES ANYTHING. `s` used to open the name editor and write the
-    /// file when that editor committed; it writes, now, and the editor is
-    /// `layout.rename`'s. A maker who presses save gets a save.
-    ///
-    /// THE ASSOCIATION FOLLOWS THE WRITE AND NEVER PRECEDES IT. Nothing about
-    /// association truth moves until `setup_persist::save_file` has accepted: a
-    /// failed write leaves the last good file intact, the live desk untouched, and
-    /// a `none` layout still `none`. On success the artifact becomes this layout's
-    /// association if it did not have one, and EVERY layout associated with that
-    /// same artifact learns the value it now holds (`adopt_known_setup`) -- which
-    /// is what stops a second layout claiming `current` against bytes this write
-    /// just replaced.
+    /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
+    // WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
     void save_setup() {
         const std::string path = setup_artifact();
         if (path.empty()) {
@@ -4384,30 +3311,8 @@ private:
             false);
     }
 
-    /// RESTORE THE LIVE LAYOUT FROM ITS SETUP ARTIFACT (WUX-11's `r`).
-    ///
-    /// A TRANSACTION, and structurally so: `setup_persist::load_file` RETURNS a
-    /// candidate rather than writing into anything, so there is no path here by
-    /// which a panel closes before a bad field near the end of the file has been
-    /// met. A refusal costs a maker the notice and nothing else -- the active
-    /// setup, the open panels, the Builder panel's copied status, the document and
-    /// every association are all exactly as they were.
-    ///
-    /// IT CHANGES THE LIVE LAYOUT AND NOTHING ELSE IN THE RUN. No other layout's
-    /// desk is replaced, reordered, duplicated or removed; what other layouts may
-    /// gain is a corrected BASELINE, and only those already associated with this
-    /// same artifact, because Workshop has just learned what that artifact holds.
-    ///
-    /// AN UNRESOLVED REFERENCE IS NOT A FAILURE. It loads, it stays in the setup,
-    /// it is counted, it is named, and it is saved again unchanged. A malformed
-    /// candidate is a failure; a reference to a pane this build has never heard
-    /// of is a setup that means more than this build can show.
-    ///
-    /// NO DRAFT AND NO HALF-FINISHED NAME CAN BE ORPHANED BY THIS, and the
-    /// reason is reachability rather than a guard: `r` is a command, command
-    /// mode is by definition the state in which no inspector row is being edited,
-    /// and the key routing puts the name editor and the picker ahead of it. So a
-    /// maker cannot be part-way through typing anything when this runs.
+    /// RESTORE THE LIVE LAYOUT FROM ITS SETUP ARTIFACT (`r`).
+    // WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
     void restore_setup(loom::Mail& mail) {
         const std::string path = setup_artifact();
         if (path.empty()) {
@@ -4428,30 +3333,8 @@ private:
             false);
     }
 
-    // ---- THE LAYOUT SHELF: several desks, one of them live (WUX-9) ------------
-    //
-    // A LAYOUT IS A DESK AND A SWITCH IS `restore_setup` MINUS THE FILE READ. The doors
-    // below all end the same way -- the active `Setup` value is exchanged, and
-    // `apply_setup` reconciles the presentations through the one membership path every
-    // other whole-desk replacement in this file already goes through. There is no
-    // tab-switch reconcile, no teardown path for a removal, and nothing here knows what a
-    // panel, a provider or a room is.
-    //
-    // WHAT A SWITCH MAY CHANGE is what the destination Setup says: which panes
-    // participate, where they are, how big, and in what order. Everything else in this
-    // Workshop is one truth and stays one -- the catalog, every provider instance and its
-    // state, the Editor's document, the browser's location, the marks, the recipes, the
-    // project anchor, the clipboard, the keymap, the selection and the keyboard candidate.
-    // None of them is copied per layout and none of them is cleared by a switch: a
-    // selection whose pane is absent lifts nothing and anchors nothing by
-    // `selected_pane`'s own resolution, and it means something again when its pane
-    // participates again (WUX-5's discipline, spent one lattice out).
-    //
-    // AND THE THREE THAT TAKE A POSITION DO NOT SWITCH (WUX-11). Duplicating, closing or
-    // moving a tab a maker pointed at acts on THAT tab; only duplication makes something
-    // live, and it makes the copy live because the copy is what the maker just asked for.
-    // Closing an inactive tab leaves the live desk exactly where it was, which is why
-    // those doors go through the value operations rather than through a switch.
+    // ---- THE LAYOUT SHELF: several desks, one of them live --------------------
+    // WL-LAYOUT-05, WL-LAYOUT-06 -- agents/workshop/layouts.md
 
     /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
     std::string layout_note() const {
@@ -4496,12 +3379,8 @@ private:
                " drops this one";
     }
 
-    /// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE (WUX-11).
-    ///
-    /// NEW MEANS NEW. WUX-9's `=` copied the live desk; a copy is what Duplicate is for,
-    /// and this is the empty desk a maker asking for a new one means. `apply_setup` does
-    /// the real work here now: the blank names no panes, so entering it withdraws the
-    /// presentations the previous layout had, through the one membership path.
+    /// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE.
+    // WL-LAYOUT-03 -- agents/workshop/layouts.md
     void new_layout(loom::Mail& mail) {
         if (!add_layout(session_.setup)) {
             say(layout_ceiling_note(), true);
@@ -4511,12 +3390,8 @@ private:
         say("new " + layout_note() + " -- an empty desk", false);
     }
 
-    /// COPY THE LAYOUT AT `at`, INSERT THE COPY AFTER IT, AND STAND ON THE COPY (WUX-11).
-    ///
-    /// ⭐ THE COPY IS `setup: none` AND THAT IS THE LAW, not a convenience: an inherited
-    /// association would have the duplicate claim an artifact it has never been written
-    /// to, and the first `s` would overwrite the file the maker was duplicating in order
-    /// not to touch. `duplicate_layout` clears it; this door only reports it.
+    /// COPY THE LAYOUT AT `at`, INSERT THE COPY AFTER IT, AND STAND ON THE COPY.
+    // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
     void duplicate_layout(std::size_t at, loom::Mail& mail) {
         if (at >= layout_count(session_.setup)) {
             return; // the belt: a captured position the run no longer holds
@@ -4531,16 +3406,7 @@ private:
     }
 
     /// DROP THE LAYOUT AT `at` AND, WHERE IT WAS THE LIVE ONE, STAND ON A NEIGHBOUR.
-    ///
-    /// THE FLOOR IS SAID PLAINLY: Workshop always has a desk, so the last layout cannot be
-    /// removed and the refusal names the fact rather than the mechanism. Where the removed
-    /// layout WAS live, the neighbour becomes live through the ordinary value exchange and
-    /// the ordinary `apply_setup`, so a removal has no teardown of its own; where it was
-    /// not, the live desk is untouched and there is nothing to reconcile.
-    ///
-    /// AND NOTHING RUNTIME OWNS IS DESTROYED EITHER WAY. A layout is an arrangement; the
-    /// providers, their instances and their state are Workshop-global and outlive every
-    /// presentation that named them (WUX-9).
+    // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-03 -- agents/workshop/layouts.md
     void drop_layout(std::size_t at, loom::Mail& mail) {
         if (at >= layout_count(session_.setup)) {
             return; // the belt: a captured position the run no longer holds
@@ -4557,16 +3423,8 @@ private:
         say("removed layout " + gone + " -- now on " + layout_note(), false);
     }
 
-    /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE MAKER'S ORDER (WUX-11).
-    ///
-    /// ORDER IS THE ONLY THING THAT CHANGES. The same desk stays live, every association
-    /// travels with its own desk, no value is copied and no provider hears anything -- so
-    /// there is no `apply_setup` here, only the repaint the caller already owes. What the
-    /// repaint re-derives is the tab run and its spans, which is exactly why a press
-    /// immediately afterwards lands on the newly painted order.
-    ///
-    /// THE END OF THE RUN IS SAID RATHER THAN SILENTLY IGNORED, because a maker who asked
-    /// twice is owed the reason the second one did nothing.
+    /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE MAKER'S ORDER.
+    // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
     void shift_layout(std::size_t at, std::int64_t by) {
         const std::size_t n = layout_count(session_.setup);
         if (at >= n) {
@@ -4590,12 +3448,7 @@ private:
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
     /// there are none, and the first one BY NAME when there are.
-    ///
-    /// `unresolved`, and never `unavailable`. Workshop knows one thing here: it
-    /// has no catalog row for this reference. It does not know whether whoever
-    /// could present it exists, is loading, has been unloaded, or was never
-    /// installed -- and silence is not evidence of absence. Naming the reference
-    /// is what lets a maker tell a typo from a pane they have not installed yet.
+    // WL-PANE-10 -- agents/workshop/panes-and-windows.md
     std::string unresolved_note(const Setup& s) const {
         const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panels);
         if (waiting.empty()) {
@@ -4610,34 +3463,13 @@ private:
         return note;
     }
 
-    // ---- THE LAST SESSION: the desk that comes back on its own (WUX-0) --------
-    //
-    // TWO FUNCTIONS AND NO GESTURE, and that is the whole of what makes this a different
-    // promise from the one above it. Everything else in this section happens because a maker
-    // ASKED -- `s` names a desk and writes it, `r` reads one back. These two happen because
-    // Workshop started and because Workshop is leaving, and there is no key for either.
-    //
-    // NEITHER OPENS A SETUP FILE, IN EITHER DIRECTION, which is the property that keeps an
-    // automatic save from eating an explicit one. Closing writes a session and leaves the
-    // standalone artifact byte-identical; restoring reads no setup file at all.
-    //
-    // ⚠ AND SINCE WUX-11 THE SESSION CARRIES THE ASSOCIATIONS WITHOUT READING WHAT THEY
-    // REFER TO. A restored layout comes back saying `current` or `modified` against the
-    // value this Workshop last successfully knew that artifact to hold -- which is a fact
-    // about Workshop's own knowledge, and is therefore a fact a session may legitimately
-    // remember. What it must NOT become is a read: a restore that opened every associated
-    // artifact to re-check it would be exactly the automatic file access the standing status
-    // is defined not to perform, and would turn a launch into N opens of files a maker did
-    // not ask about.
+    // ---- THE LAST SESSION: the desk that comes back on its own ----------------
+    // WL-SESSION-13, WL-SESSION-16 -- agents/workshop/session.md
 
     /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
-    ///
-    /// A TRANSACTION FOR THE SAME REASON `restore_setup` IS ONE: `session_persist::load_file`
-    /// hands back a candidate rather than writing into anything, so a bad field near the end
-    /// of the file cannot close a panel before it is met. And a session that cannot be read
-    /// costs the desk and nothing else -- the default setup is already live, the document is
-    /// untouched, and the file is left exactly as it is. Workshop does not rewrite a file it
-    /// could not understand.
+    // WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session.md
+    // WL-MAKER-09 -- agents/workshop/maker-pane.md
+    // WL-MIG-10 -- agents/workshop/migration.md
     void restore_last_session(loom::Mail& mail) {
         if (restored_) {
             return;
@@ -4650,7 +3482,7 @@ private:
         if (host_->session_path.empty()) {
             return; // no session file was chosen: restore nothing, and say nothing about it
         }
-        // ...AND WHATEVER CONVERSIONS THIS RUN HAPPENS TO HAVE (MIG-0), which is a reading
+        //...AND WHATEVER CONVERSIONS THIS RUN HAPPENS TO HAVE, which is a reading
         // taken at this instant and not a capability this weave holds: an older session file
         // is brought forward exactly when a live conversion says so, by the same catalog
         // that answers every other operator question in this process, and is refused in
@@ -4663,13 +3495,13 @@ private:
             return;
         }
         if (!last.outcome.accepted) {
-            // ⚠ AND THIS RUN WILL NOT WRITE OVER IT (MIG-0), which is the marks file's own
+            // ⚠ AND THIS RUN WILL NOT WRITE OVER IT, which is the marks file's own
             // law taken for a sharper reason. Restraint on the READ path was always here --
             // Workshop does not rewrite a file it could not understand -- but the session is
             // a file Workshop WRITES on its way out, so without this flag an orderly close
             // would replace bytes this run could not read with this run's default desk.
             //
-            // IT COSTS ALMOST NOTHING AND IT BUYS BACK A WHOLE VINTAGE. Since MIG-0 the most
+            // IT COSTS ALMOST NOTHING AND IT BUYS BACK A WHOLE VINTAGE. the most
             // likely reason a session is refused is that the conversion for it is not mounted
             // in THIS arrangement -- a condition a maker fixes by adding a row to a plan, in
             // a minute, on a file that has to still be there when they do.
@@ -4695,15 +3527,15 @@ private:
         // has. Reconciling first and resizing afterwards would seat the desk against a
         // viewport nobody asked for and leave whatever did not fit waiting for room that had
         // in fact been there the whole time.
-        // THE MEDIUM'S OWN FACTS ARE HANDED BACK UNCHANGED -- the face metric since HD-1 and
-        // the canvas's device unit since WUX-6. A restore replaces the ROOM, which is the
+        // THE MEDIUM'S OWN FACTS ARE HANDED BACK UNCHANGED -- the face metric and
+        // the canvas's device unit. A restore replaces the ROOM, which is the
         // only thing the file remembers; what the medium said about its own units is this
         // run's and must survive the call rather than be reset to the character reading.
         if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
                                           session_.text_advance_px, session_.text_line_px,
                                           session_.cell_px)) {
             // The restored viewport IS the normal window's room -- the save wrote it from
-            // exactly that (WUX-3) -- so the remembered pair starts equal to it rather
+            // exactly that -- so the remembered pair starts equal to it rather
             // than waiting for the first extent to arrive.
             session_.normal_w = session_.screen_w;
             session_.normal_h = session_.screen_h;
@@ -4712,7 +3544,7 @@ private:
             // startup.
             refocus_keeping_draft(state_, session_);
         }
-        // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK (WUX-3) ------------
+        // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK --------------------
         //
         // Remembered FIRST -- into the session, so the next save carries it whether or not
         // any medium ever acts on it (a terminal run retains a graphical run's placement
@@ -4735,7 +3567,7 @@ private:
         }
         // ---- ...AND THEN THE DESKS, INTO THE ROOM THEY ASKED FOR ---------------
         //
-        // THE WHOLE RUN COMES BACK AND EXACTLY ONE OF IT IS LIFTED LIVE (WUX-10).
+        // THE WHOLE RUN COMES BACK AND EXACTLY ONE OF IT IS LIFTED LIVE.
         // `install_layout_run` is `layout_run`'s inverse and lives beside it in
         // `setup.hpp`, so this weave never touches `shelved` or `active_at` by hand and
         // there is no second spelling of the lift to drift. The layouts that are not live
@@ -4765,7 +3597,7 @@ private:
         // is therefore still named, by a surface that is still right an hour later. `r` keeps
         // its note, because a maker who presses it is asking a question at a moment when the
         // catalog has long since been answered.
-        // AND IT SAYS HOW MANY CAME BACK WHEN MORE THAN ONE DID (WUX-10). One layout is
+        // AND IT SAYS HOW MANY CAME BACK WHEN MORE THAN ONE DID. One layout is
         // the sentence this has always been and every migrated session is one, so the
         // clause appears exactly when there is more to say. It COUNTS FROM ONE because it
         // is prose about tabs a maker is looking at; the file's own `active` is a position
@@ -4792,24 +3624,13 @@ private:
     }
 
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
-    ///
-    /// WHAT IT SAVES IS AUTHORED WORKSPACE STATE AND NOTHING ELSE: which panes the maker
-    /// meant to have IN EACH LAYOUT, where they put them, how big they made them, which is
-    /// in front, what each layout is called, the order the layouts are in, which one they
-    /// were standing on, and how much room the surface had. No runtime pane, no WeaveId, no
-    /// catalog row, no loaded artifact, no bus state, no selection, no half-finished drag
-    /// and no pane's private contents. "The last session" is not a snapshot of a running
-    /// universe; it is what a maker would otherwise have to arrange again by hand.
-    /// ⚠ ...AND A FILE THIS RUN COULD NOT READ IS NEVER OVERWRITTEN (MIG-0). The refusal
-    /// already told the maker their desk did not come back; replacing their bytes with this
-    /// run's default desk would turn a readable complaint into a lost session -- and since
-    /// MIG-0 a refused session is often one a mounted conversion WOULD read, which makes the
-    /// bytes worth strictly more than they used to be. `marks_refused_`'s law, verbatim.
+    // WL-SESSION-13, WL-SESSION-15, WL-SESSION-16 -- agents/workshop/session.md
+    // WL-MIG-10 -- agents/workshop/migration.md
     void save_last_session() {
         if (host_->session_path.empty() || session_refused_) {
             return;
         }
-        // THE VIEWPORT WRITTEN IS THE NORMAL WINDOW'S (WUX-3): `normal_w/h` tracks the
+        // THE VIEWPORT WRITTEN IS THE NORMAL WINDOW'S: `normal_w/h` tracks the
         // screen except while this run's medium says the window is maximized, so a
         // maximized close remembers the room a maker actually chose, with the maximized
         // state beside it rather than baked into it. The placement rides along exactly as
@@ -4821,7 +3642,7 @@ private:
         place.y = session_.place_y;
         place.maximized = session_.place_maximized;
         // THE WHOLE RUN, IN MAKER ORDER, WITH THE POSITION THEY ARE ACTUALLY STANDING IN
-        // (WUX-10). `layout_run` puts the lifted value back where it sits and answers with
+        //. `layout_run` puts the lifted value back where it sits and answers with
         // a NEW vector, so saving cannot reorder what it is saving; and the position is
         // `active_at` rather than the end of the run, because `layout.new` leaving a maker
         // on the last layout is a habit and not a law.
@@ -4841,28 +3662,13 @@ private:
         std::fflush(stderr);
     }
 
-    // ---- PANE MANAGEMENT: arrange the windows, and never lose one (WIND-2) ----
-    //
-    // ONE MODE, FOUR STEPS, AND EVERY GESTURE ENDS AT A SETUP DOOR. The keyboard and the
-    // pointer converge on `author_pane_window` (the gesture door, WUX-2a), the four
-    // ordering operations and the three resets (setup.hpp) -- there is no second
-    // arithmetic and no second refusal, which is the `nudge`/`drag_to` pattern this file
-    // has used for a document object since W-2, said about a pane. The door owns the
-    // settlement law -- independent axes settle independently; an anchored position+extent
-    // pair settles atomically within its axis -- so every gesture inherits it and none may
-    // restate it.
-    //
-    // EDITS COMMIT IMMEDIATELY AND ESCAPE IS NOT A ROLLBACK. Every existing immediate-commit
-    // gesture in this application (`nudge`, `grow`, `drag_to`) is reversible only by
-    // performing the inverse, and a mode with an Escape key will read as "cancel" to a maker
-    // who has not been told otherwise -- so the help says `esc back`, never `esc cancels`,
-    // and there is no undo here. Adding one would be an undo for the whole application
-    // arriving as a side effect of a window packet.
+    // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
+    // WL-ARR-06, WL-ARR-13 -- agents/workshop/arrangement.md
 
     /// THE ROWS A MAKER MAY ARRANGE: the shared inventory, restricted to what the setup
-    /// names. A catalog pane the setup does not name has no authored row, no window to
-    /// arrange, and every operation here would have to refuse -- it is the PICKER's to
-    /// offer, because participation is the picker's concern and never arrangement's.
+    /// names.
+    // WL-ARR-08 -- agents/workshop/arrangement.md
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     std::vector<PaneRef> arrangeable() const {
         std::vector<PaneRef> out;
         for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
@@ -4873,13 +3679,8 @@ private:
         return out;
     }
 
-    /// ARRANGE THE DESK (ARR-0): the global arrangement scope.
-    ///
-    /// NO PANE IS CHOSEN MERELY BECAUSE THE SCOPE OPENED. The desk is the subject; every
-    /// arrangeable pane answers the pointer directly, and the keyboard chooses its own
-    /// target by stepping. The old mode opened ON a pane because it was a SELECTOR --
-    /// choose, then choose a manipulation -- and that prerequisite is exactly what this
-    /// scope retired.
+    /// ARRANGE THE DESK: the global arrangement scope.
+    // WL-ARR-07 -- agents/workshop/arrangement.md
     void open_arrange_desk() {
         PaneArrange& a = session_.arrange;
         a.open = true;
@@ -4897,21 +3698,22 @@ private:
             false);
     }
 
-    /// ARRANGE ONE PANE (ARR-0): the pane-local scope, on an explicit target -- the
+    /// ARRANGE ONE PANE: the pane-local scope, on an explicit target -- the
     /// context menu's captured subject, or the desk's keyboard target. ADMISSION PRECEDES
-    /// BINDING, the rule CTX-0 introduced for Move/Size: a refusal is said in the owner's
-    /// words and no state is entered, so a pane that cannot be arranged leaves the maker
-    /// exactly where they were.
+    // WL-ARR-07, WL-ARR-09 -- agents/workshop/arrangement.md
+    // WL-CTX-02 -- agents/workshop/contextual.md
+    // WL-FRONT-04 -- agents/workshop/planes.md
+    // WL-PRESS-06 -- agents/workshop/press-chain.md
     void enter_arrange_pane(const PaneRef& ref) {
         const Written ready = arrange_geometry_ready(ref);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
-        // ARRANGING A PANE IS CHOOSING IT (WUX-7), AND IT SPENDS THE SELECTION THAT ALREADY
+        // ARRANGING A PANE IS CHOOSING IT, AND IT SPENDS THE SELECTION THAT ALREADY
         // EXISTS. A maker who says "arrange this one" has identified the thing they are
         // working with as surely as a press into it does, so the same `Panels::selected`
-        // truth an ordinary press writes is written here -- and everything WUX-5 derives
+        // truth an ordinary press writes is written here -- and everything the lift derives
         // from that truth follows with nothing added: the selected chrome, the temporary
         // foreground lift in `effective_pane_order`, the paint order, the hit order. There
         // is no arrangement-specific z-order, no second foreground fact and no `front` rank
@@ -4919,7 +3721,7 @@ private:
         // permanently", and a save straight after this writes the desk it always would.
         //
         // AFTER ADMISSION, NEVER BEFORE. A pane that cannot be arranged leaves the maker
-        // exactly where they were (CTX-0's rule for this door), and that has to include the
+        // exactly where they were (rule for this door), and that has to include the
         // selection: a refusal that had silently re-selected something would have moved the
         // desk while saying it changed nothing.
         //
@@ -4947,23 +3749,10 @@ private:
             false);
     }
 
-    /// THE ACTIVE SETUP NO LONGER NAMES THE ADDRESSED PANE, SO NOTHING DOES (WIND-2a).
-    ///
-    /// MEMBERSHIP IS THE LAW AND PRESENTATION IS NOT. A pane that becomes waiting, refused,
-    /// covered, off-room or UNRESOLVED stays addressed: every one of those is a pane the
-    /// setup still names, and reaching it is the whole of WIND-2's recovery claim. What
-    /// clears the address is the reference leaving the setup, which is the one event after
-    /// which there is nothing to address.
-    ///
-    /// THE ONE-PANE SCOPE CLOSES WITH ITS PANE (ARR-0): an interaction bound to exactly
-    /// one pane is a state about nothing once that pane is gone, and holding a maker
-    /// inside it would make every press a refusal about a thing no longer on the desk.
-    /// It closes SILENTLY, because this runs inside `apply_setup` and the operation that
-    /// removed the pane has its own sentence on the notice line -- writing over it here
-    /// would erase the answer the maker just earned. The desk scope stays open: its
-    /// subject is the desk, which is still there.
+    /// THE ACTIVE SETUP NO LONGER NAMES THE ADDRESSED PANE, SO NOTHING DOES.
+    // WL-ARR-03 -- agents/workshop/arrangement.md; WL-PED-03 -- agents/workshop/pane-manager.md
     void forget_removed_selection() {
-        // ⚠ THE PANE EDITOR'S SUBJECT IS DELIBERATELY NOT REPAIRED HERE (WUX-13). The
+        // ⚠ THE PANE EDITOR'S SUBJECT IS DELIBERATELY NOT REPAIRED HERE. The
         // arrangement's address is a claim about a pane ON THE DESK, so a removal ends it;
         // the editor's subject is an IDENTITY a maker asked to be described, and a pane
         // that just left the layout is exactly the pane that now reads `closed -- open it`
@@ -4992,22 +3781,9 @@ private:
 
     /// What a maker reads about the pane the vocabulary addresses. One sentence, spent by
     /// every gesture that succeeds, so the notice line always names the thing that just
-    /// moved -- and since the roster panel retired (ARR-0) it carries the pane's STATE
-    /// word too, which is how an off-room or unresolved pane stays recoverable by ear:
-    /// step to it, read what it is, reset it.
-    ///
-    /// IT SPEAKS THE ACTIVE FACE'S OWN UNIT (WUX-6). `session_.cell_px` is what the medium
-    /// itself reported about its canvas, so a maker on the shipped window reads pixels and
-    /// a maker in a terminal reads cells -- the same authored value, said in the language of
-    /// the thing in front of them. A number this face cannot say exactly wears `~` and the
-    /// line names the reason once; nothing about reading this sentence writes anything.
-    ///
-    /// AND IT SAYS WHERE THE PANE ACTUALLY IS WHEN THE MAKER DID NOT (SC-6). A window still
-    /// partly the code's answer -- which every pane on a fresh desk is -- cannot be measured
-    /// from the authored text, because the authored text of a reactive axis is `-`. So the
-    /// RESOLVED window is added, from `managed_bounds` (the unclipped ask, the same rectangle
-    /// a gesture measures from), and it is deliberately absent for a fully authored pane:
-    /// there the authored text already IS the rectangle.
+    /// moved -- and since the roster panel retired it carries the pane's STATE
+    // WL-GEO-11, WL-GEO-12 -- agents/workshop/geometry.md
+    // WL-ARR-09 -- agents/workshop/arrangement.md
     std::string arrange_status() const {
         const PaneArrange& a = session_.arrange;
         if (!a.addressed()) {
@@ -5033,10 +3809,8 @@ private:
         return text;
     }
 
-    /// MOVE THE KEYBOARD'S TARGET BY ONE ROW, wrapping. Over `arrangeable()`, so an
-    /// unresolved, waiting, off-room, covered or refused pane is reached by exactly the
-    /// same keys as a visible one -- which is the recovery invariant spent as a keyboard
-    /// path. The desk opens on no target, so the first step lands on the first row.
+    /// MOVE THE KEYBOARD'S TARGET BY ONE ROW, wrapping.
+    // WL-ARR-08 -- agents/workshop/arrangement.md
     void arrange_step(std::int64_t by) {
         const std::vector<PaneRef> rows = arrangeable();
         if (rows.empty()) {
@@ -5063,18 +3837,10 @@ private:
     }
 
     /// CAN THIS PANE'S GEOMETRY BE AUTHORED RIGHT NOW, and if not, why not.
-    ///
-    /// TWO REFUSALS, AND THEY ARE DIFFERENT SENTENCES BECAUSE THEY ARE DIFFERENT FACTS. A
-    /// side-region pane's place is RESERVED BY THE SCREEN -- `room_w` is what every share of
-    /// the workspace resolves against, so moving Info would change the resolved size of
-    /// objects in a maker's document, which PNL-0 refuses. A pane with no rectangle right now
-    /// has nothing to measure a move or a resize against; its RESET and its ORDER still work,
-    /// which is what makes the row a recovery path rather than a dead end.
-    ///
-    /// THE TARGET IS EXPLICIT SINCE CTX-0. The keyboard passes its addressed pane and the
-    /// contextual surface passes its captured subject, so Arrange can CHECK a pointed
-    /// pane before anything binds to it -- admission precedes binding, and a refusal
-    /// leaves no dead arrangement state behind.
+    // WL-ARR-07 -- agents/workshop/arrangement.md
+    // WL-CTX-02 -- agents/workshop/contextual.md
+    // WL-PANE-08 -- agents/workshop/panes-and-windows.md
+    // WL-SETUP-06 -- agents/workshop/setup-file.md
     Written arrange_geometry_ready(const PaneRef& ref) const {
         if (ref.provider.empty()) {
             return Written::no("no pane is addressed -- " + hotkey(Act::kManageNext) +
@@ -5096,7 +3862,7 @@ private:
                                "0 resets it and f/b/r/l still order it");
         }
         // A UNIT OUTRANKS A RESERVATION, the same precedence `pane_state_of` spends between
-        // a unit and a want of room (WIND-2a). Both sentences are true of a fixed pane
+        // a unit and a want of room. Both sentences are true of a fixed pane
         // sized in pixels, and only one of them tells a maker what to press.
         if (!pane_unit_projectable(pane_of(session_.setup.active, ref))) {
             return Written::no(kind_name(session_.panels, *kind) +
@@ -5127,19 +3893,7 @@ private:
 
     /// THE SELECTED PANE'S BOUNDS, both rectangles. Through `bounds_of`, never a second
     /// arithmetic: what a gesture measures from is what the painter drew.
-    ///
-    /// BOTH, AND THEY ARE SPENT ON DIFFERENT QUESTIONS (WIND-2a). `rect` is the VISIBLE
-    /// intersection with the canvas and owns everything about where a hand MEETS this pane:
-    /// painting, occupancy, coverage, where the affordances are drawn, and whether geometry
-    /// can be reached at all. `resolved` is what the pane's authored-or-default intent ASKS
-    /// for, unclipped, and it is the value a first edit captures.
-    ///
-    /// WIND-2 measured the first edit from the VISIBLE rectangle, and that is the finding
-    /// this repairs: a default pane resolving to 89 cells with four of them on screen
-    /// answered one rightward step by authoring FIVE. The maker's one-cell gesture became a
-    /// reduction they never asked for, and the number it produced was a fact about the
-    /// window rather than about the pane. A resize proposes `base + delta`, so the base has
-    /// to be the size the pane actually has.
+    // WL-ARR-04 -- agents/workshop/arrangement.md; WL-GEO-12 -- agents/workshop/geometry.md
     PanelBounds managed_bounds() const {
         const std::optional<std::int64_t> kind =
             resolve_pane(session_.arrange.pane, session_.panels);
@@ -5151,11 +3905,9 @@ private:
 
     /// THE WINDOW A GESTURE MEASURES FROM: authored where authored, resolved where
     /// reactive — the RESOLVED window, never the visible one (see `managed_bounds`).
-    /// One spelling for the keys, the pointer's zero-delta test and the axis bases a
-    /// partially-settled write falls back to (WUX-2a); three hand-kept copies of this
-    /// authored-or-resolved read is how two gestures come to start from different places.
+    // WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
     FineRect managed_window_base() {
-        // ONE READING FOR THE HAND AND FOR THE TYPED VALUE (WUX-13): `pane_window_base`
+        // ONE READING FOR THE HAND AND FOR THE TYPED VALUE: `pane_window_base`
         // (screen.hpp) is this function's old body, quarried out so the Pane Editor's
         // per-axis writes measure the axis they did not type from the same window the
         // arrangement's gestures measure from.
@@ -5163,13 +3915,7 @@ private:
     }
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
-    ///
-    /// EACH AXIS IS ITS OWN PROPOSAL (WUX-2a): a coordinate that would leave the canvas is
-    /// refused and KEEPS ITS CURRENT VALUE — never clamped to the wall — while the other
-    /// axis, an independent fact, still follows the hand. An axis the gesture did not
-    /// change proposes nothing, so a step refused on its one moving axis writes nothing at
-    /// all and is said as a refusal; in particular it cannot author a reactive place as a
-    /// side effect. Only a proposal refused on EVERY axis it moved is refused whole.
+    // WL-ARR-06 -- agents/workshop/arrangement.md
     void arrange_place(std::int64_t x, std::int64_t y, loom::Mail& mail) {
         const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
@@ -5205,38 +3951,22 @@ private:
     }
 
     /// The place a one-cell nudge proposes: the resolved corner if this pane has no authored
-    /// place yet, then the delta. AUTHORING THE CURRENT RESOLVED VALUE FIRST is what makes a
-    /// first nudge move the pane by one cell rather than to cell (±1, ±1). The keys stay
-    /// CELL-granular on purpose (WUX-2): a key press is a discrete gesture and a cell is its
-    /// honest step; what the finer lattice buys it is that a nudge PRESERVES a fine
-    /// remainder a pointer authored — plus forty-eight sub-units is still plus one cell.
+    /// place yet, then the delta.
+    // WL-ARR-08 -- agents/workshop/arrangement.md
     void arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
         const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
-        // THE RESOLVED CORNER, NEVER THE CLIPPED ONE (WIND-2a) -- see `managed_bounds`.
+        // THE RESOLVED CORNER, NEVER THE CLIPPED ONE -- see `managed_bounds`.
         const FineRect from = managed_window_base();
         arrange_place(detail::step(from.x, dx * surface::kCellSubs),
                       detail::step(from.y, dy * surface::kCellSubs), mail);
     }
 
-    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units (WUX-2),
-    /// split into its two axes (WUX-2a).
-    ///
-    /// THE EDGE PRESERVES ITS OPPOSITE ANCHOR (`pane_window_proposal`): pulling the top
-    /// edge proposes a new `y` WITH the new height as ONE VERTICAL AXIS, and the pair
-    /// lands through `author_pane_window` together or not at all — so a top pull whose
-    /// height is illegal does not move the top edge it failed to resize. THE OTHER AXIS IS
-    /// AN INDEPENDENT FACT: a corner gesture whose height is illegal still widens the pane
-    /// by its legal horizontal transaction, and the blocked axis keeps what it had.
-    ///
-    /// THE AXES THE EDGE DID NOT NAME KEEP WHAT THEY HAD, mode included -- a member is
-    /// proposed exactly when the gesture CHANGED it -- so resizing a width leaves a
-    /// default height still reacting to the room, and a right-edge or bottom-edge resize
-    /// leaves a default PLACE still reactive: those edges anchor the place by not writing
-    /// it at all.
+    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units, split into its two axes.
+    // WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
     void arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
                         std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                         std::int64_t dy, loom::Mail& mail) {
@@ -5286,43 +4016,22 @@ private:
     /// The size a one-cell key press proposes: the authored window if there is one, else the
     /// resolved one -- the same "author the current resolved value, then apply the delta"
     /// rule the pointer follows, so the two gestures cannot disagree about where they start.
-    /// One press is one CELL of delta, through the same anchored proposal the pointer takes.
-    ///
-    /// THE KEYBOARD'S ANCHOR IS THE PLACE (ARR-0): a key pull moves the bottom-right
-    /// corner, so `pull-right` widens, `pull-left` narrows, and the pane never moves under
-    /// a resize key -- the document's `shift+hjkl` family, said about a pane. The other
-    /// six anchors are the pointer's, on the handles themselves; a maker who wants a
-    /// left-anchored keyboard resize composes it from a pull and a place, each one honest
-    /// cell.
+    // WL-ARR-08, WL-ARR-10 -- agents/workshop/arrangement.md
     void arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
         const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
-        // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
+        // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE -- see `managed_bounds`.
         const FineRect base = managed_window_base();
         arrange_resize(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
                        dx * surface::kCellSubs, dy * surface::kCellSubs, mail);
     }
 
     /// ONE PANE ACTION, PERFORMED ON AN EXPLICIT TARGET -- the one place a targeted pane
-    /// operation is spent, whatever asked for it (CTX-0; `end_held_gestures`' shape: one
-    /// owner, several callers, not a framework).
-    ///
-    /// TWO CALLERS, ONE ARM PER ACTION. `arrange_key` passes its addressed pane; the
-    /// contextual surface passes its captured subject. The address is never written as
-    /// request transport in either direction, and the operation's own sentences stay here
-    /// with the operation (INT-R0: the sentence belongs to the layer whose vocabulary
-    /// holds the reason). Mode bookkeeping -- a reset closing its prompt -- stays with
-    /// the keyboard caller, because the contextual caller is not in a mode.
-    ///
-    /// ABSENCE IS ANSWERED FIRST, IN ITS OWN WORDS. Every operation underneath already
-    /// answers a reference outside the setup with `false`, but that `false` shares a
-    /// sentence with "nothing to do" -- and "is already where that would put it" about a
-    /// pane that is GONE is a true bool wearing a wrong sentence. One membership test, one
-    /// truthful sentence, for every arm. (For the keyboard caller this is unreachable
-    /// today -- `forget_removed_selection` runs inside `apply_setup` -- belt, not door.)
+    /// operation is spent, whatever asked for it.
+    // WL-CTX-07 -- agents/workshop/contextual.md; WL-PED-05 -- agents/workshop/pane-manager.md
     void spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mail) {
         if (ref.provider.empty()) {
             say("no pane is addressed -- " + hotkey(Act::kManageNext) + " steps to one",
@@ -5391,11 +4100,11 @@ private:
                 false);
             return;
         }
-        // REMOVE THIS PANE (CTX-0). The picker's own semantics through the picker's own
+        // REMOVE THIS PANE. The picker's own semantics through the picker's own
         // door: the intent leaves the setup, `apply_setup` is what closes the
         // presentation, and what the pane was presenting is untouched -- a panel is a
         // presentation, and removing one removes a presentation. A removal works on a
-        // waiting or unresolved row exactly as on an open one (WP-0's rule).
+        // waiting or unresolved row exactly as on an open one (rule).
         case Act::kManageRemove: {
             const std::string name = ref_text(ref);
             if (!remove_pane(s, ref)) {
@@ -5421,13 +4130,8 @@ private:
         say("front order reset to the setup's own order", false);
     }
 
-    /// THE ARRANGEMENT KEYS -- one switch for both scopes and the reset prompt (ARR-0).
-    /// Each scope is its own keymap context, so `action_for` already answers `kNone` for
-    /// a gesture the current scope does not declare (the desk's stepping keys inside the
-    /// one-pane scope, every non-reset key inside the prompt), and an arm below cannot
-    /// fire out of its scope by construction. The targeted operations go through
-    /// `spend_pane_action` with the addressed pane -- the ambient read is this caller's,
-    /// the operation is the shared owner's, and the mode bookkeeping stays here.
+    /// THE ARRANGEMENT KEYS -- one switch for both scopes and the reset prompt.
+    // WL-ARR-08 -- agents/workshop/arrangement.md
     void arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         PaneArrange& a = session_.arrange;
         const KeyContext ctx = keyboard_context(session_);
@@ -5446,14 +4150,14 @@ private:
         case Act::kManagePullRight: arrange_grow(+1, 0, mail); break;
         case Act::kManagePullUp: arrange_grow(0, -1, mail); break;
         case Act::kManagePullDown: arrange_grow(0, +1, mail); break;
-        // -- and the coarse step, on both axes at once (WUX-6) ---------------------------
+        // -- and the coarse step, on both axes at once -----------------------------------
         //
         // THE SAME FUNCTION, A BIGGER DELTA. There is no second geometry owner here and
         // deliberately no second proposal: `arrange_grow` is the door a shifted arrow
         // already goes through, anchored bottom-right, so a coarse step cannot move the
         // pane, cannot move any other pane, and meets the identical per-axis settlement --
         // a shrink that would take the width below one cell keeps the width and still
-        // shortens the height, refuse-never-clamp, per axis (WUX-2a).
+        // shortens the height, refuse-never-clamp, per axis.
         case Act::kManageGrow:
             arrange_grow(+kCoarseStepCells, +kCoarseStepCells, mail);
             break;
@@ -5512,23 +4216,16 @@ private:
     }
 
     // ---- The pointer, inside arrangement -------------------------------------
-    //
-    // ONE PRESS CLAIMS ONE GESTURE UNTIL RELEASE, and the whole of that is the absence of a
-    // re-resolution: `arrange_motion` reads `session_.pane_drag.pane` and never asks what is
-    // under the pointer now. So crossing another pane, crossing the Terminal's rectangle, and
-    // raising something mid-drag all change nothing about who is being moved -- which is
-    // `Drag`'s own law, and the reason neither struct holds a position.
+    // WL-ARR-01 -- agents/workshop/arrangement.md
 
     /// TAKE HOLD OF ONE PANE AT A POINTED POSITION -- the edge ring sizes, the body
     /// moves, and a press outside its rectangle is not this pane's. One function for both
     /// scopes, so the desk and the one-pane state cannot come to grab differently.
-    /// EVERYTHING HERE IS THE POINTER'S OWN RESOLUTION (WUX-2): the press arrives as a
-    /// sub-unit position with the reporting medium's grain, every hit is the aligned-span
-    /// law the paint uses, and the grab and the base are captured in sub-units — so the
-    /// motion that follows can spend a single pixel of hand.
+    // WL-ARR-01, WL-ARR-07 -- agents/workshop/arrangement.md
+    // WL-PANE-01 -- agents/workshop/panes-and-windows.md
     bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
-        // A HAND MAY TAKE HOLD OF ANY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR (WUX-12).
+        // A HAND MAY TAKE HOLD OF ANY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR.
         // This named the overlay stack while the stack was the only such place; saying it
         // as the exclusion (`place_is_authorable` -- the side column is the screen's) is
         // what keeps the hand and the KEYS agreeing, since the arrangement admission has
@@ -5551,8 +4248,8 @@ private:
             session_.pane_drag.from_y = at.sub.y;
             const SetupPane* row = pane_of(session_.setup.active, ref);
             // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the eye and the
-            // hand are -- AND THE BASE IS THE RESOLVED WINDOW (WIND-2a): place beside
-            // size since WUX-2, because an anchored top or left pull authors both from
+            // hand are -- AND THE BASE IS THE RESOLVED WINDOW: place beside
+            // size because an anchored top or left pull authors both from
             // this one captured rectangle. A hand and a key author from the same numbers,
             // which is the pairing this file has kept since both gestures existed.
             session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kSubcells
@@ -5584,21 +4281,9 @@ private:
         return false;
     }
 
-    /// A PRESS WHILE ARRANGING (ARR-0), and the two scopes answer it differently because
+    /// A PRESS WHILE ARRANGING, and the two scopes answer it differently because
     /// they are ABOUT different things.
-    ///
-    /// THE ONE-PANE SCOPE IS BOUND: every press belongs to the bound pane -- its ring
-    /// sizes, its body moves -- and a press anywhere else is CONSUMED with the sentence
-    /// naming the state, because an interaction about exactly one pane must not quietly
-    /// become an interaction about another. Leaving is one gesture away and the sentence
-    /// says which.
-    ///
-    /// THE DESK IS DIRECT: every arrangeable pane answers, topmost first through the one
-    /// EFFECTIVE order the painter uses (WUX-5 -- the selection's lift included, so the
-    /// pane visibly in front is the pane a drag takes hold of here too), and the pane a
-    /// press takes hold of becomes the keyboard's target by that same press -- no
-    /// selection is a prerequisite of anything. A pane whose place the screen reserves (the side column) is addressed
-    /// and answered in the admission's own words rather than dragged.
+    // WL-ARR-07 -- agents/workshop/arrangement.md; WL-FRONT-05 -- agents/workshop/planes.md
     void arrange_press(const PointedAt& at) {
         PaneArrange& a = session_.arrange;
         const Screen sc = screen_of(session_);
@@ -5639,9 +4324,7 @@ private:
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
     /// looked up by its reference, so nothing under the pointer can take the gesture over.
-    /// The deltas are sub-units — a one-pixel hand movement is four of them on the shipped
-    /// skin, and a terminal's cell is forty-eight — proposed from the captured base, never
-    /// accumulated (WUX-2).
+    // WL-ARR-01 -- agents/workshop/arrangement.md
     void arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail) {
         PaneGesture& g = session_.pane_drag;
         if (!g.active) {
@@ -5679,7 +4362,7 @@ private:
     /// that has not yet heard from the tool cannot ask for anything at all, and
     /// says so.
     ///
-    /// ---- ...AND SINCE BLD-1 IT NAMES ONE OF SEVERAL, AND MAY ASK FOR MORE -------
+    /// ----...AND IT NAMES ONE OF SEVERAL, AND MAY ASK FOR MORE --------------------
     ///
     /// The name comes from the CATALOG the tool published and the maker's cursor in it,
     /// which is the same sentence one plural out: Workshop still holds no recipe, and
@@ -5712,7 +4395,7 @@ private:
         // and the thing that decides whether the answer will be news to this
         // panel.
         //
-        // THE SENTENCE CHANGED WITH ASYNC-1 AND THE CHANGE IS THE PHASE. It used
+        // THE SENTENCE CHANGED WITH THE ASYNC BUILD AND THE CHANGE IS THE POINT. It used
         // to say `the screen waits until it is done`, which was true and was the
         // measured cost of a runner that built inside its own handler. It is now
         // false: the runner starts a child, keeps it, and comes back to it on an
@@ -5728,12 +4411,8 @@ private:
             false);
     }
 
-    /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED (BLD-1).
-    ///
-    /// PURELY A PRESENTATION MOVE: nothing is sent, nothing is asked, and nothing on
-    /// the bus knows it happened. It wraps, because a list of two or three that a maker
-    /// is stepping through with one key is a ring and not a scrollbar, and stopping at
-    /// the end would need a second key to come back.
+    /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED.
+    // WL-PROJ-07 -- agents/workshop/project.md
     void choose_recipe(int by, loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // an unbound key with no Builder panel open, exactly as `b` is
@@ -5746,7 +4425,7 @@ private:
         }
         const std::size_t at = pane.chosen < held ? pane.chosen : std::size_t{0};
         pane.chosen = by < 0 ? (at == 0 ? held - 1 : at - 1) : (at + 1 >= held ? 0 : at + 1);
-        // THE ONE WRITER OF `picked` (BLD-2): this gesture is what makes a selection the
+        // THE ONE WRITER OF `picked`: this gesture is what makes a selection the
         // MAKER's rather than the catalog's order wearing an index. The frontier action
         // reads it when several recipes produce one artifact.
         pane.picked = true;
@@ -5756,7 +4435,7 @@ private:
         repaint(mail);
     }
 
-    /// BUILD AND REALIZE THE ROW THE PROJECT IS WAITING ON (BLD-2).
+    /// BUILD AND REALIZE THE ROW THE PROJECT IS WAITING ON.
     ///
     /// THE JOIN IS PERFORMED HERE, ONCE, AND IT IS ONE STRING COMPARISON: the frontier
     /// artifact — the realization owner's own answer, read alive this very keystroke —
@@ -5835,18 +4514,10 @@ private:
     }
 
     // ---- THE SOURCE EDITOR: choose source, edit, save, and never lose a byte ----------
-    //
-    // THE DOCUMENT LAYER LIVES HERE AND IN `Session::editor`, AND MECHANICS LIVE IN THE
-    // BUFFER -- editor.hpp's custody split, spent: these functions own which file is
-    // open, when it is written, what the dirty answer is and every refusal sentence; the
-    // buffer owns lines, caret, selection and history and could be replaced whole (a
-    // real Vim backend someday) without a byte of this policy moving.
+    // WL-EDIT-01, WL-EDIT-02 -- agents/workshop/editor.md
 
-    /// The editor's keys: the buffer's own vocabulary first (QR-2's consumed bool, the
-    /// shape every text consumer here spells), then the editor's policy -- save, newline,
-    /// tab, discard -- resolved through the keymap like every other owner's. Every
-    /// consumed gesture asks the reconcile to keep the caret in view, because navigation
-    /// that scrolls a caret off screen is the viewport failing at its one job.
+    /// The editor's keys: the buffer's own vocabulary first, then the editor's policy.
+    // WL-EDIT-02, WL-EDIT-09 -- agents/workshop/editor.md
     void editor_key(const zengine::input::KeyPressed& k) {
         EditorState& e = session_.editor;
         if (e.buffer.consume(k.scancode, k.modifiers, session_.clipboard)) {
@@ -5871,10 +4542,8 @@ private:
         }
     }
 
-    /// Text the maker typed into the source. The byte law is judged HERE -- the buffer
-    /// is mechanics and cannot speak -- and a refusal costs the keystroke and says why:
-    /// silently inserting a substitute would corrupt source, and silently dropping it
-    /// would read as a broken keyboard.
+    /// Text the maker typed into the source.
+    // WL-EDIT-07 -- agents/workshop/editor.md
     void editor_text(const std::string& text) {
         if (text.empty()) {
             return;
@@ -5889,10 +4558,8 @@ private:
         session_.editor.follow_caret = true;
     }
 
-    /// A press in the editor's body places the caret and begins the selection sweep --
-    /// `info_press`'s pipeline over a document: the resolved body, a prose row and
-    /// column of it, the viewport's offsets, the tab arithmetic, the caret. Through the
-    /// same functions the painter spends, so what a maker aims at is what answers.
+    /// A press in the editor's body places the caret and begins the selection sweep.
+    // WL-EDIT-08, WL-EDIT-12 -- agents/workshop/editor.md
     void editor_press(const zengine::input::PointerButton& b) {
         EditorState& e = session_.editor;
         if (!e.open_document()) {
@@ -5917,14 +4584,8 @@ private:
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor() { reconcile_editor_view(session_); }
 
-    // ---- The filesystem browser (EDIT-1, freed by PROJ-2) --------------------
-    //
-    // THE VERBS AND ONE SNAPSHOT. Everything the browser does is: look at a directory,
-    // move a cursor, go in, go up, jump to a place worth returning to, and hand a path to
-    // the editor's door. What it never does is hold a second copy of anything somebody else
-    // owns -- a row is a name and a kind, the path it denotes is derived at the instant it
-    // is activated, and where the maker is standing says nothing about what their project
-    // means.
+    // ---- The filesystem browser ----------------------------------------------
+    // WL-FILES-01, WL-FILES-02 -- agents/workshop/files.md
 
     /// The directory the browser is showing. A FIELD READ: after the seed below, nothing
     /// here derives a location from the project anchor, which is what makes browsing
@@ -5933,18 +4594,7 @@ private:
 
     /// GENERATE THIS RUN'S ORIGIN AND READ ITS DURABLE MARKS -- once, at the moment
     /// navigation first needs either.
-    ///
-    /// ORIGIN IS "WHERE THIS WORKSHOP'S FILES NAVIGATION BEGAN", so the first moment
-    /// anything asks is exactly when it is decided, and the guard is what makes it
-    /// immutable afterwards. It is the admitted launch location today, because that is
-    /// where the maker was standing -- and it is deliberately NOT renamed "the project": the
-    /// anchor is a different fact with a different owner, and the two coinciding at launch
-    /// is a coincidence this application is now able to state rather than one it relies on.
-    ///
-    /// AN ABSENT LAUNCH LOCATION INVENTS NOTHING. No parent, no executable directory, no
-    /// temporary directory -- the run simply has no origin, Files says so, and a maker can
-    /// still reach a durable mark or a filesystem root, which is the honest way back onto
-    /// the machine.
+    // WL-FILES-02 -- agents/workshop/files.md
     void ensure_marks() {
         if (session_.marks.settled) {
             return;
@@ -5957,25 +4607,8 @@ private:
         }
     }
 
-    /// READ THE MAKER'S OWN PLACES, OR STAND ON NONE (PROJ-2).
-    ///
-    /// The prefs file's startup story, one file over: no path chosen and no file present are
-    /// both simply no marks (deleting the file IS forgetting every place, so an absent file
-    /// must never be a complaint); an admitted file is applied; a file that exists and
-    /// cannot be admitted is refused and this run holds none.
-    ///
-    /// ⚠ BOTH REFUSALS ARE STANDING CONDITIONS AND NOT NOTICES, and that is measured rather
-    /// than stylistic (WUX-4). This load runs wherever the browser first needs it -- which is
-    /// usually inside the very gesture that OPENS the pane, and that gesture says "opened
-    /// Files" immediately afterwards. A sentence on the notice row would be replaced by the
-    /// next thing said, in the same turn, every time. And it should not be a notice anyway:
-    /// an unreadable marks file is still unreadable an hour later and has a maker action
-    /// ("fix or delete it"), which is exactly what makes a thing a condition rather than an
-    /// event.
-    ///
-    /// `marks_refused_` IS THE LOAD-BEARING HALF, the prefs file's own rule: this is a file
-    /// Workshop WRITES, so restraint alone is not enough -- without the flag, the first `m`
-    /// a maker pressed would replace bytes this run could not read with an empty list.
+    /// READ THE MAKER'S OWN PLACES, OR STAND ON NONE.
+    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FILES-08 -- agents/workshop/files.md
     void load_marks() {
         if (marks_loaded_) {
             return;
@@ -6010,11 +4643,7 @@ private:
 
     /// WRITE THE MAKER'S PLACES BACK. Empty path = no persistence, silently, exactly as it
     /// is for every other durable fact this weave holds.
-    ///
-    /// ⚠ A FILE THIS RUN COULD NOT READ IS NEVER OVERWRITTEN. The refusal already told the
-    /// maker their places were not loaded; writing this run's (empty) list over them would
-    /// turn a readable complaint into a lost file, which is the prefs file's own law and is
-    /// taken here for the same reason.
+    // WL-FILES-08 -- agents/workshop/files.md
     void save_marks() {
         if (host_->marks_path.empty() || marks_refused_) {
             return;
@@ -6027,18 +4656,7 @@ private:
     }
 
     /// TAKE A FRESH LISTING OF WHERE THE MAKER IS STANDING.
-    ///
-    /// THIS IS AN OS WALK, AND IT IS THEREFORE NOT A PAINT-TIME QUESTION. Every other
-    /// population this application shows is one it already holds in memory; a directory
-    /// belongs to somebody else and costs a syscall per entry. So it is recomputed at
-    /// moments a person caused -- the pane opening, entering, going up, asking, and a build
-    /// finishing -- and at no others. There is no watcher, no poll and no timer, and the
-    /// cost of that honesty is named where a maker can read it: a file another program
-    /// writes between two of those moments is not on screen until one of them happens.
-    ///
-    /// THE CURSOR GOES HOME because the rows underneath it are gone. Keeping an index
-    /// across a re-enumeration would point at whatever now happens to be in that position,
-    /// which is a cursor that appears to move on its own.
+    // WL-FILES-12 -- agents/workshop/files.md
     void files_refresh() {
         ensure_marks();
         FilesPane& pane = session_.panels.files;
@@ -6059,12 +4677,7 @@ private:
     /// A BUILD THIS SESSION WATCHED HAS FINISHED, so what is on disk may have changed --
     /// take a fresh listing if the browser is open, and put the maker back where they
     /// were.
-    ///
-    /// THE CURSOR IS PRESERVED BY NAME BECAUSE THE MAKER DID NOT ASK FOR THIS ONE. A
-    /// refresh a person requested may reasonably start at the top; a refresh that happens
-    /// because a build ended must not move their place out from under them. If the row
-    /// they were on is gone -- the build deleted it -- the cursor goes home, which is the
-    /// honest answer to "where were you" when the answer no longer exists.
+    // WL-FILES-12 -- agents/workshop/files.md
     void files_build_settled() {
         if (!session_.panels.has(panel::kProjectFiles)) {
             return;
@@ -6110,17 +4723,7 @@ private:
     }
 
     /// GO UP ONE LEXICAL DIRECTORY.
-    ///
-    /// THE BOUNDARY IS THE FILESYSTEM'S AND NOT THE PROJECT'S. Parent is `parent_path()`
-    /// and stops where a path stops -- the MEASURED fixed point `p.parent_path() == p`,
-    /// which is what POSIX `/`, a Windows drive root and `//server/` all answer. It walks
-    /// straight past `HostContext::project_dir` without noticing it, which is the whole of
-    /// what this phase changed: the anchor is where relative source MEANS something, not a
-    /// wall.
-    ///
-    /// AND IT IS LEXICAL. Going up from a linked directory returns the maker to where they
-    /// walked in from, not to wherever the link pointed -- nothing canonicalizes, so
-    /// `parent` always undoes exactly the `enter` that preceded it.
+    // WL-FILES-03 -- agents/workshop/files.md
     void files_parent() {
         ensure_marks();
         FilesPane& pane = session_.panels.files;
@@ -6145,7 +4748,7 @@ private:
         files_say_where();
     }
 
-    /// Where the maker is, for a notice: the absolute location, which since PROJ-2 is the
+    /// Where the maker is, for a notice: the absolute location, which is the
     /// only unambiguous answer -- a relative spelling would need a base, and the base a
     /// browser used to have (the project) is exactly the thing it may now be nowhere near.
     std::string files_where() const {
@@ -6154,10 +4757,7 @@ private:
     }
 
     /// SAY WHERE THE MAKER NOW IS, and why this place is one they might have meant.
-    ///
-    /// The provenance is a projection over the marks this run holds plus one lexical test,
-    /// so a header and a notice can both state it without anybody walking a filesystem to
-    /// find out (`LocationMarks::provenance`).
+    // WL-FILES-07 -- agents/workshop/files.md
     void files_say_where() {
         const std::string where = files_where();
         const std::string why =
@@ -6167,20 +4767,8 @@ private:
 
     /// ACT ON THE ROW THE CURSOR IS ON -- enter a directory, or hand a file to the one
     /// editor door.
-    ///
-    /// THE ONE REFUSAL LEFT HERE IS THIS BROWSER'S OWN, and it is about the PATH rather
-    /// than about the file's contents: a name this application's narrow path custody cannot
-    /// carry would reach the editor as a different path or as none, so it is refused here,
-    /// where the loss is known. The LINKED-directory refusal that used to stand beside it
-    /// is gone -- it existed to keep the entered-name stack honest and there is no stack
-    /// any more; the row keeps its mark, and entering it is ordinary navigation the OS
-    /// either permits or refuses in its own words.
-    ///
-    /// EVERYTHING ELSE IS THE EDITOR'S. A `.png`, a binary, a file with mixed line endings
-    /// or bytes outside plain ASCII all travel to the door and are refused THERE, in the
-    /// editor's own vocabulary. This browser has no file-type list, no extension policy and
-    /// no opinion about contents -- an opinion here would be a second, quietly different
-    /// copy of a law that already has an owner.
+    // WL-FILES-04, WL-FILES-10, WL-FILES-11 -- agents/workshop/files.md
+    // WL-FOCUS-04 -- agents/workshop/focus.md
     void files_open(loom::Mail& mail) {
         ensure_marks();
         FilesPane& pane = session_.panels.files;
@@ -6222,18 +4810,8 @@ private:
         open_source(persist::resolved_against(dir, row->name), mail);
     }
 
-    /// MARK, OR UNMARK, THE LOCATION THE BROWSER IS SHOWING (PROJ-2).
-    ///
-    /// IT TOGGLES THE MAKER'S OWN FACT AND ONLY THAT. A place may already be known as this
-    /// run's origin or as a filesystem root; neither is the maker's to grant or revoke, and
-    /// marking a location that is also the origin is a perfectly ordinary thing to want --
-    /// origin dies with the run and a mark does not. The two provenances stay distinct and
-    /// the traversal still stops there exactly once.
-    ///
-    /// ⚠ IT MARKS A PLACE AND NOTHING ELSE. Nothing about the project anchor, the recipe
-    /// catalog, the open document, trust, build intent or load arrangement is touched or
-    /// consulted -- a mark is a destination, and a browser that could confer meaning by
-    /// remembering a directory would be a second, quieter way to choose a project.
+    /// MARK, OR UNMARK, THE LOCATION THE BROWSER IS SHOWING.
+    // WL-FILES-05 -- agents/workshop/files.md
     void files_mark() {
         ensure_marks();
         const std::string where = session_.panels.files.current_dir;
@@ -6250,23 +4828,7 @@ private:
     }
 
     /// GO TO THE NEXT (or previous) PLACE WORTH RETURNING TO.
-    ///
-    /// THE DESTINATIONS ARE BUILT AT THE GESTURE AND HELD NOWHERE: this run's origin, the
-    /// maker's durable marks, and the filesystem roots THIS SYSTEM REPORTS RIGHT NOW. The
-    /// roots in particular are asked for here rather than remembered, because a drive is a
-    /// fact about a machine at a moment and a cached list of them is a list that goes wrong
-    /// silently.
-    ///
-    /// THERE IS NO STANDING "SELECTED MARK". The cycle is found from where the browser
-    /// actually is, so nothing can drift out of agreement with the location on screen, and
-    /// a maker who walked somewhere between two jumps gets the neighbour of where they are
-    /// rather than the neighbour of where a remembered index last pointed. A location that
-    /// is not itself a destination starts the cycle at its first (or last) stop.
-    ///
-    /// ⚠ A JUMP CHANGES WHERE THE MAKER IS LOOKING AND NOTHING ELSE. It does not move the
-    /// project anchor, recomplete a recipe, install a catalog, open a document, change the
-    /// load arrangement or touch the setup -- the browser's whole write set is its own four
-    /// fields and a notice, exactly as it was before it could leave the project.
+    // WL-FILES-06 -- agents/workshop/files.md
     void files_jump_mark(std::int64_t by) {
         ensure_marks();
         const std::vector<MarkedPlace> stops =
@@ -6293,40 +4855,8 @@ private:
         say("at " + went.path + (why.empty() ? std::string() : " (" + why + ")"), false);
     }
 
-    /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG (PROJ-1).
-    ///
-    /// THE BROWSER'S SECOND VERB, AND ITS FIRST THAT IS NOT ABOUT LOOKING. It is the same
-    /// shape as `files_open` one door over: this pane resolves a ROW to a path -- the
-    /// location it is showing plus the row's own name, exactly as activation does --
-    /// refuses what its own path custody cannot carry, and hands the path to the one owner
-    /// that can act on it. Everything after the path is the HOST's: reading, parsing,
-    /// completing against the current project, and installing atomically.
-    ///
-    /// ⚠ AND THE CATALOG MAY NOW LIVE ANYWHERE THE BROWSER CAN REACH, which since PROJ-2 is
-    /// anywhere the host can. That widens the CHOOSER and nothing else: completion is still
-    /// anchored to `HostContext::project_dir` by the host's own closure, so a foreign
-    /// catalog's RELATIVE source still names a file under the active project rather than
-    /// beside the catalog. Surprising the first time, correct, documented, and emphatically
-    /// not something a mark or a browsing location may quietly change.
-    ///
-    /// ⚠ THE REFUSALS HERE ARE ABOUT THE PATH AND NEVER ABOUT THE CONTENTS. A directory
-    /// is refused because a catalog is a file; a name this application cannot carry is
-    /// refused because it would arrive as a different path or as none. Whether the BYTES
-    /// are a recipe catalog is the recipe owner's question, answered at the owner's door
-    /// in the owner's own words -- so there is no extension test, no filename convention
-    /// and no sniffing here, and a `.png` walks into the refusal that actually knows why.
-    /// That is `files_open`'s law, and it is the same law because it is the same browser.
-    ///
-    /// ⚠ THE SAME FILE AGAIN IS A RELOAD AND NOT A NO-OP. Nothing here compares the path
-    /// to the one in force: the durable file may have changed since it was read, and a
-    /// short-circuit would turn the maker's one explicit way of picking up an edit into
-    /// silence. That is what buys this application a live refresh with no watcher, no
-    /// timer and no poll -- the maker's press is the event.
-    ///
-    /// ⚠ AND IT DOES NOT NEED THE BUILDER. A maker can change what this session can build
-    /// without ever opening the panel that presents it; the republish below is sent
-    /// regardless, and Workshop's own catalog handler is the party that ignores it when
-    /// there is no panel to put it on.
+    /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG.
+    // WL-FILES-11 -- agents/workshop/files.md; WL-PROJ-05 -- agents/workshop/project.md
     void files_use_recipes(loom::Mail& mail) {
         ensure_marks();
         FilesPane& pane = session_.panels.files;
@@ -6421,34 +4951,8 @@ private:
         }
     }
 
-    /// A PRESS IN THE BROWSER'S BODY: the first press on a row SELECTS it, and a press on
-    /// the row that is already selected ACTIVATES it.
-    ///
-    /// ACTIVATION NEEDS THE PANE TO HAVE HELD THE KEYS ALREADY, and that condition is the
-    /// whole safety of this gesture. The press that arrives at a pane the maker was not
-    /// working in is the same press that points the keyboard here -- so without the
-    /// condition, a maker whose cursor happened to be resting on the row they pressed
-    /// would open a file, or meet a dirty refusal, by doing nothing more than aiming at
-    /// the pane. Two presses to open something from cold is the cost, and it buys the
-    /// promise that no single press can replace what is open.
-    ///
-    /// AND DOUBLE-CLICK IS NOT WHAT THIS IS. `PointerButton` carries no click count, so
-    /// timing is unsayable on this wire; there is nothing to hold, nothing to time out and
-    /// no second interpretation of a press. Two presses on one row is a state machine with
-    /// one bit, and the bit is already on the screen as the selection.
     /// THE WHEEL OVER THE BROWSER'S BODY MOVES THE CURSOR, and the window follows it.
-    ///
-    /// A LIST IS NOT A DOCUMENT, which is why this differs from the editor's wheel by
-    /// design rather than by omission. The editor keeps its caret still while the view
-    /// moves, because a caret is a place in text a maker is editing and looking elsewhere
-    /// is a thing they mean to do. Here the cursor IS where the maker is looking -- every
-    /// list in this application derives its window from it -- so a second, independent
-    /// scroll position would be a second answer to one question, free to disagree with the
-    /// row the header names and the row Return would act on.
-    ///
-    /// MOVING THE CURSOR CANNOT OPEN ANYTHING. Selection here is inert (a press on the
-    /// selected row is the activation, and only in a pane that already held the keys), so
-    /// a wheel cannot replace a document however far it is spun.
+    // WL-EDIT-10 -- agents/workshop/editor.md; WL-FOCUS-04 -- agents/workshop/focus.md
     void files_wheel(const zengine::input::PointerWheel& w, const Screen& sc,
                      loom::Mail& mail) {
         if (!over_files_body(session_, sc, w.space, w.x, w.y)) {
@@ -6470,31 +4974,9 @@ private:
         repaint(mail);
     }
 
-    /// A PRESS INSIDE THE LAYOUTS PANE (WUX-12) -- the tab run's own inverse, and the whole
+    /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
-    ///
-    /// IT IS ASKED ONLY AFTER OCCUPANCY HAS NAMED THIS PANE, which is the entire repair.
-    /// The arithmetic below is WUX-9's and WUX-11's unchanged: the spans come from
-    /// `band_status`' own composition, so a press cannot be answered against a tab this
-    /// budget did not paint, against the blank between the run and the status, against the
-    /// status itself, or against a run the name editor has replaced. What is gone is the
-    /// coordinate exception -- the question used to be asked FIRST, above every pane, out
-    /// of a rectangle no catalog row could name, so a pane a maker had authored in front of
-    /// the tabs was drawn over them and still lost the press to them.
-    ///
-    /// TRUE MEANS CONSUMED (QR-2). A press that landed on this pane but on no tab and no
-    /// `+` -- the blank, the association, the workspace row, the pane's chrome -- is not
-    /// this inverse's, and falls to the pane's ordinary sentence exactly as a press on an
-    /// external pane's header does.
-    ///
-    /// ⚠ AND THE SELECTION LINE HAS ALREADY RUN. Pressing a tab now points at the Layouts
-    /// PANE, because that is what a maker is pointing at and the desk says so with selected
-    /// chrome like any other pane. The old arm ran above that line and deliberately left the
-    /// previous selection alone; keeping that exemption would have been the one place the
-    /// conversion stopped short -- a pane that owns the point but does not become the pane
-    /// you are pointing at. What the switch does to the selection afterwards is the ordinary
-    /// law: it stays, it lifts nothing while its pane is absent, and it means something
-    /// again when that pane participates again.
+    // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md
     bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail) {
         const LayoutTabPress tab =
             band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
@@ -6502,14 +4984,14 @@ private:
             return false;
         }
         if (tab.create) {
-            // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE (WUX-11):
+            // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE:
             // the same door, the same ceiling, the same refusal in the same words. It arms
             // no double-click and begins no drag -- it is not a tab.
             session_.tab_click = TabClickMemory{};
             new_layout(mail);
             return true;
         }
-        // A SECOND PRESS ON THE SAME TAB RENAMES IT (WUX-11), and the first one has already
+        // A SECOND PRESS ON THE SAME TAB RENAMES IT, and the first one has already
         // made that tab live -- which is why the editor's subject and the switch cannot
         // disagree. `press_selects_word`'s discipline exactly: the completing press SPENDS
         // the arming, so there is no triple-click, and a first press is an ordinary switch
@@ -6521,7 +5003,7 @@ private:
             return true;
         }
         session_.tab_click = TabClickMemory{true, tab.at, now};
-        // AND THE PRESS TAKES HOLD OF THE TAB (WUX-11). A press that becomes a drag
+        // AND THE PRESS TAKES HOLD OF THE TAB. A press that becomes a drag
         // reorders; a press that does not is exactly the switch it always was, because a
         // drag that never moved lands the layout back where it started. The record holds no
         // position: the switch below has just made this tab the live one, so what is being
@@ -6554,24 +5036,11 @@ private:
         pane.cursor = which;
     }
 
-    // ---- THE PANE EDITOR (WUX-13): a pane as a subject ---------------------------------------
-    //
-    // EVERY WRITE BELOW IS SOMEBODY ELSE'S DOOR. The four geometry rows spend
-    // `author_pane_window` and the three resets through their closures (screen.hpp); the
-    // order keys spend `spend_pane_action`, the arrangement's own switch; participation
-    // spends `toggle_participation`, the picker's own door; and the reseat a place write
-    // owes is `apply_setup`, from `editing_key`. Nothing here assigns into a `SetupPane`,
-    // and nothing here holds a rectangle: what this section owns is the SUBJECT and two
-    // cursors.
+    // ---- THE PANE EDITOR: a pane as a subject ------------------------------------------------
+    // WL-PED-05 -- agents/workshop/pane-manager.md
 
-    /// A FRESH VIEW OF THE SUBJECT, TAKEN AT A GESTURE (WUX-13). The subject stands through
-    /// a layout switch, its pane closing and its provider going away -- every one of those
-    /// leaves a `PaneRef` that still names something a maker can reason about. What it
-    /// cannot survive is being in NEITHER the pane vocabulary NOR the active setup, because
-    /// then no row of the PANES list names it and nothing on the desk can bring it back
-    /// through this surface. That is the one clearing rule, asked here rather than on paint
-    /// (paint is a pure projection and clears nothing) and rather than in `apply_setup`
-    /// (`forget_removed_selection` says why).
+    /// A FRESH VIEW OF THE SUBJECT, TAKEN AT A GESTURE.
+    // WL-PED-03 -- agents/workshop/pane-manager.md
     void repair_pane_editor_subject() {
         PaneEditor& ed = session_.pane_editor;
         if (!ed.addressed() || pane_editor_subject_row(session_).has_value()) {
@@ -6588,12 +5057,7 @@ private:
     }
 
     /// MAKE THIS PANE THE PANE EDITOR'S SUBJECT -- the one writer of `PaneEditor::subject`.
-    ///
-    /// IT DOES NOT TOUCH `Panels::selected`, AND THAT ABSENCE IS THE LAW (WUX-13). Choosing
-    /// what to describe is not pointing at it: the pane a maker is interacting with is the
-    /// Pane Editor, and the desk's selection already says so. The rows are rebuilt because
-    /// the subject is the one thing they close over; the row cursor lands on the first
-    /// authored value, `first_editable`'s own rule.
+    // WL-PED-02 -- agents/workshop/pane-manager.md
     void choose_subject(const PaneRef& ref) {
         PaneEditor& ed = session_.pane_editor;
         ed.subject = ref;
@@ -6619,10 +5083,8 @@ private:
     }
 
     /// STEP ONE OF THE TWO LISTS' CURSORS -- the subject's rows (`rows`) or the PANES list
-    /// -- by one, bounded. The keys step the list they are in; the wheel steps the list
-    /// under the pointer (QR-18); neither moves the keys between the lists. Both lists
-    /// derive their window from their cursor (`pane_editor_body_place`), which is why the
-    /// cursor is the thing either gesture moves.
+    /// -- by one, bounded.
+    // WL-PED-08 -- agents/workshop/pane-manager.md
     void pane_editor_move_in(bool rows, std::int64_t by) {
         PaneEditor& ed = session_.pane_editor;
         if (!rows) {
@@ -6664,12 +5126,8 @@ private:
         }
     }
 
-    /// THE WHEEL OVER THE PANE EDITOR MOVES THE LIST UNDER THE POINTER (QR-18): the PANES
-    /// list above `panes_rows`, the subject's rows below it, each through the step its keys
-    /// take -- a step at a time, because the rows list steps over a section heading rather
-    /// than onto it. The heading names nothing and spends nothing; a live draft's own row is
-    /// a row of the list and scrolls with it, its text untouched. The subject is repaired
-    /// first, the rule every gesture into this pane keeps, and never changed by this one.
+    /// THE WHEEL OVER THE PANE EDITOR MOVES THE LIST UNDER THE POINTER.
+    // WL-EDIT-10 -- agents/workshop/editor.md; WL-PED-08 -- agents/workshop/pane-manager.md
     void pane_editor_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
         repair_pane_editor_subject();
         const PaneEditorAt where = pane_editor_at(session_, w.space, w.x, w.y);
@@ -6779,7 +5237,7 @@ private:
         case Act::kPaneEditorBack: order(Act::kManageBack); break;
         case Act::kPaneEditorRaise: order(Act::kManageRaise); break;
         case Act::kPaneEditorLower: order(Act::kManageLower); break;
-        // THE PANE CREATOR'S THREE (WUX-14): make a pane, keep it, put it back.
+        // THE PANE CREATOR'S THREE: make a pane, keep it, put it back.
         case Act::kPaneCreatorNew: open_pane_naming(); break;
         case Act::kPaneCreatorSave: save_maker_pane(); break;
         case Act::kPaneCreatorDiscard: discard_maker_pane_edits(mail); break;
@@ -6787,26 +5245,11 @@ private:
         }
     }
 
-    // ---- THE PANE CREATOR (WUX-14): a pane made of authored data ------------------------------
-    //
-    // THE FIRST PANE THAT EXISTS BECAUSE A MAKER DESCRIBED ONE. Everything below is the
-    // lifecycle of `Panels::maker` -- the one open definition -- and it is the source
-    // editor's lifecycle law inherited whole: one session-owned open value, presentation
-    // owning none of it, dirty derived by comparison, replacement of a dirty value refused
-    // in words, an orderly quit refused in words, one open door, one save door, and one
-    // deliberate discard door so the refusals have real gestures to name.
-    //
-    // LOADING A DEFINITION PRESENTS AND MAY NOT ACT. The open door reads a bounded file,
-    // admits it whole, judges it by its own law and holds the value; nothing on the path
-    // mounts, loads, sends, samples, binds or grants, and the value has no field on which
-    // any of those could be spelled (`pane_definition.hpp`). The pane then appears through
-    // the ordinary pane path -- no office, no offer, no room grant, no load-plan row -- and
-    // a setup row naming it is an ordinary row a session keeps.
+    // ---- THE PANE CREATOR: a pane made of authored data ---------------------------------------
+    // WL-MAKER-08, WL-MAKER-10 -- agents/workshop/maker-pane.md
 
-    /// REBUILD THE PANE MANAGER'S SUBJECT ROWS WITHOUT CHANGING THE SUBJECT -- asked by the
-    /// three doors that change which rows a subject honestly HAS (a definition opened,
-    /// made or put back), because the INTERIOR section is decided at rebuild and must not
-    /// describe a definition that is no longer the one open.
+    /// REBUILD THE PANE MANAGER'S SUBJECT ROWS WITHOUT CHANGING THE SUBJECT.
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     void rebuild_subject_rows() {
         PaneEditor& ed = session_.pane_editor;
         if (!ed.addressed()) {
@@ -6829,14 +5272,8 @@ private:
     }
 
     /// THE ONE OPEN DOOR: a pane-definition file becomes the run's open definition, or
-    /// nothing moves. Normalize (`persist::resolved_against` the project) -> dirty refusal
-    /// -> bounded read -> whole admission -> the definition's own law -> install. A refusal
-    /// at any layer costs the maker a sentence and nothing else: the live definition, the
-    /// setup, the session and the file itself are all exactly as they were.
-    ///
-    /// A FILE AT THE HOST'S OWN PATH THAT CANNOT BE READ IS A STANDING WALL, and the wall
-    /// is load-bearing: `pane_refused_` keeps the save door from writing this run's pane over
-    /// bytes this run could not understand (the session's own law, one durable fact over).
+    /// nothing moves.
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
     void open_maker_pane(const std::string& requested, loom::Mail& mail) {
         const std::string path = persist::resolved_against(host_->project_dir, requested);
         MakerPane& m = session_.panels.maker;
@@ -6869,20 +5306,8 @@ private:
         say("opened pane " + m.definition.name + " from " + path, false);
     }
 
-    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act. The name meets the
-    /// definition's law; the definition is composed with its one empty text region; the pane
-    /// joins the current desk through the setup's own door; the Pane Manager takes it as its
-    /// subject with the keys on the region's rows. False means nothing was made, and the
-    /// name prompt stays open with the maker's text in it.
-    ///
-    /// A NEW PANE REPLACES A CLEAN OPEN ONE AND REFUSES OVER A DIRTY ONE. One definition is
-    /// open at a time (the source editor's law); the previous pane's setup rows are kept and
-    /// read `unresolved` until its file is opened again -- retained intent, never erased.
-    ///
-    /// IT MAY LAND WAITING. The reactive stack may have no tile left on this screen; the
-    /// row is authored anyway and the notice says so, because a maker who asked for a pane
-    /// and is told it is waiting for room can act on that, and the Pane Manager's list names
-    /// its state beside it.
+    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act.
+    // WL-MAKER-08, WL-MAKER-11 -- agents/workshop/maker-pane.md
     bool new_maker_pane(const std::string& name, loom::Mail& mail) {
         MakerPane& m = session_.panels.maker;
         if (m.dirty()) {
@@ -6973,10 +5398,8 @@ private:
     void close_pane_naming() { session_.pane_naming = PaneNaming{}; }
 
     /// WRITE THE OPEN DEFINITION TO ITS FILE -- the one save door, through the family's
-    /// safe write. On success the saved copy advances to exactly what was written, so dirty
-    /// derives to false; on refusal nothing moves and the maker gets the writer's sentence.
-    /// A live draft on one of the pane's rows refuses for the document save's reason: a
-    /// file that disagreed with the screen, silently.
+    /// safe write.
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
     void save_maker_pane() {
         MakerPane& m = session_.panels.maker;
         if (!m.open()) {
@@ -7011,10 +5434,8 @@ private:
         say("saved pane " + m.definition.name + " to " + m.path, false);
     }
 
-    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds. A
-    /// pane that was never saved has no file to go back to, so it closes whole -- its rows
-    /// on this desk are KEPT and read `unresolved`, because a setup row is the maker's own
-    /// intent and nothing here may erase one on their behalf.
+    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds.
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
     void discard_maker_pane_edits(loom::Mail& mail) {
         MakerPane& m = session_.panels.maker;
         if (!m.open() && !m.saved.open()) {
@@ -7058,11 +5479,8 @@ private:
         session_.pane_naming.line.keep_caret_visible(pane_name_columns(body.fit.columns));
     }
 
-    /// A PRESS INSIDE THE PANE EDITOR'S BODY. The live draft's own row is asked first
-    /// (`info_press`'s pipeline, one pane over), then a pane row -- which chooses the
-    /// SUBJECT, by identity, from the same population the paint walked -- then a field row,
-    /// which moves the row cursor and begins nothing (HD-6's rule). Every press on the pane
-    /// is consumed: it has already pointed the keys here.
+    /// A PRESS INSIDE THE PANE EDITOR'S BODY.
+    // WL-PED-02 -- agents/workshop/pane-manager.md
     void pane_editor_press(const zengine::input::PointerButton& b, std::int64_t modifiers) {
         repair_pane_editor_subject();
         PaneEditor& ed = session_.pane_editor;
@@ -7115,17 +5533,8 @@ private:
     }
 
     /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- Builder's half, and only its
-    /// half: which recipe is chosen, whether that kind of recipe has a source at all, and
-    /// what the recipe catalog calls it. The recipe it opens is exactly the row `b` would
-    /// build, resolved through the panel's own choice and answered by the HOST over the
-    /// same completed recipes the runner builds from (`HostContext::recipe_source`), so
-    /// the gesture cannot open one file while the build reads another.
-    ///
-    /// EVERYTHING AFTER THE PATH IS `open_source`'S, and Builder gets no privilege there.
-    /// Whether a document may be replaced, what bytes may become source, whether the pane
-    /// can be seated, what the maker is told -- all of it is the editor's law, applied
-    /// identically to every referrer, because a door a favoured caller could walk past is
-    /// a door that promises nothing.
+    /// half.
+    // WL-EDIT-05 -- agents/workshop/editor.md
     void edit_source(loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // an unbound key with no Builder panel open, exactly as `b` is
@@ -7166,34 +5575,8 @@ private:
 
     /// THE ONE DOOR INTO THE EDITOR'S DOCUMENT -- a path in, this session's one open
     /// source out, and every referrer arrives through it.
-    ///
-    /// IT KNOWS NOTHING ABOUT WHO ASKED. A recipe, a row in the project browser, and
-    /// whatever later surface wants to open a file all hand it the same thing -- a path
-    /// -- and receive the same law: the same reveal, the same refusal, the same
-    /// sentences. That symmetry is the point. While opening lived inside the Builder
-    /// gesture, "may this replace what is open" was a rule one caller happened to obey;
-    /// a second caller would have had to obey it again, by hand, correctly, forever.
-    /// Here there is one copy, and a new referrer cannot fail to observe it because
-    /// there is nothing else to call.
-    ///
-    /// THE REQUESTED SPELLING IS NORMALIZED BEFORE ANYTHING IS COMPARED. Identity here
-    /// is a STRING comparison against the open document's path, so `a.cpp` and `./a.cpp`
-    /// would otherwise be two documents -- and two referrers spelling one file
-    /// differently would each get their own, with the dirty refusal (which asks the same
-    /// question) quietly disagreeing about which file is at risk. One resolution against
-    /// the project (`persist::resolved_against`) applied to EVERY entrant is what makes
-    /// both answers one answer.
-    ///
-    /// IT IS A SPELLING AND NOT A FILESYSTEM OBJECT, and the limit is named where it is
-    /// imposed: nothing canonicalizes, so two paths reaching one file through a link --
-    /// or differing only in case on Windows -- are still two documents here. Solving
-    /// that means asking the filesystem about identity on every open, which nothing yet
-    /// needs and which would make a path a question rather than a value.
-    ///
-    /// NOTHING PARTIALLY MOVES. The file is read and judged before the pane is touched
-    /// and long before the buffer is, so a refused open costs the maker a notice and
-    /// nothing else: the current document keeps its path, its buffer, its saved copy,
-    /// its epoch and its dirty answer, and the file on disk is untouched either way.
+    // WL-EDIT-03, WL-EDIT-05, WL-EDIT-06, WL-EDIT-11, WL-EDIT-13 -- agents/workshop/editor.md
+    // WL-FRONT-04 -- agents/workshop/planes.md
     void open_source(const std::string& requested, loom::Mail& mail) {
         const std::string path = persist::resolved_against(host_->project_dir, requested);
         EditorState& e = session_.editor;
@@ -7246,7 +5629,7 @@ private:
         e.first_col = 0;
         e.wheel_accum = 0.0;
         e.follow_caret = true;
-        // AND IT SELECTS THE PANE IT JUST FILLED (WUX-5). The keyboard candidate's own
+        // AND IT SELECTS THE PANE IT JUST FILLED. The keyboard candidate's own
         // argument, one question wider: an open that pointed the keys at a pane still
         // sitting behind another would put the first keystroke somewhere the maker
         // cannot see. The two facts are written together everywhere they are written.
@@ -7279,11 +5662,8 @@ private:
         return true;
     }
 
-    /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority, through the same
-    /// bounded atomic persistence door every other Workshop file goes through. On
-    /// success the saved copy advances to exactly what was written, so dirty derives to
-    /// false; on refusal the buffer is untouched, dirty stays true, and the maker gets
-    /// the writer's own sentence. Saving an unchanged file writes it again, plainly.
+    /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority.
+    // WL-DOC-15 -- agents/workshop/document.md; WL-EDIT-01 -- agents/workshop/editor.md
     void save_source() {
         EditorState& e = session_.editor;
         if (!e.open_document()) {
@@ -7301,13 +5681,7 @@ private:
     }
 
     /// THE ONE DELIBERATE DISCARD DOOR: put the buffer back to the last saved state.
-    /// Explicit and its own gesture -- so no ordinary action ever throws dirty source
-    /// away as a side effect, and quit's refusal has a real door to name. It reads the
-    /// in-memory saved copy rather than the disk, so it cannot fail and cannot observe a
-    /// file changed behind Workshop's back as if this session wrote it. AND IT IS ITSELF
-    /// AN ORDINARY UNDOABLE EDIT (`revert_to` keeps the history): the default chord is a
-    /// plain ctrl+letter because the POSIX wire cannot say ctrl+shift+letter at all, and
-    /// a soft chord is honest to bind only because one undo takes a slip back.
+    // WL-EDIT-03 -- agents/workshop/editor.md
     void discard_source_edits() {
         EditorState& e = session_.editor;
         if (!e.open_document()) {
@@ -7328,27 +5702,7 @@ private:
     // ---- Save and open -------------------------------------------------------
 
     /// Write the document to its file.
-    ///
-    /// THE DRAFT POLICY, and it is a refusal. If a row is open with an
-    /// uncommitted draft, nothing is saved and the notice says which row. The
-    /// two alternatives were weighed against how this tool already behaves:
-    ///
-    ///   save the committed value quietly   would write the OLD width while a
-    ///                                      NEW one is on the screen with a
-    ///                                      cursor after it. The file would then
-    ///                                      disagree with what the maker is
-    ///                                      looking at, and nothing would say so.
-    ///   commit the draft for them          is auto-commit. Workshop has spent
-    ///                                      five phases keeping "the draft is
-    ///                                      not the property" true; a save that
-    ///                                      writes a value the maker never
-    ///                                      confirmed would end that for a
-    ///                                      keystroke's convenience.
-    ///
-    /// So it refuses, in the alert role, which in this tool means exactly one
-    /// thing: NOTHING WAS WRITTEN -- true of the document and now also of the
-    /// file. Enter commits and Escape cancels; both are one key and both are on
-    /// the help line.
+    // WL-DOC-16 -- agents/workshop/document.md
     void save_document() {
         if (host_->document_path.empty()) {
             say(kNoDocumentFile, true);
@@ -7374,33 +5728,7 @@ private:
     }
 
     /// Replace the document with the one in its file.
-    ///
-    /// A LOAD IS NOT A MERGE and it is not an import: the document that was here
-    /// is gone, identities and all, and the one in the file takes its place with
-    /// ITS identities. `persist::load_file` is a transaction -- the live document
-    /// is untouched unless the whole candidate is legal -- so everything below
-    /// runs only on success.
-    ///
-    /// THE SESSION IS RE-ESTABLISHED, NOT PRESERVED, and that distinction is the
-    /// whole of what a load costs the session. Every session fact points at the
-    /// document that is gone:
-    ///
-    ///   the drag       held an identity and an offset from an object that may
-    ///                  not exist. It is cancelled, so a pointer already down
-    ///                  cannot drag a new object it never grabbed.
-    ///   the drafts     lived in rows bound to the old objects. Rebuilding the
-    ///                  inspector ends them.
-    ///   the selection  is the sharp one. KEEPING the old id would silently
-    ///                  alias whatever new object happened to carry that number
-    ///                  -- the same identity confusion the whole arc is arranged
-    ///                  to prevent, arriving through the back door. So the
-    ///                  selection is re-established by the SAME rule that opens
-    ///                  a fresh Workshop: the first object, or none.
-    ///
-    /// What is NOT reset is the workspace extent, and that is deliberate: it is
-    /// a fact about the window this document is being looked at through, not
-    /// about the document. Loading a file under a different workspace is exactly
-    /// how a maker sees that a share was authored rather than resolved.
+    // WL-CTX-01 -- agents/workshop/contextual.md; WL-DOC-16 -- agents/workshop/document.md
     void load_document() {
         if (host_->document_path.empty()) {
             say(kNoDocumentFile, true);
@@ -7419,7 +5747,7 @@ private:
         // A DOCUMENT REPLACEMENT IS THE ONE PATH an old object identity can come to
         // alias a different object -- the file restores the mint -- so a captured
         // contextual subject from the old document is dropped at this door, exactly as
-        // the selection is re-established rather than preserved (CTX-0). A room or pane
+        // the selection is re-established rather than preserved. A room or pane
         // subject names nothing the replacement touched and stands.
         if (session_.context.subject == context_subject::kObject) {
             session_.context = ContextMenu{};
@@ -7454,10 +5782,8 @@ private:
     }
 
     /// What deleting THE SELECTED object says, read after the repair: where the selection
-    /// went. One spelling for the keyboard's delete and the contextual one, so the two
-    /// gestures cannot describe the same act differently -- "deleted, and you are now on
-    /// #2" is one fact; leaving a maker to work out which object the inspector is
-    /// suddenly showing is two.
+    /// went.
+    // WL-DOC-10 -- agents/workshop/document.md
     std::string deleted_notice(std::int64_t was) const {
         if (session_.selected == 0) {
             return "deleted #" + std::to_string(was) + " -- the document is empty";
@@ -7477,15 +5803,8 @@ private:
         say(deleted_notice(was), false);
     }
 
-    /// DELETE AN EXPLICIT OBJECT -- `delete_selected`'s target-taking sibling (CTX-0),
-    /// and `delete_selected` itself is untouched.
-    ///
-    /// THE NEIGHBOUR/SELECTION REPAIR RUNS EXACTLY WHEN THE DELETED ID IS THE SELECTED
-    /// ONE, and never otherwise: in the other branch `session_.selected` still names a
-    /// live object (the document refuses to remove anything something else measures
-    /// against, so a non-selected deletion cannot change how the selected one resolves),
-    /// and perturbing a valid selection would be this gesture selecting something the
-    /// maker did not point at. The rows are rebuilt, never patched.
+    /// DELETE AN EXPLICIT OBJECT -- `delete_selected`'s target-taking sibling.
+    // WL-CTX-07 -- agents/workshop/contextual.md
     Written delete_object_at(std::int64_t id) {
         if (id == session_.selected) {
             return delete_selected(state_, session_);
@@ -7497,12 +5816,8 @@ private:
         return removed;
     }
 
-    /// THE CONTEXTUAL DELETE: the captured object id, spent through the explicit-id door,
-    /// under HD-8's live-draft hold-back. The hold-back is the application's own carve-out
-    /// (`actions_press`'s rule, same sentence): deletion rebuilds the inspector rows out
-    /// from under a live draft, `doc::remove` knows nothing about drafts, and nobody
-    /// downstream would speak -- so the press is held here, before the operation. It is on
-    /// the PRESS path, never on paint: the menu still offers the row.
+    /// THE CONTEXTUAL DELETE: the captured object id, spent through the explicit-id door.
+    // WL-CTX-07 -- agents/workshop/contextual.md
     void context_delete_object(std::int64_t id) {
         if (draft_live(session_)) {
             say(finish_draft_first(), true);
@@ -7533,9 +5848,8 @@ private:
     }
 
     /// One cell of SIZE, through the same document operation a typed Width or
-    /// Height goes through — and through the same projection the pointer uses, so
-    /// the two gestures cannot come to hold different opinions about what a
-    /// dragged share should become.
+    /// Height goes through.
+    // WL-DOC-07 -- agents/workshop/document.md
     void size_by(std::int64_t dw, std::int64_t dh) {
         const Handled done = grow(state_, session_, dw, dh);
         if (!done.accepted()) {
@@ -7550,23 +5864,13 @@ private:
 
     /// The two notices a direct manipulation produces, in one place so the
     /// pointer and the keyboard cannot describe the same act differently.
-    ///
-    /// A size notice reports the AUTHORED extents, not the resolved ones: the
-    /// whole question a resize notice answers is what a maker's hand wrote, and
-    /// `71%` is that -- `34 x 6 cells` is what the inspector's Resolved
-    /// row already says. A boundary is appended in its own words and the notice
-    /// stays in the ordinary role, because in this tool the alert role means
-    /// exactly one thing: NOTHING WAS WRITTEN. A clamped gesture did write --
-    /// the boundary value -- so colouring it as a refusal would erase the
-    /// distinction the boundary policy was built to make.
+    // WL-DOC-08 -- agents/workshop/document.md
     static std::string edge_of(const Handled& done) {
         return done.clamped() ? " -- " + done.boundary : std::string();
     }
     /// A move notice names the AUTHORED position and, when there is one, the
-    /// frame that position is authored IN. `#2 is at 2,1 in #1` is one fact; a
-    /// bare `#2 is at 2,1` beside a rectangle visibly nowhere near cell 2,1
-    /// would be two, and a maker would have to work out which. Nothing here
-    /// reports the resolved position: that is what the picture already is.
+    /// frame that position is authored IN.
+    // WL-DOC-06 -- agents/workshop/document.md
     static std::string move_notice(const ui::Element& e, const Handled& done) {
         const std::string where = e.context == ui::kRootContext
                                       ? std::string()
@@ -7579,7 +5883,7 @@ private:
                " x " + TextForm<ui::Extent>::format(e.height) + edge_of(done);
     }
 
-    /// IS THE INSPECTOR ON THE SCREEN AT ALL? Since PNL-0 the rows are shown by a
+    /// IS THE INSPECTOR ON THE SCREEN AT ALL? the rows are shown by a
     /// panel a maker may remove, and `Session::rows` goes on existing when they
     /// do -- correctly, because the rows are a fact about the SELECTION and the
     /// selection is not the panel's. What must not go on happening is a gesture
@@ -7617,13 +5921,7 @@ private:
     }
 
     /// BEGIN AN EDIT -- and refuse to begin one nobody can see.
-    ///
-    /// This is the guard that matters most of the three, because the state it
-    /// prevents is a trap rather than a confusion: a draft opened with Info
-    /// removed would put Workshop into editing mode, where `p` types a `p`
-    /// instead of opening the picker, so the maker could not reopen the panel to
-    /// find what they were editing -- and `^s` would then refuse to save, naming
-    /// a row that is not on the screen.
+    // WL-INFO-05 -- agents/workshop/info-body.md
     void begin_edit() {
         if (inspector_absent()) {
             return;
@@ -7648,7 +5946,7 @@ private:
     /// resolves to something else. One keystroke, and the difference between an
     /// authored fact and a resolved one stops being an argument.
     void resize_workspace(std::int64_t delta) {
-        // The ceiling is THIS SCREEN'S room, not a constant: since G-2 a surface can offer
+        // The ceiling is THIS SCREEN'S room, not a constant: a surface can offer
         // more of it, and a `]` that stopped at 48 cells on a window with room for eighty
         // would be the tool refusing space it had already been given.
         const std::int64_t room = screen_of(session_).room_w;
@@ -7688,17 +5986,13 @@ private:
         rebuild_rows();
     }
 
-    /// The rows are rebuilt, never patched. Each one reads through its property
-    /// every time it is displayed, so there is no cached value to refresh and no
-    /// "refresh the inspector" call anywhere in this file -- the second half of
-    /// the old builder's per-row plumbing, also gone.
+    /// The rows are rebuilt, never patched.
+    // WL-INFO-06 -- agents/workshop/info-body.md
     void rebuild_rows() { refocus(state_, session_); }
 
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- the
-    /// same call `refresh_inspector` makes for a property draft and the terminal
-    /// makes for its command line, against the same one measurer
-    /// (`setup_name_columns`). A surface that got narrower while a maker was
-    /// typing must not leave the caret drawn off the end of its own row (HD-4).
+    /// same call `refresh_inspector` makes for a property draft.
+    // WL-TEXT-04 -- agents/workshop/text-box.md
     void refresh_setup_name() {
         if (!session_.setup.naming.open) {
             return;
@@ -7734,36 +6028,8 @@ private:
     }
 
     /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
-    /// only when the answer has changed (WP-0).
-    ///
-    /// IT IS CALLED FROM `repaint` AND NEVER FROM `paint`, and the separation is the rule
-    /// this file has kept since BLD-0: `paint` is a pure function of document and session
-    /// that PUBLISHES a picture, and a painter that sent messages would make the picture a
-    /// side effect of describing it. So the room is reconciled on the path that owns `Mail`,
-    /// beside `refresh_terminal` and `refresh_inspector`, for the identical reason those two
-    /// are there: the answer a maker is looking at must be the answer resolved against the
-    /// room the last frame drew.
-    ///
-    /// THE ROOM IS `external_body_place`'S, WHICH IS `fit_region`'S. One measurer. The
-    /// provider is told `rows` and `columns` and nothing else -- no rectangle, no cell, no
-    /// pixel, no font, no extent, no medium identity -- so it cannot compute a second layout
-    /// and cannot disagree with this one.
-    ///
-    /// A GRANT IS SENT ON EXACTLY THREE OCCASIONS and no others:
-    ///
-    ///     the pane first opens                   `granted` is false
-    ///     a valid re-offer refreshed it          the handler cleared `granted`
-    ///     the resolved rows or columns moved     the comparison below
-    ///
-    /// So a screen that changed CELLS but not prose capacity says nothing, and a text metric
-    /// that changed the capacity says it exactly once. A pane that has no room under its
-    /// header at all is granted nothing rather than granted zero -- a budget of zero is a
-    /// number somebody downstream would subtract from.
-    ///
-    /// AND EVERY GRANT CLEARS WHAT CAME BEFORE IT. The cached rows, the refusal, `heard`
-    /// and `awaiting` are reset BEFORE the send, so the cache can never hold rows admitted
-    /// under a wider room than the one currently in force, and an answer to the previous
-    /// room can never be presented as an answer to this one.
+    /// only when the answer has changed.
+    // WL-PANE-06 -- agents/workshop/panes-and-windows.md
     void refresh_external_rooms(loom::Mail& mail) {
         const Screen sc = screen_of(session_);
         for (const Panel& p : session_.panels.open) {
@@ -7803,30 +6069,9 @@ private:
         }
     }
 
-    /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM -- the whole of the input seam (SEL-0).
-    ///
-    /// WHAT WORKSHOP KNOWS WHEN IT SENDS THIS, EXACTLY AND ONLY: that a primary press
-    /// landed on cells this pane occupies, and which row and column of the ROOM IT GRANTED
-    /// those cells are. It does not know what that row says, whether the provider shows a
-    /// list, whether the row is selectable, whether anything is selected now, whether
-    /// anything will change, or whether the provider is even still there. Nothing in this
-    /// function reads `ExternalPane::shown`, and nothing may: the moment Workshop looks at a
-    /// provider's rows to decide what a press means, the rows have become Workshop's
-    /// vocabulary and the seam has stopped being a seam.
-    ///
-    /// THE POSITION IS RESOLVED FROM THE PAINTER'S OWN RECTANGLE, one call, in
-    /// `external_press_at`. A press that names no row of the body sends nothing at all --
-    /// it was already consumed by occupancy, and there is no sentence to make of it.
-    ///
-    /// AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE, exactly as the room
-    /// grant is and for the same two reasons: the authorship is what lets the provider
-    /// refuse a forged press, and the destination is a ROLE so a replaced provider still
-    /// hears its own pane's presses.
-    ///
-    /// NOTHING IS REPAINTED HERE. Workshop's picture did not change -- no selection, no
-    /// cache, no room, no notice -- and if the provider answers, that answer arrives as an
-    /// ordinary `PaneContent` whose own handler repaints. A repaint on this path would
-    /// publish a frame identical to the last one for every press a provider ignores.
+    /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM -- the whole of the input seam.
+    // WL-PANE-05 -- agents/workshop/panes-and-windows.md
+    // WL-PRESS-04 -- agents/workshop/press-chain.md
     void external_press(std::int64_t kind, const zengine::input::PointerButton& b,
                         loom::Mail& mail) {
         const ExternalPressAt at =
@@ -7848,35 +6093,13 @@ private:
             .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
     }
 
-    /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind` (MSG-0).
-    ///
-    /// THE CANDIDATE IS A PRESS'S MEMORY; THIS IS THE ANSWER. `Panels::keyboard` records
-    /// which pane a maker last pressed into and nothing keeps it true afterwards -- a pane
-    /// closes, a provider stops resolving, a setup is restored, a window shrinks until
-    /// there is no room to grant. Rather than hooking every one of those (four writers for
-    /// one fact, and the fifth is the one nobody adds), the target is DERIVED here from
-    /// the same three things `external_press` requires before it will send a press: the
-    /// panel is open, this build has a runtime kind for it, and a room has been granted.
-    ///
-    /// A ROOM THAT HAS NOT BEEN GRANTED HAS NO PANE TO TYPE INTO. `granted` is false for
-    /// exactly one beat -- between a panel opening and the repaint that grants it -- and
-    /// keys in that beat would be keys sent to a provider that has not been told it has a
-    /// pane on screen at all.
-    ///
-    /// SO NOTHING EVER CLEARS IT, and a pane that becomes presentable again is typed into
-    /// again with no gesture. That is deliberate rather than lazy: the candidate was a
-    /// true statement about a maker's hand when it was written, and it stays true; what
-    /// changes is whether there is a pane for it to name.
-    ///
-    /// THE RESOLUTION ITSELF IS `panel.hpp`'S, because the PAINTER asks it too -- the
-    /// pane's header marks the pane that has the keys and the bottom band names it. Two
-    /// answers to that question would be a screen that tells a maker they are typing
-    /// somewhere the keys do not go.
+    /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
+    // WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard_pane() const {
         return zengine::workshop::keyboard_pane(session_.panels);
     }
 
-    /// TELL A PROVIDER A KEY WENT DOWN WHILE ITS PANE HELD THE KEYBOARD (MSG-0).
+    /// TELL A PROVIDER A KEY WENT DOWN WHILE ITS PANE HELD THE KEYBOARD.
     ///
     /// WHAT WORKSHOP KNOWS WHEN IT SENDS THIS, EXACTLY AND ONLY: that a key transition
     /// arrived, and that the pane a maker last pressed into is still on screen with a room.
@@ -7884,7 +6107,7 @@ private:
     /// whether a field is being edited, or whether the provider will answer. Nothing in
     /// this function reads `ExternalPane::shown` and nothing may -- the moment Workshop
     /// looks at a provider's rows to decide what a key means, the seam has stopped being
-    /// one (SEL-0's rule, one gesture further on).
+    /// one (rule, one gesture further on).
     ///
     /// THE TWO NUMBERS ARE FORWARDED AND NOT TRANSLATED. `scancode` and `modifiers` are
     /// `input::KeyPressed`'s own fields, which are already this application's normalized
@@ -7908,7 +6131,7 @@ private:
             .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers});
     }
 
-    /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY (QR-18): `external_press`'s shape for
+    /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY: `external_press`'s shape for
     /// the one other pointer gesture that crosses the seam. Sent only while the pointer is
     /// over a prose row of the granted body -- `external_press_at`, the same one measurer,
     /// so the header and the remainder under the last row send nothing -- and only to a
@@ -7934,14 +6157,10 @@ private:
             .send_to_role(row->provider, PaneWheel{row->pane, w.dx, w.dy});
     }
 
-    /// PUT THE SELECTED PANE DOWN (QR-18): the press-elsewhere gesture's two lines, spent by
-    /// Escape's final fallthrough. The selection and the keyboard candidate are cleared
-    /// TOGETHER because that is what the existing law already does for a press that lands
-    /// on nothing -- the candidate is derived from the selection through the declared
-    /// candidacy, and a selection of nothing derives a candidate of nothing. The lift goes
-    /// with it (`effective_pane_order` reads the selection fresh), the authored order does
-    /// not move, and nothing reaches a file. It says what it did, because a gesture that
-    /// changed the picture and said nothing would leave the previous sentence standing.
+    /// PUT THE SELECTED PANE DOWN -- the press-elsewhere gesture's two lines.
+    // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
+    // WL-FOCUS-05 -- agents/workshop/focus.md
+    // WL-FRONT-04 -- agents/workshop/planes.md
     void unselect_pane() {
         const std::string name = kind_name(session_.panels, session_.panels.selected);
         session_.panels.selected = kNoPaneKind;
@@ -7963,16 +6182,14 @@ private:
             .send_to_role(row->provider, PaneTextInput{row->pane, t.text});
     }
 
-    /// THE PROJECT FRONTIER, READ ALIVE, NOW (BLD-2). One spend, one answer, held for
-    /// the length of the expression that asked — the host's own `frontier` view is the
-    /// only source, and a fixture that wired none reads "not waiting", which paints the
-    /// Builder panel exactly as every pre-BLD-2 case knew it.
+    /// THE PROJECT FRONTIER, READ ALIVE, NOW.
+    // WL-ATTN-04 -- agents/workshop/attention.md
     ProjectFrontier frontier_now() const {
         return host_->frontier ? host_->frontier() : ProjectFrontier{};
     }
 
     /// WHAT MONOTONIC TIME IT IS -- `frontier_now`'s shape, for the one temporal gesture this
-    /// application has (WUX-7). The host's reading if it wired one, the steady clock if not,
+    /// application has. The host's reading if it wired one, the steady clock if not,
     /// and the answer is spent immediately by the caller that asked; nothing stores it.
     std::int64_t interaction_now() const {
         return host_->interaction_now ? host_->interaction_now() : interaction_now_ms();
@@ -7988,7 +6205,7 @@ private:
         // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
         // pure projection of what it is handed, and what it is handed is this repaint's
         // reading of the living realization owner — never a member, never a field of the
-        // session, never yesterday's answer (BLD-2).
+        // session, never yesterday's answer.
         const ProjectFrontier frontier = frontier_now();
         // THE SLOTS GO FIRST, AND THE PICTURE LAST. A slot is a line of text a
         // publisher hands the MEDIUM, and the medium owns what it makes of it — the SDL
@@ -8009,13 +6226,10 @@ private:
         mail.publish(paint(state_, session_, frontier));
     }
 
-    /// LEAVE -- and write down what was on the desk on the way out (WUX-0).
-    ///
-    /// THE SAVE IS HERE AND NOT IN A SERVICE, and here is the ONE door: `q`, Ctrl+C and a
-    /// close box all arrive at this function, so there is exactly one moment at which a
-    /// session becomes durable, and no background writer, no dirty tracking and no timer had
-    /// to be invented to find it. What that buys and what it costs are both said out loud:
-    /// an ORDERLY close is remembered, and a Workshop that is killed is not.
+    /// LEAVE -- and write down what was on the desk on the way out.
+    // WL-EDIT-03 -- agents/workshop/editor.md
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
+    // WL-SESSION-13 -- agents/workshop/session.md
     void quit() {
         // THE UNSAVED-LOSS FLOOR AT THE ONE EXIT: dirty source may leave this process
         // only by the maker's own deliberate act. All three arrival doors -- `q`, the
@@ -8032,7 +6246,7 @@ private:
                 true);
             return;
         }
-        // AND A MAKER-MADE PANE HOLDS THE DOOR THE SAME WAY (WUX-14): a definition that
+        // AND A MAKER-MADE PANE HOLDS THE DOOR THE SAME WAY: a definition that
         // differs from its file is a maker's authored truth, and it may leave this process
         // only by their own save or their own discard.
         if (session_.panels.maker.dirty()) {
@@ -8058,16 +6272,13 @@ private:
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
-    /// ...and for the pane-definition file (WUX-14), a third sentence for the third reason.
+    /// ...and for the pane-definition file, a third sentence for the third reason.
     static constexpr const char* kNoPaneFile =
         "no pane file -- start Workshop with --pane <path>";
 
     /// What to say to a gesture that would have changed the document or the
-    /// selection out from under a live property draft. HD-7 wrote it for a press
-    /// on the object list; HD-8's action controls are the second gesture to meet
-    /// the same wall, which is the duplication that turns a literal into a name.
-    /// Same sentence, same reason, same two ways out -- spelled from the effective
-    /// keymap since KEY-0, like every other gesture this application advertises.
+    /// selection out from under a live property draft.
+    // WL-CTX-07 -- agents/workshop/contextual.md; WL-CTRL-03 -- agents/workshop/info-controls.md
     std::string finish_draft_first() const {
         return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
                hotkey(Act::kDraftCancel) + " cancels";
@@ -8081,42 +6292,22 @@ private:
     HostContext* host_;
     Session session_;
 
-    /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT (QR-11), and the drafts each one
-    /// belongs to. Plain members, per incarnation — a conversation belongs to the asker
-    /// that opened it, and a successor's Skin would answer a dead weave's ask into the
-    /// void, which is the correct fate for it. Capacity 4 is real pastes one bus turn
-    /// settles; see `begin_clipboard_paste`.
+    /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT, and the drafts each one belongs to.
+    // WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 
     /// One moment's worth of memory: the character the gesture's OWN keystroke
     /// produced, which is not text a maker typed. Set by a gesture that opens a
-    /// mode which takes text, cleared by the next key or the next text, so it
-    /// can never outlive the moment it belongs to.
-    ///
-    /// Empty means nothing is owed. It holds the character rather than a bare
-    /// flag so that a backend which reports the key and NO text cannot make the
-    /// next real keystroke disappear.
+    // WL-KEY-12 -- agents/workshop/keyboard.md
     std::string swallow_text_;
 
-    /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION (WUX-0).
-    ///
-    /// A one-shot, and per PROCESS rather than per surface: `SurfaceReady` arrives again
-    /// whenever a Skin is replaced, and a second restore would throw away everything a maker
-    /// had arranged since the first. It is set before the file is even opened, so a refusal
-    /// is final too -- a session Workshop could not read at startup is not one it should
-    /// keep trying to read.
-    ///
-    /// It is a member of the WEAVE and not of `Session`, because it is not something a maker
-    /// is doing and nothing paints it: it is this run's own bookkeeping about a thing that
-    /// happens once.
+    /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
+    // WL-SESSION-14 -- agents/workshop/session.md
     bool restored_ = false;
 
-    /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ (MIG-0). False when there was no
-    /// file, when there was none to look for, and when one was read -- including one whose
-    /// VIEWPORT was declined, which is a file that was understood and whose desk did come
-    /// back. It is set exactly where the refusal is said, and read exactly where the file
-    /// would be written; `marks_refused_`'s shape, one durable fact over.
+    /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
+    // WL-SESSION-15 -- agents/workshop/session.md
     bool session_refused_ = false;
 
     /// What loading the keymap DID, held until the first surface can show it, and this
@@ -8126,40 +6317,26 @@ private:
     /// is a standing wall and it is a condition (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
     bool marks_loaded_ = false;
-    /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE (WUX-14), and whether
-    /// that file was REFUSED. The first is the restore's once-guard, one file over; the
-    /// second is the marks file's load-bearing flag, for the marks file's reason: this is a
-    /// file Workshop WRITES, so without it the first save would replace bytes this run could
-    /// not read with this run's pane.
+    /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE, and whether
+    /// that file was REFUSED.
+    // WL-MAKER-08, WL-MAKER-09 -- agents/workshop/maker-pane.md
     bool pane_loaded_ = false;
     bool pane_refused_ = false;
     /// A MARKS FILE THIS RUN COULD NOT UNDERSTAND, remembered so a later toggle cannot
-    /// write over it. The prefs file's own law (a file that exists and cannot be admitted
-    /// is refused out loud and never rewritten), and the flag is what makes the second half
-    /// of that sentence true here: without it, the first `m` a maker pressed would replace
-    /// their unreadable file with this run's empty list.
+    /// write over it.
+    // WL-FILES-08 -- agents/workshop/files.md
     bool marks_refused_ = false;
     std::string keymap_word_;
     bool keymap_bad_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
-    /// What loading the PREFS file produced (WUX-3), the keymap's own bookkeeping one file
-    /// over. `prefs_bad_` is load-bearing beyond any sentence: a file that exists and could
-    /// not be admitted is never overwritten, so a toggle while it stands changes the live
-    /// preference and deliberately writes nothing (KEY-0's do-not-rewrite law, applied to
-    /// the file Workshop itself writes). There is no `prefs_word_` beside it: a prefs file
-    /// that APPLIED speaks for itself on screen (hidden titles are visibly hidden), and one
-    /// that was refused is a condition, so this file has no event to announce at all.
+    /// What loading the PREFS file produced, the keymap's own bookkeeping one file over.
+    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FOCUS-11 -- agents/workshop/focus.md
     bool prefs_loaded_ = false;
     bool prefs_bad_ = false;
 
-    /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT (WUX-3) -- the gate that
-    /// keeps `Session::normal_w/h` honest. A restored `place_maximized` from LAST run's
-    /// file must not stop THIS run's viewport tracking (a terminal run restoring a
-    /// maximized session hears no placements and must keep remembering its own resizes),
-    /// so the gate is "this run's medium said maximized", which needs both this flag and
-    /// the session's current state. A weave member for `restored_`'s reason: it is this
-    /// run's bookkeeping about its medium, not anything a maker does or a paint shows.
+    /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
+    // WL-SESSION-09 -- agents/workshop/session.md
     bool medium_placed_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been

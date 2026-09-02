@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_LOAD_PLAN_HPP
 #define ZENGINE_WORKSHOP_LOAD_PLAN_HPP
 
-// WHICH ARTIFACTS PARTICIPATE IN THIS PROJECT, AND HOW (LOAD-0).
+// WHICH ARTIFACTS PARTICIPATE IN THIS PROJECT, AND HOW.
 //
 // ---- The law -----------------------------------------------------------------
 //
@@ -27,7 +27,7 @@
 // one shared library that participates in two ways -- it SUPPLIES
 // `timer.normalize_delay` and it CONSTRUCTS the `zengine.timer` weave -- and its
 // provider contribution has to be mounted before its weave is created, because a
-// host-backed Timer validates that rule inside its own constructor (CAT-0).
+// host-backed Timer validates that rule inside its own constructor.
 //
 // Two lists cannot say that. They can only be maintained so that they happen to
 // agree, and the ordering law between them lived in a comment. One record with two
@@ -45,7 +45,7 @@
 // asked which one is meant. `zengine-timer` deliberately requests both;
 // `zengine-composer` exports no provider surface and would not get one if it grew
 // one tomorrow; `zengine-operators-basic` is not a weave at all and mounting it
-// must never make a Kernel look for one (PROV-0). A single `participates: true`
+// must never make a Kernel look for one. A single `participates: true`
 // bit would collapse three real authored states into one.
 //
 // ---- What an artifact is NAMED by, and why it is a STEM ------------------------
@@ -68,8 +68,8 @@
 // capability list, no restart or reload policy, no platform matrix, no metadata, and
 // -- emphatically -- NO OPERATOR IDENTITY. `math.max` and `timer.normalize_delay`
 // belong to the providers that supply them; a plan that copied them into the project
-// file would be a host authoring semantics again, one indirection further out
-// (PROV-0). What is written down is *mount this provider artifact*, never *these are
+// file would be a host authoring semantics again, one indirection further out.
+// What is written down is *mount this provider artifact*, never *these are
 // the powers it has*.
 //
 // It also holds no RESOLVED truth: no WeaveId, no mounted provider identity, no
@@ -80,7 +80,7 @@
 
 #include "property.hpp" // `Written` -- a refusal carries its reason
 
-#include "operator/catalog.hpp" // `op::MountMode` -- PROV-0's one spelling of overlay
+#include "operator/catalog.hpp" // `op::MountMode` -- one spelling of overlay
 
 #include <cstddef>
 #include <optional>
@@ -121,7 +121,7 @@ inline constexpr std::size_t kMaxWeaveRoleLen = 64;
 /// PROVIDER PARTICIPATION: let this artifact contribute executable semantic power
 /// to the host's catalog.
 ///
-/// The mode is `op::MountMode` ITSELF and not a second enumeration of it. PROV-0
+/// The mode is `op::MountMode` ITSELF and not a second enumeration of it. The operator package
 /// owns exactly one spelling of "cover a power somebody already supplies", the
 /// catalog is the thing that enforces it, and a plan-local copy would be a second
 /// vocabulary for one decision -- which is how two spellings of one rule come to
