@@ -77,7 +77,7 @@ external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{n
 protocol and revised nothing — the older pane shapes are byte-identical, so a provider that
 knows only the earlier protocol is unchanged and valid. Which pane has the keys, and how the
 screen says so, is Workshop routing law
-([`workshop.md`](workshop.md#the-keyboard-goes-where-the-maker-last-pressed-msg-0)).
+([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
 
 - **Workshop does not ask a provider whether it wants keys, and there is no shape for saying
   so.** A read-only pane that is pressed does take the keyboard, and Loom's gate refuses the

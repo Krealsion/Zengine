@@ -106,7 +106,7 @@ answer to a paste's own ask.
   because collapsing them would make an empty platform clipboard paste stale mirror text.
   The asker settles the answer with its own `loom::AskBook` **and** `answers_ask()`, and
   applies it to the draft that requested the paste or discards it whole
-  ([`workshop.md`](workshop.md#editing-text-is-a-component-and-it-belongs-to-no-consumer-hd-5-text-0)).
+  ([`workshop/text-box.md`](workshop/text-box.md) (WL-TEXT-01)).
 
 `clipboard_copy` and `clipboard_text` are both REQUIRED Medium methods, the Sink's own rule
 for the Sink's own reason: a Medium that quietly lacked either would be one on which the
@@ -250,7 +250,7 @@ between two planes     the complete earlier plane, then the complete later one o
   lane pins.
 - **No layer fact persists**, and Surface knows nothing about panes, setup, selection, rooms or
   input. What order a consumer publishes its planes in is that consumer's law — Workshop's is in
-  [`workshop.md`](workshop.md#the-plane-sequence-is-the-layout-of-the-screen-wind-2a).
+  [`workshop/planes.md`](workshop/planes.md) (WL-FRONT-01).
 
 ## The lattice is fine, and each medium floors at its own grain (WUX-2)
 
@@ -313,7 +313,7 @@ that earned it) says it on the same lattice everything else is drawn on.
     and a CEILING rather than a division so a cell size the lattice does not divide evenly
     still answers a span `device_of_subs` reads back as one whole unit. Its one consumer is
     Workshop's pane chrome —
-    [`workshop.md`](workshop.md#a-pane-has-an-edge-and-the-edge-is-inside-the-pane-wux-5-thinned-by-wux-8) —
+    [`workshop/chrome.md`](workshop/chrome.md) (WL-CHROME-01) —
     and the thing it is NOT is a licence to spell a boundary in cells on one face and pixels
     on another *for the same drawing*: a consumer must still ask whether the presentation it
     is about to get is the medium's own type or the cell projection (HD-5).
