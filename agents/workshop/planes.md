@@ -28,10 +28,10 @@ MEANS
 - a band is where the tool speaks: a pane authored over it is covered by it;
 - a pane in front of the Layouts pane takes the press, and the Layouts pane reads `covered`.
 
-PROVEN BY — `workshop/screen.hpp` `band_region`, `band_bounds`, `kGroundOwn`, `occupied_at`;
-`tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
-takes the press"`; `tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose
-their budgets, and the selector is row 0"`.
+PROVEN BY — `workshop/screen.hpp` `band_region`, `band_bounds`, `occupied_at`;
+`surface/vocabulary.hpp` `kGroundOwn`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a
+pane in front of the Layouts pane takes the press"`; `tests/test_workshop_document.cpp` case
+`"QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0"`.
 WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-03 — Three regions tile the screen exactly

@@ -74,14 +74,13 @@ MEANS
 - `toggle_participation` is `choose_panel`'s body quarried out: picker and manager are one door;
 - `pane_window_base` is `managed_window_base`'s body: typed axes measure from the hands' window.
 
-PROVEN BY — `workshop/screen.hpp` `write_pane_axis`, `editing_key`, `pane_window_base`;
-`workshop/setup.hpp` `author_pane_window`, `reset_pane_place`;
-`workshop/weave.hpp` `apply_setup`, `spend_pane_action`, `toggle_participation`, `choose_panel`,
-`managed_window_base`;
-`tests/test_workshop_panels.cpp` case `"WUX-13/SC-6+SC-11: a typed place moves Layouts through
-the gesture door, and its tabs follow"`, case `"WUX-13/SC-6: a typed place reseats the stack
-through `apply_setup`"`, case `"WUX-13/SC-12: moving, resizing and closing Layouts through the
-editor leaves the reservation alone"`.
+PROVEN BY — `workshop/screen.hpp` `write_pane_axis`, `pane_window_base`; `workshop/setup.hpp`
+`author_pane_window`, `reset_pane_place`; `workshop/weave.hpp` `apply_setup`, `spend_pane_action`,
+`toggle_participation`, `choose_panel`, `managed_window_base`, `editing_key`;
+`tests/test_workshop_panels.cpp` case `"WUX-13/SC-6+SC-11: a typed place moves Layouts through the
+gesture door, and its tabs follow"`, case `"WUX-13/SC-6: a typed place reseats the stack through
+`apply_setup`"`, case `"WUX-13/SC-12: moving, resizing and closing Layouts through the editor
+leaves the reservation alone"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-06 — A typed value is refused, never clamped

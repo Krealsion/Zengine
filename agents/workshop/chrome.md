@@ -59,10 +59,10 @@ MEANS
 - there is no border painter and no thickness on any paint call to get wrong;
 - a face drawing the interior in pixels leaves a one-pixel ring; in cells, a one-cell ring.
 
-PROVEN BY — `workshop/screen.hpp` `pane_inside`, `paint_panel_frame`, `kGroundOwn`;
-`tests/test_workshop_screen.cpp` case `"WUX-8: the ring IS the backdrop the interior did not
-cover, on both faces"`, case `"WUX-5: the border a maker sees and the room a pane spends are one
-subtraction"`.
+PROVEN BY — `workshop/screen.hpp` `pane_inside`, `paint_panel_frame`; `surface/vocabulary.hpp`
+`kGroundOwn`; `tests/test_workshop_screen.cpp` case `"WUX-8: the ring IS the backdrop the interior
+did not cover, on both faces"`, case `"WUX-5: the border a maker sees and the room a pane spends
+are one subtraction"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-05 — Every body resolution goes through `pane_inside`

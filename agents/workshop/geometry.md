@@ -97,12 +97,11 @@ MEANS
 - screen furniture, the document and every placement default stay whole cells;
 - a one-pixel drag moves a pane by exactly one pixel of lattice; the file keeps every sub-unit.
 
-PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`,
-`project_pane`, `workspace_cell_x`; `surface/vocabulary.hpp` `Rect`, `kCellSubs`;
-`tests/test_workshop_screen.cpp` case `"WUX-2: a one-pixel drag moves a pane by exactly one
-pixel of lattice"`, case `"WUX-2: fine geometry survives the setup file without losing a
-sub-unit"`; `tests/test_surface.cpp` case `"WUX-2: the sub-cell conversions are exact, floored,
-and total"`.
+PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`, `project_pane`,
+`workspace_cell_x`; `surface/vocabulary.hpp` `kCellSubs`; `ui/layout.hpp` `Rect`;
+`tests/test_workshop_screen.cpp` case `"WUX-2: a one-pixel drag moves a pane by exactly one pixel
+of lattice"`, case `"WUX-2: fine geometry survives the setup file without losing a sub-unit"`;
+`tests/test_surface.cpp` case `"WUX-2: the sub-cell conversions are exact, floored, and total"`.
 WHY — `agents/decisions/the-fine-lattice.md`
 
 ## WL-GEO-07 — One quantization law, every consumer, every grain

@@ -86,9 +86,9 @@ MEANS
 DOES NOT MEAN
 - that fixed placement is permission to present an unsupported unit as understood.
 
-PROVEN BY — `workshop/screen.hpp` `pane_unit_projectable`, `arrange_geometry_ready`,
-`pane_state_of`; `workshop/setup.hpp` `pane_unit`; `tests/test_workshop_panes_window.cpp` case
-`"WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back"`;
+PROVEN BY — `workshop/screen.hpp` `pane_unit_projectable`, `pane_state_of`; `workshop/setup.hpp`
+`pane_unit`; `workshop/weave.hpp` `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp`
+case `"WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back"`;
 `tests/test_workshop_screen.cpp` case `"WIND-2a: a pixel axis refuses every current pane
 projection, Info included"`.
 WHY — `agents/decisions/setup-format-v3.md`

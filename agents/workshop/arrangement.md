@@ -94,12 +94,11 @@ MEANS
 - in the one-pane scope a press elsewhere is consumed with the sentence naming the state;
 - on the desk a press takes hold and makes that pane the keyboard's target, topmost first.
 
-PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `arrange_geometry_ready`;
-`workshop/weave.hpp` `enter_arrange_pane`, `take_pane_hold`;
-`tests/test_workshop_panes_window.cpp` case `"ARR-0: the one-pane scope is bound -- another pane
-cannot be drawn into it"`, case `"ARR-0: the desk manipulates panes directly, and a press is its
-own targeting"`; `tests/test_workshop_panels.cpp` case `"CTX-0/ARR-0: contextual Arrange
-admission precedes binding"`.
+PROVEN BY — `workshop/screen.hpp` `PaneArrange`; `workshop/weave.hpp` `enter_arrange_pane`,
+`take_pane_hold`, `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"ARR-0:
+the one-pane scope is bound -- another pane cannot be drawn into it"`, case `"ARR-0: the desk
+manipulates panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
+case `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-08 — The arranging keys are one vocabulary in both scopes
