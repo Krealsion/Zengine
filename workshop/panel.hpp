@@ -503,6 +503,7 @@ static_assert(every_reference_is_one_kind(),
 struct PanelPicker {
     bool open = false;
     std::size_t cursor = 0;
+    double wheel_accum = 0.0; ///< fractional wheel notches not yet worth a row (QR-18)
 };
 
 /// WHAT A MAKER CALLS THE PICKER — the words on the hint that opens it, so that a

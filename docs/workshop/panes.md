@@ -54,6 +54,24 @@ move it, or hand it the keyboard unless it is a pane that takes keys anyway.
 Selecting a pane also brings it **forward** for as long as it stays selected — see
 [what "front" means](#what-front-means).
 
+**`Esc` puts the selected pane down.** Once nothing more specific wants the key — an open
+menu, the picker, a draft you are typing into, the arrangement, the hotkey view and the
+terminal line all answer `Esc` first, in their own way — `Esc` clears the selection: the
+pane's edge goes back to ordinary, it drops back to its authored place in the order, and the
+keys return to Workshop. Nothing closes, moves or is written; it is exactly what pressing an
+empty part of the desk does, for a desk that has no empty part left. A place you **type**
+into keeps `Esc` for as long as it holds the keys: the source editor ignores it, and a pane
+such as Compose receives it as its own key (its form goes back to its catalog). To put one of
+those down, press a pane that takes no typing — `Layouts` is always there — or the desk,
+then `Esc`.
+
+**The wheel reaches what a list could not show.** Any list here that says `... N more` — the
+Pane Editor's two lists, the picker, the Files listing, a Powers or Compose pane — moves its
+cursor under the wheel, and the rows follow. The wheel goes to the pane under the pointer,
+front-most first, so a pane in front never scrolls the one it covers; it does not select the
+pane and does not move the keys. The source editor scrolls its text instead, leaving the
+caret where it is.
+
 ## Moving, resizing and ordering — Arrange
 
 Arranging has two scopes, and both mean the same thing: manipulate panes directly.
@@ -348,6 +366,8 @@ is clamped to fit the room. A pane authored partly or wholly off the screen is l
 | `f` `b` `r` `l` | send the subject to front / back, raise / lower it one step |
 | `-` (as a value) | reset that axis to Workshop's default |
 | `Esc` (in a draft) | abandon the draft, changing nothing |
+| `Esc` (otherwise) | put the Pane Editor down — the selection clears, the subject stays |
+| wheel | scroll the list under the pointer — the `PANES` list or the subject's rows |
 
 **Edits land immediately in the layout you are on.** There is no Save button in the Pane
 Editor and no shadow copy: a committed value is the layout's value the moment it commits, the

@@ -86,6 +86,37 @@ screen says so, is Workshop routing law
   `zen.DescribeAccepted`, which is the door that already answers exactly that question.
 - **No key release, no focus-changed shape, no capture, no hotkey registration, no IME.** The
   shape's ARRIVAL is the gesture, SEL-0's rule one gesture on.
+- **A focused pane owns Escape (QR-18).** Workshop's final Escape meaning — put the selected
+  pane down — is never spent while an external pane holds the keys: the key has crossed, no
+  `consumed` comes back, and the Composer spends it (form → catalog, keep typing). The maker
+  leaves such a pane by pressing a pane that takes no text, then Escape.
+
+## The wheel crosses as one shape (QR-18)
+
+`PaneWheel v1` `{pane, dx, dy}` — `input::PointerWheel`'s notches, forwarded unchanged, +1.0
+per notch away from the maker. It ADDED to the protocol and revised nothing; eight shapes now,
+and every older one is byte-identical.
+
+- **It follows the POINTER, not the keyboard.** Which pane receives it is `occupied_at`'s
+  topmost answer — the same walk a press spends, the effective order with the selection lift
+  — so a pane a maker never pressed into is scrolled by pointing at it, and a pane in front
+  keeps the gesture for its own cells (`external_wheel`, weave.hpp). It is sent only while the
+  pointer names a prose row of the granted body (`external_press_at`: the header and the
+  remainder under the last row send nothing) and only to a pane holding a room.
+- **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
+  through what you are showing"; a row on it would be Workshop prescribing one list under the
+  pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
+  Composer spend one row per notch (their rooms are four rows by default; a notch that skipped
+  a row the pane never showed would be worse than a slow wheel) and carry fractions until they
+  are worth one — and Workshop's own lists spend three (`kListWheelRows`).
+- **Workshop asks nothing back**, `PaneKey`'s rule. A pane that does not accept the shape has
+  the delivery refused at Loom's gate; a pane that accepts it and has nothing to move is
+  unchanged. Grant: `to_any`, for `PanePressed`'s reason (workshop.cpp).
+- **Loaded and the arrangement spend it on nothing, and that is a fact about them.** Neither
+  holds a cursor or a list origin: Loaded's window is head-anchored and its one selection is
+  an identity a press sets and a publication (`LoadedSelected`) follows, so a wheel that moved
+  it would retarget the Composer by looking. Its `... N more` therefore still counts what no
+  gesture reaches; what it would need is a list origin of its own — a recorded seam.
 
 ## The Loaded pane: the first stranger tool (INTR-0)
 
@@ -315,6 +346,11 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   is a fact about the build graph rather than a discipline. A tripwire reads the two sources for
   `#include "operator/` and the CMake for an operator link edge — never for bare identifiers,
   because both files EXPLAIN at length what they refuse to reach.
+- **THE WHEEL WALKS THE CURSOR (QR-18)** — `on(PaneWheel)` spends `intro::move_cursor`, the
+  step Up and Down take, one row per notch with fractions carried, and re-says the pane only
+  when the selection actually moved. The window follows because it is derived from the cursor
+  (`powers_window`); no second scroll position was added. A wheel over Loaded or the
+  arrangement pane is received and spends nothing (see the wheel section above).
 - **ONE PLACE MEANS ONE THING, and the map is COLUMNS as well as rows.** The chrome row carries
   three controls side by side, so `project_powers_ui` returns spans (`row`, `first..last`,
   meaning) beside the rows it built — HD-3's one-geometry rule again. A row SELECTS and

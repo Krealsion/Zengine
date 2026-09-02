@@ -484,7 +484,8 @@ class WorkshopWeave
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::PaneKey,
-                                        zengine::workshop::PaneTextInput>> {
+                                        zengine::workshop::PaneTextInput,
+                                        zengine::workshop::PaneWheel>> {
 public:
     explicit WorkshopWeave(HostContext& host) : host_(&host) {
         // The document a maker opens onto. Deliberately boring, and deliberately
@@ -917,6 +918,38 @@ public:
         case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
         case KeyContext::kDraft: editing_key(k, mail); break;
         default: command(k, mail); break;
+        }
+        // ESCAPE'S FINAL MEANING IS TO PUT THE SELECTED PANE DOWN (QR-18). It is asked
+        // LAST, after the resolved context has had the key: every mode, overlay and draft
+        // answers Escape with a row of its own (`picker.close`, `draft.cancel`,
+        // `manage.close`, `context.back`, `attention.close`, `naming.cancel`,
+        // `terminal.back`), the hotkey view took it further up -- and a bare Escape that
+        // arrives here in a context where the keys are held by a LIST or by NOTHING, with
+        // no binding claiming it, is an Escape nothing more specific owned. Then, if a pane
+        // is selected, the selection is the layer it sheds: the press-elsewhere gesture's
+        // own two lines, spent without needing an unoccupied pixel to press. Nothing else
+        // moves -- no pane closes, no rank, no geometry, no Pane Editor subject, no
+        // provider state, no file.
+        //
+        // A PLACE A MAKER TYPES INTO KEEPS ESCAPE WHILE IT HOLDS THE KEYS
+        // (`escape_may_shed_selection`). The source editor's Escape is a pinned no-op
+        // (EDIT-0) -- a maker's habitual Esc must not hand the next `d` to command mode. A
+        // focused external pane has already been sent the key and Workshop cannot see
+        // whether it spent it: the seam carries no `consumed` (WP-R0), by design, and the
+        // shipped Composer does spend it (its form goes back to its catalog and the maker
+        // keeps typing, TEXT-0). So the pane keeps its keys, and the way out of either is
+        // the way in: press a pane that takes no text -- every desk has one, Layouts --
+        // or the workspace, then Escape.
+        //
+        // IT IS DELIBERATELY NOT A KEYMAP ACTION, the hotkey view's own reason: a recovery
+        // gesture must not be authorable into a lockout. A maker who binds Escape to an
+        // action in one of these contexts has said what Escape means there; their binding
+        // answered above and this line does not.
+        if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone &&
+            escape_may_shed_selection(ctx) &&
+            session_.keymap.action_for(ctx, k.scancode, k.modifiers) == Act::kNone &&
+            session_.panels.selected != kNoPaneKind) {
+            unselect_pane();
         }
         if (session_.clipboard.writes != copied_before) {
             mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});
@@ -2121,13 +2154,18 @@ public:
         repaint(mail);
     }
 
-    /// THE WHEEL TURNED. Two consumers exist and the routing is exactly their size: over
-    /// the source editor's text body the wheel scrolls that viewport, over the project
-    /// browser's body it moves that list, and everywhere else the event means what it
-    /// always meant here, which is nothing. That is one arm per consumer, chosen by the
-    /// SAME topmost-occupancy answer the press uses -- still no scroll framework, no
-    /// provider wheel protocol and no per-region wheel registry. The second consumer was
-    /// the day this could have grown one; it did not, because two arms are two arms.
+    /// THE WHEEL TURNED. One arm per consumer, chosen by the SAME topmost-occupancy answer
+    /// the press uses -- still no scroll framework, no per-region wheel registry and no
+    /// Workshop-global map of scroll offsets. Over the source editor's text body the wheel
+    /// scrolls that viewport; over the project browser's body, the Pane Editor's two lists
+    /// and the picker it moves that list's CURSOR (a list derives its window from its
+    /// cursor, so a second scroll position would be a second answer to one question);
+    /// over an external pane's body it crosses the seam as `PaneWheel` and means whatever
+    /// that provider's grammar says; and everywhere else it means what it always meant
+    /// here, which is nothing. Since QR-18 that is every surface Workshop itself windows,
+    /// and every external pane whose provider spends the sentence: a pane that says
+    /// `... N more` is a pane the wheel can reach those N through (Loaded, which holds no
+    /// cursor and no list origin, is the one shipped pane that still only counts).
     ///
     /// THE MODES KEEP THEIR OWNERSHIP: while the Terminal or an arrangement scope owns
     /// the pointer, the wheel is theirs to ignore, exactly as motion is -- a wheel that
@@ -2147,14 +2185,27 @@ public:
         }
         // The TOPMOST presentation under the wheel decides -- a pane in front owns its
         // own cells, and scrolling something under somebody else's pane is the
-        // imaginary-reach this test refuses.
+        // imaginary-reach this test refuses. The picker answers first inside the walk,
+        // exactly as it does for a press, and it is the one occupant with no kind.
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, sc, at);
         if (!here.occupied) {
             return;
         }
+        if (here.kind == kNoKind) {
+            picker_wheel(w, mail);
+            return;
+        }
+        if (is_runtime_kind(here.kind)) {
+            external_wheel(here.kind, w, mail);
+            return;
+        }
         if (here.kind == panel::kProjectFiles) {
             files_wheel(w, sc, mail);
+            return;
+        }
+        if (here.kind == panel::kPaneEditor) {
+            pane_editor_wheel(w, mail);
             return;
         }
         if (here.kind != panel::kEditor || !session_.editor.open_document()) {
@@ -2164,15 +2215,10 @@ public:
             return;
         }
         EditorState& e = session_.editor;
-        // +dy is a notch AWAY from the maker (the wire's own convention), which every
-        // desktop reads as "scroll up": earlier lines. Fractional notches accumulate
-        // until they are worth whole lines, so a precise wheel is not rounded to zero.
-        e.wheel_accum += w.dy * static_cast<double>(kEditorWheelLines);
-        const std::int64_t lines = static_cast<std::int64_t>(e.wheel_accum);
+        const std::int64_t lines = spend_wheel(e.wheel_accum, w.dy, kEditorWheelLines);
         if (lines == 0) {
             return;
         }
-        e.wheel_accum -= static_cast<double>(lines);
         const ExternalBodyPlace body = editor_body(session_, sc);
         if (!body.present) {
             return;
@@ -3814,6 +3860,50 @@ private:
             false);
     }
 
+    /// STEP THE PICKER'S CURSOR, BOUNDED BY THE PAINTED POPULATION (WIND-2a) -- which since
+    /// WIND-2 is the shared inventory rather than what this build could present.
+    /// `kPanelKinds` was the whole list until an office could offer one, and the combined
+    /// catalog was the whole list until the setup could name something neither half knew.
+    /// The two key arms' body, quarried out so the wheel spends the same step (QR-18).
+    void picker_move(std::int64_t by) {
+        PanelPicker& picker = session_.panels.picker;
+        const std::size_t total = picker_population().size();
+        if (total == 0) {
+            picker.cursor = 0;
+            return;
+        }
+        if (picker.cursor >= total) {
+            picker.cursor = total - 1;
+        }
+        if (by < 0) {
+            const std::size_t up = static_cast<std::size_t>(-by);
+            picker.cursor = picker.cursor > up ? picker.cursor - up : 0;
+        } else {
+            const std::size_t down = static_cast<std::size_t>(by);
+            picker.cursor = picker.cursor + down < total ? picker.cursor + down : total - 1;
+        }
+    }
+
+    /// THE WHEEL OVER THE PICKER MOVES ITS CURSOR (QR-18) -- `files_wheel`'s shape over the
+    /// one presentation with no kind. The picker windows the shared inventory around its
+    /// cursor (`list_window`), so the row a `... 1 more` marker stands for -- the seventh
+    /// of seven at the minimum screen, the sixth built-in's own cost (WUX-13) -- is reached
+    /// by the same step Down reaches it with. The whole box is the list: its heading is one
+    /// row of it and spends the gesture too.
+    void picker_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+        PanelPicker& picker = session_.panels.picker;
+        const std::int64_t rows = spend_wheel(picker.wheel_accum, w.dy, kListWheelRows);
+        if (rows == 0) {
+            return;
+        }
+        const std::size_t was = picker.cursor;
+        picker_move(-rows);
+        if (picker.cursor == was) {
+            return; // already at the edge: nothing moved, nothing repaints
+        }
+        repaint(mail);
+    }
+
     /// The picker's keys. Escape and `p` both close it: the key that opened it
     /// closes it, the terminal overlay's rule, and Escape closes it too because
     /// a maker who has changed their mind should not have to remember which of
@@ -3828,20 +3918,8 @@ private:
             picker.cursor = population == 0 ? 0 : population - 1;
         }
         switch (session_.keymap.action_for(KeyContext::kPicker, k.scancode, k.modifiers)) {
-        case Act::kPickerUp:
-            if (picker.cursor > 0) {
-                --picker.cursor;
-            }
-            break;
-        case Act::kPickerDown:
-            // THE BOUND IS THE PAINTED POPULATION (WIND-2a), which since WIND-2 is the
-            // shared inventory rather than what this build could present. `kPanelKinds` was
-            // the whole list until an office could offer one, and the combined catalog was
-            // the whole list until the setup could name something neither half knew.
-            if (picker.cursor + 1 < picker_population().size()) {
-                ++picker.cursor;
-            }
-            break;
+        case Act::kPickerUp: picker_move(-1); break;
+        case Act::kPickerDown: picker_move(+1); break;
         case Act::kPickerChoose: choose_panel(mail); break;
         case Act::kPickerClose:
             picker.open = false;
@@ -6293,15 +6371,10 @@ private:
         if (!pane.listing.known || pane.listing.rows.empty()) {
             return;
         }
-        // +dy is a notch AWAY from the maker (the wire's own convention), which every
-        // desktop reads as "scroll up": earlier rows. Fractional notches accumulate until
-        // they are worth whole rows, so a precise wheel is not rounded to zero.
-        pane.wheel_accum += w.dy * static_cast<double>(kFilesWheelRows);
-        const std::int64_t rows = static_cast<std::int64_t>(pane.wheel_accum);
+        const std::int64_t rows = spend_wheel(pane.wheel_accum, w.dy, kFilesWheelRows);
         if (rows == 0) {
             return;
         }
-        pane.wheel_accum -= static_cast<double>(rows);
         const std::size_t was = pane.cursor;
         files_move(-rows);
         if (pane.cursor == was) {
@@ -6455,8 +6528,17 @@ private:
     /// STEP THE CURSOR OF WHICHEVER LIST THE KEYS ARE IN, bounded, and over a section
     /// heading without stopping on it -- a heading is a boundary, not a row a maker edits.
     void pane_editor_move(std::int64_t by) {
+        pane_editor_move_in(session_.pane_editor.on_rows, by);
+    }
+
+    /// STEP ONE OF THE TWO LISTS' CURSORS -- the subject's rows (`rows`) or the PANES list
+    /// -- by one, bounded. The keys step the list they are in; the wheel steps the list
+    /// under the pointer (QR-18); neither moves the keys between the lists. Both lists
+    /// derive their window from their cursor (`pane_editor_body_place`), which is why the
+    /// cursor is the thing either gesture moves.
+    void pane_editor_move_in(bool rows, std::int64_t by) {
         PaneEditor& ed = session_.pane_editor;
-        if (!ed.on_rows) {
+        if (!rows) {
             const std::size_t total = picker_population().size();
             if (total == 0) {
                 return;
@@ -6493,6 +6575,36 @@ private:
                 return;
             }
         }
+    }
+
+    /// THE WHEEL OVER THE PANE EDITOR MOVES THE LIST UNDER THE POINTER (QR-18): the PANES
+    /// list above `panes_rows`, the subject's rows below it, each through the step its keys
+    /// take -- a step at a time, because the rows list steps over a section heading rather
+    /// than onto it. The heading names nothing and spends nothing; a live draft's own row is
+    /// a row of the list and scrolls with it, its text untouched. The subject is repaired
+    /// first, the rule every gesture into this pane keeps, and never changed by this one.
+    void pane_editor_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+        repair_pane_editor_subject();
+        const PaneEditorAt where = pane_editor_at(session_, w.space, w.x, w.y);
+        if (!where.present) {
+            return;
+        }
+        PaneEditor& ed = session_.pane_editor;
+        const std::int64_t rows = spend_wheel(ed.wheel_accum, w.dy, kListWheelRows);
+        if (rows == 0) {
+            return;
+        }
+        const bool on_fields =
+            where.at.row >= static_cast<std::int64_t>(where.body.panes_rows);
+        const std::size_t was = on_fields ? ed.row_cursor : ed.cursor;
+        const std::int64_t steps = rows < 0 ? -rows : rows;
+        for (std::int64_t n = 0; n < steps; ++n) {
+            pane_editor_move_in(on_fields, rows > 0 ? -1 : +1);
+        }
+        if ((on_fields ? ed.row_cursor : ed.cursor) == was) {
+            return; // already at the edge: nothing moved, nothing repaints
+        }
+        repaint(mail);
     }
 
     /// MOVE THE KEYS BETWEEN THE PANES LIST AND THE SUBJECT'S ROWS.
@@ -7432,6 +7544,47 @@ private:
         }
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers});
+    }
+
+    /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY (QR-18): `external_press`'s shape for
+    /// the one other pointer gesture that crosses the seam. Sent only while the pointer is
+    /// over a prose row of the granted body -- `external_press_at`, the same one measurer,
+    /// so the header and the remainder under the last row send nothing -- and only to a
+    /// pane that holds a room, for the press's reason. The notches cross unchanged: how many
+    /// rows one is worth is the provider's grammar, and Workshop keeps no accumulator for a
+    /// list it cannot see. It follows the POINTER, not the keyboard: a pane a maker never
+    /// pressed into is scrolled by pointing at it, exactly as it is pressed. Nothing is
+    /// repainted here; if the provider answers, its own `PaneContent` repaints.
+    void external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
+                        loom::Mail& mail) {
+        const ExternalPressAt at =
+            external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
+                              session_.pane_titles, w.space, w.x, w.y);
+        if (!at.named) {
+            return;
+        }
+        const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+        const ExternalPane* pane = session_.panels.external_pane(kind);
+        if (row == nullptr || pane == nullptr || !pane->granted) {
+            return;
+        }
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneWheel{row->pane, w.dx, w.dy});
+    }
+
+    /// PUT THE SELECTED PANE DOWN (QR-18): the press-elsewhere gesture's two lines, spent by
+    /// Escape's final fallthrough. The selection and the keyboard candidate are cleared
+    /// TOGETHER because that is what the existing law already does for a press that lands
+    /// on nothing -- the candidate is derived from the selection through the declared
+    /// candidacy, and a selection of nothing derives a candidate of nothing. The lift goes
+    /// with it (`effective_pane_order` reads the selection fresh), the authored order does
+    /// not move, and nothing reaches a file. It says what it did, because a gesture that
+    /// changed the picture and said nothing would leave the previous sentence standing.
+    void unselect_pane() {
+        const std::string name = kind_name(session_.panels, session_.panels.selected);
+        session_.panels.selected = kNoPaneKind;
+        session_.panels.keyboard = kNoPaneKind;
+        say("unselected " + name, false);
     }
 
     /// ...AND THE TEXT THE PLATFORM MADE OF IT. `external_key`'s twin in every respect,

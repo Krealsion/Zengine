@@ -1155,6 +1155,12 @@ int main(int argc, char** argv) {
     //                         same runtime catalog row. Same one-resolved-role send, same
     //                         runtime data, same impossibility of naming it here.
     //
+    // QR-18 ADDED A SIXTH, `to_any` FOR `PanePressed`'S REASON EXACTLY:
+    //
+    //   PaneWheel             the destination is the office that offered the pane under the
+    //                         wheel, resolved at the moment of the notch out of the same
+    //                         runtime catalog row. It carries the notches and nothing else.
+    //
     // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
     // carries a row and a column of a room Workshop itself granted -- or, since MSG-0, a key
     // a maker pressed while looking at that room; it commands nothing, asks nothing and
@@ -1209,6 +1215,7 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
+    speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED (LOAD-0) ----------------------------------------

@@ -472,8 +472,10 @@ PanePressed            Workshop  ->  provider   "a maker pressed here, in that r
   product**: no host boots it. A registration hook would have proved nothing about the ABI it
   exists to exercise.
 
-Deliberately absent, and each one is a decision: no keyboard, focus, capture, hover, release,
-wheel, double-press or drag forwarding, and no reply, disposition or acknowledgement to a press; no
+Deliberately absent, and each one is a decision: no focus, capture, hover, release, double-press
+or drag forwarding (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput`, and the wheel
+since QR-18 as `PaneWheel` — the notches, forwarded, following the pointer as a press does), and
+no reply, disposition or acknowledgement to any of them; no
 multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
 resize handles; no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of

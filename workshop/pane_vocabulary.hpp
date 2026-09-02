@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE (WP-0,
-// widened once by SEL-0 and once by MSG-0). Seven shapes, and there is not an eighth.
+// widened by SEL-0, by MSG-0 and by QR-18). Eight shapes, and there is not a ninth.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
@@ -14,6 +14,7 @@
 //     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 //     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
 //     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
+//     PaneWheel              Workshop  ->  provider   "the wheel turned over that room."
 //
 // THE FIFTH IS THE FOURTH'S BUDGET READ BACKWARDS, which is what made it the one
 // worth adding. `PaneRoom` grants a lattice of prose rows and columns; `PanePressed`
@@ -30,6 +31,13 @@
 // can name (`%` on most layouts). Input keeps them apart for that reason and this
 // seam keeps them apart for the same one -- a single shape would have to spell one
 // of the two absences, and there is no honest spelling for "no key".
+//
+// THE EIGHTH IS THE FIFTH'S GESTURE WITHOUT THE PLACE (QR-18). A press names a row
+// because a row is what a press means; a wheel means "advance through what you are
+// showing", and it crosses as the notches the wire already carries, forwarded
+// unchanged -- `PaneKey`'s discipline for a pointer gesture. Which pane it reaches is
+// the same topmost-occupancy answer a press spends, decided at the Workshop
+// boundary, and it is sent only over a prose row of the granted body.
 //
 // ---- THERE IS NO PROVIDER FIELD, AND THAT IS THE POINT ----------------------
 //
@@ -75,9 +83,9 @@
 // No button field, no pressed/released field, no modifier field, no timestamp and
 // no gesture identity: SEL-0 earned exactly one gesture, so the shape's ARRIVAL is
 // the gesture and a reader has nothing to switch on. A release, a second button, a
-// wheel, a hover, a double press and a drag all remain unsayable here, which is
-// what keeps "a provider gets input now" from meaning anything wider than the one
-// sentence above.
+// hover, a double press and a drag all remain unsayable here, which is what keeps
+// "a provider gets input now" from meaning anything wider than the one sentence
+// above -- the wheel is its own sentence (`PaneWheel`, QR-18), not a field on this one.
 //
 // AND SINCE MSG-0 IT IS ALSO THE GESTURE THAT MOVES THE KEYBOARD. SEL-0 wrote here
 // that a press made a pane the target of nothing else, and that sentence has one
@@ -89,12 +97,13 @@
 // ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
 //
 // No key RELEASE, no focus-changed notification, no capture, no hotkey
-// registration, no wheel, no hover and no drag shape of any kind; no
-// `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives Workshop no
+// registration, no hover and no drag shape of any kind; no `consumed`, reply or
+// disposition for any of the four inbound gestures; no `PaneClosed`,
+// `PaneUnavailable` or unload notification (Loom gives Workshop no
 // participant-visible provider-unload event, and manufacturing one out of silence
 // is the exact dishonesty WP-R0 was corrected for); no `PaneInstance`, because one
 // `PaneRef` is one presentation; no `PaneConfig`, because no consumer has asked;
-// no generic request/response envelope, because seven named shapes are seven
+// no generic request/response envelope, because eight named shapes are eight
 // readable sentences and an envelope is a framework.
 //
 // AND NO SHAPE IN WHICH A PROVIDER SAYS IT WANTS KEYS. Workshop does not ask and
@@ -269,6 +278,37 @@ struct PaneTextInput {
     std::string pane;
     std::string text;
     ZEN_SHAPE(PaneTextInput, 1, ZEN_FIELD(pane), ZEN_FIELD(text));
+};
+
+/// THE WHEEL TURNED WHILE THE POINTER WAS OVER THIS PANE'S BODY (QR-18).
+///
+/// `dx` and `dy` are `input::PointerWheel`'s own notches, forwarded unchanged: +1.0
+/// per notch AWAY from the maker (which every desktop reads as "up": earlier rows),
+/// fractional exactly as a precise wheel reports. Workshop accumulates nothing and
+/// converts nothing -- how many rows a notch is worth, and whether it is worth
+/// anything at all, is the provider's grammar, exactly as a key's meaning is.
+///
+/// IT FOLLOWS THE POINTER AND NOT THE KEYBOARD. The pane under the wheel is the same
+/// topmost-occupancy answer a press spends, so a pane a maker never pressed into is
+/// scrolled by pointing at it, and a pane in front of it keeps the gesture for its
+/// own cells. It is sent only while the pointer is over a prose row of the granted
+/// body -- the header and the remainder under the last row send nothing,
+/// `PanePressed`'s rule -- and only to a pane that holds a room.
+///
+/// NO PLACE. A press names a row because a row is what a press means; a wheel means
+/// "advance through what you are showing", and a row on it would be Workshop
+/// prescribing that a pane has one list under the pointer. A provider with two
+/// lists spends it on whichever its own grammar says, which is the same answer it
+/// gives Up and Down.
+///
+/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PaneKey`'s reason exactly. A pane
+/// that does not accept the shape has the delivery refused at Loom's gate and is
+/// unchanged; a pane that accepts it and has nothing to move is unchanged too.
+struct PaneWheel {
+    std::string pane;
+    double dx = 0.0; ///< horizontal notches, +1.0 per notch to the right
+    double dy = 0.0; ///< vertical notches, +1.0 per notch away from the maker
+    ZEN_SHAPE(PaneWheel, 1, ZEN_FIELD(pane), ZEN_FIELD(dx), ZEN_FIELD(dy));
 };
 
 } // namespace zengine::workshop
