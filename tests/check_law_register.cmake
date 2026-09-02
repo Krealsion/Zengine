@@ -35,8 +35,8 @@
 # dependency this project has on every lane by construction, and a check that is absent on
 # the lane most likely to break a name is not a weaker check, it is no check.
 #
-# TWO CHECKS ARE STRICTER THAN THE PROTOTYPE, and they are behind LAW_REGISTER_STRICT
-# (default OFF) until the lists they produce have been worked down:
+# TWO CHECKS ARE STRICTER THAN THE PROTOTYPE, and they are behind LAW_REGISTER_STRICT,
+# ON by default since the lists they produce were worked down to nothing:
 #
 #   rule m   an owner identifier is present only if it occurs as a whole token in the CODE
 #            of the named file, `//` comments and `/* */` comments stripped. The lenient
@@ -48,8 +48,8 @@
 #            law on that line, under this file. What "the declaration" means here is a
 #            heuristic parse, stated at zen_law_declared() below.
 #
-# With STRICT OFF both print their failures and a count and do not fail the entry; with
-# STRICT ON they fail it. Flip the default here once the lists are empty.
+# With STRICT ON, the default, both fail the entry; -DLAW_REGISTER_STRICT=OFF prints their
+# lists and a count without failing, which is the setting for a phase working a list down.
 #
 # WHAT IT DELIBERATELY DOES NOT DO
 #
@@ -75,7 +75,7 @@
 # the real test sources at runtime.
 #
 #   cmake -P tests/check_law_register.cmake                          (from the repository root)
-#   cmake -DLAW_REGISTER_STRICT=ON -P tests/check_law_register.cmake
+#   cmake -DLAW_REGISTER_STRICT=OFF -P tests/check_law_register.cmake
 #   cmake -DZEN_REPO=<repo> -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -90,7 +90,7 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
         "Pass -DZEN_REPO=<repository root>.")
 endif()
 if(NOT DEFINED LAW_REGISTER_STRICT)
-    set(LAW_REGISTER_STRICT OFF)
+    set(LAW_REGISTER_STRICT ON)
 endif()
 
 # ---- scope, declared here so a standalone clone carries its own rule -----------------

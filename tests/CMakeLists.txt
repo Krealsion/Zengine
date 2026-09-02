@@ -1239,7 +1239,10 @@ zengine_script_test(package_vocabulary
 # A rename breaks a name silently and no compiler will say so; this entry is what does. It
 # checks the form of every entry; that every path, identifier, witness and WHY target
 # resolves; that a decision record's "Laws supported" is exactly the set of laws whose WHY
-# names it; that every pointer names entries of the register on its line; and the byte
-# budgets of the registers, the router and AGENTS.md. Two stricter checks ride behind
-# LAW_REGISTER_STRICT, default OFF inside the script until their lists are worked down.
+# names it; that every pointer names entries of the register on its line; that a law which
+# writes `witness: none` is repeated under its register's `## Do not assume`, and only such
+# a law is; and the byte budgets of the registers, the router and AGENTS.md. Two stricter
+# checks -- an identifier is a whole token in the named file's code, and the declaration
+# under a pointer is named by a law on that line -- ride behind LAW_REGISTER_STRICT, ON by
+# default since their lists were cleared.
 zengine_script_test(law_register ${CMAKE_CURRENT_SOURCE_DIR}/check_law_register.cmake)
