@@ -169,7 +169,8 @@ TEST_CASE("a pane's content round-trips through the wire with its semantics inta
 // ---- Descriptor law and the catalog bound ---------------------------------------
 
 TEST_CASE("a valid offer is admitted under the office that stamped it") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
     REQUIRE(a.written.accepted);
     CHECK_FALSE(a.refreshed);
@@ -184,18 +185,20 @@ TEST_CASE("a valid offer is admitted under the office that stamped it") {
     CHECK(a.kind >= kFirstRuntimeKind);
     CHECK(cat.entries[0].kind == a.kind);
     // AND THE DURABLE IDENTITY IS THE STAMPED OFFICE PLUS THE PAYLOAD'S PANE KEY.
-    CHECK(resolve_pane(hello_ref(), cat).value_or(0) == a.kind);
+    CHECK(resolve_pane(hello_ref(), panels).value_or(0) == a.kind);
 }
 
 TEST_CASE("an offer with no stamped office is refused, and retains nothing") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     const Admission a = admit_pane_offer(cat, "", good_offer());
     CHECK_FALSE(a.written.accepted);
     CHECK(cat.entries.empty());
 }
 
 TEST_CASE("a descriptor's name and summary are bounded, and a refusal keeps nothing") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     const auto refused = [&cat](const PaneOffered& o) {
         const std::size_t before = cat.entries.size();
         const Admission a = admit_pane_offer(cat, kHelloOffice, o);
@@ -228,7 +231,8 @@ TEST_CASE("a descriptor's name and summary are bounded, and a refusal keeps noth
 }
 
 TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     // THE SAME `check_pane_key` THE PERSISTED GRAMMAR USES, and it is the same
     // function rather than a second one: a runtime key that a saved setup could not
     // spell would be an identity a maker could never keep.
@@ -245,7 +249,8 @@ TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
 }
 
 TEST_CASE("a runtime offer cannot shadow a built-in pane") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     // Offered by whoever holds `zengine.workshop`, `info` names the row this build
     // compiled in -- and a live message may not move it.
     CHECK(admit_pane_offer(cat, kWorkshopProvider,
@@ -256,7 +261,7 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
               .written.accepted == false);
     CHECK(cat.entries.empty());
     // ...and the built-ins still resolve to themselves.
-    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kInfo}, cat).value_or(-1) ==
+    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kInfo}, panels).value_or(-1) ==
           panel::kInfo);
 
     // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
@@ -268,7 +273,8 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
 }
 
 TEST_CASE("re-offering one reference refreshes it in place and grows nothing") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     const Admission first = admit_pane_offer(cat, kHelloOffice, good_offer());
     REQUIRE(first.written.accepted);
     const std::int64_t handle = first.kind;
@@ -291,7 +297,8 @@ TEST_CASE("re-offering one reference refreshes it in place and grows nothing") {
 }
 
 TEST_CASE("two offices offering one pane key stay two panes, and neither can move the other") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
     const Admission b =
         admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Hello", "somebody else's"});
@@ -306,12 +313,13 @@ TEST_CASE("two offices offering one pane key stay two panes, and neither can mov
     CHECK(cat.entries.size() == 2);
     CHECK(cat.find(kHelloOffice, "hello")->summary == "mine, corrected");
     CHECK(cat.find(kOtherOffice, "hello")->summary == "somebody else's");
-    CHECK(resolve_pane(PaneRef{kHelloOffice, "hello"}, cat).value() == a.kind);
-    CHECK(resolve_pane(PaneRef{kOtherOffice, "hello"}, cat).value() == b.kind);
+    CHECK(resolve_pane(PaneRef{kHelloOffice, "hello"}, panels).value() == a.kind);
+    CHECK(resolve_pane(PaneRef{kOtherOffice, "hello"}, panels).value() == b.kind);
 }
 
 TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included") {
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     // THIRTY RUNTIME ROWS, because the two compile-time ones are part of the total.
     for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kPanelKinds; ++i) {
         const Admission a = admit_pane_offer(
@@ -330,7 +338,7 @@ TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included"
           "Workshop holds at most 32 panes -- `zengine.test.workshop-hello/one-too-many` was "
           "not added");
     CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kPanelKinds);
-    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "one-too-many"}, cat).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "one-too-many"}, panels).has_value());
 
     // ...AND AN EXISTING ENTRY MAY STILL BE REFRESHED WHILE FULL. The bound is on how
     // many DISTINCT panes are held, not on how often a provider may correct itself.
@@ -406,7 +414,8 @@ TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
     // owning nothing to do it. What it compares against is the row's own string --
     // admitted under `check_pane_key` and owned by the vector -- so the comparison
     // moves no ownership in either direction.
-    RuntimeCatalog cat;
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
     REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
     REQUIRE(admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Theirs", "theirs"})
                 .written.accepted);
@@ -449,8 +458,8 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     const std::int64_t hello = cat.entries[0].kind;
 
     // THE NEGATIVE CONTROL THE FALLIBLE DOOR EXISTS FOR, said about a runtime kind.
-    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "never-offered"}, cat).has_value());
-    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "hello"}, cat).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "never-offered"}, panels).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "hello"}, panels).has_value());
     CHECK_FALSE(resolve_builtin_pane(hello_ref()).has_value());
 
     // AND `placement_of` DOES NOT REACH THE BUILDER'S ROW FOR A RUNTIME KIND. The
@@ -942,8 +951,8 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.key(input::scan::kP);
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).size() == 1);
-    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).size() == 1);
+    CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
               .find("1 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panels.has(kFirstRuntimeKind));
@@ -956,9 +965,9 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     CHECK(r.session().setup.active.panes.back().ref == hello_ref());
     CHECK(r.session().panels.has(kind));
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).empty());
     // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT.
-    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
+    CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
               .find("unresolved") == std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
@@ -980,14 +989,14 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     fresh.session().setup.active_link = SetupLink{"setup.json", saved};
     CHECK(fresh.session().panels.runtime.entries.empty());
     const std::vector<PaneRef> waiting =
-        unresolved_panes(saved, fresh.session().panels.runtime);
+        unresolved_panes(saved, fresh.session().panels);
     REQUIRE(waiting.size() == 1);
     CHECK(waiting[0] == hello_ref());
     // NOT DROPPED, NOT REMAPPED, AND NOT CALLED UNAVAILABLE. Workshop knows it has no
     // row for the reference and knows nothing at all about whoever could present it.
     CHECK(fresh.session().setup.active.panes.size() == 2);
     CHECK(fresh.session().setup.active.panes[1].ref == hello_ref());
-    CHECK(setup_rest_text(fresh.session().setup, fresh.session().panels.runtime,
+    CHECK(setup_rest_text(fresh.session().setup, fresh.session().panels,
                             fresh.session().keymap)
               .find("unavailable") == std::string::npos);
 }
@@ -1106,7 +1115,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     CHECK_FALSE(r.session().panels.has(hello));
     CHECK(r.session().panels.waiting(hello));
     // NOT UNRESOLVED: this build knows exactly what it would draw.
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).empty());
     // AND THE AUTHORED REFERENCE IS UNTOUCHED -- authored validity does not depend on
     // extent, so a setup legal on a tall screen is legal on a short one.
     CHECK(has_pane(r.session().setup.active, hello_ref()));
@@ -1732,7 +1741,7 @@ TEST_CASE("closing an external pane destroys only Workshop's copy") {
     // the catalog row, and its own semantic state outlives the presentation entirely.
     CHECK(seat->said == said_count);
     CHECK(r.session().panels.runtime.of_kind(kind) != nullptr);
-    CHECK(resolve_pane(hello_ref(), r.session().panels.runtime).has_value());
+    CHECK(resolve_pane(hello_ref(), r.session().panels).has_value());
 
     // REOPENING ASKS AGAIN AND STARTS WAITING -- it does not resurrect the old copy.
     const std::size_t rooms_before = seat->rooms.size();
@@ -1801,7 +1810,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         CHECK(note.text.find("unavailable") == std::string::npos);
     }
     CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
-    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
+    CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
               .find("unavailable") == std::string::npos);
 }
@@ -1851,7 +1860,7 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     // established and WP-0 was required to leave standing.
     CHECK(panel_kind(9999).kind == panel::kBuilder);
     CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
-    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels.runtime)
+    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels)
                     .has_value());
 }
 

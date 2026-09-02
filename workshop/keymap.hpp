@@ -91,6 +91,11 @@ enum class KeyContext : std::uint8_t {
     kCommand,
     kTerminal,
     kNaming,
+    /// THE PANE CREATOR'S NAME PROMPT: one line a maker types a new pane's name into,
+    /// the layout-name editor's shape with its own two keys, because "use this name to
+    /// make a pane" and "rename this layout" are different sentences and a legend that
+    /// read `rename` over a pane being created would be a legend about the wrong act.
+    kPaneNaming,
     kPicker,
     kAttention,
     kContext,
@@ -113,8 +118,9 @@ enum class KeyContext : std::uint8_t {
 /// because it may hold editable text, and Workshop cannot see whether it currently does.
 /// The source editor counts for the plain reason: it IS editable text.
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
-    return c == KeyContext::kTerminal || c == KeyContext::kNaming || c == KeyContext::kPane ||
-           c == KeyContext::kDraft || c == KeyContext::kEditor;
+    return c == KeyContext::kTerminal || c == KeyContext::kNaming ||
+           c == KeyContext::kPaneNaming || c == KeyContext::kPane || c == KeyContext::kDraft ||
+           c == KeyContext::kEditor;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -269,6 +275,12 @@ enum class Act : std::uint8_t {
     kPaneEditorBack,
     kPaneEditorRaise,
     kPaneEditorLower,
+    // -- the Pane Creator: a pane made inside the Pane Manager ------------------------
+    kPaneCreatorNew,
+    kPaneCreatorSave,
+    kPaneCreatorDiscard,
+    kPaneNamingCommit,
+    kPaneNamingCancel,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -638,6 +650,26 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kPaneEditorLower, "pane-editor.lower", "lower", KeyContext::kPaneEditor,
      {scan::kL, mod::kNone}},
+    // THE PANE CREATOR'S KEYS, inside the Pane Manager: `new` opens the name prompt for a
+    // pane made of authored data; `save` writes the open definition to its project file;
+    // `discard` puts it back to what that file holds -- the source editor's own pair, and
+    // the two doors the quit refusal names. The identities carry the creator's own word
+    // because they are the creator's acts and not the manager's; the letters are the ones
+    // this context had free, and `s` says "save" here exactly as it does in command mode.
+    // The discard chord is a plain ctrl+letter for the editor's reason: the POSIX wire
+    // cannot say ctrl+shift+letter at all.
+    {Act::kPaneCreatorNew, "pane-creator.new", "new pane", KeyContext::kPaneEditor,
+     {scan::kN, mod::kNone}},
+    {Act::kPaneCreatorSave, "pane-creator.save", "save pane", KeyContext::kPaneEditor,
+     {scan::kS, mod::kNone}},
+    {Act::kPaneCreatorDiscard, "pane-creator.discard", "discard pane edits",
+     KeyContext::kPaneEditor, {scan::kD, mod::kCtrl}},
+    // ...and the name prompt's own two keys, in its own context, so the legend over a
+    // pane being named says what the keys do there.
+    {Act::kPaneNamingCommit, "pane-creator.name", "make the pane", KeyContext::kPaneNaming,
+     {scan::kReturn, mod::kNone}},
+    {Act::kPaneNamingCancel, "pane-creator.cancel", "cancel", KeyContext::kPaneNaming,
+     {scan::kEscape, mod::kNone}},
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},
     {Act::kTerminalComplete, "terminal.complete", "what can this terminal say?",

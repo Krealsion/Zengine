@@ -9,10 +9,13 @@ tell them apart to use them:
 - **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`, `Files`,
   `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
   screen, which is a pane like the rest of them: pick it, move it, cover it, remove it) and
-  `Pane Editor` ([below](#the-pane-editor--a-pane-as-a-subject)), which describes and edits
-  any of them, itself included.
+  `Pane Manager` ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places
+  and orders any of them, itself included.
 - **external panes** — offered by a loaded weave through a bounded protocol.
   `Loaded`, `Project` and `Powers` arrive this way, from `zengine-introspection`.
+- **a pane you made** — a pane whose inside is authored data rather than compiled code,
+  made from inside the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
+  and kept in a project file of its own.
 
 ## Opening and closing — the picker
 
@@ -66,7 +69,7 @@ those down, press a pane that takes no typing — `Layouts` is always there — 
 then `Esc`.
 
 **The wheel reaches what a list could not show.** Any list here that says `... N more` — the
-Pane Editor's two lists, the picker, the Files listing, a Powers or Compose pane — moves its
+Pane Manager's two lists, the picker, the Files listing, a Powers or Compose pane — moves its
 cursor under the wheel, and the rows follow. The wheel goes to the pane under the pointer,
 front-most first, so a pane in front never scrolls the one it covers; it does not select the
 pane and does not move the keys. The source editor scrolls its text instead, leaving the
@@ -293,15 +296,16 @@ Judged plainly, and repeated in [limitations](limitations.md):
 The smallest thing left that would change the felt experience: a pane-height default that
 reads the surface. That is not built, and it is not designed here.
 
-## The Pane Editor — a pane as a subject
+## The Pane Manager — a pane as a subject
 
-Open **Pane Editor** from the picker. It is a pane whose subject is **another pane** — any row
-the picker lists: a built-in, a pane a loaded weave offered, or a reference your layout names
-that this build cannot resolve. It is *not* the Info panel: Info inspects the objects of your
-document; the Pane Editor inspects Workshop's own furniture.
+Open **Pane Manager** from the picker. It is a pane whose subject is **another pane** — any row
+the picker lists: a built-in, a pane a loaded weave offered, a pane you made, or a reference
+your layout names that this build cannot resolve. It is *not* the Info panel: Info inspects
+the objects of your document; the Pane Manager inspects Workshop's own furniture — which pane
+is where, how big, in what order, and on the layout or not.
 
 ```text
-PANE EDITOR *
+PANE MANAGER *
   Builder      closed     build a chosen recipe
   Info         open       objects and properties
 >*Layouts      open       layout tabs and setup
@@ -320,16 +324,18 @@ AUTHORED
 RESOLVED
  Window   @0,0 96x2 cells
  State    open
+INTERIOR
+ Interior code-backed -- body @1,1 94x0 cells, 0 rows x 94 columns as cells; no authored interior
 ```
 
-**Choosing a pane makes it the subject.** Press into the Pane Editor, put the cursor on a row
+**Choosing a pane makes it the subject.** Press into the Pane Manager, put the cursor on a row
 of the `PANES` list and press `Enter` — or click the row. The subject wears a `*`. Choosing
 changes nothing about the desk: it does not open the pane, select it, or hand it the keys.
 
 **Selection and subject are two different facts.** The pane you last pressed into is the
 *selected* one — the one with the different edge, the one your keys go to. Pressing into the
-Pane Editor therefore selects the Pane Editor, as pressing into any pane would; the subject
-stays exactly what you chose. So you can choose `Pane Editor` itself as the subject, type into
+Pane Manager therefore selects the Pane Manager, as pressing into any pane would; the subject
+stays exactly what you chose. So you can choose `Pane Manager` itself as the subject, type into
 its own rows, and move the pane you are typing in.
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
@@ -346,6 +352,14 @@ its own rows, and move the pane you are typing in.
 Reading the resolved rows never writes anything. Resize the window, switch to the other face,
 select other panes, look as long as you like: the authored values are byte-for-byte what they
 were.
+
+`INTERIOR` says what is **inside** the subject, honestly for each kind. A pane you made
+exposes its regions there, because regions are what it is made of — see [the Pane
+Creator](#the-pane-creator--a-pane-made-of-data). Every other pane is code, or a loaded
+weave's own, and the row is a read-only capture of its resolved body — where it is and how
+many rows of type it holds — and the plain statement that it has no authored interior. The
+Pane Manager does not decompose a compiled painter, infer its controls, or pretend a
+provider's rows are a definition.
 
 **Editing is the ordinary draft.** `Tab` moves the keys between the `PANES` list and the
 subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height` opens a draft on the
@@ -365,12 +379,15 @@ is clamped to fit the room. A pane authored partly or wholly off the screen is l
 | `o` | open the subject if it is closed, remove it if it is open — the picker's own door |
 | `f` `b` `r` `l` | send the subject to front / back, raise / lower it one step |
 | `-` (as a value) | reset that axis to Workshop's default |
+| `n` | **new pane** — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
+| `s` / `Ctrl`+`d` | save the open pane you made / discard its unsaved edits |
 | `Esc` (in a draft) | abandon the draft, changing nothing |
-| `Esc` (otherwise) | put the Pane Editor down — the selection clears, the subject stays |
+| `Esc` (otherwise) | put the Pane Manager down — the selection clears, the subject stays |
 | wheel | scroll the list under the pointer — the `PANES` list or the subject's rows |
 
-**Edits land immediately in the layout you are on.** There is no Save button in the Pane
-Editor and no shadow copy: a committed value is the layout's value the moment it commits, the
+**Placement edits land immediately in the layout you are on.** There is no Save button for
+them in the Pane Manager and no shadow copy: a committed value is the layout's value the
+moment it commits, the
 screen follows through the ordinary pane path, and [workspace
 continuity](setups.md#workspace-continuity) brings it back next launch exactly as it brings
 back a drag. If the layout is related to a Setup file and was `current`, the first edit makes
@@ -388,6 +405,76 @@ Nothing here is a safe mode. If you author a rectangle you cannot reach, the rec
 it always was: the picker, `0` in the arrangement (or `-` here), the default desk, and
 `--isolated`.
 
+## The Pane Creator — a pane made of data
+
+Every other pane exists because somebody compiled its painter into Workshop, or because a
+loaded weave offered one. The Pane Creator is the first way a pane exists because **you
+described one**: a pane whose inside is authored data — a name, and a list of regions — kept
+in a project file of its own.
+
+Open the **Pane Manager**, press into it, and press **`n`**. Its heading becomes a prompt
+(`new pane> `): type a name — plain ASCII, no spaces; it becomes the pane's durable identity
+— then `Enter` makes the pane, `Esc` cancels. The new pane appears on the current layout at an
+ordinary pane's default place (or `waiting` for room, if the stack is full on this screen),
+the Pane Manager takes it as its subject, and the keys land on its one **text region**'s rows
+under `INTERIOR`:
+
+```text
+INTERIOR
+ Region   #1 text -- the Pane Creator's subject
+>Text
+ X        0 cells
+ Y        0 cells
+ Width    24 cells
+ Height   2 cells
+ Resolved @0,0 24x2 cells
+ Shown    2 rows x 24 columns, presented as cells
+```
+
+`Text` is what the region says (one line, plain ASCII). `X` `Y` `Width` `Height` are the
+region's place and extent **inside the pane** — relative to the pane's interior, never to the
+screen — in the unit your face reports: cells in a terminal, pixels in a window. Type `126`
+for `X` in a window and the region sits at pixel 126 of the pane's interior; open the same
+pane in a terminal and the same value reads `~10 cells (~ projected)`, marked because a
+terminal cannot say it exactly. Nothing about looking changes the stored value. `Resolved`
+and `Shown` are what this screen made of the region right now: where it landed (`clipped by
+the pane` if you authored it past the edge), and how many rows and columns of type it holds —
+or `presented as cells` where the face could not set a row of type in it, or `no room` where
+nothing of it is drawn.
+
+While the Pane Manager's subject is your pane, the region you are editing is **marked on the
+pane itself**: its exact resolved rectangle is filled in the accent colour with its text
+written over it, so you can see which rectangle the rows describe. The mark is drawn from
+the same resolution that painted the region, and it writes nothing.
+
+| key (in the Pane Manager) | does |
+|---|---|
+| `n` | new pane — type a name, `Enter` makes it, `Esc` cancels |
+| `s` | save the open pane to its file |
+| `Ctrl`+`d` | discard unsaved pane edits — back to what the file holds; a pane never saved closes whole |
+
+**The pane is a project file of its own** — `--pane <path>`, default `workshop-pane.json`
+under the project directory — beside the document and the setup, and it holds *what* the pane
+is: its name and its regions. *Where* it participates is the layout's, exactly as for every
+other pane, and comes back with the session. So save (`s`), quit, relaunch: the pane returns
+on the same layout by its durable reference `zengine.workshop.maker/<name>`, with the same
+text and the same authored numbers, on a window or a terminal alike. The file holds no pixel,
+no cell count, no font metric and no screen coordinate, and loading it can execute nothing:
+it has nowhere to name a callback, a role, a key, a path, an operator or a message.
+
+One pane definition is open at a time, the way one source document is. Unsaved pane edits
+are yours: quitting, making a second pane, or opening another definition over them is refused
+in words until you save or discard. A layout that names a pane whose file is absent keeps the
+row and reads it `unresolved` — the same retained intent an unresolved external pane has — and
+the Pane Manager's `Provider` row says which file would resolve it.
+
+**What it is not.** This is the first pane implementation whose inside is data, and it is
+deliberately small: one region kind (`text`), one line of static text, no controls, no
+wiring, no anchors or fill, no second region yet, and no renaming after the pane is made. It
+is one way a pane can be built, not what every pane must become: the built-ins are still
+code, a loaded pane is still its provider's, and the Pane Manager says so rather than
+pretending either is a definition.
+
 ## Pane titles
 
 Every loaded pane carries a one-row title — `name @provider` — reserved out of the room its
@@ -403,7 +490,9 @@ pane shows its title for exactly as long as the focus holds.
 
 ## Panes as an author
 
-If you want to *add* a pane, that is [Making a Workshop
+If you want a pane that says a line of your own text, that is the [Pane
+Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a project file.
+If you want to *add* a pane that does something, that is [Making a Workshop
 tool](../guides/make-a-workshop-tool.md), which sorts the work into the two paths it can take:
 a compiled-in panel (source-contributor work) or an office-authored external pane (the bounded
 read-only provider protocol — four shapes, a prose budget, no input, and no installation

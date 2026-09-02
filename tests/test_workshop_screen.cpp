@@ -5807,7 +5807,7 @@ TEST_CASE("INTR-0: the pane composes as an ordinary saved setup row") {
     PaneRig fresh;
     fresh.mount_workshop();
     fresh.session().setup.active = authored;
-    CHECK_FALSE(resolve_pane(intro_ref(), fresh.session().panels.runtime).has_value());
+    CHECK_FALSE(resolve_pane(intro_ref(), fresh.session().panels).has_value());
     CHECK(has_pane(fresh.session().setup.active, intro_ref()));
 }
 

@@ -1456,8 +1456,12 @@ inline PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
 /// the resolution door rather than something a caller could forget. Passing an
 /// empty one is what keeps these cases' claims exactly what they were: this is
 /// what the BUILT-IN half answers, with no provider in the process.
-inline const RuntimeCatalog& no_providers() {
-    static const RuntimeCatalog empty;
+/// SINCE WUX-14 THE RESOLUTION DOOR TAKES THE WHOLE `Panels` -- the session's resolution
+/// table grew the maker-made pane beside the runtime catalog -- so "no provider in the
+/// process" is a `Panels` whose runtime catalog is empty and whose maker pane is closed,
+/// which is exactly what a default-constructed one is.
+inline const Panels& no_providers() {
+    static const Panels empty;
     return empty;
 }
 

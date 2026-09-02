@@ -3408,7 +3408,7 @@ TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default 
     CHECK(r.w->session().screen_h == 60);
     CHECK(r.w->session().panels.open.size() == 2);
     CHECK(r.w->session().panels.has(panel::kBuilder));
-    CHECK(unresolved_panes(r.w->session().setup.active, r.w->session().panels.runtime).empty());
+    CHECK(unresolved_panes(r.w->session().setup.active, r.w->session().panels).empty());
 }
 
 TEST_CASE("WUX-0: the startup notice counts no pane nobody has had a turn to offer") {

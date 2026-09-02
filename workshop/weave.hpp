@@ -101,6 +101,7 @@
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else (WUX-7)
 #include "keymap_persist.hpp"
 #include "marks_persist.hpp"    // the places a maker said they want back
+#include "pane_definition_persist.hpp" // the pane a maker made, as its own project file (WUX-14)
 #include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
@@ -346,6 +347,24 @@ struct HostContext {
     /// resolves it to. Generated marks (this run's origin, the filesystem roots) are
     /// unaffected, because neither was ever going to be written down.
     std::string marks_path;
+
+    /// The one file this Workshop's open PANE DEFINITION is read from and written to
+    /// (WUX-14).
+    ///
+    /// A SEVENTH PATH, AND A NINTH DURABLE FACT: a pane a maker MADE -- its name and its
+    /// authored interior. It is PROJECT truth beside the document and the named setup
+    /// (`--pane <path>`, defaulted to `workshop-pane.json`), and the host resolves the
+    /// spelling against `project_dir` once, so the same relative name means one file to
+    /// the launch, the save door and the next launch alike -- never whatever the process's
+    /// working directory happened to be at the moment somebody spent it.
+    ///
+    /// IT IS AN INITIAL REQUEST AND NOT A STANDING AUTHORITY. The weave reads the file at
+    /// its first surface if one is there, through the same open door a later open would
+    /// take, and writes it only when a maker asks. Empty means no pane file was chosen (a
+    /// project this build cannot carry, or a fixture): a pane can still be made, edited and
+    /// presented for the length of the run, and the save door says in words that there is
+    /// nowhere to write it.
+    std::string pane_path;
 
     /// The one file this Workshop's KEYMAP is read from (KEY-0).
     ///
@@ -698,12 +717,56 @@ public:
         // the browser happens to open. It has its own once-guard, so a run that reaches the
         // browser before any surface exists reads them there instead, exactly once.
         load_marks();
+        // ...AND THE MAKER'S OWN PANE (WUX-14), BEFORE THE SESSION IS TAKEN BACK -- the
+        // ordering is the whole of the relaunch story. The session's desks name a
+        // maker-made pane by its durable reference, and `apply_setup` seats a reference
+        // only if it resolves at that moment; a definition opened after the restore would
+        // leave the pane a maker saved yesterday counted unresolved on the very row it
+        // came back on. So identity is established first, from its own file, through the
+        // one open door; the session then finds it exactly as it finds a built-in.
+        load_pane_definition(mail);
         // ...and whatever the host already knew was standing, so the first picture
         // of the run already carries every condition this launch is going to have.
         take_host_conditions();
         repaint(mail);
         restore_last_session(mail);
         speak_startup_notes(mail);
+    }
+
+    /// READ THE PROJECT'S PANE DEFINITION, OR STAND ON NONE (WUX-14).
+    ///
+    /// The keymap's startup story, one file over: no path chosen and no file present are
+    /// both simply "no pane is open" (a project with no maker-made pane is an ordinary
+    /// project); a file that exists goes through the ONE open door every open takes; and a
+    /// file that exists and cannot be admitted is a standing wall -- refused in its own
+    /// words, and never written over by anything this run makes (`pane_refused_`, the marks
+    /// file's own law, load-bearing here because this is a file Workshop WRITES).
+    void load_pane_definition(loom::Mail& mail) {
+        if (pane_loaded_) {
+            return;
+        }
+        pane_loaded_ = true;
+        const std::string path = host_pane_path();
+        if (path.empty()) {
+            return;
+        }
+        if (!std::filesystem::exists(path)) {
+            return;
+        }
+        open_maker_pane(path, mail);
+    }
+
+    /// THE HOST'S PANE PATH IN THE ONE SPELLING THE DOORS COMPARE. A path is not its bytes:
+    /// the host may carry a native spelling (`C:\proj\pane.json`) while every door normalizes
+    /// what it is handed (`persist::resolved_against` -> `C:/proj/pane.json`), and the wall
+    /// (`pane_refused_`) is a comparison between the two. Both sides go through the same
+    /// function, or the wall fails to rise on Windows exactly when it is needed -- a file this
+    /// run could not read would then be written over. Empty stays empty: no pane file this run.
+    std::string host_pane_path() const {
+        if (host_->pane_path.empty()) {
+            return std::string();
+        }
+        return persist::resolved_against(host_->project_dir, host_->pane_path);
     }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
@@ -909,6 +972,7 @@ public:
         case KeyContext::kArrangeDesk:
         case KeyContext::kArrangeReset: arrange_key(k, mail); break;
         case KeyContext::kNaming: naming_key(k, mail); break;
+        case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
         case KeyContext::kPicker: picker_key(k, mail); break;
         case KeyContext::kAttention: attention_key(k); break;
         case KeyContext::kContext: context_key(k, mail); break;
@@ -1082,7 +1146,7 @@ public:
             // rectangle resolves to no row and falls through to the room.
             for (const SetupPane& row : session_.setup.active.panes) {
                 const std::optional<std::int64_t> named =
-                    resolve_pane(row.ref, session_.panels.runtime);
+                    resolve_pane(row.ref, session_.panels);
                 if (named.has_value() && *named == here.kind) {
                     next.subject = context_subject::kPane;
                     next.pane = row.ref;
@@ -1376,7 +1440,7 @@ public:
             box = &session_.terminal.input;
             break;
         case PasteOwner::kNaming:
-            box = session_.setup.naming.open ? &session_.setup.naming.line : nullptr;
+            box = naming_line();
             break;
         case PasteOwner::kDraft:
             row = editing_row();
@@ -1451,6 +1515,10 @@ public:
         switch (keyboard_context(session_)) {
         case KeyContext::kNaming:
             session_.setup.naming.line.type(t.text);
+            repaint(mail);
+            return;
+        case KeyContext::kPaneNaming:
+            session_.pane_naming.line.type(t.text);
             repaint(mail);
             return;
         case KeyContext::kTerminal:
@@ -1815,8 +1883,7 @@ public:
             session_.panels.selected = here.occupied ? here.kind : kNoPaneKind;
             session_.panels.keyboard =
                 session_.panels.selected != kNoPaneKind &&
-                        (is_runtime_kind(session_.panels.selected) ||
-                         panel_kind(session_.panels.selected).takes_keyboard)
+                        kind_takes_keyboard(session_.panels.selected)
                     ? session_.panels.selected
                     : kNoPaneKind;
             // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
@@ -2687,10 +2754,23 @@ private:
     /// bumped, so one of the box-holding branches ran; since KEY-0 this is a projection of
     /// the one resolved context rather than a second spelling of the routing, which closes
     /// the way two spellings could deliver a paste to a draft the keys never reached.
+    /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's or the Pane
+    /// Creator's. Two modes, one kind of box, one question for the paste path (WUX-14).
+    component::TextBox* naming_line() {
+        if (session_.setup.naming.open) {
+            return &session_.setup.naming.line;
+        }
+        if (session_.pane_naming.open) {
+            return &session_.pane_naming.line;
+        }
+        return nullptr;
+    }
+
     PasteOwner paste_owner_now() {
         switch (keyboard_context(session_)) {
         case KeyContext::kTerminal: return PasteOwner::kTerminal;
-        case KeyContext::kNaming: return PasteOwner::kNaming;
+        case KeyContext::kNaming:
+        case KeyContext::kPaneNaming: return PasteOwner::kNaming;
         case KeyContext::kDraft: return PasteOwner::kDraft;
         case KeyContext::kEditor: return PasteOwner::kEditor;
         default: return PasteOwner::kNone;
@@ -2734,7 +2814,14 @@ private:
         switch (p.owner) {
         case PasteOwner::kNone: return; // no box of this weave's asked; nothing to do
         case PasteOwner::kTerminal: p.epoch = session_.terminal.input.draft_epoch(); break;
-        case PasteOwner::kNaming: p.epoch = session_.setup.naming.line.draft_epoch(); break;
+        case PasteOwner::kNaming: {
+            const component::TextBox* line = naming_line();
+            if (line == nullptr) {
+                return; // unreachable while the resolver holds; written anyway
+            }
+            p.epoch = line->draft_epoch();
+            break;
+        }
         case PasteOwner::kEditor:
             p.editor_doc = session_.editor.doc_epoch;
             p.editor_revision = session_.editor.buffer.revision();
@@ -4023,7 +4110,7 @@ private:
         // author, which is a picker that edits a file behind its own refusal.
         Setup candidate = session_.setup.active;
         (void)add_pane(candidate, ref);
-        const Seating trial = seat_panes(candidate, session_.panels.runtime,
+        const Seating trial = seat_panes(candidate, session_.panels,
                                          stack_capacity(screen_of(session_)));
         for (const std::int64_t k : trial.waiting) {
             if (k == chosen.kind) {
@@ -4510,7 +4597,7 @@ private:
     /// installed -- and silence is not evidence of absence. Naming the reference
     /// is what lets a maker tell a typo from a pane they have not installed yet.
     std::string unresolved_note(const Setup& s) const {
-        const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panels.runtime);
+        const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panels);
         if (waiting.empty()) {
             return {};
         }
@@ -4846,7 +4933,7 @@ private:
         // ...AND THE RESOLUTION IS FRESH, `bounds_of`'s discipline: admission proved this
         // reference names a pane a moment ago, and asking again is cheaper than carrying an
         // answer that could have been a different pane's.
-        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
         if (kind.has_value()) {
             session_.panels.selected = *kind;
         }
@@ -5002,7 +5089,7 @@ private:
             return Written::no(ref_text(ref) + " is no longer in this setup -- " +
                                hotkey(Act::kPicker) + " can bring it back");
         }
-        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
         if (!kind.has_value()) {
             return Written::no(ref_text(ref) +
                                " is unresolved -- its place and size cannot be measured; "
@@ -5055,7 +5142,7 @@ private:
     /// to be the size the pane actually has.
     PanelBounds managed_bounds() const {
         const std::optional<std::int64_t> kind =
-            resolve_pane(session_.arrange.pane, session_.panels.runtime);
+            resolve_pane(session_.arrange.pane, session_.panels);
         if (!kind.has_value()) {
             return PanelBounds{};
         }
@@ -5440,7 +5527,7 @@ private:
     /// law the paint uses, and the grab and the base are captured in sub-units — so the
     /// motion that follows can spend a single pixel of hand.
     bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
-        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
         // A HAND MAY TAKE HOLD OF ANY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR (WUX-12).
         // This named the overlay stack while the stack was the only such place; saying it
         // as the exclusion (`place_is_authorable` -- the side column is the screen's) is
@@ -5534,7 +5621,7 @@ private:
             }
             for (const SetupPane& row : session_.setup.active.panes) {
                 const std::optional<std::int64_t> named =
-                    resolve_pane(row.ref, session_.panels.runtime);
+                    resolve_pane(row.ref, session_.panels);
                 if (named.has_value() && *named == kind) {
                     a.pane = row.ref;
                     if (!take_pane_hold(row.ref, at, sc)) {
@@ -6495,7 +6582,7 @@ private:
         ed.rows.clear();
         ed.row_cursor = 0;
         ed.on_rows = false;
-        say("the Pane Editor's subject " + was +
+        say("the Pane Manager's subject " + was +
                 " is in neither this build's vocabulary nor this layout -- subject cleared",
             true);
     }
@@ -6520,7 +6607,7 @@ private:
             state = pane_state_word(pane_state_of(session_.panels, session_.setup.active,
                                                   screen_of(session_), *row));
         }
-        say("Pane Editor: " + name + (state.empty() ? "" : " (" + state + ")") + " -- " +
+        say("Pane Manager: " + name + (state.empty() ? "" : " (" + state + ")") + " -- " +
                 hotkey(Act::kPaneEditorSwitch) + " reaches its rows",
             false);
     }
@@ -6611,7 +6698,7 @@ private:
     void pane_editor_switch() {
         PaneEditor& ed = session_.pane_editor;
         if (!ed.on_rows && ed.rows.empty()) {
-            say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+            say("the Pane Manager has no subject -- " + hotkey(Act::kPaneEditorChoose) +
                     " on a pane in its list chooses one",
                 true);
             return;
@@ -6657,7 +6744,7 @@ private:
     void pane_editor_toggle(loom::Mail& mail) {
         const std::optional<CatalogRow> row = pane_editor_subject_row(session_);
         if (!row) {
-            say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+            say("the Pane Manager has no subject -- " + hotkey(Act::kPaneEditorChoose) +
                     " on a pane in its list chooses one",
                 true);
             return;
@@ -6675,7 +6762,7 @@ private:
         const PaneRef subject = session_.pane_editor.subject;
         const auto order = [&](Act a) {
             if (subject.provider.empty()) {
-                say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+                say("the Pane Manager has no subject -- " + hotkey(Act::kPaneEditorChoose) +
                         " on a pane in its list chooses one",
                     true);
                 return;
@@ -6692,8 +6779,283 @@ private:
         case Act::kPaneEditorBack: order(Act::kManageBack); break;
         case Act::kPaneEditorRaise: order(Act::kManageRaise); break;
         case Act::kPaneEditorLower: order(Act::kManageLower); break;
+        // THE PANE CREATOR'S THREE (WUX-14): make a pane, keep it, put it back.
+        case Act::kPaneCreatorNew: open_pane_naming(); break;
+        case Act::kPaneCreatorSave: save_maker_pane(); break;
+        case Act::kPaneCreatorDiscard: discard_maker_pane_edits(mail); break;
         default: break; // an unbound key in this pane means nothing, and says nothing
         }
+    }
+
+    // ---- THE PANE CREATOR (WUX-14): a pane made of authored data ------------------------------
+    //
+    // THE FIRST PANE THAT EXISTS BECAUSE A MAKER DESCRIBED ONE. Everything below is the
+    // lifecycle of `Panels::maker` -- the one open definition -- and it is the source
+    // editor's lifecycle law inherited whole: one session-owned open value, presentation
+    // owning none of it, dirty derived by comparison, replacement of a dirty value refused
+    // in words, an orderly quit refused in words, one open door, one save door, and one
+    // deliberate discard door so the refusals have real gestures to name.
+    //
+    // LOADING A DEFINITION PRESENTS AND MAY NOT ACT. The open door reads a bounded file,
+    // admits it whole, judges it by its own law and holds the value; nothing on the path
+    // mounts, loads, sends, samples, binds or grants, and the value has no field on which
+    // any of those could be spelled (`pane_definition.hpp`). The pane then appears through
+    // the ordinary pane path -- no office, no offer, no room grant, no load-plan row -- and
+    // a setup row naming it is an ordinary row a session keeps.
+
+    /// REBUILD THE PANE MANAGER'S SUBJECT ROWS WITHOUT CHANGING THE SUBJECT -- asked by the
+    /// three doors that change which rows a subject honestly HAS (a definition opened,
+    /// made or put back), because the INTERIOR section is decided at rebuild and must not
+    /// describe a definition that is no longer the one open.
+    void rebuild_subject_rows() {
+        PaneEditor& ed = session_.pane_editor;
+        if (!ed.addressed()) {
+            return;
+        }
+        ed.rows = pane_editor_rows(session_);
+        if (ed.row_cursor >= ed.rows.size()) {
+            ed.row_cursor = first_editable(ed.rows);
+        }
+    }
+
+    /// The sentence a dirty definition refuses with, naming the two ways out where the maker
+    /// is standing. One spelling, spent by the open door, the naming door and the quit guard.
+    std::string maker_pane_dirty_sentence(const char* consequence) const {
+        const MakerPane& m = session_.panels.maker;
+        const std::string name = m.definition.open() ? m.definition.name : m.saved.name;
+        return "pane " + name + " has unsaved changes -- " + hotkey(Act::kPaneCreatorSave) +
+               " in the Pane Manager saves it, " + hotkey(Act::kPaneCreatorDiscard) +
+               " discards them; " + consequence;
+    }
+
+    /// THE ONE OPEN DOOR: a pane-definition file becomes the run's open definition, or
+    /// nothing moves. Normalize (`persist::resolved_against` the project) -> dirty refusal
+    /// -> bounded read -> whole admission -> the definition's own law -> install. A refusal
+    /// at any layer costs the maker a sentence and nothing else: the live definition, the
+    /// setup, the session and the file itself are all exactly as they were.
+    ///
+    /// A FILE AT THE HOST'S OWN PATH THAT CANNOT BE READ IS A STANDING WALL, and the wall
+    /// is load-bearing: `pane_refused_` keeps the save door from writing this run's pane over
+    /// bytes this run could not understand (the session's own law, one durable fact over).
+    void open_maker_pane(const std::string& requested, loom::Mail& mail) {
+        const std::string path = persist::resolved_against(host_->project_dir, requested);
+        MakerPane& m = session_.panels.maker;
+        if (m.dirty()) {
+            say(maker_pane_dirty_sentence("nothing was opened"), true);
+            return;
+        }
+        const pane_definition_persist::LoadedDefinition loaded =
+            pane_definition_persist::load_file(path);
+        if (!loaded.outcome.accepted) {
+            if (path == host_pane_path()) {
+                pane_refused_ = true;
+                session_.conditions.establish(Condition{
+                    kPaneWallKey, "pane definition refused -- this run will not write over it",
+                    loaded.outcome.refusal +
+                        " (the file is left exactly as it is; fix it, or start Workshop with "
+                        "--pane <another path>)",
+                    surface::role::kAlert, std::string()});
+            }
+            say(path + ": " + loaded.outcome.refusal, true);
+            return;
+        }
+        m.path = path;
+        m.definition = loaded.definition;
+        m.saved = loaded.definition;
+        rebuild_subject_rows();
+        // AND THE DESK RE-SEATS, because a reference that was unresolved a moment ago may
+        // resolve now -- the same reconcile a provider's late offer earns.
+        apply_setup(mail);
+        say("opened pane " + m.definition.name + " from " + path, false);
+    }
+
+    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act. The name meets the
+    /// definition's law; the definition is composed with its one empty text region; the pane
+    /// joins the current desk through the setup's own door; the Pane Manager takes it as its
+    /// subject with the keys on the region's rows. False means nothing was made, and the
+    /// name prompt stays open with the maker's text in it.
+    ///
+    /// A NEW PANE REPLACES A CLEAN OPEN ONE AND REFUSES OVER A DIRTY ONE. One definition is
+    /// open at a time (the source editor's law); the previous pane's setup rows are kept and
+    /// read `unresolved` until its file is opened again -- retained intent, never erased.
+    ///
+    /// IT MAY LAND WAITING. The reactive stack may have no tile left on this screen; the
+    /// row is authored anyway and the notice says so, because a maker who asked for a pane
+    /// and is told it is waiting for room can act on that, and the Pane Manager's list names
+    /// its state beside it.
+    bool new_maker_pane(const std::string& name, loom::Mail& mail) {
+        MakerPane& m = session_.panels.maker;
+        if (m.dirty()) {
+            say(maker_pane_dirty_sentence("nothing was made"), true);
+            return false;
+        }
+        const Written legal = check_maker_pane_name(name);
+        if (!legal.accepted) {
+            say(legal.refusal + " -- " + hotkey(Act::kPaneNamingCommit) + " tries again, " +
+                    hotkey(Act::kPaneNamingCancel) + " cancels",
+                true);
+            return false;
+        }
+        const PaneRef ref = maker_pane_ref(name);
+        m.definition = new_definition(name);
+        m.saved = PaneDefinition{};
+        m.path = host_pane_path();
+        (void)add_pane(session_.setup.active, ref);
+        const Seating trial = seat_panes(session_.setup.active, session_.panels,
+                                         stack_capacity(screen_of(session_)));
+        bool waiting = false;
+        for (const std::int64_t k : trial.waiting) {
+            if (is_maker_kind(k)) {
+                waiting = true;
+            }
+        }
+        apply_setup(mail);
+        // THE CREATOR'S SUBJECT IS THE NEW PANE'S REGION: the manager's subject through its
+        // one writer, then the keys onto the region's own rows, on the text first.
+        choose_subject(ref);
+        PaneEditor& ed = session_.pane_editor;
+        ed.on_rows = true;
+        for (std::size_t i = 0; i < ed.rows.size(); ++i) {
+            if (ed.rows[i].label() == "Text") {
+                ed.row_cursor = i;
+                break;
+            }
+        }
+        std::string said = "Pane Creator: " + name + " is on this layout";
+        if (waiting) {
+            said += " (waiting for room -- make the window taller)";
+        }
+        said += " -- its text region's rows are under INTERIOR; " +
+                hotkey(Act::kPaneCreatorSave) + " saves it";
+        if (m.path.empty()) {
+            said += " (no pane file this run)";
+        }
+        say(said, false);
+        return true;
+    }
+
+    /// OPEN THE PANE CREATOR'S NAME PROMPT -- `n` inside the Pane Manager. A dirty
+    /// definition is refused HERE, before a name is typed, so a maker is not asked for a
+    /// word they cannot use. The trigger's own character is swallowed by the binding.
+    void open_pane_naming() {
+        if (session_.panels.maker.dirty()) {
+            say(maker_pane_dirty_sentence("no new pane was started"), true);
+            return;
+        }
+        session_.pane_naming.open = true;
+        session_.pane_naming.line.set(std::string(), 0);
+        say("new pane -- type its name; " + hotkey(Act::kPaneNamingCommit) + " makes it, " +
+                hotkey(Act::kPaneNamingCancel) + " cancels",
+            false);
+    }
+
+    /// The name prompt's keys: the line's own vocabulary first, then make or cancel.
+    void pane_naming_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        PaneNaming& naming = session_.pane_naming;
+        if (naming.line.consume(k.scancode, k.modifiers, session_.clipboard)) {
+            return;
+        }
+        switch (session_.keymap.action_for(KeyContext::kPaneNaming, k.scancode, k.modifiers)) {
+        case Act::kPaneNamingCommit:
+            if (new_maker_pane(naming.line.text(), mail)) {
+                close_pane_naming();
+            }
+            break;
+        case Act::kPaneNamingCancel:
+            close_pane_naming();
+            say("no pane was made", false);
+            break;
+        default: break;
+        }
+    }
+
+    /// Close the prompt whole, so a later open cannot inherit a stale draft.
+    void close_pane_naming() { session_.pane_naming = PaneNaming{}; }
+
+    /// WRITE THE OPEN DEFINITION TO ITS FILE -- the one save door, through the family's
+    /// safe write. On success the saved copy advances to exactly what was written, so dirty
+    /// derives to false; on refusal nothing moves and the maker gets the writer's sentence.
+    /// A live draft on one of the pane's rows refuses for the document save's reason: a
+    /// file that disagreed with the screen, silently.
+    void save_maker_pane() {
+        MakerPane& m = session_.panels.maker;
+        if (!m.open()) {
+            say("no pane is open -- " + hotkey(Act::kPaneCreatorNew) +
+                    " in the Pane Manager makes one",
+                true);
+            return;
+        }
+        if (m.path.empty()) {
+            say(kNoPaneFile, true);
+            return;
+        }
+        if (pane_refused_ && m.path == host_pane_path()) {
+            say("the pane file " + m.path +
+                    " was refused at startup and will not be written over -- fix it, or start "
+                    "Workshop with --pane <another path>",
+                true);
+            return;
+        }
+        if (const Row* draft = pane_editor_editing_row()) {
+            say(draft->label() + " is still being edited -- " + hotkey(Act::kDraftCommit) +
+                    " commits, " + hotkey(Act::kDraftCancel) + " cancels; nothing was saved",
+                true);
+            return;
+        }
+        const Written written = pane_definition_persist::save_file(m.path, m.definition);
+        if (!written.accepted) {
+            say(written.refusal, true);
+            return;
+        }
+        m.saved = m.definition;
+        say("saved pane " + m.definition.name + " to " + m.path, false);
+    }
+
+    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds. A
+    /// pane that was never saved has no file to go back to, so it closes whole -- its rows
+    /// on this desk are KEPT and read `unresolved`, because a setup row is the maker's own
+    /// intent and nothing here may erase one on their behalf.
+    void discard_maker_pane_edits(loom::Mail& mail) {
+        MakerPane& m = session_.panels.maker;
+        if (!m.open() && !m.saved.open()) {
+            say("no pane is open -- nothing to discard", true);
+            return;
+        }
+        if (!m.dirty()) {
+            say("pane " + m.definition.name + " matches " + m.path + " -- nothing to discard",
+                false);
+            return;
+        }
+        const std::string was = m.definition.name;
+        m.definition = m.saved;
+        rebuild_subject_rows();
+        apply_setup(mail);
+        if (m.open()) {
+            say("discarded unsaved edits -- pane " + m.definition.name + " is back to what " +
+                    m.path + " holds",
+                false);
+        } else {
+            say("discarded pane " + was +
+                    " -- it was never saved, so no pane is open; its row on this layout is "
+                    "kept and reads unresolved",
+                false);
+        }
+    }
+
+    /// KEEP THE NAME PROMPT'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- `refresh_setup_name`
+    /// for the Pane Creator's line, against the Pane Manager's own heading columns.
+    void refresh_pane_name() {
+        if (!session_.pane_naming.open) {
+            return;
+        }
+        const Screen sc = screen_of(session_);
+        const PanelBounds where =
+            bounds_of(session_.panels, session_.setup.active, panel::kPaneEditor, sc);
+        if (!where.open) {
+            return;
+        }
+        const PaneEditorBodyPlace body = pane_editor_body(session_, sc, where.rect);
+        session_.pane_naming.line.keep_caret_visible(pane_name_columns(body.fit.columns));
     }
 
     /// A PRESS INSIDE THE PANE EDITOR'S BODY. The live draft's own row is asked first
@@ -6900,7 +7262,7 @@ private:
         const PaneRef ref = pane_ref_of(panel::kEditor);
         Setup candidate = session_.setup.active;
         const bool added = add_pane(candidate, ref);
-        const Seating trial = seat_panes(candidate, session_.panels.runtime,
+        const Seating trial = seat_panes(candidate, session_.panels,
                                          stack_capacity(screen_of(session_)));
         for (const std::int64_t k : trial.waiting) {
             if (k == panel::kEditor) {
@@ -7620,6 +7982,7 @@ private:
         refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
         refresh_inspector(); // and a draft's window is only true against the room it has now
         refresh_setup_name(); // ...and so is the name editor's, against the same room
+        refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading
         refresh_editor();     // ...and the source viewport, against the body it has now
         refresh_external_rooms(mail); // ...and an external pane's room, against the same one
         // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
@@ -7669,6 +8032,13 @@ private:
                 true);
             return;
         }
+        // AND A MAKER-MADE PANE HOLDS THE DOOR THE SAME WAY (WUX-14): a definition that
+        // differs from its file is a maker's authored truth, and it may leave this process
+        // only by their own save or their own discard.
+        if (session_.panels.maker.dirty()) {
+            say(maker_pane_dirty_sentence("Workshop stays open"), true);
+            return;
+        }
         save_last_session();
         host_->quit = true;
         if (host_->request_stop) {
@@ -7687,6 +8057,10 @@ private:
     /// setup file must be told which of the two they are missing.
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
+
+    /// ...and for the pane-definition file (WUX-14), a third sentence for the third reason.
+    static constexpr const char* kNoPaneFile =
+        "no pane file -- start Workshop with --pane <path>";
 
     /// What to say to a gesture that would have changed the document or the
     /// selection out from under a live property draft. HD-7 wrote it for a press
@@ -7752,6 +8126,13 @@ private:
     /// is a standing wall and it is a condition (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
     bool marks_loaded_ = false;
+    /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE (WUX-14), and whether
+    /// that file was REFUSED. The first is the restore's once-guard, one file over; the
+    /// second is the marks file's load-bearing flag, for the marks file's reason: this is a
+    /// file Workshop WRITES, so without it the first save would replace bytes this run could
+    /// not read with this run's pane.
+    bool pane_loaded_ = false;
+    bool pane_refused_ = false;
     /// A MARKS FILE THIS RUN COULD NOT UNDERSTAND, remembered so a later toggle cannot
     /// write over it. The prefs file's own law (a file that exists and cannot be admitted
     /// is refused out loud and never rewritten), and the flag is what makes the second half

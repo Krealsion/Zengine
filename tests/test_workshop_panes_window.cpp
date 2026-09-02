@@ -560,7 +560,7 @@ TEST_CASE("WIND-2: an authored place spends no reactive slot, and cannot wait fo
     REQUIRE(add_pane(s, extern_ref));
 
     // BOTH REACTIVE: the second one waits, because there is one tile. The CONTROL.
-    const Seating reactive = seat_panes(s, panels.runtime, stack_capacity(kMinScreen));
+    const Seating reactive = seat_panes(s, panels, stack_capacity(kMinScreen));
     REQUIRE(reactive.wanted.size() == 1);
     CHECK(reactive.wanted[0] == panel::kBuilder);
     REQUIRE(reactive.waiting.size() == 1);
@@ -571,7 +571,7 @@ TEST_CASE("WIND-2: an authored place spends no reactive slot, and cannot wait fo
     // is not waiting either, because it never asked the stack for anything.
     Setup placed = s;
     REQUIRE(author_pane_place(placed, ref_of(panel::kBuilder), subs(2), subs(2)).accepted);
-    const Seating after = seat_panes(placed, panels.runtime, stack_capacity(kMinScreen));
+    const Seating after = seat_panes(placed, panels, stack_capacity(kMinScreen));
     CHECK(after.waiting.empty());
     REQUIRE(after.wanted.size() == 2);
     CHECK(after.wanted[0] == panel::kBuilder);
@@ -592,7 +592,7 @@ TEST_CASE("WIND-2: an authored place spends no reactive slot, and cannot wait fo
     // ...AND RESETTING THE PLACE PUTS IT BACK IN THE TILING, which is what makes the reset a
     // real recovery rather than a different arrangement.
     REQUIRE(reset_pane_place(placed, ref_of(panel::kBuilder)));
-    const Seating back = seat_panes(placed, panels.runtime, stack_capacity(kMinScreen));
+    const Seating back = seat_panes(placed, panels, stack_capacity(kMinScreen));
     CHECK(back.waiting.size() == 1);
     CHECK(back.waiting[0] == got.kind);
 }
@@ -644,7 +644,7 @@ TEST_CASE("WIND-2: a refused pane is refused rather than waiting, and it still S
                 .accepted);
     Panels panels;
     panels.open.clear();
-    const Seating seated = seat_panes(s, panels.runtime, stack_capacity(kMinScreen));
+    const Seating seated = seat_panes(s, panels, stack_capacity(kMinScreen));
     CHECK(seated.waiting.empty());
     bool wanted = false;
     for (const std::int64_t k : seated.wanted) {
@@ -800,8 +800,8 @@ TEST_CASE("WIND-2: ordering changes paint order and NOTHING else") {
     for (std::size_t i = 0; i < s.setup.active.panes.size(); ++i) {
         CHECK(s.setup.active.panes[i].ref == geometry_before.panes[i].ref);
     }
-    CHECK(seat_panes(s.setup.active, s.panels.runtime, stack_capacity(sc)).wanted ==
-          seat_panes(geometry_before, s.panels.runtime, stack_capacity(sc)).wanted);
+    CHECK(seat_panes(s.setup.active, s.panels, stack_capacity(sc)).wanted ==
+          seat_panes(geometry_before, s.panels, stack_capacity(sc)).wanted);
 }
 
 TEST_CASE("WIND-2: hit order is the exact reverse of paint order") {
@@ -2313,7 +2313,7 @@ TEST_CASE("WUX-9/SC-6: leaving a layout withdraws a presentation and unloads not
     // offer, and the catalog row is a fact about the RUN rather than about this desk.
     CHECK(seat->said == said_before);
     CHECK(r.session().panels.runtime.entries.size() == 1);
-    CHECK(resolve_pane(hello_ref(), r.session().panels.runtime).has_value());
+    CHECK(resolve_pane(hello_ref(), r.session().panels).has_value());
     // ...and the layout that still names it is untouched by any of it.
     CHECK(has_pane(layout_at(r.session().setup, 0), hello_ref()));
 
@@ -2369,5 +2369,5 @@ TEST_CASE("WUX-9/SC-15: an inactive layout's rows are dormant, not maintained") 
     layout_key(r, Act::kLayoutNext);
     CHECK(r.session().setup.active == waiting);
     CHECK(r.session().panels.has(r.session().panels.runtime.entries[0].kind));
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).empty());
 }

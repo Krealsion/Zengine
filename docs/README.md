@@ -28,7 +28,7 @@ Every page below has one reader purpose, named.
 | page | purpose |
 |---|---|
 | [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
-| [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — and how a bigger one is actually obtained |
+| [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
 | [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |
 | [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |

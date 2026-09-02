@@ -42,6 +42,7 @@ See [load plans](load-plans.md).
 |---|---|---|
 | `--document <path>` | `workshop.json`, in the directory you launched from | the authored objects you are working on |
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
+| `--pane <path>` | `workshop-pane.json`, in the directory you launched from | a pane you made with the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data): its name and its regions |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
@@ -200,7 +201,7 @@ remembers that layout for you either way.
 | objects | `n` new · `d` delete · `Tab` select · `h j k l` move · `Shift`+`h j k l` resize |
 | inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
-| panes | `p` picker · `w` arrange desk · **Pane Editor** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-editor--a-pane-as-a-subject)) |
+| panes | `p` picker · `w` arrange desk · **Pane Manager** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-manager--a-pane-as-a-subject)) · in it, `n` makes a pane of your own, `s` saves it ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
@@ -228,8 +229,9 @@ Neither is a degraded version of the other, and the same published intent produc
 ## Next
 
 - [Attention](attention.md) — what is true right now, and why hiding one is not fixing it.
-- [Panes](panes.md) — the picker, arranging, how to get a bigger one, and the Pane Editor
-  that describes and edits any pane by typing.
+- [Panes](panes.md) — the picker, arranging, how to get a bigger one, the Pane Manager
+  that describes and places any pane by typing, and the Pane Creator that makes one of your
+  own out of data.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.

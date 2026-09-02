@@ -944,9 +944,18 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
 # and a Logger are ACTUALLY ATTACHED to the bus while a condition is established, read,
 # hidden and resolved. So this suite attaches both and reads their counters; the Workshop
 # package still links neither, which is where the property is actually enforced.
-zengine_workshop_suite(panels SOURCES test_workshop_panels.cpp
+# ...AND THE PANE CREATOR (WUX-14) IS A SECOND SOURCE UNDER THE SAME ENTRY, for QR-13's
+# reason: a suite is not a file, and the Pane Manager's cases already fill one large object.
+# Its cases read two sources as text -- the definition value and its file -- for the one
+# claim no running case can make: that a file of presentation data reaches no door through
+# which it could act.
+zengine_workshop_suite(panels
+    SOURCES test_workshop_panels.cpp
+            test_workshop_panels_creator.cpp
     LINKS loom::history
-    DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
+    DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\""
+                "WORKSHOP_PANE_DEFINITION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/pane_definition.hpp\""
+                "WORKSHOP_PANE_DEFINITION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/pane_definition_persist.hpp\"")
 
 # ---- INTR-1's SOURCE TRIPWIRES -------------------------------------------------------
 #

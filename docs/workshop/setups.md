@@ -5,17 +5,20 @@ you get it back, and what does not come back on its own.
 
 ## The three files
 
-Workshop keeps three separate persisted things, on purpose, in three files:
+Workshop keeps its persisted things apart, on purpose, in separate files; the ones about
+what you are looking at are these:
 
 | file | argument | holds |
 |---|---|---|
 | the **document** | `--document`, default `workshop.json` | the authored objects: identities, labels, placements, extents |
 | the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order |
 | the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
+| a **pane you made** | `--pane`, default `workshop-pane.json` | what is *inside* a pane the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) made: its name and its regions — never where it sits, which is the desk's |
 
 They are separate because they answer different questions. The document is the thing you are
 making. The setup is a room you chose to keep and gave a name. The last session is the room you
-happened to be in — written when Workshop leaves, read when it arrives, by nobody's gesture.
+happened to be in — written when Workshop leaves, read when it arrives, by nobody's gesture. A
+pane you made is a thing you built; a desk only says where it participates.
 
 Sharing a document should not import somebody else's pane layout, and closing a window should
 not rewrite a desk you saved under a name.

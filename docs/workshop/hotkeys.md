@@ -39,7 +39,8 @@ The list is grouped by the layer that owns each row:
 
 - the current context's own keys — command mode, the terminal line, the picker, the
   current-condition view, the two arranging scopes and their reset prompt, a property
-  being edited, the source editor, the Files pane, the Pane Editor, or a focused pane;
+  being edited, the source editor, the Files pane, the Pane Manager, the Pane Creator's name
+  prompt, or a focused pane;
 - the keys answered above every mode (open, the terminal toggle, this view; where nothing
   is taking text, quit and the current-condition view; and everywhere but the source
   editor, the document's save — inside the editor the same chord is the editor's own

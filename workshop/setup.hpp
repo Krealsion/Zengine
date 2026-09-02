@@ -447,6 +447,21 @@ inline PaneRef pane_ref_of(std::int64_t kind) {
     return PaneRef{row.provider, row.pane};
 }
 
+/// THE DURABLE REFERENCE A MAKER-MADE PANE EARNS FROM ITS NAME, and the whole of how that
+/// identity is minted: Workshop's maker namespace, and the definition's own name. It is a
+/// function of the NAME and of nothing else -- not of a file path, not of which definition
+/// happens to be open -- so a setup that names `MyPane` names the same pane after the file
+/// moves, after another definition is opened, and after this run ends.
+inline PaneRef maker_pane_ref(const std::string& name) {
+    return PaneRef{kMakerPaneProvider, name};
+}
+
+/// A maker-made pane's name meets the reference's own key law by construction: the name
+/// bound is under the key bound, and the name law refuses every byte the key law refuses.
+static_assert(kMaxMakerPaneNameLen <= kMaxPaneKeyLen,
+              "a maker-made pane's name is the pane half of its durable reference, so its "
+              "bound must sit under the reference's");
+
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
 ///
 /// The one fallible boundary, and the only door through which text from a file
@@ -485,21 +500,36 @@ inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
 /// runtime entry can ever match here -- this order is what that refusal would
 /// otherwise have to be trusted to have enforced, said a second time in the one
 /// place a shadow would do damage.
-inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref,
-                                                const RuntimeCatalog& runtime) {
+///
+/// IT TAKES THE WHOLE `Panels` SINCE A MAKER COULD MAKE A PANE, for the same reason WP-0
+/// made the runtime catalog a required argument: the session's resolution table grew a
+/// third row -- the one maker-made pane this run has open, `Panels::maker` -- and a
+/// spelling that could still be handed the runtime catalog alone would be silently right
+/// until the first maker's pane, which it would count as unresolved on the line beneath a
+/// pane the maker can see. THE MAKER ARM ASKS THE NAME AND NOTHING ELSE: the reference
+/// resolves exactly when its provider is the maker namespace and its pane is the open
+/// definition's name, so a definition file moving changes nothing and a definition that
+/// is not open leaves the reference retained and unresolved, as any other stranger's is.
+inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panels& panels) {
     const std::optional<std::int64_t> built_in = resolve_builtin_pane(ref);
     if (built_in.has_value()) {
         return built_in;
     }
-    if (const RuntimePane* row = runtime.find(ref.provider, ref.pane)) {
+    if (ref.provider == kMakerPaneProvider) {
+        if (panels.maker.open() && panels.maker.definition.name == ref.pane) {
+            return kMakerPaneKind;
+        }
+        return std::nullopt; // the namespace is Workshop's: no office can answer for it
+    }
+    if (const RuntimePane* row = panels.runtime.find(ref.provider, ref.pane)) {
         return row->kind;
     }
     return std::nullopt;
 }
 
 /// Whether this build can currently present the pane this reference names.
-inline bool resolvable(const PaneRef& ref, const RuntimeCatalog& runtime) {
-    return resolve_pane(ref, runtime).has_value();
+inline bool resolvable(const PaneRef& ref, const Panels& panels) {
+    return resolve_pane(ref, panels).has_value();
 }
 
 // ---- THE COMBINED CATALOG: what the picker offers, built-ins and offers -------
@@ -532,13 +562,24 @@ struct CatalogRow {
 /// `kMaxPaneCatalogEntries` small rows and it is derived on demand and cached
 /// nowhere, which is the same discipline `Screen` and `workspace_scene()` are
 /// under.
+/// The one line the picker reads under a maker-made pane's name.
+inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
+
 inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     std::vector<CatalogRow> rows;
-    rows.reserve(kPanelKinds + panels.runtime.entries.size());
+    rows.reserve(kPanelKinds + 1 + panels.runtime.entries.size());
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         rows.push_back(CatalogRow{kPanelCatalog[i].kind,
                                   PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane},
                                   kPanelCatalog[i].name, kPanelCatalog[i].summary});
+    }
+    // THE MAKER'S OWN PANE, BETWEEN THE BUILT-INS AND THE STRANGERS: Workshop-owned, so it
+    // sits with Workshop's rows, and after them because a maker's own row is the one that
+    // was not there yesterday. Its name is the definition's and its identity is minted
+    // from it -- there is no copy of either here.
+    if (panels.maker.open()) {
+        rows.push_back(CatalogRow{kMakerPaneKind, maker_pane_ref(panels.maker.definition.name),
+                                  panels.maker.definition.name, kMakerPaneSummary});
     }
     for (const RuntimePane& r : panels.runtime.entries) {
         rows.push_back(CatalogRow{r.kind, PaneRef{r.provider, r.pane}, r.name, r.summary});
@@ -560,6 +601,9 @@ inline std::string kind_name(const Panels& panels, std::int64_t kind) {
             return row->name;
         }
         return std::string();
+    }
+    if (is_maker_kind(kind)) {
+        return panels.maker.open() ? panels.maker.definition.name : std::string();
     }
     return std::string(panel_kind(kind).name);
 }
@@ -969,6 +1013,15 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     const PaneRef ref{std::string(stamped_office), offer.pane};
     if (resolve_builtin_pane(ref).has_value()) {
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
+        return out;
+    }
+    // THE MAKER NAMESPACE IS WORKSHOP'S OWN, and no office may speak in it: a pane a maker
+    // made is presented by Workshop from authored data, and an offer stamped with its
+    // namespace would put a stranger's rows behind a maker's own name.
+    if (ref.provider == kMakerPaneProvider) {
+        out.written = Written::no("`" + ref.provider +
+                                  "` is Workshop's namespace for panes a maker made -- no "
+                                  "office may offer a pane in it");
         return out;
     }
     // EVERY FIELD HAS PASSED; ONLY NOW IS ANYTHING WRITTEN.
@@ -1458,10 +1511,10 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
 /// This is the function the setup line and the restore notice ask, so a defaulted
 /// or built-in-only spelling would put `1 unresolved` on the row beneath a pane a
 /// maker can see. An admitted offer makes its reference resolve, and this says so.
-inline std::vector<PaneRef> unresolved_panes(const Setup& s, const RuntimeCatalog& runtime) {
+inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panels) {
     std::vector<PaneRef> out;
     for (const SetupPane& row : s.panes) {
-        if (!resolvable(row.ref, runtime)) {
+        if (!resolvable(row.ref, panels)) {
             out.push_back(row.ref);
         }
     }
@@ -1636,13 +1689,12 @@ struct Seating {
     std::size_t unresolved = 0;
 };
 
-inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
-                          StackCapacity room) {
+inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacity room) {
     Seating out;
     out.wanted.reserve(setup.panes.size());
     std::size_t stack_used = 0;
     for (const SetupPane& row : setup.panes) {
-        const std::optional<std::int64_t> kind = resolve_pane(row.ref, runtime);
+        const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels);
         if (!kind.has_value()) {
             ++out.unresolved;
             continue;
@@ -1710,7 +1762,7 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
     for (const Panel& p : panels.open) {
         bool found = false;
         for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels.runtime);
+            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels);
             if (kind.has_value() && *kind == p.kind) {
                 ranked.push_back(Ranked{row.front, p.kind});
                 found = true;
@@ -1789,7 +1841,7 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
 
 inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {
     Reconciled done;
-    const Seating seating = seat_panes(setup, panels.runtime, room);
+    const Seating seating = seat_panes(setup, panels, room);
     const std::vector<std::int64_t>& wanted = seating.wanted;
     done.unresolved = seating.unresolved;
     done.waiting = seating.waiting;

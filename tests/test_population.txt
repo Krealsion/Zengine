@@ -1051,9 +1051,20 @@ builder                           doctest           always  53
 # counted, and a smaller rectangle is still nobody's pointer space and moves no reservation.
 # The other seven re-baseline cases earlier phases had left above the floor.
 #
+# WUX-14 raised ONE floor -- workshop_panels 184 -> 206 -- and moved no other. The
+# twenty-two are the Pane Creator's, in a second source under the same entry
+# (test_workshop_panels_creator.cpp): the value a maker-made pane's interior is and its law,
+# the ninth durable artifact and the keys it can and cannot spell, an identity minted from
+# a name, the region resolved against the pane's INTERIOR on both faces, the region mark,
+# the one-open-definition lifecycle at the quit and at the open, relaunch by durable
+# reference with the definition present and with it removed, a stranger holding the maker
+# namespace as an office hearing nothing, and the code-backed capture. All in the `always`
+# row for the reason every phase since TYPE-0 has given: the metric is an ARGUMENT, so the
+# window's pixels are proved by handing `Session` the shipped face's numbers.
+#
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  184
+workshop_panels                   doctest           always  206
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
 workshop_load                     doctest           always  115

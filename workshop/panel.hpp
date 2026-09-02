@@ -88,6 +88,7 @@
 // is a gesture a maker has to guess at.
 
 #include "files.hpp"
+#include "pane_definition.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -210,6 +211,23 @@ inline constexpr bool place_is_authorable(std::int64_t where) noexcept {
 /// assert about itself.
 inline constexpr const char* kWorkshopProvider = "zengine.workshop";
 
+/// WHOSE PANES THE MAKER-MADE ONES ARE -- the provider half of the durable `PaneRef` a pane
+/// created inside Workshop carries (`maker_pane_ref`, setup.hpp), and a namespace this
+/// application OWNS.
+///
+/// IT IS A NAMESPACE AND NOT AN OFFICE. No weave holds it, no offer may arrive stamped
+/// with it (`admit_pane_offer` refuses one), and nothing is routed to it: a maker-made pane
+/// is presented by Workshop itself, exactly as the source editor presents a document the
+/// session holds, and a message addressed to this string would reach nobody by design. It
+/// is distinct from `kWorkshopProvider` so that a maker's `MyPane` can never shadow, or be
+/// shadowed by, a built-in this build ships tomorrow under the same key.
+///
+/// THE PANE HALF IS THE DEFINITION'S NAME, and that is what makes the reference durable:
+/// it survives the definition's file moving, and it means the same pane whichever file
+/// happens to be open -- a reference minted from a file path, or from "whatever is open
+/// now", would be a reference that changed meaning when the maker did nothing.
+inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
+
 /// One entry in the catalog: what a maker sees in the picker, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 ///
@@ -326,8 +344,14 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // takes the row while it is open, which is where a typed layout name goes.
     {panel::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
      "layout tabs and setup"},
+    // THE PANE MANAGER: the name a maker reads. Its durable pane key stays `pane-editor`
+    // because a key is a promise to every setup and session file that already names it;
+    // what moved is the word, because the surface inventories, places and orders panes and
+    // a maker-facing name that claimed to EDIT a pane's inside was claiming a tool that did
+    // not exist. The Pane Creator -- the workflow that makes a pane whose inside is authored
+    // data -- lives inside this pane (`n`), and is deliberately the narrower name.
     {panel::kPaneEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kPaneEditor,
-     "Pane Editor", "edit a pane", true},
+     "Pane Manager", "manage a pane", true},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -382,6 +406,27 @@ inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
 /// opens it.
 inline constexpr std::int64_t kNoPaneKind = -1;
 
+/// THE HANDLE A MAKER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
+/// compile-time built-ins and the session-minted runtime handles, and like a runtime kind
+/// it is a HANDLE AND NOT AN IDENTITY. The durable identity of a maker-made pane is its
+/// `PaneRef` (`kMakerPaneProvider` + the definition's name); this integer is what
+/// `Panels::open`, `bounds_of` and `occupied_at` carry in the field the built-ins carry
+/// `panel::kInfo` in, so the whole presentation path needs no second vocabulary.
+///
+/// ONE HANDLE, BECAUSE ONE DEFINITION IS OPEN AT A TIME (the source editor's one-document
+/// law, inherited). It sits in the gap between the built-ins and `kFirstRuntimeKind`, and
+/// `is_maker_kind` is the one predicate that asks: the day a second open definition earns
+/// a second handle, this becomes a range and the predicate moves with it -- nothing else
+/// switches on the number.
+inline constexpr std::int64_t kMakerPaneKind = 512;
+
+/// Is this the maker-made pane's handle?
+inline constexpr bool is_maker_kind(std::int64_t kind) noexcept { return kind == kMakerPaneKind; }
+
+static_assert(kMakerPaneKind < kFirstRuntimeKind,
+              "the maker-made pane's handle sits below the runtime range, so no arithmetic can "
+              "confuse the two");
+
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column. Total, for the same reason `panel_kind` is.
 ///
@@ -393,11 +438,30 @@ inline constexpr std::int64_t kNoPaneKind = -1;
 /// a runtime pane silently inheriting the Builder's row is exactly the lie
 /// `resolve_pane` was made fallible to prevent one layer up. `panel_kind` stays
 /// total for its own bounded built-in callers and never sees a runtime kind.
+///
+/// AND A MAKER-MADE PANE IS PLACED THE SAME WAY, for the same reason: its interior is
+/// the maker's, its rectangle is the ordinary pane path's, and the overlay stack is the
+/// authorable place -- so it takes the developer's reactive slot until the maker moves it.
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
-    if (is_runtime_kind(kind)) {
+    if (is_runtime_kind(kind) || is_maker_kind(kind)) {
         return placement::kOverlayStack;
     }
     return panel_kind(kind).placed_in;
+}
+
+/// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT? A runtime pane always may (its
+/// provider is sent the keys); a built-in says so on its catalog row; the maker-made pane
+/// may not -- its interior is authored text a maker reads, and its editing happens in the
+/// Pane Manager's rows. Asked here rather than through `panel_kind`'s fall-through, which
+/// would answer the Builder's row for a handle the catalog does not hold.
+inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
+    if (is_runtime_kind(kind)) {
+        return true;
+    }
+    if (is_maker_kind(kind)) {
+        return false;
+    }
+    return panel_kind(kind).takes_keyboard;
 }
 
 /// How many kinds declare a given place. Only ever asked at compile time, by the
@@ -812,6 +876,21 @@ struct Panels {
     /// already handed a `Panels`, so putting the catalog anywhere else would have
     /// added a parameter to each of them and given a caller a chance to forget it.
     RuntimeCatalog runtime;
+    /// THE ONE MAKER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
+    /// name, its authored interior, the file it stands for and the last value that file
+    /// held. It lives here beside `runtime` for `runtime`'s own measured reason -- every
+    /// presentation question that has to know whether a reference resolves, what its
+    /// name is or where it goes is already handed a `Panels`, and a definition owned
+    /// anywhere else would have had to be copied into a second catalog row to be seen
+    /// here, which is one truth with two owners.
+    ///
+    /// IT IS AUTHORED MATERIAL AND NOT A PRESENTATION'S COPY. `close_panel` does not
+    /// touch it (the browser's own placement, for the browser's reason): removing the
+    /// pane that presents it from a desk removes a presentation, and every byte of the
+    /// definition -- and its unsaved edits -- stands. Its lifetime is the run's, its
+    /// truth is the file's, and its doors are the weave's (`new_maker_pane`,
+    /// `open_maker_pane`, `save_maker_pane`, `discard_maker_pane_edits`).
+    MakerPane maker;
     /// The per-pane view of each OPEN external panel: its granted room, its copy
     /// of what the provider last said, and whether it is waiting. One entry per
     /// open external kind, created by the open door and destroyed by the close
