@@ -285,7 +285,9 @@ endfunction()
 #
 # The line handed in is the first line after the pointer that is not blank, not a comment,
 # not a preprocessor line, not a bare `template <...>`, not a bare attribute, and not an
-# access specifier; a closing brace is handed in and yields none.
+# access specifier; a closing brace is handed in and yields none. A line that holds none of
+# `(`, `=`, `{`, `;`, `,` and starts with no declaring keyword is a return type (or a type)
+# on a line of its own, and the next code line is joined to it before the parse.
 set(ZEN_LAW_KEYWORDS
     alignas alignof asm auto bool break case catch char class const constexpr continue
     decltype default delete do double else enum explicit export extern false float for
@@ -929,6 +931,7 @@ foreach(rel IN LISTS source_files)
     string(MAKE_C_IDENTIFIER "${rel}" relkey)
     string(REPLACE "\n" ";" lines "${content}")
     set(pending "")
+    set(carry "")
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
@@ -987,6 +990,21 @@ foreach(rel IN LISTS source_files)
            OR line MATCHES "^[ \t]*template[ \t]*<" OR line MATCHES "^[ \t]*(public|private|protected):[ \t]*$"
            OR line MATCHES "^[ \t]*${ZEN_STX}${ZEN_STX}[^${ZEN_ETX}]*${ZEN_ETX}${ZEN_ETX}[ \t]*$")
             continue()
+        endif()
+        # A return type on a line of its own -- nothing on the line can end a declaration, and
+        # no declaring keyword starts it -- is joined with the next code line, once.
+        string(REGEX REPLACE "//.*$" "" bare "${line}")
+        string(STRIP "${bare}" bare)
+        if(carry STREQUAL "" AND NOT bare STREQUAL ""
+           AND NOT bare MATCHES "[(={,${ZEN_SOH}]"
+           AND NOT bare MATCHES "^(namespace|struct|class|union|enum|using|template)[ \t]"
+           AND NOT bare MATCHES "^}")
+            set(carry "${line}")
+            continue()
+        endif()
+        if(NOT carry STREQUAL "")
+            set(line "${carry} ${line}")
+            set(carry "")
         endif()
         zen_law_declared("${line}" name kind)
         zen_law_show("${line}" shown_line)
