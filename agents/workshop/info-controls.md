@@ -15,10 +15,10 @@ DOES NOT MEAN
 - that the controls are a third claimant on `share_body_rows` — a fixed demand is not a list.
 
 PROVEN BY — `workshop/screen.hpp` `kActionRows`, `action_row`, `info_body_place`,
-`share_body_rows`; `tests/test_workshop_panels.cpp` case `"HD-8: the footer is reserved off the
-budget, and every HD-7 property survives it"`, case `"HD-8: the controls are the last two rows
-of the body, at every extent and size"`, case `"HD-8: growing the panel gives the lists more
-room and the footer exactly two rows"`.
+`share_body_rows`, `kActionCreate`, `kActionDelete`; `tests/test_workshop_panels.cpp` case `"HD-8:
+the footer is reserved off the budget, and every HD-7 property survives it"`, case `"HD-8: the
+controls are the last two rows of the body, at every extent and size"`, case `"HD-8: growing the
+panel gives the lists more room and the footer exactly two rows"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-02 — The body publishes exactly `capacity` rows
@@ -44,19 +44,21 @@ MEANS
 DOES NOT MEAN
 - that this is a `disabled` flag — a flag would collapse two facts with two owners.
 
-PROVEN BY — `workshop/screen.hpp` `kDraftLive`, `kNoTarget`, `Availability`;
-`workshop/weave.hpp` `actions_press`, `finish_draft_first`; `workshop/document.hpp` `remove`;
-`tests/test_workshop_panels.cpp` case `"HD-8: availability is two reasons, one bit, and no
-prediction of a refusal"`, case `"HD-8: availability is not a prediction of what the document
-will say"`, case `"HD-8: an unavailable Delete presents as unavailable and mutates nothing"`.
+PROVEN BY — `workshop/screen.hpp` `kDraftLive`, `kNoTarget`, `Availability`,
+`action_availability`; `workshop/weave.hpp` `actions_press`, `finish_draft_first`;
+`workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case `"HD-8: availability is
+two reasons, one bit, and no prediction of a refusal"`, case `"HD-8: availability is not a
+prediction of what the document will say"`, case `"HD-8: an unavailable Delete presents as
+unavailable and mutates nothing"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — Unavailable is said in characters
 
 LAW — `[ Create ]` is pressable and `( Delete )` is not, the same width either way; the muted role is the second signal and never the only one, because a terminal has no ground to tint.
 
-PROVEN BY — `workshop/screen.hpp` `Availability`, `say_row`; `tests/test_workshop_panels.cpp`
-case `"HD-8: unavailable is said in CHARACTERS, so a colourless medium reads it too"`.
+PROVEN BY — `workshop/screen.hpp` `Availability`, `say_row`, `action_row_text`;
+`tests/test_workshop_panels.cpp` case `"HD-8: unavailable is said in CHARACTERS, so a colourless
+medium reads it too"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-05 — The controls do not own the acts

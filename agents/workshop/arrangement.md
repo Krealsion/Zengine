@@ -11,10 +11,10 @@ MEANS
 - crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
 - outside arrangement an addressed pane behind another claims no press and no address auto-raises.
 
-PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `pane_drag`; `workshop/weave.hpp`
-`take_pane_hold`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one
-gesture, and crossing anything does not move it"`, case `"WIND-2: outside arrangement, an
-addressed pane behind another clicks through nothing"`.
+PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `pane_drag`, `kPaneEdgeBandSubs`;
+`workshop/weave.hpp` `take_pane_hold`, `arrange_motion`; `tests/test_workshop_panes_window.cpp`
+case `"WIND-2: one press claims one gesture, and crossing anything does not move it"`, case
+`"WIND-2: outside arrangement, an addressed pane behind another clicks through nothing"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-02 — `end_held_gestures()` is the one release owner
@@ -51,19 +51,19 @@ MEANS
 - a default pane resolving to 89 cells with four on screen answers one rightward step by five.
 
 PROVEN BY — `workshop/weave.hpp` `managed_bounds`; `workshop/screen.hpp` `PanelBounds`,
-`pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize
-begins from the full resolved size"`.
+`pane_window_proposal`, `rect`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default
+resize begins from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-05 — Every resize edge preserves its opposite anchor
 
 LAW — The pulled edge follows the hand and the opposite edge holds still; a corner holds the corner across from it; right and bottom pulls leave a default place reactive by not writing it.
 
-PROVEN BY — `workshop/screen.hpp` `pane_window_proposal`, `pane_edge::kBottomRight`;
-`workshop/setup.hpp` `author_pane_window`; `tests/test_workshop_screen.cpp` case `"WUX-2: every
-edge resizes pixel-fine and preserves its opposite anchor"`, case `"WUX-2: the reported top-edge
-defect is dead -- the bottom edge holds still"`, case `"WUX-2: a right or bottom resize leaves a
-default place reactive"`.
+PROVEN BY — `workshop/screen.hpp` `pane_window_proposal`, `pane_edge::kBottomRight`,
+`PaneWindowProposal`; `workshop/setup.hpp` `author_pane_window`; `workshop/weave.hpp`
+`arrange_resize`; `tests/test_workshop_screen.cpp` case `"WUX-2: every edge resizes pixel-fine and
+preserves its opposite anchor"`, case `"WUX-2: the reported top-edge defect is dead -- the bottom
+edge holds still"`, case `"WUX-2: a right or bottom resize leaves a default place reactive"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-06 — Independent axes settle independently, refuse-never-clamp
@@ -77,12 +77,13 @@ MEANS
 DOES NOT MEAN
 - that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
 
-PROVEN BY — `workshop/setup.hpp` `author_pane_window`; `workshop/screen.hpp`
-`pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"WUX-2: a refused anchored resize
-writes neither the place nor the size"`, case `"WUX-2a: a move blocked at the left wall still
-follows the hand down"`, case `"WUX-2a: a move past two walls at once writes nothing"`, case
-`"WUX-2a: a refused nudge does not author a reactive place"`, case `"WUX-2a: a corner resize
-blocked on one axis still resizes the other"`.
+PROVEN BY — `workshop/setup.hpp` `author_pane_window`, `check_pane_place_coord`,
+`PaneAxisProposal`; `workshop/screen.hpp` `pane_window_proposal`, `PaneWindowProposal`;
+`workshop/weave.hpp` `arrange_place`, `arrange_resize`; `tests/test_workshop_screen.cpp` case
+`"WUX-2: a refused anchored resize writes neither the place nor the size"`, case `"WUX-2a: a move
+blocked at the left wall still follows the hand down"`, case `"WUX-2a: a move past two walls at
+once writes nothing"`, case `"WUX-2a: a refused nudge does not author a reactive place"`, case
+`"WUX-2a: a corner resize blocked on one axis still resizes the other"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-07 — Arrangement is two scopes and one vocabulary
@@ -94,11 +95,12 @@ MEANS
 - in the one-pane scope a press elsewhere is consumed with the sentence naming the state;
 - on the desk a press takes hold and makes that pane the keyboard's target, topmost first.
 
-PROVEN BY — `workshop/screen.hpp` `PaneArrange`; `workshop/weave.hpp` `enter_arrange_pane`,
-`take_pane_hold`, `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"ARR-0:
-the one-pane scope is bound -- another pane cannot be drawn into it"`, case `"ARR-0: the desk
-manipulates panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
-case `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`.
+PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `arrange`; `workshop/weave.hpp`
+`enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`, `open_arrange_desk`,
+`arrange_press`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: the one-pane scope is bound
+-- another pane cannot be drawn into it"`, case `"ARR-0: the desk manipulates panes directly, and
+a press is its own targeting"`; `tests/test_workshop_panels.cpp` case `"CTX-0/ARR-0: contextual
+Arrange admission precedes binding"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-08 — The arranging keys are one vocabulary in both scopes
@@ -110,10 +112,10 @@ MEANS
 - a hand and a key author the same setup values; escape unwinds one level and rolls nothing back.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `kArrangePane`, `kArrangeDesk`,
-`kArrangeReset`; `workshop/weave.hpp` `arrange_key`, `arrangeable`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches every window
-operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case `"WIND-2:
-escape unwinds one level and rolls nothing back"`.
+`kArrangeReset`; `workshop/weave.hpp` `arrange_key`, `arrangeable`, `arrange_step`,
+`arrange_nudge`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches
+every window operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case
+`"WIND-2: escape unwinds one level and rolls nothing back"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement
@@ -124,10 +126,10 @@ MEANS
 - rings: accent in the one-pane scope; over the desk muted, with accent on the target;
 - `arrange_status()` carries the pane's state word, so an invisible pane is recoverable by ear.
 
-PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `arrange_status`;
-`workshop/screen.hpp` `paint_pane_affordances`; `tests/test_workshop_screen.cpp` case `"ARR-0:
-the arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7: contextual
-Arrange lifts the pane it addressed, not the one in front"`;
+PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `arrange_status`; `workshop/screen.hpp`
+`paint_pane_affordances`, `pane_edge_name`, `pane_edge_cell`; `tests/test_workshop_screen.cpp`
+case `"ARR-0: the arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7:
+contextual Arrange lifts the pane it addressed, not the one in front"`;
 `tests/test_workshop_panes_window.cpp` case `"ARR-0: stepping names the pane, its state and its
 authored window in words"`.
 WHY — `agents/decisions/two-arranging-scopes.md`

@@ -23,7 +23,6 @@
 namespace zengine::workshop {
 
 /// The KINDS of panel this Workshop can present.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
@@ -237,13 +236,11 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
 }
 
 /// THE SIDE REGION HOLDS EXACTLY ONE PANEL, and this line is the whole of that rule.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 static_assert(kinds_placed_in(placement::kSideRegion) == 1,
               "the side region has room for one panel: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
 
 /// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 static_assert(kinds_placed_in(placement::kTopBand) == 1,
               "the top band has room for one pane: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
@@ -300,7 +297,6 @@ static_assert(every_reference_is_one_kind(),
               "resolve to whichever of them the catalog happens to list first");
 
 /// The `+ panel` picker: open or not, and which entry a maker is on.
-// WL-PANE-12 -- agents/workshop/panes-and-windows.md
 struct PanelPicker {
     bool open = false;
     std::size_t cursor = 0;

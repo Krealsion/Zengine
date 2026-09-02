@@ -13,11 +13,11 @@ MEANS
 - `EditorBuffer`: lines, caret, anchor, preferred column, bounded snapshot undo, `revision()`.
 
 PROVEN BY — `workshop/editor.hpp` `EditorState`, `EditorBuffer`, `doc_epoch`, `revision`,
-`kEditorUndoDepth`, `kEditorUndoBudgetBytes`; `workshop/screen.hpp` `editor`;
-`workshop/panel.hpp` `kEditor`; `tests/test_workshop_editor.cpp` case `"EDIT-0: dirty derives by
-comparison -- editing back to the saved text is clean"`, case `"EDIT-0: the revision moves with
-text, caret and selection, and with nothing else"`, case `"EDIT-0: the Editor is an ordinary
-catalog pane with a durable reference"`.
+`kEditorUndoDepth`, `kEditorUndoBudgetBytes`; `workshop/screen.hpp` `editor`; `workshop/panel.hpp`
+`kEditor`; `workshop/weave.hpp` `save_source`; `tests/test_workshop_editor.cpp` case `"EDIT-0:
+dirty derives by comparison -- editing back to the saved text is clean"`, case `"EDIT-0: the
+revision moves with text, caret and selection, and with nothing else"`, case `"EDIT-0: the Editor
+is an ordinary catalog pane with a durable reference"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-02 — The first multiline consumer owns its multiline machinery
@@ -28,10 +28,11 @@ DOES NOT MEAN
 - that a replacement may touch path custody, save authority or the pane presentation.
 
 PROVEN BY — `workshop/editor.hpp` `EditorBuffer`, `kEditorVocabulary`, `consume`;
-`component/text_box.hpp` `TextBox`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the editor's
-declared vocabulary and consume agree, both directions"`, case `"EDIT-0: undo groups typing,
-treats joins and pastes as one edit, and redo returns"`, case `"EDIT-0: set_lines wipes the
-history -- undo cannot resurrect another document"`.
+`component/text_box.hpp` `TextBox`; `workshop/weave.hpp` `editor_key`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: the editor's declared vocabulary and consume
+agree, both directions"`, case `"EDIT-0: undo groups typing, treats joins and pastes as one edit,
+and redo returns"`, case `"EDIT-0: set_lines wipes the history -- undo cannot resurrect another
+document"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-03 — The document is session state, and that is the no-silent-loss floor
@@ -90,9 +91,9 @@ DOES NOT MEAN
 - that case-folding and hard links are handled — they remain named residuals.
 
 PROVEN BY — `workshop/weave.hpp` `open_source`; `workshop/persist.hpp` `resolved_against`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: equivalent spellings of one file are one
-document"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: re-requesting the open source reveals
-it and destroys nothing"`.
+`workshop/editor.hpp` `path`; `tests/test_workshop_files.cpp` case `"EDIT-1: equivalent spellings
+of one file are one document"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: re-requesting the
+open source reveals it and destroys nothing"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-07 — The source-byte law is the media's honest reach
@@ -104,7 +105,8 @@ MEANS
 - `source_in`/`source_text` are exact inverses, and the file is never rewritten;
 - typed and pasted text meet the same law at the weave's doors.
 
-PROVEN BY — `workshop/editor.hpp` `source_in`, `source_text`, `pasteable_source`;
+PROVEN BY — `workshop/editor.hpp` `source_in`, `source_text`, `pasteable_source`, `line_ending`,
+`source_byte_ok`, `PasteableSource`; `workshop/weave.hpp` `editor_text`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: source_in and source_text are inverse over
 everything admitted"`, case `"EDIT-0: mixed endings, bare CR, control bytes and non-ASCII are
 refused whole"`, case `"EDIT-0: CRLF and the final-newline state round-trip through open, edit,
@@ -120,10 +122,11 @@ MEANS
 - `kEditorCaretCols` reserves the caret's column of every body row, `kTerminalCaretCols`' rule.
 
 PROVEN BY — `workshop/editor.hpp` `first_col`, `visual_col_of`, `byte_of_visual_col`,
-`expanded_slice`; `workshop/screen.hpp` `kEditorCaretCols`; `tests/test_workshop_editor.cpp`
-case `"EDIT-0: tab geometry maps bytes and displayed columns both ways, exactly"`, case
-`"EDIT-0: expanded_slice shows tabs as spaces and windows by displayed columns"`, case `"EDIT-0:
-a press places the caret through the same tab geometry the paint used"`.
+`expanded_slice`, `kEditorTabStop`; `workshop/screen.hpp` `kEditorCaretCols`, `EditorPressAt`;
+`workshop/weave.hpp` `editor_press`; `tests/test_workshop_editor.cpp` case `"EDIT-0: tab geometry
+maps bytes and displayed columns both ways, exactly"`, case `"EDIT-0: expanded_slice shows tabs as
+spaces and windows by displayed columns"`, case `"EDIT-0: a press places the caret through the
+same tab geometry the paint used"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-09 — The viewport reconciles once per repaint
@@ -131,10 +134,10 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 LAW — `reconcile_editor_view` clamps the offsets always, follows the caret when a gesture asked (`follow_caret`) or the body's room changed, and deliberately not after the wheel.
 
 PROVEN BY — `workshop/screen.hpp` `reconcile_editor_view`; `workshop/editor.hpp` `follow_caret`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: keyboard navigation scrolls the window and the
-caret never leaves it"`, case `"EDIT-0: a resize reconciles the viewport and does not strand the
-caret"`, case `"EDIT-0: a horizontal window follows the caret and recovers the room an erase
-frees"`.
+`workshop/weave.hpp` `editor_key`; `tests/test_workshop_editor.cpp` case `"EDIT-0: keyboard
+navigation scrolls the window and the caret never leaves it"`, case `"EDIT-0: a resize reconciles
+the viewport and does not strand the caret"`, case `"EDIT-0: a horizontal window follows the caret
+and recovers the room an erase frees"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-10 — `on(PointerWheel)` is Workshop's one wheel router
@@ -149,24 +152,26 @@ MEANS
 DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
-PROVEN BY — `workshop/weave.hpp` `spend_wheel`, `pane_editor_wheel`, `picker_wheel`;
-`workshop/screen.hpp` `kListWheelRows`, `list_window`; `tests/test_workshop_editor.cpp` case
-`"EDIT-0: the wheel scrolls the editor's body, moves no caret, and is consumed there"`, case
-`"EDIT-0: the wheel elsewhere scrolls nothing, and a covered editor is not reached"`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: the wheel moves the browser's cursor and leaves
-the editor's alone"`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-5: the Pane Editor's two
-lists are reached by the wheel past their windows"`; `tests/test_workshop_panes_seam.cpp` case
-`"QR-18/SC-5: the picker's windowed inventory is reached by the wheel"`.
+PROVEN BY — `workshop/weave.hpp` `pane_editor_wheel`, `picker_wheel`, `on`, `files_wheel`;
+`workshop/screen.hpp` `kListWheelRows`, `list_window`, `spend_wheel`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: the wheel scrolls the editor's body, moves no
+caret, and is consumed there"`, case `"EDIT-0: the wheel elsewhere scrolls nothing, and a covered
+editor is not reached"`; `tests/test_workshop_files.cpp` case `"EDIT-1: the wheel moves the
+browser's cursor and leaves the editor's alone"`; `tests/test_workshop_panels.cpp` case
+`"QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past their windows"`;
+`tests/test_workshop_panes_seam.cpp` case `"QR-18/SC-5: the picker's windowed inventory is reached
+by the wheel"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-11 — A paste answer lands where the maker asked or nowhere
 
 LAW — A pending paste pins the document epoch and the buffer revision it was asked for, so a replaced document strands the payload silently and a document that merely moved is told to paste again.
 
-PROVEN BY — `workshop/weave.hpp` `open_source`; `workshop/editor.hpp` `doc_epoch`, `revision`;
+PROVEN BY — `workshop/weave.hpp` `open_source`, `editor_doc`, `editor_revision`;
+`workshop/editor.hpp` `doc_epoch`, `revision`, `set_lines`, `paste_lines`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: a late paste answer may not land at a caret that
-has since moved"`, case `"EDIT-0: a late answer for a replaced document is discarded whole"`,
-case `"EDIT-0: copy here, paste there -- multiline, through the medium's own answer"`.
+has since moved"`, case `"EDIT-0: a late answer for a replaced document is discarded whole"`, case
+`"EDIT-0: copy here, paste there -- multiline, through the medium's own answer"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-12 — The pane paints one region
@@ -177,9 +182,9 @@ MEANS
 - the body is `external_body_place` with `kEditorHeaderRows` — one arithmetic, not two.
 
 PROVEN BY — `workshop/screen.hpp` `paint_editor`, `external_header`, `kEditorHeaderRows`,
-`external_body_place`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the band and the header
-both say where typing goes"`, case `"EDIT-0: a press on the editor's header focuses without
-moving the caret"`, case `"EDIT-0: a drag sweeps a multiline selection, and the selection
+`external_body_place`, `editor_header`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the band
+and the header both say where typing goes"`, case `"EDIT-0: a press on the editor's header focuses
+without moving the caret"`, case `"EDIT-0: a drag sweeps a multiline selection, and the selection
 survives release"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 

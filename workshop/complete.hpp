@@ -160,7 +160,7 @@ struct Completion {
 namespace detail {
 
 /// Case-sensitive prefix.
-// WL-TERM-02 -- agents/workshop/terminal.md
+// WL-TERM-04 -- agents/workshop/terminal.md
 inline bool starts_with(std::string_view s, std::string_view prefix) noexcept {
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }

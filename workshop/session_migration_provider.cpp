@@ -21,5 +21,4 @@ std::vector<zengine::op::OperatorDef> session_conversions() {
 
 /// The provider's logical identity — what a host mounts, unmounts, and reports as the
 /// active supplier of a conversion.
-// WL-MIG-01 -- agents/workshop/migration.md
 ZENGINE_OPERATOR_PROVIDER("zengine.workshop.session_history", session_conversions)

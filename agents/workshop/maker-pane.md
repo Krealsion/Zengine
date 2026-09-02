@@ -16,7 +16,7 @@ DOES NOT MEAN
 - that a widget set, controls, anchors, fill, nesting or a second renderer may grow on this value.
 
 PROVEN BY — `workshop/pane_definition.hpp` `PaneDefinition`, `TextRegion`, `region_kind::kText`,
-`MakerPane`, `kMaxRegions`; `workshop/setup.hpp` `maker`;
+`MakerPane`, `kMaxRegions`, `kMaxMakerPaneNameLen`, `kRegionSubMax`; `workshop/panel.hpp` `maker`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-6: a definition is a name and a list of
 text regions with stable ids"`, case `"WUX-14/SC-7: the whole-definition law refuses what no door
 could have made"`, case `"WUX-14/SC-12: a code-backed subject's interior is a read-only capture,
@@ -49,8 +49,8 @@ MEANS
 - `resolve_pane`, `resolvable`, `seat_panes`, `unresolved_panes`, `setup_rest_text` take `Panels`.
 
 PROVEN BY — `workshop/panel.hpp` `kMakerPaneKind`, `is_maker_kind`, `kind_takes_keyboard`,
-`placement_of`; `workshop/setup.hpp` `resolve_pane`, `resolvable`, `seat_panes`,
-`unresolved_panes`; `workshop/screen.hpp` `setup_rest_text`;
+`placement_of`, `kFirstRuntimeKind`; `workshop/setup.hpp` `resolve_pane`, `resolvable`,
+`seat_panes`, `unresolved_panes`, `resolve_builtin_pane`; `workshop/screen.hpp` `setup_rest_text`;
 `tests/test_workshop_panels_creator.cpp` case "WUX-14/SC-1+SC-3+SC-9: `n` in the Pane Manager
 makes a named pane from data, and it lives on the desk exactly as every other pane does", case
 `"WUX-14/SC-19: a run with no maker pane is the run it always was"`.
@@ -66,12 +66,12 @@ MEANS
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
 PROVEN BY — `workshop/screen.hpp` `paint_panels`, `bounds_of`, `pane_inside`,
-`paint_maker_pane`, `present_region`, `fit_region_subs`; `surface/vocabulary.hpp` `kGroundOwn`;
-`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed relative to the
-pane's INTERIOR and painted through the ordinary pane path in cells"`, case `"WUX-14/SC-8: one
-authored fine value, read in pixels on the window and projected to cells on a terminal, and
-looking writes nothing back"`, case `"WUX-14/SC-8: a region too small for the face is the face's
-own answer, and the authored value is not rewritten to fit"`.
+`paint_maker_pane`, `present_region`, `fit_region_subs`, `clip_to_fine`; `surface/vocabulary.hpp`
+`kGroundOwn`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed
+relative to the pane's INTERIOR and painted through the ordinary pane path in cells"`, case
+`"WUX-14/SC-8: one authored fine value, read in pixels on the window and projected to cells on a
+terminal, and looking writes nothing back"`, case `"WUX-14/SC-8: a region too small for the face
+is the face's own answer, and the authored value is not rewritten to fit"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-06 — Looking never authors
@@ -83,10 +83,11 @@ MEANS
 - proven by byte identity of `to_text` across faces, extents and repaints.
 
 PROVEN BY — `workshop/screen.hpp` `maker_region`, `present_region`, `paint_creator_region_mark`;
-`workshop/pane_definition_persist.hpp` `to_text`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14/SC-10: the Pane Creator marks the region it is editing on the pane itself, from the same
-resolution, and writes nothing"`, case `"WUX-14/SC-8: one authored fine value, read in pixels on
-the window and projected to cells on a terminal, and looking writes nothing back"`.
+`workshop/pane_definition_persist.hpp` `to_text`, `to_file`;
+`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-10: the Pane Creator marks the region it
+is editing on the pane itself, from the same resolution, and writes nothing"`, case `"WUX-14/SC-8:
+one authored fine value, read in pixels on the window and projected to cells on a terminal, and
+looking writes nothing back"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-07 — One owner door per fact
@@ -98,7 +99,7 @@ MEANS
 - the manager's rows are adapters, the definition's doors are the law, Info owns none of it.
 
 PROVEN BY — `workshop/screen.hpp` `write_region_text`, `write_region_axis`, `parse_face_amount`;
-`workshop/pane_definition.hpp` `set_region_text`, `author_region_axis`;
+`workshop/pane_definition.hpp` `set_region_text`, `author_region_axis`, `check_maker_pane_name`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-11: Text and the four numbers are edited
 through the definition's doors, refused in words, and clamped never"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
@@ -113,12 +114,13 @@ MEANS
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
 PROVEN BY — `workshop/weave.hpp` `quit`, `open_maker_pane`, `save_maker_pane`,
-`discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`;
-`workshop/screen.hpp` `kPaneWallKey`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
-the maker saves or discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to
-its file, and closes a pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a
-malformed file cannot replace a live definition, and a refused file is never written over"`.
+`discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`, `pane_path`, `host_pane_path`;
+`workshop/screen.hpp` `kPaneWallKey`; `workshop/pane_definition_persist.hpp` `LoadedDefinition`;
+`workshop/panel.hpp` `maker`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-14: dirty
+pane truth refuses the quit, a second new pane and a replacing open until the maker saves or
+discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its file, and closes a
+pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a malformed file cannot
+replace a live definition, and a refused file is never written over"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-09 — Startup order is the relaunch story
@@ -143,11 +145,11 @@ MEANS
 - an office in the maker namespace hears no `PaneRoom`, `PanePressed`, `PaneKey` or `PaneWheel`.
 
 PROVEN BY — `workshop/pane_definition_persist.hpp` `zengine-workshop-pane`, `kFormatVersion`,
-`WorkshopPaneDefinition`, `WorkshopPaneRegion`, `kMaxPaneDefinitionBytes`;
-`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-13: the pane file round-trips, refuses
-by number and by shape, and holds nothing but the definition"`, case `"WUX-14/SC-18: the
-definition and its file are structurally unable to act"`, case `"WUX-14/SC-18: loading a
-definition mounts nothing, offers nothing and sends nothing through the provider seam"`.
+`WorkshopPaneDefinition`, `WorkshopPaneRegion`, `kMaxPaneDefinitionBytes`, `kMaxRegionFileBytes`,
+`from_text`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-13: the pane file
+round-trips, refuses by number and by shape, and holds nothing but the definition"`, case
+`"WUX-14/SC-18: the definition and its file are structurally unable to act"`, case `"WUX-14/SC-18:
+loading a definition mounts nothing, offers nothing and sends nothing through the provider seam"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-11 — The Pane Creator is the maker-facing workflow
@@ -158,12 +160,12 @@ MEANS
 - `kNewRegionX/Y/W/H` are 0, 0, 24 cells, 2 cells: two tall so the face sets one row of type;
 - at the minimum composition a new pane lands `waiting`, says so, and stays the editable subject.
 
-PROVEN BY — `workshop/keymap.hpp` `kPaneNaming`; `workshop/screen.hpp` `pane_naming`;
-`workshop/weave.hpp` `new_maker_pane`, `save_maker_pane`, `discard_maker_pane_edits`;
-`workshop/pane_definition.hpp` `kNewRegionX`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14: the name prompt refuses a bad name in words and keeps it, cancels cleanly, and swallows
-its own trigger"`, case `"WUX-14: at the minimum composition a new pane lands waiting, is still
-the subject, and is still editable"`.
+PROVEN BY — `workshop/keymap.hpp` `kPaneNaming`; `workshop/screen.hpp` `pane_naming`,
+`PaneNaming`; `workshop/weave.hpp` `new_maker_pane`, `save_maker_pane`,
+`discard_maker_pane_edits`; `workshop/pane_definition.hpp` `kNewRegionX`;
+`tests/test_workshop_panels_creator.cpp` case `"WUX-14: the name prompt refuses a bad name in
+words and keeps it, cancels cleanly, and swallows its own trigger"`, case `"WUX-14: at the minimum
+composition a new pane lands waiting, is still the subject, and is still editable"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-12 — The code-backed answer is a capture

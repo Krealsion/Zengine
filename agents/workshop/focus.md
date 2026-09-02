@@ -13,10 +13,10 @@ MEANS
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
 PROVEN BY — `workshop/panel.hpp` `keyboard`, `keyboard_pane`; `workshop/screen.hpp`
-`editor_has_keyboard`, `files_has_keyboard`, `pane_editor_has_keyboard`;
-`tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external pane's room points
-the keyboard at it"`, case `"MSG-0: a press into a second external pane moves the keyboard to
-it"`, case `"MSG-0: a pane that stops being presentable stops being typed into"`.
+`editor_has_keyboard`, `files_has_keyboard`, `pane_editor_has_keyboard`; `workshop/weave.hpp`
+`keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external
+pane's room points the keyboard at it"`, case `"MSG-0: a press into a second external pane moves
+the keyboard to it"`, case `"MSG-0: a pane that stops being presentable stops being typed into"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-02 — Candidacy is declared; readiness is resolved
@@ -128,7 +128,8 @@ MEANS
 - a hidden title returns its row to the provider through the ordinary grant-on-change door.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp` `pane_titles`,
-`external_title_rows`, `header_rows`; `workshop/prefs_persist.hpp` `kTitlesDefaultValue`;
+`external_title_rows`, `header_rows`; `workshop/prefs_persist.hpp` `kTitlesDefaultValue`,
+`kTitlesDefault`; `workshop/weave.hpp` `prefs_path`, `load_prefs`, `prefs_loaded_`, `prefs_bad_`;
 `tests/test_workshop_document.cpp` case `"WUX-1/SC-5: pane titles are one action, one binding
 truth, one dispatch"`, case `"WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane
 keeps its own"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a toggle writes the

@@ -13,11 +13,11 @@ MEANS
 - the Terminal overlay outranks panels for the pointer too, and by a wider rule.
 
 PROVEN BY — `workshop/screen.hpp` `paint`, `paint_panels`, `paint_pane_affordances`,
-`band_region`; `workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: an overlapping pane is painted where it is hit, in both front orders"`, case `"the
-terminal overlay outranks panels for the pointer too, and by a wider rule"`;
-`tests/test_workshop_panes_seam.cpp` case `"WIND-2a: an external pane's own text cannot bury the
-surface that recovers it"`.
+`band_region`, `on_own_layer`; `workshop/setup.hpp` `effective_pane_order`;
+`tests/test_workshop_screen.cpp` case `"WIND-2a: an overlapping pane is painted where it is hit,
+in both front orders"`, case `"the terminal overlay outranks panels for the pointer too, and by a
+wider rule"`; `tests/test_workshop_panes_seam.cpp` case `"WIND-2a: an external pane's own text
+cannot bury the surface that recovers it"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
 ## WL-FRONT-02 — The foot band is in front of the panes and owns no pointer space

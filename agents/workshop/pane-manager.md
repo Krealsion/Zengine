@@ -13,12 +13,12 @@ MEANS
 - `kPickerNameCols` is thirteen so `Pane Manager` fits; a name must be strictly shorter than it.
 
 PROVEN BY — `workshop/panel.hpp` `kPaneEditor`, `pane-editor`, `kPanelCatalog`;
-`workshop/keymap.hpp` `pane-editor`; `workshop/screen.hpp` `kPickerNameCols`;
+`workshop/keymap.hpp` `pane-editor`; `workshop/screen.hpp` `kPickerNameCols`, `picker_entry_text`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-2: the WUX-13 surface is the Pane
 Manager, and its durable key did not move"`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2:
 the Pane Editor is a built-in, and its list is the picker's population"`;
-`tests/test_workshop_screen.cpp` case `"INTR-0 bounded extension: a provider's long name is
-MARKED in the picker, not cut"`.
+`tests/test_workshop_screen.cpp` case `"INTR-0 bounded extension: a provider's long name is MARKED
+in the picker, not cut"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-02 — The subject is a `PaneRef` on the session, never derived from the selection
@@ -29,12 +29,12 @@ MEANS
 - that is what lets the manager be its own subject: choose it, type into its `X`, and it moves;
 - it is not persisted: a subject is interaction state, not a preference riding an artifact.
 
-PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `pane_editor`;
-`workshop/weave.hpp` `choose_subject`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the
-subject is chosen, and interacting inside the editor does not retarget it"`, case
-`"WUX-13/SC-15: the Pane Editor can be its own subject, and its own rows do not retarget it"`,
-case `"WUX-13/SC-13: a Pane Editor edit survives a restart through the session, and the subject
-does not"`.
+PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `pane_editor`; `workshop/weave.hpp`
+`choose_subject`, `pane_editor_press`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the
+subject is chosen, and interacting inside the editor does not retarget it"`, case `"WUX-13/SC-15:
+the Pane Editor can be its own subject, and its own rows do not retarget it"`, case
+`"WUX-13/SC-13: a Pane Editor edit survives a restart through the session, and the subject does
+not"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-03 — The subject stands, and one rule clears it
@@ -59,10 +59,11 @@ MEANS
 - rows close over the session and the subject, rebuilt only when the subject changes;
 - `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
 
-PROVEN BY — `workshop/screen.hpp` `paint_pane_editor`, `Row::section`; `workshop/setup.hpp`
-`inventory_rows`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a
-built-in, and its list is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows
-say identity, then AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
+PROVEN BY — `workshop/screen.hpp` `paint_pane_editor`, `pane_editor_rows`; `workshop/setup.hpp`
+`inventory_rows`; `workshop/property.hpp` `section`; `workshop/weave.hpp` `rebuild_subject_rows`;
+`tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a built-in, and its list
+is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows say identity, then
+AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door
@@ -92,10 +93,10 @@ MEANS
 - `pane_geometry_typeable` is the arrangement's admission less one refusal: off-room is typeable.
 
 PROVEN BY — `workshop/screen.hpp` `parse_face_amount`, `subs_of_device_amount`,
-`pane_geometry_typeable`, `geometry_unit`; `surface/region.hpp` `device_of_subs`;
+`pane_geometry_typeable`, `geometry_unit`, `FaceAmount`; `surface/region.hpp` `device_of_subs`;
 `tests/test_workshop_panels.cpp` case `"WUX-13: a typed amount is read and written in the face's
-own unit"`, case `"WUX-13/SC-7: a typed value that is not admissible is refused, and the
-authored row is untouched"`.
+own unit"`, case `"WUX-13/SC-7: a typed value that is not admissible is refused, and the authored
+row is untouched"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-07 — `kDraft` is one context for two inspectors

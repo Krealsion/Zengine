@@ -534,7 +534,6 @@ public:
     }
 
     // ---- Movement. Plain movement COLLAPSES a selection; select_ variants EXTEND one. --
-    // WL-EDIT-02 -- agents/workshop/editor.md
 
     void left() noexcept {
         if (has_selection()) {

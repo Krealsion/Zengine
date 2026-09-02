@@ -28,10 +28,10 @@ MEANS
 - the falsifier: the project and the workspace both hold `src/example.cpp` with different bytes.
 
 PROVEN BY — `workshop/recipe_persist.hpp` `artifact_dir`, `workspace`, `complete_recipes`;
-`workshop/recipes.hpp` `complete_recipes`, `install_recipes`; `tests/test_workshop_files.cpp`
-case `"EDIT-1: a relative recipe source is the PROJECT's file, in the editor and in the build"`,
-case `"EDIT-1: the editor opens the file that recipe's build would compile"`, case `"PROJ-1: a
-catalog's own directory is not a source base"`.
+`workshop/recipes.hpp` `complete_recipes`, `install_recipes`; `workshop/weave.hpp` `RecipeSource`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: a relative recipe source is the PROJECT's file, in
+the editor and in the build"`, case `"EDIT-1: the editor opens the file that recipe's build would
+compile"`, case `"PROJ-1: a catalog's own directory is not a source base"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
@@ -67,11 +67,11 @@ DOES NOT MEAN
 - that a catalog has another road in — `install_recipes` is the one seam, at startup and live.
 
 PROVEN BY — `workshop/recipes.hpp` `install_recipes`, `hold`; `workshop/weave.hpp`
-`use_recipes`; `workshop/workshop.cpp` `install_recipes`, `use_recipes`;
-`tests/test_workshop_files.cpp` case `"PROJ-0/PROJ-1: one completed catalog, installed through
-one seam"`, case `"PROJ-1: installing a catalog moves its source, its rows and its views
-together"`, case `"PROJ-1: a candidate that cannot be read installs nothing at all"`, case
-`"PROJ-1: a valid EMPTY catalog is a replacement, not a failure"`.
+`use_recipes`; `workshop/workshop.cpp` `install_recipes`, `use_recipes`, `recipes`;
+`workshop/recipe_persist.hpp` `from_text`; `tests/test_workshop_files.cpp` case `"PROJ-0/PROJ-1:
+one completed catalog, installed through one seam"`, case `"PROJ-1: installing a catalog moves its
+source, its rows and its views together"`, case `"PROJ-1: a candidate that cannot be read installs
+nothing at all"`, case `"PROJ-1: a valid EMPTY catalog is a replacement, not a failure"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-05 — The first live chooser is `files.use-recipes`
@@ -96,7 +96,7 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 
 LAW — `on(RecipeCatalog)` follows the chosen recipe by name to its new row, `picked` intact, and releases it when the identity is gone; no fallback to an index, stem or nearest name.
 
-PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`; `workshop/panel.hpp` `picked`;
+PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`, `on`; `workshop/panel.hpp` `picked`;
 `tests/test_workshop_panels.cpp` case `"PROJ-1: a reordered catalog moves the maker's choice to
 its recipe, not its row"`, case `"PROJ-1: a choice whose recipe is gone is cleared, not handed to
 its neighbour"`, case `"PROJ-1: an emptied catalog leaves no selection standing"`.
@@ -123,10 +123,10 @@ MEANS
 - a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
 - it changes no stored identity, and no pane widens to avoid a cut.
 
-PROVEN BY — `workshop/screen.hpp` `fit_path`, `path_root_cue`; `tests/test_workshop_files.cpp`
-case `"PROJ-2: fitting a path keeps the end that says which file it is"`;
-`tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is scrolled at
-all"`.
+PROVEN BY — `workshop/screen.hpp` `fit_path`, `path_root_cue`, `files_header_prefix`;
+`tests/test_workshop_files.cpp` case `"PROJ-2: fitting a path keeps the end that says which file
+it is"`; `tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is
+scrolled at all"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
 ## Do not assume

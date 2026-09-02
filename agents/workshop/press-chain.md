@@ -37,9 +37,10 @@ MEANS
 - each handler asks its own inverse: `property_row_hit`, `action_press_at`, `object_press_at`.
 
 PROVEN BY — `workshop/screen.hpp` `info_body_at`, `property_row_hit`, `action_press_at`,
-`object_press_at`; `tests/test_workshop_document.cpp` case `"QR-2: the body's resolve-and-locate
-is ONE answer, and it is the painter's"`, case `"QR-2: no press inside the Info body begins a
-workspace gesture, on any row"`.
+`object_press_at`, `terminal_input_hit`, `InfoBodyAt`, `present`, `files_row_of_body_row`;
+`tests/test_workshop_document.cpp` case `"QR-2: the body's resolve-and-locate is ONE answer, and
+it is the painter's"`, case `"QR-2: no press inside the Info body begins a workspace gesture, on
+any row"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy
@@ -50,11 +51,12 @@ MEANS
 - a new pane-internal gesture belongs in the resolved-owner arm, never above the walk;
 - a pane in front of an Info control takes the point; a pane in front of the tabs takes the press.
 
-PROVEN BY — `workshop/weave.hpp` `take_hold`, `external_press`, `info_press`;
-`workshop/screen.hpp` `occupied_at`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a
-pane in front of the Layouts pane takes the press"`, case `"WUX-12/SC-6: a pane in front of an
-Info control takes the point"`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management
-chrome gets first refusal, and a mode takes the press whole"`.
+PROVEN BY — `workshop/weave.hpp` `take_hold`, `external_press`, `info_press`, `on`;
+`workshop/screen.hpp` `occupied_at`, `kind`, `ExternalPressAt`, `external_press_at`;
+`tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
+takes the press"`, case `"WUX-12/SC-6: a pane in front of an Info control takes the point"`;
+`tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets first refusal, and a
+mode takes the press whole"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse
@@ -62,10 +64,10 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 LAW — The tab inverse is spent only once occupancy has named the Layouts pane, and its spans come from the run's own composition against the pane's body, so no unpainted tab is ever answered.
 
 PROVEN BY — `workshop/screen.hpp` `occupied_at`, `band_tab_at`, `band_status`, `layouts_body`;
-`workshop/panel.hpp` `kLayouts`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-9: a press
-answers a painted tab and nothing else on the band"`, case `"WUX-9/SC-8+SC-9: an omitted tab has
-no span and cannot be pressed"`, case `"QR-14/SC-5: no press outside the painted run reaches a
-layout"`.
+`workshop/panel.hpp` `kLayouts`; `workshop/weave.hpp` `layouts_press`;
+`tests/test_workshop_screen.cpp` case `"WUX-9/SC-9: a press answers a painted tab and nothing else
+on the band"`, case `"WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed"`, case
+`"QR-14/SC-5: no press outside the painted run reaches a layout"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-06 — A secondary press is state-local first refusal

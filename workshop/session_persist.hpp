@@ -137,7 +137,6 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
               "fields are judged against this version's shape");
 
 /// AND THE DESK'S VERSION IS PINNED HERE ON PURPOSE.
-// WL-MIG-03 -- agents/workshop/migration.md
 static_assert(setup_persist::WorkshopSetup::zen_version == 3,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
