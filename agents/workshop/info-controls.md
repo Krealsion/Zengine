@@ -5,7 +5,7 @@ per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-CTRL-01 — The third run is a footer of controls, reserved off the budget
 
-LAW — `[ Create ]` and `[ Delete ]` are two pressable rows reserved by one subtraction before either list is offered anything (`capacity - 1 - kActionRows`), anchored to the foot.
+LAW — `[ Create ]` and `[ Delete ]` are two pressable rows reserved by one subtraction from the budget before either list is offered anything, anchored to the foot.
 
 MEANS
 - spare room falls between the properties and the controls, never under the hand aiming at them;
@@ -25,6 +25,9 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 LAW — Spare rows are written blank because a region's rows are positional and the controls are at the end; `prose_row_of_action`/`action_at_prose_row` are inverses and there is no third copy.
 
+DOES NOT MEAN
+- that fewer than `capacity` rows are ever published — spare rows are blank, never absent.
+
 PROVEN BY — `workshop/screen.hpp` `prose_row_of_action`, `action_at_prose_row`;
 `tests/test_workshop_panels.cpp` case `"HD-8: the action row maps are inverses, and nothing else
 is a control"`, case `"HD-8: a resize moves the footer and changes no document and no draft"`.
@@ -32,7 +35,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-03 — Availability is two reasons, one bit, two owners
 
-LAW — `kDraftLive` is the application's (`actions_press` refuses before the operation, with `finish_draft_first()`); `kNoTarget` is the document's (the press goes through and `doc::remove` refuses).
+LAW — Two reasons, two owners: a live draft is the application's refusal, made before the operation with its own sentence; no target is the document's, the press going through and the document refusing.
 
 MEANS
 - a control never invents a reason: it defers to whoever owns the refusal;
@@ -58,7 +61,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-05 — The controls do not own the acts
 
-LAW — `actions_press` calls `create_object()` and `delete_object()`, the operations `n` and `d` are bound to, so both gestures converge on one write, one selection rule and one sentence.
+LAW — Pressing Create or Delete calls the operation `n` or `d` is bound to, so both gestures converge on one write, one selection rule and one sentence; the controls own no act.
 
 MEANS
 - there is no callback, command id or action registry — a switch over two indices of a table;
@@ -75,25 +78,26 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-CTRL-06 — The structural rows sit on a ground
 
-LAW — `PROPERTIES` is `kAccent` on `kMuted`, a pressable control `kFill` on `kMuted`, an unavailable one `kMuted` on no ground, every other row `kNone`; the capability is `SurfaceTextRow::background`.
+LAW — The properties heading is accent on muted, a pressable control fill on muted, an unavailable one muted on no ground, every other row on none; the ground is the row's own background.
 
 MEANS
 - the two consumers use one ground by agreement, not by a `kSectionGround` constant;
 - an unavailable control loses the ground entirely, so the ground means actionable, not present.
 
-PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/vocabulary.hpp` `SurfaceTextRow`,
-`background`; `tests/test_workshop_document.cpp` case `"HD-9: an available control sits on a
-ground and an unavailable one does not"`, case `"HD-9: no other row of the body was given a
-ground"`, case `"HD-9: a live draft takes the ground off BOTH controls, and gives it back"`.
+PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/vocabulary.hpp` `kAccent`, `kMuted`,
+`kFill`, `kNone`, `SurfaceTextRow`, `background`; `tests/test_workshop_document.cpp` case
+`"HD-9: an available control sits on a ground and an unavailable one does not"`, case `"HD-9: no
+other row of the body was given a ground"`, case `"HD-9: a live draft takes the ground off BOTH
+controls, and gives it back"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-07 — The ground is presentation and moved no geometry
 
-LAW — The grounded strip for prose row i is `[origin_y + i*line_px, origin_y + (i+1)*line_px)`, the identical partition `prose_row_of_pixel` inverts, and a `kTextInsetPx` margin names no control.
+LAW — The grounded strip of a prose row is exactly the pixel partition the press inverse inverts — the row's own line height from the body's origin — and the text inset margin names no control.
 
 PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/pointing.hpp` `prose_row_of_pixel`;
-`tests/test_workshop_document.cpp` case `"HD-9: the grounded strip is exactly the prose row a
-press resolves to"`, case `"HD-9: a ground changed no composition, no row index and no hit
-mapping"`, case `"HD-9: the ground reaches the whole row in a CELL medium, not just its
-characters"`.
+`surface/region.hpp` `kTextInsetPx`; `tests/test_workshop_document.cpp` case `"HD-9: the
+grounded strip is exactly the prose row a press resolves to"`, case `"HD-9: a ground changed no
+composition, no row index and no hit mapping"`, case `"HD-9: the ground reaches the whole row in
+a CELL medium, not just its characters"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`

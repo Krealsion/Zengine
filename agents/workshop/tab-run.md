@@ -29,7 +29,7 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-03 — The path is what elides
 
-LAW — `setup_link_text` fits the path (`fit_path`) against its own budget before the words; the path yields to the count and the hints, and `kSetupStatusCols` is derived from the words' own widths.
+LAW — The status fits the path against its own budget before the words: the path yields to the count and the hints, and the status column count is derived from the words' own widths.
 
 MEANS
 - a narrow row goes on distinguishing the three verdicts; which artifact it is may drop;
@@ -43,7 +43,7 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-04 — `+` is an action, not a durable pseudo-layout
 
-LAW — `+` is one cell with its own span at the end of the run: not in `layout_count`, not steppable, unknown to the session, paid for last, and it does exactly what `layout.new` does.
+LAW — `+` is one cell with its own span at the end of the run: not counted as a layout, not steppable, unknown to the session, paid for last, and it does exactly what `layout.new` does.
 
 PROVEN BY — `workshop/screen.hpp` `kLayoutCreate`, `band_status`, `layout_count`;
 `tests/test_workshop_panels.cpp` case `"WUX-11/SC-1: the `+` affordance is the pointer's spelling
@@ -53,21 +53,22 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-05 — `band_status` is the one composition both consumers spend
 
-LAW — `paint_layouts` publishes `band_status`'s `text` and `band_tab_at` answers a press out of its `tabs`, composed against `layouts_body`; `band_tab_row` says which row, or `kNoBandRow`.
+LAW — The tab run is one composition both consumers spend: the painter publishes its text and the press inverse answers out of its recorded spans, against the pane's body; it also says which row it is on.
 
 MEANS
 - narrowing the pane narrows the run; markers, reservation and `+` degrade by their own rules;
 - a tab's span is recorded as the row is written, so there is no second measurement to drift.
 
-PROVEN BY — `workshop/screen.hpp` `band_status`, `paint_layouts`, `band_tab_at`, `layouts_body`,
-`band_tab_row`, `kNoBandRow`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-7: the tab run is
-one composition on both media"`, case `"WUX-9/SC-9: a press answers a painted tab and nothing
-else on the band"`, case `"WUX-9/SC-8: the run never spends more columns than it was given"`.
+PROVEN BY — `workshop/screen.hpp` `text`, `tabs`, `band_status`, `paint_layouts`,
+`band_tab_at`, `layouts_body`, `band_tab_row`, `kNoBandRow`; `tests/test_workshop_screen.cpp`
+case `"WUX-9/SC-7: the tab run is one composition on both media"`, case `"WUX-9/SC-9: a press
+answers a painted tab and nothing else on the band"`, case `"WUX-9/SC-8: the run never spends
+more columns than it was given"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-06 — The marker brackets the live name, one cell each side
 
-LAW — `>name<` for the live layout and ` name ` for every other, said in characters; `kLayoutLiveOpen`/`kLayoutLiveClose`/`kLayoutTabPad` are `char`, so switching moves nothing to the right.
+LAW — `>name<` for the live layout and ` name ` for every other, said in characters: the markers and the pad are each one character wide, so switching moves nothing to the right.
 
 PROVEN BY — `workshop/screen.hpp` `kLayoutLiveOpen`, `kLayoutLiveClose`, `kLayoutTabPad`,
 `layout_tab_text`; `tests/test_workshop_screen.cpp` case `"QR-15/SC-2+SC-3+SC-4: every tab is one
@@ -120,27 +121,29 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-10 — A second press on the same tab renames it
 
-LAW — `TabClickMemory`/`doubles_a_tab_click` is a second record beside `ClickMemory`, sharing `kDoubleClickMs`, the arm-on-the-way-out discipline and the spend-the-arming rule.
+LAW — A tab double-click is a second click record beside the word-selecting one, sharing the interval, the arm-on-the-way-out discipline and the spend-the-arming rule.
 
 MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
 
-PROVEN BY — `workshop/screen.hpp` `TabClickMemory`, `doubles_a_tab_click`, `tab_click`;
-`tests/test_workshop_panels.cpp` case `"WUX-11/SC-3: a double-click on a tab renames THAT layout,
-and writes no file"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor
-opens on the tab's own name and writes nothing"`.
+PROVEN BY — `workshop/screen.hpp` `ClickMemory`, `TabClickMemory`, `doubles_a_tab_click`,
+`tab_click`; `workshop/interaction_time.hpp` `kDoubleClickMs`; `tests/test_workshop_panels.cpp`
+case `"WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file"`;
+`tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor opens on the tab's
+own name and writes nothing"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-11 — A press also takes hold of the tab
 
-LAW — `LayoutTabDrag` holds nothing but whether it is active, the hand always carrying `setup.active_at`; a motion re-asks the inverse against the run as painted and calls `move_layout`.
+LAW — A tab drag holds nothing but whether it is active, the hand always carrying the live layout; a motion re-asks the inverse against the run as painted and moves the layout there.
 
 MEANS
 - nothing is cached or reconciled; a release ends the gesture wherever the hand is.
 
 PROVEN BY — `workshop/screen.hpp` `LayoutTabDrag`, `tab_drag`; `workshop/weave.hpp`
-`end_held_gestures`; `workshop/setup.hpp` `move_layout`; `tests/test_workshop_panels.cpp` case
-`"WUX-11/SC-4: dragging a tab along the run reorders it and nothing else"`.
+`end_held_gestures`; `workshop/setup.hpp` `active_at`, `move_layout`;
+`tests/test_workshop_panels.cpp` case `"WUX-11/SC-4: dragging a tab along the run reorders it
+and nothing else"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-12 — A right press on a tab names it as a subject

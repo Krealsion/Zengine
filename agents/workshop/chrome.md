@@ -53,13 +53,13 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-04 — The backdrop is the border
 
-LAW — `paint_panel_frame` pushes the outer rectangle and the body region over it owns its ground (`kGroundOwn`), so the visible ring is exactly the outer rect minus `pane_inside(...).rect`.
+LAW — The frame painter pushes the outer rectangle and the body region over it owns its ground, so the visible ring is exactly the outer rectangle minus the interior; there is no border painter.
 
 MEANS
 - there is no border painter and no thickness on any paint call to get wrong;
 - a face drawing the interior in pixels leaves a one-pixel ring; in cells, a one-cell ring.
 
-PROVEN BY — `workshop/screen.hpp` `paint_panel_frame`, `kGroundOwn`;
+PROVEN BY — `workshop/screen.hpp` `pane_inside`, `paint_panel_frame`, `kGroundOwn`;
 `tests/test_workshop_screen.cpp` case `"WUX-8: the ring IS the backdrop the interior did not
 cover, on both faces"`, case `"WUX-5: the border a maker sees and the room a pane spends are one
 subtraction"`.
@@ -105,7 +105,7 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
 
-LAW — `kPaneChrome` is `kFill`, `kPaneChromeSelected` is `kAccent`, `kTransientChrome` is `kMuted`; there is no fifth role and no per-medium palette.
+LAW — Three chrome roles and no fifth: ordinary chrome wears the fill ink, selected chrome the accent ink, a transient surface the muted ink, all from the closed role vocabulary, with no per-medium palette.
 
 MEANS
 - the desk and the document say selection with one word, `kAccent`;

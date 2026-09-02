@@ -6,7 +6,7 @@ Router: [`../workshop.md`](../workshop.md). The conversion convention itself is
 
 ## WL-MIG-01 — The session reader knows one shape
 
-LAW — `session_persist` carries `kFormatVersion` and no second number; the retired shapes live in `session_history.hpp`, shipped as `zengine-workshop-session-history`, an operator provider.
+LAW — The session reader carries one format number and no second; the retired shapes live in their own history header, shipped as `zengine-workshop-session-history`, an operator provider.
 
 PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`; `workshop/session_history.hpp`
 `conversions`; `workshop/session_migration_provider.cpp` `conversions`;
@@ -18,7 +18,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-02 — A retired struct is copied verbatim, and every edge is direct
 
-LAW — `session_history::v<n>` keeps the wire identity an old file's bytes claim, every historical content id is pinned with its provenance, and `conversions()` reads `current` off the reader's schema.
+LAW — A retired shape is copied verbatim and keeps the wire identity an old file's bytes claim, every historical id is pinned with its provenance, and the catalog reads current off the reader's schema.
 
 MEANS
 - `v1` to `v6` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5` and `v5_to_v6` in C++;
@@ -89,7 +89,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-07 — A conversion cannot skip a check
 
-LAW — `current_in` is this format's whole law with two callers: off the gate, and out of a conversion's answer; `format` crosses untouched, `format_version` cannot, and `forged_version` catches a forgery.
+LAW — This format's whole law is one function with two callers — off the gate, and out of a conversion's answer — so no conversion skips a check; the format word crosses untouched, the version cannot.
 
 PROVEN BY — `workshop/session_persist.hpp` `current_in`, `forged_version`, `format_version`;
 `tests/test_workshop_persistence.cpp` case `"MIG-0: an old session's OWN law still runs -- the
@@ -99,7 +99,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-08 — The catalog reaches the reader as a reading, never a power
 
-LAW — `HostContext::conversions` is a `const op::Catalog*` the host wires, `nullptr` ordinary and what every fixture gets; nothing a holder can do mounts, loads or realizes anything.
+LAW — The conversion catalog reaches the reader as a read-only pointer the host wires — null is ordinary, and what every fixture gets — and nothing a holder can do mounts, loads or realizes anything.
 
 MEANS
 - an old file's version claim is a lookup key that reaches no load door.

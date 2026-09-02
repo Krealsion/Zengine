@@ -24,6 +24,9 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 LAW — Arrange binds the scope and selects the subject, and only after its explicit target passes admission (`enter_arrange_pane` → the target-taking `arrange_geometry_ready`).
 
+DOES NOT MEAN
+- that any other contextual action selects, binds or focuses — Arrange is the one exception.
+
 PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `spend_context_choice`;
 `workshop/screen.hpp` `arrange_geometry_ready`; `tests/test_workshop_panels.cpp` case
 `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`; `tests/test_workshop_screen.cpp`
@@ -33,19 +36,20 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-03 — The popup is local and its bounds are derived
 
-LAW — `ContextMenu` captures the press's canvas cell, and `context_bounds` re-derives the rectangle at every paint and press from the level's rows through `popup_bounds_at`, capped at `kContextMaxCols`.
+LAW — The popup remembers only the press's canvas cell; its rectangle is re-derived at every paint and press from the current level's rows, through the one popup measurer, capped at a maximum width.
 
 MEANS
 - the keyboard entrance is `anchored == false` and opens at the overlay stack's corner;
 - a group re-derives at the same anchor; a level taller than the room is cut, and says so;
 - `popup_bounds_at`: one measurer, one chrome, one clamp in the overlay band; the hotkeys use it.
 
-PROVEN BY — `workshop/context.hpp` `anchored`, `anchor_x`; `workshop/screen.hpp`
-`context_bounds`, `popup_bounds_at`, `kContextMaxCols`, `chrome_outer_of`; `surface/region.hpp`
-`region_cells_for`; `tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's
-own cell, and its extent is its content"`, case `"ARR-0: the popup shifts to stay usable inside
-the room, at every boundary"`, case `"ARR-0: the keyboard entrance has no pointer and invents
-none"`, case `"ARR-0: entering a group stays at the anchor, and the popup resizes to it"`.
+PROVEN BY — `workshop/context.hpp` `ContextMenu`, `anchored`, `anchor_x`;
+`workshop/screen.hpp` `context_bounds`, `popup_bounds_at`, `kContextMaxCols`, `chrome_outer_of`;
+`surface/region.hpp` `region_cells_for`; `tests/test_workshop_screen.cpp` case `"ARR-0: the
+popup opens at the press's own cell, and its extent is its content"`, case `"ARR-0: the popup
+shifts to stay usable inside the room, at every boundary"`, case `"ARR-0: the keyboard entrance
+has no pointer and invents none"`, case `"ARR-0: entering a group stays at the anchor, and the
+popup resizes to it"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-04 — The first row is an action
@@ -59,7 +63,7 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-05 — `kContextCatalog` declares, and owns no power
 
-LAW — Rows are `{action id, subject bits, group}` over `kActionCatalog` ids — a stale reference is a compile error — and `context_population` is the one population every consumer of the menu spends.
+LAW — The catalog declares rows — an action id, its subjects, a group — over the action catalog's ids, so a stale reference is a compile error; one population is what every consumer of the menu spends.
 
 MEANS
 - a pane's level: `arrange`, `Order >`, `Reset >`, `remove`; an object's: `object.delete`;
@@ -67,16 +71,16 @@ MEANS
 - groups are their names, and an empty group cannot exist.
 
 PROVEN BY — `workshop/context.hpp` `kContextCatalog`, `context_actions_resolve`,
-`context_population`, `kOnPane`, `kOnObject`, `kOnLayout`, `kOnRoot`;
-`tests/test_workshop_panels.cpp` case `"CTX-0: the declared populations are the researched ones,
-keyed by id"`; `tests/test_workshop_document.cpp` case `"CTX-0: the shipped catalog stays
-admissible with the new rows"`; `tests/test_workshop_screen.cpp` case `"CTX-0: an open group
-paints its own rows and its own way out"`.
+`context_population`, `kOnPane`, `kOnObject`, `kOnLayout`, `kOnRoot`; `workshop/keymap.hpp`
+`kActionCatalog`; `tests/test_workshop_panels.cpp` case `"CTX-0: the declared populations are
+the researched ones, keyed by id"`; `tests/test_workshop_document.cpp` case `"CTX-0: the shipped
+catalog stays admissible with the new rows"`; `tests/test_workshop_screen.cpp` case `"CTX-0: an
+open group paints its own rows and its own way out"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-06 — A row may teach its shortcut, and only a truthful one
 
-LAW — `context_annotation` shows an entry's effective gesture exactly when the action owns a row `active_in` the context the maker returns to; a row whose action is not `is_bound` never annotates.
+LAW — A row shows its effective gesture exactly when its action owns a binding active in the context the maker returns to; a row whose action is unbound never annotates.
 
 MEANS
 - `object.delete` is taught exactly when the captured object is the selection;

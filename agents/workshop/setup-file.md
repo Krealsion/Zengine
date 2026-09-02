@@ -5,7 +5,7 @@ One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version 3: each pane row carries a durable `PaneRef` plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
+LAW — The setup file is format version 3: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}` per axis, `front`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -63,7 +63,7 @@ WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-05 — The format version and the envelope's version are one number
 
-LAW — A `static_assert` ties `kFormatVersion` to the envelope's shape version: a wrong-version file is refused on its claim before a row is read, and `format_version` only catches forgery.
+LAW — The format version and the envelope's shape version are one number, asserted: a wrong-version file is refused on its claim before a row is read, and the in-file version only catches forgery.
 
 MEANS
 - a version-1 file can never be reported as "a pane row is missing `place`";

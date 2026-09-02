@@ -5,7 +5,7 @@ heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-ATTN-01 — An utterance and a condition are two surfaces
 
-LAW — An utterance is `Session::notice`, written by `say(text, bad)` about a moment that passed; a condition is true when read, held in `Session::conditions` or derived from a live owner.
+LAW — An utterance is a sentence about a moment that passed, held in one notice row; a condition is a fact that is true when it is read, held under a key or derived from a live owner.
 
 MEANS
 - an utterance is replaced by the next thing said and retracted no other way;
@@ -39,12 +39,13 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-04 — A derived condition stays derived
 
-LAW — `ExternalPane::refusal`, `pane_state_of` and `ProjectFrontier` are correct by construction and never copied into `HeldConditions`; a pane's next valid content clears its refusal with no retraction call.
+LAW — A condition derived from a live owner — a pane's refusal, a pane's state, the project frontier — is never copied into the held set; the owner's next truth clears it with no retraction call.
 
-PROVEN BY — `workshop/panel.hpp` `refusal_why`; `workshop/screen.hpp` `pane_state_of`;
-`workshop/attention.hpp` `ProjectFrontier`, `HeldConditions`; `tests/test_workshop_panels.cpp`
-case `"WUX-4: a derived condition enters and leaves attention with its subject"`, case `"WUX-4:
-the project frontier is a condition while it waits and nothing after"`.
+PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`;
+`workshop/screen.hpp` `pane_state_of`; `workshop/attention.hpp` `ProjectFrontier`,
+`HeldConditions`; `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and
+leaves attention with its subject"`, case `"WUX-4: the project frontier is a condition while it
+waits and nothing after"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — Three pane states earn ambient attention and four do not
@@ -78,7 +79,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-08 — Dismissal is scoped to the statement, not the key
 
-LAW — `AttentionView::dismissed` holds `{key, stamp}`, and `Condition::stamp()` is an opaque token over compact, detail, role and action, so a condition whose content moves is visible again unasked.
+LAW — A dismissal remembers the key and a stamp of the statement — compact, detail, role and action — so a condition whose content moves is visible again with nobody clearing anything.
 
 MEANS
 - session-only, never persisted; dismiss is not resolve and changes no underlying truth.
@@ -91,7 +92,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-09 — `KeyContext::kAttention` is a mode in the picker's place
 
-LAW — It sits below the Terminal and the arrangement scopes and above a focused pane and a live draft, not keys-modal because its gestures are catalog rows; `workshop.attention` is `kNoText` on `^a`.
+LAW — A mode in the picker's place, below the Terminal and the arrangement scopes and above a focused pane and a live draft; not keys-modal, its gestures being catalog rows; its toggle is a no-text row.
 
 PROVEN BY — `workshop/keymap.hpp` `kAttention`, `workshop.attention`, `kNoText`;
 `workshop/screen.hpp` `keyboard_context_beneath_menu`; `tests/test_workshop_panels.cpp` case
@@ -100,11 +101,11 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-10 — A condition names an action and holds no power
 
-LAW — `Condition::action` is an `ActionRow::id` or nothing, painted through the effective keymap; nothing may open the view but a maker's gesture, and no severity or count reaches `toggle_attention`.
+LAW — A condition names an action by its catalog id or names nothing, painted through the effective keymap; nothing may open the view but a maker's gesture, and no severity or count reaches the toggle.
 
 PROVEN BY — `workshop/attention.hpp` `action`; `workshop/weave.hpp` `toggle_attention`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: a condition names an action and cannot execute
-one"`, case `"WUX-4: an alert condition opens nothing"`.
+`workshop/keymap.hpp` `ActionRow`; `tests/test_workshop_panels.cpp` case `"WUX-4: a condition
+names an action and cannot execute one"`, case `"WUX-4: an alert condition opens nothing"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-11 — The condition path touches neither the Recorder nor the Logger

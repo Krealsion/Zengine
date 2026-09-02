@@ -56,7 +56,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
 
-LAW — `read_command_line` says which slot the maker is standing in (verb, address, shape, version, arguments), and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
+LAW — The completer reads which slot the maker is standing in — verb, address, shape, version, arguments — and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
 
 MEANS
 - an address offers three forms and never pretends to know the values;

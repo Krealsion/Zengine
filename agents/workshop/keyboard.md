@@ -22,7 +22,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-02 — `Session::keymap` is the effective truth, and no surface spells a literal
 
-LAW — Dispatch, every help surface and persistence read `Session::keymap`; every hint is a projection through `hotkey_text`/`gesture_text`, never a string literal.
+LAW — Dispatch, every help surface and persistence read the one effective keymap on the session; every hint is a projection through the keymap's spelling functions, never a string literal.
 
 MEANS
 - the band rows, title hints, mode headings, the terminal header and prompt, the boot line;
@@ -37,7 +37,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-03 — `keyboard_context` is the routing chain, spelled once
 
-LAW — The terminal, the arrangement scope, the contextual surface, then `keyboard_context_beneath_menu`; `on(KeyPressed)`, `on(TextEntered)` and `paste_owner_now()` all switch on it.
+LAW — The routing chain is spelled once — the terminal, the arrangement scope, the contextual surface, then what lies beneath the menu — and the key, text and paste-owner handlers all switch on it.
 
 MEANS
 - `context_takes_text(ctx)` replaced the old hand-kept mirror;
@@ -62,7 +62,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-05 — Three declaration-only activity classes
 
-LAW — `kGlobal` rows answer above every mode, `kNoText` rows where no editable text has the keyboard, `kNoEditor` everywhere but the source editor; only these are answered by `above_mode_action`.
+LAW — Three declaration-only classes: global rows above every mode, no-text rows exactly where no editable text has the keys, no-editor rows everywhere but the editor; nothing else answers above a mode.
 
 MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
@@ -79,7 +79,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
 
-LAW — Identities are kept across migrations (`workshop.manage`, `manage.next`/`previous`, the order and reset family); a retired id's authored row is preserved byte-for-byte as unknown.
+LAW — An action's identity is kept across migrations, however its rows move; a retired id's authored row is preserved byte-for-byte as unknown.
 
 MEANS
 - `manage.arrange` was added; `manage.move`, `manage.size` and `manage.edge` are retired;
@@ -122,7 +122,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
 
-LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every band row after the notice; hidden blanks them, reclaims no geometry and unbinds nothing.
+LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every band row after the notice and nothing else; hidden blanks them, reclaims no geometry and unbinds nothing.
 
 MEANS
 - the full rows fold four families exactly while every member sits on its default (`help_pairs`);
@@ -136,7 +136,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-10 — The hotkey view opens beside the selected pane and fits what it says
 
-LAW — `hotkeys_bounds` anchors at the selected pane's visible outer top-left and sizes from `hotkeys_rows` through `popup_bounds_at`; with no anchor it opens at `overlay_column(sc)`'s corner.
+LAW — The hotkey view anchors at the selected pane's visible outer top-left and is sized from its own rows through the one popup measurer; with no anchor it opens at the overlay column's corner.
 
 MEANS
 - it is derived at every paint and press and stored nowhere;
@@ -181,16 +181,17 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-13 — A row may answer to no key at all
 
-LAW — `layout.rename`, `layout.duplicate`, `layout.move-left` and `layout.move-right` declare `kNoGesture` (`scan::kUnknown`), and `is_bound` guards dispatch, admission and every spelling.
+LAW — A row may declare no default gesture — rename, duplicate, move left and move right of a layout do — and one bound-or-not test guards dispatch, admission and every spelling.
 
 MEANS
 - `gesture_text` answers `unbound`, so no surface teaches a key that does not exist;
 - a maker may still bind any of them, and then every surface spells it.
 
-PROVEN BY — `workshop/keymap.hpp` `kNoGesture`, `scan::kUnknown`, `is_bound`, `gesture_text`,
-`layout.rename`; `tests/test_workshop_document.cpp` case `"WUX-11: an action with no default
-gesture answers to no key, and says so"`; `tests/test_workshop_screen.cpp` case `"ARR-0:
-shortcut annotations teach only truthful surrounding bindings"`.
+PROVEN BY — `workshop/keymap.hpp` `layout.duplicate`, `layout.move-left`, `layout.move-right`,
+`kNoGesture`, `scan::kUnknown`, `is_bound`, `gesture_text`, `layout.rename`;
+`tests/test_workshop_document.cpp` case `"WUX-11: an action with no default gesture answers to
+no key, and says so"`; `tests/test_workshop_screen.cpp` case `"ARR-0: shortcut annotations teach
+only truthful surrounding bindings"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## Do not assume

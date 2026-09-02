@@ -7,7 +7,7 @@ over, and the seven states. One law per heading; cite by ID. Router:
 
 ## WL-PANE-01 — Three places, and only one of them is the screen's
 
-LAW — `kSideRegion` is the screen's, place-fixed with no override; `kOverlayStack` and `kTopBand` are the maker's. `place_is_authorable(where)` is that exclusion, and every consumer asks it.
+LAW — Three places: the side region is the screen's, place-fixed with no override; the overlay stack and the top band are the maker's. One predicate is that exclusion, and every consumer asks it.
 
 MEANS
 - `project_pane`'s gate, `take_pane_hold` and `paint_pane_affordances` spend one sentence;
@@ -50,7 +50,7 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-05 — Every cell a slot gains is paint and pointer alike
 
-LAW — `paint_panel_frame` fills the whole rectangle, `occupied_at` owns it, and a press inside it is answered with the panel's sentence rather than reaching `take_hold`.
+LAW — The frame painter fills the whole rectangle, occupancy owns all of it, and a press inside it is answered with the panel's sentence rather than reaching the workspace.
 
 MEANS
 - a drag begun on the workspace still walks under the panel and releases normally;
@@ -64,7 +64,7 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
 
-LAW — Workshop's body for an external pane is `external_body_place`, the slot less its header rows, and `refresh_external_rooms` grants `fit_region`'s answer over it whenever that body changes.
+LAW — Workshop's body for an external pane is its slot less its header rows, and the fitted room over that body is granted to the provider whenever the body changes.
 
 MEANS
 - a dragged edge, a widened room and a hidden title all reach the provider by this one door;
@@ -78,7 +78,7 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-07 — `panels.open` is never reordered
 
-LAW — `seat_panes` walks the setup list, `reconcile` assigns `panels.open` from that answer, and `bounds_of` counts a reactive slot over `panels.open`; no ordering operation writes what they read.
+LAW — The open list is seated by walking the setup list in the setup's order, and a reactive slot is counted over that same list; no ordering operation writes what seating and slot-counting read.
 
 MEANS
 - that is the whole of "raising a pane cannot move it";

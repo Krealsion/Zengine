@@ -215,7 +215,7 @@ WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-17 — The workspace is the root frame
 
-LAW — `adopt_screen` refits the workspace to the room and says whether anything moved; `workspace.narrower`/`wider` (`[`/`]`) resize it; a share follows it and a cells extent does not.
+LAW — Taking the room refits the workspace and says whether anything moved; the narrow and widen actions (`[`/`]`) resize it; a share follows the workspace and a cells extent does not.
 
 MEANS
 - a maker's authored work keeps its place while the surface grows;

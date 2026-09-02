@@ -5,7 +5,7 @@ per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-PED-01 — The Pane Manager is the built-in whose subject is a pane
 
-LAW — `panel::kPaneEditor` (`pane-editor`, keyboard-taking) is the built-in whose subject is an ordinary Workshop pane; its maker-facing name is `Pane Manager`, and its symbols, key and ids are unchanged.
+LAW — The Pane Manager is the keyboard-taking built-in whose subject is an ordinary Workshop pane; its durable key is `pane-editor`, and its symbols, key and ids are the older name's, unchanged.
 
 MEANS
 - a key is a promise to every file that names it; the symbols and ids are history, not product;
@@ -53,7 +53,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-04 — Every row reads fresh and nothing writes on paint
 
-LAW — The `PANES` list is `inventory_rows`, read fresh at every paint and gesture; every row reads fresh and nothing writes on paint; `Row::section` is the one widening of the row vocabulary.
+LAW — The panes list is the picker's own population, read fresh at every paint and gesture; every row reads fresh and nothing writes on paint; a section heading is the one widening of the row vocabulary.
 
 MEANS
 - rows close over the session and the subject, rebuilt only when the subject changes;
@@ -67,7 +67,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door
 
-LAW — `write_pane_axis` goes to `author_pane_window` (or a reset door for `-`), order keys spend `spend_pane_action`, `o` spends `toggle_participation`, and a place write reseats via `apply_setup`.
+LAW — No door of its own: a typed axis goes through the gesture door (a reset door for `-`), the order keys through the contextual seam, participation through the picker's toggle, a place through reseating.
 
 MEANS
 - there is no `PaneEditor` setter and no rectangle held anywhere;
@@ -76,30 +76,31 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `write_pane_axis`, `editing_key`, `pane_window_base`;
 `workshop/setup.hpp` `author_pane_window`, `reset_pane_place`, `managed_window_base`;
-`workshop/weave.hpp` `spend_pane_action`, `toggle_participation`, `choose_panel`;
-`tests/test_workshop_panels.cpp` case `"WUX-13/SC-6+SC-11: a typed place moves Layouts through the
-gesture door, and its tabs follow"`, case `"WUX-13/SC-6: a typed place reseats the stack through
-`apply_setup`"`, case `"WUX-13/SC-12: moving, resizing and closing Layouts through the editor
-leaves the reservation alone"`.
+`workshop/weave.hpp` `apply_setup`, `spend_pane_action`, `toggle_participation`, `choose_panel`;
+`tests/test_workshop_panels.cpp` case `"WUX-13/SC-6+SC-11: a typed place moves Layouts through
+the gesture door, and its tabs follow"`, case `"WUX-13/SC-6: a typed place reseats the stack
+through `apply_setup`"`, case `"WUX-13/SC-12: moving, resizing and closing Layouts through the
+editor leaves the reservation alone"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-06 — A typed value is refused, never clamped
 
-LAW — `parse_face_amount` reads a whole number in the face's unit and refuses the other face's word rather than converting it; `subs_of_device_amount` inverts `device_of_subs` on that grain, a ceiling.
+LAW — A typed amount is a whole number in the face's own unit, refused and never clamped: the other face's word is refused rather than converted, and the inverse to sub-units on that grain is a ceiling.
 
 MEANS
 - the setup's own checks then judge the fine value; the draft stays open with the maker's text;
 - `pane_geometry_typeable` is the arrangement's admission less one refusal: off-room is typeable.
 
 PROVEN BY — `workshop/screen.hpp` `parse_face_amount`, `subs_of_device_amount`,
-`pane_geometry_typeable`, `geometry_unit`; `tests/test_workshop_panels.cpp` case `"WUX-13: a typed
-amount is read and written in the face's own unit"`, case `"WUX-13/SC-7: a typed value that is
-not admissible is refused, and the authored row is untouched"`.
+`pane_geometry_typeable`, `geometry_unit`; `surface/region.hpp` `device_of_subs`;
+`tests/test_workshop_panels.cpp` case `"WUX-13: a typed amount is read and written in the face's
+own unit"`, case `"WUX-13/SC-7: a typed value that is not admissible is refused, and the
+authored row is untouched"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-07 — `kDraft` is one context for two inspectors
 
-LAW — `keyboard_context_beneath_menu` answers `kPaneEditor` while the manager holds the keys and `kDraft` while one of its rows is editing; `editing_row()` resolves the draft under the keys by the same chain.
+LAW — The manager's draft shares Info's draft context — one context for two inspectors — and the draft under the keys is resolved by the same chain, so a change of document selection cannot touch it.
 
 MEANS
 - `draft_live` and `pane_editor_draft_live` are two questions; Info's refusals skip the manager.

@@ -90,18 +90,19 @@ WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-06 — Pane rectangles are sub-units of the canvas lattice
 
-LAW — A pane rectangle is a `FineRect` in 1/`kCellSubs` (48) of a cell, a type distinct from `ui::Rect`; a cell value enters the lattice by one multiply at `project_pane`.
+LAW — A pane rectangle is a fine rectangle in sub-units of a cell, 48 to the cell, a type distinct from the cell rectangle; a cell value enters the lattice by one multiply, at projection.
 
 MEANS
 - conversion is only `fine_of_cells` / `cells_covered`; nothing passes through `workspace_cell_x`;
 - screen furniture, the document and every placement default stay whole cells;
 - a one-pixel drag moves a pane by exactly one pixel of lattice; the file keeps every sub-unit.
 
-PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`, `project_pane`,
-`workspace_cell_x`; `surface/vocabulary.hpp` `kCellSubs`; `tests/test_workshop_screen.cpp` case
-`"WUX-2: a one-pixel drag moves a pane by exactly one pixel of lattice"`, case `"WUX-2: fine
-geometry survives the setup file without losing a sub-unit"`; `tests/test_surface.cpp` case
-`"WUX-2: the sub-cell conversions are exact, floored, and total"`.
+PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`,
+`project_pane`, `workspace_cell_x`; `surface/vocabulary.hpp` `Rect`, `kCellSubs`;
+`tests/test_workshop_screen.cpp` case `"WUX-2: a one-pixel drag moves a pane by exactly one
+pixel of lattice"`, case `"WUX-2: fine geometry survives the setup file without losing a
+sub-unit"`; `tests/test_surface.cpp` case `"WUX-2: the sub-cell conversions are exact, floored,
+and total"`.
 WHY — `agents/decisions/the-fine-lattice.md`
 
 ## WL-GEO-07 — One quantization law, every consumer, every grain
@@ -138,10 +139,10 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-09 — Geometry is spelled in the face's unit by one derivation
 
-LAW — A pane's geometry is spelled by `geometry_unit`, `geometry_spelling`, `geometry_amount_text`, `fine_rect_text` and `pane_window_text`, over `surface::device_of_subs`.
+LAW — A pane's geometry has one spelling path — one unit, one amount, one rect — with no per-medium table and no second conversion constant.
 
 MEANS
-- there is no unit type, no per-medium table and no second conversion constant in Workshop;
+- there is no unit type in Workshop;
 - an axis authored in `pixels` keeps its own inline `px` whatever the face (`483x220px px`).
 
 PROVEN BY — `workshop/screen.hpp` `geometry_unit`, `geometry_spelling`, `geometry_amount_text`,
@@ -185,7 +186,7 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-12 — The notice says where an unplaced pane actually is
 
-LAW — A pane with a reactive axis reads `-` for that axis, followed by ` -- now @x,y WxH <unit>` from `managed_bounds().resolved`; a fully authored window carries no such clause.
+LAW — A pane with a reactive axis reads `-` for that axis, followed by ` -- now @x,y WxH <unit>` taken from the resolved, unclipped window; a fully authored window carries no such clause.
 
 MEANS
 - the clause names the unclipped ask — the rectangle a gesture measures from.

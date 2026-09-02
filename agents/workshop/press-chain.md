@@ -59,12 +59,13 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse
 
-LAW — It is spent only once `occupied_at` has named `panel::kLayouts`, and its spans come from `band_status`'s own composition against `layouts_body`, so no unpainted tab is ever answered.
+LAW — The tab inverse is spent only once occupancy has named the Layouts pane, and its spans come from the run's own composition against the pane's body, so no unpainted tab is ever answered.
 
-PROVEN BY — `workshop/screen.hpp` `band_tab_at`, `band_status`, `layouts_body`;
-`tests/test_workshop_screen.cpp` case `"WUX-9/SC-9: a press answers a painted tab and nothing
-else on the band"`, case `"WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed"`,
-case `"QR-14/SC-5: no press outside the painted run reaches a layout"`.
+PROVEN BY — `workshop/screen.hpp` `occupied_at`, `band_tab_at`, `band_status`, `layouts_body`;
+`workshop/panel.hpp` `kLayouts`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-9: a press
+answers a painted tab and nothing else on the band"`, case `"WUX-9/SC-8+SC-9: an omitted tab has
+no span and cannot be pressed"`, case `"QR-14/SC-5: no press outside the painted run reaches a
+layout"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-06 — A secondary press is state-local first refusal

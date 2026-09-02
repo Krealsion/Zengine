@@ -5,21 +5,22 @@ Register `WL-LAYOUT`: several desks, one of them live. One law per heading; cite
 
 ## WL-LAYOUT-01 — A layout is a desk plus its optional relationship to one Setup file
 
-LAW — `SetupState` holds `active` (the live `Setup` every consumer reads), `active_link`, `shelved` (the inactive `Layout`s, values only), `active_at` (its position) and `naming` (the rename editor).
+LAW — The setup state is the live desk every consumer reads, its association, the shelf of inactive layouts as values only, the live one's position, and the rename editor; a layout is a desk plus its link.
 
 MEANS
 - no panel, provider, room or selection belongs to a shelved layout;
 - `Layout` is desk + link, one struct rather than two parallel vectors whose indices could drift.
 
-PROVEN BY — `workshop/setup.hpp` `SetupState`, `active_link`, `shelved`, `active_at`, `naming`,
-`Layout`, `SetupLink`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-2: a layout is a Setup and
-the run is the shelf plus the live value"`; `tests/test_workshop_persistence.cpp` case
-`"WUX-10/SC-9: the run and the lifted-active representation are one fact"`.
+PROVEN BY — `workshop/setup.hpp` `Setup`, `active`, `SetupState`, `active_link`, `shelved`,
+`active_at`, `naming`, `Layout`, `SetupLink`; `tests/test_workshop_screen.cpp` case
+`"WUX-9/SC-2: a layout is a Setup and the run is the shelf plus the live value"`;
+`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the lifted-active
+representation are one fact"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-02 — There is no `on_file` and no `saved()`
 
-LAW — Every layout owns its own association, `link_status(desk, link)` is the one place `none`/`current`/`modified` is decided, and it is a claim about Workshop's knowledge, never the disk.
+LAW — Every layout owns its own association, one function decides the verdict — `none`, `current` or `modified` — and the verdict is a claim about Workshop's knowledge, never the disk.
 
 MEANS
 - no stat, no reload, no watcher: a paint path never goes near a filesystem.
@@ -32,23 +33,23 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-03 — The run is the shelf with one element lifted out
 
-LAW — `activate_layout` puts the lifted value back at `active_at`, takes out the destination and moves nothing else, never a swap; `add_layout` appends a blank desk; `remove_layout` takes the next neighbour.
+LAW — Activating puts the lifted value back at its position, takes out the destination and moves nothing else, never a swap; adding appends a blank desk; removing takes the next neighbour.
 
 MEANS
 - a swap reorders the run at every look: green on the first hop, red on the second;
 - `add_layout` makes `default_setup()` with no association: new means new;
 - removing the last layout takes the previous neighbour instead.
 
-PROVEN BY — `workshop/setup.hpp` `activate_layout`, `add_layout`, `remove_layout`,
-`default_setup`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching never reorders the
-run, and the live value never doubles"`, case `"WUX-11/SC-1: new is BLANK and appended, and it
-is a value of its own"`, case `"WUX-9/SC-11: removing takes the next neighbour, the previous only
-at the end"`.
+PROVEN BY — `workshop/setup.hpp` `active_at`, `activate_layout`, `add_layout`,
+`remove_layout`, `default_setup`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching
+never reorders the run, and the live value never doubles"`, case `"WUX-11/SC-1: new is BLANK and
+appended, and it is a value of its own"`, case `"WUX-9/SC-11: removing takes the next neighbour,
+the previous only at the end"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-04 — Duplicate copies the desk and clears the association
 
-LAW — `duplicate_layout` copies the desk, inserts after its source, makes it live and always clears the association; `move_layout` changes order only; `rename_layout` writes one name and no file.
+LAW — Duplicating copies the desk, inserts after its source, makes it live and always clears the association; moving changes order only; renaming writes one name and no file.
 
 MEANS
 - the copy keeps the name: duplicate names are legal, and position is the identity;
@@ -63,7 +64,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-05 — A switch is `restore_setup` minus the file read
 
-LAW — `switch_layout` calls `activate_layout`, then `apply_setup`, then says one sentence and repaints; `apply_setup` remains the one door membership changes through, so a switch behaves exactly as a restore.
+LAW — A switch activates, then applies the desk through the one door membership changes through, then says one sentence and repaints — a restore minus the file read, so it behaves exactly as a restore.
 
 PROVEN BY — `workshop/weave.hpp` `switch_layout`, `apply_setup`; `workshop/setup.hpp`
 `activate_layout`; `tests/test_workshop_panels.cpp` case `"WUX-9/SC-4: a switch returns
@@ -120,7 +121,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-10 — Renaming is a layout operation; saving is a file operation
 
-LAW — `layout.rename` writes no file; `setup.name` writes the active layout's desk and names nothing; `setup.restore` reads into the active layout; the association follows a success, never an intention.
+LAW — Renaming writes no file; saving writes the active layout's desk and names nothing; restoring reads into the active layout only; the association follows a success, never an intention.
 
 MEANS
 - both file gestures act on the active layout's association, else on the host's `--setup` path;
@@ -138,6 +139,9 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 LAW — When Workshop successfully learns what a Setup file holds, `adopt_known_setup` updates the baseline of every association to that path, compared by bytes, and establishes nothing elsewhere.
 
+DOES NOT MEAN
+- that a path is canonicalised before it is compared — associations compare by bytes.
+
 PROVEN BY — `workshop/setup.hpp` `adopt_known_setup`; `tests/test_workshop_persistence.cpp` case
 `"WUX-11/SC-12: two layouts sharing one artifact cannot both claim `current`"`;
 `tests/test_workshop_screen.cpp` case `"WUX-11/SC-6+SC-12: switching carries the association,
@@ -146,9 +150,9 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-12 — The run leaves the state through one inverse pair
 
-LAW — `layout_run(const SetupState&)` answers a new vector with the live value back at `active_at`, and `install_layout_run` lifts one back out; the durable owner never touches `shelved` or `active_at`.
+LAW — The run leaves the state as a new vector with the live value back in place and returns by lifting one out again, one inverse pair; the durable owner never touches the shelf or the position.
 
-PROVEN BY — `workshop/setup.hpp` `layout_run`, `install_layout_run`;
+PROVEN BY — `workshop/setup.hpp` `shelved`, `active_at`, `layout_run`, `install_layout_run`;
 `workshop/session_persist.hpp` `layout_run`, `install_layout_run`;
 `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the lifted-active
 representation are one fact"`, case `"WUX-10/SC-9: installing a run touches nothing else the

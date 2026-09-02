@@ -49,7 +49,7 @@ WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-04 — The Terminal's capacity is never guessed
 
-LAW — The Terminal's capacity is `terminal_input_place(sc).columns`, what the painter cuts by and a press is answered against; `refresh_terminal` reconciles the window once per repaint, above `attached`.
+LAW — The capacity is never guessed: it is the input place's columns, what the painter cuts by and a press is answered against; the window is reconciled once per repaint, above the participant check.
 
 MEANS
 - a resize needs no path of its own, because a new extent causes a repaint;
@@ -64,23 +64,23 @@ WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-05 — The left edge snaps forwards, the right cut is a byte cut
 
-LAW — The left edge snaps forwards (`character_boundary_at_or_after`), the right-hand cut is a byte cut as `detail::fit`'s is, and `kTerminalCaretCols` reserves one column the line may not use, on both media.
+LAW — The left edge snaps forwards to a character boundary, the right-hand cut is a byte cut as every fitted row's is, and one column the line may not use is reserved for the caret, on both media.
 
 MEANS
 - snapping backwards would carry the right edge back and push the caret off its row;
 - a caret is between characters, so the one after a full row needs somewhere to be.
 
 PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`; `workshop/screen.hpp`
-`kTerminalCaretCols`, `terminal_input_place`; `surface/region.hpp` `project_text_regions`;
-`tests/test_workshop_screen.cpp` case `"HD-4: clicking a SCROLLED multibyte line snaps exactly as
-HD-3's did"`, case `"HD-4: a column and a byte index are inverses THROUGH the window"`;
-`tests/test_component.cpp` case `"component: the window never begins inside a character, at any
-capacity"`.
+`detail::fit`, `kTerminalCaretCols`, `terminal_input_place`; `surface/region.hpp`
+`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: clicking a SCROLLED
+multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte index are
+inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the window never
+begins inside a character, at any capacity"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
 
-LAW — True is the box's own vocabulary and false is not mine; declining is `default:`, never knowledge of an application chord, and `kEditingVocabulary`'s rows are exactly what `consume` answers true to.
+LAW — True is the box's own vocabulary and false is not mine; declining is the default arm, never knowledge of an application chord, and the declared vocabulary is exactly what consume answers true to.
 
 MEANS
 - a consumed gesture need not change anything — a copy with nothing selected is consumed;
@@ -95,7 +95,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-07 — The history is the draft's and dies with it
 
-LAW — `set`/`clear` wipe the history and bump `draft_epoch()`; same-kind keystrokes coalesce, paste, cut and a replacement are one entry each, the depth is bounded, and no app-wide undo grows from this.
+LAW — A fresh draft wipes the history and bumps the draft epoch; same-kind keystrokes coalesce, paste, cut and a replacement are one entry each, the depth is bounded, and no app-wide undo grows from this.
 
 PROVEN BY — `component/text_box.hpp` `set`, `clear`, `draft_epoch`, `kUndoDepth`;
 `tests/test_component.cpp` case `"component: set and clear open a fresh draft with no inherited
@@ -106,7 +106,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-08 — `Session::clipboard` is one in-process mirror
 
-LAW — The component writes it on copy/cut, `on(KeyPressed)` notices `writes` once around the chain and publishes `ClipboardCopy`; copies from elsewhere land in it without bumping `writes`; never persisted.
+LAW — The mirror is written on copy and cut, said to the process once around the chain, and filled by copies heard from elsewhere, not counted as writes; never persisted, watching no system clipboard.
 
 PROVEN BY — `workshop/screen.hpp` `clipboard`; `component/text_box.hpp` `Clipboard`, `writes`;
 `surface/vocabulary.hpp` `ClipboardCopy`; `tests/test_workshop_document.cpp` case `"TEXT-0: a
@@ -117,7 +117,7 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-09 — A paste is a conversation, and the answer belongs to the draft that asked
 
-LAW — Ctrl+V bumps `paste_requests`, `paste_owner_now()` names the asker, Workshop asks `kSkinRole` through its own `AskBook`, and the answer is applied only if the same owner holds the same `draft_epoch`.
+LAW — A paste is a request: the component counts it, Workshop names the asking draft and asks the medium's role through its ask book, and the answer lands only if the same owner holds the same draft epoch.
 
 MEANS
 - a paste means the platform clipboard's current value, which only the owner can obtain;
@@ -126,9 +126,9 @@ MEANS
 
 PROVEN BY — `component/text_box.hpp` `paste_requests`, `paste`, `draft_epoch`;
 `workshop/weave.hpp` `paste_owner_now`, `paste_asks_`, `answers_ask`; `workshop/property.hpp`
-`paste`, `resume`; `surface/vocabulary.hpp` `ClipboardTextRequested`, `kSkinRole`;
-`tests/test_workshop_document.cpp` case `"QR-11: paste reads the platform current, not the mirror
-stale"`, case `"QR-11: an answer crossing a draft boundary lands nowhere, and the payload
+`paste`, `resume`; `surface/vocabulary.hpp` `AskBook`, `ClipboardTextRequested`, `kSkinRole`;
+`tests/test_workshop_document.cpp` case `"QR-11: paste reads the platform current, not the
+mirror stale"`, case `"QR-11: an answer crossing a draft boundary lands nowhere, and the payload
 dies"`, case `"QR-11: the draft that asked keeps its paste across a rebuild in flight"`, case
 `"QR-11: an unsolicited ClipboardText enters no box and no mirror"`; `tests/test_component.cpp`
 case `"QR-11: paste is a request the owner applies, and set/clear name the draft"`.
@@ -147,7 +147,7 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-11 — `zengine-component` links nothing
 
-LAW — A TextBox has no wire form and nothing hosts it; its key identities are spelled locally in `component::key`/`mod` and pinned against `input::scan`/`mod` in the input suite.
+LAW — A text box has no wire form and nothing hosts it: the component library links nothing, and its key identities are spelled locally and pinned against the input wire's spellings in the input suite.
 
 PROVEN BY — `component/CMakeLists.txt` `zengine-component`; `component/text_box.hpp` `key`,
 `mod`;
@@ -156,7 +156,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-12 — A word has one definition and three compositions
 
-LAW — `word_run_begin`/`word_run_end` are the maximal non-space run from a position; `word_before`/`word_after` add the separator walk a keyboard means; `word_at` is both scans meeting, a pointer's meaning.
+LAW — A word has one definition — the maximal non-space run — and three uses: word before and word after add the separator walk a keyboard means; word at is both scans meeting, a pointer's meaning.
 
 MEANS
 - a position with separators on both sides is in no word, and nothing invents the nearest one;
@@ -172,13 +172,13 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-13 — The one-measurer family takes the box
 
-LAW — `terminal_caret_column`/`terminal_caret_of_column` take the `TextBox`, `visible_selection(columns)` is the only span arithmetic, and the selection helpers add exactly the caret helpers' prose offset.
+LAW — The caret measurers take the box itself, the visible selection is the only span arithmetic, and the selection measurers add exactly the prose offset the caret measurers add: one measurer family.
 
 MEANS
 - `pasteable_line` flattens foreign bytes into one line, for the byte=column grid's sake.
 
 PROVEN BY — `workshop/screen.hpp` `terminal_caret_column`, `terminal_caret_of_column`,
-`terminal_selection_columns`, `property_selection_columns`; `component/text_box.hpp`
+`terminal_selection_columns`, `property_selection_columns`; `component/text_box.hpp` `TextBox`,
 `visible_selection`, `pasteable_line`; `tests/test_workshop_screen.cpp` case `"caret geometry: a
 byte index and a prose column are one number, both ways"`; `tests/test_component.cpp` case
 `"component: the visible selection is the span both media may spend"`, case `"component: paste

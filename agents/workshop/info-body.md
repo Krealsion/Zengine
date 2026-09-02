@@ -19,7 +19,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-02 — Nothing in Workshop multiplies a font metric
 
-LAW — The body is one region and a property row is one of its rows; `fit_region` gives rows and columns with `kTextInsetPx` inside, and `value_columns` is the columns less mark, label and caret.
+LAW — The body is one region and a property row is one of its rows; the fit gives rows and columns with the text inset inside, and a value's width is the columns less mark, label and caret.
 
 MEANS
 - 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one body;
@@ -50,7 +50,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-04 — The row maps are inverses, and a press is never rounded to a cell
 
-LAW — `inspector_focus` is the row that must stay visible — the editing row, else the cursor — and `prose_row_of_property`/`property_at_prose_row` are inverses over one row arithmetic.
+LAW — The row that must stay visible is the editing row, else the cursor; the row maps are inverses over one row arithmetic, and a press is never rounded to a Workshop cell.
 
 MEANS
 - `prose_row_in_window`/`item_at_prose_row` are helpers, deliberately not a `List` component;
@@ -65,7 +65,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-05 — A resting value is fitted and a live draft is windowed
 
-LAW — `detail::fit` marks what it cut: a committed value has no caret to say it moved; `TextBox::visible` does not, a draft having one; `refresh_inspector` reconciles the draft once per repaint.
+LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, having one; the draft is reconciled once per repaint.
 
 MEANS
 - at most one row is ever editing: `begin_edit` is reachable only from command mode.
@@ -106,7 +106,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-08 — `OBJECTS` is the region's first prose row; `PROPERTIES` moves
 
-LAW — `info_body_place` reserves `kInfoHeadingRows` before either list is offered anything; body rows begin at zero and `info_body_at` subtracts the heading, so a press on the heading names no row.
+LAW — The heading rows are reserved before either list is offered anything; body rows begin at zero beneath them and the press inverse subtracts the heading, so a press on a heading names no row.
 
 PROVEN BY — `workshop/screen.hpp` `info_body_place`, `kInfoHeadingRows`, `info_body_at`;
 `tests/test_workshop_panels.cpp` case `"HD-7: neither list paints through the other, at any

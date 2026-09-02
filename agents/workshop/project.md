@@ -5,7 +5,7 @@ Router: [`../workshop.md`](../workshop.md).
 
 ## WL-PROJ-01 — The project is the launch directory, captured once
 
-LAW — `HostContext::project_dir` is the launch directory, captured once by the host (`launch_project_dir()`); it is not `dir`, and nothing derives it from `dir`, `--document`, `--recipes` or a prefix.
+LAW — The project is the launch directory, captured once by the host; it is not the install directory, and nothing derives it from that, from `--document`, from `--recipes` or from a prefix.
 
 MEANS
 - empty is the designed absence, said on the banner; there is no `--project`;
@@ -21,23 +21,22 @@ WHY — `agents/decisions/project-is-several-mechanisms.md`
 
 ## WL-PROJ-02 — A relative source is the project's file, in the editor and in the build
 
-LAW — `complete_recipes(recipes, host_dir, project_dir)` is the one place a host fact enters a recipe: `artifact_dir` and `workspace` from the install, `source` against the project; it runs once per install.
+LAW — Completion is the one place a host fact enters a recipe — the artifact directory and the workspace from the install, a relative source against the project — and it runs once per install.
 
 MEANS
 - the recipe file is never rewritten;
 - the falsifier: the project and the workspace both hold `src/example.cpp` with different bytes.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/recipes.hpp`
-`complete_recipes`, `install_recipes`; `tests/test_workshop_files.cpp` case `"EDIT-1: a
-relative recipe source is
-the PROJECT's file, in the editor and in the build"`, case `"EDIT-1: the editor opens the file
-that recipe's build would compile"`, case `"PROJ-1: a catalog's own directory is not a source
-base"`.
+PROVEN BY — `workshop/recipe_persist.hpp` `artifact_dir`, `workspace`, `complete_recipes`;
+`workshop/recipes.hpp` `complete_recipes`, `install_recipes`; `tests/test_workshop_files.cpp`
+case `"EDIT-1: a relative recipe source is the PROJECT's file, in the editor and in the build"`,
+case `"EDIT-1: the editor opens the file that recipe's build would compile"`, case `"PROJ-1: a
+catalog's own directory is not a source base"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
 
-LAW — `workshop::CurrentRecipes` holds the recipes, the `RecipeView`s and the file they came from; `hold()` assigns into members it owns, so a replacement changes contents, never the bound objects.
+LAW — One session owner holds the completed recipes, its views and the file they came from; holding a new catalog assigns into members it owns, so a replacement changes contents, never the bound objects.
 
 MEANS
 - `main` declares it above the bus, the Kernel and every weave; that order is the lifetime proof;
@@ -63,6 +62,9 @@ MEANS
 - `main` wires `HostContext::use_recipes` over it and installs its own startup catalog through it;
 - a valid empty catalog installs: a project with nothing to build is a project;
 - completion is total and adds no third refusal kind beside the reader's and the parser's.
+
+DOES NOT MEAN
+- that a catalog has another road in — `install_recipes` is the one seam, at startup and live.
 
 PROVEN BY — `workshop/recipes.hpp` `install_recipes`, `hold`; `workshop/weave.hpp`
 `use_recipes`; `workshop/workshop.cpp` `install_recipes`, `use_recipes`;
