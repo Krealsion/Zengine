@@ -170,6 +170,56 @@ does not add or offer"`; `tests/test_workshop_panels.cpp` case `"selecting an op
 it, and says what was not touched"`.
 WHY — `agents/decisions/three-places.md`
 
+## WL-PANE-13 — A panel is a kind and nothing else, and a kind has one instance
+
+LAW — An open panel carries a kind and nothing else; a kind is open once or not at all, per-kind view state lives beside the stack, and selecting an open kind removes it through the same door.
+
+MEANS
+- a second copy of a tool's status in each instance would need a policy about several instances;
+- removing a panel touches nothing behind it: no message reaches the office.
+
+PROVEN BY — `workshop/panel.hpp` `Panel`, `Panels::has`, `open_panel`, `close_panel`;
+`tests/test_workshop_panels.cpp` case `"selecting an open kind REMOVES it, and says what was not
+touched"`, case `"a panel opens from the picker, is removed, and opens again"`.
+WHY — `agents/decisions/three-places.md`
+
+## WL-PANE-14 — The picker is a mode, not a panel
+
+LAW — The `+ panel` picker has no instance, no catalog row and nothing presents it: opening it opens nothing, choosing closes it, and Escape or its own key dismisses it having opened and removed nothing.
+
+MEANS
+- it cannot be opened from itself; its name is the words on the hint that opens it.
+
+PROVEN BY — `workshop/panel.hpp` `PanelPicker`, `kPickerName`; `tests/test_workshop_panels.cpp`
+case `"a panel opens from the picker, is removed, and opens again"`, case `"the picker can be
+dismissed without opening anything, two ways"`.
+WHY — `agents/decisions/three-places.md`
+
+## WL-PANE-15 — The picker covers the whole first slot
+
+LAW — The picker opens over the stack's first slot and paints a whole panel's worth of rows whatever it lists, so nothing shows through it, and while it is open a press on that slot is the picker's.
+
+MEANS
+- three rows over a nine-row panel left six rows of another panel reading as one box: measured.
+
+PROVEN BY — `workshop/screen.hpp` `kPickerRows`, `picker_bounds`;
+`tests/test_workshop_screen.cpp` case `"the picker occupies the slot it opens over, and answers
+for it while it is there"`.
+WHY — `agents/decisions/three-places.md`
+
+## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable
+
+LAW — A pane whose room was granted and answered by nothing valid says `kExternalWaiting`: a fact about this panel, never about the provider; `unavailable` is never said, because silence proves no fate.
+
+MEANS
+- Loom gives Workshop no participant-visible unload notification;
+- an unload is said as waiting, and a reload recovers the view.
+
+PROVEN BY — `workshop/screen.hpp` `kExternalWaiting`; `tests/test_workshop_panes_seam.cpp` case
+`"silence is waiting, and Workshop never says unavailable"`; `tests/test_workshop_screen.cpp` case
+`"INTR-0: unload and reload -- waiting is said, and a reload recovers the view"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
 ## Do not assume
 
 - That docking exists — it is absent and refused.

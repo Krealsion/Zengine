@@ -40,10 +40,11 @@ inline constexpr const char* kDefaultSetupFileName = "workshop-setup.json";
 // ---- The bounds, and why each one is the number it is -----------------------
 
 /// How long a setup's human name may be.
+// WL-SETUP-09 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxSetupNameLen = 32;
 
 /// How long either half of a `PaneRef` may be.
-// WL-SETUP-01 -- agents/workshop/setup-file.md
+// WL-SETUP-01, WL-SETUP-10 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxPaneKeyLen = 64;
 
 /// How many pane references one setup may carry.
@@ -51,7 +52,9 @@ inline constexpr std::size_t kMaxPaneKeyLen = 64;
 inline constexpr std::size_t kMaxSetupPanes = 32;
 
 /// How long a RUNTIME pane descriptor's two prose fields may be.
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneNameLen = 32;
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
 /// THE LARGEST DEVICE-PIXEL AMOUNT A PANE MAY BE AUTHORED AT.
@@ -209,6 +212,7 @@ inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creato
 /// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
 /// built-in in the catalog's own order, then every admitted runtime pane in
 /// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
+// WL-CAT-05 -- agents/workshop/catalog.md
 inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     std::vector<CatalogRow> rows;
     rows.reserve(kPanelKinds + 1 + panels.runtime.entries.size());
@@ -298,6 +302,7 @@ inline std::string quoted_setup_name(const std::string& name) {
 /// false sentence about a true refusal. Saying `bytes` corrects the wording and
 /// is emphatically not a new text policy: nothing here counts a code point, a
 /// grapheme or a cell, which is the same absence the paragraph above declares.
+// WL-SETUP-09 -- agents/workshop/setup-file.md
 inline Written check_setup_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a setup name cannot be empty");
@@ -343,6 +348,7 @@ inline Written check_setup_name(const std::string& name) {
 /// decides whether the copy is allowed. An owned `std::string` caller converts and
 /// still meets exactly one law -- there is no second checker to drift from this
 /// one, and `check_pane_ref` and the persisted grammar reach it unchanged.
+// WL-SETUP-10 -- agents/workshop/setup-file.md
 inline Written check_pane_key(std::string_view key, const char* which) {
     if (key.empty()) {
         return Written::no(std::string("a pane reference's ") + which + " cannot be empty");
@@ -361,6 +367,7 @@ inline Written check_pane_key(std::string_view key, const char* which) {
     return Written::ok();
 }
 
+// WL-SETUP-10 -- agents/workshop/setup-file.md
 inline Written check_pane_ref(const PaneRef& ref) {
     const Written provider = check_pane_key(ref.provider, "provider");
     if (!provider.accepted) {
@@ -483,6 +490,7 @@ inline Written check_setup_pane(const SetupPane& row) {
 ///
 /// THE LENGTH IS A BYTE COUNT AND THE REFUSAL SAYS SO. Nothing here
 /// counts a code point, a grapheme or a cell.
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline Written check_pane_text(const std::string& text, const char* which,
                                std::size_t limit) {
     if (text.empty()) {
@@ -516,6 +524,7 @@ inline Written check_pane_text(const std::string& text, const char* which,
 /// different: a first acceptance may make an authored-but-unresolved setup
 /// reference resolve, and a refresh must clear whatever an already-open pane was
 /// showing and ask for its room again.
+// WL-CAT-03 -- agents/workshop/catalog.md
 struct Admission {
     Written written = Written::ok();
     bool refreshed = false;                  ///< an existing PaneRef, updated in place
@@ -548,6 +557,7 @@ struct Admission {
 /// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
 /// `a.tools/hello` and `b.tools/hello` are two rows, two handles and two
 /// presentations, and neither office can refresh or overwrite the other's.
+// WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer) {
     Admission out;

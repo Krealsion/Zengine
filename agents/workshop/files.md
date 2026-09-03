@@ -186,6 +186,20 @@ never reached"`, case `"EDIT-1: a listing is directories first, then files, byte
 each"`, case `"EDIT-1: a directory that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
+## WL-FILES-14 — A failed listing has no rows, and an unclassifiable entry is a file
+
+LAW — A directory that is missing, unreadable or replaced lists as a refusal and no rows, never a partial listing; an entry whose kind cannot be asked keeps its row as a file the editor's door refuses.
+
+MEANS
+- every failure is an ordinary refusal through the iterator's `error_code` forms: nothing throws;
+- an absent project is its own refusal and is never resolved into some other place.
+
+PROVEN BY — `workshop/files.hpp` `enumerate_directory`, `Listing`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: a directory that cannot be listed is a refusal, not
+an empty listing"`, case `"QR-12: a name this platform will not spell is one inert row, not the
+end of it"`.
+WHY — `agents/decisions/four-facts-that-coincide.md`
+
 ## Do not assume
 
 - That the Files pane cannot leave the project, that a linked directory is refused, or that its

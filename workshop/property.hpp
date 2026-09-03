@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PROPERTY_HPP
 
 // The typed connection between an editor and the property it presents.
-// Workshop law: agents/workshop/document.md (+2 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/document.md (+3 registers; agents/workshop.md routes)
 
 #include <cstddef>
 #include <cstdint>

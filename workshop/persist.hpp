@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PERSIST_HPP
 
 // What a maker keeps when they close Workshop, and what they get back.
-// Workshop law: agents/workshop/document.md (+2 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/document-file.md (+3 registers; agents/workshop.md routes)
 
 #include "document.hpp"
 #include "vocabulary.hpp"
@@ -36,7 +36,7 @@ namespace zengine::workshop::persist {
 inline constexpr const char* kFormat = "zengine-workshop";
 
 /// The only format version this build reads or writes.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline constexpr std::int64_t kFormatVersion = 1;
 
 /// The two spellings of an authored extent, in the file. Words, not the
@@ -65,7 +65,7 @@ struct WorkshopExtent {
 };
 
 /// One authored object AS WRITTEN.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 struct WorkshopObject {
     std::int64_t id = 0;
     std::string name;
@@ -89,7 +89,7 @@ static_assert(ui::kRootContext < doc::kFirstIdentity,
 
 /// A whole saved document: what it is, which version of that it is, the next
 /// identity to mint, and the objects in AUTHORED ORDER.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 struct WorkshopDocument {
     std::string format;
     std::int64_t format_version = 0;
@@ -118,7 +118,7 @@ inline WorkshopExtent extent_out(const ui::Extent& e) {
 }
 
 /// The document, as the value that gets written.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline WorkshopDocument to_document(const WorkshopDoc& d) {
     WorkshopDocument out;
     out.format = kFormat;
@@ -133,7 +133,7 @@ inline WorkshopDocument to_document(const WorkshopDoc& d) {
 }
 
 /// A document as text.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline std::string to_text(const WorkshopDoc& d) {
     return loom::compat::serialize(loom::to_value(to_document(d)));
 }
@@ -142,7 +142,7 @@ inline std::string to_text(const WorkshopDoc& d) {
 
 /// The authored extent a written one means. False for a mode this format does
 /// not have a word for.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline bool mode_in(const WorkshopExtent& w, ui::Extent& out) {
     if (w.mode == kModeCells) {
         out = ui::Extent{ui::kExtentCells, w.amount};
@@ -162,7 +162,7 @@ inline std::string unknown_mode(const WorkshopExtent& w) {
 }
 
 /// What reading produced: whether it worked, and the document if it did.
-// WL-DOC-14 -- agents/workshop/document.md
+// WL-DOC-14 -- agents/workshop/document-file.md
 struct Loaded {
     Written outcome;
     WorkshopDoc document;
@@ -231,7 +231,7 @@ inline Loaded from_text(std::string_view bytes) {
 
 /// Read a document from text INTO a live one -- the whole transaction, and the
 /// only composition any caller needs.
-// WL-DOC-14 -- agents/workshop/document.md
+// WL-DOC-14 -- agents/workshop/document-file.md
 inline Written load_into(WorkshopDoc& live, std::string_view bytes) {
     Loaded loaded = from_text(bytes);
     if (!loaded.outcome.accepted) {
@@ -267,7 +267,7 @@ struct FileText {
 /// The whole file, or why not. Refusals are the ordinary ones a maker meets:
 /// the file is not there, it cannot be opened, it is too big to be what it
 /// claims to be.
-// WL-DOC-15 -- agents/workshop/document.md
+// WL-DOC-15 -- agents/workshop/document-file.md
 inline FileText read_file(const std::string& path,
                           std::uintmax_t most = kMaxDocumentBytes,
                           const char* what = "a Workshop document") {
@@ -296,7 +296,7 @@ inline FileText read_file(const std::string& path,
 inline std::string pending_path(const std::string& path) { return path + ".saving"; }
 
 /// Write text to a file WITHOUT putting the last good save at risk.
-// WL-DOC-15 -- agents/workshop/document.md; WL-SESSION-13 -- agents/workshop/session.md
+// WL-SESSION-13 -- agents/workshop/session.md; WL-DOC-15 -- agents/workshop/document-file.md
 inline Written write_file(const std::string& path, const std::string& text) {
     const std::string pending = pending_path(path);
     {
@@ -332,6 +332,7 @@ inline Written write_file(const std::string& path, const std::string& text) {
 /// through this door. Project files deliberately do not: a `--document` path into a
 /// directory that is not there is a maker's typo, and inventing the directory would turn
 /// a loud refusal into a file somewhere nobody meant.
+// WL-SESSION-18 -- agents/workshop/session.md
 inline Written write_file_making_room(const std::string& path, const std::string& text) {
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();
     if (!parent.empty()) {

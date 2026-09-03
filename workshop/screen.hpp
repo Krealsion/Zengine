@@ -106,6 +106,7 @@ inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked p
 /// things. Covering the whole slot costs some blank rows while a question is open and buys a
 /// screen that cannot be misread; leaving a gap and marking its edge would be a second
 /// overlay convention for the same job.
+// WL-PANE-15 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kPickerRows = 1 + static_cast<std::int64_t>(kPanelKinds);
 
 // ---- The terminal overlay's own furniture, in canvas cells -----------------------------
@@ -627,6 +628,7 @@ static_assert(kPickerRows + 2 * kChromeCells <= kStackRows,
 /// expression so that the mode that PAINTS there and the pointer that must not see THROUGH it
 /// read one answer. The picker has no catalog row to declare a place in -- it is a mode -- so
 /// this is the one presentation that names its own place, and now it names it once.
+// WL-PANE-15 -- agents/workshop/panes-and-windows.md
 inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
     // Cell-lattice geometry on the fine lattice, exactly — the picker is screen
     // furniture and never moves by less than a cell; what is fine is the machinery
@@ -5024,6 +5026,7 @@ inline std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
 }
 
 /// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING.
+// WL-PANE-16 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
 
 /// WHAT A PANE SAYS AFTER AN UPDATE IT COULD NOT KEEP. Workshop's sentence,

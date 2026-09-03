@@ -1750,6 +1750,7 @@ public:
     /// quietly becomes a second owner of somebody else's facts. The tool goes on
     /// saying what it is to whoever else is listening; this application stops
     /// listening in the only sense it can -- it stops remembering.
+    // WL-PROJ-11, WL-PROJ-12 -- agents/workshop/project.md
     void on(const zengine::builder::BuildStatus& said, loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return;
@@ -4377,6 +4378,7 @@ private:
     /// -- what it does is say, in one sentence to one office, "build this, and if it
     /// works, offer it to the project". Everything after that belongs to two owners
     /// neither of which is here.
+    // WL-PROJ-13 -- agents/workshop/project.md
     void build_now(loom::Mail& mail, bool realize) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // `b` is an unbound key with no Builder panel open, exactly as before
@@ -4460,6 +4462,7 @@ private:
     /// pick to `c` — after which the maker's standing pick, if it produces the
     /// frontier, is spent. `picked` is what tells an explicit pick from `chosen`'s
     /// default of 0, which is an index and not a choice.
+    // WL-PROJ-14 -- agents/workshop/project.md
     void build_frontier(loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // an unbound key with no Builder panel open, exactly as `b` is
@@ -5706,7 +5709,7 @@ private:
     // ---- Save and open -------------------------------------------------------
 
     /// Write the document to its file.
-    // WL-DOC-16 -- agents/workshop/document.md
+    // WL-DOC-16 -- agents/workshop/document-file.md
     void save_document() {
         if (host_->document_path.empty()) {
             say(kNoDocumentFile, true);
@@ -5732,7 +5735,7 @@ private:
     }
 
     /// Replace the document with the one in its file.
-    // WL-CTX-01 -- agents/workshop/contextual.md; WL-DOC-16 -- agents/workshop/document.md
+    // WL-CTX-01 -- agents/workshop/contextual.md; WL-DOC-16 -- agents/workshop/document-file.md
     void load_document() {
         if (host_->document_path.empty()) {
             say(kNoDocumentFile, true);
@@ -5900,6 +5903,7 @@ private:
     /// removed, so a maker pressing one and seeing nothing has been given no way
     /// to tell a removed panel from a broken tool -- the same argument the empty
     /// OBJECTS list already won.
+    // WL-INFO-10 -- agents/workshop/info-body.md
     bool inspector_absent() {
         if (inspector_shown()) {
             return false;
@@ -6020,6 +6024,7 @@ private:
     /// says `unsaved` because its opening document has genuinely never been
     /// written, and a document edited and then edited BACK says `saved`, because
     /// it is.
+    // WL-DOC-19 -- agents/workshop/document-file.md
     std::string status_line() const {
         std::string line =
             "[workshop] " + std::to_string(state_.elements.size()) + " objects | " +

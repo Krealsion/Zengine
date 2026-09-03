@@ -48,4 +48,4 @@ because a setup is a maker's named artifact with no session to ride.
 [WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),
 [WL-SETUP-03](../workshop/setup-file.md), [WL-SETUP-04](../workshop/setup-file.md),
 [WL-SETUP-05](../workshop/setup-file.md), [WL-SETUP-06](../workshop/setup-file.md),
-[WL-SETUP-08](../workshop/setup-file.md).
+[WL-SETUP-08](../workshop/setup-file.md), [WL-SETUP-11](../workshop/setup-file.md).

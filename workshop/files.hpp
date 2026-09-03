@@ -86,6 +86,7 @@ inline bool row_before(const FileRow& a, const FileRow& b) {
 }
 
 /// ONE DIRECTORY'S LISTING, AS A SNAPSHOT.
+// WL-FILES-14 -- agents/workshop/files.md
 struct Listing {
     /// Did an enumeration happen and produce these rows? False with a `refusal` is the
     /// ordinary absence -- no project, a directory that went away, a directory this
@@ -113,6 +114,7 @@ struct Listing {
 /// kind that cannot be entered. Dropping it would make this browser lie about what is
 /// there; keeping it as a file means the worst case is a row whose activation the editor's
 /// door refuses in its own words.
+// WL-FILES-14 -- agents/workshop/files.md
 inline Listing enumerate_directory(const std::string& dir) {
     Listing out;
     if (dir.empty()) {

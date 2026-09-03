@@ -461,12 +461,14 @@ inline LoadedSetup from_text(std::string_view bytes) {
 
 /// Save a setup to a file, through the document's own safe write: a complete
 /// candidate to a sibling, then a rename over the destination.
+// WL-SETUP-11 -- agents/workshop/setup-file.md
 inline Written save_file(const std::string& path, const Setup& s) {
     return persist::write_file(path, to_text(s));
 }
 
 /// Read a setup from a file. The composition of every layer: the file, the
 /// format, and the setup law.
+// WL-SETUP-11 -- agents/workshop/setup-file.md
 inline LoadedSetup load_file(const std::string& path) {
     const persist::FileText read = persist::read_file(path, kMaxSetupBytes, "a Workshop setup");
     if (!read.outcome.accepted) {

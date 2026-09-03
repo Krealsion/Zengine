@@ -203,6 +203,20 @@ no key, and says so"`; `tests/test_workshop_screen.cpp` case `"ARR-0: shortcut a
 only truthful surrounding bindings"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
+## WL-KEY-14 — A written gesture is modifier words joined to one key name with `+`
+
+LAW — A written gesture is modifier words `ctrl`, `shift`, `alt`, `super` joined to a named key by `+`; the writer spells them in that order, the parser takes any order and refuses a duplicate.
+
+MEANS
+- key names are the named scan set and nothing else; punctuation is named by its own character;
+- an unknown modifier or key is refused by name, never guessed.
+
+PROVEN BY — `workshop/keymap.hpp` `gesture_word`, `parse_gesture`, `key_name_of`,
+`scancode_of_name`; `tests/test_workshop_document.cpp` case `"KEY-0: a known backend gap is
+accepted and said, never silently rewritten"`, case `"KEY-0: a shift+letter binding swallows the
+capital its keystroke produced"`.
+WHY — `agents/decisions/one-binding-truth.md`
+
 ## Do not assume
 
 - That the legend has a fixed row count per medium — it is every band row after the notice,

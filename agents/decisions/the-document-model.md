@@ -1,7 +1,8 @@
 # The document model
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [document](../workshop/document.md); the authored/resolved vocabulary itself is
+supports is in [document](../workshop/document.md) and
+[document-file](../workshop/document-file.md); the authored/resolved vocabulary itself is
 [the UI reference](../../docs/reference/ui.md).
 
 **Context.** The first slice: a person opens Workshop, sees an ordinary authored rectangle,
@@ -84,6 +85,7 @@ The safe write's rename replaces an existing destination on both lanes, measured
 [WL-DOC-07](../workshop/document.md), [WL-DOC-08](../workshop/document.md),
 [WL-DOC-09](../workshop/document.md), [WL-DOC-10](../workshop/document.md),
 [WL-DOC-11](../workshop/document.md), [WL-DOC-12](../workshop/document.md),
-[WL-DOC-13](../workshop/document.md), [WL-DOC-14](../workshop/document.md),
-[WL-DOC-15](../workshop/document.md), [WL-DOC-16](../workshop/document.md),
-[WL-DOC-17](../workshop/document.md), [WL-DOC-18](../workshop/document.md).
+[WL-DOC-13](../workshop/document-file.md), [WL-DOC-14](../workshop/document-file.md),
+[WL-DOC-15](../workshop/document-file.md), [WL-DOC-16](../workshop/document-file.md),
+[WL-DOC-17](../workshop/document.md), [WL-DOC-18](../workshop/document.md),
+[WL-DOC-19](../workshop/document-file.md).

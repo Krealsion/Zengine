@@ -6,7 +6,7 @@
 
 // The document's semantic surface: every operation a maker's edit can go
 // through, and every one of them able to refuse.
-// Workshop law: agents/workshop/document.md (+1 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/document.md (+2 registers; agents/workshop.md routes)
 
 
 
@@ -386,7 +386,7 @@ inline Written set_context(WorkshopDoc& d, std::int64_t id, std::int64_t candida
 }
 
 // ---- A whole document, and the one door that admits one -------------------------------
-// WL-DOC-11, WL-DOC-14 -- agents/workshop/document.md
+// WL-DOC-11 -- agents/workshop/document.md; WL-DOC-14 -- agents/workshop/document-file.md
 
 /// Is this a document? Refuses with the FIRST reason, naming the object it is
 /// about -- a maker reading "#3: the workspace starts at 0" knows where to look,
@@ -473,7 +473,7 @@ inline Written check_document(const WorkshopDoc& d) {
 }
 
 /// Replace this document with another one, KEEPING that one's identities.
-// WL-DOC-14 -- agents/workshop/document.md
+// WL-DOC-14 -- agents/workshop/document-file.md
 inline Written restore(WorkshopDoc& live, WorkshopDoc candidate) {
     const Written legal = check_document(candidate);
     if (!legal.accepted) {

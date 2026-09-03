@@ -762,6 +762,7 @@ inline constexpr std::size_t kActionCatalogCount = sizeof(kActionCatalog) / size
 // out is ctrl, shift, alt, super; the parser accepts any order and refuses duplicates.
 
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
+// WL-KEY-14 -- agents/workshop/keyboard.md
 inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
     switch (scancode) {
     case scan::kA: return "a";
@@ -828,6 +829,7 @@ inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
 }
 
 /// The scancode a written key name means, or 0 for a name outside the grammar.
+// WL-KEY-14 -- agents/workshop/keyboard.md
 inline std::int64_t scancode_of_name(std::string_view name) noexcept {
     for (std::int64_t sc = 1; sc < 128; ++sc) {
         const char* word = key_name_of(sc);
@@ -841,6 +843,7 @@ inline std::int64_t scancode_of_name(std::string_view name) noexcept {
 /// A gesture as the FILE spells it: `ctrl+shift+z`. Total over any gesture whose scancode
 /// has a name; the declaration table only holds those, and admission refuses the rest on
 /// the way in.
+// WL-KEY-14 -- agents/workshop/keyboard.md
 inline std::string gesture_word(const Gesture& g) {
     std::string out;
     if ((g.modifiers & mod::kCtrl) != 0) {
@@ -917,6 +920,7 @@ struct ParsedGesture {
     std::string refusal;
 };
 
+// WL-KEY-14 -- agents/workshop/keyboard.md
 inline ParsedGesture parse_gesture(std::string_view text) {
     ParsedGesture out;
     if (text.empty()) {
