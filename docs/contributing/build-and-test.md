@@ -203,7 +203,7 @@ their diagnostics, plus script entries.
 | `builder` | real child processes — every recipe is `cmake -E …` or this repository's own deliberately slow script, so it needs no shell and no assumption about what is installed — plus the regression canary for non-blocking custody |
 | `audit_probes` | a different **kind** of suite, kept deliberately: what the substrate measurably does to a live beat chain when the timer service is swapped, reloaded, double-wound or joined late — *including where that was unwanted*. Read its header before changing it |
 | the `ui_*` and `timer_*` compile entries | that a fence is a compile error, with its positive control |
-| `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves |
+| `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves; and no current-facing file names a path outside the repository |
 | `package_vocabulary` | the installed package's public variables still name the *physical* thing they hold. Retired spellings appear in exactly one file — the checker that declares them — and nowhere else |
 | `law_register` | Workshop's law is written once, in registers under `agents/workshop/`, and every name a register makes still resolves: each entry is well-formed, every path, identifier and test case it names exists in the tree, every decision record lists exactly the laws that cite it, and every `// WL-…` pointer above a declaration names only laws that name that declaration |
 
@@ -212,7 +212,8 @@ their diagnostics, plus script entries.
 Citing a reference page from a law, a test from a reference page, or a `.md` from a source
 comment is this project's convention. What was missing is that a rename broke them silently. So
 it rides the official lane: a red reaches whoever moved the file rather than whoever reads the
-docs six months later.
+docs six months later. The same entry reads every current-facing text file for a path outside
+the repository — the external-reader rule made mechanical.
 
 It is a CMake script, like every repository-owned check here, because CMake is a dependency this
 project already has on every lane by construction — a verifier may not depend on a tool that

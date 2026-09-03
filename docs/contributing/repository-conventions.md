@@ -86,7 +86,9 @@ development process. Public documentation must remain coherent if all of that di
 Concretely, none of the following belongs in a public document: personal directory layouts,
 absolute paths on somebody's machine, private tooling workflows, development-phase names used
 as explanation, or references to files that exist only in a maintainer's tree. A durable
-technical fact discovered during a phase stays; the excavation does not.
+technical fact discovered during a phase stays; the excavation does not. A public repository
+names no path outside itself — not the workspace it is checked out in, not a sibling, not a
+drive, not a tool's scratch directory — and `doc_links` reads every current-facing file for one.
 
 - **Bad:** "phase X's repair taught us that …"
 - **Good:** "On MSVC, exported ABI declarations use the existing export macro …"

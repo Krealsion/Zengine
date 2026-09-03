@@ -27,8 +27,8 @@ answers with values.
 - *`weakly_canonical` on the way up* — rejected: it silently relocates the maker to a place they
   never navigated to (`git log -S'weakly_canonical'` → `0cf8a94`).
 - *`is_symlink()`* — rejected, measured on Windows/MSVC: a directory junction answers false
-  while `symlink_status().type()` is a platform extension that is not `directory`; probe and
-  table in Zen/reportbacks/EDIT-1-evidence.md.
+  while `symlink_status().type()` is a platform extension that is not `directory`; the probe
+  and its table are in that phase's record, kept outside this repository.
 - *Keeping the link refusal* — rejected: no property survived it (`0cf8a94`).
 - *The byte test alone for openability* — rejected: a refused name's `?` projection is entirely
   printable ASCII and would read as openable, handing a door a path naming a different file or
