@@ -86,10 +86,11 @@ LAW — `refocus_keeping_draft` rebuilds the rows and hands the draft, its refus
 MEANS
 - `Name` is a row every object has: a draft carried across a selection would land elsewhere.
 
-PROVEN BY — `workshop/screen.hpp` `refocus_keeping_draft`; `workshop/weave.hpp` `rebuild_rows`;
-`tests/test_workshop_document.cpp` case `"HD-5: a surface extent does not take a maker's hands
-off a draft"`; `tests/test_workshop_panels.cpp` case `"HD-6: a resize reconciles the row count,
-the window and the draft together"`.
+PROVEN BY — `workshop/screen.hpp` `refocus_keeping_draft`, `inspector_rows`;
+`workshop/weave.hpp` `rebuild_rows`, `refresh_inspector`; `workshop/property.hpp` `Row::resume`;
+`tests/test_workshop_document.cpp` case `"HD-5: a surface extent does not take a maker's hands off
+a draft"`; `tests/test_workshop_panels.cpp` case `"HD-6: a resize reconciles the row count, the
+window and the draft together"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-07 — `share_body_rows` is max-min fair sharing

@@ -14,10 +14,10 @@ MEANS
 DOES NOT MEAN
 - that a provider contributes declarations — the pane seam has no shape for wanted keys.
 
-PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `Act`, `Keymap`;
-`tests/test_workshop_document.cpp` case `"KEY-0: an authored override changes dispatch AND every
-displayed spelling"`, case `"KEY-0: an override survives restart, and deleting the file restores
-defaults"`.
+PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `Act`, `Keymap`, `ActionRow`;
+`workshop/weave.hpp` `command`; `tests/test_workshop_document.cpp` case `"KEY-0: an authored
+override changes dispatch AND every displayed spelling"`, case `"KEY-0: an override survives
+restart, and deleting the file restores defaults"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-02 — `Session::keymap` is the effective truth, and no surface spells a literal
@@ -71,10 +71,11 @@ MEANS
 - `workshop.quit` (`^c`) and `workshop.attention` (`^a`) are `kNoText`;
 - `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
 
-PROVEN BY — `workshop/keymap.hpp` `kGlobal`, `kNoText`, `kNoEditor`, `above_mode_action`,
-`workshop.quit`, `workshop.attention`, `document.save`, `editor.save`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save
-or the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
+`KeyContext::kNoEditor`, `above_mode_action`, `workshop.quit`, `workshop.attention`,
+`document.save`, `editor.save`; `workshop/weave.hpp` `on(KeyPressed)`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save or
+the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
 exactly where nothing takes text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys
 that mean the same thing in every mode still outrank a pane"`.
 WHY — `agents/decisions/one-binding-truth.md`
@@ -88,9 +89,10 @@ MEANS
 - reusing one gesture across mutually exclusive contexts is legal.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.next`,
-`manage.previous`, `workshop.manage`, `AuthoredOverride`; `tests/test_workshop_document.cpp` case
-`"KEY-0: an override for an unknown action survives with its intent whole"`, case `"KEY-0: reusing
-one gesture across mutually exclusive contexts is legal"`.
+`manage.previous`, `workshop.manage`, `AuthoredOverride`, `contexts_intersect`;
+`tests/test_workshop_document.cpp` case `"KEY-0: an override for an unknown action survives with
+its intent whole"`, case `"KEY-0: reusing one gesture across mutually exclusive contexts is
+legal"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences
@@ -117,11 +119,12 @@ MEANS
 - a known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
 
 PROVEN BY — `workshop/keymap.hpp` `posix_gap`, `contexts_intersect`, `component_owns_gesture`,
-`apply_overrides`; `workshop/keymap_persist.hpp` `from_text`; `tests/test_workshop_document.cpp`
-case `"KEY-0: a same-context collision is refused naming both actions and the gesture"`, case
-`"KEY-0: a gesture outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a
-global action cannot take a bare printable or the editing vocabulary"`, case `"KEY-0: a known
-backend gap is accepted and said, never silently rewritten"`.
+`apply_overrides`, `AuthoredOverride`; `workshop/keymap_persist.hpp` `from_text`;
+`workshop/weave.hpp` `load_keymap`; `tests/test_workshop_document.cpp` case `"KEY-0: a
+same-context collision is refused naming both actions and the gesture"`, case `"KEY-0: a gesture
+outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a global action cannot
+take a bare printable or the editing vocabulary"`, case `"KEY-0: a known backend gap is accepted
+and said, never silently rewritten"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
@@ -165,8 +168,8 @@ MEANS
 - its toggle and bare Escape close it, and Escape is not a keymap action;
 - a focused pane is described only as ownership — Workshop is never told a provider's bindings.
 
-PROVEN BY — `workshop/screen.hpp` `paint_hotkeys`, `hotkeys_rows`, `keyboard_context_name`;
-`component/text_box.hpp` `kEditingVocabulary`; `workshop/weave.hpp` `hotkeys_key`;
+PROVEN BY — `workshop/screen.hpp` `paint_hotkeys`, `hotkeys_rows`, `keyboard_context_name`,
+`HotkeysView`; `component/text_box.hpp` `kEditingVocabulary`; `workshop/weave.hpp` `hotkeys_key`;
 `tests/test_workshop_document.cpp` case `"KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k
 close it"`, case `"KEY-0: the view is keys-modal -- a maker reading a binding is not executing
 it"`; `tests/test_workshop_screen.cpp` case `"QR-17/SC-6,7: the compact view owns no pointer space
@@ -179,10 +182,10 @@ WHY — `agents/decisions/content-sized-popups.md`
 LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, and the very next key or text clears it; no site hard-codes a character.
 
 PROVEN BY — `workshop/keymap.hpp` `expected_text_of`; `workshop/weave.hpp` `swallow_text_`,
-`same_keystroke`; `tests/test_workshop_document.cpp` case `"KEY-0: a printable trigger's own
-character is swallowed, wherever it is authored"`, case `"KEY-0: the swallow eats only the
-trigger's own character, never a different one"`, case `"KEY-0: a shift+letter binding swallows
-the capital its keystroke produced"`.
+`same_keystroke`, `on(KeyPressed)`; `tests/test_workshop_document.cpp` case `"KEY-0: a printable
+trigger's own character is swallowed, wherever it is authored"`, case `"KEY-0: the swallow eats
+only the trigger's own character, never a different one"`, case `"KEY-0: a shift+letter binding
+swallows the capital its keystroke produced"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-13 — A row may answer to no key at all

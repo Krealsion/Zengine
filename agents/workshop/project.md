@@ -29,9 +29,10 @@ MEANS
 
 PROVEN BY — `workshop/recipe_persist.hpp` `artifact_dir`, `workspace`, `complete_recipes`;
 `workshop/recipes.hpp` `complete_recipes`, `install_recipes`; `workshop/weave.hpp` `RecipeSource`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: a relative recipe source is the PROJECT's file, in
-the editor and in the build"`, case `"EDIT-1: the editor opens the file that recipe's build would
-compile"`, case `"PROJ-1: a catalog's own directory is not a source base"`.
+`workshop/persist.hpp` `resolved_against`; `tests/test_workshop_files.cpp` case `"EDIT-1: a
+relative recipe source is the PROJECT's file, in the editor and in the build"`, case `"EDIT-1: the
+editor opens the file that recipe's build would compile"`, case `"PROJ-1: a catalog's own
+directory is not a source base"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
@@ -83,13 +84,13 @@ MEANS
 - a dirty Editor buffer over that path is neither consumed nor auto-saved; no Builder needed;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
-PROVEN BY — `workshop/keymap.hpp` `files.use-recipes`; `workshop/weave.hpp`
-`files_use_recipes`, `use_recipes`; `tests/test_workshop_files.cpp` case `"PROJ-1: a maker
-chooses a catalog in Files and every consumer moves with it"`, case `"PROJ-1: selecting the
-catalog already in force is a reload, not a no-op"`, case `"PROJ-1: recipes come from the saved
-file, never from an unsaved editor buffer"`, case `"PROJ-1: the chooser does not need the
-Builder panel to be open"`, case `"PROJ-2: an external catalog is chosen live, and the project
-still owns relative sources"`.
+PROVEN BY — `workshop/keymap.hpp` `files.use-recipes`; `workshop/weave.hpp` `files_use_recipes`,
+`use_recipes`, `RecipeSwap`; `tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a
+catalog in Files and every consumer moves with it"`, case `"PROJ-1: selecting the catalog already
+in force is a reload, not a no-op"`, case `"PROJ-1: recipes come from the saved file, never from
+an unsaved editor buffer"`, case `"PROJ-1: the chooser does not need the Builder panel to be
+open"`, case `"PROJ-2: an external catalog is chosen live, and the project still owns relative
+sources"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-07 — Standing Builder intent survives by recipe identity, never by row position

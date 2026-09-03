@@ -64,10 +64,10 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 LAW — A reveal is bound to the item, not the row it is painted on, and eligibility is `rest != full`: a value that fits never moves, and a provider's shortened text is not recovered.
 
-PROVEN BY — `workshop/screen.hpp` `reveal_at`, `reveal_for`, `detail::reveal_shown`, `RevealAt`;
-`tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row reads past its
-ellipsis, and nothing else"`; `tests/test_workshop_files.cpp` case `"WUX-7: a SCROLLED listing
-reveals the row it is showing, not the row it is at"`.
+PROVEN BY — `workshop/screen.hpp` `reveal_at`, `reveal_for`, `detail::reveal_shown`, `RevealAt`,
+`Revealed::item`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row
+reads past its ellipsis, and nothing else"`; `tests/test_workshop_files.cpp` case `"WUX-7: a
+SCROLLED listing reveals the row it is showing, not the row it is at"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-06 — The pointer's column is the offset
@@ -91,11 +91,11 @@ DOES NOT MEAN
 - that a live draft reveals — it is windowed against its own caret and is excluded;
 - that this is a registry — it must not become one.
 
-PROVEN BY — `workshop/screen.hpp` `reveal_place`, `detail::reveal_shown`, `reveal_for`;
-`tests/test_workshop_files.cpp` case `"WUX-7: hovering the browser's location reads the path it
-could not show"`, case `"WUX-7: hovering a listed name reads the rest of it, and only that
-row"`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row reads past
-its ellipsis, and nothing else"`.
+PROVEN BY — `workshop/screen.hpp` `reveal_place`, `detail::reveal_shown`, `reveal_for`,
+`RevealAt`; `tests/test_workshop_files.cpp` case `"WUX-7: hovering the browser's location reads
+the path it could not show"`, case `"WUX-7: hovering a listed name reads the rest of it, and only
+that row"`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row reads
+past its ellipsis, and nothing else"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover

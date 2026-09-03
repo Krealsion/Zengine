@@ -46,9 +46,11 @@
 #            `name(Type)`; both are read as their parts, each of which must be a whole
 #            token in the code (zen_law_token_parts() below).
 #   rule n   a `// WL-...` pointer is PROVEN BY inverted: for each pointer line, the
-#            declaration on the next code line is named by the PROVEN BY of at least one
-#            law on that line, under this file. What "the declaration" means here is a
-#            heuristic parse, stated at zen_law_declared() below.
+#            declaration on the next code line is named by the PROVEN BY of EVERY law on
+#            that line, under this file -- an id whose law does not name the declaration
+#            is a content citation, and the pointer form has no room for one. What "the
+#            declaration" means here is a heuristic parse, stated at zen_law_declared()
+#            below.
 #
 # With STRICT ON, the default, both fail the entry; -DLAW_REGISTER_STRICT=OFF prints their
 # lists and a count without failing, which is the setting for a phase working a list down.
@@ -1272,9 +1274,12 @@ foreach(rel IN LISTS source_files)
             endif()
             # What names the declaration: its bare name, `Scope::name`, or -- for a function --
             # the overload spelling `name(Type)` with its first parameter's type.
-            set(named 0)
+            # EVERY id on the line must name the declaration: a pointer is the inverse of
+            # each law it cites, not of one of them.
+            set(unnamed "")
             foreach(id IN LISTS ids)
                 get_property(owned GLOBAL PROPERTY "zen_law_owns_${id}_${relkey}")
+                set(named 0)
                 foreach(o IN LISTS owned)
                     if(o STREQUAL "${name}" OR o MATCHES "::${name}$")
                         set(named 1)
@@ -1285,10 +1290,14 @@ foreach(rel IN LISTS source_files)
                         set(named 1)
                     endif()
                 endforeach()
+                if(NOT named)
+                    list(APPEND unnamed "${id}")
+                endif()
             endforeach()
-            if(NOT named)
+            if(unnamed)
+                string(REPLACE ";" ", " unnamed "${unnamed}")
                 math(EXPR rule_n_count "${rule_n_count} + 1")
-                zen_law_strict(n "${rel}:${at} (${idtext}) points at ${kind} `${name}` (line ${n}), which no law on the line names under ${rel}")
+                zen_law_strict(n "${rel}:${at} (${idtext}) points at ${kind} `${name}` (line ${n}), which ${unnamed} does not name under ${rel}")
             endif()
         endforeach()
         set(pending "")
@@ -1337,7 +1346,7 @@ foreach(which m n)
     else()
         set(text "${rule_n}")
         set(count "${rule_n_count}")
-        set(what "pointer line(s) whose declaration no law on the line names (of ${rule_n_pointers})")
+        set(what "pointer line(s) whose declaration a law on the line does not name (of ${rule_n_pointers})")
     endif()
     zen_law_show("${text}" text)
     message(STATUS "law-register: STRICT ${strict_word} -- rule ${which}: ${count} ${what}")

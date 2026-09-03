@@ -74,11 +74,11 @@ MEANS
 - a caret is between characters, so the one after a full row needs somewhere to be.
 
 PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`; `workshop/screen.hpp`
-`detail::fit`, `kTerminalCaretCols`, `terminal_input_place`; `surface/region.hpp`
-`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: clicking a SCROLLED
-multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte index are
-inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the window never
-begins inside a character, at any capacity"`.
+`detail::fit`, `kTerminalCaretCols`, `terminal_input_place`, `TerminalInputPlace::columns`;
+`surface/region.hpp` `project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4:
+clicking a SCROLLED multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte
+index are inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the window
+never begins inside a character, at any capacity"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
@@ -144,10 +144,11 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the Skin's role stays open, bounded by the book, and inserts nothing.
 
-PROVEN BY — `workshop/weave.hpp` `paste_asks_`, `answers_ask`, `begin_clipboard_paste`;
-`surface/vocabulary.hpp` `readable`; `tests/test_workshop_document.cpp` case `"QR-11: with nobody
-at the skin role, paste inserts nothing and breaks nothing"`; `tests/test_surface.cpp` case
-`"QR-11: the terminal medium answers a clipboard read with its standing truth"`.
+PROVEN BY — `workshop/weave.hpp` `paste_asks_`, `answers_ask`, `begin_clipboard_paste`,
+`on(ClipboardText)`; `surface/vocabulary.hpp` `readable`; `tests/test_workshop_document.cpp` case
+`"QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing"`;
+`tests/test_surface.cpp` case `"QR-11: the terminal medium answers a clipboard read with its
+standing truth"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-11 — `zengine-component` links nothing

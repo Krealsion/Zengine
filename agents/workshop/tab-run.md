@@ -37,9 +37,9 @@ MEANS
 - the status is adjusted to the row's right edge where the row still fits.
 
 PROVEN BY — `workshop/screen.hpp` `setup_link_text`, `path_columns`, `kSetupStatusCols`,
-`fit_path`, `kElidedCols`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-24: the association's
-verdict survives the row's cut, at every width"`, case `"WUX-9/SC-7: the status row is tabs on the
-left and the existing status right"`.
+`fit_path`, `kElidedCols`, `setup_rest_text`; `tests/test_workshop_screen.cpp` case
+`"WUX-11/SC-24: the association's verdict survives the row's cut, at every width"`, case
+`"WUX-9/SC-7: the status row is tabs on the left and the existing status right"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-04 — `+` is an action, not a durable pseudo-layout
@@ -61,10 +61,10 @@ MEANS
 - a tab's span is recorded as the row is written, so there is no second measurement to drift.
 
 PROVEN BY — `workshop/screen.hpp` `text`, `tabs`, `band_status`, `paint_layouts`, `band_tab_at`,
-`layouts_body`, `band_tab_row`, `kNoBandRow`, `BandStatus`; `tests/test_workshop_screen.cpp` case
-`"WUX-9/SC-7: the tab run is one composition on both media"`, case `"WUX-9/SC-9: a press answers a
-painted tab and nothing else on the band"`, case `"WUX-9/SC-8: the run never spends more columns
-than it was given"`.
+`layouts_body`, `band_tab_row`, `kNoBandRow`, `BandStatus`, `layout_tab_run`;
+`tests/test_workshop_screen.cpp` case `"WUX-9/SC-7: the tab run is one composition on both
+media"`, case `"WUX-9/SC-9: a press answers a painted tab and nothing else on the band"`, case
+`"WUX-9/SC-8: the run never spends more columns than it was given"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-06 — The marker brackets the live name, one cell each side
@@ -156,8 +156,8 @@ LAW — `context_subject::kLayout`'s identity is the position, captured at the p
 MEANS
 - `^w` is annotated beside Close only when the captured tab is the active one.
 
-PROVEN BY — `workshop/context.hpp` `kLayout`; `workshop/screen.hpp` `context_annotation`;
-`workshop/weave.hpp` `open_context_on_layout`; `tests/test_workshop_panels.cpp` case
-`"WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab"`, case `"WUX-11/SC-4: Move Left and
-Move Right reorder from the tab that was pointed at"`.
+PROVEN BY — `workshop/context.hpp` `context_subject::kLayout`; `workshop/screen.hpp`
+`context_annotation`; `workshop/weave.hpp` `open_context_on_layout`;
+`tests/test_workshop_panels.cpp` case `"WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab"`,
+case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`.
 WHY — `agents/decisions/the-layouts-pane.md`

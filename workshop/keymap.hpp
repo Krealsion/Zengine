@@ -57,7 +57,7 @@ inline constexpr bool context_takes_text(KeyContext c) noexcept {
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
 /// context?
-// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-08 -- agents/workshop/keyboard.md
+// WL-CTX-06 -- agents/workshop/contextual.md
 inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcept {
     if (declared == KeyContext::kGlobal) {
         return true;
@@ -251,7 +251,7 @@ enum class Act : std::uint8_t {
 /// One declaration row: the identity, the human meaning, where it is requestable, and the
 /// developer's default gesture. Exactly what the common consumers need and nothing more --
 /// no callback, no availability flag, no ordering weight.
-// WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md; WL-ATTN-10 -- agents/workshop/attention.md
+// WL-KEY-01 -- agents/workshop/keyboard.md; WL-ATTN-10 -- agents/workshop/attention.md
 struct ActionRow {
     Act act = Act::kNone;
     const char* id = "";
@@ -1064,7 +1064,7 @@ struct AuthoredOverride {
 
 /// THE EFFECTIVE BINDING TRUTH: the declaration defaults plus the maker's applied
 /// overrides, plus what could not be applied and is preserved.
-// WL-KEY-01, WL-KEY-02, WL-KEY-07 -- agents/workshop/keyboard.md
+// WL-KEY-01, WL-KEY-07 -- agents/workshop/keyboard.md
 struct Keymap {
     std::int64_t legend = legend_mode::kDefault;
     /// Every override row the maker wrote, verbatim and in authored order -- what a save
@@ -1108,7 +1108,7 @@ struct Keymap {
     }
 
     /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone.
-    // WL-KEY-04, WL-KEY-08 -- agents/workshop/keyboard.md
+    // WL-KEY-04 -- agents/workshop/keyboard.md
     Act action_for(KeyContext current, std::int64_t scancode,
                    std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};

@@ -498,7 +498,7 @@ inline Property<std::string> name_of(WorkshopDoc& d, std::int64_t id) {
 /// What this object's values are measured against. The relationship, as an
 /// ordinary editable property — which is the whole of the authoring surface for
 /// it.
-// WL-DOC-02, WL-DOC-11 -- agents/workshop/document.md
+// WL-DOC-02 -- agents/workshop/document.md
 inline Property<ContextRef> context_of(WorkshopDoc& d, std::int64_t id) {
     return Property<ContextRef>(
         [&d, id] {

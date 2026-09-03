@@ -27,11 +27,11 @@ MEANS
 - the location is one absolute, lexically normal, generic-slash string, and it is not persisted.
 
 PROVEN BY — `workshop/weave.hpp` `project_dir`, `files_dir`, `ensure_marks`;
-`workshop/marks.hpp` `LocationMarks`, `origin`, `settled`; `workshop/files.hpp` `current_dir`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: origin is generated for the run, is a mark, and is
-not the project"`, case `"PROJ-2: marks survive a restart, and the browsing location deliberately
-does not"`, case `"PROJ-2: a location is one absolute spelling, admitted the same way every
-time"`.
+`workshop/marks.hpp` `LocationMarks`, `origin`, `settled`; `workshop/files.hpp`
+`FilesPane::current_dir`; `tests/test_workshop_files.cpp` case `"PROJ-2: origin is generated for
+the run, is a mark, and is not the project"`, case `"PROJ-2: marks survive a restart, and the
+browsing location deliberately does not"`, case `"PROJ-2: a location is one absolute spelling,
+admitted the same way every time"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-03 — Parent is lexical and stops at the filesystem, not at the project
@@ -53,8 +53,8 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 LAW — A directory row is `linked` when following it says directory and not following it does not (`symlink_status()`), never `is_symlink()`, which a Windows junction answers false.
 
 PROVEN BY — `workshop/files.hpp` `symlink_status`, `linked`; `workshop/screen.hpp`
-`files_row_text`; `tests/test_workshop_files.cpp` case `"PROJ-2: a linked directory is marked,
-entered, and left again LEXICALLY"`.
+`files_row_text`; `workshop/weave.hpp` `files_open`; `tests/test_workshop_files.cpp` case
+`"PROJ-2: a linked directory is marked, entered, and left again LEXICALLY"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
@@ -65,10 +65,10 @@ MEANS
 - Files is the first consumer, not the owner: a fact inside a pane is `close_panel`'s to destroy.
 
 PROVEN BY — `workshop/marks.hpp` `LocationMarks`; `workshop/screen.hpp` `marks`;
-`workshop/weave.hpp` `files_mark`; `tests/test_workshop_files.cpp` case `"PROJ-2: the marks owner
-is session truth, and Files is only its first reader"`, case `"PROJ-2: one address is one
-traversal stop, however many ways it is known"`, case `"PROJ-2: a maker marks a place, leaves, and
-comes back to it"`.
+`workshop/weave.hpp` `files_mark`; `workshop/panel.hpp` `close_panel`;
+`tests/test_workshop_files.cpp` case `"PROJ-2: the marks owner is session truth, and Files is only
+its first reader"`, case `"PROJ-2: one address is one traversal stop, however many ways it is
+known"`, case `"PROJ-2: a maker marks a place, leaves, and comes back to it"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
@@ -109,10 +109,11 @@ MEANS
 - a mark is an absolute path, so it describes this machine's disks — state, not configuration.
 
 PROVEN BY — `workshop/marks_persist.hpp` `kFormatVersion`, `from_text`, `WorkshopMark`;
-`workshop/weave.hpp` `marks_refused_`, `load_marks`, `save_marks`; `tests/test_workshop_files.cpp`
-case `"PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped"`, case
-`"PROJ-2: a marks file this run could not read is never overwritten"`, case `"PROJ-2: marks
-survive a restart, and the browsing location deliberately does not"`.
+`workshop/weave.hpp` `marks_refused_`, `load_marks`, `save_marks`, `HostContext::marks_path`;
+`tests/test_workshop_files.cpp` case `"PROJ-2: a persisted mark is admitted, never re-based, and
+never quietly dropped"`, case `"PROJ-2: a marks file this run could not read is never
+overwritten"`, case `"PROJ-2: marks survive a restart, and the browsing location deliberately does
+not"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
@@ -120,9 +121,10 @@ WHY — `agents/decisions/the-marks-file-is-state.md`
 LAW — Every write to `current_dir` and every persisted mark goes through `admit_location`, so "absolute, lexically normal, carriable" holds after the seed, an enter, a parent and a jump.
 
 PROVEN BY — `workshop/path_admission.hpp` `admit_location`; `workshop/weave.hpp`
-`admit_location`; `workshop/marks.hpp` `admit_location`; `tests/test_workshop_files.cpp` case
-`"PROJ-2: a location is one absolute spelling, admitted the same way every time"`, case
-`"PROJ-2: origin is the ADMITTED spelling of the launch location, not the raw one"`.
+`admit_location`; `workshop/marks.hpp` `admit_location`; `workshop/files.hpp`
+`FilesPane::current_dir`; `tests/test_workshop_files.cpp` case `"PROJ-2: a location is one
+absolute spelling, admitted the same way every time"`, case `"PROJ-2: origin is the ADMITTED
+spelling of the launch location, not the raw one"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
@@ -134,10 +136,11 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/files.hpp` `printable_ascii_name`, `openable`, `admit_filename`,
 `FileRow::name`, `shown_name`; `workshop/path_admission.hpp` `admit_filename`;
-`workshop/screen.hpp` `files_row_text`; `tests/test_workshop_files.cpp` case `"EDIT-1: a name
-outside printable ASCII keeps its row, marked, and cannot be opened"`, case `"EDIT-1: the browser
-does not judge contents -- the editor's door does"`, case `"EDIT-1: a name the path custody cannot
-carry refuses at the browser, in its words"`.
+`workshop/screen.hpp` `files_row_text`; `workshop/weave.hpp` `files_open`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: a name outside printable ASCII keeps its row,
+marked, and cannot be opened"`, case `"EDIT-1: the browser does not judge contents -- the editor's
+door does"`, case `"EDIT-1: a name the path custody cannot carry refuses at the browser, in its
+words"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
@@ -150,11 +153,12 @@ MEANS
 - a second `generic_string()` anywhere is a second way for the process to die.
 
 PROVEN BY — `workshop/path_admission.hpp` `carried`, `exact`, `admit_path`, `admit_filename`,
-`launch_project_dir`, `u8string`, `AdmittedPath`, `AdmittedName`; `workshop/weave.hpp`
-`files_open`, `files_use_recipes`; `tests/test_workshop_files.cpp` case `"QR-12: an ordinary path
-and an ordinary name are carried exactly as they were"`, case `"QR-12: a name this platform will
-not spell is one inert row, not the end of it"`, case `"QR-12: a name this platform will not spell
-refuses at the browser's door"`.
+`launch_project_dir`, `u8string`, `AdmittedPath`, `AdmittedName`, `admit_location`;
+`workshop/weave.hpp` `files_open`, `files_use_recipes`; `workshop/files.hpp` `FileRow::openable`;
+`tests/test_workshop_files.cpp` case `"QR-12: an ordinary path and an ordinary name are carried
+exactly as they were"`, case `"QR-12: a name this platform will not spell is one inert row, not
+the end of it"`, case `"QR-12: a name this platform will not spell refuses at the browser's
+door"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-12 — A listing is not a per-paint population

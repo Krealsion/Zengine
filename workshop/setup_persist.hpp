@@ -46,7 +46,7 @@ inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
 
 inline constexpr const char* kUnitDefault = "default";
 /// VERSION 3'S GEOMETRY WORD: amounts in 1/surface::kCellSubs of a canvas cell.
-// WL-SETUP-02, WL-SETUP-04 -- agents/workshop/setup-file.md
+// WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
 
@@ -118,7 +118,7 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 // ---- Writing -------------------------------------------------------------------
 
 /// The word for an authored unit. TOTAL over the integer.
-// WL-SETUP-01, WL-SETUP-04 -- agents/workshop/setup-file.md
+// WL-SETUP-04 -- agents/workshop/setup-file.md
 inline const char* unit_word(std::int64_t mode) {
     if (mode == pane_unit::kSubcells) {
         return kUnitSubcells;
@@ -223,7 +223,7 @@ inline std::string unknown_unit(const std::string& found, const char* which,
 }
 
 // ---- VERSION 2, RETAINED FOR READING -----------------------------------------------------
-// WL-SESSION-04 -- agents/workshop/session.md; WL-SETUP-02 -- agents/workshop/setup-file.md
+// WL-SETUP-02 -- agents/workshop/setup-file.md
 namespace v2 {
 
 struct WorkshopPaneSize {

@@ -27,10 +27,10 @@ MEANS
 - the thinner boundary changed no foreground law and no byte of any setup;
 - the smallest span a medium can show is one of its own device units, and that is the grain.
 
-PROVEN BY — `workshop/screen.hpp` `chrome_grain`; `workshop/setup_persist.hpp` `kFormatVersion`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-8: the thinner boundary rewrites no authored
-value and no foreground law"`; `tests/test_surface.cpp` case `"WUX-8: the smallest span a
-medium can SHOW is one of its own device units"`.
+PROVEN BY — `workshop/screen.hpp` `chrome_grain`, `kChromeCells`; `workshop/setup_persist.hpp`
+`kFormatVersion`; `tests/test_workshop_panes_window.cpp` case `"WUX-8: the thinner boundary
+rewrites no authored value and no foreground law"`; `tests/test_surface.cpp` case `"WUX-8: the
+smallest span a medium can SHOW is one of its own device units"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-03 — A pane too small for a boundary draws none
@@ -75,10 +75,10 @@ MEANS
 - the graphical room is the post-chrome pixels, and selection cannot move it.
 
 PROVEN BY — `workshop/screen.hpp` `external_body_place`, `info_body_place`, `panel_prose_place`,
-`layouts_body`, `pane_interior`, `PaneInside`, `RegionFit`; `tests/test_workshop_screen.cpp` case
-`"WUX-5: the border a maker sees and the room a pane spends are one subtraction"`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-8: the graphical room is the post-chrome
-pixels, and selection cannot move it"`.
+`layouts_body`, `pane_interior`, `PaneInside`, `RegionFit`, `PanelProsePlace`;
+`tests/test_workshop_screen.cpp` case `"WUX-5: the border a maker sees and the room a pane spends
+are one subtraction"`; `tests/test_workshop_panes_window.cpp` case `"WUX-8: the graphical room is
+the post-chrome pixels, and selection cannot move it"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-06 — A content-sized surface reserves the coarsest boundary

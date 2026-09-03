@@ -61,7 +61,7 @@ inline constexpr std::int64_t kMaxPanePixels = 65536;
 // ---- The value ---------------------------------------------------------------
 
 /// WHICH PANE A MAKER MEANT -- durably, and without naming a catalog slot.
-// WL-LAYOUT-11 -- agents/workshop/layouts.md; WL-SETUP-01 -- agents/workshop/setup-file.md
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneRef {
     std::string provider;
     std::string pane;
@@ -70,7 +70,6 @@ struct PaneRef {
 };
 
 // ---- THE AUTHORED WINDOW: the smallest difference from a default --------------
-// WL-SETUP-01, WL-SETUP-04 -- agents/workshop/setup-file.md
 
 /// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a fourth.
 // WL-SETUP-03, WL-SETUP-04, WL-SETUP-06 -- agents/workshop/setup-file.md
@@ -156,7 +155,7 @@ static_assert(kMaxMakerPaneNameLen <= kMaxPaneKeyLen,
               "bound must sit under the reference's");
 
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
+// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         if (ref.provider == kPanelCatalog[i].provider && ref.pane == kPanelCatalog[i].pane) {
@@ -728,7 +727,7 @@ inline bool remove_pane(Setup& s, const PaneRef& ref) {
 }
 
 // ---- THE CANONICAL FRONT ORDER: five operations, all exact permutations ------
-// WL-PANE-07 -- agents/workshop/panes-and-windows.md; WL-SETUP-07 -- agents/workshop/setup-file.md
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 
 /// The pane that currently sits at this rank, or `kNoPaneRow`. Total, and used by
 /// the two step operations to find the neighbour they swap with.
@@ -824,7 +823,7 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
 }
 
 // ---- THE GEOMETRY DOORS: what a hand and a key both end at ------------------------------
-// WL-ARR-06 -- agents/workshop/arrangement.md; WL-SETUP-08 -- agents/workshop/setup-file.md
+// WL-SETUP-08 -- agents/workshop/setup-file.md
 
 /// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else. `x`/`y` are
 /// sub-units, the authored lattice's own resolution.
@@ -1278,7 +1277,7 @@ struct Layout {
 
 /// THE LAYOUTS THIS WORKSHOP IS HOLDING, WHICH ONE IS LIVE, AND THE EDITOR OVER
 /// ITS NAME.
-// WL-LAYOUT-01, WL-LAYOUT-02, WL-LAYOUT-03 -- agents/workshop/layouts.md
+// WL-LAYOUT-01, WL-LAYOUT-03 -- agents/workshop/layouts.md
 struct SetupState {
     Setup active = default_setup();
     SetupLink active_link;

@@ -177,7 +177,7 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
 
 /// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
 /// pane is told from a built-in one.
-// WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-SETUP-01 -- agents/workshop/setup-file.md
+// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 
 /// Is this a session-local runtime kind rather than a compile-time one?
@@ -504,7 +504,7 @@ struct Panel {
     std::int64_t kind = panel::kBuilder;
 };
 
-// WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-TAB-01 -- agents/workshop/tab-run.md
+// WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo, panel::kLayouts};
 
 inline constexpr std::size_t kDefaultPanelCount =
@@ -556,7 +556,7 @@ struct Panels {
 
     /// WHICH PANE THE MAKER LAST PRESSED INTO -- the SELECTED pane, and the
     /// identity the desk's effective foreground order is lifted by.
-    // WL-FRONT-04, WL-FRONT-05 -- agents/workshop/planes.md
+    // WL-FRONT-04 -- agents/workshop/planes.md
     // WL-CTX-01 -- agents/workshop/contextual.md
     std::int64_t selected = kNoPaneKind;
 

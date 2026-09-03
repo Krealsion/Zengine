@@ -22,10 +22,10 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy file, a pane's refused update, a waiting frontier) left the notice; `speak_startup_notes` joins only the event halves.
 
-PROVEN BY — `workshop/weave.hpp` `speak_startup_notes`, `say`, `transition_note`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay events, and a condition needs
-no sentence"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a refused prefs file is spoken,
-stands, and is never overwritten"`.
+PROVEN BY — `workshop/weave.hpp` `speak_startup_notes`, `say`, `transition_note`,
+`take_host_conditions`; `tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay
+events, and a condition needs no sentence"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a
+refused prefs file is spoken, stands, and is never overwritten"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-03 — `attention_conditions` is a pure projection
@@ -43,11 +43,11 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — A condition derived from a live owner — a pane's refusal, a pane's state, the project frontier — is never copied into the held set; the owner's next truth clears it with no retraction call.
 
 PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`, `ProjectFrontier`,
-`clear_refusal`; `workshop/screen.hpp` `pane_state_of`, `paint`; `workshop/attention.hpp`
-`HeldConditions`; `workshop/weave.hpp` `HostContext::frontier`, `frontier_now`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and leaves attention
-with its subject"`, case `"WUX-4: the project frontier is a condition while it waits and nothing
-after"`.
+`clear_refusal`; `workshop/screen.hpp` `pane_state_of`, `paint`, `attention_conditions`;
+`workshop/attention.hpp` `HeldConditions`; `workshop/weave.hpp` `HostContext::frontier`,
+`frontier_now`; `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and
+leaves attention with its subject"`, case `"WUX-4: the project frontier is a condition while it
+waits and nothing after"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — Three pane states earn ambient attention and four do not
@@ -98,18 +98,19 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — A mode in the picker's place, below the Terminal and the arrangement scopes and above a focused pane and a live draft; not keys-modal, its gestures being catalog rows; its toggle is a no-text row.
 
 PROVEN BY — `workshop/keymap.hpp` `kAttention`, `workshop.attention`, `kNoText`;
-`workshop/screen.hpp` `keyboard_context_beneath_menu`, `paint_attention`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: the view's gestures are the keymap's, and every
-help surface says so"`.
+`workshop/screen.hpp` `keyboard_context_beneath_menu`, `paint_attention`, `attention_bounds`;
+`workshop/weave.hpp` `toggle_attention`, `attention_key`; `tests/test_workshop_panels.cpp` case
+`"WUX-4: the view's gestures are the keymap's, and every help surface says so"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-10 — A condition names an action and holds no power
 
 LAW — A condition names an action by its catalog id or names nothing, painted through the effective keymap; nothing may open the view but a maker's gesture, and no severity or count reaches the toggle.
 
-PROVEN BY — `workshop/attention.hpp` `action`; `workshop/weave.hpp` `toggle_attention`;
-`workshop/keymap.hpp` `ActionRow`; `tests/test_workshop_panels.cpp` case `"WUX-4: a condition
-names an action and cannot execute one"`, case `"WUX-4: an alert condition opens nothing"`.
+PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/weave.hpp`
+`toggle_attention`; `workshop/keymap.hpp` `ActionRow`; `tests/test_workshop_panels.cpp` case
+`"WUX-4: a condition names an action and cannot execute one"`, case `"WUX-4: an alert condition
+opens nothing"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-11 — The condition path touches neither the Recorder nor the Logger

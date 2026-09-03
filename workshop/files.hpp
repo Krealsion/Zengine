@@ -37,7 +37,7 @@ inline constexpr std::size_t kMaxListedEntries = 2000;
 /// ONE ROW: a name and a kind, and deliberately nothing else.
 struct FileRow {
     /// The filename bytes, UTF-8, as the filesystem gave them.
-    // WL-FILES-10, WL-FILES-11 -- agents/workshop/files.md
+    // WL-FILES-10 -- agents/workshop/files.md
     std::string name;
     bool directory = false;
     /// A DIRECTORY THAT LEAVES THE TREE.

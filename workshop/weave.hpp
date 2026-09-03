@@ -59,7 +59,7 @@ struct HostContext {
 
     /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
     /// host mounted none.
-    // WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal.md
+    // WL-TERM-02 -- agents/workshop/terminal.md
     loom::TerminalSession* terminal = nullptr;
 
     /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE.
@@ -115,7 +115,7 @@ struct HostContext {
     std::string marks_path;
 
     /// The one file this Workshop's open PANE DEFINITION is read from and written to.
-    // WL-MAKER-08, WL-MAKER-10 -- agents/workshop/maker-pane.md
+    // WL-MAKER-08 -- agents/workshop/maker-pane.md
     // WL-SESSION-01 -- agents/workshop/session.md
     std::string pane_path;
 
@@ -255,7 +255,7 @@ public:
     }
 
     /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
-    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FOCUS-11 -- agents/workshop/focus.md
+    // WL-FOCUS-11 -- agents/workshop/focus.md
     void load_prefs() {
         if (prefs_loaded_) {
             return;
@@ -286,7 +286,7 @@ public:
     /// Say once what the startup file work DID, on the first surface that can show it --
     /// after the session restore, deliberately, so the sentence that survives on the one
     /// notice line is the one about this launch.
-    // WL-ATTN-01, WL-ATTN-02 -- agents/workshop/attention.md
+    // WL-ATTN-02 -- agents/workshop/attention.md
     void speak_startup_notes(loom::Mail& mail) {
         if (startup_spoken_) {
             return;
@@ -795,7 +795,7 @@ public:
     }
 
     /// CHOOSE THE ROW THE CURSOR IS ON.
-    // WL-CTX-07, WL-CTX-08 -- agents/workshop/contextual.md
+    // WL-CTX-08 -- agents/workshop/contextual.md
     void choose_context_row(loom::Mail& mail) {
         ContextMenu& menu = session_.context;
         const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
@@ -3000,7 +3000,7 @@ private:
     }
 
     /// STEP THE PICKER'S CURSOR, BOUNDED BY THE PAINTED POPULATION.
-    // WL-EDIT-10 -- agents/workshop/editor.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
+    // WL-PANE-12 -- agents/workshop/panes-and-windows.md
     void picker_move(std::int64_t by) {
         PanelPicker& picker = session_.panels.picker;
         const std::size_t total = picker_population().size();
@@ -3460,7 +3460,6 @@ private:
     }
 
     // ---- THE LAST SESSION: the desk that comes back on its own ----------------
-    // WL-SESSION-13, WL-SESSION-16 -- agents/workshop/session.md
 
     /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
     // WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session.md
@@ -4508,7 +4507,6 @@ private:
     }
 
     // ---- THE SOURCE EDITOR: choose source, edit, save, and never lose a byte ----------
-    // WL-EDIT-01, WL-EDIT-02 -- agents/workshop/editor.md
 
     /// The editor's keys: the buffer's own vocabulary first, then the editor's policy.
     // WL-EDIT-02, WL-EDIT-09 -- agents/workshop/editor.md
@@ -4579,7 +4577,7 @@ private:
     void refresh_editor() { reconcile_editor_view(session_); }
 
     // ---- The filesystem browser ----------------------------------------------
-    // WL-FILES-01, WL-FILES-02 -- agents/workshop/files.md
+    // WL-FILES-02 -- agents/workshop/files.md
 
     /// The directory the browser is showing. A FIELD READ: after the seed below, nothing
     /// here derives a location from the project anchor, which is what makes browsing
@@ -4602,7 +4600,7 @@ private:
     }
 
     /// READ THE MAKER'S OWN PLACES, OR STAND ON NONE.
-    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FILES-08 -- agents/workshop/files.md
+    // WL-FILES-08 -- agents/workshop/files.md
     void load_marks() {
         if (marks_loaded_) {
             return;
@@ -4946,7 +4944,7 @@ private:
     }
 
     /// THE WHEEL OVER THE BROWSER'S BODY MOVES THE CURSOR, and the window follows it.
-    // WL-EDIT-10 -- agents/workshop/editor.md; WL-FOCUS-04 -- agents/workshop/focus.md
+    // WL-EDIT-10 -- agents/workshop/editor.md
     void files_wheel(const zengine::input::PointerWheel& w, const Screen& sc,
                      loom::Mail& mail) {
         if (!over_files_body(session_, sc, w.space, w.x, w.y)) {
@@ -6310,7 +6308,7 @@ private:
     bool marks_loaded_ = false;
     /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE, and whether
     /// that file was REFUSED.
-    // WL-MAKER-08, WL-MAKER-09 -- agents/workshop/maker-pane.md
+    // WL-MAKER-09 -- agents/workshop/maker-pane.md
     bool pane_loaded_ = false;
     bool pane_refused_ = false;
     /// A MARKS FILE THIS RUN COULD NOT UNDERSTAND, remembered so a later toggle cannot
@@ -6322,7 +6320,7 @@ private:
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
     /// What loading the PREFS file produced, the keymap's own bookkeeping one file over.
-    // WL-ATTN-01 -- agents/workshop/attention.md; WL-FOCUS-11 -- agents/workshop/focus.md
+    // WL-FOCUS-11 -- agents/workshop/focus.md
     bool prefs_loaded_ = false;
     bool prefs_bad_ = false;
 

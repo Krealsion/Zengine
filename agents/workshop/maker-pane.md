@@ -34,10 +34,11 @@ MEANS
 
 PROVEN BY — `workshop/panel.hpp` `kMakerPaneProvider`, `zengine.workshop.maker`,
 `kMakerPaneKind`; `workshop/setup.hpp` `admit_pane_offer`, `resolve_pane`, `maker_pane_ref`;
-`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-4: a maker pane's identity is its name
-under Workshop's namespace -- not a singleton that follows the open file"`, case
-`"WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its
-reference; remove the file and the row is kept unresolved"`.
+`workshop/pane_definition.hpp` `PaneDefinition::name`; `tests/test_workshop_panels_creator.cpp`
+case `"WUX-14/SC-4: a maker pane's identity is its name under Workshop's namespace -- not a
+singleton that follows the open file"`, case `"WUX-14/SC-16+SC-17: save, quit, relaunch -- the
+same pane returns on the same layout by its reference; remove the file and the row is kept
+unresolved"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-04 — `kMakerPaneKind` is a handle, not an identity
@@ -114,9 +115,10 @@ MEANS
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
 PROVEN BY — `workshop/weave.hpp` `quit`, `open_maker_pane`, `save_maker_pane`,
-`discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`, `pane_path`, `host_pane_path`;
-`workshop/screen.hpp` `kPaneWallKey`; `workshop/pane_definition_persist.hpp` `LoadedDefinition`;
-`workshop/panel.hpp` `Panels::maker`; `tests/test_workshop_panels_creator.cpp` case
+`discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`, `pane_path`, `host_pane_path`,
+`load_pane_definition`; `workshop/screen.hpp` `kPaneWallKey`;
+`workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp` `Panels::maker`;
+`workshop/pane_definition.hpp` `MakerPane`; `tests/test_workshop_panels_creator.cpp` case
 `"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
 the maker saves or discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its
 file, and closes a pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a
@@ -162,7 +164,7 @@ MEANS
 
 PROVEN BY — `workshop/keymap.hpp` `kPaneNaming`; `workshop/screen.hpp` `pane_naming`,
 `PaneNaming`; `workshop/weave.hpp` `new_maker_pane`, `save_maker_pane`,
-`discard_maker_pane_edits`; `workshop/pane_definition.hpp` `kNewRegionX`;
+`discard_maker_pane_edits`, `naming_line`; `workshop/pane_definition.hpp` `kNewRegionX`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14: the name prompt refuses a bad name in
 words and keeps it, cancels cleanly, and swallows its own trigger"`, case `"WUX-14: at the minimum
 composition a new pane lands waiting, is still the subject, and is still editable"`.

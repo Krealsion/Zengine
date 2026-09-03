@@ -14,11 +14,11 @@ MEANS
 - `kinds_placed_in` pins the side region and the top band at one kind each, at compile time.
 
 PROVEN BY — `workshop/panel.hpp` `place_is_authorable`, `kSideRegion`, `kOverlayStack`,
-`kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`; `workshop/screen.hpp` `project_pane`,
-`paint_pane_affordances`; `workshop/weave.hpp` `take_pane_hold`; `tests/test_workshop_panels.cpp`
-case `"a panel kind declares its place, and the place resolves to bounds"`;
-`tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts pane, and
-the tabs with it"`.
+`kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`, `placement_of`; `workshop/screen.hpp`
+`project_pane`, `paint_pane_affordances`; `workshop/weave.hpp` `take_pane_hold`;
+`tests/test_workshop_panels.cpp` case `"a panel kind declares its place, and the place resolves to
+bounds"`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts
+pane, and the tabs with it"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-03 — A band-anchored or authored pane spends no reactive slot
@@ -29,8 +29,8 @@ MEANS
 - both `seat_panes` and `bounds_of`'s slot counter, `stack_slots_that_fit`, say it;
 - an oversubscribed authored setup keeps the extra reference, waiting for room.
 
-PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`;
-`workshop/screen.hpp` `bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp`
+PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`,
+`Seating`; `workshop/screen.hpp` `bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp`
 `waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored place spends
 no reactive slot, and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp` case `"an
 oversubscribed authored setup keeps the extra reference, waiting for room"`.
@@ -75,9 +75,9 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `external_body_place`, `kExternalHeaderRows`,
 `paint_external`; `workshop/weave.hpp` `refresh_external_rooms`; `surface/region.hpp`
-`fit_region`; `tests/test_workshop_panes_seam.cpp` case `"WIND-1: an external grant follows the
-widened body through fit_region"`, case `"opening an external pane grants exactly the fit_region
-room, authored as Workshop"`.
+`fit_region`; `workshop/panel.hpp` `ExternalPane`; `tests/test_workshop_panes_seam.cpp` case
+`"WIND-1: an external grant follows the widened body through fit_region"`, case `"opening an
+external pane grants exactly the fit_region room, authored as Workshop"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-07 — `panels.open` is never reordered
@@ -103,8 +103,8 @@ MEANS
 - a movable Info would change the resolved size of objects in a maker's document;
 - the Layouts pane's authored geometry is spent: it moves, and its tabs with it.
 
-PROVEN BY — `workshop/screen.hpp` `project_pane`, `PaneProjection`; `workshop/panel.hpp`
-`place_is_authorable`; `workshop/weave.hpp` `arrange_geometry_ready`;
+PROVEN BY — `workshop/screen.hpp` `project_pane`, `PaneProjection`, `pane_geometry_typeable`;
+`workshop/panel.hpp` `place_is_authorable`; `workshop/weave.hpp` `arrange_geometry_ready`;
 `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts pane, and
 the tabs with it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
 setup-valid, projection-refused, and never falls back"`.
@@ -118,10 +118,10 @@ MEANS
 - every consumer that reads an empty rectangle as "nowhere" is correct for an off-room pane;
 - a wholly off-room pane is painted by nobody and its intent is not rewritten.
 
-PROVEN BY — `workshop/screen.hpp` `bounds_of`, `PanelBounds`, `PanelBounds::rect`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a partly off-room pane is clipped, and its
-intent is not rewritten"`, case `"WIND-2: a wholly off-room pane is off-room, recoverable, and
-painted by nobody"`.
+PROVEN BY — `workshop/screen.hpp` `bounds_of`, `PanelBounds`, `PanelBounds::rect`,
+`PaneProjection`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a partly off-room pane is
+clipped, and its intent is not rewritten"`, case `"WIND-2: a wholly off-room pane is off-room,
+recoverable, and painted by nobody"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-10 — Seven states, one classifier, one precedence
@@ -134,7 +134,8 @@ MEANS
 - the state column is eleven cells (`kPaneStateCols`), because `unresolved` is ten bytes.
 
 PROVEN BY — `workshop/screen.hpp` `pane_state_of`, `pane_state`, `pane_state_word`,
-`kPaneStateCols`, `PaneProjection`, `pane_state_remedy`; `workshop/weave.hpp` `unresolved_note`;
+`kPaneStateCols`, `PaneProjection`, `pane_state_remedy`, `pane_is_covered`; `workshop/weave.hpp`
+`unresolved_note`; `workshop/panel.hpp` `Panels::waiting_for_room`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused pane is refused rather than
 waiting, and it still SEATS"`, case `"WIND-2: two panes that each cover HALF of a third leave
 nothing of it showing"`, case `"WIND-2: coverage is the UNION of what is in front, not containment

@@ -46,9 +46,10 @@ MEANS
 - `forget_removed_selection` deliberately does not touch it.
 
 PROVEN BY — `workshop/weave.hpp` `repair_pane_editor_subject`, `forget_removed_selection`;
-`workshop/setup.hpp` `inventory_rows`; `tests/test_workshop_panels.cpp` case `"WUX-13: the subject
-stands across a layout switch, and clears only when nothing names it"`, case `"WUX-13/SC-9: a
-closed pane and an unresolved row are subjects with honest facts"`.
+`workshop/setup.hpp` `inventory_rows`; `workshop/screen.hpp` `PaneEditor::subject`;
+`tests/test_workshop_panels.cpp` case `"WUX-13: the subject stands across a layout switch, and
+clears only when nothing names it"`, case `"WUX-13/SC-9: a closed pane and an unresolved row are
+subjects with honest facts"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-04 — Every row reads fresh and nothing writes on paint
@@ -59,11 +60,12 @@ MEANS
 - rows close over the session and the subject, rebuilt only when the subject changes;
 - `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
 
-PROVEN BY — `workshop/screen.hpp` `paint_pane_editor`, `pane_editor_rows`; `workshop/setup.hpp`
-`inventory_rows`; `workshop/property.hpp` `Row::section`; `workshop/weave.hpp`
-`rebuild_subject_rows`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a
-built-in, and its list is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows
-say identity, then AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
+PROVEN BY — `workshop/screen.hpp` `paint_pane_editor`, `pane_editor_rows`, `PaneEditor::rows`;
+`workshop/setup.hpp` `inventory_rows`; `workshop/property.hpp` `Row::section`;
+`workshop/weave.hpp` `rebuild_subject_rows`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2:
+the Pane Editor is a built-in, and its list is the picker's population"`, case `"WUX-13/SC-4+SC-5:
+the subject's rows say identity, then AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never
+authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door

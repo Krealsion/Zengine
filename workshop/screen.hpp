@@ -43,7 +43,6 @@
 namespace zengine::workshop {
 
 // ---- The one screen's layout, in canvas cells ------------------------------------------
-// WL-GEO-02, WL-GEO-03, WL-GEO-04 -- agents/workshop/geometry.md
 
 /// The smallest surface this screen is laid out on -- and, deliberately, the extent it uses
 /// when nothing tells it otherwise.
@@ -52,7 +51,7 @@ inline constexpr std::int64_t kScreenMinW = 78;
 inline constexpr std::int64_t kScreenMinH = 22;
 
 /// The largest surface this screen will lay out.
-// WL-GEO-02 -- agents/workshop/geometry.md; WL-SESSION-07 -- agents/workshop/session.md
+// WL-SESSION-07 -- agents/workshop/session.md
 inline constexpr std::int64_t kScreenMaxW = 640;
 inline constexpr std::int64_t kScreenMaxH = 400;
 
@@ -66,12 +65,12 @@ inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a 
 
 /// THE SIDE REGION (`placement::kSideRegion`): the column beside the workspace, FIXED, and
 /// anchored to the right edge rather than to a column number.
-// WL-GEO-03, WL-GEO-04 -- agents/workshop/geometry.md; WL-PANE-08 -- agents/workshop/panes-and-windows.md
+// WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanelCols = 28;
 inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
 
 /// The rows INSIDE the side region's bounds: one, the `OBJECTS` heading.
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-INFO-08 -- agents/workshop/info-body.md
+// WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: the body's own
 inline constexpr std::int64_t kInfoHeadingRows = 1; ///< prose rows the `OBJECTS` heading keeps
 
@@ -86,7 +85,7 @@ static_assert(kTopRows + kBottomRows == 6,
               "extent is what a share resolves against");
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
-// WL-GEO-04 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
+// WL-PANE-04 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kStackX = 0;
 inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the screen's title row
 /// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
@@ -110,11 +109,10 @@ inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked p
 inline constexpr std::int64_t kPickerRows = 1 + static_cast<std::int64_t>(kPanelKinds);
 
 // ---- The terminal overlay's own furniture, in canvas cells -----------------------------
-// WL-GEO-02 -- agents/workshop/geometry.md; WL-TERM-03 -- agents/workshop/terminal.md
 
 /// THE WIDTH THE PANE ASKS FOR at the smallest screen, before the room answers. It is a WANT
 /// and not a floor.
-// WL-GEO-02 -- agents/workshop/geometry.md; WL-TERM-03 -- agents/workshop/terminal.md
+// WL-GEO-02 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kTerminalWantW = 56;
 inline constexpr std::int64_t kTerminalMinH = 13;
 /// Header, the standing statement, the omission marker, the input line: the rows a pane
@@ -358,7 +356,7 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
 }
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
-// WL-CHROME-01, WL-CHROME-02, WL-CHROME-04, WL-CHROME-06 -- agents/workshop/chrome.md
+// WL-CHROME-01, WL-CHROME-02, WL-CHROME-06 -- agents/workshop/chrome.md
 
 /// THE COARSEST HONEST BOUNDARY, and the one every medium can show: one canvas cell. It is
 /// what a character medium spends, what a cell-projected interior spends in any medium, and
@@ -843,7 +841,7 @@ inline constexpr std::int64_t kCount = 8;
 inline constexpr std::int64_t kNoPaneEdge = -1;
 
 /// The edge a maker reads, and the mark they read it BY.
-// WL-ARR-09 -- agents/workshop/arrangement.md; WL-CTRL-04 -- agents/workshop/info-controls.md
+// WL-ARR-09 -- agents/workshop/arrangement.md
 inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
     switch (edge) {
     case pane_edge::kLeft: return "left";
@@ -881,7 +879,7 @@ inline constexpr std::int64_t kPaneEdgeBandSubs = surface::kCellSubs;
 
 /// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own fine
 /// edges.
-// WL-ARR-09 -- agents/workshop/arrangement.md; WL-GEO-07 -- agents/workshop/geometry.md
+// WL-ARR-09 -- agents/workshop/arrangement.md
 inline FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept {
     const std::int64_t cell = surface::kCellSubs;
     const std::int64_t x0 = r.x;
@@ -994,7 +992,7 @@ struct PaneNaming {
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
-// WL-ARR-01, WL-ARR-05 -- agents/workshop/arrangement.md
+// WL-ARR-01 -- agents/workshop/arrangement.md
 struct PaneGesture {
     bool active = false;
     PaneRef pane;
@@ -1157,7 +1155,7 @@ struct Session {
     std::string notice;
     bool notice_is_bad = false; ///< whether that thing was a refusal
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
-    // WL-ATTN-01, WL-ATTN-05 -- agents/workshop/attention.md
+    // WL-ATTN-01 -- agents/workshop/attention.md
     HeldConditions conditions;
     /// ...and the view a maker reads them in, plus the ones they have hidden this session.
     /// Presentation only: it holds a mode flag, a cursor and a set of hidden statements,
@@ -1174,7 +1172,7 @@ struct Session {
     Panels panels;
     /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
     /// one-line editor over its name (setup.hpp).
-    // WL-LAYOUT-01, WL-LAYOUT-07 -- agents/workshop/layouts.md
+    // WL-LAYOUT-01 -- agents/workshop/layouts.md
     SetupState setup;
     /// WHICH SCOPE A MAKER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
     // WL-ARR-07 -- agents/workshop/arrangement.md
@@ -1212,7 +1210,7 @@ struct Session {
     /// See `Revealed`: presentation only, and the most transient state here.
     Revealed reveal;
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
-    // WL-TEXT-08, WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-08 -- agents/workshop/text-box.md
     component::Clipboard clipboard;
     /// THE EFFECTIVE BINDING TRUTH: declaration defaults plus the maker's
     /// authored overrides, plus the legend preference.
@@ -1229,7 +1227,7 @@ struct Session {
     std::string recipes_moved_to;
 
     /// THE PLACES THIS RUN KNOWS ARE WORTH RETURNING TO (`marks.hpp`).
-    // WL-FILES-05, WL-FILES-06 -- agents/workshop/files.md
+    // WL-FILES-05 -- agents/workshop/files.md
     LocationMarks marks;
 };
 
@@ -1371,7 +1369,7 @@ inline KeyContext keyboard_context(const Session& s) {
 }
 
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
-// WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md; WL-EDIT-09 -- agents/workshop/editor.md
+// WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
 inline bool escape_may_shed_selection(KeyContext c) {
     return c == KeyContext::kFiles || c == KeyContext::kPaneEditor || c == KeyContext::kCommand;
 }
@@ -1737,7 +1735,7 @@ inline std::string fit_path(const std::string& path, std::int64_t width) {
 }
 
 // ---- Reading past the ellipsis -----------------------------------------------------------
-// WL-PTR-04, WL-PTR-06 -- agents/workshop/pointer.md
+// WL-PTR-06 -- agents/workshop/pointer.md
 
 /// THE FURTHEST A ROW MAY BE SCROLLED: exactly enough to bring the last byte into view, and
 /// never one further. It is what makes the right edge of the row mean "the end", rather than
@@ -1801,7 +1799,7 @@ inline std::string reveal_shown(const Revealed& rev, std::int64_t place, std::si
 inline constexpr std::int64_t kWrapIndent = 2;
 
 /// FIT `text` INTO AS MANY ROWS AS IT NEEDS, at most `width` cells each.
-// WL-TERM-07 -- agents/workshop/terminal.md; WL-TEXT-05 -- agents/workshop/text-box.md
+// WL-TERM-07 -- agents/workshop/terminal.md
 inline std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     std::vector<std::string> rows;
     if (width <= 0) {
@@ -2196,7 +2194,7 @@ inline Handle size_handle(const WorkshopDoc& d, const Session& s) {
 
 /// Take hold of whatever authored object is under a workspace cell. Returns the
 /// identity taken hold of, or 0 for empty space.
-// WL-DOC-06, WL-DOC-09 -- agents/workshop/document.md
+// WL-DOC-09 -- agents/workshop/document.md
 inline std::int64_t begin_drag(const WorkshopDoc& d, Session& s, std::int64_t cx,
                                std::int64_t cy) {
     const ui::Scene scene = workspace_scene(d, s);
@@ -2265,7 +2263,7 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 
 
 /// WHERE A POINTER LANDED INSIDE A BOUNDED TEXT REGION, in that region's own prose.
-// WL-GEO-07 -- agents/workshop/geometry.md; WL-INFO-04 -- agents/workshop/info-body.md
+// WL-INFO-04 -- agents/workshop/info-body.md
 struct ProseAt {
     bool understood = false;
     std::int64_t column = 0;
@@ -2375,7 +2373,7 @@ inline std::string omitted_text(std::size_t how_many, const char* which) {
 // ---- Rendering one participant's record ------------------------------------------------
 
 /// WHERE A SUBMITTED MESSAGE WAS ADDRESSED, in the SAME three sigils the command line reads.
-// WL-TERM-02, WL-TERM-07 -- agents/workshop/terminal.md
+// WL-TERM-02 -- agents/workshop/terminal.md
 inline std::string terminal_address(const loom::TranscriptEntry& e) {
     switch (e.addressing) {
     case loom::Addressing::Weave: return "#" + std::to_string(e.target.value);
@@ -2454,7 +2452,6 @@ inline std::string terminal_omission(const TerminalPane& t) {
 }
 
 // ---- The editable line, resolved ONCE ---------------------------------------------------
-// WL-GEO-01 -- agents/workshop/geometry.md; WL-TERM-09 -- agents/workshop/terminal.md
 
 /// THE PROMPT, in columns: the `> ` before the editable text.
 // WL-TERM-09 -- agents/workshop/terminal.md
@@ -2542,7 +2539,6 @@ inline constexpr bool terminal_input_hit(const TerminalInputPlace& p, std::int64
 }
 
 // ---- The completion list, inside the pane it belongs to ---------------------------------
-// WL-TERM-05, WL-TERM-06 -- agents/workshop/terminal.md
 
 /// WHERE THE COMPLETION LIST SITS, in canvas cells, and how much prose it holds.
 // WL-TERM-06 -- agents/workshop/terminal.md
@@ -2889,7 +2885,7 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 }
 
 /// THE BUILDER PANEL — Workshop's presentation of a weave it does not own.
-// WL-ATTN-04 -- agents/workshop/attention.md; WL-RGN-02 -- agents/workshop/regions.md
+// WL-RGN-02 -- agents/workshop/regions.md
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                           const FineRect& b, const Screen& sc,
                           const ProjectFrontier& frontier = {},
@@ -3341,7 +3337,7 @@ inline std::int64_t pane_state_of(const Panels& panels, const Setup& setup, cons
 
 /// The one row-body spelling, so the painter and any reader of the picker's
 /// columns spend the same two column widths.
-// WL-PED-01 -- agents/workshop/pane-manager.md; WL-TEXT-05 -- agents/workshop/text-box.md
+// WL-PED-01 -- agents/workshop/pane-manager.md
 inline std::string picker_entry_text(const std::string& name, const char* state,
                                      const std::string& tail) {
     return detail::pad(detail::fit(name, static_cast<std::int64_t>(kPickerNameCols)),
@@ -3546,7 +3542,7 @@ inline std::string fine_rect_text(const FineRect& r, std::int64_t cell_px) {
 }
 
 /// WHAT A MAKER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
-// WL-GEO-09 -- agents/workshop/geometry.md; WL-SETUP-06 -- agents/workshop/setup-file.md
+// WL-GEO-09 -- agents/workshop/geometry.md
 inline std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (row == nullptr) {
         return "--";
@@ -3622,7 +3618,7 @@ inline FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
 }
 
 // ---- THE FULL HOTKEY VIEW -------------------------------------------------------------
-// WL-KEY-10, WL-KEY-11 -- agents/workshop/keyboard.md
+// WL-KEY-11 -- agents/workshop/keyboard.md
 
 /// What to call the context beneath the view, in the heading's voice.
 inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
@@ -4237,7 +4233,6 @@ inline ContextPressAt context_press_at(const Session& s, const Screen& sc, std::
 }
 
 // ---- The Info panel's BODY, resolved ONCE ----
-// WL-INFO-01, WL-INFO-02, WL-INFO-07 -- agents/workshop/info-body.md
 
 /// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
 // WL-INFO-02 -- agents/workshop/info-body.md
@@ -4303,11 +4298,11 @@ inline BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
 
 /// THE SMALLEST BODY THAT CAN SAY ANYTHING: one object row, the `PROPERTIES` heading, one
 /// property row.
-// WL-INFO-01 -- agents/workshop/info-body.md; WL-CTRL-01 -- agents/workshop/info-controls.md
+// WL-INFO-01 -- agents/workshop/info-body.md
 inline constexpr std::size_t kInfoBodyMinRows = 3;
 
 // ---- The Info panel's ACTION CONTROLS -----------------------------------------------------
-// WL-CTRL-01, WL-CTRL-02 -- agents/workshop/info-controls.md
+// WL-CTRL-01 -- agents/workshop/info-controls.md
 
 /// The two acts a maker can reach without knowing a key. Indices into one table, in the order
 /// the footer paints them.
@@ -4419,7 +4414,7 @@ struct InfoBodyPlace {
     /// that can show fewer pulls it up. `kRowsY = 8` was this number when it could not move.
     std::int64_t heading_row = kNoProseRow;
     /// THE FIRST OF THE `kActionRows` CONTROL ROWS, and the one number the footer needs.
-    // WL-CTRL-01, WL-CTRL-02 -- agents/workshop/info-controls.md
+    // WL-CTRL-01 -- agents/workshop/info-controls.md
     std::int64_t action_row = kNoProseRow;
 };
 
@@ -4679,7 +4674,7 @@ inline std::size_t action_press_at(const InfoBodyPlace& p, std::int64_t column,
 
 /// ONE SEMANTIC OBJECT ROW AS PROSE — the selection mark, the identity, and as much of the
 /// authored name as the body has room for.
-// WL-INFO-09 -- agents/workshop/info-body.md; WL-CTRL-04 -- agents/workshop/info-controls.md
+// WL-INFO-09 -- agents/workshop/info-body.md
 inline std::string object_row_full(const ui::Element& e, bool chosen) {
     return std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label;
 }
@@ -4690,7 +4685,7 @@ inline std::string object_row_text(const ui::Element& e, bool chosen, std::int64
 
 /// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
 /// body has room for.
-// WL-INFO-05 -- agents/workshop/info-body.md; WL-TEXT-05 -- agents/workshop/text-box.md
+// WL-INFO-05 -- agents/workshop/info-body.md
 inline std::string property_row_prefix(const Row& row, bool here) {
     return std::string(here ? ">" : " ") +
            detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
@@ -4986,7 +4981,6 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
 }
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
-// WL-PANE-06 -- agents/workshop/panes-and-windows.md; WL-RGN-01 -- agents/workshop/regions.md
 
 /// One header row, Workshop's own, so the provenance of what follows is legible.
 // WL-FOCUS-11 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
@@ -4995,7 +4989,7 @@ inline constexpr std::int64_t kExternalHeaderRows = 1;
 /// HOW MANY HEADER ROWS THIS PANE'S PRESENTATION RESERVES RIGHT NOW -- the ONE
 /// resolution of the title preference, asked by the painter, the press path and the room
 /// grant alike. Three parties spending three private answers to this question is a maker
-// WL-FOCUS-10, WL-FOCUS-11 -- agents/workshop/focus.md
+// WL-FOCUS-11 -- agents/workshop/focus.md
 inline std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
                                         bool titles_shown) noexcept {
     return (titles_shown || keyboard_pane(panels) == kind) ? kExternalHeaderRows : 0;
@@ -5176,7 +5170,7 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
 }
 
 // ---- THE SOURCE EDITOR'S PANE: one document, projected through a viewport ---------------
-// WL-EDIT-09, WL-EDIT-12 -- agents/workshop/editor.md
+// WL-EDIT-12 -- agents/workshop/editor.md
 
 inline constexpr std::int64_t kEditorHeaderRows = 1;
 
@@ -5448,7 +5442,7 @@ inline ExternalBodyPlace files_body(const Session& s, const Screen& sc) {
 
 /// THE HEADER: where the maker is, whether this place is one they might have meant, and
 /// how far into the listing -- in the order the facts must survive the cut, which is the
-// WL-FILES-07 -- agents/workshop/files.md; WL-PROJ-10 -- agents/workshop/project.md
+// WL-PROJ-10 -- agents/workshop/project.md
 inline std::string files_header_prefix(const FilesPane& pane, const std::string& why,
                                        bool typing) {
     const std::size_t total = pane.listing.rows.size();
@@ -5870,7 +5864,7 @@ inline constexpr std::int64_t kSetupNameMinCols = 8;
 
 /// THE ROWS THE SCREEN RESERVES AT THE TOP, AS A RECTANGLE -- and that is the
 /// LAYOUTS PANE'S DEVELOPER DEFAULT rather than a band's private geometry.
-// WL-FRONT-03 -- agents/workshop/planes.md; WL-TAB-01 -- agents/workshop/tab-run.md
+// WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr ui::Rect top_band_bounds(const Screen& sc) noexcept {
     return placement_bounds(placement::kTopBand, 0, sc);
 }
@@ -5904,7 +5898,7 @@ inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
 /// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
 /// the window the `component::TextBox` is kept against and the slice the painter cuts are the
 /// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
-// WL-TAB-05 -- agents/workshop/tab-run.md; WL-TEXT-03 -- agents/workshop/text-box.md
+// WL-TEXT-03 -- agents/workshop/text-box.md
 inline std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
@@ -5914,7 +5908,7 @@ inline std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
 }
 
 // ---- THE `setup:` SLOT: what the ACTIVE layout's association is --------------------------
-// WL-LAYOUT-02 -- agents/workshop/layouts.md; WL-TAB-02 -- agents/workshop/tab-run.md
+// WL-TAB-02 -- agents/workshop/tab-run.md
 
 /// The word before the association, and the three the association is said in. Spelled as
 /// their own constants because the row's own budget is DERIVED from their widths below --
@@ -5979,10 +5973,9 @@ inline std::string workspace_text(const Session& s) {
 }
 
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------
-// WL-TAB-06, WL-TAB-07 -- agents/workshop/tab-run.md
 
 /// One painted tab: which layout it is, and exactly which bytes of the row are its own.
-// WL-TAB-07, WL-TAB-09 -- agents/workshop/tab-run.md
+// WL-TAB-07 -- agents/workshop/tab-run.md
 struct LayoutTab {
     std::size_t at = 0;       ///< the layout's position in the maker's order
     std::int64_t column = 0;  ///< where its bytes begin in the composed row
@@ -6027,7 +6020,7 @@ inline std::string layout_tab_text(const SetupState& setup, std::size_t at) {
 }
 
 /// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
-// WL-TAB-02, WL-TAB-03 -- agents/workshop/tab-run.md
+// WL-TAB-03 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kElidedCols =
     static_cast<std::int64_t>(std::char_traits<char>::length(detail::kElided));
 
@@ -6168,7 +6161,7 @@ inline LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns
 
 /// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
 /// every painted tab's bytes are.
-// WL-TAB-05, WL-TAB-09 -- agents/workshop/tab-run.md
+// WL-TAB-05 -- agents/workshop/tab-run.md
 struct BandStatus {
     std::string text;
     std::vector<LayoutTab> tabs;
@@ -6394,7 +6387,7 @@ inline void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const 
 }
 
 // ---- A MAKER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
-// WL-MAKER-05, WL-MAKER-06 -- agents/workshop/maker-pane.md
+// WL-MAKER-05 -- agents/workshop/maker-pane.md
 
 /// The part of one fine rectangle inside another -- `clip_to_canvas_fine` against a
 /// rectangle instead of the canvas. A region authored past its pane's interior is legal
