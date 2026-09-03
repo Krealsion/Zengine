@@ -49,4 +49,5 @@ by reachability. `component/text_box.hpp` was byte-identical through the change.
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),
 [WL-INFO-04](../workshop/info-body.md), [WL-INFO-05](../workshop/info-body.md),
 [WL-INFO-06](../workshop/info-body.md), [WL-INFO-07](../workshop/info-body.md),
-[WL-INFO-08](../workshop/info-body.md), [WL-INFO-09](../workshop/info-body.md).
+[WL-INFO-08](../workshop/info-body.md), [WL-INFO-09](../workshop/info-body.md),
+[WL-INFO-10](../workshop/info-body.md).

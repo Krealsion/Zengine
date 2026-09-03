@@ -233,6 +233,20 @@ case `"WUX-0: a session file holds the desk and the room, and nothing runtime"`,
 deliberately does not"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
+## WL-SESSION-18 — Roots are made on the first write, and a project directory is never invented
+
+LAW — The per-user roots are created on the first write and never on a read, so a run that persists nothing leaves no trace; a project file into a missing directory is refused, not given one.
+
+MEANS
+- the session's close, the prefs toggle and the legacy import write through the making door;
+- `--document`, `--setup` and `--pane` paths do not: a missing directory there is a maker's typo.
+
+PROVEN BY — `workshop/persist.hpp` `write_file_making_room`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0 C: a first launch is not an error, and needs no
+file to exist"`, case `"a save into a place that does not exist refuses before it writes
+anything"`.
+WHY — `agents/decisions/three-ownership-domains.md`
+
 ## Do not assume
 
 - That a session save can be trusted after a crash: it is written on an orderly close and

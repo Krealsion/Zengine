@@ -43,4 +43,4 @@ a fact `close_panel` can destroy, which is why the marks live on the session.
 **Laws supported.** [WL-FILES-01](../workshop/files.md), [WL-FILES-02](../workshop/files.md),
 [WL-FILES-05](../workshop/files.md), [WL-FILES-06](../workshop/files.md),
 [WL-FILES-07](../workshop/files.md), [WL-FILES-12](../workshop/files.md),
-[WL-FILES-13](../workshop/files.md).
+[WL-FILES-13](../workshop/files.md), [WL-FILES-14](../workshop/files.md).

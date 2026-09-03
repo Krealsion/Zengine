@@ -52,4 +52,5 @@ catalog row costs one `said` row, only where the fact has moved.
 
 **Laws supported.** [WL-PROJ-02](../workshop/project.md), [WL-PROJ-03](../workshop/project.md),
 [WL-PROJ-04](../workshop/project.md), [WL-PROJ-05](../workshop/project.md),
-[WL-PROJ-07](../workshop/project.md), [WL-PROJ-09](../workshop/project.md).
+[WL-PROJ-07](../workshop/project.md), [WL-PROJ-09](../workshop/project.md),
+[WL-PROJ-15](../workshop/project.md).

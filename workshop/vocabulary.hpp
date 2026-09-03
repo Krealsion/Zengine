@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_VOCABULARY_HPP
 
 // The Workshop package's shapes — the authored material a maker manipulates.
-// Workshop law: agents/workshop/document.md
+// Workshop law: agents/workshop/document-file.md
 
 #include "ui/vocabulary.hpp"
 
@@ -17,7 +17,7 @@
 namespace zengine::workshop {
 
 /// The authored content — the document, and only the document.
-// WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document-file.md
 struct WorkshopDoc {
     std::vector<ui::Element> elements;
     std::int64_t next_id = 1; ///< the identity mint; document-owned, so it rides with the document

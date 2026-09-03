@@ -130,7 +130,76 @@ it is"`; `tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree b
 scrolled at all"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
+## WL-PROJ-11 — The Builder panel announces only what it watched
+
+LAW — The panel's `awaiting` latch is set when it asks and released only at an outcome the build will not leave (`still_going`), so an arriving status is news exactly when this panel watched the build begin.
+
+MEANS
+- `heard` tells "the tool has not answered" from "the tool never built anything";
+- a panel opened while a child is alive is told `running`, shows it, and announces nothing;
+- `awaiting_realization` is the twin latch, held longer; `chosen` is bounded at use, not at write.
+
+PROVEN BY — `workshop/panel.hpp` `BuilderPane`, `BuilderPane::heard`, `BuilderPane::awaiting`,
+`BuilderPane::awaiting_realization`, `BuilderPane::chosen`; `workshop/weave.hpp`
+`on(BuildStatus)`; `builder/vocabulary.hpp` `still_going`; `tests/test_workshop_panels.cpp` case
+`"a panel opened mid-build is TOLD it is running, and announces nothing"`, case `"a running build
+is on the panel, with its operation and its output count"`, case `"BLD-1: a build outcome and a
+realization outcome are TWO rows and TWO notices"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## WL-PROJ-12 — The tool's status is kept only while a panel presents it
+
+LAW — A `BuildStatus` with no Builder panel open is not remembered; closing the panel destroys its copy and reaches no tool, and reopening asks again and is answered with the tool's own running total.
+
+MEANS
+- a copy kept against a later panel makes a presentation a second owner of somebody else's facts.
+
+PROVEN BY — `workshop/weave.hpp` `on(BuildStatus)`; `workshop/panel.hpp` `close_panel`;
+`tests/test_workshop_panels.cpp` case `"closing forgets the panel's copy; the TOOL keeps its own
+count"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
+
+LAW — Workshop holds no target, recipe or command: `build_now` names the row under the maker's cursor, refuses in words with no answer or no recipes yet, and says `realize` in the same sentence.
+
+MEANS
+- with no Builder panel open the key is unbound; a panel that has not heard cannot ask;
+- everything after the send belongs to the tool, the runner and the realization owner.
+
+PROVEN BY — `workshop/weave.hpp` `build_now`; `tests/test_workshop_panels.cpp` case `"Build asks
+for the name the TOOL gave, and asks for nothing without one"`, case `"a panel that has not heard
+from its tool cannot ask for a build"`, case `"BLD-1: `b` builds the recipe the maker chose, not
+the one last built"`, case `"BLD-1: `Shift+b` is BUILD & REALIZE, and the second intention crosses
+the seam"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
+
+LAW — `f` compares the live frontier artifact with each catalog row's, once, and sends `build_now` with the realize intention; several producers refuse unless the maker's standing pick is one of them.
+
+MEANS
+- the catalog's order is nobody's intent: the refusal names the candidates; the pick is `c`'s;
+- `picked` tells an explicit pick from `chosen`'s default of 0, an index and not a choice;
+- there is no second build path, no direct load and no new sentence on the bus.
+
+PROVEN BY — `workshop/weave.hpp` `build_frontier`; `workshop/panel.hpp` `BuilderPane::picked`;
+`tests/test_workshop_panels.cpp` case `"BLD-2: `f` builds and realizes the ONE recipe that
+produces the frontier"`, case `"BLD-2: several recipes produce the frontier -- `f` never chooses
+for the maker"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## WL-PROJ-15 — The shipped catalog is staged beside the executable
+
+LAW — The recipe catalog Workshop ships is staged beside the executable under `kDefaultRecipesName`; `--recipes` names a different one, and there is no registry, no picker and no search path.
+
+PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`; witness: none
+WHY — `agents/decisions/one-completion-one-owner.md`
+
 ## Do not assume
 
 - That a running build follows a replaced catalog — it does not, and that has no witness yet
   (WL-PROJ-03).
+- That WL-PROJ-15 is witnessed — it is not (witness: none): where the shipped catalog is
+  staged is a launch fact no case reads.
+

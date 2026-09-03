@@ -182,6 +182,16 @@ PROVEN BY — `workshop/screen.hpp` `interior_capture_text`;
 a read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
+## WL-MAKER-13 — A maker-made pane's name is a durable key and a display name at once
+
+LAW — A definition's name is present, at most `kMaxMakerPaneNameLen` bytes, plain ASCII with no space or control character, and has no `/`, so `provider/name` stays one token in a notice and a file.
+
+PROVEN BY — `workshop/pane_definition.hpp` `check_maker_pane_name`, `kMaxMakerPaneNameLen`;
+`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-7: the whole-definition law refuses what
+no door could have made"`, case `"WUX-14/SC-13: the pane file round-trips, refuses by number and
+by shape, and holds nothing but the definition"`.
+WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
+
 ## Do not assume
 
 - That a pane made by the Pane Creator is an external pane, or that `Panels::maker` is a

@@ -40,9 +40,13 @@ pixel axis and no tile left is `refused`, because a taller window would not help
 is `open`; the state column is eleven cells because `unresolved` is ten bytes. A side-region row's
 authored geometry is retained in the file, never spent, and arrangement names the reservation it
 hit. `kinds_placed_in` has no runtime witness — its pins are compile-time — and an unresolved
-picker row carries `kNoPaneKind` so nothing can present it as the Builder.
+picker row carries `kNoPaneKind` so nothing can present it as the Builder. The picker paints a
+whole panel's worth of rows over the first slot: a three-row picker over a nine-row panel left
+six rows of another panel reading as one box, so covering the slot buys a screen that cannot be
+misread.
 
 **Laws supported.** [WL-PANE-01](../workshop/panes-and-windows.md),
 [WL-PANE-03](../workshop/panes-and-windows.md), [WL-PANE-08](../workshop/panes-and-windows.md),
 [WL-PANE-09](../workshop/panes-and-windows.md), [WL-PANE-10](../workshop/panes-and-windows.md),
-[WL-PANE-12](../workshop/panes-and-windows.md).
+[WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md),
+[WL-PANE-14](../workshop/panes-and-windows.md), [WL-PANE-15](../workshop/panes-and-windows.md).

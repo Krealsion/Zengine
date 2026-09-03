@@ -127,3 +127,11 @@ visible object row selects it, through the row's own geometry"`, case `"HD-7: a 
 row is REFUSED while a property draft is live"`, case `"HD-7: a long object name is bounded
 VISIBLY, and the document keeps all of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
+
+## WL-INFO-10 — With Info removed, the inspector's keys say so and open no draft
+
+LAW — A cursor or edit key with Info not showing says so and which key opens the panel, opens no draft and moves no cursor; silence would not tell a removed panel from a broken tool.
+
+PROVEN BY — `workshop/weave.hpp` `inspector_absent`; `tests/test_workshop_panels.cpp` case `"the
+inspector's keys say so when Info is not showing, and open no draft"`.
+WHY — `agents/decisions/one-body-two-lists.md`

@@ -23,6 +23,7 @@
 namespace zengine::workshop {
 
 /// The KINDS of panel this Workshop can present.
+// WL-CAT-01 -- agents/workshop/catalog.md
 namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
@@ -161,6 +162,7 @@ inline constexpr PanelKind kPanelCatalog[] = {
      "Pane Manager", "manage a pane", true},
 };
 
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
 
 /// The catalog entry for a kind, or the first one. Total, because the kind can
@@ -178,9 +180,11 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
 /// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
 /// pane is told from a built-in one.
 // WL-MAKER-04 -- agents/workshop/maker-pane.md
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 
 /// Is this a session-local runtime kind rather than a compile-time one?
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
@@ -297,6 +301,7 @@ static_assert(every_reference_is_one_kind(),
               "resolve to whichever of them the catalog happens to list first");
 
 /// The `+ panel` picker: open or not, and which entry a maker is on.
+// WL-PANE-14 -- agents/workshop/panes-and-windows.md
 struct PanelPicker {
     bool open = false;
     std::size_t cursor = 0;
@@ -307,6 +312,7 @@ struct PanelPicker {
 /// sentence about the box on the screen uses the name printed beside the key that
 /// put it there. It is here rather than in the catalog because the picker has no
 /// catalog row; it is the one presentation that names itself.
+// WL-PANE-14 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kPickerName = "+ panel";
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
@@ -374,6 +380,7 @@ struct ProjectFrontier {
 /// a maker changing recipe catalogs has not changed anything about a PRESENTATION -- so
 /// that fact lives on the `Session`, beside the source document, where removing a pane
 /// cannot lose it. What lives here is what this panel was TOLD.
+// WL-PROJ-11 -- agents/workshop/project.md
 struct BuilderPane {
     bool heard = false;
     bool awaiting = false;
@@ -382,7 +389,7 @@ struct BuilderPane {
     builder::RecipeCatalog known{};
     std::size_t chosen = 0;
     /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived?
-    // WL-PROJ-07 -- agents/workshop/project.md
+    // WL-PROJ-07, WL-PROJ-14 -- agents/workshop/project.md
     bool picked = false;
 };
 
@@ -420,6 +427,7 @@ struct RuntimePane {
 /// is four times the tallest picker this composition can show, which is the same
 /// argument `kMaxSetupPanes` is chosen by, and it bounds what a chatty or
 /// malicious provider can make this session hold to a few kilobytes.
+// WL-CAT-04 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
 
 /// THE RUNTIME CATALOG, and the mint for its handles.
@@ -434,6 +442,7 @@ inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
 /// reallocate it, so every consumer looks a row up by handle or by reference at
 /// the moment it needs one, and `Occupancy` carries a `std::string` copy rather
 /// than a `const char*` into a row that may move (screen.hpp).
+// WL-CAT-05 -- agents/workshop/catalog.md
 struct RuntimeCatalog {
     std::vector<RuntimePane> entries;
     /// The next handle to mint. Monotonic within a session; a refreshed offer
@@ -500,6 +509,7 @@ struct ExternalPane {
 /// allows one instance of a kind: a second copy of a tool's status inside each
 /// instance would be a shape that only means something once a policy about
 /// several instances exists.
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct Panel {
     std::int64_t kind = panel::kBuilder;
 };
@@ -560,6 +570,7 @@ struct Panels {
     // WL-CTX-01 -- agents/workshop/contextual.md
     std::int64_t selected = kNoPaneKind;
 
+    // WL-PANE-13 -- agents/workshop/panes-and-windows.md
     bool has(std::int64_t kind) const {
         for (const Panel& p : open) {
             if (p.kind == kind) {
@@ -629,6 +640,7 @@ inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
 ///
 /// Answers whether anything changed, so the caller can tell a maker the truth
 /// either way rather than showing an unchanged screen with no explanation.
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool open_panel(Panels& panels, std::int64_t kind) {
     if (panels.has(kind)) {
         return false;
@@ -649,6 +661,7 @@ inline bool open_panel(Panels& panels, std::int64_t kind) {
 
 /// Close the panel of this kind, and forget what it was showing.
 // WL-FILES-05 -- agents/workshop/files.md; WL-LAYOUT-07 -- agents/workshop/layouts.md
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool close_panel(Panels& panels, std::int64_t kind) {
     for (std::size_t i = 0; i < panels.open.size(); ++i) {
         if (panels.open[i].kind == kind) {

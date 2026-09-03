@@ -16,6 +16,7 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 |---|---|
 | the composition in cells, the reserved column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
 | the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, the selection lift, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | a press, a double-click, reading past a fitted row, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a hotkey, the keymap file, the hotkey view, where the keys go | [keyboard](workshop/keyboard.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
@@ -25,7 +26,7 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the Pane Manager, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
-| the maker's document, its operations and its file | [document](workshop/document.md) `WL-DOC` |
+| the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the Terminal overlay, its pane, its completion | [terminal](workshop/terminal.md) `WL-TERM` |
 
 **Where a case goes.** Workshop's tests are seven suites, one per area — document, screen,

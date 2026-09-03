@@ -124,6 +124,43 @@ PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`;
 axis"`, case `"WIND-2: dirty is structural -- an inverse edit makes a setup clean again"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
+## WL-SETUP-09 — A setup name is four rules and a byte count
+
+LAW — A setup name is present, more than spaces, free of control characters and at most `kMaxSetupNameLen` bytes; a typed name and a loaded one meet the one function, and the refusal says bytes.
+
+MEANS
+- spaces inside a name are legal; a control character is refused, never rendered safe;
+- no Unicode policy: valid UTF-8 is the gate's answer, and nothing counts a code point or a cell.
+
+PROVEN BY — `workshop/setup.hpp` `check_setup_name`, `kMaxSetupNameLen`;
+`tests/test_workshop_persistence.cpp` case `"what this application accepts as a setup name"`, case
+`"WS-0a: the name and key bounds are BYTES, and the refusal says bytes"`.
+WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
+
+## WL-SETUP-10 — A pane key is judged by shape and never by meaning
+
+LAW — Either half of a `PaneRef` is present, at most `kMaxPaneKeyLen` bytes and free of whitespace and control bytes, judged as a view before anything owns a copy; whether it names anything is not an error.
+
+MEANS
+- the refusal says which half: `provider` and `pane key` are two fields a maker tells apart;
+- a descriptor's keys meet the same function, so no key a saved setup could not spell is admitted.
+
+PROVEN BY — `workshop/setup.hpp` `check_pane_key`, `check_pane_ref`, `kMaxPaneKeyLen`;
+`tests/test_workshop_persistence.cpp` case `"what this application accepts as either half of a
+reference"`; `tests/test_workshop_panes_seam.cpp` case `"a descriptor's two keys are judged by the
+setup file's own law"`, case `"an office longer than the key bound is delivered whole and admitted
+by nobody"`.
+WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
+
+## WL-SETUP-11 — The setup file is written through the family's safe write
+
+LAW — A setup is saved by `persist::write_file`, a whole candidate renamed over the destination, so a failed write leaves the last good setup file whole; crash durability is not claimed.
+
+PROVEN BY — `workshop/setup_persist.hpp` `save_file`, `load_file`, `persist::write_file`;
+`tests/test_workshop_persistence.cpp` case `"a detected setup write failure leaves the last good
+setup file untouched"`, case `"a setup file on disk is the setup read back from it"`.
+WHY — `agents/decisions/setup-format-v3.md`
+
 ## Do not assume
 
 - That the setup keeps no old reader — it keeps exactly the v2 one, because a setup is a named

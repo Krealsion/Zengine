@@ -32,7 +32,7 @@ inline constexpr std::int64_t kText = 0;
 // ---- The bounds, each an INPUT BOUNDARY and not a capacity --------------------------------
 
 /// How long a maker-made pane's name may be.
-// WL-MAKER-01 -- agents/workshop/maker-pane.md
+// WL-MAKER-01, WL-MAKER-13 -- agents/workshop/maker-pane.md
 inline constexpr std::size_t kMaxMakerPaneNameLen = 32;
 
 /// How many regions one definition may carry. Sixteen bounds a file at a few kilobytes
@@ -90,6 +90,7 @@ struct PaneDefinition {
 /// enough to read, and free of whitespace and control bytes so that `provider/name` stays
 /// one legible token in a notice and in a file. `/` is refused too, because that is the
 /// character the reference's own prose spelling uses between its halves.
+// WL-MAKER-13 -- agents/workshop/maker-pane.md
 inline Written check_maker_pane_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a pane name cannot be empty");
