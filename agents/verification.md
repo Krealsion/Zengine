@@ -16,7 +16,18 @@ current.
 - **Stranger-by-default is deliberate** (`ZEN_LOOM_DEV=OFF`): an unexported-surface mistake
   must fail on every machine, not only in CI.
 - **Per-repo green**: Zengine's lane never re-runs Loom's suite — state which repo's green you
-  proved.
+  proved, which configuration, which compiler.
+- **Windows is two standard libraries, and a Windows claim names the one it was measured on.**
+  MinGW-w64/libstdc++ is the maker's daily build; its lane (`Zengine / Windows / MinGW-w64
+  Loom stranger`) is REQUIRED. MSVC's STL is the toolchain released Windows users are expected
+  to build with; its lane is ADVISORY (`continue-on-error`) until it can be proven locally as
+  a matter of course. Both are supported in the long run, and neither is evidence for the
+  other: measured on the Files browser, libstdc++ reports a directory junction as `directory`
+  unfollowed and does not implement `create_directory_symlink`, MSVC's STL reports the
+  junction — which is why the Windows branch asks the host (WL-FILES-04). A job under
+  `continue-on-error` is red only in the run's jobs list, never in its conclusion, so read the
+  jobs. "Green on Windows" is not a result; "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL
+  off" is.
 - **Weave libraries go through `zengine_weave()`**, which delegates the reloadable lifetime to
   the Loom's `loom_weave_build_contract()` (KERN-05). Do not reintroduce a private compiler
   flag for it here. A provider that is not a weave goes through `zengine_provider()`
@@ -402,7 +413,13 @@ have. Rules, each learned by a harness that fooled itself:
   spelling. The two say different things, and the diagnostic tells you which one you met:
   `string table overflow at offset 10000097` / `file too big` is this one;
   `too many sections (N)` is the count. **Read the sentence before reaching for a flag** —
-  the flag was already present when panes met this.
+  the flag was already present when panes met this. **And it is the assembler's ceiling, not
+  the format's**: the same GCC 13.1 assembly of `workshop.cpp` that binutils 2.40 (CLion
+  2025.2's bundled MinGW) refuses as `string table overflow at offset 10000011` / `file too
+  big`, binutils 2.45 assembles into a 50 MB object (measured 2026-09-02, unchanged source).
+  The MinGW lane's runner carries a newer binutils, so it builds `workshop.cpp` while a CLion
+  2025.2 toolchain does not, and internal linkage does not buy the object back under 2.40's
+  ceiling (measured: a `static inline` predicate still overflowed).
 - **What spends that table is instantiations per object, four names each.** Every
   vague-linkage function gets a COMDAT, and `-g` mirrors it into `.text$`, `.pdata$`,
   `.xdata$` and `.debug_frame$` — the same mangled suffix stored four times. Measured, a TU
