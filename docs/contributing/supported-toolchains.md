@@ -11,9 +11,15 @@ Every row below is classified from measurement on lanes that exist, not from a f
 |---|---|---|
 | **Linux (incl. WSL) / GCC 11.4+** | **fully supported.** The canonical lane | The Loom's OS sandbox exists only here |
 | Linux / Clang | builds | Not a routine lane; the sanitizer flags are the same |
-| **Windows / MSVC 19.50** (Visual Studio 2026) x64 | the portable subset builds and its suites run | clang-cl and ARM64 are **unverified** |
-| Windows / MinGW-w64 GCC 13.1 | builds | Runtime DLLs must be on `PATH` or beside the binaries |
+| **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | Runtime DLLs must be on `PATH` or beside the binaries |
+| **Windows / MSVC 19.50** (Visual Studio 2026) x64 | **supported.** The advisory Windows lane, and the toolchain released Windows users are expected to build with | clang-cl and ARM64 are **unverified** |
 | macOS / Apple Clang | **never built.** Unclassified | Not the same as "unsupported" |
+
+Both Windows toolchains are meant to be supported, and neither is evidence for the other: they
+are two standard libraries, and a Windows answer in this documentation names the one it was
+measured on. The MinGW-w64 lane is **required** — its red is the run's red — and the MSVC
+lane is **advisory** — its red is reported in the run's job list and does not fail the run —
+until MSVC can be proven routinely outside hosted CI.
 
 Target the **C++20** floor. Avoid features needing GCC 12 or newer.
 

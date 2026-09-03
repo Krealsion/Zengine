@@ -256,9 +256,12 @@ every keystroke. Mark a place once from an ordinary launch and that run can jump
 ### Some filesystem names cannot be written down, and that is said rather than survived
 
 Workshop holds every path as plain text. A filesystem will accept names that cannot be turned
-into that text at all — on Windows, a filename holding an invalid character sequence, or a
-directory named outside the system's active code page. These are not names you would type; they
-are names another program can leave where you are about to look.
+into that text at all — on Windows, a filename holding an invalid UTF-16 sequence, which both
+supported Windows standard libraries refuse to convert (measured: MSVC's STL reports no mapping
+in the target code page, MinGW's libstdc++ an illegal byte sequence), and, under MSVC's STL
+only, a directory named outside the system's active code page, which libstdc++ carries as UTF-8
+instead. These are not names you would type; they are names another program can leave where
+you are about to look.
 
 | where you meet one | today |
 |---|---|
@@ -349,8 +352,8 @@ somebody else's pane other than by editing a plan file and having the artifact o
 |---|---|
 | Linux / WSL, GCC 11+ | fully supported; the canonical lane |
 | Linux, Clang | builds; not a routine lane |
-| Windows, MSVC 19.50 (VS 2026) x64 | the portable subset builds and the suites run. clang-cl and ARM64 are unverified |
-| Windows, MinGW-w64 | builds; runtime DLLs must be on `PATH` or beside the binaries |
+| Windows, MinGW-w64 GCC 13.1+ (libstdc++) x64 | supported; the required Windows lane, and the build this project is developed on day to day. Runtime DLLs must be on `PATH` or beside the binaries |
+| Windows, MSVC 19.50 (VS 2026) x64 | supported; the advisory Windows lane, and the toolchain released Windows users are expected to build with. clang-cl and ARM64 are unverified |
 | macOS | never built. Unclassified, not "unsupported" |
 | the Loom's OS sandbox | **Linux only.** On Windows the kernel exists as an explicit development/demo backend with **no isolation**, and says so at every surface |
 
