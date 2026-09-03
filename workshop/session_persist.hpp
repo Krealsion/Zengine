@@ -172,7 +172,8 @@ struct Placement {
     bool maximized = false; ///< whether the window was maximized
 };
 
-/// The session, as the value that gets written.
+/// One association, as the value that gets written: the path, and the desk the file was
+/// known to hold -- an absence written as an empty path beside a default desk.
 // WL-SESSION-05 -- agents/workshop/session.md
 inline WorkshopSetupLink to_link(const SetupLink& link) {
     // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
@@ -181,6 +182,9 @@ inline WorkshopSetupLink to_link(const SetupLink& link) {
     return WorkshopSetupLink{link.path, setup_persist::to_setup(link.known)};
 }
 
+/// The session, as the value that gets written. NOTHING IS SORTED, NORMALISED, RESOLVED OR
+/// DROPPED ON THE WAY OUT: the order is the run's, `active` is where the caller says the live
+/// one stands, and the viewport and the placement are written as the session held them.
 inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t active,
                                   std::int64_t viewport_w, std::int64_t viewport_h,
                                   const Placement& place) {

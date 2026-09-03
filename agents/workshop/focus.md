@@ -53,9 +53,10 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 LAW — Project Files activates a row on a press only when the pane already held the keyboard, so two presses from cold is the price of "no single press replaces what is open".
 
-PROVEN BY — `workshop/weave.hpp` `files_open`; `workshop/screen.hpp` `files_has_keyboard`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: the first press into a cold pane selects and never
-activates"`, case `"EDIT-1: a press selects the row the paint put under the pointer"`.
+PROVEN BY — `workshop/weave.hpp` `files_open`, `files_press`; `workshop/screen.hpp`
+`files_has_keyboard`; `tests/test_workshop_files.cpp` case `"EDIT-1: the first press into a cold
+pane selects and never activates"`, case `"EDIT-1: a press selects the row the paint put under the
+pointer"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-05 — The candidate is never cleared and the target is never stored
