@@ -64,6 +64,8 @@ PROVEN BY — `workshop/files.hpp` `leaves_the_tree`, `GetFileAttributesW`, `sym
 `linked`; `workshop/screen.hpp` `files_row_text`; `workshop/weave.hpp` `files_open`;
 `tests/test_workshop_files.cpp` case `"PROJ-2: a linked directory is marked, entered, and left
 again LEXICALLY"`.
+UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and
+what `files_open` says when a maker enters it was not measured.
 WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
@@ -217,3 +219,6 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
   (WL-FILES-02, WL-FILES-03, WL-FILES-04).
 - That a marked place is part of the project, trusted, or buildable — it says one thing:
   somebody may want to come back here (WL-FILES-05).
+- That entering a dangling junction on libstdc++/Windows has been measured — it has not: the
+  row lists as a linked directory, and what `files_open` says on entry is unknown
+  (WL-FILES-04, UNWITNESSED).

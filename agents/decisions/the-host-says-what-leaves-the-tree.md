@@ -25,8 +25,8 @@ the tree", not symbolic link versus junction.
 **Alternatives considered.**
 - *Tried: the standard-only disagreement predicate* — measured false on libstdc++/Windows: a
   junction is `directory` followed and unfollowed, so the production predicate answers
-  `linked=0`, and the MinGW lane was red 20 of 20 runs on `main`
-  (Zen/reportbacks/linked-mark-asks-the-path-RB.md).
+  `linked=0`, and the MinGW lane was red 20 of 20 runs on `main` (the junction probe's
+  evidence, in that phase's record outside this repository).
 - *Tried: `symlink_status(path)` instead of the entry's copy* — measured not to move it: the
   path answers `directory` on libstdc++/Windows too (`linked(path)=0`, same report). What it
   would have bought, MSVC hardened against a stale listing copy, the host query buys by

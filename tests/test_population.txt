@@ -796,8 +796,8 @@
 # wearing the pane's own chrome, a closed pane keeping its lift, and a pane teaching a key
 # again. ALL NINE ARE IN THE `always` ROW: not one needs a font engine or an SDL -- the
 # metric is an argument, and both media's budgets are asserted from it. The thirteen
-# mutations were RUN, one at a time, against the whole lane; the matrix is in
-# `Zen/reportbacks/WUX-5-evidence.md`.
+# mutations were RUN, one at a time, against the whole lane; the matrix is in that phase's
+# record, kept outside this repository.
 #
 # THE OTHER SEVEN WORKSHOP FLOORS DID NOT MOVE, and that is the honest reading rather than an
 # oversight: WUX-5 changed presentation, so what it cost those suites was re-pinning what a
@@ -887,7 +887,8 @@
 #
 # THESE ARE ALSO ALL `always`, for WUX-6's reason: a pointer position is an ARGUMENT
 # here, and what an SDL cannot be asked in a headless lane -- whether a real window reports
-# hover at all -- is a live witness rather than a case (`Zen/reportbacks/WUX-7-RB.md`).
+# hover at all -- is a live witness rather than a case (in that phase's record, outside this
+# repository).
 # NOTE: the rig now owns the monotonic reading every press is stamped with
 # (`InteractionClock`, tests/workshop_support.hpp), and its default step is past
 # `kDoubleClickMs`: a case that publishes two presses means two deliberate aims unless it
@@ -897,8 +898,8 @@
 # needs a font engine or a window: the medium's device unit is an ARGUMENT here exactly as
 # the text metric has been since TYPE-0 -- a case says what the medium reported and reads
 # what Workshop then says. What an SDL cannot be asked in a headless lane is whether a real
-# window reports it, and that is a live witness rather than a case
-# (`Zen/reportbacks/WUX-6-RB.md`).
+# window reports it, and that is a live witness rather than a case (in that phase's record,
+# outside this repository).
 #
 # WUX-8 raised the surface floor 98 -> 100 (`always`) -- one for this phase's own case, and one
 # that re-baselines a case an earlier phase left above its floor -- the workshop_screen floor
@@ -972,7 +973,7 @@
 # ALL ARE `always`, for WUX-6's and WUX-8's reason unchanged: what a medium reported is an
 # ARGUMENT here, so both faces are exercised without a font or a window. What a headless lane
 # cannot ask -- whether a real terminal and a real window paint and answer this run -- is the
-# phase's live witness pair (`Zen/reportbacks/WUX-9-RB.md`).
+# phase's live witness pair (in its record, outside this repository).
 #
 # QR-14 moved ONE floor -- workshop_screen 221 -> 225 -- and re-baselined a great many
 # assertions without adding a case to any other suite, which is the shape of a repair that

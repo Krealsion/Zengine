@@ -1119,7 +1119,7 @@ TEST_CASE("SOURCE-1: both real host Sources render through one identity-agnostic
     // ⭐ THE TWO SHIPPED SOURCES, THROUGH THE REAL SAMPLE SEAM. `mount_host_sources`
     // installs them, `op::sample` spends them, and the renderer sees only a Value --
     // there is no identity, no schema name and no special case anywhere in it.
-    std::string anchor = "G:/programming/cpp/Zen";
+    std::string anchor = "D:/projects/my-thing";
     CurrentRecipes recipes;
     op::Catalog catalog;
     const op::MountReport mounted =
@@ -1131,7 +1131,7 @@ TEST_CASE("SOURCE-1: both real host Sources render through one identity-agnostic
     const std::vector<std::string> anchored = render_value(project.value());
     REQUIRE(anchored.size() == 2);
     CHECK(anchored[0] == "zengine.ProjectAnchor v1");
-    CHECK(anchored[1] == "  anchor  \"G:/programming/cpp/Zen\"");
+    CHECK(anchored[1] == "  anchor  \"D:/projects/my-thing\"");
 
     const op::Evaluation catalogued = op::sample(catalog, kRecipeCatalogSource);
     REQUIRE_MESSAGE(catalogued.ok(), catalogued.reason());

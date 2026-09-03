@@ -12,7 +12,10 @@
 #                     under agents/; each file is under its byte budget; an entry whose
 #                     PROVEN BY says `witness: none` is repeated under its register's
 #                     `## Do not assume`, and a Do-not-assume bullet that says those words
-#                     names only entries of its own register that write them
+#                     names only entries of its own register that write them; a law
+#                     witnessed except for one clause writes `UNWITNESSED -- <clause>` on
+#                     the line after PROVEN BY, and that debt is repeated and reciprocal
+#                     the same way, by the word UNWITNESSED
 #   PROVEN BY         every backticked path exists; every backticked identifier occurs in
 #                     the file named before it; every quoted witness is a TEST_CASE or
 #                     SUBCASE literal under tests/
@@ -60,17 +63,19 @@
 #   * it does not know whether a law is TRUE. A phase that edits a witnessed TEST_CASE
 #     re-verifies every law naming it, in the same commit; that rule is procedural and
 #     lives in the router, because only the phase that changed a test knows;
-#   * it does not count witnesses per law. `witness: none` is a written debt, repeated
-#     under the register's `## Do not assume`; what is checked is that the debt is written
-#     in both places or in neither, never how many there are, and the router forbids
-#     lowering it;
+#   * it does not count witnesses per law. `witness: none` is a written debt, and so is
+#     `UNWITNESSED -- <clause>` at the size of one clause; each is repeated under the
+#     register's `## Do not assume`, and what is checked is that a debt is written in both
+#     places or in neither, never how many there are, and the router forbids lowering it;
 #   * it does not police prose width in decision records, only in registers and routers.
 #
 # HONEST LIMITS OF THE PARSE, all in the direction of a visible red rather than a quiet
 # green: a `//` inside a string literal is read as a comment start (rule m then sees less
-# code, never more); a pointer written after code on the same line is not a pointer line;
-# a `## WL-...-NN -- RETIRED` heading is an entry with no LAW or PROVEN BY owed, exactly as
-# the router says a retired law keeps its number and one line.
+# code, never more); a pointer written after code on the same line is not a pointer line,
+# and a comment line that BEGINS `// WL-` is read as a pointer and fails as malformed when
+# it is prose (reword the comment; the check does not guess); a `## WL-...-NN -- RETIRED`
+# heading is an entry with no LAW or PROVEN BY owed, exactly as the router says a retired
+# law keeps its number and one line.
 #
 # THE SELF-TEST IS NOT OPTIONAL. A well-formed tree and a checker that finds nothing produce
 # byte-identical output, so before answering it makes each predicate say NO -- a bad
@@ -434,12 +439,14 @@ function(zen_law_declared line out_name out_kind out_param)
     set(${out_param} "${param}" PARENT_SCOPE)
 endfunction()
 
-# ---- witness debts: `witness: none`, and its echo under ## Do not assume ------------------
+# ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
 #
-# A law with no witness writes `witness: none` in its PROVEN BY and is repeated in a bullet
-# under its register's `## Do not assume` that says the same words, so the debt is visible in
-# both places and neither copy can quietly outlive the other. Three predicates, each in one
-# place so the self-test exercises the real one.
+# A law with no witness writes `witness: none` in its PROVEN BY; a law witnessed except for
+# one clause writes `UNWITNESSED -- <clause>` on the line after PROVEN BY. Either debt is
+# repeated in a bullet under its register's `## Do not assume` that says the same word, so it
+# is visible in both places and neither copy can quietly outlive the other. The predicates
+# take the marker word, so the two debts are one mechanism and one self-test, each predicate
+# in one place so the self-test exercises the real one.
 
 function(zen_law_proven_owes proven out)
     if(proven MATCHES "witness: none")
@@ -449,12 +456,24 @@ function(zen_law_proven_owes proven out)
     endif()
 endfunction()
 
-# The ids a Do-not-assume bullet repeats as debts: every WL id on a bullet that says
-# `witness: none`, and nothing at all for a bullet that does not say it, whatever else it
-# names -- the prose bullets that cite a law for another reason are not debt statements.
-function(zen_law_debt_ids bullet out)
+# The clause an `UNWITNESSED -- <clause>` line names, or "" for any other line (including an
+# UNWITNESSED line that names none, which the walker then fails as malformed).
+function(zen_law_unwitnessed_clause line out)
     set(${out} "" PARENT_SCOPE)
-    if(NOT bullet MATCHES "witness: none")
+    if(line MATCHES "^UNWITNESSED (—|--) (.+)$")
+        string(STRIP "${CMAKE_MATCH_2}" clause)
+        set(${out} "${clause}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+# The ids a Do-not-assume bullet repeats as debts of one kind: every WL id on a bullet that
+# says the marker (`witness: none` or `UNWITNESSED`), and nothing at all for a bullet that
+# does not say it, whatever else it names -- the prose bullets that cite a law for another
+# reason are not debt statements.
+function(zen_law_debt_ids bullet marker out)
+    set(${out} "" PARENT_SCOPE)
+    string(FIND "${bullet}" "${marker}" said)
+    if(said EQUAL -1)
         return()
     endif()
     string(REGEX MATCHALL "WL-[A-Z]+-[0-9]+" ids "${bullet}")
@@ -464,20 +483,20 @@ function(zen_law_debt_ids bullet out)
     set(${out} "${ids}" PARENT_SCOPE)
 endfunction()
 
-# The reciprocity verdict for one register: the problem sentences, empty when the debts
-# written by entries and the debts repeated under Do not assume are the same set.
-function(zen_law_debt_problems rel nowit debts entries out)
+# The reciprocity verdict for one register and one marker: the problem sentences, empty when
+# the debts written by entries and the debts repeated under Do not assume are the same set.
+function(zen_law_debt_problems rel written echoed entries marker out)
     set(problems "")
-    foreach(id IN LISTS nowit)
-        if(NOT id IN_LIST debts)
-            list(APPEND problems "${rel} ${id} writes witness: none and is not repeated under ## Do not assume")
+    foreach(id IN LISTS written)
+        if(NOT id IN_LIST echoed)
+            list(APPEND problems "${rel} ${id} writes ${marker} and is not repeated under ## Do not assume")
         endif()
     endforeach()
-    foreach(id IN LISTS debts)
+    foreach(id IN LISTS echoed)
         if(NOT id IN_LIST entries)
-            list(APPEND problems "${rel} Do not assume says ${id} has no witness, but it is no entry of this register")
-        elseif(NOT id IN_LIST nowit)
-            list(APPEND problems "${rel} Do not assume says ${id} has no witness, but its PROVEN BY cites one")
+            list(APPEND problems "${rel} Do not assume says ${marker} of ${id}, but it is no entry of this register")
+        elseif(NOT id IN_LIST written)
+            list(APPEND problems "${rel} Do not assume says ${marker} of ${id}, but its entry does not write it")
         endif()
     endforeach()
     set(${out} "${problems}" PARENT_SCOPE)
@@ -584,12 +603,12 @@ endif()
 
 zen_law_proven_owes("PROVEN BY — `a.hpp` `x`; witness: none" owes)
 zen_law_proven_owes("PROVEN BY — `a.hpp` `x`; `tests/t.cpp` case `\"a case\"`" cites)
-zen_law_debt_ids("- That WL-ZZZ-01 is witnessed — it is not (witness: none)." debt)
-zen_law_debt_ids("- That WL-ZZZ-02 has a runtime witness — its pins are compile-time only." prose)
-zen_law_debt_problems("r.md" "WL-ZZZ-01" "WL-ZZZ-01" "WL-ZZZ-01;WL-ZZZ-02" reciprocal)
-zen_law_debt_problems("r.md" "WL-ZZZ-01" "" "WL-ZZZ-01;WL-ZZZ-02" unrepeated)
-zen_law_debt_problems("r.md" "" "WL-ZZZ-02" "WL-ZZZ-01;WL-ZZZ-02" witnessed)
-zen_law_debt_problems("r.md" "" "WL-ZZZ-09" "WL-ZZZ-01;WL-ZZZ-02" stranger)
+zen_law_debt_ids("- That WL-ZZZ-01 is witnessed — it is not (witness: none)." "witness: none" debt)
+zen_law_debt_ids("- That WL-ZZZ-02 has a runtime witness — its pins are compile-time only." "witness: none" prose)
+zen_law_debt_problems("r.md" "WL-ZZZ-01" "WL-ZZZ-01" "WL-ZZZ-01;WL-ZZZ-02" "witness: none" reciprocal)
+zen_law_debt_problems("r.md" "WL-ZZZ-01" "" "WL-ZZZ-01;WL-ZZZ-02" "witness: none" unrepeated)
+zen_law_debt_problems("r.md" "" "WL-ZZZ-02" "WL-ZZZ-01;WL-ZZZ-02" "witness: none" witnessed)
+zen_law_debt_problems("r.md" "" "WL-ZZZ-09" "WL-ZZZ-01;WL-ZZZ-02" "witness: none" stranger)
 list(LENGTH unrepeated n_unrepeated)
 list(LENGTH witnessed n_witnessed)
 list(LENGTH stranger n_stranger)
@@ -600,6 +619,32 @@ if(NOT owes OR cites OR NOT debt STREQUAL "WL-ZZZ-01" OR NOT prose STREQUAL "" O
         "sample (owes ${owes}, cites ${cites}, debt '${debt}', prose '${prose}', reciprocal "
         "'${reciprocal}', unrepeated ${n_unrepeated}, witnessed ${n_witnessed}, stranger "
         "${n_stranger}). A debt written in one place only would then go unnoticed.")
+endif()
+
+# The clause debt, through the same predicates with the other marker: a clause is read off
+# an UNWITNESSED line and off nothing else; a bullet that says UNWITNESSED names its law and a
+# bullet that says only witness: none is not a clause echo; one-sided is refused both ways.
+zen_law_unwitnessed_clause("UNWITNESSED — the second arm was not measured" clause)
+zen_law_unwitnessed_clause("UNWITNESSED -- the second arm was not measured" clause_ascii)
+zen_law_unwitnessed_clause("PROVEN BY — `a.hpp` `x`; witness: none" not_clause)
+zen_law_unwitnessed_clause("UNWITNESSED —" bare)
+zen_law_debt_ids("- That WL-ZZZ-03 is whole — one clause is UNWITNESSED, and it says which." "UNWITNESSED" partial)
+zen_law_debt_ids("- That WL-ZZZ-01 is witnessed — it is not (witness: none)." "UNWITNESSED" not_partial)
+zen_law_debt_problems("r.md" "WL-ZZZ-03" "WL-ZZZ-03" "WL-ZZZ-01;WL-ZZZ-03" "UNWITNESSED" p_reciprocal)
+zen_law_debt_problems("r.md" "WL-ZZZ-03" "" "WL-ZZZ-01;WL-ZZZ-03" "UNWITNESSED" p_unrepeated)
+zen_law_debt_problems("r.md" "" "WL-ZZZ-03" "WL-ZZZ-01;WL-ZZZ-03" "UNWITNESSED" p_unwritten)
+list(LENGTH p_unrepeated n_p_unrepeated)
+list(LENGTH p_unwritten n_p_unwritten)
+if(NOT clause STREQUAL "the second arm was not measured" OR NOT clause_ascii STREQUAL "${clause}"
+   OR NOT not_clause STREQUAL "" OR NOT bare STREQUAL "" OR NOT partial STREQUAL "WL-ZZZ-03"
+   OR NOT not_partial STREQUAL "" OR p_reciprocal OR NOT n_p_unrepeated EQUAL 1
+   OR NOT n_p_unwritten EQUAL 1)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the clause-debt predicates disagree with a sample "
+        "(clause '${clause}', ascii '${clause_ascii}', not-clause '${not_clause}', bare '${bare}', "
+        "partial '${partial}', not-partial '${not_partial}', reciprocal '${p_reciprocal}', "
+        "unrepeated ${n_p_unrepeated}, unwritten ${n_p_unwritten}). A clause debt written in "
+        "one place only would then go unnoticed.")
 endif()
 
 # ---- sweep helpers -----------------------------------------------------------------------
@@ -708,8 +753,8 @@ endif()
 message(STATUS
     "law-register: self-test OK -- a bad heading, a commented-out identifier, a substring, a "
     "member under a substring scope, an overload whose type is only in a comment, a tagged "
-    "pointer, an undeclared witness and a one-sided witness debt are refused; their "
-    "well-formed twins are accepted")
+    "pointer, an undeclared witness, a one-sided witness debt and a one-sided clause debt are "
+    "refused; their well-formed twins are accepted")
 
 # ---- population 2: the registers ---------------------------------------------------------
 
@@ -734,12 +779,25 @@ set_property(GLOBAL PROPERTY zen_law_debt_bullets "")
 # names no law is a debt with no owner.
 macro(zen_law_flush_bullet)
     if(NOT bullet STREQUAL "")
-        zen_law_debt_ids("${bullet}" debt_ids)
-        if(debt_ids)
-            set_property(GLOBAL APPEND PROPERTY "zen_law_debts_${relkey}" ${debt_ids})
+        set(bullet_counted 0)
+        foreach(marker IN ITEMS "witness: none" "UNWITNESSED")
+            zen_law_debt_ids("${bullet}" "${marker}" debt_ids)
+            if(debt_ids)
+                if(marker STREQUAL "UNWITNESSED")
+                    set_property(GLOBAL APPEND PROPERTY "zen_law_partial_echo_${relkey}" ${debt_ids})
+                else()
+                    set_property(GLOBAL APPEND PROPERTY "zen_law_debts_${relkey}" ${debt_ids})
+                endif()
+                set(bullet_counted 1)
+            else()
+                string(FIND "${bullet}" "${marker}" said)
+                if(NOT said EQUAL -1)
+                    zen_law_fail("${rel} has a Do-not-assume bullet that says ${marker} and names no law")
+                endif()
+            endif()
+        endforeach()
+        if(bullet_counted)
             set_property(GLOBAL APPEND PROPERTY zen_law_debt_bullets "${rel}")
-        elseif(bullet MATCHES "witness: none")
-            zen_law_fail("${rel} has a Do-not-assume bullet that says witness: none and names no law")
         endif()
     endif()
     set(bullet "")
@@ -754,6 +812,14 @@ macro(zen_law_flush_entry)
             set_property(GLOBAL APPEND PROPERTY "zen_law_nowitness_${relkey}" "${id}")
             if(proven_text MATCHES "\"")
                 zen_law_fail("${rel} ${id} PROVEN BY says witness: none and also cites a witness")
+            endif()
+        endif()
+        if(NOT unwitnessed_text STREQUAL "")
+            set_property(GLOBAL APPEND PROPERTY "zen_law_partial_${relkey}" "${id}")
+            if(owes)
+                zen_law_fail("${rel} ${id} writes both witness: none and UNWITNESSED; a law with no witness at all writes the first alone")
+            elseif(NOT proven_text MATCHES "\"")
+                zen_law_fail("${rel} ${id} writes UNWITNESSED and its PROVEN BY cites no witness; a law with none writes witness: none")
             endif()
         endif()
         if(NOT retired)
@@ -792,6 +858,7 @@ macro(zen_law_flush_entry)
     set(dnm 0)
     set(section "")
     set(proven_text "")
+    set(unwitnessed_text "")
     set(why_count 0)
     set(why_target "")
 endmacro()
@@ -892,14 +959,30 @@ function(zen_law_walk_register rel is_router)
             endif()
             continue()
         endif()
+        if(line MATCHES "^UNWITNESSED")
+            zen_law_unwitnessed_clause("${line}" clause)
+            if(clause STREQUAL "")
+                zen_law_fail("${rel}:${n} ${id} UNWITNESSED names no clause (the form is `UNWITNESSED — <clause>`)")
+            elseif(NOT proven)
+                zen_law_fail("${rel}:${n} ${id} UNWITNESSED comes before PROVEN BY; it is the line after it")
+            endif()
+            string(APPEND unwitnessed_text " ${clause}")
+            string(STRIP "${unwitnessed_text}" unwitnessed_text)
+            set(section "unwitnessed")
+            continue()
+        endif()
         if(line MATCHES "^[ \t]*$")
-            if(section STREQUAL "law" OR section STREQUAL "proven")
+            if(section STREQUAL "law" OR section STREQUAL "proven" OR section STREQUAL "unwitnessed")
                 set(section "")
             endif()
             continue()
         endif()
         if(section STREQUAL "proven")
             string(APPEND proven_text " ${line}")
+            continue()
+        endif()
+        if(section STREQUAL "unwitnessed")
+            string(APPEND unwitnessed_text " ${line}")
             continue()
         endif()
         if(line MATCHES "^- ")
@@ -945,29 +1028,42 @@ endif()
 
 # ---- witness debts are written in both places or in neither -------------------------------
 #
-# Per register: every entry whose PROVEN BY says `witness: none` is named by a Do-not-assume
-# bullet that says the same words, and every id such a bullet names is an entry of that
-# register that writes the debt. Zero on both sides is the goal, not an empty population.
+# Per register and per marker: every entry whose PROVEN BY says `witness: none`, and every
+# entry that writes `UNWITNESSED -- <clause>`, is named by a Do-not-assume bullet that says
+# the same word, and every id such a bullet names is an entry of that register that writes
+# that debt. Zero on both sides is the goal, not an empty population.
 
 set(nowitness_total 0)
+set(partial_total 0)
 set(debt_total 0)
 set(debt_problem_count 0)
 foreach(rel IN LISTS register_files)
     string(MAKE_C_IDENTIFIER "${rel}" relkey)
-    get_property(nowit GLOBAL PROPERTY "zen_law_nowitness_${relkey}")
-    get_property(debts GLOBAL PROPERTY "zen_law_debts_${relkey}")
     get_property(entries GLOBAL PROPERTY "zen_law_ids_of_${relkey}")
-    if(debts)
-        list(REMOVE_DUPLICATES debts)
-    endif()
-    list(LENGTH nowit nowit_count)
-    list(LENGTH debts debts_count)
-    math(EXPR nowitness_total "${nowitness_total} + ${nowit_count}")
-    math(EXPR debt_total "${debt_total} + ${debts_count}")
-    zen_law_debt_problems("${rel}" "${nowit}" "${debts}" "${entries}" debt_problems)
-    foreach(p IN LISTS debt_problems)
-        zen_law_fail("${p}")
-        math(EXPR debt_problem_count "${debt_problem_count} + 1")
+    foreach(marker IN ITEMS "witness: none" "UNWITNESSED")
+        if(marker STREQUAL "UNWITNESSED")
+            get_property(written GLOBAL PROPERTY "zen_law_partial_${relkey}")
+            get_property(echoed GLOBAL PROPERTY "zen_law_partial_echo_${relkey}")
+        else()
+            get_property(written GLOBAL PROPERTY "zen_law_nowitness_${relkey}")
+            get_property(echoed GLOBAL PROPERTY "zen_law_debts_${relkey}")
+        endif()
+        if(echoed)
+            list(REMOVE_DUPLICATES echoed)
+        endif()
+        list(LENGTH written written_count)
+        list(LENGTH echoed echoed_count)
+        if(marker STREQUAL "UNWITNESSED")
+            math(EXPR partial_total "${partial_total} + ${written_count}")
+        else()
+            math(EXPR nowitness_total "${nowitness_total} + ${written_count}")
+        endif()
+        math(EXPR debt_total "${debt_total} + ${echoed_count}")
+        zen_law_debt_problems("${rel}" "${written}" "${echoed}" "${entries}" "${marker}" debt_problems)
+        foreach(p IN LISTS debt_problems)
+            zen_law_fail("${p}")
+            math(EXPR debt_problem_count "${debt_problem_count} + 1")
+        endforeach()
     endforeach()
 endforeach()
 get_property(debt_bullets GLOBAL PROPERTY zen_law_debt_bullets)
@@ -1328,8 +1424,8 @@ message(STATUS "law-register: ${path_count} PROVEN BY paths, ${ident_count} iden
 message(STATUS "law-register: ${pointer_files} source files carry pointers -- ${pointer_lines} "
                "pointer lines, ${pointer_ids} pointer ids, ${header_pointers} header pointers")
 message(STATUS "law-register: witness debts -- ${nowitness_total} entries write witness: none, "
-               "${debt_bullet_count} Do-not-assume bullets repeat them (${debt_total} ids), "
-               "${debt_word}")
+               "${partial_total} write UNWITNESSED; ${debt_bullet_count} Do-not-assume bullets "
+               "repeat them (${debt_total} ids), ${debt_word}")
 
 get_property(rule_m GLOBAL PROPERTY zen_law_rule_m)
 get_property(rule_n GLOBAL PROPERTY zen_law_rule_n)
