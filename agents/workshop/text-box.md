@@ -14,11 +14,12 @@ DOES NOT MEAN
 
 PROVEN BY — `component/text_box.hpp` `TextBox`, `first_visible`, `caret`;
 `workshop/property.hpp` `Row`, `editor`, `backspace`, `draft_`; `workshop/screen.hpp`
-`TerminalPane`, `input`; `workshop/setup.hpp` `LayoutNaming`; `tests/test_component.cpp` case
-`"component: a TextBox is a value with no identity and no policy"`;
-`tests/test_workshop_document.cpp` case `"TEXT-0: the property draft speaks the same vocabulary
-and keeps its policy keys"`, case `"TEXT-0: the name editor selects with the same keys and says it
-in characters"`, case `"TEXT-0: the real Composer's fields speak the vocabulary across the seam"`.
+`TerminalPane`, `TerminalPane::input`; `workshop/setup.hpp` `LayoutNaming`;
+`tests/test_component.cpp` case `"component: a TextBox is a value with no identity and no
+policy"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the property draft speaks the same
+vocabulary and keeps its policy keys"`, case `"TEXT-0: the name editor selects with the same keys
+and says it in characters"`, case `"TEXT-0: the real Composer's fields speak the vocabulary across
+the seam"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-02 — A consumer owns the capacity, the clipboard's custody and what the text means
@@ -57,11 +58,11 @@ MEANS
 - a resize needs no path of its own, because a new extent causes a repaint;
 - the reconcile stays above the return: a maker can type into a pane with no participant mounted.
 
-PROVEN BY — `workshop/screen.hpp` `terminal_input_place`, `columns`; `workshop/weave.hpp`
-`refresh_terminal`, `attached`, `terminal_key`; `tests/test_workshop_screen.cpp` case `"HD-4: a
-long line is shown as a slice, and both media draw the caret against it"`, case `"HD-4: the window
-follows the caret across a resize"`, case `"HD-4: a press on a SCROLLED line lands in the full
-authored string"`.
+PROVEN BY — `workshop/screen.hpp` `terminal_input_place`, `TerminalInputPlace::columns`;
+`workshop/weave.hpp` `refresh_terminal`, `attached`, `terminal_key`;
+`tests/test_workshop_screen.cpp` case `"HD-4: a long line is shown as a slice, and both media draw
+the caret against it"`, case `"HD-4: the window follows the caret across a resize"`, case `"HD-4:
+a press on a SCROLLED line lands in the full authored string"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-05 — The left edge snaps forwards, the right cut is a byte cut

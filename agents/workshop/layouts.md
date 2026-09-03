@@ -12,7 +12,7 @@ MEANS
 - `Layout` is desk + link, one struct rather than two parallel vectors whose indices could drift.
 
 PROVEN BY — `workshop/setup.hpp` `Setup`, `active`, `SetupState`, `active_link`, `shelved`,
-`active_at`, `naming`, `Layout`, `SetupLink`; `workshop/screen.hpp` `setup`;
+`active_at`, `naming`, `Layout`, `SetupLink`; `workshop/screen.hpp` `Session::setup`;
 `tests/test_workshop_screen.cpp` case `"WUX-9/SC-2: a layout is a Setup and the run is the shelf
 plus the live value"`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the
 lifted-active representation are one fact"`.

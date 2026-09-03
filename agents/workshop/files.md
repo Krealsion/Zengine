@@ -132,12 +132,12 @@ LAW — Names are `u8string()` bytes: a printable-ASCII name is exact and openab
 DOES NOT MEAN
 - that a file-type registry or extension list exists: a `.png` meets the refusal that knows why.
 
-PROVEN BY — `workshop/files.hpp` `printable_ascii_name`, `openable`, `admit_filename`, `name`,
-`shown_name`; `workshop/path_admission.hpp` `admit_filename`; `workshop/screen.hpp`
-`files_row_text`; `tests/test_workshop_files.cpp` case `"EDIT-1: a name outside printable ASCII
-keeps its row, marked, and cannot be opened"`, case `"EDIT-1: the browser does not judge contents
--- the editor's door does"`, case `"EDIT-1: a name the path custody cannot carry refuses at the
-browser, in its words"`.
+PROVEN BY — `workshop/files.hpp` `printable_ascii_name`, `openable`, `admit_filename`,
+`FileRow::name`, `shown_name`; `workshop/path_admission.hpp` `admit_filename`;
+`workshop/screen.hpp` `files_row_text`; `tests/test_workshop_files.cpp` case `"EDIT-1: a name
+outside printable ASCII keeps its row, marked, and cannot be opened"`, case `"EDIT-1: the browser
+does not judge contents -- the editor's door does"`, case `"EDIT-1: a name the path custody cannot
+carry refuses at the browser, in its words"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask

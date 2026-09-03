@@ -15,9 +15,9 @@ MEANS
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `context_subject`; `workshop/keymap.hpp`
 `workshop.context`; `workshop/weave.hpp` `load_document`, `spend_context_choice`,
 `open_context_at`, `open_context_ambient`; `workshop/screen.hpp` `object_at`; `workshop/panel.hpp`
-`selected`; `tests/test_workshop_panels.cpp` case `"CTX-0: a right press captures a subject and
-selects nothing"`, case `"CTX-0: a captured pane that left the setup is refused truthfully"`,
-subcase `"the keyboard door opens on what command mode can name"`;
+`Panels::selected`; `tests/test_workshop_panels.cpp` case `"CTX-0: a right press captures a
+subject and selects nothing"`, case `"CTX-0: a captured pane that left the setup is refused
+truthfully"`, subcase `"the keyboard door opens on what command mode can name"`;
 `tests/test_workshop_document.cpp` case `"CTX-0: replacing the document drops a captured object
 subject"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`

@@ -16,11 +16,11 @@ DOES NOT MEAN
 - that a widget set, controls, anchors, fill, nesting or a second renderer may grow on this value.
 
 PROVEN BY — `workshop/pane_definition.hpp` `PaneDefinition`, `TextRegion`, `region_kind::kText`,
-`MakerPane`, `kMaxRegions`, `kMaxMakerPaneNameLen`, `kRegionSubMax`; `workshop/panel.hpp` `maker`;
-`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-6: a definition is a name and a list of
-text regions with stable ids"`, case `"WUX-14/SC-7: the whole-definition law refuses what no door
-could have made"`, case `"WUX-14/SC-12: a code-backed subject's interior is a read-only capture,
-and an unresolved one is nothing to inspect"`.
+`MakerPane`, `kMaxRegions`, `kMaxMakerPaneNameLen`, `kRegionSubMax`; `workshop/panel.hpp`
+`Panels::maker`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-6: a definition is a
+name and a list of text regions with stable ids"`, case `"WUX-14/SC-7: the whole-definition law
+refuses what no door could have made"`, case `"WUX-14/SC-12: a code-backed subject's interior is a
+read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-03 — The identity is minted from the name and from nothing else
@@ -116,11 +116,11 @@ MEANS
 PROVEN BY — `workshop/weave.hpp` `quit`, `open_maker_pane`, `save_maker_pane`,
 `discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`, `pane_path`, `host_pane_path`;
 `workshop/screen.hpp` `kPaneWallKey`; `workshop/pane_definition_persist.hpp` `LoadedDefinition`;
-`workshop/panel.hpp` `maker`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-14: dirty
-pane truth refuses the quit, a second new pane and a replacing open until the maker saves or
-discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its file, and closes a
-pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a malformed file cannot
-replace a live definition, and a refused file is never written over"`.
+`workshop/panel.hpp` `Panels::maker`; `tests/test_workshop_panels_creator.cpp` case
+`"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
+the maker saves or discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its
+file, and closes a pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a
+malformed file cannot replace a live definition, and a refused file is never written over"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-09 — Startup order is the relaunch story

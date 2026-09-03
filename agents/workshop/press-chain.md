@@ -37,10 +37,10 @@ MEANS
 - each handler asks its own inverse: `property_row_hit`, `action_press_at`, `object_press_at`.
 
 PROVEN BY — `workshop/screen.hpp` `info_body_at`, `property_row_hit`, `action_press_at`,
-`object_press_at`, `terminal_input_hit`, `InfoBodyAt`, `present`, `files_row_of_body_row`;
-`tests/test_workshop_document.cpp` case `"QR-2: the body's resolve-and-locate is ONE answer, and
-it is the painter's"`, case `"QR-2: no press inside the Info body begins a workspace gesture, on
-any row"`.
+`object_press_at`, `terminal_input_hit`, `InfoBodyAt`, `InfoBodyAt::present`,
+`files_row_of_body_row`; `tests/test_workshop_document.cpp` case `"QR-2: the body's
+resolve-and-locate is ONE answer, and it is the painter's"`, case `"QR-2: no press inside the Info
+body begins a workspace gesture, on any row"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy
@@ -52,7 +52,7 @@ MEANS
 - a pane in front of an Info control takes the point; a pane in front of the tabs takes the press.
 
 PROVEN BY — `workshop/weave.hpp` `take_hold`, `external_press`, `info_press`, `on`;
-`workshop/screen.hpp` `occupied_at`, `kind`, `ExternalPressAt`, `external_press_at`;
+`workshop/screen.hpp` `occupied_at`, `Occupancy::kind`, `ExternalPressAt`, `external_press_at`;
 `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
 takes the press"`, case `"WUX-12/SC-6: a pane in front of an Info control takes the point"`;
 `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets first refusal, and a

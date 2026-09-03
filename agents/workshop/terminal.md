@@ -29,12 +29,12 @@ LAW — A typed line reaches the `loom::TerminalSession`'s own record; a typed s
 MEANS
 - an address without its sigil sends nothing and records nothing.
 
-PROVEN BY — `workshop/weave.hpp` `submit_terminal_line`, `terminal`; `workshop/complete.hpp`
-`read_command_line`; `workshop/screen.hpp` `terminal_address`; `tests/test_workshop_screen.cpp`
-case `"a typed line reaches the participant's own record, understood or not"`, case `"a typed send
-leaves through the PARTICIPANT's door, on Workshop's own bus"`, case `"the address grammar the
-pane reads is Loom's own, not a second one"`, case `"an ask waits, and LOOM's own answer settles
-it on the screen"`.
+PROVEN BY — `workshop/weave.hpp` `submit_terminal_line`, `HostContext::terminal`;
+`workshop/complete.hpp` `read_command_line`; `workshop/screen.hpp` `terminal_address`;
+`tests/test_workshop_screen.cpp` case `"a typed line reaches the participant's own record,
+understood or not"`, case `"a typed send leaves through the PARTICIPANT's door, on Workshop's own
+bus"`, case `"the address grammar the pane reads is Loom's own, not a second one"`, case `"an ask
+waits, and LOOM's own answer settles it on the screen"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-03 — The pane is one bounded region that fits entries, and says what it omits
