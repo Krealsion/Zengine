@@ -50,12 +50,21 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-04 — A linked directory is marked and enterable
 
-LAW — A directory row is `linked` when following it says directory and not following it does not (`symlink_status()`), never `is_symlink()`, which a Windows junction answers false.
+LAW — A directory row is `linked` when the entry leaves the tree: on Windows the host says reparse point; elsewhere following says directory and not following does not; never `is_symlink()`.
 
-PROVEN BY — `workshop/files.hpp` `symlink_status`, `linked`; `workshop/screen.hpp`
-`files_row_text`; `workshop/weave.hpp` `files_open`; `tests/test_workshop_files.cpp` case
-`"PROJ-2: a linked directory is marked, entered, and left again LEXICALLY"`.
-WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
+MEANS
+- asked of the path, never of the listing's copy, which Windows documents as possibly stale;
+- libstdc++ on Windows cannot see a reparse point unfollowed, which is why the host is asked;
+- the mark says "leaves the tree", not symbolic link versus junction.
+
+DOES NOT MEAN
+- that the per-platform predicate spreads: one attribute, in one place, on one platform.
+
+PROVEN BY — `workshop/files.hpp` `leaves_the_tree`, `GetFileAttributesW`, `symlink_status`,
+`linked`; `workshop/screen.hpp` `files_row_text`; `workshop/weave.hpp` `files_open`;
+`tests/test_workshop_files.cpp` case `"PROJ-2: a linked directory is marked, entered, and left
+again LEXICALLY"`.
+WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
 

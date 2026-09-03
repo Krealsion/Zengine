@@ -18,6 +18,18 @@
 #include <utility>
 #include <vector>
 
+// THE ONE ATTRIBUTE THIS BROWSER ASKS THE HOST FOR: whether a directory entry is a reparse
+// point. Reached the way `filesystem_roots.hpp` reaches Win32.
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 // WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser is one of two places that turn
 // something the OS reported into a Workshop path string, and both of them used to be able
 // to end the process by asking.
@@ -100,6 +112,26 @@ struct Listing {
     bool bounded = false;
 };
 
+/// DOES THIS DIRECTORY LEAVE THE TREE? Windows asks the host, of the PATH, never the listing's
+/// cached copy: one of its two standard libraries (libstdc++) cannot see a reparse point
+/// unfollowed, so there following and not following agree and the mark would be lost.
+// WL-FILES-04 -- agents/workshop/files.md
+inline bool leaves_the_tree(const std::filesystem::directory_entry& entry) {
+#if defined(_WIN32)
+    const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        return true; // an unfollowed query that fails marks the row, as it always has
+    }
+    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+    // A LINK IS A DIRECTORY THAT DISAGREES WITH ITSELF: followed, it is a directory;
+    // unfollowed, it is not -- whatever kind of link this library reports it as.
+    std::error_code link_ec;
+    const std::filesystem::file_status own = entry.symlink_status(link_ec);
+    return link_ec ? true : !std::filesystem::is_directory(own);
+#endif
+}
+
 /// ENUMERATE ONE DIRECTORY.
 ///
 /// EVERY FAILURE IS AN ORDINARY REFUSAL. The iterator is constructed and advanced through
@@ -149,14 +181,7 @@ inline Listing enumerate_directory(const std::string& dir) {
             row.directory = false;
         }
         if (row.directory) {
-            // A LINK IS A DIRECTORY THAT DISAGREES WITH ITSELF: followed, it is a
-            // directory; unfollowed, it is not. That comparison is standard C++ and needs
-            // no per-platform predicate -- and it catches whatever this platform's
-            // standard library reports a reparse point as, rather than only the one kind
-            // named `symlink`.
-            std::error_code link_ec;
-            const std::filesystem::file_status own = entry.symlink_status(link_ec);
-            row.linked = link_ec ? true : !std::filesystem::is_directory(own);
+            row.linked = leaves_the_tree(entry);
         }
         if (!row.name.empty()) {
             out.rows.push_back(std::move(row));

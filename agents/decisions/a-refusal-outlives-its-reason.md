@@ -43,6 +43,5 @@ rather than at four sites. `launch_project_dir()` is the capture `main` runs, so
 proves is what ships. A hand-edited durable file is the one place uncarriable bytes can arrive
 from, and it meets the same door.
 
-**Laws supported.** [WL-FILES-03](../workshop/files.md), [WL-FILES-04](../workshop/files.md),
-[WL-FILES-09](../workshop/files.md), [WL-FILES-10](../workshop/files.md),
-[WL-FILES-11](../workshop/files.md).
+**Laws supported.** [WL-FILES-03](../workshop/files.md), [WL-FILES-09](../workshop/files.md),
+[WL-FILES-10](../workshop/files.md), [WL-FILES-11](../workshop/files.md).
