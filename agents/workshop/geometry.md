@@ -112,12 +112,12 @@ MEANS
 - the device unit before a fractional edge does not answer — what you see is what you can grab;
 - the TUI quantizes at its projection and never writes back; a thousand frames rewrite nothing.
 
-PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `contains_at`, `PointedAt`, `sub`,
-`pane_edge_at`; `surface/skin_tui.hpp` `canvas_body`; `surface/pointing.hpp` `sub_span_contains`;
-`tests/test_workshop_screen.cpp` case `"WUX-2: the hand meets exactly the pixels a fine pane
-paints"`, case `"WUX-2: the TUI projects a fine pane onto its covered cells and rewrites
-nothing"`; `tests/test_surface.cpp` case `"WUX-2: one quantization law -- a span lands on device
-units by flooring both edges"`.
+PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `contains_at`, `PointedAt`,
+`PointedAt::sub`, `pane_edge_at`; `surface/skin_tui.hpp` `canvas_body`; `surface/pointing.hpp`
+`sub_span_contains`; `tests/test_workshop_screen.cpp` case `"WUX-2: the hand meets exactly the
+pixels a fine pane paints"`, case `"WUX-2: the TUI projects a fine pane onto its covered cells and
+rewrites nothing"`; `tests/test_surface.cpp` case `"WUX-2: one quantization law -- a span lands on
+device units by flooring both edges"`.
 WHY — `agents/decisions/the-fine-lattice.md`
 
 ## WL-GEO-08 — The unit is the medium's answer, never Workshop's

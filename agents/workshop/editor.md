@@ -91,9 +91,9 @@ DOES NOT MEAN
 - that case-folding and hard links are handled — they remain named residuals.
 
 PROVEN BY — `workshop/weave.hpp` `open_source`; `workshop/persist.hpp` `resolved_against`;
-`workshop/editor.hpp` `path`; `tests/test_workshop_files.cpp` case `"EDIT-1: equivalent spellings
-of one file are one document"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: re-requesting the
-open source reveals it and destroys nothing"`.
+`workshop/editor.hpp` `EditorState::path`; `tests/test_workshop_files.cpp` case `"EDIT-1:
+equivalent spellings of one file are one document"`; `tests/test_workshop_editor.cpp` case
+`"EDIT-0: re-requesting the open source reveals it and destroys nothing"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-07 — The source-byte law is the media's honest reach

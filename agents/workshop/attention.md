@@ -44,7 +44,7 @@ LAW — A condition derived from a live owner — a pane's refusal, a pane's sta
 
 PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`, `ProjectFrontier`,
 `clear_refusal`; `workshop/screen.hpp` `pane_state_of`, `paint`; `workshop/attention.hpp`
-`HeldConditions`; `workshop/weave.hpp` `frontier`, `frontier_now`;
+`HeldConditions`; `workshop/weave.hpp` `HostContext::frontier`, `frontier_now`;
 `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and leaves attention
 with its subject"`, case `"WUX-4: the project frontier is a condition while it waits and nothing
 after"`.

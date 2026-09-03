@@ -60,10 +60,10 @@ MEANS
 - `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
 
 PROVEN BY — `workshop/screen.hpp` `paint_pane_editor`, `pane_editor_rows`; `workshop/setup.hpp`
-`inventory_rows`; `workshop/property.hpp` `section`; `workshop/weave.hpp` `rebuild_subject_rows`;
-`tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a built-in, and its list
-is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows say identity, then
-AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
+`inventory_rows`; `workshop/property.hpp` `Row::section`; `workshop/weave.hpp`
+`rebuild_subject_rows`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a
+built-in, and its list is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows
+say identity, then AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door

@@ -51,8 +51,8 @@ MEANS
 - a default pane resolving to 89 cells with four on screen answers one rightward step by five.
 
 PROVEN BY — `workshop/weave.hpp` `managed_bounds`; `workshop/screen.hpp` `PanelBounds`,
-`pane_window_proposal`, `rect`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default
-resize begins from the full resolved size"`.
+`pane_window_proposal`, `PanelBounds::rect`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a
+clipped default resize begins from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-05 — Every resize edge preserves its opposite anchor
@@ -95,7 +95,7 @@ MEANS
 - in the one-pane scope a press elsewhere is consumed with the sentence naming the state;
 - on the desk a press takes hold and makes that pane the keyboard's target, topmost first.
 
-PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `arrange`; `workshop/weave.hpp`
+PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `Session::arrange`; `workshop/weave.hpp`
 `enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`, `open_arrange_desk`,
 `arrange_press`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: the one-pane scope is bound
 -- another pane cannot be drawn into it"`, case `"ARR-0: the desk manipulates panes directly, and

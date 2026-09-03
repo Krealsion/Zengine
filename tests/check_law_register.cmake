@@ -42,7 +42,9 @@
 #            of the named file, `//` comments and `/* */` comments stripped. The lenient
 #            check above is satisfied by a mention in a comment -- measured: 24 wrong
 #            attributions survived three steps that way -- and a substring (`Rect` inside
-#            `SurfaceRect`).
+#            `SurfaceRect`). A member is spelled `Struct::member` and an overload
+#            `name(Type)`; both are read as their parts, each of which must be a whole
+#            token in the code (zen_law_token_parts() below).
 #   rule n   a `// WL-...` pointer is PROVEN BY inverted: for each pointer line, the
 #            declaration on the next code line is named by the PROVEN BY of at least one
 #            law on that line, under this file. What "the declaration" means here is a
@@ -205,28 +207,54 @@ endfunction()
 
 # ---- the predicates, each in one place so the self-test exercises the real one ---------
 
-# Lenient: the token occurs anywhere in the text, comments included, as a substring. This
-# is the prototype's check and the one the lane enforces today.
-function(zen_law_mentions text token out)
-    string(FIND "${text}" "${token}" pos)
-    if(pos EQUAL -1)
-        set(${out} 0 PARENT_SCOPE)
-    else()
-        set(${out} 1 PARENT_SCOPE)
+# A PROVEN BY identifier is one token, a qualified spelling `Scope::member` (any depth), or
+# an overload spelling `name(Type)` -- and its PARTS are what the file is asked for.
+# `Row::section` asks for `Row` and `section`; `on(PointerWheel)` asks for `on` and
+# `PointerWheel`. The check reads the parts and not their relation: a member spelled under
+# the wrong scope passes when both names occur in the file, so the scope is the register's
+# claim, not the check's.
+function(zen_law_token_parts token out)
+    set(t "${token}")
+    if(t MATCHES "^([A-Za-z_][A-Za-z0-9_:]*)\\(([A-Za-z_][A-Za-z0-9_:]*)\\)$")
+        set(t "${CMAKE_MATCH_1}::${CMAKE_MATCH_2}")
     endif()
+    string(REPLACE "::" ";" pieces "${t}")
+    set(parts "")
+    foreach(piece IN LISTS pieces)
+        if(NOT piece STREQUAL "")
+            list(APPEND parts "${piece}")
+        endif()
+    endforeach()
+    set(${out} "${parts}" PARENT_SCOPE)
 endfunction()
 
-# Strict (rule m): the token occurs as a whole token -- bounded by non-identifier
-# characters or the ends -- in text that should already have had its comments stripped. A
-# qualified token (`detail::pane_inside_at`, `Row::section`) must occur qualified; `:` is a
-# boundary, so a bare `section` is also found inside `Row::section`.
+# Lenient: every part occurs somewhere in the text, comments included, as a substring.
+# This is the prototype's check and the one the lane enforces with STRICT OFF.
+function(zen_law_mentions text token out)
+    zen_law_token_parts("${token}" parts)
+    foreach(part IN LISTS parts)
+        string(FIND "${text}" "${part}" pos)
+        if(pos EQUAL -1)
+            set(${out} 0 PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+    set(${out} 1 PARENT_SCOPE)
+endfunction()
+
+# Strict (rule m): every part occurs as a whole token -- bounded by non-identifier
+# characters or the ends -- in text that should already have had its comments stripped.
+# `:` is a boundary, so a bare `section` is also found inside `Row::section`.
 function(zen_law_token_in code token out)
-    zen_law_regex_escape("${token}" t)
-    if(code MATCHES "(^|[^A-Za-z0-9_])${t}([^A-Za-z0-9_]|$)")
-        set(${out} 1 PARENT_SCOPE)
-    else()
-        set(${out} 0 PARENT_SCOPE)
-    endif()
+    zen_law_token_parts("${token}" parts)
+    foreach(part IN LISTS parts)
+        zen_law_regex_escape("${part}" t)
+        if(NOT code MATCHES "(^|[^A-Za-z0-9_])${t}([^A-Za-z0-9_]|$)")
+            set(${out} 0 PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+    set(${out} 1 PARENT_SCOPE)
 endfunction()
 
 # A register heading. Sets ${out_id} to the law id, or to "" for a heading that is not an
@@ -444,7 +472,7 @@ if(NOT id STREQUAL "WL-ZZZ-02" OR NOT retired)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- the retired one-line form was not recognised.")
 endif()
 
-set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\n")
+set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\nvoid on(const SurfaceRect& r)${ZEN_SOH}\n")
 zen_law_mentions("${selftest_src}" "kBeta" yes)
 zen_law_strip_comments("${selftest_src}" selftest_code)
 zen_law_token_in("${selftest_code}" "kAlpha" yes_code)
@@ -452,12 +480,18 @@ zen_law_token_in("${selftest_code}" "kBeta" no_comment)
 zen_law_token_in("${selftest_code}" "kGamma" no_block)
 zen_law_token_in("${selftest_code}" "Rect" no_substring)
 zen_law_token_in("${selftest_code}" "SurfaceRect" yes_whole)
-if(NOT yes OR NOT yes_code OR no_comment OR no_block OR no_substring OR NOT yes_whole)
+zen_law_token_in("${selftest_code}" "SurfaceRect::kAlpha" yes_qualified)
+zen_law_token_in("${selftest_code}" "Rect::kAlpha" no_scope)
+zen_law_token_in("${selftest_code}" "on(SurfaceRect)" yes_overload)
+zen_law_token_in("${selftest_code}" "on(kBeta)" no_overload)
+if(NOT yes OR NOT yes_code OR no_comment OR no_block OR no_substring OR NOT yes_whole
+   OR NOT yes_qualified OR no_scope OR NOT yes_overload OR no_overload)
     message(FATAL_ERROR
-        "law-register: SELF-TEST FAILED -- the identifier predicates disagree with a two-line "
+        "law-register: SELF-TEST FAILED -- the identifier predicates disagree with a three-line "
         "sample (mention ${yes}, code ${yes_code}, comment ${no_comment}, block ${no_block}, "
-        "substring ${no_substring}, whole ${yes_whole}). Every 'present' below would then be "
-        "meaningless.")
+        "substring ${no_substring}, whole ${yes_whole}, qualified ${yes_qualified}, scope "
+        "${no_scope}, overload ${yes_overload}, overload-in-comment ${no_overload}). Every "
+        "'present' below would then be meaningless.")
 endif()
 
 zen_law_parse_pointer("// WL-AAA-01, WL-AAA-02 -- agents/workshop/a.md${ZEN_SOH} WL-BBB-03 -- agents/workshop/b.md" ok segs)
@@ -616,7 +650,8 @@ endif()
 
 message(STATUS
     "law-register: self-test OK -- a bad heading, a commented-out identifier, a substring, a "
-    "tagged pointer, an undeclared witness and a one-sided witness debt are refused; their "
+    "member under a substring scope, an overload whose type is only in a comment, a tagged "
+    "pointer, an undeclared witness and a one-sided witness debt are refused; their "
     "well-formed twins are accepted")
 
 # ---- population 2: the registers ---------------------------------------------------------

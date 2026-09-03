@@ -29,11 +29,11 @@ MEANS
 - both `seat_panes` and `bounds_of`'s slot counter, `stack_slots_that_fit`, say it;
 - an oversubscribed authored setup keeps the extra reference, waiting for room.
 
-PROVEN BY — `workshop/setup.hpp` `seat_panes`, `waiting`, `StackCapacity`; `workshop/screen.hpp`
-`bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp` `waiting_for_room`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored place spends no reactive slot,
-and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp` case `"an oversubscribed authored
-setup keeps the extra reference, waiting for room"`.
+PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`;
+`workshop/screen.hpp` `bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp`
+`waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored place spends
+no reactive slot, and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp` case `"an
+oversubscribed authored setup keeps the extra reference, waiting for room"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the maker
@@ -59,10 +59,10 @@ MEANS
 - `room_w > kStackW` implies `x + w < room_w`: columns of the panel's rows stay reachable.
 
 PROVEN BY — `workshop/screen.hpp` `paint_panel_frame`, `occupied_at`, `take_hold`, `kNoKind`,
-`what`; `workshop/weave.hpp` `on`; `tests/test_workshop_screen.cpp` case `"WIND-1: the columns the
-panel took are its own, and the band is the maker's"`, case `"a gesture that began on the
-workspace is not interrupted by a panel"`, case `"a visible panel occupies the pointer space it
-covers"`.
+`Occupancy::what`; `workshop/weave.hpp` `on`; `tests/test_workshop_screen.cpp` case `"WIND-1: the
+columns the panel took are its own, and the band is the maker's"`, case `"a gesture that began on
+the workspace is not interrupted by a panel"`, case `"a visible panel occupies the pointer space
+it covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
@@ -118,7 +118,7 @@ MEANS
 - every consumer that reads an empty rectangle as "nowhere" is correct for an off-room pane;
 - a wholly off-room pane is painted by nobody and its intent is not rewritten.
 
-PROVEN BY — `workshop/screen.hpp` `bounds_of`, `PanelBounds`, `rect`;
+PROVEN BY — `workshop/screen.hpp` `bounds_of`, `PanelBounds`, `PanelBounds::rect`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a partly off-room pane is clipped, and its
 intent is not rewritten"`, case `"WIND-2: a wholly off-room pane is off-room, recoverable, and
 painted by nobody"`.
