@@ -122,20 +122,25 @@ inline std::string abs_spelling(const std::string& tail) {
 /// This platform's own filesystem root, spelled the way every path here is spelled.
 inline std::string root_spelling() { return abs_spelling("/"); }
 
+/// WHICH ARM MADE A LINKED DIRECTORY, so a case can say what a lane exercised.
+enum class LinkArm { none, symbolic_link, junction };
+
 /// A DIRECTORY THAT LEAVES THE TREE, made the strongest way this platform allows.
 ///
-/// POSIX gets an ordinary directory symlink. Windows tries one first and falls back to a
-/// JUNCTION -- which is the case that actually matters there, because a junction needs no
-/// privilege (a symbolic link does, and this session does not hold it), and because a junction
-/// is the entry whose `is_symlink()` answers FALSE while it is still a directory that leaves
-/// the tree. Returns false when the platform made neither, so a case can say so rather than
-/// passing quietly on a boundary nobody arranged.
-inline bool make_linked_directory(const std::filesystem::path& link,
-                                  const std::filesystem::path& target) {
+/// POSIX gets an ordinary directory symlink. Windows tries one first, and the attempt fails on
+/// both of its standard libraries for different reasons -- MSVC's STL refuses for privilege (a
+/// symbolic link needs one, and this session does not hold it); libstdc++ does not implement
+/// `create_directory_symlink` at all -- so on either library the JUNCTION arm follows. That is
+/// the case that matters there anyway: `mklink /J` needs no privilege, and a junction is the
+/// entry whose `is_symlink()` answers FALSE while it is still a directory that leaves the tree.
+/// Returns `none` when the platform made neither, so a case can say so rather than passing
+/// quietly on a boundary nobody arranged.
+inline LinkArm make_linked_directory(const std::filesystem::path& link,
+                                     const std::filesystem::path& target) {
     std::error_code ec;
     std::filesystem::create_directory_symlink(target, link, ec);
     if (!ec) {
-        return true;
+        return LinkArm::symbolic_link;
     }
 #if defined(_WIN32)
     // `mklink /J` is the ordinary way a person makes one, and it is the reparse point this
@@ -144,10 +149,12 @@ inline bool make_linked_directory(const std::filesystem::path& link,
                                 target.string() + "\" >nul 2>&1";
     if (std::system(command.c_str()) == 0) {
         std::error_code exists_ec;
-        return std::filesystem::exists(link, exists_ec) && !exists_ec;
+        if (std::filesystem::exists(link, exists_ec) && !exists_ec) {
+            return LinkArm::junction;
+        }
     }
 #endif
-    return false;
+    return LinkArm::none;
 }
 
 /// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
@@ -623,15 +630,20 @@ TEST_CASE("PROJ-2: a linked directory is marked, entered, and left again LEXICAL
     std::filesystem::create_directory(outside);
     put_file(outside / "secret.cpp", "int s;\n");
     std::filesystem::create_directory(r.root / "project");
-    if (!make_linked_directory(r.root / "project" / "away", outside)) {
+    const LinkArm arm = make_linked_directory(r.root / "project" / "away", outside);
+    if (arm == LinkArm::none) {
         // A PLATFORM THAT WILL MAKE NEITHER KIND FOR THIS PROCESS cannot answer this
         // question, and a case that quietly passed there would be claiming behaviour nobody
-        // exercised. On Windows this is now the junction arm, which needs no privilege --
-        // and a junction is the entry that matters there, because `is_symlink()` answers
-        // FALSE for one while it is still a directory that leaves the tree.
+        // exercised. On Windows this is the junction arm, which needs no privilege -- and a
+        // junction is the entry that matters there, because `is_symlink()` answers FALSE for
+        // one while it is still a directory that leaves the tree.
         MESSAGE("this platform made no linked directory for this process");
         return;
     }
+    // SAY WHICH ARM RAN, so a lane's log says what this case exercised on its platform: the
+    // mark must hold through either, and on Windows it must hold on both standard libraries.
+    MESSAGE((std::string("linked directory made as a ") +
+             (arm == LinkArm::junction ? "junction" : "symbolic link")));
     const std::filesystem::path project = r.root / "project";
     r.t.host.project_dir = project.generic_string();
     r.open();
@@ -641,7 +653,7 @@ TEST_CASE("PROJ-2: a linked directory is marked, entered, and left again LEXICAL
     CHECK(row.directory);
     CHECK(row.linked); // the row is still MARKED -- that mark is what explains parent
 #if defined(_WIN32)
-    // ⚠⚠ AND ON WINDOWS THE MARK IS EARNED BY THE DISAGREEMENT TEST, not by `is_symlink()`.
+    // ⚠⚠ AND ON WINDOWS THE MARK IS THE HOST'S REPARSE ATTRIBUTE, not `is_symlink()`.
     // MEASURED: a junction answers `is_symlink() == false` while being exactly the kind of
     // entry this row is marking, so an `is_symlink` predicate would have shown it as an
     // ordinary directory and the maker would have no idea why parent behaves as it does.

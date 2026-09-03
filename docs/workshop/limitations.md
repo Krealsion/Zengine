@@ -227,10 +227,11 @@ be entered, and going back up returns you to where you walked in from. Workshop 
 the path into the link's target — that would move you somewhere you never navigated to — which
 means the same directory reached through a link and reached directly is two spellings, the
 same identity limit as the two rows above. A **Windows directory junction** is marked exactly
-like a symbolic link: measured, not assumed — Workshop asks whether an entry is a directory
-when followed but not when unfollowed, and a junction answers exactly that way. (Asking
-whether it is a *symbolic link* would have missed it, which is why Workshop does not ask
-that.)
+like a symbolic link: on Windows, Workshop asks the system itself whether an entry is a reparse
+point — which a junction and a symbolic link both are — measured on both supported Windows
+toolchains, MSVC and MinGW. (The C++ standard library is not asked there, because the two
+libraries answer differently: one reports a junction as an ordinary directory, and asking
+either whether it is a *symbolic link* misses a junction.)
 
 ### Where you may browse is your system's answer, and marks are places only
 
