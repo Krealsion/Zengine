@@ -67,12 +67,12 @@ MEANS
 
 PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `TerminalVerb`,
 `kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`, `said`,
-`starts_with`, `named_already`; `tests/test_workshop_panels.cpp` case `"a half-typed line says
-which part of it the maker is standing in"`, case `"the verbs a maker is offered are the verbs the
-submitter runs"`, case `"an address offers the three forms and never pretends to know the
-values"`, case `"arguments offer field NAMES, never values, and the heading is compose()'s
-verdict"`, case `"a quoted token is left alone, because the quote is not on the line the completer
-sees"`.
+`starts_with`, `named_already`; `workshop/weave.hpp` `submit_terminal_line`;
+`tests/test_workshop_panels.cpp` case `"a half-typed line says which part of it the maker is
+standing in"`, case `"the verbs a maker is offered are the verbs the submitter runs"`, case `"an
+address offers the three forms and never pretends to know the values"`, case `"arguments offer
+field NAMES, never values, and the heading is compose()'s verdict"`, case `"a quoted token is left
+alone, because the quote is not on the line the completer sees"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-05 — Browsing candidates authors nothing

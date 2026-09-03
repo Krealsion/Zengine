@@ -86,11 +86,11 @@ LAW — A dismissal remembers the key and a stamp of the statement — compact, 
 MEANS
 - session-only, never persisted; dismiss is not resolve and changes no underlying truth.
 
-PROVEN BY — `workshop/attention.hpp` `dismissed`, `stamp`, `Dismissal`, `AttentionView`,
-`hides`; `workshop/weave.hpp` `attention_key`; `tests/test_workshop_panels.cpp` case `"WUX-4:
-dismissal hides a presentation and changes nothing that is true"`, case `"WUX-4: a dismissed
-condition comes back when it materially changes"`, case `"WUX-4: dismiss is not resolve, resolve
-is not dismiss"`.
+PROVEN BY — `workshop/attention.hpp` `AttentionView::dismissed`, `stamp`, `Dismissal`,
+`AttentionView`, `hides`; `workshop/weave.hpp` `attention_key`; `tests/test_workshop_panels.cpp`
+case `"WUX-4: dismissal hides a presentation and changes nothing that is true"`, case `"WUX-4: a
+dismissed condition comes back when it materially changes"`, case `"WUX-4: dismiss is not resolve,
+resolve is not dismiss"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-09 — `KeyContext::kAttention` is a mode in the picker's place
