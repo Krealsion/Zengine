@@ -296,6 +296,18 @@ activation cursor and the header-only vocabularies).
   once comments were stripped. A check that asks whether a file *declares* or *spends* a name
   strips `//` and `/* */` first and matches a whole token — `Rect` is not inside
   `SurfaceRect`. `law_register`'s rule m is the model.
+- **A detector keys on a marker's VALUE, never on a name's presence.** A mechanism that
+  recognises an authored marker — a macro-emitted flag member, a sentinel field, a naming
+  convention, an attribute, an environment flag — asks what the marker says, not whether it
+  exists: a presence check fails OPEN, and in the widening direction. The Loom's
+  `shape_access_bits<T>()` (`include/zen/weave/shape.hpp`) is the model: the presence check
+  `requires { T::zen_expose_all; }` was satisfied by a hand-written `zen_expose_all = false`
+  and by a state field that merely bore the name, exposing every field for writing; the nested
+  `requires { requires T::zen_expose_all; }` demands a true constant expression, and the Loom's
+  `tests/test_poke.cpp` pins the `= false` twin that must NOT trigger. Write that negative twin
+  beside every marker check. `TerminalSize::measured()` ([`surface.md`](surface.md)) is the same
+  posture on a number, and `law_register`'s self-test — a commented-out identifier refused — is
+  the same posture on a grep.
 - **A CMake script that splits text into a list has four characters to fear** — `;`, `[`,
   `]` and `\` — and the swap that neutralises them is stated once, in the header of
   `tests/check_law_register.cmake`; read it before writing another tree-reading check. Two
