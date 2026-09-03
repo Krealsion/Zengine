@@ -49,8 +49,9 @@ proves; [`verification.md`](verification.md) names them.
    contradicts a passing test is the thing that is wrong.
 6. Law ids are permanent; a retired law keeps its number and one line.
 7. `witness: none` is written where it is true and repeated under the register's `## Do not
-   assume`. Lowering the count of witnessed laws to make a deletion pass is the thing this rule
-   forbids.
+   assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` after PROVEN BY,
+   and that debt is counted, repeated and reciprocated the same way. Lowering the count of
+   witnessed laws to make a deletion pass is the thing this rule forbids.
 
 ## Do not assume
 

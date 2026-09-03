@@ -5261,8 +5261,9 @@ TEST_CASE("WUX-10/SC-3: a retired shape's wire identity is the identity it was w
         {"v4 (WUX-10)", loom::schema_of<session_history::v4::WorkshopSession>(), 4u,
          0xb621c9f3616c7bb1ull},
         // ⭐ AND v5'S IS READ OFF A FILE THE PREDECESSOR ITSELF WROTE. WUX-11's own live SDL
-        // witness left a session behind (`Zen/reportbacks/WUX-11-witness/sdl/session.json`,
-        // produced by Zengine 2dc7626, the build that wrote version 5) and its envelope says
+        // witness left a session file behind (kept with that phase's record outside this
+        // repository; produced by Zengine 2dc7626, the build that wrote version 5) and its
+        // envelope says
         // `"content_id":"0x6f5b0dfc72bfa501"`. So this number is not a transcription of what
         // today's compiler computes for a struct somebody retyped -- it is the door those
         // bytes claim, corroborated by bytes.

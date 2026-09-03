@@ -24,10 +24,11 @@ current.
   a matter of course. Both are supported in the long run, and neither is evidence for the
   other: measured on the Files browser, libstdc++ reports a directory junction as `directory`
   unfollowed and does not implement `create_directory_symlink`, MSVC's STL reports the
-  junction — which is why the Windows branch asks the host (WL-FILES-04). A job under
-  `continue-on-error` is red only in the run's jobs list, never in its conclusion, so read the
-  jobs. "Green on Windows" is not a result; "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL
-  off" is.
+  junction — which is why the Windows branch asks the host (WL-FILES-04); and on a dangling
+  junction MSVC's STL fails the kind-ask while libstdc++ answers `directory` from the cached
+  entry and never asks (WL-FILES-14). A job under `continue-on-error` is red only in the run's
+  jobs list, never in its conclusion, so read the jobs. "Green on Windows" is not a result;
+  "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL off" is.
 - **Weave libraries go through `zengine_weave()`**, which delegates the reloadable lifetime to
   the Loom's `loom_weave_build_contract()` (KERN-05). Do not reintroduce a private compiler
   flag for it here. A provider that is not a weave goes through `zengine_provider()`
@@ -206,10 +207,11 @@ the tests themselves pass
   `EMPTY TEST POPULATION`. The verifier re-proves that on every run, per binary, with a filter
   that matches nothing.
 - Floors are **minimums** anchored to a measured baseline. Additions are free; a deletion is a
-  red. Do not lower a floor to make a deletion pass. The per-suite values live in
-  `tests/test_population.txt` and nowhere else — a convenience copy of them kept here went
-  stale twice before that rule was made. A second copy of a contract is not a convenience; it
-  is a second answer.
+  red. A phase that adds cases raises the floor to the measured count, so its own cases are
+  under the contract from the commit that added them. Do not lower a floor to make a deletion
+  pass. The per-suite values live in `tests/test_population.txt` and nowhere else — a
+  convenience copy of them kept here went stale twice before that rule was made. A second copy
+  of a contract is not a convenience; it is a second answer.
 - **Moving evidence between suites does not lower the source suite's floor.** When a
   vocabulary relocates to another package, what its operations DO becomes the new suite's
   claim, and the old suite keeps a case for each proving its own answers come from there — so
@@ -260,7 +262,12 @@ activation cursor and the header-only vocabularies).
   against the **repository root**, because a comment moves with its code. Excluded by written
   rule: `docs/history/` (frozen), `reference/` (the pre-Zen quarry), vendored and build trees.
   A reference above the repository root — including anything under `../Loom/` — is counted and
-  declined: this repository is verified as a standalone clone.
+  declined: this repository is verified as a standalone clone. The same entry reads every
+  current-facing file of a text kind — documentation, source, CMake, manifests, workflows —
+  whole, for a path outside the repository (the maintainers' workspace, its drive or mount, a
+  tool's scratch directory, a home): one is a RED, the remedy is words, and the spellings it
+  looks for are declared in the check itself, which with the package witness's forbidden-word
+  list is the only file allowed to carry them.
 - **`package_vocabulary`** (kind `script`; `tests/check_package_vocabulary.cmake`). An
   **artifact** is the physical loadable file; a **weave** and a **provider** are runtime
   surfaces one may expose, and the installed package holds both kinds, so its public variables
@@ -278,8 +285,9 @@ activation cursor and the header-only vocabularies).
   every WHY target exists and each record's **Laws supported** is exactly the laws whose WHY
   names it; every `// WL-…` pointer names entries of the register on its line and every
   `// Workshop law:` header names existing files; registers ≤ 16 KB, the router ≤ 8 KB,
-  `AGENTS.md` ≤ 20 KB; a law that writes `witness: none` is repeated under its register's
-  `## Do not assume`, and only such a law is. Two stricter checks — an identifier must occur
+  `AGENTS.md` ≤ 20 KB; a law that writes `witness: none`, or `UNWITNESSED — <clause>` for the
+  one clause no case pins, is repeated under its register's `## Do not assume`, and only such a
+  law is. Two stricter checks — an identifier must occur
   as a whole token in the named file's *code*, comments stripped, where a member spelled
   `Struct::member` and an overload spelled `name(Type)` are read as their parts; and the
   declaration under a pointer must be named by **every** law on that line — sit behind
