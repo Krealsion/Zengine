@@ -30,10 +30,10 @@ MEANS
 - `--isolated` is the flag every witness harness and executor live run must carry;
 - an environment with no resolvable root is the same absence, said once on the banner.
 
-PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp` `session`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: one precedence -- explicit path, then
-isolation, then the default"`, case `"WUX-3: the host resolves the maker's files through the one
-precedence"`.
+PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp`
+`Arguments::session`; `tests/test_workshop_persistence.cpp` case `"WUX-3: one precedence --
+explicit path, then isolation, then the default"`, case `"WUX-3: the host resolves the maker's
+files through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-03 — The legacy transition is one rule and converges by existence
@@ -44,11 +44,11 @@ MEANS
 - an existing user-root file always wins; the legacy file is never deleted, moved or rewritten.
 
 PROVEN BY — `workshop/user_paths.hpp` `import_legacy_file`, `LegacyImport`;
-`workshop/workshop.cpp` `import_legacy_file`; `tests/test_workshop_persistence.cpp` case `"WUX-3:
-a legacy-only file is imported once, and the original is left in place"`, case `"WUX-3: an
-existing user-root file always wins over a legacy file"`, case `"WUX-3: repeated launches converge
--- the import can never fire twice"`, case `"WUX-3: no legacy file, no destination -- the import
-does nothing, silently"`.
+`workshop/workshop.cpp` `import_legacy_file`; `workshop/weave.hpp` `HostContext::transition_note`;
+`tests/test_workshop_persistence.cpp` case `"WUX-3: a legacy-only file is imported once, and the
+original is left in place"`, case `"WUX-3: an existing user-root file always wins over a legacy
+file"`, case `"WUX-3: repeated launches converge -- the import can never fire twice"`, case
+`"WUX-3: no legacy file, no destination -- the import does nothing, silently"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-04 — One representation of a desk, two files
@@ -60,10 +60,11 @@ MEANS
 - the three files are three formats, and each refuses the others.
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession`, `setup_in`;
-`workshop/setup_persist.hpp` `WorkshopSetup`, `setup_in`; `tests/test_workshop_persistence.cpp`
-case `"WUX-0 F: an automatic save never touches the file a maker named"`, case `"WUX-0 F: a
-restored session never touches the file a maker named, either"`, case `"WUX-0 F: the three files
-are three formats, and each refuses the others"`.
+`workshop/setup_persist.hpp` `WorkshopSetup`, `setup_in`; `workshop/weave.hpp`
+`HostContext::session_path`; `tests/test_workshop_persistence.cpp` case `"WUX-0 F: an automatic
+save never touches the file a maker named"`, case `"WUX-0 F: a restored session never touches the
+file a maker named, either"`, case `"WUX-0 F: the three files are three formats, and each refuses
+the others"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
@@ -107,8 +108,8 @@ MEANS
 - a restored window is the maker's chosen size floored to whole cells;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
-PROVEN BY — `workshop/session_persist.hpp` `desk`, `viewport_honoured`, `WorkshopViewport`;
-`workshop/screen.hpp` `kScreenMinW`, `kScreenMaxW`, `kScreenMinH`, `kScreenMaxH`;
+PROVEN BY — `workshop/session_persist.hpp` `desk`, `viewport_honoured`, `WorkshopViewport`,
+`LoadedSession`; `workshop/screen.hpp` `kScreenMinW`, `kScreenMaxW`, `kScreenMinH`, `kScreenMaxH`;
 `tests/test_workshop_persistence.cpp` case `"WUX-0 E: a hostile room is declined, and the desk
 still comes back"`, case `"WUX-0 E: the band a room is honoured in is the one the screen is honest
 at"`, case `"WUX-0: a session file holds the desk and the room, and nothing runtime"`.
@@ -141,10 +142,11 @@ LAW — `Session::normal_w/h` tracks the screen except while this run's medium s
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking.
 
-PROVEN BY — `workshop/screen.hpp` `normal_w`; `workshop/weave.hpp` `normal_w`, `medium_placed_`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: a maximized close remembers the NORMAL room
-beside the maximized state"`, case `"WUX-3: unmaximizing reopens the gate, and the normal room
-tracks again"`, case `"WUX-3: a restored maximized flag alone does not gate this run's viewport"`.
+PROVEN BY — `workshop/screen.hpp` `normal_w`; `workshop/weave.hpp` `normal_w`, `medium_placed_`,
+`on(SurfacePlacement)`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a maximized close
+remembers the NORMAL room beside the maximized state"`, case `"WUX-3: unmaximizing reopens the
+gate, and the normal room tracks again"`, case `"WUX-3: a restored maximized flag alone does not
+gate this run's viewport"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-11 — The first picture of a run is Workshop's floor
@@ -175,12 +177,13 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
-PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on(SurfaceCloseRequested)`;
-`workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`;
-`workshop/session_persist.hpp` `save_file`; `tests/test_workshop_persistence.cpp` case `"WUX-0 B:
-the second session replaces the first, room and desk both"`, case `"WUX-0: a write that fails
-leaves the last good session where it was"`; `tests/test_workshop_document.cpp` case `"the native
-close request reaches the quit policy `q` already had"`.
+PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on(SurfaceCloseRequested)`,
+`HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
+`SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the first, room
+and desk both"`, case `"WUX-0: a write that fails leaves the last good session where it was"`;
+`tests/test_workshop_document.cpp` case `"the native close request reaches the quit policy `q`
+already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things

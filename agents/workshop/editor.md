@@ -45,13 +45,13 @@ MEANS
 - process death still loses drafts: no crash recovery is claimed.
 
 PROVEN BY — `workshop/weave.hpp` `open_source`, `discard_source_edits`, `quit`;
-`workshop/editor.hpp` `revert_to`; `workshop/keymap.hpp` `editor.discard`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: removing and reopening the pane cannot lose a
-byte of dirty source"`, case `"EDIT-0: a dirty buffer refuses a different source, and save or
-discard opens the way"`, case `"EDIT-0: an orderly close refuses while source is unsaved, and
-proceeds once it is not"`, case `"EDIT-0: discard is deliberate, scoped, undoable, and honest
-about nothing to do"`, case `"EDIT-0: arranging the editor pane moves its window and not one
-byte of its source"`.
+`workshop/editor.hpp` `revert_to`, `EditorState`; `workshop/keymap.hpp` `editor.discard`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: removing and reopening the pane cannot lose a byte
+of dirty source"`, case `"EDIT-0: a dirty buffer refuses a different source, and save or discard
+opens the way"`, case `"EDIT-0: an orderly close refuses while source is unsaved, and proceeds
+once it is not"`, case `"EDIT-0: discard is deliberate, scoped, undoable, and honest about nothing
+to do"`, case `"EDIT-0: arranging the editor pane moves its window and not one byte of its
+source"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-04 — `^s` follows the keyboard, as two declared identities
@@ -74,13 +74,13 @@ MEANS
 - Files hands it a row's path; `edit_source` (the Builder's `e`) keeps only the recipe half;
 - `EditorState` holds no acquisition provenance: the editor owns the document, not the reason.
 
-PROVEN BY — `workshop/weave.hpp` `open_source`, `edit_source`, `recipe_source`;
-`workshop/editor.hpp` `source_in`, `kMaxSourceBytes`; `tests/test_workshop_files.cpp` case
-`"EDIT-1: opening a row hands the path to the ONE editor door"`, case `"EDIT-1: Builder and the
-browser open ONE document, however the path is spelled"`, case `"EDIT-1: the door normalizes
-what a referrer hands it, not what a browser happened to build"`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: `e` opens the chosen recipe's source, focuses the
-editor, and says so"`.
+PROVEN BY — `workshop/weave.hpp` `open_source`, `edit_source`, `recipe_source`, `RecipeSource`;
+`workshop/editor.hpp` `source_in`, `kMaxSourceBytes`, `EditorState`;
+`tests/test_workshop_files.cpp` case `"EDIT-1: opening a row hands the path to the ONE editor
+door"`, case `"EDIT-1: Builder and the browser open ONE document, however the path is spelled"`,
+case `"EDIT-1: the door normalizes what a referrer hands it, not what a browser happened to
+build"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: `e` opens the chosen recipe's source,
+focuses the editor, and says so"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
@@ -167,11 +167,11 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 LAW — A pending paste pins the document epoch and the buffer revision it was asked for, so a replaced document strands the payload silently and a document that merely moved is told to paste again.
 
-PROVEN BY — `workshop/weave.hpp` `open_source`, `editor_doc`, `editor_revision`;
-`workshop/editor.hpp` `doc_epoch`, `revision`, `set_lines`, `paste_lines`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: a late paste answer may not land at a caret that
-has since moved"`, case `"EDIT-0: a late answer for a replaced document is discarded whole"`, case
-`"EDIT-0: copy here, paste there -- multiline, through the medium's own answer"`.
+PROVEN BY — `workshop/weave.hpp` `open_source`, `editor_doc`, `editor_revision`, `PendingPaste`;
+`workshop/editor.hpp` `EditorState::doc_epoch`, `EditorBuffer::revision`, `set_lines`,
+`paste_lines`; `tests/test_workshop_editor.cpp` case `"EDIT-0: a late paste answer may not land at
+a caret that has since moved"`, case `"EDIT-0: a late answer for a replaced document is discarded
+whole"`, case `"EDIT-0: copy here, paste there -- multiline, through the medium's own answer"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-12 — The pane paints one region
@@ -182,10 +182,10 @@ MEANS
 - the body is `external_body_place` with `kEditorHeaderRows` — one arithmetic, not two.
 
 PROVEN BY — `workshop/screen.hpp` `paint_editor`, `external_header`, `kEditorHeaderRows`,
-`external_body_place`, `editor_header`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the band
-and the header both say where typing goes"`, case `"EDIT-0: a press on the editor's header focuses
-without moving the caret"`, case `"EDIT-0: a drag sweeps a multiline selection, and the selection
-survives release"`.
+`external_body_place`, `editor_header`; `workshop/weave.hpp` `editor_press`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: the band and the header both say where typing
+goes"`, case `"EDIT-0: a press on the editor's header focuses without moving the caret"`, case
+`"EDIT-0: a drag sweeps a multiline selection, and the selection survives release"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-13 — At the minimum screen the Editor has no room

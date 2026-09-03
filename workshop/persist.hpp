@@ -64,7 +64,7 @@ struct WorkshopExtent {
 };
 
 /// One authored object AS WRITTEN.
-// WL-DOC-01, WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document.md
 struct WorkshopObject {
     std::int64_t id = 0;
     std::string name;
@@ -88,7 +88,7 @@ static_assert(ui::kRootContext < doc::kFirstIdentity,
 
 /// A whole saved document: what it is, which version of that it is, the next
 /// identity to mint, and the objects in AUTHORED ORDER.
-// WL-DOC-01, WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document.md
 struct WorkshopDocument {
     std::string format;
     std::int64_t format_version = 0;
@@ -117,7 +117,7 @@ inline WorkshopExtent extent_out(const ui::Extent& e) {
 }
 
 /// The document, as the value that gets written.
-// WL-DOC-12, WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document.md
 inline WorkshopDocument to_document(const WorkshopDoc& d) {
     WorkshopDocument out;
     out.format = kFormat;

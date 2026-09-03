@@ -221,7 +221,7 @@ inline bool named_already(const CommandLine& cl, std::string_view field) {
 // ---- The completer ---------------------------------------------------------------------
 
 /// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far.
-// WL-TERM-04, WL-TERM-05 -- agents/workshop/terminal.md
+// WL-TERM-04 -- agents/workshop/terminal.md
 inline Completion complete_line(const loom::TerminalSession& me, const std::string& line) {
     const CommandLine cl = read_command_line(line);
     Completion out;

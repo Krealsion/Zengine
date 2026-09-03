@@ -17,7 +17,7 @@
 namespace zengine::workshop {
 
 /// The authored content — the document, and only the document.
-// WL-DOC-05, WL-DOC-13 -- agents/workshop/document.md
+// WL-DOC-13 -- agents/workshop/document.md
 struct WorkshopDoc {
     std::vector<ui::Element> elements;
     std::int64_t next_id = 1; ///< the identity mint; document-owned, so it rides with the document

@@ -24,7 +24,7 @@ MEANS
 - `TextForm<T>` is written once per type: canonical out, the typeable spelling in.
 
 PROVEN BY — `workshop/property.hpp` `Row`, `Commit`, `Written`, `TextForm`, `Property`,
-`format`; `workshop/document.hpp` `name_of`, `width_of`, `height_of`, `context_of`;
+`format`, `expected`; `workshop/document.hpp` `name_of`, `width_of`, `height_of`, `context_of`;
 `tests/test_workshop_document.cpp` case `"a successful commit writes through the semantic
 setter"`, case `"an unparseable draft leaves the property untouched and says so"`, case `"a
 parseable value the property refuses is a DIFFERENT outcome, with its reason"`, case `"cancel
@@ -69,7 +69,7 @@ MEANS
 - the inspector and the maker's hand write through the one operation.
 
 PROVEN BY — `workshop/document.hpp` `move`, `set_x`, `set_y`, `check_coord`, `kFirstCell`;
-`workshop/weave.hpp` `move_notice`; `workshop/screen.hpp` `nudge`;
+`workshop/weave.hpp` `move_notice`; `workshop/screen.hpp` `nudge`, `place`;
 `tests/test_workshop_document.cpp` case `"a move is ONE authored change: a refused move writes
 neither coordinate"`, case `"the inspector and the maker's hand write through ONE position
 operation"`; `tests/test_workshop_screen.cpp` case `"a coordinate is a workspace cell at the root
@@ -227,12 +227,12 @@ MEANS
 - a run no medium measures is exactly the run Workshop had before.
 
 PROVEN BY — `workshop/screen.hpp` `adopt_screen`, `kWorkspaceW`, `kWorkspaceH`;
-`workshop/weave.hpp` `resize_workspace`; `workshop/keymap.hpp` `workspace.narrower`,
-`workspace.wider`; `tests/test_workshop_panels.cpp` case `"taking the room refits the workspace,
-and says whether anything moved"`, case `"a maker's authored work keeps its place while the
-surface grows"`, case `"`]` reaches the room a bigger surface gave, and `[` still narrows"`;
-`tests/test_workshop_document.cpp` case `"a share keeps following the workspace after a resize;
-cells do not"`.
+`workshop/weave.hpp` `resize_workspace`, `on(SurfaceExtent)`; `workshop/keymap.hpp`
+`workspace.narrower`, `workspace.wider`; `tests/test_workshop_panels.cpp` case `"taking the room
+refits the workspace, and says whether anything moved"`, case `"a maker's authored work keeps its
+place while the surface grows"`, case `"`]` reaches the room a bigger surface gave, and `[` still
+narrows"`; `tests/test_workshop_document.cpp` case `"a share keeps following the workspace after a
+resize; cells do not"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-18 — One scene: canvas, list and inspector read one document

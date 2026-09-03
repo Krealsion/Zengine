@@ -48,11 +48,12 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `TerminalPane`, `entries_that_fit`, `terminal_omission`,
 `paint_terminal`, `kTerminalMinH`, `kTerminalChrome`, `kTerminalMinCols`, `terminal_cols`,
-`terminal_rows`; `tests/test_workshop_screen.cpp` case `"the pane is published as ONE bounded
-region, placed in cells"`, case `"a medium that sets real type reflows the pane, and the omission
-stays true"`, case `"the pane says what it is not showing, in the two senses that differ"`, case
-`"the pane's snapshot outlives the participant it came from"`; `tests/test_workshop_panels.cpp`
-case `"a pane fits ENTRIES, not lines, and says what it could not show"`.
+`terminal_rows`; `workshop/weave.hpp` `refresh_terminal`; `tests/test_workshop_screen.cpp` case
+`"the pane is published as ONE bounded region, placed in cells"`, case `"a medium that sets real
+type reflows the pane, and the omission stays true"`, case `"the pane says what it is not showing,
+in the two senses that differ"`, case `"the pane's snapshot outlives the participant it came
+from"`; `tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what it
+could not show"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
@@ -82,12 +83,13 @@ MEANS
 - the completion keys are unbound in this mode: Tab opens, Up and Down move, Up at the top stays.
 
 PROVEN BY — `workshop/weave.hpp` `accept_completion`, `move_completion`,
-`completion_selectable`; `workshop/screen.hpp` `completion_rows`, `completion_first_shown`,
-`kCompletionMinRows`, `dismissed`, `asked`; `tests/test_workshop_panels.cpp` case `"browsing
-candidates authors NOTHING -- no traffic, no ask, no transcript entry"`, case `"accepting a
-candidate edits the line, and the grammar's separators stay right"`, case `"the completion keys
-were unbound in this mode, and the ones that were not still work"`, case `"an untouched line asks
-nothing, so the answer to the last command stays readable"`.
+`completion_selectable`, `terminal_key`; `workshop/screen.hpp` `completion_rows`,
+`completion_first_shown`, `kCompletionMinRows`, `dismissed`, `asked`;
+`tests/test_workshop_panels.cpp` case `"browsing candidates authors NOTHING -- no traffic, no ask,
+no transcript entry"`, case `"accepting a candidate edits the line, and the grammar's separators
+stay right"`, case `"the completion keys were unbound in this mode, and the ones that were not
+still work"`, case `"an untouched line asks nothing, so the answer to the last command stays
+readable"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-06 — The completion list is a bounded region inside the pane
@@ -136,10 +138,10 @@ MEANS
 - a terminal medium's press reaches the same local hit model.
 
 PROVEN BY — `workshop/weave.hpp` `terminal_press`; `workshop/screen.hpp` `terminal_input_place`,
-`kTerminalPromptCols`, `kTerminalCaretCols`, `TerminalInputPlace`, `terminal_input_hit`;
-`tests/test_workshop_screen.cpp` case `"HD-3: a press on the input row places the caret where the
-maker aimed"`, case `"HD-3: a press in the pane never reaches the workspace underneath it"`, case
-`"HD-3: opening the pane mid-drag does not strand the gesture"`, case `"HD-3: clicking a
-completion row selects it, and Tab accepts what was clicked"`, case `"HD-3: the pane publishes a
-caret, and both media answer it in their own type"`.
+`kTerminalPromptCols`, `kTerminalCaretCols`, `TerminalInputPlace`, `terminal_input_hit`,
+`TerminalInputPlace::columns`; `tests/test_workshop_screen.cpp` case `"HD-3: a press on the input
+row places the caret where the maker aimed"`, case `"HD-3: a press in the pane never reaches the
+workspace underneath it"`, case `"HD-3: opening the pane mid-drag does not strand the gesture"`,
+case `"HD-3: clicking a completion row selects it, and Tab accepts what was clicked"`, case
+`"HD-3: the pane publishes a caret, and both media answer it in their own type"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`

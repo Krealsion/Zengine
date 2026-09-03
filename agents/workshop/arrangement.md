@@ -11,10 +11,11 @@ MEANS
 - crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
 - outside arrangement an addressed pane behind another claims no press and no address auto-raises.
 
-PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `pane_drag`, `kPaneEdgeBandSubs`;
-`workshop/weave.hpp` `take_pane_hold`, `arrange_motion`; `tests/test_workshop_panes_window.cpp`
-case `"WIND-2: one press claims one gesture, and crossing anything does not move it"`, case
-`"WIND-2: outside arrangement, an addressed pane behind another clicks through nothing"`.
+PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `pane_drag`, `kPaneEdgeBandSubs`,
+`pane_edge_at`; `workshop/weave.hpp` `take_pane_hold`, `arrange_motion`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one gesture, and crossing
+anything does not move it"`, case `"WIND-2: outside arrangement, an addressed pane behind another
+clicks through nothing"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-02 — `end_held_gestures()` is the one release owner
@@ -37,10 +38,10 @@ MEANS
 - it runs inside `apply_setup`, the one door membership changes through.
 
 PROVEN BY — `workshop/weave.hpp` `forget_removed_selection`, `apply_setup`;
-`tests/test_workshop_screen.cpp` case `"WIND-2a: a removed target leaves no stale selection,
-submode or heading"`, case `"ARR-0: removing the pane being arranged ends the arrangement about
-it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: clearing the selected pane clears its
-gesture safely"`.
+`workshop/screen.hpp` `PaneArrange`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a removed
+target leaves no stale selection, submode or heading"`, case `"ARR-0: removing the pane being
+arranged ends the arrangement about it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2:
+clearing the selected pane clears its gesture safely"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-04 — A resize begins from the resolved window
@@ -50,9 +51,9 @@ LAW — A first edit measures from `managed_bounds().resolved`, the unclipped as
 MEANS
 - a default pane resolving to 89 cells with four on screen answers one rightward step by five.
 
-PROVEN BY — `workshop/weave.hpp` `managed_bounds`; `workshop/screen.hpp` `PanelBounds`,
-`pane_window_proposal`, `PanelBounds::rect`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a
-clipped default resize begins from the full resolved size"`.
+PROVEN BY — `workshop/weave.hpp` `managed_bounds`, `managed_window_base`; `workshop/screen.hpp`
+`PanelBounds`, `pane_window_proposal`, `PanelBounds::rect`; `tests/test_workshop_screen.cpp` case
+`"WIND-2a: a clipped default resize begins from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-05 — Every resize edge preserves its opposite anchor
@@ -113,9 +114,9 @@ MEANS
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `kArrangePane`, `kArrangeDesk`,
 `kArrangeReset`; `workshop/weave.hpp` `arrange_key`, `arrangeable`, `arrange_step`,
-`arrange_nudge`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches
-every window operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case
-`"WIND-2: escape unwinds one level and rolls nothing back"`.
+`arrange_nudge`, `arrange_grow`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: the
+keyboard alone reaches every window operation"`, case `"WIND-2: a hand and a key author the same
+setup values"`, case `"WIND-2: escape unwinds one level and rolls nothing back"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement

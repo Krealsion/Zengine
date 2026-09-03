@@ -111,7 +111,7 @@ std::string exe_dir() {
 
 } // namespace
 
-// WL-SESSION-01, WL-SESSION-02, WL-SESSION-03 -- agents/workshop/session.md
+// WL-SESSION-01, WL-SESSION-02 -- agents/workshop/session.md
 struct Arguments {
     bool ok = true;
     std::string complaint;

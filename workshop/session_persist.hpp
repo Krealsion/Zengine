@@ -101,7 +101,7 @@ struct WorkshopSetupLink {
 };
 
 /// ONE SAVED LAYOUT: the desk, and the artifact it is associated with.
-// WL-LAYOUT-09, WL-LAYOUT-12 -- agents/workshop/layouts.md
+// WL-LAYOUT-09 -- agents/workshop/layouts.md
 // WL-SESSION-05 -- agents/workshop/session.md
 struct WorkshopLayout {
     setup_persist::WorkshopSetup desk;
@@ -173,7 +173,7 @@ struct Placement {
 };
 
 /// The session, as the value that gets written.
-// WL-LAYOUT-12 -- agents/workshop/layouts.md; WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session.md
 inline WorkshopSetupLink to_link(const SetupLink& link) {
     // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
     // an empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` --
@@ -380,7 +380,7 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
     return Written::ok();
 }
 
-// WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
+// WL-MIG-01 -- agents/workshop/migration.md
 
 /// The shared tail of every read road: an admitted layout run, and the viewport judged
 /// against this file's own band, into a loaded session.

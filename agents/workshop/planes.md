@@ -74,28 +74,30 @@ MEANS
 - persistence and `reset order` want the authored base, and nothing else may.
 
 PROVEN BY — `workshop/setup.hpp` `effective_pane_order`, `presentation_order`;
-`workshop/screen.hpp` `paint_panels`, `occupied_at`, `pane_is_covered`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: selecting a pane lifts it, in the picture and
-under the hand at once"`, case `"WUX-5/WUX-7: the arrangement desk's pointer takes what is
-visibly in front"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: hit order is the exact
-reverse of paint order"`.
+`workshop/screen.hpp` `paint_panels`, `occupied_at`, `pane_is_covered`; `workshop/panel.hpp`
+`selected_pane`; `workshop/weave.hpp` `arrange_press`; `tests/test_workshop_screen.cpp` case
+`"WUX-5: selecting a pane lifts it, in the picture and under the hand at once"`, case
+`"WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in front"`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: hit order is the exact reverse of paint
+order"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-06 — The lift is a rotation and never a write
 
 LAW — No rank is read differently or written, `panels.open` is untouched, nothing reaches a file, and a selection that is not seated lifts nothing; `manage.front` is the permanent statement.
 
-PROVEN BY — `workshop/setup.hpp` `effective_pane_order`; `workshop/keymap.hpp` `manage.front`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: the selection lift never reaches the file, and no
-session starts with one"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: ordering changes
-paint order and NOTHING else"`.
+PROVEN BY — `workshop/setup.hpp` `effective_pane_order`, `presentation_order`;
+`workshop/keymap.hpp` `manage.front`; `tests/test_workshop_screen.cpp` case `"WUX-5: the selection
+lift never reaches the file, and no session starts with one"`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: ordering changes paint order and NOTHING
+else"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-07 — The transient planes stay above the panes
 
 LAW — The lift orders the ordinary pane planes among themselves and reaches no further, so a selected pane is never drawn over the menu a maker just opened on it.
 
-PROVEN BY — `workshop/screen.hpp` `paint_context`, `paint_panels`;
+PROVEN BY — `workshop/screen.hpp` `paint_context`, `paint_panels`, `paint`;
 `tests/test_workshop_screen.cpp` case `"WUX-5: a transient surface stays over the pane it covers,
 selected or not"`.
 WHY — `agents/decisions/the-selection-lift.md`

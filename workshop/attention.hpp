@@ -105,7 +105,7 @@ struct Dismissal {
 };
 
 /// THE CURRENT-CONDITION VIEW, AND WHAT IT HIDES -- presentation state, all of it.
-// WL-ATTN-03, WL-ATTN-08 -- agents/workshop/attention.md
+// WL-ATTN-08 -- agents/workshop/attention.md
 struct AttentionView {
     bool open = false;
     std::size_t cursor = 0;

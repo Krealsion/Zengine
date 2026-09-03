@@ -248,7 +248,7 @@ public:
     std::string display() const { return editing_ ? draft_.text() : read_(); }
 
     /// Start editing from the current committed value, WITH THE CARET AT ITS END.
-    // WL-INFO-05 -- agents/workshop/info-body.md; WL-TEXT-03 -- agents/workshop/text-box.md
+    // WL-INFO-05 -- agents/workshop/info-body.md
     void begin() {
         if (!editable_ || editing_) {
             return;
@@ -350,7 +350,7 @@ public:
     }
 
     /// RECONCILE THE DRAFT'S WINDOW AGAINST THE ROOM THIS ROW HAS, once per repaint.
-    // WL-TEXT-02, WL-TEXT-03 -- agents/workshop/text-box.md
+    // WL-TEXT-02 -- agents/workshop/text-box.md
     void keep_caret_visible(std::int64_t columns) {
         if (editing_) {
             draft_.keep_caret_visible(columns);

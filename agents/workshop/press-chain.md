@@ -53,10 +53,10 @@ MEANS
 
 PROVEN BY — `workshop/weave.hpp` `take_hold`, `external_press`, `info_press`,
 `on(PointerButton)`; `workshop/screen.hpp` `occupied_at`, `Occupancy::kind`, `ExternalPressAt`,
-`external_press_at`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of
-the Layouts pane takes the press"`, case `"WUX-12/SC-6: a pane in front of an Info control takes
-the point"`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets first
-refusal, and a mode takes the press whole"`.
+`external_press_at`, `kNoKind`, `take_hold`; `tests/test_workshop_screen.cpp` case
+`"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane takes the press"`, case `"WUX-12/SC-6: a
+pane in front of an Info control takes the point"`; `tests/test_workshop_panes_input.cpp` case
+`"SEL-0: management chrome gets first refusal, and a mode takes the press whole"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse

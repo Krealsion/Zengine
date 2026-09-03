@@ -45,7 +45,7 @@ DOES NOT MEAN
 - that this is a `disabled` flag — a flag would collapse two facts with two owners.
 
 PROVEN BY — `workshop/screen.hpp` `kDraftLive`, `kNoTarget`, `Availability`,
-`action_availability`; `workshop/weave.hpp` `actions_press`, `finish_draft_first`;
+`action_availability`, `draft_live`; `workshop/weave.hpp` `actions_press`, `finish_draft_first`;
 `workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case `"HD-8: availability is
 two reasons, one bit, and no prediction of a refusal"`, case `"HD-8: availability is not a
 prediction of what the document will say"`, case `"HD-8: an unavailable Delete presents as

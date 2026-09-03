@@ -388,7 +388,7 @@ public:
     // ---- Whole-document doors -----------------------------------------------------------
 
     /// REPLACE THE WHOLE DOCUMENT -- how one is opened or replaced.
-    // WL-EDIT-02, WL-EDIT-11 -- agents/workshop/editor.md
+    // WL-EDIT-11 -- agents/workshop/editor.md
     void set_lines(std::vector<std::string> lines) {
         lines_ = std::move(lines);
         if (lines_.empty()) {

@@ -51,9 +51,10 @@ DOES NOT MEAN
 - that the reserved rows are the Layouts pane's — `placement_bounds` merely defaults it there.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `room_w`, `room_h`, `kTopRows`, `kBottomRows`,
-`placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`;
-`tests/test_workshop_screen.cpp` case `"HD-10: the reservation is the SCREEN's, and holds with no
-panel in it"`, case `"WUX-12/SC-9: the reservation does not follow the Layouts pane"`.
+`placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
+`placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"HD-10: the reservation is the
+SCREEN's, and holds with no panel in it"`, case `"WUX-12/SC-9: the reservation does not follow the
+Layouts pane"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-04 — Overlaps stay inside one owner's room

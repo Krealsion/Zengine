@@ -41,10 +41,10 @@ MEANS
 - removing the last layout takes the previous neighbour instead.
 
 PROVEN BY — `workshop/setup.hpp` `active_at`, `activate_layout`, `add_layout`, `remove_layout`,
-`default_setup`; `workshop/weave.hpp` `new_layout`; `tests/test_workshop_screen.cpp` case
-`"WUX-9/SC-3: switching never reorders the run, and the live value never doubles"`, case
-`"WUX-11/SC-1: new is BLANK and appended, and it is a value of its own"`, case `"WUX-9/SC-11:
-removing takes the next neighbour, the previous only at the end"`.
+`default_setup`, `SetupState`; `workshop/weave.hpp` `new_layout`, `drop_layout`;
+`tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching never reorders the run, and the live
+value never doubles"`, case `"WUX-11/SC-1: new is BLANK and appended, and it is a value of its
+own"`, case `"WUX-9/SC-11: removing takes the next neighbour, the previous only at the end"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-04 — Duplicate copies the desk and clears the association
@@ -56,10 +56,11 @@ MEANS
 - move and duplicate go through the inverse pair; the live position is computed, never searched.
 
 PROVEN BY — `workshop/setup.hpp` `duplicate_layout`, `move_layout`, `rename_layout`,
-`layout_run`, `install_layout_run`; `workshop/weave.hpp` `commit_layout_rename`;
-`tests/test_workshop_screen.cpp` case `"WUX-11/SC-2: duplicate copies the desk exactly and always
-clears the association"`, case `"WUX-11/SC-3: rename writes one layout's name and touches nothing
-else"`, case `"WUX-11/SC-4: moving a layout changes order and nothing else"`.
+`layout_run`, `install_layout_run`; `workshop/weave.hpp` `commit_layout_rename`,
+`duplicate_layout`, `shift_layout`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-2: duplicate
+copies the desk exactly and always clears the association"`, case `"WUX-11/SC-3: rename writes one
+layout's name and touches nothing else"`, case `"WUX-11/SC-4: moving a layout changes order and
+nothing else"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-05 — A switch is `restore_setup` minus the file read
@@ -130,11 +131,11 @@ MEANS
 
 PROVEN BY — `workshop/keymap.hpp` `layout.rename`, `setup.name`, `setup.restore`;
 `workshop/weave.hpp` `open_layout_rename`, `commit_layout_rename`, `setup_artifact`, `save_setup`,
-`restore_setup`; `workshop/setup.hpp` `LayoutNaming`; `tests/test_workshop_panels.cpp` case
-`"WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file"`;
-`tests/test_workshop_persistence.cpp` case `"WUX-11/SC-9: `s` establishes the association only
-after a successful write"`, case `"WUX-11/SC-10+SC-11: `r` establishes on success and changes
-nothing on refusal"`.
+`restore_setup`, `HostContext::setup_path`; `workshop/setup.hpp` `LayoutNaming`, `rename_layout`;
+`tests/test_workshop_panels.cpp` case `"WUX-11/SC-3: a double-click on a tab renames THAT layout,
+and writes no file"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-9: `s` establishes
+the association only after a successful write"`, case `"WUX-11/SC-10+SC-11: `r` establishes on
+success and changes nothing on refusal"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-11 — The shared-artifact law
@@ -144,10 +145,10 @@ LAW — When Workshop successfully learns what a Setup file holds, `adopt_known_
 DOES NOT MEAN
 - that a path is canonicalised before it is compared — associations compare by bytes.
 
-PROVEN BY — `workshop/setup.hpp` `adopt_known_setup`; `tests/test_workshop_persistence.cpp` case
-`"WUX-11/SC-12: two layouts sharing one artifact cannot both claim `current`"`;
-`tests/test_workshop_screen.cpp` case `"WUX-11/SC-6+SC-12: switching carries the association,
-sharing keeps it honest"`.
+PROVEN BY — `workshop/setup.hpp` `adopt_known_setup`, `SetupLink`; `workshop/weave.hpp`
+`save_setup`, `restore_setup`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-12: two
+layouts sharing one artifact cannot both claim `current`"`; `tests/test_workshop_screen.cpp` case
+`"WUX-11/SC-6+SC-12: switching carries the association, sharing keeps it honest"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-12 — The run leaves the state through one inverse pair

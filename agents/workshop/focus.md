@@ -27,11 +27,11 @@ MEANS
 - the Editor needs a document open and Project Files needs a listing;
 - Editor, Files and the Pane Manager carry the flag; nothing registered, no focus framework.
 
-PROVEN BY — `workshop/panel.hpp` `takes_keyboard`, `kind_takes_keyboard`, `kPanelCatalog`;
-`workshop/screen.hpp` `editor_has_keyboard`, `files_has_keyboard`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: an empty editor pane takes no keys and says how
-to fill itself"`; `tests/test_workshop_files.cpp` case `"EDIT-1: with no origin the pane refuses
-in words and guesses nothing"`.
+PROVEN BY — `workshop/panel.hpp` `PanelKind::takes_keyboard`, `kind_takes_keyboard`,
+`kPanelCatalog`; `workshop/screen.hpp` `editor_has_keyboard`, `files_has_keyboard`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: an empty editor pane takes no keys and says how to
+fill itself"`; `tests/test_workshop_files.cpp` case `"EDIT-1: with no origin the pane refuses in
+words and guesses nothing"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-03 — One reading decides both
@@ -42,10 +42,11 @@ MEANS
 - the prior answer is read one line above, because Project Files' press rule needs it;
 - putting the line in the routing arms would be four decisions about one fact.
 
-PROVEN BY — `workshop/weave.hpp` `kind_takes_keyboard`; `workshop/screen.hpp` `occupied_at`,
-`info_body_at`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press anywhere else takes
-the keyboard away again"`; `tests/test_workshop_files.cpp` case `"EDIT-1: the first press into a
-cold pane selects and never activates"`.
+PROVEN BY — `workshop/weave.hpp` `kind_takes_keyboard`, `on(PointerButton)`;
+`workshop/screen.hpp` `occupied_at`, `info_body_at`; `workshop/panel.hpp` `Panels::keyboard`;
+`tests/test_workshop_panes_input.cpp` case `"MSG-0: a press anywhere else takes the keyboard away
+again"`; `tests/test_workshop_files.cpp` case `"EDIT-1: the first press into a cold pane selects
+and never activates"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-04 — The press that points the keys is not an act in the pane
@@ -64,9 +65,10 @@ LAW — A pane that closes, stops resolving or loses its room stops being the an
 MEANS
 - a press on nothing, and Escape's final fallthrough, say "nowhere" — not a clearing path.
 
-PROVEN BY — `workshop/panel.hpp` `keyboard_pane`; `workshop/weave.hpp` `unselect_pane`;
-`tests/test_workshop_panes_input.cpp` case `"MSG-0: a pane that stops being presentable stops
-being typed into"`, case `"MSG-0: a pane with no room granted is not typed into"`.
+PROVEN BY — `workshop/panel.hpp` `keyboard_pane`, `Panels::keyboard`; `workshop/weave.hpp`
+`unselect_pane`, `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a pane that
+stops being presentable stops being typed into"`, case `"MSG-0: a pane with no room granted is not
+typed into"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-06 — The modes above it never reach that line
@@ -113,10 +115,11 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 LAW — The pane with the keys wears the `> ` mark in its header, and the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`, its chords from the keymap.
 
-PROVEN BY — `workshop/screen.hpp` `external_header`, `kTypingHere`, `band_region`;
-`workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the
-screen says which pane the keys are going to, in two places"`; `tests/test_workshop_editor.cpp`
-case `"EDIT-0: the band and the header both say where typing goes"`.
+PROVEN BY — `workshop/screen.hpp` `external_header`, `kTypingHere`, `band_region`,
+`paint_external`; `workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case
+`"MSG-0: the screen says which pane the keys are going to, in two places"`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: the band and the header both say where typing
+goes"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
@@ -128,12 +131,12 @@ MEANS
 - a hidden title returns its row to the provider through the ordinary grant-on-change door.
 
 PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp` `pane_titles`,
-`external_title_rows`, `header_rows`; `workshop/prefs_persist.hpp` `kTitlesDefaultValue`,
-`kTitlesDefault`; `workshop/weave.hpp` `prefs_path`, `load_prefs`, `prefs_loaded_`, `prefs_bad_`;
-`tests/test_workshop_document.cpp` case `"WUX-1/SC-5: pane titles are one action, one binding
-truth, one dispatch"`, case `"WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane
-keeps its own"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a toggle writes the
-preference, and a reopened Workshop wears it"`.
+`external_title_rows`, `header_rows`, `kExternalHeaderRows`; `workshop/prefs_persist.hpp`
+`kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `prefs_path`, `load_prefs`,
+`prefs_loaded_`, `prefs_bad_`; `tests/test_workshop_document.cpp` case `"WUX-1/SC-5: pane titles
+are one action, one binding truth, one dispatch"`, case `"WUX-1/SC-5+SC-6: hiding titles returns
+the row; the keyboard's pane keeps its own"`; `tests/test_workshop_persistence.cpp` case `"WUX-3:
+a toggle writes the preference, and a reopened Workshop wears it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume

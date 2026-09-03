@@ -27,10 +27,10 @@ MEANS
 PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `conversions`,
 `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
 `v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`, `session_v2_to_v3`,
-`session_v1_to_v6`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a retired shape's
-wire identity is the identity it was written at"`, case `"WUX-10/SC-4: three DIRECT edges, and no
-chain to walk even if one wanted to"`, case `"MIG-0/SC-7: a conversion owns yesterday's semantics
-and does not rewrite history"`.
+`session_v1_to_v6`, `desk_v2_to_v3`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a
+retired shape's wire identity is the identity it was written at"`, case `"WUX-10/SC-4: three
+DIRECT edges, and no chain to walk even if one wanted to"`, case `"MIG-0/SC-7: a conversion owns
+yesterday's semantics and does not rewrite history"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-03 — Version 6 moved the number without moving a field
@@ -66,10 +66,11 @@ LAW — A v1/v2/v3 session is exactly one layout at position zero (`absent_place
 MEANS
 - nothing is inferred from `--setup`: the reader may not decide what the maker never wrote.
 
-PROVEN BY — `workshop/session_history.hpp` `absent_placement`, `absent_link`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-5: a version-3 session becomes exactly one
-layout, live at zero"`, case `"WUX-10/SC-5: all three vintages arrive as one layout at position
-zero"`, case `"WUX-11/SC-15: a version-4 session opens with its run whole and every link none"`.
+PROVEN BY — `workshop/session_history.hpp` `absent_placement`, `absent_link`,
+`session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`; `tests/test_workshop_persistence.cpp`
+case `"WUX-10/SC-5: a version-3 session becomes exactly one layout, live at zero"`, case
+`"WUX-10/SC-5: all three vintages arrive as one layout at position zero"`, case `"WUX-11/SC-15: a
+version-4 session opens with its run whole and every link none"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-06 — The reader's whole knowledge of history is one arm
@@ -108,9 +109,9 @@ MEANS
 - an old file's version claim is a lookup key that reaches no load door.
 
 PROVEN BY — `workshop/weave.hpp` `conversions`; `workshop/session_persist.hpp` `op::migrate`,
-`from_text`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6: with the conversion mounted,
-the desk comes back through the weave"`, case `"MIG-0/SC-11: unmounting the artifact takes the
-conversion with it"`.
+`from_text`, `load_file`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6: with the
+conversion mounted, the desk comes back through the weave"`, case `"MIG-0/SC-11: unmounting the
+artifact takes the conversion with it"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-09 — The ordering is authored plan order, and nothing else
