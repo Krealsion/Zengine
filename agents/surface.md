@@ -454,3 +454,24 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
   said about itself rather than one the application assumed about the medium.
 - A fifth semantic role can be added when a consumer wants one — `surface/vocabulary.hpp`
   refuses it; the vocabulary is deliberately closed.
+- A second weave is a second on-screen region — nothing arbitrates, and nothing refuses. Input
+  is published by shape: every accepter of `KeyPressed` receives the whole stream, so two
+  accepters is two copies of it, not a split, and the Loom has no focus and no "who has the
+  keyboard". A `SurfaceCanvas` is a whole picture, not a layer: the Skin executes whichever
+  canvas arrived last (`SkinT::on(const SurfaceCanvas&)`), so two publishers overwrite each
+  other. And a Skin knows exactly two text slots, `kSlotStatus` and `kSlotScore`; an unknown
+  slot is dropped without ceremony, so a new region cannot claim one of its own. The second
+  weave mounts and publishes, and the screen flickers between two pictures while both act on
+  the same keystroke. A surface-arbiter weave is a later package's ground
+  (`surface/vocabulary.hpp`).
+- A different identity needs a different weave — separation of identity and separation of
+  weave are different purchases, and the first does not require the second. A presentation
+  weave can host a `loom::TerminalSession` — a different WeaveId with its own grant and its own
+  door — and stay one weave, one canvas publisher and one input accepter: every message is
+  stamped with the participant's identity and gated against the participant's grant, and the
+  host weave's own grant is untouched. Workshop's Terminal is that shape
+  ([the decision record](decisions/the-terminal-is-a-participant.md)).
+- A panel owned by "something else" is a small addition — ask which separation it needs. Only a
+  genuine need for a different weave (an independent lifetime, reload, or isolation) justifies
+  the wire vocabulary that would have to come first: focus arbitration, canvas layering, or a
+  slot registry.
