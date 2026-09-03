@@ -320,8 +320,10 @@ endfunction()
 #   * a name that is a C++ keyword (`else`, `return`, `operator`, ...) -> none.
 #
 # The line handed in is the first line after the pointer that is not blank, not a comment,
-# not a preprocessor line, not a bare `template <...>`, not a bare attribute, and not an
-# access specifier; a closing brace is handed in and yields none. A line that holds none of
+# not a preprocessor line, not a bare `template <...>` head (a one-line forward declaration
+# such as `template <class T> struct TextForm;` IS the declaration, its head stripped), not
+# a bare attribute, and not an access specifier; a closing brace is handed in and yields
+# none. A line that holds none of
 # `(`, `=`, `{`, `;`, `,` and starts with no declaring keyword is a return type (or a type)
 # on a line of its own, and the next code line is joined to it before the parse.
 set(ZEN_LAW_KEYWORDS
@@ -343,6 +345,7 @@ function(zen_law_declared line out_name out_kind out_param)
     endforeach()
     string(REGEX REPLACE "${ZEN_STX}${ZEN_STX}[^${ZEN_ETX}]*${ZEN_ETX}${ZEN_ETX}" "" l "${l}")
     string(STRIP "${l}" l)
+    string(REGEX REPLACE "^template[ \t]+" "" l "${l}")
     if(l MATCHES "^(namespace|struct|class|union|enum class|enum struct|enum)[ \t]+([A-Za-z_][A-Za-z0-9_]*)")
         set(${out_name} "${CMAKE_MATCH_2}" PARENT_SCOPE)
         set(${out_kind} "scope" PARENT_SCOPE)
@@ -551,6 +554,10 @@ endif()
 zen_law_declared("struct PanelKind {" name kind param)
 if(NOT name STREQUAL "PanelKind" OR NOT kind STREQUAL "scope")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a struct's declaration parsed as '${name}' (${kind}).")
+endif()
+zen_law_declared("template <class T> struct TextForm${ZEN_SOH}" name kind param)
+if(NOT name STREQUAL "TextForm" OR NOT kind STREQUAL "scope")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a one-line template forward declaration parsed as '${name}' (${kind}).")
 endif()
 zen_law_declared("std::function<RecipeSwap(const Recipe&)> swap = {}${ZEN_SOH}" name kind param)
 if(NOT name STREQUAL "swap")
@@ -1219,8 +1226,19 @@ foreach(rel IN LISTS source_files)
         endif()
         # Lines a pointer looks past on its way to the declaration.
         if(line MATCHES "^[ \t]*$" OR line MATCHES "^[ \t]*//" OR line MATCHES "^[ \t]*#"
-           OR line MATCHES "^[ \t]*template[ \t]*<" OR line MATCHES "^[ \t]*(public|private|protected):[ \t]*$"
+           OR line MATCHES "^[ \t]*(public|private|protected):[ \t]*$"
            OR line MATCHES "^[ \t]*${ZEN_STX}${ZEN_STX}[^${ZEN_ETX}]*${ZEN_ETX}${ZEN_ETX}[ \t]*$")
+            continue()
+        endif()
+        # A bare `template <...>` head is looked past too; a one-line forward declaration
+        # (`template <class T> struct TextForm;`) is the declaration itself, and the parse
+        # reads it once the head is stripped.
+        string(REGEX REPLACE "//.*$" "" head "${line}")
+        foreach(round RANGE 1 4)
+            string(REGEX REPLACE "<[^<>]*>" "" head "${head}")
+        endforeach()
+        string(STRIP "${head}" head)
+        if(head MATCHES "^template([ \t]*<.*)?$")
             continue()
         endif()
         # A return type on a line of its own -- nothing on the line can end a declaration, and
