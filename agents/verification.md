@@ -97,10 +97,17 @@ workshop_files         where source comes from: the project browser, what a
   It is not free: measured, the header adds ~0.4 s of parse to a translation unit that only
   reads it, and roughly 5–8 s to one that USES it, because every suite emits the helpers it
   calls. Editing it rebuilds five suites. Moving a helper into it is a decision.
-- **A temporary directory belongs to the suite that made it.** They run at once and
-  every `TempDir` counter starts at zero, so the root carries `ZENGINE_WORKSHOP_SUITE`; a case
-  in `workshop_persistence` asserts that rather than trusting it. Nothing else in the family
-  shares a filesystem path — the load-plan stage directory is `workshop_load`'s alone.
+- **A temporary directory belongs to the suite that made it, in the process that made it.**
+  The suites run at once and every `TempDir` counter starts at zero, so the root carries
+  `ZENGINE_WORKSHOP_SUITE` and the process id — two processes of one suite (an MSVC build and
+  a MinGW build side by side) otherwise sweep each other's directories; a case in
+  `workshop_persistence` asserts both rather than trusting them. The sweep is the fixture's
+  own `remove_tree`, which asks `leaves_the_tree` of every entry and removes a link by name
+  without entering it: libstdc++ on Windows walks a directory junction as a directory,
+  emptying the target through it and leaving a dangling junction behind when the target went
+  first, which cost every second local MinGW run its junction witness. A root a crashed run
+  left behind is another process's and is left alone. Nothing else in the family shares a
+  filesystem path — the load-plan stage directory is `workshop_load`'s alone.
 - **The six original floors sum to what the one entry's was**, and the editor's floor is its
   own new evidence on top — per-area numbers instead of one, so a deleted case names the
   area it went missing from.

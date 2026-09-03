@@ -62,11 +62,13 @@ TEST_CASE("a temporary directory belongs to the suite that made it") {
     CHECK(a.path() != b.path()); // the counter, within one process
     CHECK(a.path().parent_path() == b.path().parent_path());
 
-    // The root is this binary's, and the name in it is the CTest entry's. A second suite
-    // asking for the same tag resolves under a different parent, whatever it calls it.
+    // The root is this binary's, and the name in it is the CTest entry's and this process's.
+    // A second suite asking for the same tag resolves under a different parent, whatever it
+    // calls it -- and so does a second process of THIS suite, which is what an MSVC build and
+    // a MinGW build of one suite, run side by side, are.
     CHECK(a.path().parent_path() == workshop_temp_root());
     CHECK(workshop_temp_root().filename().string() ==
-          std::string("zengine-workshop-") + ZENGINE_WORKSHOP_SUITE);
+          std::string("zengine-workshop-") + ZENGINE_WORKSHOP_SUITE + "-" + this_process_id());
 
     // ...and it sits directly in the system's temporary directory. Asked by IDENTITY rather
     // than by spelling: `temp_directory_path()` ends in a separator on Windows and does not

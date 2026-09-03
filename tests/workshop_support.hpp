@@ -50,6 +50,13 @@
 #include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
+// ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree
+// (`leaves_the_tree`, the browser's own predicate). On Windows this is also where the lean
+// `<windows.h>` the process id is read through comes from.
+#include "workshop/files.hpp"
+#if !defined(_WIN32)
+#include <unistd.h> // getpid
+#endif
 
 #include "composer/vocabulary.hpp"
 #include "introspection/loaded.hpp"
@@ -1136,7 +1143,17 @@ inline std::int64_t resolved_w(const Live& t) {
     return p->rect.w;
 }
 
-/// THE TEMPORARY ROOT THIS SUITE OWNS, and nothing else does.
+/// THIS PROCESS, AS A NAME: the one thing two processes of one suite running at once are
+/// guaranteed not to share.
+inline std::string this_process_id() {
+#if defined(_WIN32)
+    return std::to_string(::GetCurrentProcessId());
+#else
+    return std::to_string(static_cast<long long>(::getpid()));
+#endif
+}
+
+/// THE TEMPORARY ROOT THIS SUITE OWNS IN THIS PROCESS, and nothing else does.
 ///
 /// The Workshop cases used to be one binary, where a counter that starts at zero and a tag
 /// nobody repeated were enough to keep two directories apart. Six binaries run them now,
@@ -1145,14 +1162,61 @@ inline std::int64_t resolved_w(const Live& t) {
 /// what it finds there before it creates it, so the collision would not be a failure, it
 /// would be one case deleting another's files underneath it.
 ///
-/// So the owner is named rather than hoped for. `ZENGINE_WORKSHOP_SUITE` is the entry name
-/// CMake gave this binary, two suites cannot resolve to one path whatever they call their
-/// tags, and the property is a case rather than a convention (see
-/// `test_workshop_persistence.cpp`). What it does NOT cover, deliberately: two runs of the
-/// SAME suite at once, which is what a build tree already assumes it is not doing.
+/// So the owner is named rather than hoped for, twice over. `ZENGINE_WORKSHOP_SUITE` is
+/// the entry name CMake gave this binary, so two suites cannot resolve to one path whatever
+/// they call their tags; the process id is the rest of the name, so two runs of the SAME
+/// suite at once cannot either -- an MSVC build and a MinGW build of one suite, started
+/// together, used to fail each other at the first listing they REQUIREd, each having swept
+/// the other's directory from under it. Both halves are a case rather than a convention
+/// (see `test_workshop_persistence.cpp`).
+///
+/// A PROCESS SWEEPS ONLY THE ROOT IT MADE. A root a run left behind by crashing before its
+/// last `TempDir` went out of scope stays where it is: its name says whose it was, and a
+/// sweep of every root in the temporary directory would be exactly the deleting-underneath-
+/// someone this name exists to prevent. There is no global sweep, on purpose.
 inline std::filesystem::path workshop_temp_root() {
-    return std::filesystem::temp_directory_path() /
-           ("zengine-workshop-" ZENGINE_WORKSHOP_SUITE);
+    static const std::filesystem::path root =
+        std::filesystem::temp_directory_path() /
+        ("zengine-workshop-" ZENGINE_WORKSHOP_SUITE "-" + this_process_id());
+    return root;
+}
+
+/// REMOVE `p` AND EVERYTHING BENEATH IT, ENTERING ONLY WHAT IS REALLY A DIRECTORY.
+///
+/// The fixture's own `remove_all`, because the standard one is not safe to point at a tree a
+/// case may have put a LINK in. On POSIX and on MSVC's STL `std::filesystem::remove_all`
+/// removes a link rather than following it; libstdc++ on Windows cannot see a reparse point
+/// unfollowed -- the blindness WL-FILES-04's Windows branch exists for -- so there it walks
+/// a directory junction as a directory. Measured (MinGW-w64 GCC 13.1, 2026-09-03): a
+/// junction to a directory OUTSIDE the swept tree came back with that directory emptied
+/// through it; a junction whose target had gone first (the linked-directory case's
+/// `outside`, visited before `project/away`) stopped the sweep with the junction still
+/// standing, the next process's `mklink /J` on that name failed, and the case took its
+/// early return -- a green that had witnessed nothing.
+///
+/// So every entry is first asked the browser's own question, `leaves_the_tree` -- the host's
+/// reparse attribute on Windows, `symlink_status` elsewhere -- and one that leaves the tree
+/// is removed BY NAME and never entered: `std::filesystem::remove` removes a junction
+/// itself, live or dangling, on both Windows libraries (measured the same day) and unlinks
+/// a symbolic link on POSIX. Only what is really a directory recurses. Failures are
+/// swallowed as `remove_all`'s were: a destructor has nowhere to report to.
+inline void remove_tree(const std::filesystem::path& p) {
+    std::error_code ec;
+    const std::filesystem::directory_entry entry(p, ec);
+    bool enter = !zengine::workshop::leaves_the_tree(entry);
+    if (enter) {
+        std::error_code kind_ec;
+        enter = entry.is_directory(kind_ec) && !kind_ec;
+    }
+    if (enter) {
+        std::error_code walk_ec;
+        const std::filesystem::directory_iterator done;
+        for (std::filesystem::directory_iterator it(p, walk_ec); !walk_ec && it != done;
+             it.increment(walk_ec)) {
+            remove_tree(it->path());
+        }
+    }
+    std::filesystem::remove(p, ec);
 }
 
 /// A directory of this run's own, removed when the case ends. Tests never write
@@ -1162,16 +1226,18 @@ public:
     explicit TempDir(const char* tag) {
         static int counter = 0;
         path_ = workshop_temp_root() / (std::string(tag) + "-" + std::to_string(++counter));
-        std::error_code ec;
-        std::filesystem::remove_all(path_, ec);
+        // Whatever is already there is an earlier life of this process id's -- a run that
+        // crashed, whose id the system handed out again -- and it goes the way of everything
+        // this fixture removes: by the sweep that never enters a link.
+        remove_tree(path_);
         std::filesystem::create_directories(path_);
     }
     ~TempDir() {
-        std::error_code ec;
-        std::filesystem::remove_all(path_, ec);
-        // ...and the suite's root once the last case in it has gone. `remove` takes an
+        remove_tree(path_);
+        // ...and this process's root once the last case in it has gone. `remove` takes an
         // EMPTY directory only, so this is the whole cleanup: it succeeds for whoever
         // happens to be last and does nothing, quietly, for everyone before them.
+        std::error_code ec;
         std::filesystem::remove(workshop_temp_root(), ec);
     }
     TempDir(const TempDir&) = delete;
