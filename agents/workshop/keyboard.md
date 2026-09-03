@@ -212,7 +212,8 @@ MEANS
 - an unknown modifier or key is refused by name, never guessed.
 
 PROVEN BY — `workshop/keymap.hpp` `gesture_word`, `parse_gesture`, `key_name_of`,
-`scancode_of_name`; `tests/test_workshop_document.cpp` case `"KEY-0: a known backend gap is
+`scancode_of_name`; `tests/test_workshop_document.cpp` case `"a written gesture is modifier
+words in one order out, any order in, and never twice"`, case `"KEY-0: a known backend gap is
 accepted and said, never silently rewritten"`, case `"KEY-0: a shift+letter binding swallows the
 capital its keystroke produced"`.
 WHY — `agents/decisions/one-binding-truth.md`

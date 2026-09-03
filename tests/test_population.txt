@@ -1062,14 +1062,14 @@ builder                           doctest           always  53
 # row for the reason every phase since TYPE-0 has given: the metric is an ARGUMENT, so the
 # window's pixels are proved by handing `Session` the shipped face's numbers.
 #
-workshop_document                 doctest           always  141
+workshop_document                 doctest           always  142
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  206
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  85
+workshop_files                    doctest           always  89
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

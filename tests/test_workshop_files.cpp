@@ -401,6 +401,105 @@ TEST_CASE("QR-12: a name this platform will not spell refuses at the browser's d
     CHECK(r.notice().find("cannot carry in a path") != std::string::npos);
 }
 
+TEST_CASE("an entry whose kind cannot be asked keeps its row as a file, and the editor's door refuses it") {
+    // THE SECOND CLAUSE OF WL-FILES-14, arranged for real. A DANGLING LINK is an entry whose
+    // kind is a question about a target that is gone, so a library that answers the kind by
+    // following the link fails the ask with an error code -- the classification failure
+    // the listing keeps a row for. WHICH library asks is the measured part: Linux libstdc++
+    // and MSVC's STL follow and fail (GCC 11.4, MSVC 19.50, measured 2026-09-03); libstdc++
+    // on Windows answers `directory` from the entry it cached and never asks, so there the
+    // clause cannot be arranged, and this case says so instead of passing over it.
+    FilesRig r("unaskable");
+    put_file(r.root / "plain.cpp", "int x;\n");
+    const std::filesystem::path ghost = r.root / "ghost";
+    LinkArm arm = LinkArm::none;
+    {
+        // POSIX: a file link to a name that was never there. Windows refuses this arm on
+        // both of its libraries without a privilege this session does not hold.
+        std::error_code ec;
+        std::filesystem::create_symlink("nowhere-target", ghost, ec);
+        if (!ec) {
+            arm = LinkArm::symbolic_link;
+        }
+    }
+    if (arm == LinkArm::none) {
+        // Windows: a junction whose target goes away once the link is made.
+        const std::filesystem::path doomed = r.root / "doomed";
+        std::error_code ec;
+        std::filesystem::create_directory(doomed, ec);
+        REQUIRE_FALSE(ec);
+        arm = make_linked_directory(ghost, doomed);
+        std::filesystem::remove(doomed, ec);
+        REQUIRE_FALSE(ec);
+    }
+    if (arm == LinkArm::none) {
+        MESSAGE("this platform made no dangling link for this process");
+        return;
+    }
+
+    // IS THE KIND UNASKABLE HERE? Put the listing's own question to the entry, the way
+    // `enumerate_directory` puts it, and record the library's answer rather than assume it.
+    bool seen = false;
+    bool unaskable = false;
+    {
+        std::error_code walk_ec;
+        const std::filesystem::directory_iterator done;
+        for (std::filesystem::directory_iterator it(r.root, walk_ec); !walk_ec && it != done;
+             it.increment(walk_ec)) {
+            if (it->path().filename() == "ghost") {
+                seen = true;
+                std::error_code kind_ec;
+                (void)it->is_directory(kind_ec);
+                unaskable = static_cast<bool>(kind_ec);
+            }
+        }
+        REQUIRE_FALSE(walk_ec);
+    }
+    REQUIRE(seen);
+    MESSAGE((std::string("dangling link made as a ") +
+             (arm == LinkArm::junction ? "junction" : "symbolic link") +
+             (unaskable ? "; this library cannot ask its kind"
+                        : "; this library answers its kind from the entry without asking")));
+
+    // WHICHEVER ARM: the listing neither throws nor drops the row. An entry a maker's
+    // directory holds is an entry the browser shows.
+    Listing l;
+    REQUIRE_NOTHROW(l = enumerate_directory(r.root.generic_string()));
+    REQUIRE(l.known);
+    REQUIRE(l.rows.size() == 2);
+    const FileRow* row = nullptr;
+    for (const FileRow& candidate : l.rows) {
+        if (candidate.name == "ghost") {
+            row = &candidate;
+        }
+    }
+    REQUIRE(row != nullptr);
+    if (!unaskable) {
+        // The clause is not arranged on this library: the entry classified as a directory
+        // that leaves the tree, which is WL-FILES-04's row and not this law's.
+        CHECK(row->directory);
+        return;
+    }
+
+    // THE LAW: the row is KEPT, AS A FILE -- not dropped, not a directory, not a link mark
+    // -- under its ordinary name, which nothing here refuses.
+    CHECK_FALSE(row->directory);
+    CHECK_FALSE(row->linked);
+    CHECK(row->openable);
+
+    // ...AND THE EDITOR'S DOOR REFUSES IT, in the door's own words, opening nothing. With
+    // no directory in the listing, `ghost` sorts before `plain.cpp`: it is the first row.
+    r.open();
+    REQUIRE(r.listing().rows.size() == 2);
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    REQUIRE(r.at_cursor() == "ghost");
+    r.t.key(input::scan::kReturn);
+    CHECK_FALSE(r.session().editor.open_document());
+    CHECK(r.notice().find("cannot read") != std::string::npos);
+    CHECK(r.notice().find("ghost") != std::string::npos);
+}
+
 TEST_CASE("QR-12: a launch directory this Workshop cannot say is an absence, not an exit") {
     TempDir dir("launch-dir");
     const std::filesystem::path standing = dir.path() / unsayable_dir_name();
@@ -2227,6 +2326,104 @@ TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowher
     CHECK(text.find("a.json") == std::string::npos);
     CHECK(text.find("b.json") == std::string::npos);
     CHECK(text.find("recipe") == std::string::npos);
+}
+
+// ============================================================================
+// Tier 6b — PROJ-15: where the shipped catalog is
+// ============================================================================
+//
+// THE LAW IS A LAUNCH FACT (WL-PROJ-15): the catalog Workshop ships is staged beside the
+// executable under `kDefaultRecipesName`, `--recipes` names a different one, and no registry,
+// picker or search path stands between the two. No rig can run `main()` (it claims a
+// terminal), so the fact is read in two halves: the staged FILE, from where the executable
+// lands, through the one seam the launch itself installs it through; and the launch's
+// CHOICE, out of the host's own source with its comments stripped, as the one-seam case
+// above reads it.
+
+namespace {
+
+/// A source file's CODE -- `//` comments cut -- so a sentence that explains a rule cannot
+/// satisfy a check for the rule. The one-seam case above spells the same reader inline; it
+/// is repeated here rather than hoisted, so that case's text stays exactly as its witnesses
+/// cite it.
+inline std::string host_code_of(const char* path) {
+    std::string out;
+    std::ifstream in(path);
+    REQUIRE_MESSAGE(in.good(), "cannot read ", path);
+    std::string line;
+    while (std::getline(in, line)) {
+        const std::size_t comment = line.find("//");
+        out += comment == std::string::npos ? line : line.substr(0, comment);
+        out += '\n';
+    }
+    return out;
+}
+
+inline std::size_t count_of(const std::string& text, const std::string& needle) {
+    std::size_t at = 0;
+    std::size_t seen = 0;
+    while ((at = text.find(needle, at)) != std::string::npos) {
+        ++seen;
+        at += needle.size();
+    }
+    return seen;
+}
+
+} // namespace
+
+TEST_CASE("the shipped catalog is staged beside the executable, under the name the launch resolves") {
+    // WHERE THE EXECUTABLE LANDS is asked of the build (`$<TARGET_FILE_DIR:zengine-workshop>`),
+    // never spelled by this case; the staging rule writes there at generate time, so the file
+    // is beside the host before the host is built.
+    const std::filesystem::path beside(WORKSHOP_HOST_DIR);
+    // THE CONSTANT IS A NAME, NOT A PATH: it carries no directory of its own, because the
+    // directory is the executable's and nothing else's.
+    const std::string name(recipe_persist::kDefaultRecipesName);
+    REQUIRE_FALSE(name.empty());
+    CHECK(name.find_first_of("/\\") == std::string::npos);
+    const std::filesystem::path staged = beside / name;
+    CAPTURE(staged.generic_string());
+    std::error_code ec;
+    REQUIRE_MESSAGE(std::filesystem::is_regular_file(staged, ec),
+                    "no shipped catalog beside the executable: ", staged.generic_string());
+
+    // ...AND WHAT IS STAGED THERE IS THE CATALOG: read through the ONE seam the launch
+    // installs it through, with the host's directory given the way the launch gives it.
+    // The owner answers with the path it holds, never with an echo of the argument.
+    TempDir project("shipped");
+    CurrentRecipes owner;
+    const HostContext::RecipeSwap read = host_use_recipes(
+        owner, beside.generic_string(), project.path().generic_string())(staged.generic_string());
+    REQUIRE_MESSAGE(read.accepted, read.refusal);
+    CHECK(read.path == staged.generic_string());
+    CHECK(owner.source() == staged.generic_string());
+    MESSAGE((std::string("the shipped catalog installs ") + std::to_string(read.recipes) +
+             " recipe(s) from " + read.path));
+}
+
+TEST_CASE("the launch resolves the shipped catalog beside the executable, and --recipes is the only other road") {
+    // THE LAUNCH IS `main()`'s, AND `main()` CANNOT RUN HERE, so the choice it makes is read
+    // out of its code -- comments stripped, expressions rather than words (BLD-0's tripwire
+    // rule), because the host EXPLAINS this arrangement at length above the lines that make it.
+    const std::string host = host_code_of(WORKSHOP_HOST_CPP);
+
+    // THE HOST'S DIRECTORY IS THE EXECUTABLE'S, resolved once.
+    CHECK(count_of(host, "host.dir = exe_dir();") == 1);
+
+    // THE DEFAULT IS COMPOSED ONCE, from that directory and the one name -- so there is no
+    // second place the shipped catalog could be looked for -- and `--recipes` is the one
+    // thing that names a different file.
+    CHECK(count_of(host, "recipe_persist::kDefaultRecipesName") == 1);
+    CHECK(host.find("const bool named = !args.recipes.empty();") != std::string::npos);
+    CHECK(host.find("named ? args.recipes : host.dir + \"/\" + "
+                    "recipe_persist::kDefaultRecipesName") != std::string::npos);
+
+    // ...AND `--recipes` IS A PATH THE MAKER TYPED: parsed as one, refused empty rather than
+    // quietly defaulted, and spent nowhere but in that choice -- a second consumer would be
+    // the registry or the picker this law says there is not.
+    CHECK(host.find("arg == \"--recipes\"") != std::string::npos);
+    CHECK(host.find("args.recipes = value;") != std::string::npos);
+    CHECK(count_of(host, "args.recipes") == 3);
 }
 
 // ============================================================================
