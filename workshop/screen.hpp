@@ -2030,7 +2030,7 @@ inline std::int64_t create(WorkshopDoc& d, Session& s) {
 }
 
 /// Delete the selected object.
-// WL-DOC-10 -- agents/workshop/document.md
+// WL-DOC-10 -- agents/workshop/document.md; WL-CTX-07 -- agents/workshop/contextual.md
 inline Written delete_selected(WorkshopDoc& d, Session& s) {
     const std::int64_t id = s.selected;
     const std::size_t at = position_of(d, id);

@@ -1069,6 +1069,7 @@ struct Keymap {
     std::int64_t legend = legend_mode::kDefault;
     /// Every override row the maker wrote, verbatim and in authored order -- what a save
     /// writes back, so a load-save round trip edits nothing it was asked to preserve.
+    // WL-KEY-07 -- agents/workshop/keyboard.md
     std::vector<AuthoredOverride> authored;
     /// The rows this build could resolve and admit, as executable truth. DERIVED from
     /// `authored` by `apply_overrides`, never authored directly.

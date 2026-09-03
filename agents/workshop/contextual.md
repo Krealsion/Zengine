@@ -106,13 +106,14 @@ MEANS
 - `delete_object_at` reuses `delete_selected` for the selection; a live draft holds it back;
 - no owner predicate runs on the paint path: the menu renders an identity, not an existence.
 
-PROVEN BY — `workshop/weave.hpp` `spend_pane_action`, `delete_object_at`, `delete_selected`,
-`finish_draft_first`, `open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`,
-`context_delete_object`; `tests/test_workshop_panels.cpp` case `"CTX-0: a contextual action acts
-on the pointed pane, not the selection"`, case `"CTX-0: a contextual remove removes the pointed
-pane"`, case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`;
-`tests/test_workshop_document.cpp` case `"CTX-0: contextually deleting the selected object uses
-the existing repair"`, case `"CTX-0: a live draft holds a contextual deletion back"`.
+PROVEN BY — `workshop/weave.hpp` `spend_pane_action`, `delete_object_at`, `finish_draft_first`,
+`open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`, `context_delete_object`;
+`workshop/screen.hpp` `delete_selected`; `tests/test_workshop_panels.cpp` case `"CTX-0: a
+contextual action acts on the pointed pane, not the selection"`, case `"CTX-0: a contextual remove
+removes the pointed pane"`, case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that
+was pointed at"`; `tests/test_workshop_document.cpp` case `"CTX-0: contextually deleting the
+selected object uses the existing repair"`, case `"CTX-0: a live draft holds a contextual deletion
+back"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-08 — The surface is a mode with first refusal
