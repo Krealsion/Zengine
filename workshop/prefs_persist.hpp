@@ -5,44 +5,8 @@
 #define ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 
 // THE MAKER'S PRESENTATION PREFERENCES -- a seventh durable artifact, and the second file
-// of the maker-configuration kind (WUX-3).
-//
-// The keymap file is the maker's HAND: which gesture requests which action. This file is
-// the maker's EYES: how Workshop presents itself, starting with the one preference that
-// earned durability by being toggled and lost across runs -- whether the arrangeable
-// panes paint their title rows (WUX-1's `t`). They are two files because they are two
-// promises with two custodies: the keymap is hand-edited and Workshop never writes it on
-// its own; this file is written BY Workshop, at the moment the maker states a preference,
-// and hand-editing it is legal but not its ordinary life. Parking presentation preferences
-// in the keymap file instead would grow "the maker's hand" into a miscellaneous drawer and
-// cost every existing keymap file a version bump for a fact that is not about keys.
-//
-// IT IS DELIBERATELY NOT A CONFIGURATION FRAMEWORK. One format, a handful of word fields,
-// the family's standing persistence law (the Loom compat codec, the same gate the live bus
-// uses, safe-write through `persist::write_file`, a format identity that refuses the other
-// files by name, deterministic bytes). A future presentation preference is one field and
-// one version here -- and anything that is not presentation preference belongs somewhere
-// with its own name.
-//
-// ---- What version 1 promises -----------------------------------------------------------
-//
-//   PROMISED   Workshop reads and writes prefs format version 1: the pane-title
-//              visibility, as a word. Written when the maker toggles the preference, so
-//              the file exists exactly when a preference has been stated; an absent file
-//              is the defaults, silently.
-//   REFUSED    any other `format_version`, by number, from the envelope's claim BEFORE the
-//              fields are judged (the family's preflight); a `format` that is not this
-//              one; a field the shape does not declare; a titles word outside the closed
-//              set, with what was found and what would have worked both named; a file
-//              larger than preferences can be.
-//   NOT DONE   pane colors, themes, per-pane preferences, appearance configuration,
-//              migration, a version graph. One version exists.
-//
-// A FILE THAT EXISTS AND CANNOT BE ADMITTED IS REFUSED OUT LOUD AND NEVER OVERWRITTEN.
-// The refusal stands on the notice line, the defaults stand on screen, and a later toggle
-// changes the LIVE preference without writing -- Workshop does not rewrite, half-apply or
-// delete a file it could not understand (the keymap's own law, KEY-0), and a toggle that
-// silently replaced a maker's unreadable bytes with a fresh file would be exactly that.
+// of the maker-configuration kind.
+// Workshop law: agents/workshop/focus.md
 
 #include "persist.hpp"
 
@@ -76,12 +40,7 @@ inline constexpr std::uintmax_t kMaxPrefsBytes = 1u << 16;
 inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 
 // ---- The preference's words, and why they are words ------------------------------------
-//
-// The legend's decision, for the legend's reason: the in-memory value is a bool today and
-// is free to become anything tomorrow, and a renumbering or re-typing must not be able to
-// change what a saved preference means. `default` is the one canonical spelling of "no
-// authored difference" -- this build projects it as shown -- and a maker who authored
-// `shown` has pinned that word against any future default.
+// WL-FOCUS-11 -- agents/workshop/focus.md
 
 inline constexpr const char* kTitlesDefault = "default";
 inline constexpr const char* kTitlesShown = "shown";

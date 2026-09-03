@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
-// ASKING A HOST WHAT IT RESOLVED (INTR-1). Two questions, two answers, one office.
+// ASKING A HOST WHAT IT RESOLVED. Two questions, two answers, one office.
 //
 //     ArrangementRequested   asker    -> the door   "what did this project ask for,
 //                                                    and what came of it?"
@@ -57,7 +57,7 @@
 // tomorrow; the resolved half is what this run's executor and this run's Kernel made
 // of it and would be a lie tomorrow. A shape that carried a resolved provider
 // identity in a field called `provider` beside an authored role in a field called
-// `role` would be inviting exactly the confusion LOAD-0's two lists were removed for.
+// `role` would be inviting exactly the confusion two lists were removed for.
 //
 // ---- WHAT IS DELIBERATELY NOT HERE ---------------------------------------------
 //
@@ -69,7 +69,7 @@
 // departure event, no timestamp and no clock: the answer is what is true when it is
 // asked, and a reader that wants to know whether it changed asks again.
 //
-// ONE SCHEMA IDENTITY RIDES ALONG, AND NO SCHEMA DOES (SOURCE-0). This used to carry
+// ONE SCHEMA IDENTITY RIDES ALONG, AND NO SCHEMA DOES. This used to carry
 // neither, on the argument that a browser for operator shapes is a different tool.
 // That argument survives for STRUCTURES and fails for IDENTITY, and the case that
 // separated them is the Source: "what would sampling this yield?" has to be answerable
@@ -139,7 +139,7 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 /// The tokens `ArtifactParticipation::state` may carry -- `load::RowState`, said in
 /// words for `offer`'s reason exactly.
 ///
-/// THEY EXIST BECAUSE REALIZATION IS LIVE NOW (BOOT-0). This field replaced a `bool
+/// THEY EXIST BECAUSE REALIZATION IS LIVE NOW. This field replaced a `bool
 /// performed`, and the bool was not merely coarse: a row nobody had reached yet, a row
 /// whose load was in flight at this instant, and a row that had been reached and
 /// REFUSED were all `false`, so the one question a maker asks while a project is
@@ -151,13 +151,13 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 /// word sounding useful; `load::RowState` names them and names the three that were
 /// refused.
 ///
-/// `pending` IS BLD-1's, AND IT IS A NEW TOKEN ON AN UNCHANGED SHAPE. `state` is a
+/// `pending` IS A NEW TOKEN ON AN UNCHANGED SHAPE. `state` is a
 /// STRING and always was, precisely so that the set of things realization can be doing
 /// with a row could grow without every reader of this message having to be recompiled
 /// against a new version of it. It means: this run reached the row, the host said it is
 /// waiting on the maker, and nothing has been mounted, opened or commanded for it.
 ///
-/// ⚠ AND SINCE BLD-1a IT IS ALSO WHERE THE PROJECTION STOPS. A pending row is a BARRIER:
+/// ⚠ AND IT IS ALSO WHERE THE PROJECTION STOPS. A pending row is a BARRIER:
 /// realization stops at the first row it cannot perform, so AT MOST ONE row in a
 /// projection carries this token and every row after it carries `authored`. A view
 /// showing `resolved` behind a `pending` would be telling a maker their project is
@@ -177,7 +177,7 @@ inline constexpr const char* kRefusedToken = "refused";
 
 /// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
 ///
-/// ONE ROW PER ARTIFACT, WHATEVER IT PARTICIPATES AS -- which is LOAD-0's central
+/// ONE ROW PER ARTIFACT, WHATEVER IT PARTICIPATES AS -- which is the load plan's central
 /// result carried into observation. `zengine-timer` supplies a power AND is loaded
 /// as a weave; it is one authored record and it is one row here. Splitting it into a
 /// provider row and a weave row would throw away the only place the two are known to
@@ -229,7 +229,7 @@ struct ArtifactParticipation {
     std::string authored_provider;
     std::string authored_role;
 
-    /// v2 (BOOT-0): this replaced `bool performed`. It is a REPLACEMENT and not an
+    /// v2: this replaced `bool performed`. It is a REPLACEMENT and not an
     /// addition, because the two would have to agree and one of them would be the
     /// copy that goes stale -- `performed` is exactly `state == kResolvedToken`.
     std::string state = kAuthoredToken;
@@ -251,7 +251,7 @@ struct ArtifactParticipation {
 /// rather than asserted beside it.
 ///
 /// THE ORDER IS THE PLAN'S AND IS NOT SORTED. Inter-artifact order is authored policy
-/// (LOAD-0) -- it is where an overlay has to sit after the row it covers -- so a view
+/// -- it is where an overlay has to sit after the row it covers -- so a view
 /// that reordered it would hide the one thing the order is for.
 ///
 /// `plan` is the file the host read, and it is a PROVENANCE LINE rather than an
@@ -305,7 +305,7 @@ struct SchemaIdentity {
 /// covering `math.max` changes what a composite over it computes, while covering a
 /// native leaf changes only that leaf.
 ///
-/// ---- v2 (SOURCE-0): WHAT WOULD I GET, ASKED WITHOUT SAMPLING -------------------
+/// ---- v2: WHAT WOULD I GET, ASKED WITHOUT SAMPLING ------------------------------
 ///
 /// `source` is `op::is_source()` -- zero unbound maker inputs -- and it is a projection
 /// of the SAME definition `composite` is read off, not a second classification kept

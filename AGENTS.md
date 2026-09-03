@@ -17,7 +17,7 @@ routed: read a surface's document when the task touches that surface, not before
 |---|---|
 | lanes, suites, populations, CI, what a green means, platform build traps | [agents/verification.md](agents/verification.md) |
 | `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
-| `workshop/` or `component/` — the screen, panes and windows, the Info panel, pointer/keyboard routing, session persistence | [agents/workshop.md](agents/workshop.md) |
+| `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
 | load plans, realization, the load conversation, `builder/` | [agents/realization.md](agents/realization.md) |
@@ -33,6 +33,24 @@ phase-titled account, and the evidence trail stays in Git history and the phase 
 here. A phase that edits this core rechecks its budget: **this file stays at or under 20 KB.**
 Executor/internal material (this file and `agents/`) stays out of the public documentation
 index and out of the installed package.
+
+**The register rules** (`law_register` enforces form and names; the router, procedure).
+**a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a maker types
+or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types, constants and
+members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
+DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
+table escapes `|`. **g** no new phase tags; a tag in a `TEST_CASE` literal is a fossil. **h** a
+record's Alternatives split tried (evidence inline) from argued. **i** records wrap at 98
+bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
+generated from WHY lines: edit the WHY. **l** a record over ten laws is suspected of being two.
+**m** an owner identifier is a whole token in the named file's code, comments stripped.
+**n** a `// WL-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
+**o** a mass edit is sheet → applier → proof, regenerated from the start commit. **p** after a
+compaction, re-measure the report's claims. **q** a tree-reading check self-tests; an empty
+population is red. **r** a tree-reading check quotes its filesystem with its wall clock. **s** a
+pointer carries only ids whose law names the declaration; a member is `Struct::member`, an
+overload `name(Type)`. **t** a per-line sheet carries the whole pointer group; a file index is
+re-resolved after every write.
 
 ## Build / test (canonical: WSL; consumes an *installed* Loom)
 
@@ -69,6 +87,8 @@ cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run
   must fail on every machine, not only in CI. `-DZEN_LOOM_DEV=ON` is the sibling override.
 - **Per-repo green:** Zengine's lane never re-runs Loom's suite — state which repo's green you
   proved, which configuration, which compiler; never a bare "green", never a bare "Windows".
+  Machine-specific facts — which tree, which filesystem, how many cores, what a given machine
+  runs serially — live outside the repository.
 - **The sanitizer lane is a second KIND of evidence**: the same full population under
   ASan+UBSan, for defects whose symptom is that *no answer changes* (lifetimes, extents,
   retained references). A new target lists `zengine-sanitize` beside `zengine-warnings`;
@@ -95,10 +115,10 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Two entries read the source tree rather than a build: `doc_links` (every repo-local
-  documentation reference must resolve, anchors included) and `package_vocabulary` (the
-  installed package's nouns). Full contract detail:
-  [agents/verification.md](agents/verification.md).
+- Three entries read the source tree rather than a build: `doc_links` (every repo-local
+  documentation reference must resolve, anchors included), `package_vocabulary` (the
+  installed package's nouns) and `law_register` (Workshop's registers: the form, and every
+  name they make). Full contract detail: [agents/verification.md](agents/verification.md).
 
 ## Ownership and dependency direction
 

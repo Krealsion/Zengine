@@ -225,11 +225,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
 
+  # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
+  # one it was measured on. MinGW-w64/libstdc++ is the maker's daily build, so this lane is
+  # REQUIRED: a red here is a red for the run. MSVC (the job after this one) is the toolchain
+  # released Windows users are expected to build with, and its lane stays ADVISORY until it
+  # can be proven locally as a matter of course; both are supported in the long run. Measured,
+  # the two libraries answer the filesystem differently -- libstdc++ reports a directory
+  # junction as an ordinary directory unfollowed and does not implement
+  # `create_directory_symlink`; MSVC's STL reports the junction -- and this lane was red on
+  # exactly that difference for every run after the Files browser began marking junctions,
+  # invisible in the run's conclusion because it was `continue-on-error`. A red that cannot
+  # fail the run is not a lane.
   zengine-windows-stranger:
-    name: Zengine / Windows / canonical Loom stranger (advisory)
+    name: Zengine / Windows / MinGW-w64 Loom stranger
     needs: resolve-loom
     runs-on: windows-2025
-    continue-on-error: true
     timeout-minutes: 45
     steps:
       - name: Check out Zengine
@@ -293,24 +303,27 @@ jobs:
       - name: Build Zengine
         run: cmake --build build-win
 
-      # Advisory, and it verifies the same repository-owned population -- with the
+      # Required, and it verifies the same repository-owned population -- with the
       # `sdl` gate off, so the SDL-gated suites are contractually smaller here than on
       # Linux. That difference is declared in tests/test_population.txt, not absorbed
-      # into a slack floor, so advisory green means the same test-population thing. The
+      # into a slack floor, so a green here means the same test-population thing. The
       # numbers are in that file; a workflow comment that repeated them would be one
       # more copy to go stale, and this one had.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
-  # The MSVC stranger (MSVC-0). The same shape as the MinGW job above, and that is the
-  # claim: Zengine carries NO MSVC-specific compile option of its own. Loom's public
+  # The MSVC stranger (MSVC-0). ADVISORY, and the job's name says why: MSVC is the toolchain
+  # released Windows users are expected to build with, and it is not the maker's daily
+  # build, so a red here cannot yet be proven or repaired locally as a matter of course --
+  # `continue-on-error` stays until it can. The same shape as the MinGW job above, and that
+  # is the claim: Zengine carries NO MSVC-specific compile option of its own. Loom's public
   # macro surface needs /Zc:preprocessor and `loom::core` exports it as an interface
   # requirement, so this lane going green while this file adds nothing is exactly the
   # evidence that the package -- not the consumer -- owns that law. If this job ever
   # needs a flag added here to pass, the requirement has stopped riding the package and
   # the fix belongs in Loom.
   zengine-windows-msvc-stranger:
-    name: Zengine / Windows / MSVC Loom stranger (advisory)
+    name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maker's local build)
     needs: resolve-loom
     runs-on: windows-2025
     continue-on-error: true

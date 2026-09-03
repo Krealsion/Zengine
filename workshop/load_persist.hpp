@@ -6,7 +6,7 @@
 
 // THE LOAD PLAN'S OWN FILE -- the third durable artifact beside the document's and
 // the setup's, and separate from both for the reason those two are separate from
-// each other (WS-0).
+// each other.
 //
 //   a DOCUMENT is what a maker made
 //   a SETUP is the arrangement of panes they were looking at while they made it

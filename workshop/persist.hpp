@@ -5,139 +5,7 @@
 #define ZENGINE_WORKSHOP_PERSIST_HPP
 
 // What a maker keeps when they close Workshop, and what they get back.
-//
-// THE QUESTION THIS FILE ANSWERS is not "how do we write a struct to disk". It
-// is: **exactly which facts are the document?** Everything else follows from
-// the answer, and the answer is short enough to state here in full:
-//
-//   DOCUMENT   an identity, a name, the identity this object's values are
-//              measured against, an authored place, two authored extents (mode
-//              AND amount), the ORDER the objects are in, and the next identity
-//              to mint. That is WorkshopDoc exactly, with no field existing
-//              only to be saved.
-//
-//              The relationship is persisted; its RESULT is not. Nowhere in
-//              this file is a source's resolved rectangle, a dependent's global
-//              position, the cells a share came to, or the order the loader
-//              would have to resolve things in. All four are rebuilt, and the
-//              proof is the one a share already uses: save under one context
-//              and load under another, and the authored relationship is
-//              byte-identical while the resolved geometry is not.
-//
-//   SESSION    the selection, the workspace extent, an editor draft, a drag in
-//              flight, the last notice, the path being saved to. Belongs to the
-//              run, not to the work.
-//
-//   DERIVED    the resolved Scene, every Rect, the resolved size the inspector
-//              shows, the size handle, what a click hits, the whole painted
-//              canvas. Rebuilt from DOCUMENT + the current SESSION, so writing
-//              any of it down would create a second truth that goes stale.
-//
-// The strongest test of that boundary is the one the file makes possible: save
-// under one workspace, load under another. The authored `60%` comes back
-// identical and resolves to a different number of cells, because the number of
-// cells was never in the file.
-//
-// ---- The format ----------------------------------------------------------
-//
-// A Workshop document is one JSON object, written and read through the LOOM's
-// OWN compat codec (<zen/serialize.hpp>) -- not a parser written here. That is
-// a source-traced choice rather than a convenience:
-//
-//   - it is already an ordinary dependency. Zengine links loom::core, so this
-//     costs no third-party library and no new build edge.
-//   - it is the SAME GATE every value crossing the bus goes through. A document
-//     read from a file and a message read from the wire are refused by one
-//     validator, so Workshop cannot come to trust a file more than it trusts a
-//     stranger's message.
-//   - it already refuses what a persistence format must refuse: a field the
-//     door does not declare (UnknownField -- see the policy note below), a
-//     value of the wrong kind, an integer outside int64, invalid UTF-8, and a
-//     payload that would materialise more than the decoder's budget allows. Not
-//     one of those is a check this phase had to write, and every one of them is
-//     a check this phase would have got wrong at least once.
-//   - its output is DETERMINISTIC: fields go out in declared schema order, so
-//     the same document serialises to the same bytes, and save -> load -> save
-//     is byte-identical. That makes a document diffable and archivable without
-//     a canonicalisation framework.
-//
-// What it costs, stated because a reader will notice it: an integer is written
-// as a QUOTED string (`"x":"3"`). That is the Loom codec's choice, and its
-// reason is that JSON numbers cannot carry the whole of int64 losslessly
-// through every reader. It is legible and it is honest; it is not pretty.
-//
-// ---- Why the file has its own shapes -------------------------------------
-//
-// WorkshopDoc is already a ZEN_SHAPE, so the shortest possible implementation
-// would serialise it directly. This file deliberately does not, and the reason
-// is the difference between an implementation and a format:
-//
-//   the weave's state shape  says how Workshop HOLDS a document right now. It
-//                            is poke-manipulable, it is what a message carries,
-//                            and it is free to change when the program changes.
-//   the file's shape         says what a SAVED DOCUMENT IS. It is a promise to
-//                            a file a maker owns, and it must not change
-//                            because an implementation did.
-//
-// Serialising the state shape would weld the two together: renaming `label` to
-// `name` in the struct would silently change every maker's file. So the file
-// has three small shapes of its own, and `to_text`/`from_text` are the one
-// translation between them -- explicit, in one place, and readable.
-//
-// The clearest thing the separation buys is the EXTENT MODE. In memory it is an
-// integer (`ui::kExtentCells` is 0, `ui::kExtentPercent` is 1). In the file it
-// is the WORD `"cells"` or `"percent"`, so a document says what it means, a
-// person reading it needs no header to decode it, and the day someone reorders
-// two constants no saved document silently changes size.
-//
-// ---- Two identities, at two layers, both checked -------------------------
-//
-// A saved file carries two claims and they are not redundant:
-//
-//   the Loom envelope   {"zen":1,"schema":"WorkshopDocument","version":1,...}
-//                       "these bytes are a value of THIS SHAPE". admit()
-//                       enforces it: wrong shape, wrong kinds, unknown field.
-//   the document itself {"format":"zengine-workshop","format_version":"1",...}
-//                       "this value MEANS a Workshop document of THIS FORMAT
-//                       VERSION". Workshop enforces it, below.
-//
-// They can disagree, which is exactly why both exist: a future format could
-// keep the same fields and change what one of them MEANS (say, x/y become a
-// share of the workspace). The shape would still admit; the format version is
-// what refuses. `format` is checked too, so a value that happens to have this
-// structure and is not a Workshop document is named as such rather than loaded.
-//
-// ---- What version 1 promises, and what it does not -----------------------
-//
-//   PROMISED   Workshop reads and writes format version 1. A document written
-//              by this build is read by this build, identically, and the second
-//              save is byte-identical to the first.
-//   REFUSED    any other `format_version`, closed, with the number named. There
-//              is one version and there is no migration machinery, no version
-//              graph, no legacy reader and no upgrade path -- because there is
-//              nothing yet to migrate FROM. The trigger for that work is the
-//              first real format change that must read a real v1 document.
-//   REFUSED    a field the shape does not declare, including a typo and
-//              including a field a NEWER Workshop might write. That is a
-//              decision, not the parser's default leaking through: silently
-//              dropping an unknown field turns "I read your document" into "I
-//              read the part of your document I recognised", and a maker cannot
-//              see the difference. Fail closed, say which field.
-//   NOT SAID   nothing about field ORDER (the reader is name-keyed and accepts
-//              any order; the writer emits one canonical order), nothing about
-//              whitespace (the reader accepts JSON whitespace; the writer emits
-//              none), and nothing at all about compatibility beyond this build.
-//              OBJECT order, by contrast, IS meaning -- see to_text.
-//
-// ---- What this file is not -----------------------------------------------
-//
-// Not a Zen document format, not a Zengine serialization service, not a
-// reflection system, not a schema registry, not a save-any-weave framework, not
-// autosave, not undo, not a migration layer and not a file browser. It is one
-// application's format for one application's document. If a second Zengine
-// application ever needs to persist authored elements, THAT is when a shared
-// concept is earned -- a helper that happens to be reusable is not yet a
-// package concept.
+// Workshop law: agents/workshop/document-file.md (+3 registers; agents/workshop.md routes)
 
 #include "document.hpp"
 #include "vocabulary.hpp"
@@ -168,30 +36,7 @@ namespace zengine::workshop::persist {
 inline constexpr const char* kFormat = "zengine-workshop";
 
 /// The only format version this build reads or writes.
-///
-/// IT IS NOT YET A PUBLIC COMPATIBILITY BOUNDARY, said out loud because the
-/// written shape has changed under it: an object carries a `context`, so a
-/// document written before that field existed no longer admits -- the Loom's
-/// gate refuses it for a missing member, before this number is ever looked at.
-/// That is the honest outcome and it was chosen rather than papered over. There
-/// is one implementation, one consumer, no released promise, and no artifact in
-/// the world worth a compatibility layer, so:
-///
-///   NOT DONE   a v1 -> v2 migration, a legacy reader, an upgrade path, a
-///              version graph. Every one of them would be machinery built to
-///              preserve files that only this developer's own experiments
-///              produced.
-///   NOT DONE   bumping this number. It states what a document MEANS, and the
-///              meaning of every field is unchanged; the SHAPE changing is a
-///              different claim, carried by the Loom envelope's own version
-///              (WorkshopDocument v2), which is what actually refuses an older
-///              file. Incrementing it here as well would be discipline theatre:
-///              a second refusal for a document the first one already stopped.
-///
-/// Real file-format compatibility policy is required before an official release,
-/// when an external artifact or consumer actually deserves preservation. The
-/// standing trigger is unchanged and it is not this: it is the first format
-/// change that must READ a real document written by a released build.
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline constexpr std::int64_t kFormatVersion = 1;
 
 /// The two spellings of an authored extent, in the file. Words, not the
@@ -204,8 +49,9 @@ inline constexpr const char* kModePercent = "percent";
 /// to materialisation: a hostile document does not get to choose the cost.
 inline constexpr std::uintmax_t kMaxDocumentBytes = 1u << 22; // 4 MiB
 
-/// The file's suggested name. Workshop has no file browser and no project
-/// concept; it has one path, given on the command line or defaulted to this.
+/// The file's suggested name: a document has one path, given on the command line
+/// (`--document`) or defaulted to this -- the project browser and the recipes are about
+/// source, and neither chooses where the document lives.
 inline constexpr const char* kDefaultDocumentName = "workshop.json";
 
 // ---- The file's own shapes -------------------------------------------------
@@ -218,34 +64,8 @@ struct WorkshopExtent {
     ZEN_SHAPE(WorkshopExtent, 1, ZEN_FIELD(mode), ZEN_FIELD(amount));
 };
 
-/// One authored object AS WRITTEN. `name` is the display label and `id` is the
-/// identity -- separate fields here for exactly the reason they are separate in
-/// the vocabulary: two objects may be called `panel` and they are still two
-/// objects, and a format that keyed on the name would make that unsayable.
-///
-/// `context` IS THE RELATIONSHIP, and it is written as the identity it is:
-/// another object's `id`, or 0 for the root. Three things about that, because it
-/// is the one field where the format had a real choice:
-///
-///   it is an IDENTITY and never a position. A relationship written as "the
-///   fourth object" would survive a save and break on the first reorder --
-///   which is the same reason `id` is in this file at all, and the reason the
-///   loader keeps the file's identities rather than minting fresh ones.
-///
-///   it is a NUMBER and not a word, unlike the extent mode next to it, and the
-///   asymmetry is deliberate rather than an inconsistency. `mode` is written as
-///   `"cells"`/`"percent"` because its in-memory 0/1 are ARBITRARY -- renumber
-///   the two constants and every saved document silently changes size. Zero
-///   cannot be renumbered: it is not an identity because the mint starts at 1,
-///   and a document whose objects included a #0 would already be illegal. The
-///   static_assert below is that argument, made into a compile error rather than
-///   left as a paragraph.
-///
-///   it is NOT VALIDATED HERE. Whether #4 exists, and whether following it comes
-///   back around, is the document's law and is asked once, in
-///   `doc::check_document`. This file's job is the same as it is for an extent:
-///   say what the shape of the written thing is, and let the one law judge what
-///   it means.
+/// One authored object AS WRITTEN.
+// WL-DOC-13 -- agents/workshop/document-file.md
 struct WorkshopObject {
     std::int64_t id = 0;
     std::string name;
@@ -269,14 +89,7 @@ static_assert(ui::kRootContext < doc::kFirstIdentity,
 
 /// A whole saved document: what it is, which version of that it is, the next
 /// identity to mint, and the objects in AUTHORED ORDER.
-///
-/// `next_id` is here and it is the whole answer to "what does the same object
-/// mean across process death". Without it a loader has to guess the mint, and
-/// the only available guess -- one past the largest surviving id -- RECYCLES the
-/// identity of an object that was deleted before the save. A maker who made #3,
-/// deleted it, saved, and came back would find their next object silently
-/// wearing a dead object's name. The counter is four bytes and it is the
-/// cheapest thing in this file that could not be reconstructed.
+// WL-DOC-13 -- agents/workshop/document-file.md
 struct WorkshopDocument {
     std::string format;
     std::int64_t format_version = 0;
@@ -285,7 +98,7 @@ struct WorkshopDocument {
 
     /// Version 2, because the objects it holds grew a field and a published
     /// shape is immutable. `format_version` below is a DIFFERENT
-    /// claim and did NOT move -- see the note on it.
+    /// claim and did NOT move.
     ZEN_SHAPE(WorkshopDocument, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(next_id), ZEN_FIELD(objects));
 };
@@ -305,15 +118,7 @@ inline WorkshopExtent extent_out(const ui::Extent& e) {
 }
 
 /// The document, as the value that gets written.
-///
-/// ORDER IS PRESERVED AND THAT IS MEANING, not tidiness. In this application
-/// the order of the objects decides four things a maker can see: which
-/// rectangle is painted over which, which object a click finds where two
-/// overlap (`ui::hit` answers with the LAST one containing the cell), the order
-/// of the object list, and where the selection lands after a delete. So the
-/// file writes the document's order and never sorts -- sorting by id or by name
-/// would make a saved document look tidier and reload with a different object
-/// under the maker's pointer.
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline WorkshopDocument to_document(const WorkshopDoc& d) {
     WorkshopDocument out;
     out.format = kFormat;
@@ -327,11 +132,8 @@ inline WorkshopDocument to_document(const WorkshopDoc& d) {
     return out;
 }
 
-/// A document as text. SERIALIZATION IS OBSERVATION: the argument is const and
-/// nothing here normalises, rounds, re-orders, renumbers or tidies a value on
-/// its way out. What a maker authored is what gets written, including a value
-/// some later rule might not accept -- because the alternative is a save that
-/// silently edits the work it was asked to preserve.
+/// A document as text.
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline std::string to_text(const WorkshopDoc& d) {
     return loom::compat::serialize(loom::to_value(to_document(d)));
 }
@@ -340,13 +142,7 @@ inline std::string to_text(const WorkshopDoc& d) {
 
 /// The authored extent a written one means. False for a mode this format does
 /// not have a word for.
-///
-/// It is a CLOSED set, deliberately. The Loom's gate proves the field is text;
-/// only Workshop knows which text is a mode, so an unrecognised word is refused
-/// here rather than defaulted to cells. Defaulting would silently turn a
-/// document Workshop does not understand into one it does -- and a share read as
-/// a cell count is exactly the authored/resolved collapse this whole arc exists
-/// to prevent.
+// WL-DOC-13 -- agents/workshop/document-file.md
 inline bool mode_in(const WorkshopExtent& w, ui::Extent& out) {
     if (w.mode == kModeCells) {
         out = ui::Extent{ui::kExtentCells, w.amount};
@@ -366,11 +162,7 @@ inline std::string unknown_mode(const WorkshopExtent& w) {
 }
 
 /// What reading produced: whether it worked, and the document if it did.
-///
-/// The document is a CANDIDATE. It has been through the format's own checks and
-/// through the Loom's gate; it has NOT been through the document law, because
-/// that law belongs to `doc::` and there is one copy of it. `load_into` below is
-/// the composition, and it is what every caller should use.
+// WL-DOC-14 -- agents/workshop/document-file.md
 struct Loaded {
     Written outcome;
     WorkshopDoc document;
@@ -439,17 +231,7 @@ inline Loaded from_text(std::string_view bytes) {
 
 /// Read a document from text INTO a live one -- the whole transaction, and the
 /// only composition any caller needs.
-///
-/// Two refusals, in two layers, and the live document is untouched by both:
-///
-///   the FORMAT refuses    the bytes are not a version-1 Workshop document
-///                         (from_text, above -- it never sees `live`).
-///   the DOCUMENT refuses  they are, and they do not describe a legal document
-///                         (doc::restore -- it validates before it assigns).
-///
-/// So "a malformed file never leaves Workshop half loaded" is structural rather
-/// than careful: there is no path here that writes a field into `live` before
-/// the whole candidate has been judged.
+// WL-DOC-14 -- agents/workshop/document-file.md
 inline Written load_into(WorkshopDoc& live, std::string_view bytes) {
     Loaded loaded = from_text(bytes);
     if (!loaded.outcome.accepted) {
@@ -461,35 +243,7 @@ inline Written load_into(WorkshopDoc& live, std::string_view bytes) {
 // ---- The file itself -------------------------------------------------------
 
 /// ONE SPELLING OF A PATH, RESOLVED AGAINST THE PLACE IT WAS MEANT RELATIVE TO.
-///
-/// THIS IS NOT A PATH TYPE AND NOT A PATH FRAMEWORK. It is one pure function, and it
-/// exists because the alternative was measured and is a defect: a relative spelling that
-/// several parties each resolve at the moment they happen to spend it means whatever each
-/// party's own footing happens to be, and a build recipe naming `src/a.cpp` came to mean
-/// the editor's file and the compiler's file -- two different files, silently. A spelling
-/// is resolved ONCE, against a base somebody named, and what comes out is what everybody
-/// afterwards compares and opens.
-///
-/// THREE STEPS, AND DELIBERATELY NO FOURTH:
-///
-///   absolute      a relative spelling is joined to `base`; an absolute one is already an
-///                 answer and is left exactly as it was authored.
-///   lexical       `lexically_normal` folds `.` and `..` as TEXT. It touches no disk, so
-///                 it cannot fail, cannot block, and cannot be defeated by a path that is
-///                 not there yet -- which matters, because a source file is a legitimate
-///                 thing to name before it exists.
-///   one separator `generic_string` so `a/b` and `a\b` are one spelling on Windows and the
-///                 answer reads the same in every notice on either platform.
-///
-/// WHAT IT IS NOT: `canonical`/`weakly_canonical` are not called, so this resolves
-/// SPELLINGS and never filesystem OBJECTS. Two spellings this returns equal name one file;
-/// two it returns different MAY still be one file -- through a symbolic link, a hard link,
-/// or Windows' case-insensitive comparison -- and nothing here claims otherwise. That is a
-/// genuine limit, named where it is imposed rather than discovered downstream.
-///
-/// AN EMPTY BASE RESOLVES NOTHING. A relative spelling with no base to stand on is
-/// returned unchanged, because inventing a base is precisely the guess every absence in
-/// this application refuses to make; the caller that has no base refuses in words instead.
+// WL-EDIT-06 -- agents/workshop/editor.md; WL-PROJ-02 -- agents/workshop/project.md
 inline std::string resolved_against(const std::string& base, const std::string& spelling) {
     if (spelling.empty()) {
         return spelling;
@@ -513,15 +267,7 @@ struct FileText {
 /// The whole file, or why not. Refusals are the ordinary ones a maker meets:
 /// the file is not there, it cannot be opened, it is too big to be what it
 /// claims to be.
-///
-/// THE CEILING AND THE WORD FOR WHAT IS BEING READ ARE ARGUMENTS (WS-0), and
-/// that is the whole of what this function gained when a second artifact needed
-/// it. The INVARIANT is identical for both -- refuse a file too large to be the
-/// thing before reading it into memory, so a hostile file does not get to choose
-/// the cost -- and it is the only thing they share; the two ceilings are
-/// different numbers and the refusal names which thing it was measuring against.
-/// Defaulted to the document's, so every existing caller and every existing
-/// sentence is unmoved.
+// WL-DOC-15 -- agents/workshop/document-file.md
 inline FileText read_file(const std::string& path,
                           std::uintmax_t most = kMaxDocumentBytes,
                           const char* what = "a Workshop document") {
@@ -550,28 +296,7 @@ inline FileText read_file(const std::string& path,
 inline std::string pending_path(const std::string& path) { return path + ".saving"; }
 
 /// Write text to a file WITHOUT putting the last good save at risk.
-///
-/// The whole of the mechanism, and the whole of the promise:
-///
-///     serialize the complete candidate   (the caller did; this takes text)
-///     write it to a SIBLING file         so the destination is never opened
-///     close it and check                 a write that failed is a refusal
-///     rename the sibling over the        the destination stops being the old
-///       destination                      document only when a complete new one
-///                                        is ready to take its place
-///
-/// WHAT IS PROMISED: an ordinary detected write failure -- no space, no
-/// permission, a path that is not writable -- does not destroy the previously
-/// valid save, because nothing touches the destination until a complete file
-/// exists beside it. Measured on both supported lanes: `std::filesystem::rename`
-/// replaces an existing destination on POSIX (rename(2)) and on Windows
-/// (libstdc++ uses MoveFileExW with MOVEFILE_REPLACE_EXISTING).
-///
-/// WHAT IS NOT PROMISED, and is not claimed anywhere else either: durability
-/// across a crash or a power cut. Nothing here calls fsync, so a rename may be
-/// visible before the bytes it renamed are on the platter. That is a different
-/// guarantee, it costs a platform-specific syscall on every save, and no
-/// evidence in this project asks for it yet.
+// WL-SESSION-13 -- agents/workshop/session.md; WL-DOC-15 -- agents/workshop/document-file.md
 inline Written write_file(const std::string& path, const std::string& text) {
     const std::string pending = pending_path(path);
     {
@@ -599,7 +324,7 @@ inline Written write_file(const std::string& path, const std::string& text) {
     return Written::ok();
 }
 
-/// The same safe write, into a directory that may not exist yet (WUX-3).
+/// The same safe write, into a directory that may not exist yet.
 ///
 /// The per-user roots are created ON FIRST WRITE -- a read never creates a directory, and
 /// a run that persists nothing leaves no trace -- so the writes that land under them (the
@@ -607,6 +332,7 @@ inline Written write_file(const std::string& path, const std::string& text) {
 /// through this door. Project files deliberately do not: a `--document` path into a
 /// directory that is not there is a maker's typo, and inventing the directory would turn
 /// a loud refusal into a file somewhere nobody meant.
+// WL-SESSION-18 -- agents/workshop/session.md
 inline Written write_file_making_room(const std::string& path, const std::string& text) {
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();
     if (!parent.empty()) {

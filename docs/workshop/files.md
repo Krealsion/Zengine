@@ -108,8 +108,10 @@ hide real contents to look tidy. What is in the directory is what you see.
 project, and up to `/` or to a drive root, where there is nothing above to go to and Workshop
 says so. A directory that is a **link** is shown, **marked `(link)`, and can be entered.**
 Going back up from inside one returns you to where you walked in from rather than to wherever
-the link led — Workshop never quietly rewrites your path into the link's target. On Windows a
-**junction** is marked the same way, not only a symbolic link.
+the link led — Workshop never quietly rewrites your path into the link's target. On Windows the
+mark is the system's own answer — Workshop asks whether the entry is a reparse point — so a
+**junction** is marked the same way as a symbolic link, measured on both supported Windows
+toolchains, MSVC and MinGW.
 
 **What you can read is your operating system's business.** Workshop claims no sandbox and
 pretends to no perimeter: a directory this process may not read refuses in the system's own

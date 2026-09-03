@@ -16,7 +16,18 @@ current.
 - **Stranger-by-default is deliberate** (`ZEN_LOOM_DEV=OFF`): an unexported-surface mistake
   must fail on every machine, not only in CI.
 - **Per-repo green**: Zengine's lane never re-runs Loom's suite — state which repo's green you
-  proved.
+  proved, which configuration, which compiler.
+- **Windows is two standard libraries, and a Windows claim names the one it was measured on.**
+  MinGW-w64/libstdc++ is the maker's daily build; its lane (`Zengine / Windows / MinGW-w64
+  Loom stranger`) is REQUIRED. MSVC's STL is the toolchain released Windows users are expected
+  to build with; its lane is ADVISORY (`continue-on-error`) until it can be proven locally as
+  a matter of course. Both are supported in the long run, and neither is evidence for the
+  other: measured on the Files browser, libstdc++ reports a directory junction as `directory`
+  unfollowed and does not implement `create_directory_symlink`, MSVC's STL reports the
+  junction — which is why the Windows branch asks the host (WL-FILES-04). A job under
+  `continue-on-error` is red only in the run's jobs list, never in its conclusion, so read the
+  jobs. "Green on Windows" is not a result; "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL
+  off" is.
 - **Weave libraries go through `zengine_weave()`**, which delegates the reloadable lifetime to
   the Loom's `loom_weave_build_contract()` (KERN-05). Do not reintroduce a private compiler
   flag for it here. A provider that is not a weave goes through `zengine_provider()`
@@ -232,7 +243,7 @@ nothing else. Against a kernel-full Loom it still builds every weave library and
 tests; against a kernel-less one it configures and builds the kernel-independent surface (the
 activation cursor and the header-only vocabularies).
 
-## The repository checks its own documentation and vocabulary
+## The repository checks its own documentation, vocabulary and law
 
 - **`doc_links`** (kind `script`; `tests/check_doc_links.cmake`). Every relative link in a
   current-facing `*.md` and its `#anchor`, plus every repository-relative `*.md` path written
@@ -251,6 +262,141 @@ activation cursor and the header-only vocabularies).
   word *weave*: `zengine_weave()`, `WeaveId`, the weave ABI and weave-only guides all mean
   weave and must not be renamed. Its self-test makes the predicate say **yes** to a token in
   the tree and **no** to one that is absent before it answers.
+- **`law_register`** (kind `script`; `tests/check_law_register.cmake`). Workshop's law is
+  written once, in the registers under `agents/workshop/`, and this entry keeps the form and
+  the names honest: every `##` is a `WL-` entry or the one `## Do not assume`; ids are unique
+  under `agents/`; LAW is one line of at most 210 bytes, MEANS at most 3 and DOES NOT MEAN at
+  most 2, no SINCE line; every PROVEN BY path exists, every backticked identifier occurs in the
+  file named before it, every quoted witness is a `TEST_CASE`/`SUBCASE` literal under `tests/`;
+  every WHY target exists and each record's **Laws supported** is exactly the laws whose WHY
+  names it; every `// WL-…` pointer names entries of the register on its line and every
+  `// Workshop law:` header names existing files; registers ≤ 16 KB, the router ≤ 8 KB,
+  `AGENTS.md` ≤ 20 KB; a law that writes `witness: none` is repeated under its register's
+  `## Do not assume`, and only such a law is. Two stricter checks — an identifier must occur
+  as a whole token in the named file's *code*, comments stripped, where a member spelled
+  `Struct::member` and an overload spelled `name(Type)` are read as their parts; and the
+  declaration under a pointer must be named by **every** law on that line — sit behind
+  `LAW_REGISTER_STRICT`, ON by default since their lists were cleared;
+  `-DLAW_REGISTER_STRICT=OFF` prints the lists and a count without failing, the setting for a
+  phase working one down. It cannot know that a phase edited a witnessed test; that rule is
+  procedural and lives in the router ([`workshop.md`](workshop.md)). By hand:
+  `cmake -P tests/check_law_register.cmake`.
+
+## A check that reads the tree, and a pass that rewrites it
+
+- **Grep code, not comments.** A whole-file grep for an identifier is satisfied by a mention
+  in a comment: 24 wrong attributions survived three register steps that way, and 14 remained
+  once comments were stripped. A check that asks whether a file *declares* or *spends* a name
+  strips `//` and `/* */` first and matches a whole token — `Rect` is not inside
+  `SurfaceRect`. `law_register`'s rule m is the model.
+- **A CMake script that splits text into a list has four characters to fear** — `;`, `[`,
+  `]` and `\` — and the swap that neutralises them is stated once, in the header of
+  `tests/check_law_register.cmake`; read it before writing another tree-reading check. Two
+  companions from the same script: `if(x MATCHES …)` inside a nested loop rewrites
+  `CMAKE_MATCH_n` for the enclosing scope, so copy a match into a variable before looping; and
+  an empty population is a red, never a quiet pass.
+- **A tree-reading check's wall clock is its filesystem's.** The same `law_register` script
+  measured 9.75 s on a 9p-mounted source tree, 1.99 s on an ext4 copy and 2.5 s on the
+  Windows host, so a number quoted without its filesystem says nothing. Quote the tree's
+  filesystem with the number, as the parallel-lane note above already does.
+- **A mass edit over the tree goes sheet → applier → proof, regenerated from the start
+  commit.** The sheet is the decisions, one row per declaration, and it is the review; the
+  applier applies them from a clean checkout of the base commit every time, so a rerun
+  converges; the proof is mechanical and travels with the commit — for a source, strip
+  comments and blank lines and `diff` against the base (empty), and extract the string
+  literals (byte-identical); for a register, everything outside the paragraph edited is
+  byte-identical. Two lessons from the register passes: a sheet for a per-line check carries
+  the **whole pointer group** above a declaration, not the flagged line, because a flagged
+  line's neighbour is a section banner or a content citation and the decision is about the
+  group; and an index over a file — entry line ranges, a cached parse — is **stale at the
+  file's first rewrite**, so resolve fresh on every lookup or re-index after every write. The
+  symptom of a stale index is judgment-shaped (good lines marked for dropping), not
+  tool-shaped.
+
+## Which suite witnesses which area
+
+The registers cite their witnesses by exact case name, so the answer to "which suite pins
+this law" is a grep over `agents/workshop/`; this table is the current shape of that answer,
+most-cited suite first, for choosing where a new case goes and which target to build. Keymap
+and clipboard law is witnessed in the *document* suite, keyboard focus in *panes_input*, the
+Info grounds in *document* — the suite is the subject the case proves, not the file the law
+names.
+
+| register | witnessed by |
+|---|---|
+| arrangement, chrome, geometry, planes, pointer, tab-run, terminal | `workshop_screen`, then `workshop_panes` (window) and `workshop_panels` |
+| attention, info-body, info-controls, pane-manager | `workshop_panels`, then `workshop_document` |
+| catalog, panes-and-windows, setup-file | `workshop_panes` (seam, window), then `workshop_screen` |
+| contextual, press-chain | `workshop_panels`, `workshop_screen`, `workshop_document` |
+| document | `workshop_document`; the file half (document-file) in `workshop_persistence` |
+| editor, files, project | `workshop_editor` and `workshop_files`; project also `workshop_panels` |
+| focus | `workshop_panes` (input), then `workshop_editor`, `workshop_files`, `workshop_document` |
+| keyboard, text-box | `workshop_document`; text-box also `component` |
+| layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |
+| maker-pane | `workshop_panels` (the creator source) |
+| regions | `workshop_screen`, `workshop_document` |
+
+## Driving a live graphical witness
+
+A suite proves a law against a fixture; a live witness proves it against the real window, and
+its harness is where the defects hide. The method, each rule bought by a witness that read a
+working product as broken:
+
+- **Control target first.** Before believing any gesture, make one whose effect you already
+  know and assert it; a witness that cannot say what state it started in cannot say what it
+  measured. Unstick every modifier and send Escape twice at the start — a modifier whose
+  key-up an earlier run lost stays down for the whole desktop, and the next run's activation
+  click arrives as a chord.
+- **Launch with `--isolated`** (WL-SESSION-02): the per-user roots resolve to the designed
+  absence, so a witness reads and writes nothing of the maker's own state.
+- **The channel lies silently.** Build the input structs in compiled code, never by indexed
+  assignment into a value-type array in a shell — the write is dropped, every event goes out
+  all-zero, and the injection call still reports the full count. Prove the foreground with
+  the window handle you were given, not with a thread's own queue facts; a screenshot of a
+  window's rectangle photographs whatever is on top of it.
+- **Aim lies too.** A prose row is the face's line height, not the canvas cell; an arrow key
+  needs its scancode form; a keystroke's bounding box spans the notice row above the line, so
+  crop every calibration diff to the region being calibrated. A TUI frame needs a cursor model
+  (cursor addressing, carriage return and line feed, erase), after which the painted text is
+  the best oracle either medium has.
+- **Three oracles, none of them "did the process exit":** the window title for text, a
+  before/after frame diff with a tolerance and the notice band cropped out for pixels, and a
+  pixel count along a row for a claim that is a number about ink. Ask of every oracle what it
+  would say if the act had no effect, and whether the ink you are measuring is produced by the
+  act itself — an addressed pane draws handles on the rows a search was watching. Order the
+  hypothesis-destroying reads last: a step that reads through the product's own channel may
+  also write it.
+- Working harnesses for both media are kept with the phase records, outside this repository,
+  and are copied rather than rebuilt.
+
+## The mutation harness
+
+A green suite is nothing complained; the mutation matrix is the evidence that a case would
+have. Rules, each learned by a harness that fooled itself:
+
+- **Canary first**: run one mutation known to be caught before trusting the matrix; a matrix
+  whose every row reads CAUGHT against a stale binary is the dangerous kind of wrong.
+- **Snapshot the bytes at the start and restore by rewriting them.** A metadata-preserving
+  copy (`copy2`, `cp -p`) restores an older mtime and rebuilds nothing, so mutation N runs
+  against mutation N−1's objects — the restore must move mtimes. `git checkout -- <file>`
+  over uncommitted work restores the predecessor's file, not yours. Key backups by full path:
+  this repository has four `weave.hpp`.
+- **Hash the artifact the mutation lands in**, not the one that runs — a weave library is
+  loaded, so the test binary is byte-identical across its mutations — and refuse a verdict
+  when it did not change; make the harness hash the source before and after the edit and abort
+  when the pattern matched nothing. Build the whole tree for a library mutation.
+- **A CAUGHT names the assertion that moved**, never the suite: a mutation to `weave.hpp`
+  whose evidence is a `surface` assertion is visibly absurd instead of quietly plausible.
+- **A `static_assert` that refuses a mutant is a catch of a different kind.** Relax it and
+  mutate again, or the report cannot tell a doubled guard from a sole one.
+- **A mask is usually a hole in an older suite.** A mutation that comes back green because
+  every arrangement already satisfies the property is closed by arranging the missing
+  condition — measured as the cheapest audit of past work available. A mutation that removes
+  redundancy rather than a property is a third verdict, unexpressible, and is respelled at the
+  property. A case that lands on a handler's deliberate `false` path proves nothing about the
+  handler.
+- **Never run a restoring harness beside another lane** on the same tree: a source-tree
+  check reddens for a reason that is not your change.
 
 ## Platform traps
 
@@ -267,7 +413,13 @@ activation cursor and the header-only vocabularies).
   spelling. The two say different things, and the diagnostic tells you which one you met:
   `string table overflow at offset 10000097` / `file too big` is this one;
   `too many sections (N)` is the count. **Read the sentence before reaching for a flag** —
-  the flag was already present when panes met this.
+  the flag was already present when panes met this. **And it is the assembler's ceiling, not
+  the format's**: the same GCC 13.1 assembly of `workshop.cpp` that binutils 2.40 (CLion
+  2025.2's bundled MinGW) refuses as `string table overflow at offset 10000011` / `file too
+  big`, binutils 2.45 assembles into a 50 MB object (measured 2026-09-02, unchanged source).
+  The MinGW lane's runner carries a newer binutils, so it builds `workshop.cpp` while a CLion
+  2025.2 toolchain does not, and internal linkage does not buy the object back under 2.40's
+  ceiling (measured: a `static inline` predicate still overflowed).
 - **What spends that table is instantiations per object, four names each.** Every
   vague-linkage function gets a COMDAT, and `-g` mirrors it into `.text$`, `.pdata$`,
   `.xdata$` and `.debug_frame$` — the same mangled suffix stored four times. Measured, a TU
