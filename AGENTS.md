@@ -116,9 +116,10 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
 - Three entries read the source tree rather than a build: `doc_links` (every repo-local
-  documentation reference must resolve, anchors included), `package_vocabulary` (the
-  installed package's nouns) and `law_register` (Workshop's registers: the form, and every
-  name they make). Full contract detail: [agents/verification.md](agents/verification.md).
+  documentation reference must resolve, anchors included, and no current-facing file names
+  a path outside the repository), `package_vocabulary` (the installed package's nouns) and
+  `law_register` (Workshop's registers: the form, and every name they make). Full contract
+  detail: [agents/verification.md](agents/verification.md).
 
 ## Ownership and dependency direction
 

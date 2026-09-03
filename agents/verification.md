@@ -26,9 +26,12 @@ current.
   unfollowed and does not implement `create_directory_symlink`, MSVC's STL reports the
   junction — which is why the Windows branch asks the host (WL-FILES-04); and on a dangling
   junction MSVC's STL fails the kind-ask while libstdc++ answers `directory` from the cached
-  entry and never asks (WL-FILES-14). A job under `continue-on-error` is red only in the run's
-  jobs list, never in its conclusion, so read the jobs. "Green on Windows" is not a result;
-  "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL off" is.
+  entry and never asks — measured in the comment on the WL-FILES-14 second-clause case in
+  `tests/test_workshop_files.cpp`, not in the register, whose MEANS names neither library. A
+  job under `continue-on-error` is red only in the run's jobs list, never in its conclusion,
+  so read the jobs. "Green on Windows" is not a result; "green on Windows/MinGW-w64 GCC
+  13.1, Debug, SDL off" is.
+- **CI runs on pull requests and `main`; a branch push alone gets no run.**
 - **Weave libraries go through `zengine_weave()`**, which delegates the reloadable lifetime to
   the Loom's `loom_weave_build_contract()` (KERN-05). Do not reintroduce a private compiler
   flag for it here. A provider that is not a weave goes through `zengine_provider()`
