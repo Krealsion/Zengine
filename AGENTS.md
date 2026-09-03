@@ -34,23 +34,23 @@ here. A phase that edits this core rechecks its budget: **this file stays at or 
 Executor/internal material (this file and `agents/`) stays out of the public documentation
 index and out of the installed package.
 
-**The register rules.** `law_register` enforces the form and the names; the router, the
-procedure. **a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** a span
-a maker types or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types,
-constants and members under their declaring file. **d** a residue claim is LAW when it is the
-invariant, else DOES NOT MEAN. **e** what a change did not touch is a change note, not a law.
-**f** LAW text in a table escapes `|`. **g** no new phase tags; a tag in a `TEST_CASE` literal
-is a fossil. **h** a record's Alternatives split tried (evidence inline) from argued.
-**i** records wrap at 98 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another.
-**k** Laws supported is generated from the WHY lines: edit the WHY. **l** a record over ten laws
-is suspected of being two. **m** an owner identifier is a whole token in the named file's code,
-comments stripped. **n** a `// WL-` pointer is PROVEN BY inverted: every law on it names the
-declaration beneath. **o** a mass edit is sheet → applier → proof, regenerated from the start
-commit. **p** after a compaction, re-measure everything the report states. **q** a tree-reading
-check self-tests and treats an empty population as red. **r** a check that reads the tree quotes
-its filesystem with its wall clock. **s** a pointer carries only ids whose law names the
-declaration; a member is `Struct::member`, an overload `name(Type)`. **t** a per-line check's
-sheet carries the whole pointer group; an index over a file is re-resolved after every write.
+**The register rules** (`law_register` enforces form and names; the router, procedure).
+**a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a maker types
+or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types, constants and
+members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
+DOES NOT MEAN. **e** what a change did not touch is a change note, not a law. **f** LAW text in
+a table escapes `|`. **g** no new phase tags; a tag in a `TEST_CASE` literal is a fossil.
+**h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at
+98 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
+generated from the WHY lines: edit the WHY. **l** a record over ten laws is suspected of being
+two. **m** an owner identifier is a whole token in the named file's code, comments stripped.
+**n** a `// WL-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
+**o** a mass edit is sheet → applier → proof, regenerated from the start commit. **p** after a
+compaction, re-measure what the report states. **q** a tree-reading check self-tests; an empty
+population is red. **r** a tree-reading check quotes its filesystem with its wall clock. **s** a
+pointer carries only ids whose law names the declaration; a member is `Struct::member`, an
+overload `name(Type)`. **t** a per-line sheet carries the whole pointer group; a file index is
+re-resolved after every write.
 
 ## Build / test (canonical: WSL; consumes an *installed* Loom)
 
