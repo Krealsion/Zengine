@@ -86,6 +86,7 @@ loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const c
     return id;
 }
 
+// WL-PROJ-15 -- agents/workshop/project.md
 std::string exe_dir() {
 #if defined(_WIN32)
     char buf[MAX_PATH];

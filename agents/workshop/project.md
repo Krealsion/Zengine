@@ -193,13 +193,15 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 LAW — The recipe catalog Workshop ships is staged beside the executable under `kDefaultRecipesName`; `--recipes` names a different one, and there is no registry, no picker and no search path.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`; witness: none
+PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`; `workshop/workshop.cpp`
+`exe_dir`, `Arguments::recipes`; `workshop/CMakeLists.txt` `zengine_workshop_dir`;
+`tests/test_workshop_files.cpp` case `"the shipped catalog is staged beside the executable, under
+the name the launch resolves"`, case `"the launch resolves the shipped catalog beside the
+executable, and --recipes is the only other road"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## Do not assume
 
 - That a running build follows a replaced catalog — it does not, and that has no witness yet
   (WL-PROJ-03).
-- That WL-PROJ-15 is witnessed — it is not (witness: none): where the shipped catalog is
-  staged is a launch fact no case reads.
 

@@ -206,7 +206,8 @@ MEANS
 PROVEN BY — `workshop/files.hpp` `enumerate_directory`, `Listing`;
 `tests/test_workshop_files.cpp` case `"EDIT-1: a directory that cannot be listed is a refusal, not
 an empty listing"`, case `"QR-12: a name this platform will not spell is one inert row, not the
-end of it"`.
+end of it"`, case `"an entry whose kind cannot be asked keeps its row as a file, and the editor's
+door refuses it"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## Do not assume

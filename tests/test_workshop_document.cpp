@@ -4658,6 +4658,94 @@ TEST_CASE("KEY-0: the terminal header and hints spell the effective toggle") {
     CHECK(t.notice() == "terminal closed -- ^g reopens it");
 }
 
+TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
+    // THE LAW (WL-KEY-14) AT THE TWO SEAMS the KEY-0 cases above do not pin: the ORDER the
+    // writer spells and the parser tolerates, and the DUPLICATE the parser refuses. Pure
+    // values, asked of the writer and the parser directly.
+    const std::int64_t four =
+        input::mod::kCtrl | input::mod::kShift | input::mod::kAlt | input::mod::kSuper;
+    const Gesture all{input::scan::kZ, four};
+
+    // THE WRITER SPELLS ONE ORDER -- ctrl, shift, alt, super -- whatever order the bits
+    // were set in, and a punctuation key by its own character.
+    CHECK(gesture_word(all) == "ctrl+shift+alt+super+z");
+    CHECK(gesture_word(Gesture{input::scan::kZ, input::mod::kSuper | input::mod::kCtrl}) ==
+          "ctrl+super+z");
+    CHECK(gesture_word(Gesture{input::scan::kA, input::mod::kAlt | input::mod::kShift}) ==
+          "shift+alt+a");
+    CHECK(gesture_word(Gesture{input::scan::kLeftBracket, input::mod::kNone}) == "[");
+    CHECK(gesture_word(Gesture{input::scan::kMinus, input::mod::kCtrl}) == "ctrl+-");
+
+    // THE PARSER TAKES ANY ORDER: all twenty-four spellings of the four words mean the one
+    // gesture, and the writer puts each of them back into the one order.
+    const char* words[4] = {"ctrl", "shift", "alt", "super"};
+    int order[4] = {0, 1, 2, 3};
+    std::size_t spellings = 0;
+    do {
+        std::string text;
+        for (const int i : order) {
+            text += words[i];
+            text += '+';
+        }
+        text += 'z';
+        CAPTURE(text);
+        const ParsedGesture parsed = parse_gesture(text);
+        REQUIRE_MESSAGE(parsed.accepted, parsed.refusal);
+        CHECK(parsed.gesture == all);
+        CHECK(gesture_word(parsed.gesture) == "ctrl+shift+alt+super+z");
+        ++spellings;
+    } while (std::next_permutation(order, order + 4));
+    CHECK(spellings == 24);
+    CHECK(parse_gesture("shift+ctrl+a").gesture == parse_gesture("ctrl+shift+a").gesture);
+
+    // A DUPLICATE IS REFUSED, BY THE NAME THAT REPEATED -- however far apart the two are and
+    // whatever the key -- and a refusal is a refusal: no gesture comes with it.
+    struct Twice {
+        const char* text;
+        const char* word;
+    };
+    for (const Twice t : {Twice{"ctrl+ctrl+z", "ctrl"}, Twice{"shift+ctrl+shift+a", "shift"},
+                          Twice{"alt+super+alt+home", "alt"}, Twice{"super+super+[", "super"}}) {
+        CAPTURE(t.text);
+        const ParsedGesture parsed = parse_gesture(t.text);
+        CHECK_FALSE(parsed.accepted);
+        CHECK(parsed.refusal.find("appears twice") != std::string::npos);
+        CHECK(parsed.refusal.find(std::string("`") + t.word + "`") != std::string::npos);
+        CHECK(parsed.gesture == Gesture{});
+    }
+
+    // AN UNKNOWN MODIFIER OR KEY IS REFUSED BY NAME, NEVER GUESSED: `meta` is not `alt`,
+    // `f13` is not a key, and a modifier standing where the key should be is a key name
+    // this keymap does not have.
+    CHECK(parse_gesture("meta+z").refusal.find("`meta` is not a modifier") != std::string::npos);
+    CHECK(parse_gesture("ctrl+f13").refusal.find("`f13` is not a key") != std::string::npos);
+    CHECK(parse_gesture("ctrl+shift").refusal.find("`shift` is not a key") != std::string::npos);
+    CHECK_FALSE(parse_gesture("").accepted);
+
+    // THE ROUND TRIP OVER THE WHOLE NAMED SCAN SET, under every modifier set: what the
+    // writer spells, the parser reads back as the same gesture, and each name means its one
+    // scancode. The named set is the grammar; nothing outside it has a spelling.
+    std::size_t named = 0;
+    for (std::int64_t sc = 1; sc < 128; ++sc) {
+        const char* name = key_name_of(sc);
+        if (name == nullptr) {
+            continue;
+        }
+        ++named;
+        CHECK(scancode_of_name(name) == sc);
+        for (std::int64_t mods = 0; mods < 16; ++mods) {
+            const Gesture g{sc, mods};
+            const std::string word = gesture_word(g);
+            CAPTURE(word);
+            const ParsedGesture back = parse_gesture(word);
+            REQUIRE_MESSAGE(back.accepted, back.refusal);
+            CHECK(back.gesture == g);
+        }
+    }
+    REQUIRE_MESSAGE(named > 0, "the named scan set is empty -- nothing was witnessed");
+    MESSAGE((std::to_string(named) + " named keys, 16 modifier sets each, round-tripped"));
+}
+
 // ============================================================================
 // ---- WUX-1: the graphical voice -------------------------------------------
 //
