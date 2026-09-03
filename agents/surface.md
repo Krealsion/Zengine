@@ -469,8 +469,8 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
   weave can host a `loom::TerminalSession` — a different WeaveId with its own grant and its own
   door — and stay one weave, one canvas publisher and one input accepter: every message is
   stamped with the participant's identity and gated against the participant's grant, and the
-  host weave's own grant is untouched. Workshop's Terminal is that shape
-  ([the decision record](decisions/the-terminal-is-a-participant.md)).
+  host weave's own grant is untouched. Workshop's Terminal is that shape; see
+  [the decision record](decisions/the-terminal-is-a-participant.md).
 - A panel owned by "something else" is a small addition — ask which separation it needs. Only a
   genuine need for a different weave (an independent lifetime, reload, or isolation) justifies
   the wire vocabulary that would have to come first: focus arbitration, canvas layering, or a
