@@ -2669,7 +2669,7 @@ private:
     }
 
     /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
-    // WL-TERM-02 -- agents/workshop/terminal.md
+    // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
     void submit_terminal_line() {
         const std::string line = session_.terminal.input.text();
         session_.terminal.input.clear();
