@@ -6,65 +6,7 @@
 
 // WHAT EXISTS INSIDE A PANE A MAKER MADE -- the first pane implementation whose interior is
 // authored DATA rather than a painter compiled into this application.
-//
-// THE QUESTION THIS FILE ANSWERS, and the whole of it: what is the smallest value that can
-// truthfully say what is inside a pane a maker created from inside Workshop? Until this
-// file, no type could. `PaneRef` says WHICH pane a maker meant, `SetupPane` says WHERE it
-// participates on one desk, and the inside of every pane was one of two things: C++
-// composition (a built-in's painter) or rows a provider chose to say (an external pane's
-// cache). Neither is a thing a maker can author, inspect or keep.
-//
-// So this is that value:
-//
-//   PaneDefinition     a durable NAME, and a list of REGIONS in authored order, plus the
-//                      identity mint that keeps a deleted region's id from being reused.
-//   TextRegion         one region: a stable definition-local id, its KIND (one is admitted,
-//                      `text`), an authored place and extent on the fine lattice RELATIVE
-//                      TO THE PANE'S INTERIOR, and its content.
-//
-// ---- What this value IS NOT, and the sentence that keeps it honest ----------------------
-//
-// THIS IS ONE WAY A PANE CAN BE IMPLEMENTED. IT IS NOT THE ONTOLOGY OF PANE.
-//
-// A built-in pane's interior is still code. A provider pane's interior is still its own,
-// behind its own seam. Neither has to be converted into this representation before
-// Workshop can describe it, and nothing here implies it should be: a later tool that works
-// on an arbitrary pane asks that pane what regions it honestly exposes, and THIS kind of
-// pane answers with the list below because the list is what it is made of. The limitation
-// to one region kind, and to static text, is a limitation of this first implementation and
-// not a law about panes.
-//
-// ---- The lattice and the frame ------------------------------------------------------------
-//
-// A REGION IS PLACED RELATIVE TO THE PANE'S INTERIOR -- the rectangle inside the pane's
-// chrome that the ordinary pane path offers at presentation (`pane_inside`, screen.hpp) --
-// and never relative to the canvas, the screen, or any workspace. That is the whole reason
-// a definition needs no exterior size: move the pane, shrink it, open it on the other face,
-// and the region resolves freshly against the interior it is offered, exactly as a pane
-// resolves freshly against the screen it is offered.
-//
-// ITS GEOMETRY IS SUB-UNITS OF A CANVAS CELL (`surface::kCellSubs`), the same fine lattice
-// pane arrangement has stood on since WUX-2, so a maker at a window authors a pixel of
-// place and a maker at a terminal authors a cell, and both are ONE number here. What a face
-// makes of that number -- how many rows of type it sets, whether it falls back to the cell
-// projection, which pixel a fractional edge lands on -- is presentation, resolved at every
-// paint and stored nowhere.
-//
-// ---- What this value cannot carry, deliberately -------------------------------------------
-//
-// No pixel, no cell count, no font metric, no row or column capacity, no viewport, no
-// canvas coordinate: every one of those is a medium's answer and would be a stale claim
-// the moment it was written down. And no callback, no role, no key binding, no path, no
-// callable, no grant, no provider reference, no operator, no Source, no message
-// destination: loading a definition presents; it may not act. There is no field on which
-// any of those could be spelled, which is the enforcement -- a representation that cannot
-// say "send" cannot be made to send by a file.
-//
-// THE LIST IS THE SHAPE EVEN THOUGH THE FIRST FLOOR EXPOSES ONE REGION, so a second text
-// region is one more row and not a representation rewrite. What is NOT here -- anchors,
-// docking, fill, constraints, nesting, clipping policy, a second kind, a widget set -- is
-// absent because nothing has earned it, and every one of them would be a framework arriving
-// ahead of its consumer.
+// Workshop law: agents/workshop/maker-pane.md
 
 #include "document.hpp" // `doc::kMaxCells` -- the one lattice bound every authored extent already has
 #include "property.hpp" // `Written` -- the one refusal-with-reason shape
@@ -89,11 +31,8 @@ inline constexpr std::int64_t kText = 0;
 
 // ---- The bounds, each an INPUT BOUNDARY and not a capacity --------------------------------
 
-/// How long a maker-made pane's name may be. THIRTY-TWO BYTES, the same number a runtime
-/// pane's display name is admitted at (`kMaxPaneNameLen`, setup.hpp) and for the same
-/// measured reason: this name is also what the picker lists, in a column of twelve cells
-/// that marks its own cut. It is comfortably under the pane-key bound the durable
-/// reference imposes (`kMaxPaneKeyLen`), which setup.hpp asserts at compile time.
+/// How long a maker-made pane's name may be.
+// WL-MAKER-01, WL-MAKER-13 -- agents/workshop/maker-pane.md
 inline constexpr std::size_t kMaxMakerPaneNameLen = 32;
 
 /// How many regions one definition may carry. Sixteen bounds a file at a few kilobytes
@@ -105,12 +44,8 @@ inline constexpr std::size_t kMaxRegions = 16;
 /// the presentation wherever the region is narrower.
 inline constexpr std::size_t kMaxRegionTextLen = 256;
 
-/// THE AUTHORED LATTICE'S WALLS, in sub-units -- the document's cell ceiling expressed at
-/// the resolution a region carries. A coordinate is `0..kRegionSubMax`, an extent is
-/// `1..kRegionSubMax`: a region may be authored past its pane's interior (the interior
-/// clips it at presentation, exactly as the canvas clips an off-room pane) and may be
-/// authored finer than a cell (a fine rectangle is honest INTENT; what a face can show of
-/// it is that face's answer).
+/// THE AUTHORED LATTICE'S WALLS, in sub-units.
+// WL-MAKER-01 -- agents/workshop/maker-pane.md
 inline constexpr std::int64_t kRegionSubMax = doc::kMaxCells * surface::kCellSubs;
 
 /// The first identity the mint hands out. Never 0, so an absent identity has a number no
@@ -120,12 +55,7 @@ inline constexpr std::int64_t kFirstRegionId = 1;
 // ---- The value ------------------------------------------------------------------------------
 
 /// ONE REGION OF A MAKER-MADE PANE'S INTERIOR.
-///
-/// `id` is definition-local and stable: minted once, never reused after a deletion, so a
-/// row that names region 3 names the same region until that region is gone. `kind` is the
-/// closed set above. `x`/`y`/`w`/`h` are sub-units relative to the pane's INTERIOR origin.
-/// `text` is the content of a `text` region -- printable ASCII, the shipped media's honest
-/// reach, and empty is legal (a fresh region has nothing to say yet).
+// WL-MAKER-01 -- agents/workshop/maker-pane.md
 struct TextRegion {
     std::int64_t id = 0;
     std::int64_t kind = region_kind::kText;
@@ -139,12 +69,8 @@ struct TextRegion {
 };
 
 /// A MAKER-MADE PANE'S INTERIOR: its durable name, its regions in authored order, and the
-/// mint. `regions` is paint order and, one day, hit order -- the document's own rule about
-/// its objects, and the reason the list is never sorted.
-///
-/// AN EMPTY NAME IS "NO DEFINITION". A definition always has a name -- the name IS the
-/// durable identity a `PaneRef` carries -- so a value with none is the absence of one, and
-/// `open()` is that test written once.
+/// mint.
+// WL-MAKER-01, WL-MAKER-03 -- agents/workshop/maker-pane.md
 struct PaneDefinition {
     std::string name;
     std::vector<TextRegion> regions;
@@ -156,11 +82,7 @@ struct PaneDefinition {
 };
 
 // ---- The law: what this application accepts as a definition ----------------------------------
-//
-// ONE LAW, REACHED TWO WAYS -- the setup's discipline, applied to the ninth durable artifact.
-// A name typed at the Pane Creator's prompt and a name read out of a file meet the SAME
-// function; a region authored through a typed row and a region read out of a file meet the
-// SAME function.
+// WL-MAKER-07 -- agents/workshop/maker-pane.md
 
 /// What this application accepts as a maker-made pane's name.
 ///
@@ -168,6 +90,7 @@ struct PaneDefinition {
 /// enough to read, and free of whitespace and control bytes so that `provider/name` stays
 /// one legible token in a notice and in a file. `/` is refused too, because that is the
 /// character the reference's own prose spelling uses between its halves.
+// WL-MAKER-13 -- agents/workshop/maker-pane.md
 inline Written check_maker_pane_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a pane name cannot be empty");
@@ -400,17 +323,7 @@ inline Written author_region_axis(PaneDefinition& d, std::int64_t id, std::size_
 }
 
 // ---- A new pane's first region: the developer's default, authored -------------------------------
-//
-// `New Pane` seeds ONE empty text region, because the first floor's completion is a pane
-// with one region and a pane with none would be a thing a maker cannot type into. The
-// numbers are the developer's default for a region nobody has placed yet -- and unlike a
-// pane's default place they are AUTHORED the moment the region exists: a region has no
-// `default` mode, so these are ordinary values the maker reads and retypes.
-//
-// TWENTY-FOUR BY TWO CELLS, at the interior's origin. Two cells tall so the shipped face sets
-// one row of type in it (one cell holds no row of an 18-pixel line, HD-5's table) and a
-// terminal shows two; twenty-four wide so a short sentence fits on either face at the
-// narrowest stack pane this composition lays out.
+// WL-MAKER-11 -- agents/workshop/maker-pane.md
 inline constexpr std::int64_t kNewRegionX = 0;
 inline constexpr std::int64_t kNewRegionY = 0;
 inline constexpr std::int64_t kNewRegionW = 24 * surface::kCellSubs;
@@ -431,21 +344,7 @@ inline PaneDefinition new_definition(std::string name) {
 /// THE ONE MAKER-MADE PANE THIS RUN HAS OPEN, and the facts about it that are the run's
 /// rather than the definition's: which file it stands for, and the last value that file
 /// was known to hold.
-///
-/// ONE OPEN DEFINITION, SESSION-OWNED, PRESENTATION OWNS NONE OF IT -- the source editor's
-/// lifecycle law, inherited whole. The pane that presents this on the desk is a
-/// presentation; removing it, covering it, moving it or switching layouts touches the
-/// presentation and leaves every byte here standing.
-///
-/// DIRTY DERIVES BY COMPARISON, never by a flag: `saved` is the definition as it is on
-/// disk (or the absence of one, an empty value, for a pane never yet written), so "does
-/// the file hold what the screen shows" is one comparison that cannot drift from the thing
-/// it describes. A fresh pane that was never saved is dirty by exactly that arithmetic --
-/// the file holds nothing and the screen holds a pane.
-///
-/// `path` IS WHERE A SAVE GOES AND WHERE THE OPEN CAME FROM. Empty means no file was
-/// chosen for this run: the pane is still made, still edited and still presented, and the
-/// save door refuses in words.
+// WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
 struct MakerPane {
     std::string path;
     PaneDefinition definition;

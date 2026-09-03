@@ -205,6 +205,7 @@ their diagnostics, plus script entries.
 | the `ui_*` and `timer_*` compile entries | that a fence is a compile error, with its positive control |
 | `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves |
 | `package_vocabulary` | the installed package's public variables still name the *physical* thing they hold. Retired spellings appear in exactly one file — the checker that declares them — and nowhere else |
+| `law_register` | Workshop's law is written once, in registers under `agents/workshop/`, and every name a register makes still resolves: each entry is well-formed, every path, identifier and test case it names exists in the tree, every decision record lists exactly the laws that cite it, and every `// WL-…` pointer above a declaration names only laws that name that declaration |
 
 ### `doc_links`, because documentation is verified here too
 

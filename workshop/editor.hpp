@@ -7,47 +7,7 @@
 // THE SOURCE EDITOR'S OWN MACHINERY: a multiline buffer, the caret and selection in it,
 // the source-byte law, and the tab geometry -- everything about editing a source document
 // that is not presentation and not file custody.
-//
-// WHY THIS IS NOT `component::TextBox`. The component owns ordinary ONE-LINE text
-// mechanics, proven by four consumers whose commit models have nothing in common; this
-// editor is the application's FIRST multiline consumer, and one consumer's machinery lives
-// in the consumer, built in the component's image (the HD-4/HD-5 law: extract at the
-// second copy, never at the first). What would earn a different seam later is named here
-// so the trigger is a sentence and not a feeling: a SECOND genuine multiline consumer, the
-// same document shown in two simultaneous independent views, or a replaceable editing
-// backend (a real Vim) taking buffer custody. Until one of those exists, `EditorBuffer`
-// is Workshop's own, and `component::TextBox` stays exactly as wide as its four one-line
-// consumers earned.
-//
-// WHAT THE LAYERS OWN, so a future backend replacement has a seam to cut along:
-//
-//   the document      path identity, save authority, the dirty answer, the byte policy
-//   (EditorState +    (which bytes may be source, which line endings this document uses).
-//    the weave's      Holding these OUTSIDE the mechanics is what keeps a future Vim
-//    doors)           backend free to replace buffer custody whole without replacing
-//                     what file is open or who may write it.
-//   the mechanics     the lines, the caret, the anchor, the preferred column, the
-//   (EditorBuffer)    history, and the editing-key vocabulary -- replaceable as a unit.
-//   the presentation  screen.hpp projects the buffer through a viewport onto a pane and
-//                     never becomes a second owner of any of it.
-//
-// THE UNIT IS A BYTE AND EVERY BYTE IS A CHARACTER, because the SOURCE-BYTE LAW below
-// admits only printable ASCII and the tab. That is not a convenience -- it is the honest
-// reach of the shipped media: the cell projection writes one cell per byte and a terminal
-// folds a multi-byte sequence into one glyph, while the SDL face renders a row as one
-// string, so byte-columns and painted glyphs genuinely disagree for any multi-byte
-// character. An editor whose caret, selection and mouse must all be exactly where the
-// paint says they are cannot carry text the media cannot place; a file that needs more is
-// refused whole, with the offending line named, and never rewritten (see `source_in`).
-//
-// THE HISTORY IS SNAPSHOTS, BOUNDED TWICE, AND LOCAL (the component's own model, with one
-// addition). Undo holds copies of {lines, caret, anchor}; contiguous same-kind keystrokes
-// coalesce; movement ends a group; `set_lines` -- how a document is opened, reverted or
-// replaced -- wipes it, so undo can never resurrect a previous document's text under a new
-// path. The addition is a BYTE budget beside the depth cap: a document is no longer one
-// small line, so a hundred snapshots of a large file would be real memory, and the honest
-// failure mode of a bounded history is forgetting the far past -- never refusing the
-// present, and never growing without bound.
+// Workshop law: agents/workshop/editor.md
 
 #include "component/text_box.hpp" // the word/character helpers and the owner-held Clipboard
 #include "property.hpp"           // Written -- the one refusal-with-reason shape here
@@ -63,9 +23,8 @@ namespace zengine::workshop {
 
 // ---- The editor's fixed policy numbers ---------------------------------------------------
 
-/// THE TAB STOP IS FOUR COLUMNS, FIXED. Tab bytes are preserved in the source and expanded
-/// only at presentation; a preference for the width is deliberately not authored in this
-/// phase -- a knob is a file format commitment, and nothing has asked for one.
+/// THE TAB STOP IS FOUR COLUMNS, FIXED.
+// WL-EDIT-08 -- agents/workshop/editor.md
 inline constexpr std::int64_t kEditorTabStop = 4;
 
 /// The largest file this editor will open. The document ceiling's own number: a source
@@ -73,9 +32,7 @@ inline constexpr std::int64_t kEditorTabStop = 4;
 inline constexpr std::uintmax_t kMaxSourceBytes = 1u << 22; // 4 MiB
 
 /// How many undo steps the editor keeps, and how many bytes of snapshots it will hold.
-/// Depth is the component's own answer; the byte budget exists because a document is not
-/// one small line (see the header comment). Eviction is oldest-first, and the newest
-/// entry is always kept whatever it costs -- an undo that exists must work.
+// WL-EDIT-01 -- agents/workshop/editor.md
 inline constexpr std::size_t kEditorUndoDepth = 100;
 inline constexpr std::size_t kEditorUndoBudgetBytes = 8u << 20; // 8 MiB of snapshots
 
@@ -86,13 +43,8 @@ inline constexpr std::int64_t kEditorWheelLines = 3;
 
 // ---- The line-ending convention ----------------------------------------------------------
 
-/// A DOCUMENT HAS ONE LINE-ENDING CONVENTION, and it is a fact about the document rather
-/// than about this build or this platform. It is detected at open, preserved at save, and
-/// spent on every newline the maker inserts; a file whose breaks disagree with each other
-/// cannot be represented by one convention and is refused whole rather than normalized
-/// (`source_in`). A file with no line break at all gets `kLF` -- a default that becomes
-/// observable only once the maker actually inserts a newline, which is the honest place
-/// for a default to start mattering.
+/// A DOCUMENT HAS ONE LINE-ENDING CONVENTION.
+// WL-EDIT-07 -- agents/workshop/editor.md
 namespace line_ending {
 inline constexpr std::int64_t kLF = 0;
 inline constexpr std::int64_t kCRLF = 1;
@@ -105,11 +57,8 @@ inline const char* line_break_of(std::int64_t convention) noexcept {
 
 // ---- The source-byte law -----------------------------------------------------------------
 
-/// MAY THIS BYTE SIT INSIDE A LINE OF SOURCE THIS EDITOR HOLDS? Printable ASCII and the
-/// tab; nothing else. Line breaks are structure, not line bytes, so they are not admitted
-/// here -- `source_in` consumes them while splitting. The bound is the shipped media's
-/// honest reach (see the header comment), stated once and spent at every door: the file,
-/// typed text, and a paste.
+/// MAY THIS BYTE SIT INSIDE A LINE OF SOURCE THIS EDITOR HOLDS?
+// WL-EDIT-07 -- agents/workshop/editor.md
 inline constexpr bool source_byte_ok(unsigned char b) noexcept {
     return b == '\t' || (b >= 0x20u && b < 0x7Fu);
 }
@@ -126,11 +75,7 @@ inline bool source_text_ok(const std::string& text) noexcept {
 }
 
 // ---- Tab geometry: byte positions <-> displayed columns ----------------------------------
-//
-// ONE MEASURER FOR THE TAB, in both directions, so the painter, the caret, the selection
-// and a press cannot come to expand a line differently (HD-3's law, about a column instead
-// of a rectangle). A tab advances the display to the next multiple of `kEditorTabStop`;
-// every other admitted byte is one column, because every admitted byte is printable ASCII.
+// WL-EDIT-08 -- agents/workshop/editor.md
 
 /// The displayed column immediately after `byte` bytes of this line.
 inline std::int64_t visual_col_of(const std::string& line, std::size_t byte) noexcept {
@@ -151,12 +96,8 @@ inline std::int64_t visual_len(const std::string& line) noexcept {
     return visual_col_of(line, line.size());
 }
 
-/// THE BYTE A DISPLAYED COLUMN NAMES -- `visual_col_of` read backwards, and the pointer's
-/// arithmetic. A column inside a tab's expanded span names the tab byte itself (the caret
-/// lands BEFORE the tab, which is the boundary a press inside the span is nearest to on
-/// its left, and the only position that exists inside one); a column past the line's end
-/// names the end. Clamped, never refused: a press that landed on the row is a statement
-/// about where in the line the maker wants to be.
+/// THE BYTE A DISPLAYED COLUMN NAMES -- `visual_col_of` read backwards.
+// WL-EDIT-08 -- agents/workshop/editor.md
 inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col) noexcept {
     if (col <= 0) {
         return 0;
@@ -177,10 +118,8 @@ inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col)
 }
 
 /// THE SLICE OF A LINE A VIEWPORT SHOWS, tab-expanded: displayed columns
-/// `[first_col, first_col + columns)`, as the exact bytes a region row carries. Spaces
-/// stand in for the covered part of a tab, which is presentation and not mutation -- the
-/// tab byte is still in the line, still what a save writes, and still what a press
-/// resolves to through `byte_of_visual_col`.
+/// `[first_col, first_col + columns)`, as the exact bytes a region row carries.
+// WL-EDIT-08 -- agents/workshop/editor.md
 inline std::string expanded_slice(const std::string& line, std::int64_t first_col,
                                   std::int64_t columns) {
     if (columns <= 0) {
@@ -220,19 +159,8 @@ struct SourceIn {
     std::int64_t convention = line_ending::kLF;
 };
 
-/// SPLIT SOURCE BYTES INTO LINES, OR REFUSE THEM WHOLE. The representation this editor
-/// holds is exact: `lines` joined by the convention's break IS the byte string, so a file
-/// ending in a newline parses to a final EMPTY line and the round trip is an identity
-/// rather than a promise. What cannot be represented is refused rather than normalized:
-///
-///   mixed line endings        one document, one convention; CRLF beside LF would have to
-///                             be rewritten to survive, and rewriting is the one thing an
-///                             editor must never do to bytes the maker did not edit
-///   a bare carriage return    a break no convention here spells
-///   a control byte / DEL      a byte no shipped medium can draw in a cell
-///   any byte >= 0x80          the media place columns by byte and glyphs by sequence, so
-///                             a caret over multi-byte text would sit beside the character
-///                             it claims to be at (the header comment carries the ground)
+/// SPLIT SOURCE BYTES INTO LINES, OR REFUSE THEM WHOLE.
+// WL-EDIT-05, WL-EDIT-07 -- agents/workshop/editor.md
 inline SourceIn source_in(const std::string& bytes) {
     SourceIn out;
     bool saw_crlf = false;
@@ -312,14 +240,8 @@ inline std::string source_text(const std::vector<std::string>& lines,
     return out;
 }
 
-/// A CLIPBOARD'S BYTES AS SOURCE LINES, or the honest cannot. `pasteable_line`'s law grown
-/// one dimension: CRLF, LF and a bare CR each become a line break (a clipboard's breaks
-/// are the platform's habit, not this document's convention, and inserting a literal CR
-/// would corrupt the file's uniform endings at the next save); the tab survives (source
-/// holds tabs); every other control byte and DEL becomes one space. What does NOT survive
-/// is a byte outside plain ASCII: flattening it would silently corrupt what the maker
-/// pasted, so the whole paste is declined instead and `representable` says so -- the
-/// caller owns the sentence.
+/// A CLIPBOARD'S BYTES AS SOURCE LINES, or the honest cannot.
+// WL-EDIT-07 -- agents/workshop/editor.md
 struct PasteableSource {
     bool representable = true;
     std::vector<std::string> lines;
@@ -358,15 +280,8 @@ inline PasteableSource pasteable_source(const std::string& text) {
     return out;
 }
 
-// ---- The editor's own key vocabulary, declared beside the switch (the KEY-0 pattern) ----
-//
-// EXACTLY THE GESTURES `EditorBuffer::consume` ANSWERS `true` TO, one row per gesture, so
-// the hotkey view can SHOW this vocabulary without re-spelling it, and the suite can sweep
-// the two against each other in both directions. Like the component's rows these carry no
-// context, no command id and no remappability -- their executable truth is `consume`
-// alone, and an application keymap may display them and must not move them. The component's
-// own one-line vocabulary is a strict subset by design: an editing gesture must not mean
-// less in the editor than it means in a one-line box.
+// ---- The editor's own key vocabulary, declared beside the switch ------------------------
+// WL-EDIT-02 -- agents/workshop/editor.md
 
 inline constexpr component::EditingGesture kEditorVocabulary[] = {
     {input::scan::kC, input::mod::kCtrl, "copy"},
@@ -427,31 +342,8 @@ struct EditorPos {
     }
 };
 
-/// THE MULTILINE BUFFER, ITS CARET, ITS SELECTION AND ITS HISTORY AS ONE STATE -- the
-/// component's whole argument, one dimension up: every one of these can be invalidated by
-/// a change to any of the others, so the operations are the only door and each re-settles
-/// the invariant before it returns.
-///
-///     always, after every operation      lines() holds at least one line
-///                                        caret and anchor are inside the document
-///                                        (row < lines, byte <= line's size)
-///
-/// THE SELECTION IS AN ANCHOR AND THE CARET, exactly as the component holds it: no
-/// selection is `anchor == caret`, extending moves the caret alone, ordinary movement
-/// collapses the anchor onto wherever the caret lands.
-///
-/// THE PREFERRED COLUMN IS A VISUAL FACT WITH ONE WRITER FAMILY. Repeated vertical
-/// movement remembers the displayed column the run began at and re-aims every step at it,
-/// so walking through a short line does not ratchet the caret permanently left; any
-/// horizontal movement or edit forgets it. It is DISPLAYED columns rather than bytes on
-/// purpose -- a tab is one byte and up to four columns, and a maker's eye tracks the
-/// column.
-///
-/// `revision()` IS THE BUFFER'S OWN CLOCK: bumped by every operation that moves text, the
-/// caret or the anchor, and by nothing else (a viewport is not the buffer's). It exists
-/// for the one owner question a cross-turn answer has to ask (QR-11's lesson): is the
-/// document still exactly where it was when the maker asked for something -- a paste --
-/// whose answer arrives a turn later?
+/// THE MULTILINE BUFFER, ITS CARET, ITS SELECTION AND ITS HISTORY AS ONE STATE.
+// WL-EDIT-01, WL-EDIT-02, WL-EDIT-11 -- agents/workshop/editor.md
 class EditorBuffer {
 public:
     EditorBuffer() : lines_(1) {}
@@ -495,11 +387,8 @@ public:
 
     // ---- Whole-document doors -----------------------------------------------------------
 
-    /// REPLACE THE WHOLE DOCUMENT -- how one is opened or replaced. The caret goes home,
-    /// the selection collapses, THE HISTORY STARTS OVER (this is a new document, not an
-    /// edit to the old one -- the component's set/clear law), and the revision moves so
-    /// an answer in flight for the old content cannot land in the new one. An empty
-    /// vector is admitted as the empty document.
+    /// REPLACE THE WHOLE DOCUMENT -- how one is opened or replaced.
+    // WL-EDIT-11 -- agents/workshop/editor.md
     void set_lines(std::vector<std::string> lines) {
         lines_ = std::move(lines);
         if (lines_.empty()) {
@@ -515,11 +404,8 @@ public:
         ++revision_;
     }
 
-    /// PUT THE DOCUMENT BACK TO THESE LINES AS ONE ORDINARY STRUCTURAL EDIT -- the
-    /// discard door's mechanics. Unlike `set_lines` it KEEPS the history: a discard is
-    /// an edit to the standing document, not a new one, so undo takes it back -- which
-    /// is what makes a soft, terminal-reachable discard chord safe to bind at all. The
-    /// caret and anchor clamp into the reverted content; the selection collapses.
+    /// PUT THE DOCUMENT BACK TO THESE LINES AS ONE ORDINARY STRUCTURAL EDIT.
+    // WL-EDIT-03 -- agents/workshop/editor.md
     void revert_to(const std::vector<std::string>& lines) {
         remember(EditKind::kStructural);
         lines_ = lines;
@@ -648,12 +534,6 @@ public:
     }
 
     // ---- Movement. Plain movement COLLAPSES a selection; select_ variants EXTEND one. --
-    //
-    // Left/Right with a selection live collapse to the matching end (the component's own
-    // reading of the gesture); at a line's edge they cross it, because a newline is a
-    // document boundary between lines and not a wall. Every movement ends the current
-    // undo group. Horizontal movement forgets the preferred column; vertical movement is
-    // what keeps it.
 
     void left() noexcept {
         if (has_selection()) {
@@ -797,11 +677,8 @@ public:
         settle();
     }
 
-    /// PASTE ADMITTED SOURCE LINES at the caret, replacing the selection -- one
-    /// structural edit however many lines arrive. The lines are the caller's to have
-    /// judged (`pasteable_source`), exactly as `type`'s text is; and like the component
-    /// since QR-11, the VALUE a paste means is obtained by the owner, so there is no
-    /// clipboard-reading door here at all.
+    /// PASTE ADMITTED SOURCE LINES at the caret, replacing the selection.
+    // WL-EDIT-11 -- agents/workshop/editor.md
     void paste_lines(const std::vector<std::string>& add) {
         if (add.empty() || (add.size() == 1 && add.front().empty() && !has_selection())) {
             return; // nothing to insert and nothing to replace: nothing happened
@@ -863,14 +740,8 @@ public:
 
     // ---- The editing-key vocabulary -----------------------------------------------------
 
-    /// SPEND ONE KEY TRANSITION ON THIS BUFFER, OR SAY IT IS NOT MINE -- the component's
-    /// consumed bool at the editor's boundary, arm for arm where the meanings coincide
-    /// and wider exactly where a document is wider than a line: vertical movement, the
-    /// document's two ends behind Ctrl+Home/End (which on one line the component rightly
-    /// collapses), and a paste that must go through the owner's source law. The rows in
-    /// `kEditorVocabulary` are exactly the gestures this answers `true` to, swept against
-    /// it by the suite in both directions. A chord with Alt or Super is never this
-    /// buffer's; declining is `default:`, not knowledge.
+    /// SPEND ONE KEY TRANSITION ON THIS BUFFER, OR SAY IT IS NOT MINE.
+    // WL-EDIT-02 -- agents/workshop/editor.md
     bool consume(std::int64_t scancode, std::int64_t modifiers, component::Clipboard& clip) {
         namespace scan = input::scan;
         namespace mod = input::mod;
@@ -902,7 +773,7 @@ public:
         case scan::kC: if (shift) { return false; } copy(clip); return true;
         case scan::kX: if (shift) { return false; } cut(clip); return true;
         case scan::kV:
-            // A REQUEST, NOT A PASTE (QR-11): the value a paste means is the clipboard's
+            // A REQUEST, NOT A PASTE: the value a paste means is the clipboard's
             // CURRENT one, and only the owner can obtain it -- and here also judge it
             // against the source-byte law before any line moves.
             if (shift) { return false; }
@@ -1108,31 +979,11 @@ private:
 // ---- The document layer ------------------------------------------------------------------
 
 /// THE SOURCE DOCUMENT WORKSHOP IS EDITING: its identity, its buffer, its saved copy, its
-/// byte conventions, and its viewport. Session state, emphatically -- the buffer survives
-/// repaint, pane movement, hide/show, focus changes and every mode, because none of those
-/// touches the Session; it does not survive process death, exactly as every draft here
-/// does not (WUX-0 keeps the desk, never the work-in-progress).
-///
-/// DIRTY IS DERIVED, NEVER FLAGGED: the buffer's lines against the lines that were last
-/// successfully loaded or saved -- the `saved_` pattern, third precedent. The convention
-/// cannot change inside one document (no gesture edits it), so the lines are the whole
-/// comparison.
-///
-/// `doc_epoch` IS WHICH DOCUMENT IS OPEN, as a comparable fact (QR-11's lesson about
-/// reborn identities): it moves at every open and close, so an answer in flight for one
-/// document -- a paste -- can prove the document it meant is still the one standing.
-/// THE DOCUMENT IS WHAT IS OPEN, NOT WHY IT WAS OPENED. There is deliberately no record
-/// of which referrer asked -- no recipe, no browser row, no provenance. It was here once,
-/// as a recipe id written at every open and read by nothing, and it went out with the one
-/// door: an editor that remembered its acquisition path would owe an answer for every
-/// future referrer that has no recipe to name, and the honest answer would still be "the
-/// file this editor has open".
+/// byte conventions, and its viewport.
+// WL-EDIT-01, WL-EDIT-03, WL-EDIT-05, WL-EDIT-11 -- agents/workshop/editor.md
 struct EditorState {
-    /// The source identity: one NORMALIZED spelling, produced by the open door from
-    /// whatever the referrer asked for (`persist::resolved_against`). Empty = none. It is
-    /// what `save_source` writes to and what the same-document check compares, so it is
-    /// deliberately not the prettiest form -- what a header SHOWS is a projection of this,
-    /// never the other way round.
+    /// The source identity: one NORMALIZED spelling, produced by the open door.
+    // WL-EDIT-06 -- agents/workshop/editor.md
     std::string path;
     EditorBuffer buffer;
     std::vector<std::string> saved_lines{std::string()}; ///< the content as last loaded/saved

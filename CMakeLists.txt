@@ -357,10 +357,10 @@ function(zengine_program_test entry target)
     zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
 endfunction()
 
-# A repository-owned CMake script run over the SOURCE TREE -- the documentation-link check and
-# the package-vocabulary check. It is its own kind because none of the other three questions is
-# askable of it: it has no binary to exist, no test cases to count, and no compiler diagnostic
-# to be judged on.
+# A repository-owned CMake script run over the SOURCE TREE -- the documentation-link check,
+# the package-vocabulary check and the law-register check. It is its own kind because none of
+# the other three questions is askable of it: it has no binary to exist, no test cases to
+# count, and no compiler diagnostic to be judged on.
 # Recording it as a `program` would have avoided this edit at the price of the verifier
 # checking that `cmake` exists, which is not a fact about this repository.
 #

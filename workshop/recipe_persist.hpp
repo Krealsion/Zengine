@@ -4,77 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_RECIPE_PERSIST_HPP
 #define ZENGINE_WORKSHOP_RECIPE_PERSIST_HPP
 
-// THE BUILD RECIPES' OWN FILE (BLD-1) -- the fourth durable artifact beside the
-// document's, the setup's and the load plan's, and separate from all three for the
-// reason they are separate from each other (WS-0):
-//
-//   a DOCUMENT    is what a maker made
-//   a SETUP       is the arrangement of panes they were looking at while they made it
-//   a LOAD PLAN   is which artifacts this project RUNS ON
-//   BUILD RECIPES are how artifacts this project cares about can be PRODUCED
-//
-// ---- Why it is not a section of the load plan ---------------------------------
-//
-// The pressure to fold them is real: both are project-level, both name artifacts, and
-// a build that fed a load would be convenient to write in one file. It is refused,
-// and the reason is the one this phase turns on. A load plan row is an
-// EXECUTION-AUTHORITY DECISION -- *let this native artifact contribute executable
-// semantic power to the host*, *let it participate as a weave under this identity* --
-// and its whole legibility comes from being short enough to read in one sitting.
-// Putting a source path, a package prefix list, a link list and a build tree beside
-// each row would bury the authority decision inside a build procedure, and the two
-// change for entirely different reasons and at entirely different rates.
-//
-// SO THE CROSS-REFERENCE IS ONE NAME AND NOTHING ELSE. A recipe says which ARTIFACT
-// STEM it produces; a plan row IS an artifact stem. Nothing in this file carries a
-// role, a mount mode or a load order, and nothing in the plan carries a compiler
-// flag, a generator or a source list. Which artifacts a project can build and which
-// artifacts it runs are two questions with two owners, joined by a string.
-//
-// ---- What it shares with the other three, and what it does not ----------------
-//
-// The same LOOM COMPAT CODEC (<zen/serialize.hpp>) for every reason persist.hpp
-// gives: an already-linked dependency, the same gate the live bus uses, unknown-field
-// rejection, kind validation, UTF-8 validation, a materialisation budget, and
-// deterministic output that makes save -> load -> save byte-identical. ONE CODEC, and
-// every door goes through it. It shares `persist::read_file` for the same reason
-// `load_persist` does, with its own ceiling and its own word for what it is reading.
-//
-// ---- Why an optional kind is a LIST of at most one ----------------------------
-//
-// `load_persist.hpp`'s decision, taken here for its reason exactly: Zen's wire grammar
-// has seven kinds and none is `optional`, so the honest spelling of "one of these two"
-// is the kind that already means "zero or more", bounded to one by this format's own
-// law and to EXACTLY one by the recipe law underneath it.
-//
-//     { "recipe": "oven", "artifact": "oven", "artifact_dir": "",
-//       "cmake_target": [],
-//       "single_source": [ { "source": "/home/me/oven.cpp",
-//                            "packages": [ "/opt/zengine" ],
-//                            "links": [ "zengine::timer", "loom::switchboard" ],
-//                            "toolchain_from": "", "workspace": "" } ] }
-//
-// AN EMPTY STRING IS HOW AN OPTIONAL *STRING* IS SAID, and it is not the same choice.
-// A path cannot be empty and mean anything, so `""` is unambiguous and needs no list
-// -- and every field the shape declares is still present in every file, which is what
-// the codec requires and what makes a diff of two recipe files readable.
-//
-// ---- What version 1 promises --------------------------------------------------
-//
-//   PROMISED   Workshop reads and writes build-recipe format version 1, and a second
-//              save of a loaded catalog is byte-identical to the first.
-//   REFUSED    any other `format_version`, with the number named; a `format` that is
-//              not this one; a field the shape does not declare; a field of the wrong
-//              kind; more than one mechanism on one recipe; anything the recipe law
-//              refuses (an empty or traversing artifact stem, a name with a separator
-//              in it, a link that is not a target name, a path with a control
-//              character or a quote in it, a recipe declared twice); a file larger
-//              than a catalog can be.
-//   ACCEPTED   a recipe whose source file, build tree or package prefix is not on
-//              this disk. That is authored intent and stays authored intent -- the
-//              BUILD refuses it, by name, and nothing rewrites the entry.
-//   NOT DONE   migration, a legacy reader, a version graph, an upgrade path, a dual
-//              writer. There is no version 0 to migrate from.
+// THE BUILD RECIPES' OWN FILE -- the fourth durable artifact beside the
+// document's, the setup's and the load plan's.
+// Workshop law: agents/workshop/project.md
 
 #include "persist.hpp"
 
@@ -105,11 +37,7 @@ inline constexpr const char* kFormat = "zengine-build-recipes";
 inline constexpr std::int64_t kFormatVersion = 1;
 
 /// THE CATALOG WORKSHOP SHIPS, by the name it is staged under BESIDE THE EXECUTABLE.
-///
-/// Beside the binary for the load plan's reason, one step further: the shipped recipe
-/// names this repository's own build tree, which is a fact about how this Workshop was
-/// produced rather than about where a maker started it. A maker wanting a different
-/// catalog passes `--recipes`; there is no registry, no picker and no search path.
+// WL-PROJ-15 -- agents/workshop/project.md
 inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 
 /// A recipe catalog is small, and its ceiling says so. Thirty-two recipes of a name, an
@@ -243,12 +171,7 @@ inline Written check_recipe_file(const WorkshopRecipe& row) {
 
 /// Text to a catalog. Total: every input is either a catalog or a refusal with a
 /// reason, and nothing here throws.
-///
-/// FIVE LAYERS, IN ORDER, AND THE LAST ONE IS THE RECIPE'S OWN LAW: the envelope must
-/// parse; its CLAIM must be this version; it must admit against this shape; it must
-/// say it is this format at this version; and the catalog it describes must be a legal
-/// catalog (`builder::check_recipes` -- the SAME function anything authoring recipes in
-/// memory goes through, so a written catalog and a typed one cannot come to disagree).
+// WL-PROJ-04 -- agents/workshop/project.md
 inline LoadedRecipes from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -315,47 +238,12 @@ inline LoadedRecipes from_text(std::string_view bytes) {
 // ---- The file itself ---------------------------------------------------------------
 
 /// Save a catalog to a file, through the document's own safe write.
-///
-/// Nothing in the production host calls this -- Workshop READS its recipes and never
-/// writes them, because a host that rewrote its own authored intent is exactly what
-/// this phase's non-goals forbid. It exists because a durable authored artifact whose
-/// codec cannot be round-tripped is a codec nobody has checked.
 inline Written save_file(const std::string& path, const std::vector<builder::Recipe>& recipes) {
     return persist::write_file(path, to_text(recipes));
 }
 
 /// FILL IN THE FACTS AN AUTHORED RECIPE CANNOT CARRY, and only those.
-///
-/// A recipe file is a thing a PROJECT carries: it is written by a maker who cannot know
-/// where the binary reading it will be installed, and should not have to know which
-/// directory their shell was in. Three answers are therefore the host's, and this is the
-/// one place any of them is given -- because the moment two parties complete a recipe
-/// independently, the recipe means two things.
-///
-///   `artifact_dir`  where the built file lands. Empty means beside the host's own
-///                   artifacts: INSTALLATION truth, and `host_dir` is where this binary is.
-///   `workspace`     where a generated project is written. Empty means the same place, for
-///                   the same reason -- it is scratch this INSTALL owns.
-///   `source`        the one file a `single_source` recipe compiles. A relative spelling
-///                   means "relative to the PROJECT", which is where this Workshop was
-///                   launched, and it is resolved here into a path that means one file.
-///
-/// THE THIRD IS THE ONE THAT IS NOT OPTIONAL, and it exists because leaving it undone was a
-/// defect rather than a gap. Nothing wrote it down, so three parties each resolved the
-/// authored spelling wherever they happened to stand: the editor and the runner's
-/// exists-preflight against the PROCESS's working directory, and the generated CMake
-/// project against the generated WORKSPACE, which CMake resolves `add_library` sources
-/// against. A recipe naming `src/a.cpp` therefore named two different files, and only an
-/// absolute spelling was safe. Resolved once, here, every later reader is reading one
-/// answer -- which is what makes "the file you edit is the file the build reads" a property
-/// of the structure rather than a coincidence three parties maintain.
-///
-/// THE FILE IS NEVER REWRITTEN. This completes the VALUE in memory; a catalog that recorded
-/// this machine's paths would stop being a catalog a project can carry.
-///
-/// AN ABSENT PROJECT COMPLETES NOTHING. With no launch directory to stand on, a relative
-/// spelling is left exactly as authored -- to be refused downstream, in words, by whoever
-/// tries to spend it. Guessing a base is the one thing worse than the refusal.
+// WL-PROJ-02 -- agents/workshop/project.md
 inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::string& host_dir,
                              const std::string& project_dir) {
     for (builder::Recipe& r : recipes) {

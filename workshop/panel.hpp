@@ -6,86 +6,7 @@
 
 // Workshop's dynamic panels: the catalog of what a maker may open, what is
 // currently open, and each open panel's own view of the thing it presents.
-//
-// A WEAVE MAY PROVIDE A TOOL; A PANEL IS ITS PRESENTATION. That sentence is the
-// whole of this file's job, and it is kept true structurally rather than by
-// convention:
-//
-//   the TOOL   is a weave on the bus, mounted by the host, with its own identity
-//              and its own grant. It runs whether or not anything is presenting
-//              it, and it has never heard of a panel.
-//   the PANEL  is a row of this application's furniture. It holds a COPY of what
-//              the tool last said, and closing it destroys the copy and nothing
-//              else.
-//
-// So `panel == weave` is not a rule here, and nothing below makes it one: a
-// panel kind is an entry in an array of Workshop's own, a tool is a role on the
-// bus, and the only thing joining them is that one panel kind happens to know
-// which office to ask.
-//
-// THAT CLAIM HAS NOW BEEN PAID FOR RATHER THAN ASSERTED. BLD-0 predicted that a
-// panel over something with no weave behind it — "the document, the object
-// list" — would fit this catalog without changing it. `Info` is that panel: it
-// presents the OBJECTS and PROPERTIES columns, which are read straight off the
-// document and the session, and it reaches no bus at all. What it cost the
-// catalog was one row; what it cost this file is one integer and one line in an
-// array. There is no `InfoPane` beneath, because Info holds nothing of its own —
-// it is the second kind that proves `Panels::builder` is one kind's view rather
-// than the first slot of a framework.
-//
-// THE SESSION IS WHERE THIS LIVES, EMPHATICALLY. Which panels a maker has open
-// is not authored content: it does not go in `WorkshopDoc`, it is not saved, and
-// it does not survive the process. Panel persistence is a thing a later phase
-// can decide to want; making it accidental by putting a vector in the document
-// is how it would arrive without anybody deciding.
-//
-// WHAT IS DELIBERATELY ABSENT, so the absences are decisions and not omissions:
-//
-//   - no docking and no tabs. A panel kind DECLARES one of the two places this
-//     Workshop has (`placement` below) and that is the whole of its say in where
-//     it goes. Neither place was chosen for being good — one covers the material
-//     a maker is building and the other is a column that was furniture until
-//     PNL-0 — and the reports say what using them felt like.
-//
-//     WIND-2 ENDED THREE OF THIS BULLET'S ABSENCES and left the rest standing, so
-//     they are named rather than quietly deleted: dragging, resizing and a saved
-//     layout now exist. What did NOT change is the sentence above them — a KIND
-//     still declares a place and nothing more. What a maker may then do to the
-//     rectangle that place resolves to is authored SETUP intent (setup.hpp) and
-//     is resolved by the host (screen.hpp); no field of this file moved, and a
-//     panel kind still cannot ask for a coordinate.
-//   - no focus framework. There is still no focused panel and no capture: one
-//     `if` per mode in the key routing, and a pointer gesture that holds an
-//     IDENTITY rather than owning the device. WIND-2 added a SELECTED pane and a
-//     canonical front order, which are different things — a selection is a fact
-//     about what a maker is arranging and grants no priority outside the mode
-//     that arranges it, and the order is authored intent on a setup row rather
-//     than a z-stack somebody maintains.
-//     What there is: while the picker is open it has the keys, and while a
-//     Builder panel is open one key that was previously unbound means something.
-//     That is one conditional in `command()`, and it is the same answer the
-//     terminal overlay gave to the same question. Info adds no key of its own —
-//     the inspector gestures it presents are the ones Workshop already had, and
-//     what changed is that they now say so when nothing is showing them.
-//   - no multi-instance policy. A kind is either open or it is not; the picker
-//     asks for a KIND and there is nowhere for a second instance of one to be
-//     named. One live Builder and one live Info are what exists, and a policy
-//     about several would be a policy invented ahead of the case that wants it.
-//   - no per-panel keybindings, no registry, no plugin surface. The catalog is
-//     an array of two integers and two strings, spelled out below.
-//
-// PRESENCE HAS ONE OWNER, AND IT IS THE PICKER (PNL-0). With one kind, `x`
-// could mean "close the Builder" and be unambiguous; with two it would have to
-// pick one, and picking would either be a per-panel hotkey or a focus rule —
-// both of which this file has declined. So the door that opens a panel is the
-// door that removes it:
-//
-//     closed panel  ->  select  ->  open
-//     open panel    ->  select  ->  remove
-//
-// `x` is unbound again, exactly as it was before BLD-0 bound it. The picker
-// SAYS which kinds are open, because a toggle whose current state is invisible
-// is a gesture a maker has to guess at.
+// Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
 
 #include "files.hpp"
 #include "pane_definition.hpp"
@@ -101,149 +22,62 @@
 
 namespace zengine::workshop {
 
-/// The KINDS of panel this Workshop can present. Four so far, and they are
-/// deliberately unalike: one presents a weave, one presents this application's
-/// own state, one presents a source document the session holds, one presents the
-/// project on disk -- and nothing in this file can tell them apart.
-///
-/// A plain integer rather than an enum class, for the reason every other
-/// vocabulary constant in this repository is one: these values sit beside
-/// canvas roles and input scancodes in code that is read together, and a
-/// second numeric convention buys nothing.
+/// The KINDS of panel this Workshop can present.
+// WL-CAT-01 -- agents/workshop/catalog.md
 namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
 inline constexpr std::int64_t kEditor = 2;
 inline constexpr std::int64_t kProjectFiles = 3;
-/// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE (WUX-12): the run of layout tabs, this
-/// desk's relationship to a Setup artifact, and the workspace's extent -- the three facts
-/// that used to be painted into the top band by `paint` itself, with no catalog row, no
-/// setup row and no rectangle anybody could author.
-///
-/// ONE KIND FOR ALL THREE, because they are one composition and always were (`band_status`,
-/// HD-3): the tabs are the row's left, the association is its right, and the extent folds
-/// into that row where the medium fits no second one. Splitting them would be three panes
-/// arguing over one row's budget.
+/// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE.
+// WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kLayouts = 4;
-/// THE PANE EDITOR (WUX-13): the built-in whose SUBJECT is an ordinary Workshop pane. It
-/// lists the same inventory the picker lists, holds one chosen pane as its subject, shows
-/// that pane's identity, its AUTHORED window (place, width, height, front, participation)
-/// and its freshly RESOLVED presentation as two separate things, and edits the authored
-/// half through the doors arrangement and the picker already spend. It is placed in the
-/// overlay stack like Files and the Editor so that it can be its own subject -- moved,
-/// resized, put in front, taken off a layout -- through the same rows.
-///
-/// IT IS NOT THE INFO PANEL, AND INFO IS NOT IT. Info inspects DOCUMENT objects (the
-/// `ui::Element`s a maker draws in the workspace); this inspects Workshop's furniture.
-/// Two subjects, two kinds, and a row that reads `X` in each means a different fact.
+/// THE PANE EDITOR: the built-in whose SUBJECT is an ordinary Workshop pane.
+// WL-PED-01 -- agents/workshop/pane-manager.md
 inline constexpr std::int64_t kPaneEditor = 5;
 } // namespace panel
 
 /// WHERE a panel kind is presented. Three, because Workshop has three places and no
 /// more, and each is a NAME for a place this screen already had rather than a
 /// coordinate somebody chose.
-///
-/// THIS IS PLACEMENT INTENT, AND THE BOUNDS ARE SOMEWHERE ELSE. A place says
-/// which of Workshop's two regions a kind occupies; WHAT RECTANGLE that is
-/// depends on the screen's extent and on how many other panels are stacked, and
-/// is worked out against a `Screen` by `placement_bounds` in screen.hpp. That
-/// is the same authored/resolved split the document itself is under (W-1): the
-/// intent is a small constant that can be written down and read, the rectangle
-/// is an observation that is recomputed on demand and cached nowhere.
-///
-/// A place is NOT a docking side, an anchor, a constraint or a layout, and there
-/// is no policy here that could put a kind somewhere none of these three is. What
-/// a kind gets is the ability to SAY which of the three it wants, instead of a
-/// painter quietly knowing a column number.
+// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace placement {
 /// The reserved column beside the workspace: fixed width, against the right
-/// edge, and reserved whether or not anything is in it (screen.hpp says why it
-/// stays empty when Info is removed). It has room for ONE panel, and the
-/// static_assert under the catalog is what keeps that true rather than hoped.
+/// edge, and reserved whether or not anything is in it.
+// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kSideRegion = 0;
 /// Over the workspace, from the canvas's top-left, stacked downwards — the
-/// terminal overlay's mechanism pointed at the other corner. It covers the
-/// material a maker is building, which is BLD-0's awkwardness and still the
-/// evidence a layout phase should be built on.
+/// terminal overlay's mechanism pointed at the other corner.
+// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kOverlayStack = 1;
 /// The rows at the top of the canvas: full width, against the top edge, and reserved
-/// whether or not anything is in them -- the side region's rule at the other edge,
-/// and for the identical reason. `kTopRows` (screen.hpp) is part of what the
-/// workspace measures itself against, so what STANDS on those rows must not be able
-/// to resize a maker's document. It has room for ONE pane, and the static_assert
-/// under the catalog is what keeps that true rather than hoped.
-///
-/// IT IS A DEVELOPER DEFAULT AND NOT A DOCK (WUX-12). Before this place existed the
-/// same rectangle was painted by `paint` directly and could not be moved, resized or
-/// removed; a pane placed here takes it as its default and a maker's authored place,
-/// width and height lay over that default exactly as they do in the overlay stack.
-/// What the RESERVATION does is unchanged by any of it: move the pane away and those
-/// rows stay reserved and empty, which is the only answer that leaves the document's
-/// share basis alone (PNL-0, screen.hpp).
+/// whether or not anything is in them.
+// WL-GEO-03 -- agents/workshop/geometry.md
+// WL-PANE-01 -- agents/workshop/panes-and-windows.md
+// WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kTopBand = 2;
 } // namespace placement
 
-/// IS THIS PLACE THE MAKER'S TO AUTHOR? Two consumers phrased this as
-/// `== kOverlayStack` while the stack was the only movable place, which is a list
-/// somebody has to extend by hand every time a place is added -- and the one that is
-/// forgotten is a pane a maker can drag and cannot save, or the reverse.
-///
-/// SAID AS THE EXCLUSION IT ACTUALLY IS: the side region is the SCREEN's, because
-/// that column is reserved by the screen and shared with nothing; every other place
-/// resolves a developer default that an authored row may lay over. The arrangement
-/// admission already spoke the sentence this way (`arrange_admits`, weave.hpp), so
-/// this is the stragglers joining it rather than a new rule.
+/// IS THIS PLACE THE MAKER'S TO AUTHOR?
+// WL-PANE-01, WL-PANE-08 -- agents/workshop/panes-and-windows.md
 inline constexpr bool place_is_authorable(std::int64_t where) noexcept {
     return where != placement::kSideRegion;
 }
 
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
-/// below carries, and the first half of a durable `PaneRef` (setup.hpp).
-///
-/// IT IS A ROUTE AND NOT A CREDENTIAL, and the distinction is worth stating here
-/// because the string is about to be written into a maker's file where a later
-/// reader will meet it with no context. It says WHICH NAMESPACE a pane key is
-/// to be read in. It does not say which package author created the pane, which
-/// binary is running, that the same author came back after a restart, that a
-/// live Loom office answers to this name, or that anything claiming this string
-/// is authentic. Nothing in WS-0 checks any of those, because nothing in WS-0
-/// can: provenance is an OFFICE's to stamp on a delivery, not a file's to
-/// assert about itself.
+/// below carries, and the first half of a durable `PaneRef`.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr const char* kWorkshopProvider = "zengine.workshop";
 
 /// WHOSE PANES THE MAKER-MADE ONES ARE -- the provider half of the durable `PaneRef` a pane
 /// created inside Workshop carries (`maker_pane_ref`, setup.hpp), and a namespace this
 /// application OWNS.
-///
-/// IT IS A NAMESPACE AND NOT AN OFFICE. No weave holds it, no offer may arrive stamped
-/// with it (`admit_pane_offer` refuses one), and nothing is routed to it: a maker-made pane
-/// is presented by Workshop itself, exactly as the source editor presents a document the
-/// session holds, and a message addressed to this string would reach nobody by design. It
-/// is distinct from `kWorkshopProvider` so that a maker's `MyPane` can never shadow, or be
-/// shadowed by, a built-in this build ships tomorrow under the same key.
-///
-/// THE PANE HALF IS THE DEFINITION'S NAME, and that is what makes the reference durable:
-/// it survives the definition's file moving, and it means the same pane whichever file
-/// happens to be open -- a reference minted from a file path, or from "whatever is open
-/// now", would be a reference that changed meaning when the maker did nothing.
+// WL-MAKER-03 -- agents/workshop/maker-pane.md
 inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 
 /// One entry in the catalog: what a maker sees in the picker, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
-///
-/// THE DURABLE REFERENCE IS A FIELD OF THE CATALOG ROW (WS-0), beside the
-/// internal kind rather than in a table next to it. That is the whole of how
-/// `PaneRef <-> PanelKind` is kept from drifting: there is one array, so there
-/// is nothing for a second array to disagree with. A third kind declares its
-/// provider and its pane key in the same braces it declares its place in, and a
-/// row that forgot to is caught by the assertions under the catalog rather than
-/// by a maker whose saved setup came back empty.
-///
-/// `provider`/`pane` are DURABLE and `kind` is not: the integer is this build's
-/// index into its own vocabulary and may be renumbered by an edit to the two
-/// lines above, while the two strings are a promise to a file somebody owns.
-/// That is the same split `persist.hpp` makes about an extent mode, made about
-/// an identity instead of about a word.
+// WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PanelKind {
     std::int64_t kind = panel::kBuilder;
     std::int64_t placed_in = placement::kOverlayStack; ///< which of the two places it is in
@@ -252,20 +86,7 @@ struct PanelKind {
     const char* name = "";    ///< what the picker lists
     const char* summary = ""; ///< one line, so a maker can tell what they are opening
     /// CAN A PRESS INTO THIS BUILT-IN POINT THE KEYBOARD AT IT?
-    ///
-    /// A DECLARATION THAT USED TO BE A HAND-KEPT EXCEPTION. While the Editor was the only
-    /// built-in with a body a maker types into, the routing layer simply named it -- one
-    /// `kind == panel::kEditor` inside the press handler's candidate line. At the SECOND
-    /// such built-in that spelling becomes a disjunction somebody has to remember to
-    /// extend, in a file that has no other reason to know which panes take keys, so the
-    /// fact moves to where every other fact about a kind already lives: this row.
-    ///
-    /// IT IS CANDIDACY AND NOT FOCUS. This says a press here MAY point the keyboard at
-    /// this pane; whether the pane can actually take keys at this instant is live state
-    /// its own resolver answers (the Editor needs a document open, Project Files needs a
-    /// project to browse), resolved fresh at every spend and stored nowhere. Two facts,
-    /// two owners -- and this is deliberately not a focus framework: nothing here
-    /// registers, subscribes, or orders anything.
+    // WL-FOCUS-02 -- agents/workshop/focus.md
     bool takes_keyboard = false;
 };
 
@@ -284,22 +105,9 @@ inline constexpr const char* kPaneEditor = "pane-editor";
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
 /// opened, because the picker is the only door and the picker walks this array.
-///
-/// It is a constant rather than a registry, and that is the honest shape of what
-/// exists: a registry would be a mechanism for parties unknown to add entries,
-/// and there are no such parties. When there are, this becomes the thing they
-/// add to, and the picker below does not change.
-///
-/// A KIND'S PLACE IS ONE OF THE FOUR THINGS WRITTEN DOWN HERE (PNL-1), beside
-/// its name and its one-line summary, because that is what it is: a fact about
-/// the kind, known before anything is open, changed only by editing this array.
-/// It is not per-instance state and not authored by a maker. A maker CAN move a
-/// panel since WIND-2 — but what they move is not this: this is the DEVELOPER'S
-/// DEFAULT, the answer a pane takes when its maker has said nothing, and the
-/// maker's override lives on their own setup row and is laid over the rectangle
-/// this place resolves to. A coordinate stored per open panel would still be a
-/// field with one possible value, and it would now also be a second owner of a
-/// question the setup already answers.
+// WL-FOCUS-02 -- agents/workshop/focus.md
+// WL-PED-01 -- agents/workshop/pane-manager.md
+// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr PanelKind kPanelCatalog[] = {
     {panel::kBuilder, placement::kOverlayStack, kWorkshopProvider, pane_key::kBuilder, "Builder",
      "build a chosen recipe"},
@@ -324,7 +132,7 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // PANE is on the desk, which is the setup's business and arrives for free.
     {panel::kProjectFiles, placement::kOverlayStack, kWorkshopProvider, pane_key::kProjectFiles,
      "Files", "browse and open files", true},
-    // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW (WUX-12). Until this row existed
+    // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW. Until this row existed
     // the layout run, the Setup association and the workspace fact were painted by `paint`
     // into a rectangle nothing could name: not in the picker, not in a setup file, not in
     // `occupied_at`, not coverable, and not movable. Nothing about the three facts asked for
@@ -354,6 +162,7 @@ inline constexpr PanelKind kPanelCatalog[] = {
      "Pane Manager", "manage a pane", true},
 };
 
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
 
 /// The catalog entry for a kind, or the first one. Total, because the kind can
@@ -368,56 +177,25 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
     return kPanelCatalog[0];
 }
 
-/// WHERE THE SESSION-LOCAL KINDS BEGIN (WP-0), and the whole of how a runtime
+/// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
 /// pane is told from a built-in one.
-///
-/// A RUNTIME KIND IS A HANDLE AND NOT AN IDENTITY. The durable identity of an
-/// external pane is its `PaneRef` -- the office Loom stamped, plus the pane key
-/// that office offered -- and that is what a setup file holds. This integer is
-/// what `Panels::open`, `bounds_of` and `occupied_at` carry in the same field
-/// the two built-ins carry `panel::kBuilder` and `panel::kInfo` in, so the whole
-/// presentation path needs no second vocabulary. It is minted by this session,
-/// spent by this session, and never written to a file, never read off a message
-/// and never compared across processes.
-///
-/// THE GAP IS DELIBERATE AND SO IS ITS SIZE. The built-ins are small integers and this
-/// build's own vocabulary may grow; starting a thousand above leaves no arithmetic
-/// by which a runtime handle and a future built-in could collide, and the
-/// predicate below is the one place either question is asked.
+// WL-MAKER-04 -- agents/workshop/maker-pane.md
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 
 /// Is this a session-local runtime kind rather than a compile-time one?
+// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
 
-/// NO KIND AT ALL -- what a pane this build cannot present answers with (WIND-2).
-///
-/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason, which is the sharpest
-/// one available here: every kind this build can name is non-negative by
-/// construction (the built-ins are small integers, runtime handles start a thousand
-/// above), so an absence CANNOT collide with a kind anybody meant. Zero would
-/// have been `panel::kBuilder`, which is the exact lie `resolve_pane` is fallible
-/// to prevent -- a maker's unresolved third-party reference presented as
-/// Workshop's own build tool.
-///
-/// It is spent by the one inventory row an unresolved authored reference gets
-/// (`inventory_rows`, setup.hpp). Nothing paints it, nothing places it, nothing
-/// opens it.
+/// NO KIND AT ALL -- what a pane this build cannot present answers with.
+// WL-PANE-12 -- agents/workshop/panes-and-windows.md; WL-FRONT-04 -- agents/workshop/planes.md
 inline constexpr std::int64_t kNoPaneKind = -1;
 
 /// THE HANDLE A MAKER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
-/// compile-time built-ins and the session-minted runtime handles, and like a runtime kind
-/// it is a HANDLE AND NOT AN IDENTITY. The durable identity of a maker-made pane is its
-/// `PaneRef` (`kMakerPaneProvider` + the definition's name); this integer is what
-/// `Panels::open`, `bounds_of` and `occupied_at` carry in the field the built-ins carry
-/// `panel::kInfo` in, so the whole presentation path needs no second vocabulary.
-///
-/// ONE HANDLE, BECAUSE ONE DEFINITION IS OPEN AT A TIME (the source editor's one-document
-/// law, inherited). It sits in the gap between the built-ins and `kFirstRuntimeKind`, and
-/// `is_maker_kind` is the one predicate that asks: the day a second open definition earns
-/// a second handle, this becomes a range and the predicate moves with it -- nothing else
-/// switches on the number.
+/// compile-time built-ins and the session-minted runtime handles.
+// WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline constexpr std::int64_t kMakerPaneKind = 512;
 
 /// Is this the maker-made pane's handle?
@@ -428,20 +206,8 @@ static_assert(kMakerPaneKind < kFirstRuntimeKind,
               "confuse the two");
 
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
-/// a column. Total, for the same reason `panel_kind` is.
-///
-/// AN EXTERNAL PANE IS PLACED BY WORKSHOP AND ASKS FOR NOTHING (WP-0), and this
-/// branch is where that is decided rather than negotiated: `PaneOffered` carries
-/// no placement field, so every runtime kind goes in the overlay stack. The
-/// branch is here rather than left to `panel_kind`'s fall-through on purpose --
-/// that fall-through answers with `kPanelCatalog[0]`, which is the BUILDER, and
-/// a runtime pane silently inheriting the Builder's row is exactly the lie
-/// `resolve_pane` was made fallible to prevent one layer up. `panel_kind` stays
-/// total for its own bounded built-in callers and never sees a runtime kind.
-///
-/// AND A MAKER-MADE PANE IS PLACED THE SAME WAY, for the same reason: its interior is
-/// the maker's, its rectangle is the ordinary pane path's, and the overlay stack is the
-/// authorable place -- so it takes the developer's reactive slot until the maker moves it.
+/// a column.
+// WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind) || is_maker_kind(kind)) {
         return placement::kOverlayStack;
@@ -449,11 +215,8 @@ inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
     return panel_kind(kind).placed_in;
 }
 
-/// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT? A runtime pane always may (its
-/// provider is sent the keys); a built-in says so on its catalog row; the maker-made pane
-/// may not -- its interior is authored text a maker reads, and its editing happens in the
-/// Pane Manager's rows. Asked here rather than through `panel_kind`'s fall-through, which
-/// would answer the Builder's row for a handle the catalog does not hold.
+/// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT?
+// WL-FOCUS-02 -- agents/workshop/focus.md; WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind)) {
         return true;
@@ -476,26 +239,12 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
     return n;
 }
 
-/// THE SIDE REGION HOLDS EXACTLY ONE PANEL, and this line is the whole of that
-/// rule. It is here rather than in a comment because the failure it prevents is
-/// silent: two kinds declaring `kSideRegion` resolve to the SAME rectangle, so
-/// they would paint over each other in a column a maker reads as one thing, and
-/// nothing at runtime would say which one they were looking at.
-///
-/// A third kind is meant to be cheap — a catalog row and a painter — and this is
-/// the one place where it is not free: a third kind that wants the side region
-/// needs the layout question answered first (how the column is shared), and it
-/// finds that out from a compiler rather than from a screen. The overlay stack
-/// carries no such assertion, because stacking is what it is FOR; what it has
-/// instead is a measured limit on how many slots fit, in screen.hpp.
+/// THE SIDE REGION HOLDS EXACTLY ONE PANEL, and this line is the whole of that rule.
 static_assert(kinds_placed_in(placement::kSideRegion) == 1,
               "the side region has room for one panel: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
 
-/// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word: two
-/// kinds declaring it resolve to the SAME rectangle, so they would paint over each other in
-/// two rows a maker reads as one thing. A second band-anchored kind needs the sharing
-/// question answered first, and finds that out from a compiler rather than from a screen.
+/// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word.
 static_assert(kinds_placed_in(placement::kTopBand) == 1,
               "the top band has room for one pane: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
@@ -521,15 +270,7 @@ inline constexpr bool blank_key(const char* a) noexcept { return a == nullptr ||
 
 /// Does every catalog row carry a durable reference at all, and is no two rows'
 /// reference the same one?
-///
-/// Only ever asked at compile time, by the two assertions under them, and they
-/// are here for the reason every other `static_assert` in this file is: THE
-/// FAILURE THEY PREVENT IS SILENT. A row with an empty pane key resolves from
-/// no file and is saved into a setup as an empty string; two rows sharing a
-/// reference make one of them unreachable through a saved setup and the other
-/// one arbitrary. Neither says anything at runtime — a maker's setup simply
-/// comes back missing a panel — and both are one editing mistake away from a
-/// third author who is otherwise only asked to fill in six braces.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr bool every_kind_is_referable() noexcept {
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         if (detail::blank_key(kPanelCatalog[i].provider) ||
@@ -560,38 +301,23 @@ static_assert(every_reference_is_one_kind(),
               "resolve to whichever of them the catalog happens to list first");
 
 /// The `+ panel` picker: open or not, and which entry a maker is on.
-///
-/// It is a MODE and not a panel. It has no instance, nothing presents it, and it
-/// closes the moment it has been used — so it is not in the catalog and cannot
-/// be opened from itself.
+// WL-PANE-14 -- agents/workshop/panes-and-windows.md
 struct PanelPicker {
     bool open = false;
     std::size_t cursor = 0;
-    double wheel_accum = 0.0; ///< fractional wheel notches not yet worth a row (QR-18)
+    double wheel_accum = 0.0; /// < fractional wheel notches not yet worth a row
 };
 
 /// WHAT A MAKER CALLS THE PICKER — the words on the hint that opens it, so that a
 /// sentence about the box on the screen uses the name printed beside the key that
 /// put it there. It is here rather than in the catalog because the picker has no
 /// catalog row; it is the one presentation that names itself.
+// WL-PANE-14 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kPickerName = "+ panel";
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
-/// spend and held by nobody (BLD-2).
-///
-/// THE FACTS ARE THE REALIZATION OWNER'S AND THIS IS ONLY THEIR SHAPE. The owner
-/// derives `waiting_on()` and `behind()` from its own cursor; the host wires a
-/// function that reads them (`HostContext::frontier`, weave.hpp); and the Builder
-/// panel spends the answer at the moment it paints or acts. Nothing along that path
-/// stores one: a copied frontier agrees with its subject for exactly as long as
-/// nothing changes, which is to say until the moment it matters — the same argument
-/// that shaped the arrangement projection (INTR-1).
-///
-/// IT CARRIES NO RECIPE. Which authored recipes can produce this artifact is the
-/// Builder TOOL's fact, published as `RecipeCatalog` and already copied into the
-/// panel's `known`; the join is the artifact STEM, made where the two truths are
-/// shown together. Carrying a recipe name here would be a second edge that could
-/// disagree with the first (BLD-1's whole refusal).
+/// spend and held by nobody.
+// WL-ATTN-04 -- agents/workshop/attention.md
 struct ProjectFrontier {
     bool waiting = false;     ///< realization is stopped at a row waiting on the maker
     std::string artifact;     ///< the frontier artifact stem; empty when not waiting
@@ -615,21 +341,21 @@ struct ProjectFrontier {
 /// this records "I asked and have not been answered", and it is what decides
 /// whether an arriving status is news.
 ///
-/// ASYNC-1 MADE IT WORTH MORE, NOT LESS, and widened exactly one thing about it.
+/// THE ASYNC BUILD MADE IT WORTH MORE, NOT LESS, and widened exactly one thing about it.
 /// A build now has a MIDDLE: `asked` and `running` are both conditions a status
 /// can arrive in and neither is an ending, so this fact is held across every one
 /// of them and released only at a condition the build will not leave —
 /// `builder::still_going` is the one place that list is written down. Without
 /// the widening, the first intermediate status would clear it and the real
 /// ending would arrive as something this panel merely learned. And the case it
-/// now covers is the one BLD-0 could never reach at all: a panel OPENED while a
+/// now covers is the one the first Builder could never reach at all: a panel OPENED while a
 /// child is alive is told `running`, shows it, and announces nothing — because it
 /// did not watch this build begin.
 ///
 /// Nothing is authored from this struct and nothing is asked through it. Opening
 /// the panel sends `builder::StatusRequested` and everything here arrives as the
 /// tool's own published answer.
-/// ---- ...AND SINCE BLD-1 IT ALSO HOLDS A CATALOG AND A CHOICE ------------------
+/// ----...AND IT ALSO HOLDS A CATALOG AND A CHOICE -------------------------------
 ///
 /// `known` is what the tool said it can build, arriving once when this panel opens
 /// (`builder::RecipeCatalog`), and `chosen` is which of those rows this maker is
@@ -649,11 +375,12 @@ struct ProjectFrontier {
 /// outstanding at that instant. One latch for both would either release too early (and
 /// turn realization's answer into a fact this panel merely learned) or too late (and
 /// hold the build's own ending back behind it). Two questions, two latches.
-/// ⚠ WHICH CATALOG THIS SESSION IS USING IS DELIBERATELY NOT HERE (PROJ-1). This struct is
+/// ⚠ WHICH CATALOG THIS SESSION IS USING IS DELIBERATELY NOT HERE. This struct is
 /// destroyed and remade every time the panel is removed and reopened (`close_panel`), and
 /// a maker changing recipe catalogs has not changed anything about a PRESENTATION -- so
 /// that fact lives on the `Session`, beside the source document, where removing a pane
 /// cannot lose it. What lives here is what this panel was TOLD.
+// WL-PROJ-11 -- agents/workshop/project.md
 struct BuilderPane {
     bool heard = false;
     bool awaiting = false;
@@ -661,17 +388,12 @@ struct BuilderPane {
     builder::BuildStatus shown{};
     builder::RecipeCatalog known{};
     std::size_t chosen = 0;
-    /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived? (BLD-2)
-    ///
-    /// `chosen` starts at 0, and 0 is an INDEX and not a choice — the same shape as
-    /// "an enumeration's default is not an observation" (INTR-1). The one gesture
-    /// that writes this is `c`; the one reader is the frontier action, which may
-    /// spend the maker's standing pick when SEVERAL recipes produce the frontier
-    /// artifact and must never spend the catalog's order dressed up as one.
+    /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived?
+    // WL-PROJ-07, WL-PROJ-14 -- agents/workshop/project.md
     bool picked = false;
 };
 
-/// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG (WP-0): a pane some office
+/// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG: a pane some office
 /// offered this run, admitted under that office's stamped authorship.
 ///
 /// IT IS SESSION STATE AND NOTHING ELSE. Not global, not document, not setup, not
@@ -705,6 +427,7 @@ struct RuntimePane {
 /// is four times the tallest picker this composition can show, which is the same
 /// argument `kMaxSetupPanes` is chosen by, and it bounds what a chatty or
 /// malicious provider can make this session hold to a few kilobytes.
+// WL-CAT-04 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
 
 /// THE RUNTIME CATALOG, and the mint for its handles.
@@ -719,6 +442,7 @@ inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
 /// reallocate it, so every consumer looks a row up by handle or by reference at
 /// the moment it needs one, and `Occupancy` carries a `std::string` copy rather
 /// than a `const char*` into a row that may move (screen.hpp).
+// WL-CAT-05 -- agents/workshop/catalog.md
 struct RuntimeCatalog {
     std::vector<RuntimePane> entries;
     /// The next handle to mint. Monotonic within a session; a refreshed offer
@@ -726,7 +450,7 @@ struct RuntimeCatalog {
     /// distinct `PaneRef` and is bounded by `kMaxPaneCatalogEntries`.
     std::int64_t next_kind = kFirstRuntimeKind;
 
-    /// THE LOOKUP TAKES VIEWS (WP-0a), so that asking whether a pane was already
+    /// THE LOOKUP TAKES VIEWS, so that asking whether a pane was already
     /// admitted costs no allocation and, more to the point, needs no owned copy of
     /// an office that has not yet been judged. The `PaneContent` door reads Loom's
     /// stamp as a `std::string_view` and asks here with it directly; what it
@@ -753,23 +477,7 @@ struct RuntimeCatalog {
 };
 
 /// AN OPEN EXTERNAL PANEL'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
-///
-/// The Builder pane's shape, one provider further out, and the two facts that
-/// are genuinely this panel's own are the same two: `heard` distinguishes "the
-/// provider says nothing" from "the provider has not answered yet", and
-/// `awaiting` records that a room was granted and no valid content has arrived
-/// since. A pane whose provider has gone quiet reads WAITING; it never reads
-/// unavailable, because Loom gives Workshop no participant-visible unload
-/// notification and silence is not evidence of one.
-///
-/// `rows`/`columns` are the LAST ROOM GRANTED, kept so a re-grant can be told
-/// from a repeat: a screen that changed cells but not prose capacity sends
-/// nothing, and a metric change that moved the capacity sends exactly once.
-///
-/// `shown` NEVER EXCEEDS THE ROOM IT WAS ADMITTED UNDER. Every row in it passed
-/// the row count, the column width and the plain-ASCII contract at the moment it
-/// arrived, and a new grant clears it before the new room is sent -- so a shrink
-/// cannot leave yesterday's wider rows sitting in a narrower budget.
+// WL-ATTN-04 -- agents/workshop/attention.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
     std::int64_t kind = kFirstRuntimeKind;
     std::int64_t rows = 0;    ///< the last prose rows granted
@@ -781,22 +489,13 @@ struct ExternalPane {
     /// rather than anywhere a provider's bytes could reach. Empty when there is
     /// nothing to refuse.
     std::string refusal;
-    /// ...AND WHY, IN THE JUDGE'S OWN WORDS. `refusal` is the row this pane
-    /// SHOWS -- one bounded sentence in a body that may be forty-eight cells wide --
-    /// and this is the reason `judge_content` gave for it: `9 rows into a pane granted
-    /// 8`, `49 bytes into a pane granted 48 columns`, `a byte a canvas cannot draw`.
-    /// Both are Workshop's own bytes and neither echoes the refused message; they are
-    /// one truth with two presentations, set and cleared together, and this half exists
-    /// because the maker-facing explanation used to live only on the notice line, where
-    /// it outlived the refusal it described. Empty exactly when `refusal` is.
+    /// ...AND WHY, IN THE JUDGE'S OWN WORDS.
+    // WL-ATTN-04 -- agents/workshop/attention.md
     std::string refusal_why;
     std::vector<surface::SurfaceTextRow> shown;
 
-    /// THERE IS NOTHING TO REFUSE ANY MORE -- one door, because the sentence and its reason
-    /// are one fact and THREE sites clear them (a valid update arrives, a re-offer corrects
-    /// the descriptor, a new room is granted). Two fields cleared by hand at three sites is
-    /// how one of them comes to outlive the other, and the survivor would be an explanation
-    /// of a refusal that is over -- an explanation with nothing left to explain.
+    /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.
+    // WL-ATTN-04 -- agents/workshop/attention.md
     void clear_refusal() {
         refusal.clear();
         refusal_why.clear();
@@ -806,40 +505,16 @@ struct ExternalPane {
 /// One panel a maker has opened.
 ///
 /// It carries a KIND and nothing else. Per-panel view state lives beside the
-/// stack rather than inside the instance (`Panels::builder`), because BLD-0
+/// stack rather than inside the instance (`Panels::builder`), because the catalog
 /// allows one instance of a kind: a second copy of a tool's status inside each
 /// instance would be a shape that only means something once a policy about
 /// several instances exists.
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct Panel {
     std::int64_t kind = panel::kBuilder;
 };
 
-/// WHAT A FRESH SESSION HAS OPEN. Info, and nothing else.
-///
-/// It is a function with a name rather than a brace-initialiser on the member
-/// below, because "Workshop boots with the properties showing" is a DECISION and
-/// a decision should be somewhere a reader can find it and change it. Before
-/// PNL-0 it was not a decision at all — the OBJECTS and PROPERTIES columns were
-/// structural furniture that `paint` drew unconditionally, and the only way to
-/// not have them was to edit `paint`.
-///
-/// It is also why every existing Workshop case still measures the screen it
-/// always measured: a default-constructed `Session` has Info open, so the
-/// migration changed where those two columns are painted from and not whether
-/// they are painted.
-///
-/// WS-0 GAVE THE SAME DECISION A SECOND READER, and this array is what stops
-/// the two from drifting. A fresh Workshop now has an authored SETUP as well as
-/// an open panel list, and "a fresh Workshop shows Info" is one sentence that
-/// both of them have to say: `default_panels()` below turns this array into
-/// open presentations, and `default_setup()` (setup.hpp) turns the SAME array
-/// into the authored references a fresh setup carries. Neither is free to say
-/// something else, because neither of them holds the answer -- this line does.
-/// ⚠ AND THE ORDER OF THIS ARRAY IS THE FRESH DESK'S FRONT ORDER (WUX-12). `add_pane`
-/// appends the identity permutation, so the LAST entry is front-most -- which is why
-/// Layouts is last: the top band it replaces was painted in front of every pane, and a
-/// conversion that quietly sent it behind them would be a visible change dressed as a
-/// refactor. A maker may of course send it back; that is the point of the conversion.
+// WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo, panel::kLayouts};
 
 inline constexpr std::size_t kDefaultPanelCount =
@@ -860,16 +535,10 @@ struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
     BuilderPane builder;
-    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING. `BuilderPane`'s place, and NOT its
-    /// lifetime: this one survives the presentation being removed and restored -- close
-    /// Project Files, reopen it, and a maker is where they were -- while `close_panel`
-    /// deliberately forgets the Builder's copy, so that a reopened Builder asks the tool
-    /// and shows the TOOL's running total rather than looking instantly informed about
-    /// something minutes stale. Two per-kind views, two answers to "may this be kept",
-    /// each argued where it is taken. Neither outlives the RUN, and nothing writes either
-    /// to a file.
+    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING.
+    // WL-FILES-01 -- agents/workshop/files.md
     FilesPane files;
-    /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones (WP-0). It
+    /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones. It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE
     /// -- the picker's rows, `occupied_at`'s answer, `bounds_of`'s slot -- is
@@ -877,19 +546,8 @@ struct Panels {
     /// added a parameter to each of them and given a caller a chance to forget it.
     RuntimeCatalog runtime;
     /// THE ONE MAKER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
-    /// name, its authored interior, the file it stands for and the last value that file
-    /// held. It lives here beside `runtime` for `runtime`'s own measured reason -- every
-    /// presentation question that has to know whether a reference resolves, what its
-    /// name is or where it goes is already handed a `Panels`, and a definition owned
-    /// anywhere else would have had to be copied into a second catalog row to be seen
-    /// here, which is one truth with two owners.
-    ///
-    /// IT IS AUTHORED MATERIAL AND NOT A PRESENTATION'S COPY. `close_panel` does not
-    /// touch it (the browser's own placement, for the browser's reason): removing the
-    /// pane that presents it from a desk removes a presentation, and every byte of the
-    /// definition -- and its unsaved edits -- stands. Its lifetime is the run's, its
-    /// truth is the file's, and its doors are the weave's (`new_maker_pane`,
-    /// `open_maker_pane`, `save_maker_pane`, `discard_maker_pane_edits`).
+    /// name, its authored interior, the file it stands for and the last value that file held.
+    // WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
     MakerPane maker;
     /// The per-pane view of each OPEN external panel: its granted room, its copy
     /// of what the provider last said, and whether it is waiting. One entry per
@@ -897,72 +555,22 @@ struct Panels {
     /// door — the `BuilderPane` rule, for a population rather than for one kind.
     std::vector<ExternalPane> external;
     /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
-    /// order. `open`'s twin and derived by the same one path: `reconcile` is the
-    /// only writer, and it runs on every change to the setup and on every change
-    /// of extent, so this cannot describe a screen that has since moved.
-    ///
-    /// WAITING IS NOT UNRESOLVED AND NOT CLOSED. The reference resolves, this
-    /// build knows exactly what it would present, and the current composition
-    /// has nowhere to put it. Saying `closed` would invite a maker to press the
-    /// picker again; saying `unresolved` would blame the provider for the screen.
+    /// order.
+    // WL-PANE-03, WL-PANE-10 -- agents/workshop/panes-and-windows.md
     std::vector<std::int64_t> waiting_for_room;
     /// WHICH KEYBOARD-TAKING PANE A MAKER LAST POINTED THE KEYS AT -- an external
     /// pane, or the built-in Editor -- the keyboard's CANDIDATE, and emphatically not
-    /// its answer (MSG-0).
-    ///
-    /// IT IS RESOLVED AT EVERY SPEND AND REMEMBERED BY NOBODY, which is
-    /// `bounds_of`'s discipline applied to a focus: `keyboard_pane` (weave.hpp)
-    /// asks whether this kind is still an open external pane holding a granted
-    /// room -- and the editor's own resolution (`editor_has_keyboard`, screen.hpp)
-    /// asks whether the Editor is still open with a document and visible cells --
-    /// and both answer nothing when it is not. So a pane that is closed,
-    /// removed from the setup, left unresolved by a provider that went away, or
-    /// pushed off the screen stops receiving keys with nothing to clear and no
-    /// notification owed to anybody -- and if the same kind comes back, so does
-    /// the keyboard, because the candidate was never a lie in the first place.
-    ///
-    /// TWO WRITERS, EACH A DELIBERATE POINTING. A PRESS: `on(PointerButton)` sets it
-    /// from the occupancy walk it already performs, before any layer answers, so there
-    /// is one decision rather than one per routing arm; a press that lands anywhere
-    /// else -- another panel, the workspace, nothing at all -- clears it by the same
-    /// line, and modes that own the pointer whole (the Terminal, pane management)
-    /// never reach it, which is why closing one hands the keyboard back exactly where
-    /// it was. And OPENING A SOURCE: the Builder's edit-source door points the keys at
-    /// the Editor it just filled, because "open this file for editing" is a maker
-    /// saying where their hands are going next, and an open that left the keyboard
-    /// elsewhere would make the first keystroke land in the wrong place.
-    ///
-    /// SESSION, and not even that: it is not in the setup, not in the document,
-    /// not persisted and not restored. `kNoPaneKind` is where every session starts.
+    /// its answer.
+    // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
 
-    /// WHICH PANE THE MAKER LAST PRESSED INTO -- the SELECTED pane (WUX-5), and the
+    /// WHICH PANE THE MAKER LAST PRESSED INTO -- the SELECTED pane, and the
     /// identity the desk's effective foreground order is lifted by.
-    ///
-    /// IT IS `keyboard`'S OWN SHAPE, ONE QUESTION WIDER, AND WRITTEN BY THE SAME LINE.
-    /// `keyboard` asks "which KEYBOARD-TAKING pane did the maker point at"; this asks
-    /// "which pane did the maker point at", of every kind. Two facts read off one press
-    /// rather than two decisions about one press: `on(PointerButton)` sets this from the
-    /// occupancy walk it already performs, and derives the keyboard candidate from it
-    /// through the declared candidacy (`PanelKind::takes_keyboard`, MSG-0's line, which
-    /// now reads this instead of re-testing the occupancy). A press on the workspace, on
-    /// the picker, on the screen's own furniture or on nothing clears it by that same line.
-    ///
-    /// SELECTION IS A STATE A MAKER ENTERED, WHICH IS WHY A PRESS AND NOT A POINT WRITES
-    /// IT (CTX-0's law). Opening the contextual surface captures a subject and changes
-    /// this not at all; the modes that own the pointer whole (the Terminal, the
-    /// arrangement scopes) never reach the line, so entering one leaves the selection
-    /// exactly where it was and leaving hands it back.
-    ///
-    /// IT IS AN IDENTITY AND NEVER AN ORDER. What it does to the desk is derived fresh at
-    /// every paint and every press (`effective_pane_order`, setup.hpp); no rank is
-    /// rewritten, no `front` moves, and a pane that closes, stops resolving or loses its
-    /// room stops being lifted with nothing to clear -- `keyboard`'s discipline exactly.
-    ///
-    /// SESSION, and not even that: not in the setup, not in the document, not persisted
-    /// and not restored. `kNoPaneKind` is where every session starts.
+    // WL-FRONT-04 -- agents/workshop/planes.md
+    // WL-CTX-01 -- agents/workshop/contextual.md
     std::int64_t selected = kNoPaneKind;
 
+    // WL-PANE-13 -- agents/workshop/panes-and-windows.md
     bool has(std::int64_t kind) const {
         for (const Panel& p : open) {
             if (p.kind == kind) {
@@ -1003,37 +611,18 @@ struct Panels {
     }
 };
 
-/// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind` (MSG-0).
-///
-/// `Panels::keyboard` is a press's MEMORY and this is the ANSWER, resolved fresh at
-/// every spend rather than maintained: a pane that is closed, removed from the setup,
-/// left unresolved by a provider that went away, or granted no room stops being the
-/// target with nothing to clear and no notification owed to anybody. The three
-/// conditions are exactly what `external_press` already requires before it will send
-/// a press, so a pane that can be pressed is a pane that can be typed into and there
-/// is no fourth state between them.
-///
-/// IT IS HERE, AND NOT IN THE WEAVE, BECAUSE TWO PARTIES ASK IT. The router asks in
-/// order to route a key; the PAINTER asks in order to say so -- the pane's header
-/// marks it and the bottom band names it. A second copy of this resolution would be a
-/// screen that says a maker is typing into one pane while the keys go to another,
-/// which is the worst shape this defect could take.
-/// WHICH PANE IS SELECTED RIGHT NOW, or `kNoPaneKind` (WUX-5) -- `keyboard_pane`'s twin,
+/// WHICH PANE IS SELECTED RIGHT NOW, or `kNoPaneKind` -- `keyboard_pane`'s twin,
 /// and resolved by the same rule for the same reason.
-///
-/// `Panels::selected` is a press's MEMORY and this is the ANSWER: a pane that has been
-/// closed, removed from the setup or left unresolved is not selected, with nothing to
-/// clear and nobody to notify, and if the same kind comes back so does the selection. What
-/// is deliberately NOT asked here is whether the pane is currently VISIBLE: a pane pushed
-/// off the room or covered is still the pane a maker chose, and the two consumers each
-/// answer that for themselves -- the effective order lifts only what is seated, and the
-/// help anchor falls back when the rectangle is empty. A visibility test here would make
-/// selection blink with the geometry.
+// WL-FRONT-04, WL-FRONT-05 -- agents/workshop/planes.md
 inline std::int64_t selected_pane(const Panels& panels) noexcept {
     const std::int64_t kind = panels.selected;
     return kind != kNoPaneKind && panels.has(kind) ? kind : kNoPaneKind;
 }
 
+/// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
+/// `Panels::keyboard` is a press's MEMORY and this is the ANSWER, resolved fresh at every
+/// spend rather than maintained: a pane that stops qualifying stops being the target.
+// WL-FOCUS-01, WL-FOCUS-05, WL-FOCUS-10 -- agents/workshop/focus.md
 inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
     const std::int64_t kind = panels.keyboard;
     if (!is_runtime_kind(kind) || !panels.has(kind)) {
@@ -1051,12 +640,13 @@ inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
 ///
 /// Answers whether anything changed, so the caller can tell a maker the truth
 /// either way rather than showing an unchanged screen with no explanation.
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool open_panel(Panels& panels, std::int64_t kind) {
     if (panels.has(kind)) {
         return false;
     }
     panels.open.push_back(Panel{kind});
-    // AND AN EXTERNAL PANE GETS ITS VIEW BY THE SAME ACT (WP-0), for the reason
+    // AND AN EXTERNAL PANE GETS ITS VIEW BY THE SAME ACT, for the reason
     // the Builder's is forgotten by the closing one: a presentation and its copy
     // of what it presents have one lifetime, and two doors would eventually be
     // walked through in the wrong order. A fresh view is AWAITING with no room
@@ -1070,18 +660,8 @@ inline bool open_panel(Panels& panels, std::int64_t kind) {
 }
 
 /// Close the panel of this kind, and forget what it was showing.
-///
-/// THE TOOL IS UNTOUCHED — nothing here reaches the bus, and the weave whose
-/// facts this panel was showing goes on being asked, answered and counted by
-/// whoever else is talking to it.
-///
-/// THE PANEL'S COPY IS DESTROYED WITH THE PANEL, and that is the deliberate
-/// half. Keeping it would make a reopened panel look instantly informed while
-/// showing something that might be minutes stale, and it would hide the property
-/// this whole split exists to keep: a reopened panel asks the tool and the TOOL
-/// answers with its own running total, so `builds` comes back as 3 rather than
-/// as 1. A panel that owned the state could not produce that number, which is
-/// what makes it evidence rather than decoration.
+// WL-FILES-05 -- agents/workshop/files.md; WL-LAYOUT-07 -- agents/workshop/layouts.md
+// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool close_panel(Panels& panels, std::int64_t kind) {
     for (std::size_t i = 0; i < panels.open.size(); ++i) {
         if (panels.open[i].kind == kind) {
@@ -1106,7 +686,7 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
             // A dirty buffer disappearing because a pane was removed is the defect
             // this placement exists to make unsayable.
             //
-            // AND AN EXTERNAL PANE FORGETS EVERYTHING IT WAS SHOWING (WP-0):
+            // AND AN EXTERNAL PANE FORGETS EVERYTHING IT WAS SHOWING:
             // its granted room, its copy of the provider's rows, whether it had
             // heard, whether it was waiting, and any refusal. What it does NOT
             // touch is the provider weave, its office, its semantic state, or

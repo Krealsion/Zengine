@@ -4,9 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_HOST_SOURCES_HPP
 #define ZENGINE_WORKSHOP_HOST_SOURCES_HPP
 
-// THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER (SOURCE-0).
+// THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER.
 //
-// PROV-0's law was, and remains, that a host authors no operator: its catalog starts
+// The provider law was, and remains, that a host authors no operator: its catalog starts
 // empty, powers arrive from providers, and a tripwire reads `workshop.cpp` for the
 // semantic strings a host would have to name in order to manufacture meaning for
 // itself. What that law over-reached is the case it was never built for -- a host
@@ -205,7 +205,7 @@ std::vector<op::OperatorDef> host_sources(const std::string&, CurrentRecipes&&) 
 ///
 /// Every definition is judged before any is installed -- the same all-or-nothing shape
 /// `Catalog::mount` already keeps -- and the judgement is `op::is_source`. That is the
-/// refined PROV-0 boundary as a mechanism: describing yourself is contributing facts
+/// refined provider boundary as a mechanism: describing yourself is contributing facts
 /// you own, and the moment a contribution would take an argument it has stopped being
 /// a description and started being application power, whoever wrote it.
 ///

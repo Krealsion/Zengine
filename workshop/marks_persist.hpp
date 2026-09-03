@@ -6,64 +6,7 @@
 
 // THE PLACES A MAKER SAID THEY WANT BACK -- an eighth durable artifact, and the third file
 // of the maker's-own-facts kind.
-//
-// ---- Why it is a file of its own ---------------------------------------------------------
-//
-// The keymap is the maker's HAND and the prefs file is their EYES; this is their PLACES.
-// Three reasons it did not join either, and the middle one is the decisive one:
-//
-//   1. `prefs_persist.hpp` says so in its own words -- "anything that is not presentation
-//      preference belongs somewhere with its own name" -- and a remembered directory is not
-//      a preference about how Workshop presents itself.
-//   2. THE PREFS FORMAT HAS EXACTLY ONE VERSION AND NO MIGRATION. Adding a field there
-//      moves its `format_version`, and that file refuses any other version BY NUMBER --
-//      so every maker who had ever toggled pane titles would meet a refusal and lose the
-//      preference, to make room for a fact that is not one. A new file costs nobody
-//      anything: its absence is simply no marks.
-//   3. THEY ARE NOT THE SAME KIND OF DURABLE FACT. A keymap and a presentation preference
-//      are meaningful on any machine a maker sits at, which is why they live under the
-//      per-user CONFIGURATION root. A mark is an ABSOLUTE PATH -- it describes THIS
-//      machine's disks, exactly as a viewport describes this machine's window -- so it
-//      belongs under the machine-local STATE root, beside the last session, by the very
-//      criterion `user_paths.hpp` draws the two roots with.
-//
-// ---- What version 1 promises ---------------------------------------------------------
-//
-//   PROMISED   Workshop reads and writes marks format version 1: a list of absolute
-//              directory locations, as text. Written when a maker marks or unmarks a
-//              place, so the file exists exactly when somebody has kept one; an absent
-//              file is no marks, silently.
-//   REFUSED    any other `format_version`, by number, from the envelope's claim BEFORE the
-//              rows are judged (the family's preflight); a `format` that is not this one;
-//              a field the shape does not declare; a file larger than a mark list can be.
-//   SKIPPED    one ROW this build cannot use -- a spelling that is not absolute, or one
-//              this platform will not make a path out of. It is named on the way in and
-//              the marks around it stand. See below for why this row is not the file.
-//   NOT DONE   names, tags, ordering, categories, file marks, per-project marks, marks
-//              scoped to anything, migration, a version graph. One version exists.
-//
-// ---- Why ONE bad row is not a bad FILE ---------------------------------------------------
-//
-// The family's standing law is that a file which cannot be understood is refused WHOLE and
-// never overwritten, and that law is kept here for everything the file CLAIMS ABOUT ITSELF:
-// its format word, its version, its shape. What differs is a row, and a row here is not a
-// rule the way a keymap override is -- it is one independent place. A keymap with an
-// illegal binding is a keymap whose meaning is genuinely unknown until somebody fixes it;
-// a mark list with one unusable line is a list of perfectly good places with one unusable
-// line in it, and refusing all of them would cost a maker every place they kept to punish
-// the one they hand-edited wrongly.
-//
-// SO THE SKIP IS SAID, ON THE WAY IN, NAMING THE SPELLING. That sentence is the whole of
-// what keeps this from being a silent deletion: the next mark a maker makes writes the
-// list this run is holding, and a row that was skipped is not in it. A maker who sees the
-// refusal can fix their file before that happens; a maker who never sees it never had a
-// broken row.
-//
-// ⚠ AND "UNUSABLE" IS A SPELLING TEST, NEVER AN EXISTENCE ONE. A marked directory that is
-// not there today -- an unplugged drive, an unmounted share, a tree not checked out yet --
-// is kept exactly as it was. Dropping a mark because the filesystem is temporarily
-// unavailable would silently delete a maker's own fact on the strength of a transient
-// answer, and nothing here asks the filesystem anything at all.
+// Workshop law: agents/workshop/files.md
 
 #include "marks.hpp"
 #include "path_admission.hpp"
@@ -101,10 +44,7 @@ inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
 // ---- The file's own shapes ---------------------------------------------------------------
 
 /// ONE MARK AS WRITTEN: the location, and nothing else.
-///
-/// A STRUCT RATHER THAN A BARE STRING, and the reason is the next fact rather than this
-/// one: a mark that later earns a maker-authored NAME grows a field here, and a list of
-/// bare strings could not have grown one without moving every existing file's version.
+// WL-FILES-08 -- agents/workshop/files.md
 struct WorkshopMark {
     std::string path;
 
@@ -185,7 +125,7 @@ inline Written marks_in(const WorkshopMarks& file, std::vector<std::string>& out
     for (const WorkshopMark& row : file.marks) {
         // ⚠ THE ROW IS ADMITTED, NOT TRUSTED. These bytes were written by this application
         // and may have been edited by a person since, and turning a stored narrow spelling
-        // back into a path is a conversion that REFUSES on some platforms (QR-12's measured
+        // back into a path is a conversion that REFUSES on some platforms (measured
         // throw, in its other direction). A relative spelling is refused here too, and not
         // resolved against anything: a place is where it is, and re-basing a remembered one
         // against wherever this process happens to be standing would be the two-bases defect

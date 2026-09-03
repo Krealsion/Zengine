@@ -5,115 +5,8 @@
 #define ZENGINE_WORKSHOP_SETUP_HPP
 
 // WHAT A MAKER CALLS THE ARRANGEMENT THEY ARE WORKING IN, and the whole of what
-// that is allowed to mean in WS-0.
-//
-// A SETUP IS A NAME AND AN ORDERED LIST OF AUTHORED PANE ROWS. Each row is a
-// durable reference plus the SMALLEST DIFFERENCE FROM THE DEVELOPER'S DEFAULT a
-// maker has asked for -- where it sits, how wide, how tall, and how far forward
-// (WIND-2). It is the third kind of fact this application has, and the only
-// interesting thing about it is where its edges are:
-//
-//   DOCUMENT   the objects a maker authored (vocabulary.hpp, persist.hpp). A
-//              setup neither contains nor touches one, and saving or restoring
-//              a setup changes no document byte.
-//   SETUP      the human name, which panes the maker meant to have open, and the
-//              window intent they authored for each. Authored, persisted, and
-//              this file.
-//   SESSION    the picker's cursor, a Builder panel's copy of a tool's status, a
-//              Terminal's draft, a drag, a notice. Belongs to the run.
-//   DERIVED    every rectangle a pane resolves to on the current screen. Never
-//              written down anywhere, here least of all.
-//
-// ---- Why a reference is two strings ---------------------------------------
-//
-// `Panels::open` holds `panel::kBuilder` and `panel::kInfo`, which are indices
-// into THIS BUILD'S OWN vocabulary. A file cannot hold one, for two reasons and
-// the second is the load-bearing one:
-//
-//   an ordinal is not durable    renumber the two constants in panel.hpp and
-//                                every saved setup silently opens the other
-//                                panel. The same argument persist.hpp makes for
-//                                writing an extent mode as the WORD `cells`.
-//   an ordinal cannot be ABSENT  there is no integer meaning "a pane this build
-//                                has never heard of". A setup that could not say
-//                                that would have to drop such an entry on load,
-//                                which is a saved file quietly editing itself.
-//
-// So a durable reference is a PROVIDER/SERVICE KEY and a PANE KEY, both text,
-// both readable by a person looking at their own file:
-//
-//     zengine.workshop / info
-//     zengine.workshop / builder
-//
-// The built-ins carry the same shape a later external provider will carry
-// (WP-R0), which is the whole reason it is two strings today rather than one:
-// EXTERNAL-SAFE DOES NOT MEAN EXTERNAL-NOW, and the cost of being external-safe
-// on day one is that today's file needs no migration on the day it stops being
-// the only kind.
-//
-// WHAT `provider` IS NOT is stated on `kWorkshopProvider` in panel.hpp and is
-// worth reaching from here too: it is a ROUTE, not an author identity and not
-// stamped provenance. Nothing in this file authenticates anything, and nothing
-// in this file may come to.
-//
-// ---- Resolution is FALLIBLE, and internal lookup stays total ---------------
-//
-// `panel_kind(unknown)` answers with the Builder, and that is correct for its
-// callers: they hand it a kind derived from bounded local state (a picker
-// cursor, an open panel), so a total function is cheaper than an invariant
-// somebody has to maintain. It is exactly wrong for a FILE, where the kind
-// arrives as two strings a stranger wrote, and where answering "Builder" to an
-// unknown reference would paint a maker's third-party pane as Workshop's build
-// tool.
-//
-// So the totality stays where it was and `resolve_pane` is a SECOND, narrower
-// door: it answers with nothing rather than with a fallback, and no placement,
-// occupancy, picker or painter path can be reached through it without the
-// caller having said what to do about the nothing.
-//
-// WP-0 WIDENED WHAT THAT DOOR CONSULTS AND NOT WHAT IT PROMISES. It now asks the
-// compile-time catalog AND this session's runtime catalog -- the panes some
-// office actually offered this run -- and the runtime half is a REQUIRED
-// argument, never a default and never a second overload. The reason is the one
-// HD-4 wrote down about `first_visible`: a spelling a caller can keep is a
-// spelling that stays silently right until the first case that needed the new
-// argument, and here that case is a maker's open external pane counted as
-// unresolved on the line beneath it. `resolve_builtin_pane` is the narrow
-// question under its own name, so the two cannot be reached by accident.
-//
-// ---- What an external pane added, and what it did NOT ----------------------
-//
-// A runtime pane is admitted from a LIVE OFFER under the office Loom stamped on
-// it (`admit_pane_offer`), held in session state that no file and no document
-// sees, and bounded in every field before a byte of it is retained. What did NOT
-// change is the persisted grammar: `PaneRef` is the same two strings,
-// `check_pane_key` is the same law, `kMaxSetupPanes` is the same number, and
-// setup_persist.hpp was not edited. An external reference saves, loads and saves
-// again byte-identically whether or not anybody is currently offering it.
-//
-// ---- What a setup deliberately does not have ------------------------------
-//
-// No RESOLVED rectangle, no screen extent, no text metric, no pane-instance
-// identity, no opaque provider configuration, no focus, no tabs, no docking, no
-// layout tree, no plugin manifest, no schema field of its own beyond the file's
-// (setup_persist.hpp). Every one of those is either DERIVED from the current
-// screen -- and would go stale the moment the window changed -- or a decision
-// the first provider that actually needs it should get to make.
-//
-// WIND-2 ADDED AUTHORED WINDOW INTENT AND NOT RESOLVED GEOMETRY, and the line
-// between them is the whole of the phase. What a row carries is what a MAKER
-// SAID: a place in canvas cells, a width and a height each in their own unit, and
-// a canonical rank saying how far forward this pane sits. What no row carries,
-// and what `check_setup` still cannot see, is a `Screen`: a setup legal on a tall
-// screen is legal on a short one, a setup legal on a terminal is legal on a
-// window, and the rectangle any of it resolves to is computed on every paint by
-// screen.hpp and stored nowhere.
-//
-// SPARSE, SO A DEFAULT STAYS A DEFAULT. Every one of the three geometry fields
-// carries a MODE, and the mode `default` means "no override -- the developer's
-// answer, whatever it becomes in a later build". A full snapshot would silently
-// convert every developer default into a maker decision at the moment of first
-// save, which is the same defect W-5 removed from the document's saved flag.
+// that is allowed to mean.
+// Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
 #include "document.hpp" // `doc::kMaxCells` -- the bound an authored cell count already has
 #include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
@@ -145,123 +38,33 @@ inline constexpr const char* kDefaultSetupName = "Default";
 inline constexpr const char* kDefaultSetupFileName = "workshop-setup.json";
 
 // ---- The bounds, and why each one is the number it is -----------------------
-//
-// EVERY ONE OF THESE IS AN INPUT BOUNDARY AND NOT A CAPACITY. They exist because
-// a setup can arrive from a file somebody else wrote, and material from a file
-// must be refused BEFORE it is copied into the live setup -- the Loom's decoder
-// already refuses a payload that would materialise more than its own budget, and
-// these say what this application will additionally accept as a setup. None of
-// them is a statement about how many panes Workshop can usefully show.
 
 /// How long a setup's human name may be.
-///
-/// THIRTY-TWO, AND THE SCREEN IS THE WHOLE OF THE REASON: the setup line at the
-/// minimum composition carries the name, the file it is stored in and its saved
-/// marker, and a thirty-two-byte name leaves that line fitting whole at 78 cells
-/// with the default file name (measured, screen.hpp's `setup_line`).
-///
-/// IT IS NO LONGER THE SAME NUMBER `doc::kMaxNameLen` USES, and that divergence is
-/// deliberate rather than drift. WS-0 wrote these as one kind of fact -- a name
-/// typed and read back on one line -- and QR-3 measured that the object label's
-/// half of that claim was never true (the OBJECTS list is 28 columns at the same
-/// minimum, so a name at the old bound was already marked there) and moved that
-/// constant to 64. THIS one still has a line it must fit whole, so it keeps the
-/// number that line measures; see `doc::kMaxNameLen` for why the other does not.
+// WL-SETUP-09 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxSetupNameLen = 32;
 
 /// How long either half of a `PaneRef` may be.
-///
-/// A key is a ROUTING NAME and not prose: sixty-four bytes holds a
-/// reverse-domain provider several levels deep and any pane word a provider
-/// would choose, and it bounds what one line of a forged file can push into the
-/// active setup. It is deliberately far above anything the catalog uses --
-/// `zengine.workshop` is sixteen -- because a setup must be able to retain a
-/// reference to a pane THIS BUILD HAS NEVER HEARD OF, and a bound cut to today's
-/// catalog would make tomorrow's reference unrepresentable.
+// WL-SETUP-01, WL-SETUP-10 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxPaneKeyLen = 64;
 
 /// How many pane references one setup may carry.
-///
-/// NOT `kPanelKinds`, emphatically. The catalog's population is a fact about
-/// what THIS build can present; the file's limit is a fact about what a setup
-/// may REMEMBER, and those are different numbers precisely because an
-/// unresolved reference is a legal thing to keep. A bound cut to the catalog
-/// would make today's population into tomorrow's file law and would refuse the
-/// one case this whole design exists to allow.
-///
-/// Thirty-two is chosen against the other end: Workshop's honest simultaneous
-/// capacity is one to two panes (the side region holds one; an overlay slot past
-/// the first does not fit the minimum screen), and the picker's own ceiling is
-/// eight kinds. Thirty-two is four times the largest catalog this composition
-/// could present and still bounds a file at a few kilobytes.
+// WL-MIG-03 -- agents/workshop/migration.md; WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kMaxSetupPanes = 32;
 
-/// How long a RUNTIME pane descriptor's two prose fields may be (WP-0).
-///
-/// THESE BOUND A LIVE MESSAGE, NOT A FILE, and that is why they are here beside
-/// the file's bounds rather than folded into them: a descriptor never reaches the
-/// setup, so no saved byte depends on either number, and a later phase may move
-/// one without touching the version-1 grammar at all.
-///
-/// THIRTY-TWO FOR A NAME, for `kMaxSetupNameLen`'s reason measured against a
-/// different line: the picker pads a name into a ten-column field and then writes
-/// a state column and a summary after it, so a name is a thing a maker reads
-/// across one row of the NARROWEST overlay this composition lays out -- 48 cells,
-/// at the 78x22 minimum, which is where the bound has to hold (a wider surface
-/// gives the slot more, WIND-1, and a bound measured there would be too loose to
-/// mean anything). Sixty-four for a summary, the same
-/// `kMaxPaneKeyLen` order of magnitude, because a summary is one sentence and the
-/// picker fits what it can (`detail::fit` marks the rest). Both are BYTE counts,
-/// spent against `std::string::size()`, and their refusals say so (WS-0a).
+/// How long a RUNTIME pane descriptor's two prose fields may be.
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneNameLen = 32;
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
-/// THE LARGEST DEVICE-PIXEL AMOUNT A PANE MAY BE AUTHORED AT (WIND-2).
-///
-/// SIXTY-FIVE THOUSAND FIVE HUNDRED AND THIRTY-SIX, and the three things it is
-/// NOT are what make it the right kind of number:
-///
-///   it is not `doc::kMaxCells * kCanvasCellPx`   a file's validity must not
-///                                                depend on a medium's cell
-///                                                scale, which is the same
-///                                                sentence as "`check_setup`
-///                                                never sees a `Screen`". The
-///                                                SDL Skin's twelve is one
-///                                                Skin's layout number and this
-///                                                file may not hold it.
-///   it is not a capacity                         no medium is promised to be
-///                                                able to show this; the CELL
-///                                                bound does the real work at
-///                                                projection, and this only has
-///                                                to keep the integer safe and
-///                                                the file bounded.
-///   it is not a screen size                      it is far above one on
-///                                                purpose -- eight times 8,192,
-///                                                the horizontal pixel count
-///                                                commonly called 8K --
-///                                                so it never becomes the thing
-///                                                that decides what a maker may
-///                                                author on hardware nobody has
-///                                                built yet.
-///
-/// A power of two, so the one arithmetic a projection would ever do to it (an
-/// integer division by a per-axis cell scale) stays nowhere near the end of the
-/// number line.
+/// THE LARGEST DEVICE-PIXEL AMOUNT A PANE MAY BE AUTHORED AT.
+// WL-SETUP-06 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kMaxPanePixels = 65536;
 
 // ---- The value ---------------------------------------------------------------
 
 /// WHICH PANE A MAKER MEANT -- durably, and without naming a catalog slot.
-///
-/// Two strings, and the pair is the identity: `provider` says whose namespace to
-/// read `pane` in. Neither half means anything alone, which is why they are one
-/// struct rather than two fields on a setup entry.
-///
-/// EQUALITY IS BYTE EQUALITY of both halves. There is no normalisation, no case
-/// folding and no aliasing here on purpose: a reference this build cannot
-/// resolve must come back out of the file exactly as it went in, and a
-/// comparison that tidied would be the first step towards a save that rewrote a
-/// stranger's entry.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneRef {
     std::string provider;
     std::string pane;
@@ -269,80 +72,28 @@ struct PaneRef {
     friend bool operator==(const PaneRef&, const PaneRef&) = default;
 };
 
-// ---- THE AUTHORED WINDOW: the smallest difference from a default (WIND-2) -----
-//
-// A UNIT IS A MODE BESIDE AN AMOUNT, NEVER A FIELD NAME. `ui::Extent` already
-// makes the argument for this shape in its own words -- "It is one property, not
-// two. A maker does not author a type and then author a value; they author a
-// width" -- and names the historical builder's separate `Width Type` / `Width
-// Value` inspector rows as the mistake it exists to refuse.
-//
-// AND IT IS WORKSHOP'S OWN TYPE, NOT `ui::Extent`. Two measured reasons, either
-// of which is sufficient. `kExtentPercent` means *a share of the context frame*,
-// and a pane has no context element to take a share of. And `resolve_extent`'s
-// first line is `if (e.mode != kExtentPercent) return e.amount;`, so a third mode
-// added to `ui::Extent` would resolve AS CELLS in every existing caller --
-// silently, in the widening direction, in a shared package whose values also
-// arrive off the document's wire.
+// ---- THE AUTHORED WINDOW: the smallest difference from a default --------------
 
 /// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a fourth.
-///
-/// A CLOSED SET, and `default` is a VALUE rather than an absent field. Loom's
-/// admission has no optional and refuses an unknown field, so absence cannot be
-/// spelled by omitting one; and a magic coordinate is a value a maker could
-/// otherwise mean. The precedent is doubled in this repository already --
-/// `role::kNone` and `kNoCaret` are both "the absence of one, deliberately not a
-/// further member of the set".
-///
-/// `kDefault == 0` SO A DEFAULT-CONSTRUCTED ROW MEANS "NO OVERRIDE", which is
-/// what makes a fresh setup's bytes the smallest spelling of a setup that has
-/// never been arranged.
+// WL-SETUP-03, WL-SETUP-04, WL-SETUP-06 -- agents/workshop/setup-file.md
 namespace pane_unit {
 inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
-/// AN ABSOLUTE COUNT OF SUB-CELL UNITS — 1/`surface::kCellSubs` of a canvas
-/// cell (WUX-2; it was a whole-cell count until then). The fine lattice is the
-/// authored truth: a pane a maker dragged by a pixel differs from its
-/// neighbour by a few of these, a pane on a cell boundary is an exact multiple
-/// of `kCellSubs`, and no medium's device scale appears in either. The
-/// in-memory value 1 is arbitrary as ever; the FILE writes the word
-/// (`subcells`, setup format v3).
+/// AN ABSOLUTE COUNT OF SUB-CELL UNITS — 1/`surface::kCellSubs` of a canvas cell.
+// WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kSubcells = 1;
 /// DEVICE PIXELS, declared from the beginning and currently unprojectable.
-///
-/// It is a LEGAL authored value on every medium and is refused at PROJECTION on
-/// every medium this build has, because no medium publishes a trustworthy
-/// per-axis device-pixel scale for a canvas cell -- see `project_pane`
-/// (screen.hpp), which owns that refusal and states why the near-misses are
-/// traps. Declaring it now rather than later is what makes the refusal branch
-/// reachable and tested on day one instead of dead code waiting for a medium.
-/// (WUX-2 did not light it: sub-cell units refine the medium-independent
-/// lattice, which is a different thing from a device pixel becoming authored
-/// truth — the refusal and its reasons stand.)
+// WL-SETUP-06 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = 2;
 } // namespace pane_unit
 
 /// THE AUTHORED LATTICE'S WALLS, in sub-units: the same cell bounds the setup
 /// law has always enforced, expressed at the resolution the amounts now carry.
-/// One multiply, here, so a refusal sentence and a check cannot disagree about
-/// what "at most 4096 cells" means on the fine lattice.
+// WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
 inline constexpr std::int64_t kPaneSubMax = doc::kMaxCells * surface::kCellSubs;
 
 /// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
-///
-/// ONE MODE FOR THE PAIR, because `doc::move` proves a position is one operation:
-/// "a diagonal drag into the top-left corner would slide the object down the edge
-/// while reporting a refusal". A width and a height are two values under one
-/// rule; an x and a y are one value.
-///
-/// ABSOLUTE POSITION ON THE CANVAS'S FINE LATTICE, NOT AN OFFSET FROM THE
-/// DEVELOPER'S PLACEMENT. An offset is authored against a default a later build
-/// may change, so the same saved bytes would silently mean a different place in
-/// the next version. Absolute intent is what `ui::Element` already authors, and
-/// RESETTING is what gives back "wherever the default puts it". Since WUX-2 the
-/// coordinates are sub-units (1/`surface::kCellSubs` cell), so the place a hand
-/// left a pane at is the place the file remembers, to the pixel a medium could
-/// distinguish — and still a fact about the canvas, not about a monitor.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
     std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kSubcells`; never `kPixels`
     std::int64_t x = 0;
@@ -352,10 +103,7 @@ struct PanePlace {
 };
 
 /// HOW BIG A MAKER MADE ONE AXIS OF A PANE.
-///
-/// PER AXIS, AND IT MUST BE. A maker who says "as wide as the pane needs, as tall
-/// as the screen allows" is saying two things, and one mode for both would make
-/// the narrower of the two intents unsayable.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneSize {
     std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kSubcells` or `kPixels`
     std::int64_t amount = 0;
@@ -365,35 +113,7 @@ struct PaneSize {
 
 /// ONE ROW OF A SETUP: which pane, and the smallest thing a maker said about its
 /// window.
-///
-/// THE OVERRIDE LIVES BESIDE THE REFERENCE, in the same row, and that is the
-/// choice the whole grammar rests on. A separate map keyed by `PaneRef` would
-/// create a SECOND POPULATION naming references, and `check_setup` would then owe
-/// orphan detection, missing-member detection, and a repair rule for a file
-/// carrying both -- a whole second validity surface bought for nothing.
-///
-/// `front` IS A CANONICAL RANK AND NOT AN ACCUMULATING COUNTER. Over a setup's
-/// `n` rows the set of ranks is exactly `{0 .. n-1}`: 0 is back-most, `n-1` is
-/// front-most, and there is no tie and therefore no secondary key. A permutation
-/// of `0..n-1` is UNIQUE for a given order, so one semantic order has exactly one
-/// persisted spelling and reset writes bytes identical to a setup that was never
-/// reordered. An accumulating `max + 1` would be an operation TRACE rather than an
-/// order: alternating "send A to front" and "send B to front" produces the same two
-/// semantic orders forever while the integers grow without bound, so a legal
-/// gesture would eventually fail on a setup for which a bounded spelling always
-/// existed.
-///
-/// THE RANK IS OVER ALL AUTHORED ROWS, INCLUDING UNRESOLVED ONES, and that is
-/// load-bearing. The presented order is this permutation RESTRICTED to what this
-/// build seated, and a restriction of a total order is a total order -- so a pane
-/// that stops resolving keeps its exact place for free, and gets it back when it
-/// resolves again, with no byte of the file changing either way.
-///
-/// A DEFAULT-CONSTRUCTED ROW CARRIES `front = 0`, WHICH IS VALID ONLY FOR A
-/// ONE-ROW SETUP. That is the one wart of this representation and it is named
-/// rather than hidden: `check_setup` judges a completed candidate and never
-/// repairs one, so every producer of a row -- `add_pane`, `default_setup`, and any
-/// test constructing a candidate by hand -- assigns the rank deliberately.
+// WL-SETUP-01, WL-SETUP-07 -- agents/workshop/setup-file.md
 struct SetupPane {
     PaneRef ref;
     PanePlace place;
@@ -406,25 +126,8 @@ struct SetupPane {
 
 /// A setup: what a maker calls this arrangement, and which panes it has, in
 /// order.
-///
-/// ORDER IS PRESERVED AND IT IS MEANING, not tidiness -- the same claim
-/// `persist.hpp` makes about the objects in a document, and for a smaller but
-/// real version of the same reason. An open panel placed in the overlay stack and
-/// carrying NO authored place takes the next SLOT in that stack, counted over the
-/// open list in order (`bounds_of`), so the order of this list is the order the
-/// reactive panes appear down the screen. The list is never sorted, because a save
-/// that tidied would silently choose a stacking a maker did not.
-///
-/// THE LIST'S ORDER IS NOT THE PAINT ORDER (WIND-2). `front` is, and the
-/// separation is the whole reason the rank exists: `seat_panes`, `reconcile` and
-/// `bounds_of` all read the LIST, so reordering it would move a reactive pane's
-/// rectangle -- and "raising a pane must not move it" is then not a discipline
-/// somebody keeps but the absence of a write.
-///
-/// AN EMPTY PANE LIST IS A LEGAL SETUP. "I want nothing open" is a thing a maker
-/// can mean and a thing this application can present -- the picker removes the
-/// last panel already -- so refusing to save it would make one reachable
-/// arrangement unnameable.
+// WL-LAYOUT-01, WL-LAYOUT-06 -- agents/workshop/layouts.md
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Setup {
     std::string name;
     std::vector<SetupPane> panes;
@@ -434,24 +137,16 @@ struct Setup {
 
 // ---- The reference a built-in kind carries, and the kind a reference names ---
 
-/// THE DURABLE REFERENCE FOR AN INTERNAL KIND. Total, for exactly the reason
-/// `panel_kind` is total and with exactly the same callers: every one of them
-/// derives the kind from bounded local state -- a catalog row the picker's
-/// cursor is on, or a panel already open -- so there is no unknown kind for this
-/// to have an opinion about.
-///
-/// IT IS NOT THE FALLIBLE DIRECTION. The direction that meets a stranger's
-/// bytes is `resolve_pane` below, and it is the one that answers with nothing.
+/// THE DURABLE REFERENCE FOR AN INTERNAL KIND.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline PaneRef pane_ref_of(std::int64_t kind) {
     const PanelKind& row = panel_kind(kind);
     return PaneRef{row.provider, row.pane};
 }
 
 /// THE DURABLE REFERENCE A MAKER-MADE PANE EARNS FROM ITS NAME, and the whole of how that
-/// identity is minted: Workshop's maker namespace, and the definition's own name. It is a
-/// function of the NAME and of nothing else -- not of a file path, not of which definition
-/// happens to be open -- so a setup that names `MyPane` names the same pane after the file
-/// moves, after another definition is opened, and after this run ends.
+/// identity is minted: Workshop's maker namespace, and the definition's own name.
+// WL-MAKER-03 -- agents/workshop/maker-pane.md
 inline PaneRef maker_pane_ref(const std::string& name) {
     return PaneRef{kMakerPaneProvider, name};
 }
@@ -463,17 +158,7 @@ static_assert(kMaxMakerPaneNameLen <= kMaxPaneKeyLen,
               "bound must sit under the reference's");
 
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
-///
-/// The one fallible boundary, and the only door through which text from a file
-/// becomes a panel. An unknown provider and an unknown pane key are the same
-/// answer -- nothing -- because a caller has the same thing to do about both,
-/// and because a finer answer would invite a reader to believe Workshop knows
-/// something about the provider it does not (see kWorkshopProvider: silence
-/// proves unresolved, never unavailable).
-///
-/// AN UNKNOWN REFERENCE NEVER BECOMES THE BUILDER. That is the whole of what
-/// this function is for; `panel_kind`'s fall-through is correct where it is and
-/// would be a lie here.
+// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         if (ref.provider == kPanelCatalog[i].provider && ref.pane == kPanelCatalog[i].pane) {
@@ -485,31 +170,7 @@ inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
 
 /// WHICH KIND THIS REFERENCE NAMES ON THIS SCREEN, IN THIS RUN, OR NOTHING --
 /// asked of the compile-time catalog and of what this session has been offered.
-///
-/// THE RUNTIME CATALOG IS A REQUIRED ARGUMENT AND IT IS NOT DEFAULTED (WP-0),
-/// which is HD-4's rule about `first_visible` applied to a resolution instead of
-/// to a window: a default would let a production caller keep the one-argument
-/// spelling and be silently right until the first external offer, and the symptom
-/// would be a maker's visibly open pane counted as `1 unresolved` on the setup
-/// line beneath it. When the compiler stopped every such site, that was the
-/// parameter doing its job. `resolve_builtin_pane` above is the narrower question
-/// and answers it under a different name, so neither can be reached by accident.
-///
-/// BUILT-INS FIRST, and it is not merely an ordering. Admission refuses an offer
-/// whose `PaneRef` would shadow a compile-time row (`admit_pane_offer`), so no
-/// runtime entry can ever match here -- this order is what that refusal would
-/// otherwise have to be trusted to have enforced, said a second time in the one
-/// place a shadow would do damage.
-///
-/// IT TAKES THE WHOLE `Panels` SINCE A MAKER COULD MAKE A PANE, for the same reason WP-0
-/// made the runtime catalog a required argument: the session's resolution table grew a
-/// third row -- the one maker-made pane this run has open, `Panels::maker` -- and a
-/// spelling that could still be handed the runtime catalog alone would be silently right
-/// until the first maker's pane, which it would count as unresolved on the line beneath a
-/// pane the maker can see. THE MAKER ARM ASKS THE NAME AND NOTHING ELSE: the reference
-/// resolves exactly when its provider is the maker namespace and its pane is the open
-/// definition's name, so a definition file moving changes nothing and a definition that
-/// is not open leaves the reference retained and unresolved, as any other stranger's is.
+// WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panels& panels) {
     const std::optional<std::int64_t> built_in = resolve_builtin_pane(ref);
     if (built_in.has_value()) {
@@ -537,12 +198,7 @@ inline bool resolvable(const PaneRef& ref, const Panels& panels) {
 /// ONE ROW OF THE COMBINED PICKER POPULATION -- a compile-time kind or a runtime
 /// one, said in one shape so the picker, the cursor, the selection and the
 /// pointer all read one list.
-///
-/// IT CARRIES COPIES AND NOT VIEWS, deliberately: a runtime row's strings live in
-/// a vector that a later offer may reallocate, and a `const char*` taken out of
-/// one is a dangling pointer waiting for a repaint. The built-in half's `const
-/// char*`s are static and would have been safe; making both halves the same shape
-/// is what stops a reader having to know which half they are holding.
+// WL-PANE-12 -- agents/workshop/panes-and-windows.md
 struct CatalogRow {
     std::int64_t kind = panel::kBuilder;
     PaneRef ref;
@@ -550,21 +206,13 @@ struct CatalogRow {
     std::string summary;
 };
 
-/// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order:
-///
-///     every compile-time built-in, in the catalog's own order
-///     then every admitted runtime pane, in first-accepted-offer order
-///
-/// BUILT AS A VALUE RATHER THAN WALKED TWICE. Two loops over two arrays is how
-/// the picker's painter, its cursor bound and its selection come to disagree
-/// about which row index means what -- the exact class of defect PNL-1 removed
-/// from placement by resolving it in one path. It is at most
-/// `kMaxPaneCatalogEntries` small rows and it is derived on demand and cached
-/// nowhere, which is the same discipline `Screen` and `workspace_scene()` are
-/// under.
 /// The one line the picker reads under a maker-made pane's name.
 inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
 
+/// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
+/// built-in in the catalog's own order, then every admitted runtime pane in
+/// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
+// WL-CAT-05 -- agents/workshop/catalog.md
 inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     std::vector<CatalogRow> rows;
     rows.reserve(kPanelKinds + 1 + panels.runtime.entries.size());
@@ -590,11 +238,6 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
 /// The NAME a maker reads for a kind that may be a runtime one -- the catalog's
 /// own for a built-in, the offered descriptor's for a runtime pane, and empty for
 /// a kind neither knows. A COPY, for `CatalogRow`'s reason.
-///
-/// IT IS NOT `panel_kind(kind).name`, and that is the whole of why it exists: the
-/// total lookup answers `Builder` for anything it does not recognise, which is
-/// correct for its own bounded callers and is a lie about a pane some office
-/// offered.
 inline std::string kind_name(const Panels& panels, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
         if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
@@ -612,43 +255,8 @@ inline std::string kind_name(const Panels& panels, std::int64_t kind) {
 /// halves with a slash between them, which is how this phase's prose spells one.
 inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
-/// A SETUP'S NAME AS ONE QUOTED TOKEN OF MAKER-FACING PROSE (WS-0a).
-///
-/// AUTHORED NAMES STAY AUTHORED; THE SENTENCE THAT QUOTES ONE OWNS THE ESCAPING.
-/// Nothing here mutates a setup, nothing here reaches a file, and no string this
-/// returns is ever written back into a `Setup` -- it is a spelling, built at the
-/// moment a sentence is and discarded with it.
-///
-/// WHY IT EXISTS. `check_setup_name` accepts ordinary punctuation, `"` and `\`
-/// included, and it is right to: `Ops" run` is a name a maker may mean, and
-/// narrowing the law after version 1 shipped would make a file that accepted
-/// WS-0 wrote unreadable to the build that reads it next. The BYTES were never
-/// the problem -- a control character is already refused, so no name can move a
-/// terminal's cursor out of the line it was given. The SENTENCE was: three
-/// callers spelled this token by hand as a quote, the name, and a quote, so a
-/// name carrying a quote could manufacture the very delimiter a maker uses to
-/// tell an identity from the status beside it, and a setup honestly named
-/// `Ops" UNSAVED | decoy` read back as
-///
-///     setup "Ops" UNSAVED | decoy" saved | <path> | s name/save  r restore
-///
-/// THE OWNER HOLDS THE QUOTES, not only the escaping, and that is the
-/// load-bearing half of the shape: a caller handed an escaped INTERIOR could
-/// still improvise its own boundary around it, which is the same defect one
-/// indirection further away. There is one implementation, and the setup status
-/// line, the save notice and the restore notice all spend it.
-///
-/// ONE PASS, WITH THE ESCAPE WRITTEN BEFORE THE BYTE IT ESCAPES, so a backslash
-/// this function inserts is never itself examined -- which is what makes an
-/// authored backslash followed by an authored quote come back as two backslashes
-/// and then an escaped quote, rather than collapsing into a spelling that some
-/// other authored name also has. The substitution is INJECTIVE on purpose:
-/// rendering a quote as an apostrophe would be shorter and would make two names
-/// a maker can tell apart present as one.
-///
-/// NO POLICY OF ANY OTHER KIND. No locale, no normalisation, no case folding, no
-/// width, no JSON. Two bytes mean something to this sentence; every other
-/// accepted byte is itself.
+/// A SETUP'S NAME AS ONE QUOTED TOKEN OF MAKER-FACING PROSE.
+// WL-TAB-07 -- agents/workshop/tab-run.md
 inline std::string quoted_setup_name(const std::string& name) {
     std::string quoted;
     quoted.reserve(name.size() + 2);
@@ -664,12 +272,6 @@ inline std::string quoted_setup_name(const std::string& name) {
 }
 
 // ---- The law: what this application will accept as a setup -------------------
-//
-// ONE LAW, REACHED TWO WAYS -- W-5's discipline, applied to the second artifact
-// this application persists. The name a maker types in the one-line editor and
-// the name a forged file carries meet the SAME function, because two spellings
-// of one rule is how a typed name and a loaded one come to disagree about what
-// is legal.
 
 /// What this application accepts as a setup's human name.
 ///
@@ -693,13 +295,14 @@ inline std::string quoted_setup_name(const std::string& name) {
 /// from a keyboard; normalisation, width, case and script are questions this
 /// phase has no consumer for and would get wrong by guessing.
 ///
-/// THE LENGTH IS A BYTE COUNT, AND THE REFUSAL SAYS SO (WS-0a).
+/// THE LENGTH IS A BYTE COUNT, AND THE REFUSAL SAYS SO.
 /// `std::string::size()` is the whole of the measurement, so a nine-character
 /// name written in four-byte UTF-8 is thirty-six bytes and this law refuses it --
 /// and telling that maker they had exceeded thirty-two CHARACTERS would be a
 /// false sentence about a true refusal. Saying `bytes` corrects the wording and
 /// is emphatically not a new text policy: nothing here counts a code point, a
 /// grapheme or a cell, which is the same absence the paragraph above declares.
+// WL-SETUP-09 -- agents/workshop/setup-file.md
 inline Written check_setup_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a setup name cannot be empty");
@@ -733,18 +336,19 @@ inline Written check_setup_name(const std::string& name) {
 /// question and is not an error.
 ///
 /// ITS LENGTH IS A BYTE COUNT TOO, and its refusal says so for
-/// `check_setup_name`'s reason (WS-0a): `kMaxPaneKeyLen` is spent against
+/// `check_setup_name`'s reason: `kMaxPaneKeyLen` is spent against
 /// `size()`, and a key is a routing name a provider may write in any script the
 /// Loom's UTF-8 gate accepts.
 ///
-/// IT JUDGES A `std::string_view` (WP-0a), and that is the whole of what WP-0a
+/// IT JUDGES A `std::string_view`, and that is the whole of what the offer door
 /// changed about this law -- the empty test, the byte bound and the byte walk are
-/// the ones WS-0a left here. Taking a view is what lets the offer door apply this
+/// the ones the setup law left here. Taking a view is what lets the offer door apply this
 /// bound to Loom's stamp BEFORE anything owns a copy of it: a checker that took an
 /// owned string would have made the copy the precondition of the check that
 /// decides whether the copy is allowed. An owned `std::string` caller converts and
 /// still meets exactly one law -- there is no second checker to drift from this
 /// one, and `check_pane_ref` and the persisted grammar reach it unchanged.
+// WL-SETUP-10 -- agents/workshop/setup-file.md
 inline Written check_pane_key(std::string_view key, const char* which) {
     if (key.empty()) {
         return Written::no(std::string("a pane reference's ") + which + " cannot be empty");
@@ -763,6 +367,7 @@ inline Written check_pane_key(std::string_view key, const char* which) {
     return Written::ok();
 }
 
+// WL-SETUP-10 -- agents/workshop/setup-file.md
 inline Written check_pane_ref(const PaneRef& ref) {
     const Written provider = check_pane_key(ref.provider, "provider");
     if (!provider.accepted) {
@@ -771,26 +376,11 @@ inline Written check_pane_ref(const PaneRef& ref) {
     return check_pane_key(ref.pane, "pane key");
 }
 
-// ---- What this application accepts as authored window intent (WIND-2) --------
-//
-// THE UNUSED NUMBERS OF A `default` MUST BE ZERO, and that is one rule with one
-// reason: there is then exactly ONE smallest canonical spelling of absent intent.
-// A file carrying `{"mode":"default","x":7,"y":3}` would round-trip a number that
-// means nothing, and the first reader to wonder what it meant would be right to.
-//
-// NEITHER LAW SEES A `Screen`. A cell coordinate past the right or bottom edge of
-// the current canvas is VALID AUTHORED INTENT and is clipped at projection -- the
-// document already allows exactly this ("the canvas clips, and a maker dragging
-// something half out of view has not made a mistake"), and a second, stricter law
-// for a pane would be the same situation answered twice.
+// ---- What this application accepts as authored window intent -----------------
+// WL-SETUP-03 -- agents/workshop/setup-file.md
 
-/// ONE COORDINATE of an authored place. NEGATIVE IS REFUSED AT THE ROOT,
-/// `doc::check_coord`'s own rule and its own reason: the canvas has no cells
-/// there. The walls are the CELL bounds this law has always had, expressed on
-/// the sub-unit lattice (WUX-2) — the sentences still speak in cells because
-/// that is the bound a maker can act on. Per coordinate since WUX-2a, because
-/// the gesture door judges each axis on its own; `check_pane_place` composes
-/// the same wall over both, so there is exactly one spelling of it.
+/// ONE COORDINATE of an authored place. NEGATIVE IS REFUSED AT THE ROOT.
+// WL-ARR-06 -- agents/workshop/arrangement.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_place_coord(std::int64_t v) {
     if (v < 0) {
         return Written::no("a pane place cannot be negative");
@@ -822,12 +412,7 @@ inline Written check_pane_place(const PanePlace& p) {
 
 /// ONE AXIS OF A SIZE: default, a count of sub-cell units, or a count of device
 /// pixels.
-///
-/// `pixels` IS ACCEPTED HERE AND REFUSED AT PROJECTION, and the two are not in
-/// tension -- they are `reconcile`'s existing law with a unit substituted for a
-/// height. A setup legal on a tall screen is legal on a short one; a setup legal
-/// on a window is legal on a terminal. What changes with the medium is which
-/// authored intent can be PRESENTED, never which can be held.
+// WL-SETUP-03, WL-SETUP-06 -- agents/workshop/setup-file.md
 inline Written check_pane_size(const PaneSize& s, const char* which) {
     if (s.mode == pane_unit::kDefault) {
         if (s.amount != 0) {
@@ -880,7 +465,7 @@ inline Written check_setup_pane(const SetupPane& row) {
     return check_pane_size(row.height, "height");
 }
 
-// ---- ADMITTING ONE LIVE OFFER INTO THE RUNTIME CATALOG (WP-0) ----------------
+// ---- ADMITTING ONE LIVE OFFER INTO THE RUNTIME CATALOG -----------------------
 //
 // EVERYTHING BELOW BOUNDS MATERIAL BEFORE IT IS RETAINED, and the ordering is the
 // contract rather than an implementation detail: a descriptor is judged WHOLE and
@@ -903,8 +488,9 @@ inline Written check_setup_pane(const SetupPane& row) {
 /// move a terminal's cursor out of the row it was given, which is precisely what
 /// a forged offer would try.
 ///
-/// THE LENGTH IS A BYTE COUNT AND THE REFUSAL SAYS SO (WS-0a). Nothing here
+/// THE LENGTH IS A BYTE COUNT AND THE REFUSAL SAYS SO. Nothing here
 /// counts a code point, a grapheme or a cell.
+// WL-CAT-02 -- agents/workshop/catalog.md
 inline Written check_pane_text(const std::string& text, const char* which,
                                std::size_t limit) {
     if (text.empty()) {
@@ -938,6 +524,7 @@ inline Written check_pane_text(const std::string& text, const char* which,
 /// different: a first acceptance may make an authored-but-unresolved setup
 /// reference resolve, and a refresh must clear whatever an already-open pane was
 /// showing and ask for its room again.
+// WL-CAT-03 -- agents/workshop/catalog.md
 struct Admission {
     Written written = Written::ok();
     bool refreshed = false;                  ///< an existing PaneRef, updated in place
@@ -970,11 +557,12 @@ struct Admission {
 /// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
 /// `a.tools/hello` and `b.tools/hello` are two rows, two handles and two
 /// presentations, and neither office can refresh or overwrite the other's.
+// WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer) {
     Admission out;
     // THE STAMP IS JUDGED FIRST AND AS A `std::string_view`, before anything owns a
-    // copy of it -- the view goes straight into `check_pane_key`, and WP-0a is
+    // copy of it -- the view goes straight into `check_pane_key`, and admitting an offer is
     // exactly the phase in which that sentence became true of the statement under
     // it rather than only of the paragraph over it. An empty authored role is
     // personal speech -- Loom writes the field only for a verified office
@@ -1052,25 +640,9 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
 }
 
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
-///
 /// It judges the name, every row, how many there are, whether any two name the
-/// same pane, and whether the ranks are a permutation. A DUPLICATE IS REFUSED
-/// rather than collapsed: a kind is open or it is not (there is no multi-instance
-/// policy to make a second entry mean anything), so a file naming one twice is a
-/// file whose author believed something this application does not do, and silently
-/// keeping one of the two would hide that.
-///
-/// THE RANK LAW IS THE DUPLICATE LAW'S OWN SHAPE, ASKED OF A NUMBER (WIND-2):
-/// every `front` in `[0, n)`, and no two equal. Those two together are exactly
-/// "the set of ranks is `{0..n-1}`", because `n` values drawn from `n` slots with
-/// no repeat leave no gap. It is bounded structurally rather than by a chosen
-/// ceiling -- the bound is the setup's own size -- and it is medium-independent
-/// for the same reason every other law here is: this function never sees a
-/// `Screen` and could not be given one without inverting the include order.
-///
-/// IT JUDGES A COMPLETED CANDIDATE AND NEVER REPAIRS ONE. A public aggregate is
-/// not valid by construction, so a producer that appends a row assigns its rank;
-/// see `add_pane` and `default_setup`.
+/// same pane, and whether the ranks are a permutation.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Written check_setup(const Setup& s) {
     const Written named = check_setup_name(s.name);
     if (!named.accepted) {
@@ -1108,14 +680,14 @@ inline Written check_setup(const Setup& s) {
 
 // ---- Operations on the authored intent ---------------------------------------
 
-/// WHICH ROW OF THE SETUP NAMES THIS PANE, or `kNoPaneRow`.
-///
-/// The one lookup, so a selection, a geometry edit and an ordering operation all
-/// find a pane the same way -- by the `PaneRef` that IS its identity, never by a
-/// newly minted one and never by a runtime kind, which is a resolved view of the
-/// identity rather than the identity itself.
+/// The answer for a pane the setup does not name.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kNoPaneRow = static_cast<std::size_t>(-1);
 
+/// WHICH ROW OF THE SETUP NAMES THIS PANE, or `kNoPaneRow`. The one lookup, so a selection,
+/// a geometry edit and an ordering operation all find a pane the same way -- by the
+/// `PaneRef` that IS its identity, never by a runtime kind.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {
     for (std::size_t i = 0; i < s.panes.size(); ++i) {
         if (s.panes[i].ref == ref) {
@@ -1142,22 +714,7 @@ inline SetupPane* pane_of(Setup& s, const PaneRef& ref) {
 }
 
 /// Add a reference to the end of the setup's order, or say it was already there.
-///
-/// THE END, because that is where `open_panel` has always put a newly opened
-/// panel and therefore what a maker has always seen: the panel the picker just
-/// opened takes the last slot of the stack. Making the authored order agree with
-/// the resolved order a maker was already watching is the whole of the choice.
-///
-/// AND IT TAKES THE FRONT-MOST RANK, `n-1` AFTER GROWTH (WIND-2), for the same
-/// sentence said about depth rather than about a slot: the panel a maker just
-/// opened is the one they are already looking at, so it goes in front of what was
-/// there. Every other row's rank is untouched and the result is still a
-/// permutation, because `n-1` is exactly the value the old set of `0..n-2` did not
-/// contain.
-///
-/// IT AUTHORS NO GEOMETRY. A new row is `default` in place, width and height --
-/// which is to say the developer's answer, reactive, and following a later build's
-/// change of mind.
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline bool add_pane(Setup& s, const PaneRef& ref) {
     if (has_pane(s, ref)) {
         return false;
@@ -1170,11 +727,7 @@ inline bool add_pane(Setup& s, const PaneRef& ref) {
 }
 
 /// Remove a reference, AND CLOSE THE RANKS OVER IT.
-///
-/// Every rank above the removed one comes down by one, which is what keeps the
-/// remaining `n-1` rows a permutation of `0..n-2`. Without it the set would carry
-/// a hole, `check_setup` would refuse the setup the removal produced, and the
-/// refusal would be Workshop's own.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline bool remove_pane(Setup& s, const PaneRef& ref) {
     const std::size_t at = pane_row(s, ref);
     if (at == kNoPaneRow) {
@@ -1191,16 +744,7 @@ inline bool remove_pane(Setup& s, const PaneRef& ref) {
 }
 
 // ---- THE CANONICAL FRONT ORDER: five operations, all exact permutations ------
-//
-// EVERY ONE OF THESE REWRITES AT MOST `n` RANKS AND LEAVES A PERMUTATION, and
-// none of them writes anything `seat_panes` or `bounds_of` reads. That is why
-// "changing the order cannot move, resize, mount, unmount, reseat or regrant a
-// pane" is not a rule somebody maintains: it is the ABSENCE OF A WRITE.
-//
-// NOTHING ACCUMULATES. Ten thousand alternating "send A to front" / "send B to
-// front" operations leave every rank inside `0..n-1`, so no operation can ever
-// become unavailable and there is no renormalisation threshold, no epoch and no
-// history. `front`/`back` are `O(n)`; `raise`/`lower` touch exactly two rows.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 
 /// The pane that currently sits at this rank, or `kNoPaneRow`. Total, and used by
 /// the two step operations to find the neighbour they swap with.
@@ -1214,11 +758,7 @@ inline std::size_t pane_at_front(const Setup& s, std::int64_t rank) {
 }
 
 /// THE AUTHORED ORDER BECOMES THE DEFAULT ORDER: `front[i] = i`, in list order.
-///
-/// It REMOVES the authored difference rather than disguising a default as one --
-/// the identity permutation is byte-for-byte what a setup that was never reordered
-/// carries, which is what makes this a reset in the same sense resetting a place
-/// is one.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline void reset_front(Setup& s) {
     for (std::size_t i = 0; i < s.panes.size(); ++i) {
         s.panes[i].front = static_cast<std::int64_t>(i);
@@ -1226,12 +766,7 @@ inline void reset_front(Setup& s) {
 }
 
 /// SEND TO FRONT, or say it is already there.
-///
-/// THE NO-OP IS ANSWERED `false`, exactly as `raise_one`'s is, and the two answers are
-/// different things to tell a maker: "you are already there" is an answer, and a gesture that
-/// reports success and changes nothing is not. Without this the arithmetic below would
-/// silently succeed at the front -- every rank above `n-1` is none of them -- and a maker
-/// pressing `f` twice would get two identical confirmations of one act.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline bool send_to_front(Setup& s, const PaneRef& ref) {
     const std::size_t at = pane_row(s, ref);
     if (at == kNoPaneRow) {
@@ -1270,10 +805,7 @@ inline bool send_to_back(Setup& s, const PaneRef& ref) {
 }
 
 /// SWAP WITH THE PANE IMMEDIATELY IN FRONT, or say there is none.
-///
-/// A no-op at the front is answered `false` rather than silently accepted,
-/// because the two are different things to tell a maker: "you are already there"
-/// is an answer, and a gesture that reports success and changes nothing is not.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline bool raise_one(Setup& s, const PaneRef& ref) {
     const std::size_t at = pane_row(s, ref);
     if (at == kNoPaneRow) {
@@ -1307,31 +839,8 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
     return true;
 }
 
-// ---- THE GEOMETRY DOORS: what a hand and a key both end at (WIND-2, WUX-2a) ---
-//
-// TWO KINDS OF DOOR, AND TWO SETTLEMENT LAWS -- one per kind, stated apart on
-// purpose:
-//
-//   the VALUE doors     `author_pane_place`, `author_pane_size`. A whole value,
-//                       judged whole: a proposal wrong anywhere writes nothing at
-//                       all -- `doc::move`/`doc::resize`'s atomicity, verbatim.
-//                       That is the right answer for a value stated as one thing
-//                       (a file row, a staged test arrangement, a typed
-//                       coordinate if one ever exists).
-//
-//   the GESTURE door    `author_pane_window`. What one hand or key gesture
-//                       proposes for the whole window, split into its two axes.
-//                       INDEPENDENT AXES SETTLE INDEPENDENTLY; the facts an
-//                       anchored edge couples -- a position and an extent on ONE
-//                       axis -- settle atomically within that axis (WUX-2a). A
-//                       hand at the left wall has said nothing illegal about
-//                       DOWN, and refusing the whole window was the measured
-//                       defect: a pane dragged diagonally along a wall froze.
-//
-// THEY TAKE THE WHOLE PROPOSED VALUE AND NOT A DELTA. Saturating the arithmetic is
-// the CALLER's job and is done before the proposal is made (`screen.hpp`'s
-// `detail::step`), so nothing here can be handed a number that overflowed on the
-// way in and nothing here has to guess what a maker meant by one.
+// ---- THE GEOMETRY DOORS: what a hand and a key both end at ------------------------------
+// WL-SETUP-08 -- agents/workshop/setup-file.md
 
 /// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else. `x`/`y` are
 /// sub-units, the authored lattice's own resolution.
@@ -1351,11 +860,7 @@ inline Written author_pane_place(Setup& s, const PaneRef& ref, std::int64_t x,
 }
 
 /// AUTHOR BOTH SIZE AXES AT ONCE, each in its own unit.
-///
-/// ONE OPERATION AND NOT TWO, for `doc::resize`'s reason: a maker pulling a CORNER
-/// proposes a size, not a width and then a height. A caller changing one axis
-/// passes the row's current value for the other, which is what makes "resizing one
-/// axis writes only that axis" true through a door that takes both.
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-08 -- agents/workshop/setup-file.md
 inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& width,
                                 const PaneSize& height) {
     SetupPane* row = pane_of(s, ref);
@@ -1375,16 +880,8 @@ inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& wi
     return Written::ok();
 }
 
-/// ONE AXIS of what a single gesture proposes for a pane's window (WUX-2a).
-///
-/// A member that is absent is NOT PROPOSED and is left exactly as it is, mode
-/// included — a right-edge pull proposes only the width, a move proposes only
-/// positions, and an axis a gesture did not change proposes nothing at all
-/// (which is what keeps a refused step from authoring a reactive place as a
-/// side effect). `base` is the axis's current effective position — authored or
-/// resolved, the caller's `managed_window_base` — and is what this axis
-/// contributes to a place write it did not itself settle, since a place is one
-/// field carrying both coordinates.
+/// ONE AXIS of what a single gesture proposes for a pane's window.
+// WL-ARR-06 -- agents/workshop/arrangement.md
 struct PaneAxisProposal {
     std::optional<std::int64_t> position;
     std::optional<PaneSize> extent;
@@ -1400,23 +897,9 @@ struct WindowWritten {
     bool place_written = false;
 };
 
-/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis (WUX-2a).
-///
-/// INDEPENDENT AXES SETTLE INDEPENDENTLY. A move blocked at the left wall still
-/// follows the hand vertically; a corner pull whose horizontal proposal is
-/// illegal still resizes the legal vertical axis. The refused axis KEEPS ITS OWN
-/// VALUE — refuse-never-clamp, per axis: nothing here writes a wall value the
-/// hand never reached.
-///
-/// WITHIN AN AXIS, THE ANCHORED PAIR IS ATOMIC. A leading-edge pull proposes a
-/// position AND an extent on one axis (WUX-2's anchor law: the opposite edge
-/// holds still), and they settle together or not at all — a refused height can
-/// never leave a moved top edge behind. Every proposed member of an axis must be
-/// legal for that axis to land.
-///
-/// NOTHING LANDING IS A REFUSAL; nothing PROPOSED is a no-op. When both axes
-/// asked and both were refused — or the one asking axis was — the authored
-/// state is untouched, byte for byte, and the first refusal is returned.
+/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis.
+// WL-ARR-05, WL-ARR-06, WL-ARR-10 -- agents/workshop/arrangement.md
+// WL-PED-05 -- agents/workshop/pane-manager.md
 inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
                                         const PaneAxisProposal& horizontal,
                                         const PaneAxisProposal& vertical) {
@@ -1504,13 +987,8 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
 }
 
 /// The references this build cannot currently present, IN THE ORDER THE SETUP
-/// HOLDS THEM. Asked by the status line and by the notice a restore leaves, so
-/// that "unresolved" is a thing a maker can be told the identity of rather than
-/// only the count of.
-/// THE RUNTIME CATALOG IS REQUIRED HERE FOR THE SHARPEST OF THE REASONS (WP-0).
-/// This is the function the setup line and the restore notice ask, so a defaulted
-/// or built-in-only spelling would put `1 unresolved` on the row beneath a pane a
-/// maker can see. An admitted offer makes its reference resolve, and this says so.
+/// HOLDS THEM.
+// WL-MAKER-04 -- agents/workshop/maker-pane.md
 inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panels) {
     std::vector<PaneRef> out;
     for (const SetupPane& row : s.panes) {
@@ -1522,29 +1000,9 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panel
 }
 
 /// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one
-/// inventory, and the population both the picker and pane management spend
-/// (WIND-2).
-///
-/// THE UNION, AND THE SECOND HALF IS THE RECOVERY INVARIANT. `combined_catalog`
-/// answers "what could this build present", which is a fact about the build and
-/// says nothing about a reference the setup names and this build cannot resolve --
-/// so before WIND-2 an unresolved pane had a count on the setup line and NO ROW
-/// ANYWHERE. A maker could not reach it, could not see it and could not remove it
-/// without editing the file. Every pane the setup names now has exactly one row,
-/// whatever its state, and that is what makes "every pane the setup names is
-/// represented in a surface whose contents do not depend on whether the pane can
-/// be seen" true rather than aspirational.
-///
-/// ORDER: THE CATALOG'S, THEN THE SETUP'S. Built-ins in the catalog's own order,
-/// then admitted runtime panes in first-accepted-offer order, then whatever the
-/// setup names that neither half knew about, in setup order. Deliberately NOT the
-/// front order: a list a provider could buy the top of is a list a provider owns,
-/// and a maker looking for a pane looks in the place it has always been.
-///
-/// AN UNRESOLVED ROW WEARS ITS OWN REFERENCE. The pane key is its name -- it is
-/// what a person would call it -- and its whole `provider/pane` identity is the
-/// summary, because that is the string a maker compares against the file when they
-/// are working out whether they have a typo or a pane they have not installed.
+/// inventory, and the population both the picker and pane management spend.
+// WL-PED-03, WL-PED-04 -- agents/workshop/pane-manager.md
+// WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
     std::vector<CatalogRow> rows = combined_catalog(panels);
     for (const SetupPane& row : setup.panes) {
@@ -1569,15 +1027,8 @@ inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& 
 }
 
 /// WHAT A FRESH WORKSHOP'S SETUP IS -- derived from `kDefaultPanels`, which is
-/// the ONE place "a fresh Workshop shows Info" is decided (panel.hpp). This
-/// function holds no opinion of its own about which panes those are, which is
-/// what makes it impossible for it to drift from `default_panels()`.
-///
-/// IT GOES THROUGH `add_pane` RATHER THAN THROUGH `push_back` (WIND-2), and that
-/// is the whole of what the canonical rank cost this function: the door assigns
-/// the identity permutation as it appends, so a fresh setup is valid by the same
-/// act that builds it and there is no second place where "the ranks are `0..n-1`"
-/// has to be remembered.
+/// the ONE place "a fresh Workshop shows Info" is decided (panel.hpp).
+// WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
     s.name = kDefaultSetupName;
@@ -1591,98 +1042,26 @@ inline Setup default_setup() {
 // ---- Authored intent, reconciled onto resolved presentations ------------------
 
 /// WHAT RECONCILING A SETUP ONTO THE LIVE PANELS ACTUALLY DID.
-///
-/// The kinds that were closed and are now open, the kinds that were open and are
-/// now closed, and how many authored references this build could not present.
-/// It is a REPORT and not a plan: `reconcile` has already done the work by the
-/// time a caller reads one. What the caller does with it is the part that needs
-/// a bus -- a newly opened Builder asks its tool what it is -- and that is the
-/// weave's, which is why this struct exists rather than a `Mail&` parameter on a
-/// function that otherwise touches nothing but presentation.
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Reconciled {
     std::vector<std::int64_t> opened;
     std::vector<std::int64_t> closed;
     std::size_t unresolved = 0;
-    /// THE KINDS THIS SCREEN HAD NO ROOM FOR (WP-0), in setup order -- resolved,
-    /// known, and not presented. A fourth outcome and not a flavour of the other
-    /// three: the reference is not unresolved (this build knows exactly what it
-    /// would draw), it is not closed (the maker authored it and it is still
-    /// authored), and it is not opened.
+    /// THE KINDS THIS SCREEN HAD NO ROOM FOR, in setup order.
+    // WL-PANE-03 -- agents/workshop/panes-and-windows.md
     std::vector<std::int64_t> waiting;
 };
 
 /// HOW MANY OVERLAY SLOTS FIT ABOVE THE BOTTOM BAND -- Workshop's current spatial
 /// capacity, as one number.
-///
-/// A `std::size_t` RATHER THAN A `Screen`, and the choice is what keeps this file
-/// where it is: `Screen` lives in screen.hpp, which includes this one, so a
-/// reconcile that took a screen would invert the include order. What reconcile
-/// actually needs is not a screen -- it is the answer to "is there a slot n", and
-/// that answer is one integer that the placement path resolves. screen.hpp
-/// computes it (`stack_slots_that_fit`) from the same `placement_bounds` the
-/// painter and the pointer use, so there is no second geometry here and could not
-/// be: this file has no rectangle in it at all.
-///
-/// IT IS NOT DEFAULTED, for `resolve_pane`'s reason. A default would be the
-/// composition's capacity guessed by whoever forgot to pass one.
+// WL-PANE-03 -- agents/workshop/panes-and-windows.md
 struct StackCapacity {
     std::size_t slots = 0;
 };
 
-/// MAKE THE OPEN PANELS BE WHAT THE SETUP SAYS -- the one path, and the only
-/// thing in this application that opens or closes a panel on a setup's behalf.
-///
-/// THREE CASES, DELIBERATELY DISTINGUISHED (WS-0 §9), because they are three
-/// different things to do with a presentation that already exists:
-///
-///   open before, open after    the presentation is LEFT ALONE. `Panels::builder`
-///                              is not touched, so a Builder panel that was
-///                              showing a status goes on showing it and no
-///                              second refresh is asked for. A reconcile that
-///                              rebuilt every presentation would make restoring
-///                              a setup you are already in a visible event.
-///   open before, closed after  `close_panel` -- the existing door, so the
-///                              per-kind view is forgotten by the same act that
-///                              removes the panel, exactly as the picker's
-///                              removal does. The TOOL is untouched: nothing
-///                              here reaches a bus.
-///   closed before, open after  opened, and NAMED in `opened` so the caller can
-///                              perform whatever asking that kind does on open.
-///
-/// UNRESOLVED REFERENCES ARE COUNTED AND OTHERWISE IGNORED. They stay in the
-/// setup -- this function takes it by const reference and could not remove one
-/// if it wanted to -- and they produce no panel, no placeholder, no slot and no
-/// message. That last is the point: a placeholder would have to be painted by
-/// somebody, and the only kind available to paint it with is the Builder.
-/// AND SINCE WP-0 IT ALSO REFUSES WHAT THE SCREEN CANNOT HOLD, which is the
-/// FOURTH case and the one an external pane made reachable:
-///
-///   resolved, and it fits    presented -- `opened`, or left alone if already open
-///   resolved, no room        NOT presented, retained in `waiting`, and the
-///                            authored reference is untouched. It is not deleted,
-///                            not remapped, not given a fake panel and not given
-///                            an off-screen placeholder.
-///   unresolved               counted, as before
-///
-/// AUTHORED VALIDITY DOES NOT DEPEND ON EXTENT. A setup legal on a tall screen is
-/// legal on a short one -- `check_setup` never sees a `Screen` and this function
-/// takes the setup by const reference, so neither could delete a reference if it
-/// wanted to. What changes with the room is which references are PRESENTED, which
-/// is exactly the authored/resolved split W-1 established, said about a pane.
-///
-/// CAPACITY IS SPENT IN SETUP ORDER, first come first served. That is what makes
-/// the answer stable: a maker who authored `A, B` on a screen with room for one
-/// sees A, and growing the screen adds B beneath it rather than rearranging both.
 /// WHICH AUTHORED REFERENCES THIS BUILD WOULD PRESENT AT THIS CAPACITY, and which
 /// it would not -- resolution and seating, decided together and changing nothing.
-///
-/// IT IS PURE, AND THAT IS WHY IT EXISTS SEPARATELY (WP-0). Two parties ask it:
-/// `reconcile`, which then performs the answer, and the PICKER, which must know
-/// whether a row it is about to add could be seated BEFORE it edits the active
-/// setup. A picker that added first and read `waiting` afterwards would have
-/// authored a pane the maker never saw; a picker that computed seating its own
-/// way would be a second copy of this arithmetic, which is the defect PNL-1
-/// removed from placement and HD-3 from the caret.
+// WL-PANE-03, WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Seating {
     std::vector<std::int64_t> wanted;  ///< resolved and seated, in setup order
     std::vector<std::int64_t> waiting; ///< resolved and out of room, in setup order
@@ -1705,7 +1084,7 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
         // no slot and always fits: its rectangle ends exactly where the workspace
         // does, asserted in screen.hpp against the minimum composition.
         //
-        // AND ONLY A REACTIVE PANE SPENDS ONE (WIND-2). A pane the maker PLACED
+        // AND ONLY A REACTIVE PANE SPENDS ONE. A pane the maker PLACED
         // has a rectangle because they said so, and asking the stack's slot
         // arithmetic whether there is "room" for it is asking the wrong question --
         // the tiles it is rationing are not the tiles that pane is standing on. So
@@ -1725,32 +1104,8 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
     return out;
 }
 
-/// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read (WIND-2),
-/// and since WUX-5 the BASE that `effective_pane_order` lifts the selected pane out of.
-///
-/// ⚠ THIS IS NOT WHAT A MAKER SEES. Nothing that means "which pane is in front right
-/// now" may call this: paint, hit testing, coverage and the arrangement desk's pointer
-/// walk all spend `effective_pane_order` below. What this answers is the order the SETUP
-/// authors -- which is exactly what persistence, `reset order` and a report about the
-/// authored desk want, and exactly what a temporary selection must never rewrite.
-///
-/// Paint walks the answer ASCENDING (later is drawn over) and the pointer walks it
-/// DESCENDING (topmost answers first), which is `ui::Scene`'s stated law --
-/// authored order is paint order, said once -- with the authored order now being
-/// the rank rather than the list.
-///
-/// IT REORDERS NOTHING. `panels.open` keeps the setup order `reconcile` assigned
-/// it, because that order is what `bounds_of` counts a reactive slot over; this
-/// function returns KINDS and the caller walks them. A sorted `panels.open` would
-/// move a reactive pane's rectangle the moment a maker raised something, which is
-/// exactly the side effect the rank exists to make impossible.
-///
-/// A RESTRICTION OF A TOTAL ORDER. The ranks are a permutation over ALL authored
-/// rows; the seated panes are a subset; so the presented order has no tie in it and
-/// needs no secondary key. A seated kind with no authored row cannot arise from
-/// `reconcile` -- it derives `open` from the setup -- and is answered anyway, at the
-/// front and in open order, because a total function is cheaper here than an
-/// invariant somebody has to maintain.
+/// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read.
+// WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
 inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panels& panels) {
     struct Ranked {
         std::int64_t front;
@@ -1795,29 +1150,8 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
 }
 
 /// WHAT PANE IS EFFECTIVELY IN FRONT RIGHT NOW -- the authored order with the selected
-/// pane lifted to the end of it (WUX-5).
-///
-///     authored/persisted pane order  +  the current selected-pane lift
-///         =  effective ordinary-pane presentation order
-///
-/// ONE ANSWER, AND EVERY CONSUMER WHOSE MEANING IS LITERALLY FOREGROUND ORDER SPENDS IT:
-/// `paint_panels` walks it ascending, `occupied_at` walks it descending, `pane_is_covered`
-/// asks what is after a pane in it, and the arrangement desk's pointer walk takes the
-/// topmost of it. Those four cannot disagree because there is nothing for them to
-/// disagree about -- what a maker sees in front is what their hand reaches, as an
-/// identity rather than an intention (HD-3's law, spent on depth).
-///
-/// IT IS A PRESENTATION LIFT AND NOT AN ARRANGEMENT. No `front` rank is read differently,
-/// none is written, `panels.open` is not touched, and nothing here reaches a file: the
-/// lift is recomputed from `Panels::selected` at every call and disappears with the
-/// session. Selecting another pane transfers it and the previous pane falls back into its
-/// authored place with nothing restored, because nothing was moved. `manage.front` remains
-/// the way to say "and I mean this permanently" -- that one writes the rank.
-///
-/// A SELECTION THAT IS NOT SEATED LIFTS NOTHING. The selected kind is looked for in the
-/// base order and the answer is the base order unchanged when it is not there, so a pane
-/// that was closed, removed or left unresolved leaves no ghost foreground identity behind
-/// -- `bounds_of`'s discipline, and the reason this needs no clearing path anywhere.
+/// pane lifted to the end of it.
+// WL-FRONT-01, WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
 inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
                                                       const Panels& panels) {
     std::vector<std::int64_t> order = presentation_order(setup, panels);
@@ -1839,6 +1173,10 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
     return order;
 }
 
+/// MAKE THE OPEN PANELS BE WHAT THE SETUP SAYS -- the one path, and the only thing in this
+/// application that opens or closes a panel on a setup's behalf. Three cases, deliberately
+/// distinguished, and capacity spent in setup order; an unresolved reference is counted.
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md
 inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {
     Reconciled done;
     const Seating seating = seat_panes(setup, panels, room);
@@ -1907,64 +1245,15 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
 
 /// THE ONE-LINE LAYOUT-NAME EDITOR: open or not, which layout it is naming, and
 /// the line being typed.
-///
-/// A MODE, like the picker and like the terminal overlay, and not a panel: it
-/// has no catalog row, nothing presents it, and it closes the moment it has been
-/// used. It is reachable only from command mode, which is exactly the state in
-/// which no inspector row is being edited and the picker is closed -- so the
-/// three cannot be live at once, and the routing in `on(KeyPressed)` says so in
-/// its order rather than leaving it to that argument.
-///
-/// THE LINE IS A `component::TextBox` (HD-5) and not a `std::string`: the text,
-/// the caret in it and which part of it a one-line editor can show are one fact,
-/// and this is the third consumer of the component that fact earned. Nothing
-/// bespoke was written for it.
-///
-/// IT NAMES A LAYOUT AND WRITES NO FILE (WUX-11). Until this phase the same
-/// editor was the front half of `s` -- naming a layout and writing the setup
-/// artifact were one gesture, which is the coupling P-WORK-12 recorded. They are
-/// two operations now: this one renames, `s` saves, and neither performs the
-/// other.
-///
-/// `at` IS THE SUBJECT AND NOT A SECOND SELECTION. It is the captured position
-/// this editor is about -- `ContextMenu`'s own discipline, a mode holding one
-/// identity for the length of one request -- and it is re-judged at commit,
-/// because a position is only a layout for as long as the run it indexes says so.
+// WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-TEXT-01 -- agents/workshop/text-box.md
 struct LayoutNaming {
     bool open = false;
     std::size_t at = 0;
     component::TextBox line;
 };
 
-/// A LAYOUT'S OPTIONAL RELATIONSHIP TO ONE STANDALONE SETUP ARTIFACT (WUX-11).
-///
-/// WHAT IT MEANS, IN ONE SENTENCE: *this layout is related to this Setup file,
-/// and this is the last value Workshop successfully knew that file to contain*.
-/// It is not membership, not ownership, not trust, not a project identity, and
-/// not an instruction to perform I/O -- nothing here ever reads a disk, and a
-/// layout with no association is completely ordinary.
-///
-/// AN EMPTY PATH IS THE ABSENCE, AND IT IS THE ONLY SPELLING OF IT. A path is a
-/// string in which "" is not a legal value, so absence needs no mode word beside
-/// it -- unlike the placement's `mode`, which exists because 0,0 IS a legal
-/// desktop coordinate (`session_persist::WorkshopPlacement`). Two different
-/// questions, two different answers.
-///
-/// `known` IS A COPY, NEVER A FLAG -- `SetupState::on_file`'s whole discipline
-/// (W-5's, applied to the second artifact), now owned per layout instead of once
-/// per Workshop. A comparison cannot drift from the thing it describes; a dirty
-/// bit would need a hand at every place a pane is added, moved, resized or
-/// renamed. Its default-constructed value has an EMPTY NAME and `check_setup_name`
-/// refuses one, so no desk a maker or a file can produce equals it -- which is
-/// what makes "there is no known value" structural rather than a rule somebody
-/// keeps.
-///
-/// THE PATH IS COMPARED BY BYTES AND IS NOT CANONICALISED. It is the artifact as
-/// the host named it; Workshop does not resolve, normalise or stat it, so two
-/// spellings of one file would honestly be two associations. Every association in
-/// a run comes from the one host-selected path, so the question does not arise
-/// today -- and the day a maker can choose an artifact live is the day it has to
-/// be answered on purpose.
+/// A LAYOUT'S OPTIONAL RELATIONSHIP TO ONE STANDALONE SETUP ARTIFACT.
+// WL-LAYOUT-01, WL-LAYOUT-02, WL-LAYOUT-11 -- agents/workshop/layouts.md
 struct SetupLink {
     std::string path;
     Setup known;
@@ -1976,7 +1265,7 @@ struct SetupLink {
 };
 
 /// WHAT THE ACTIVE LAYOUT'S TOP-ROW STATUS SAYS -- three answers, DERIVED at every
-/// composition and stored nowhere (WUX-4's rule: a condition is read off a live
+/// composition and stored nowhere (a condition is read off a live owner, never remembered).
 /// owner, never remembered).
 namespace setup_link {
 inline constexpr std::int64_t kNone = 0;     ///< no artifact is associated
@@ -1986,14 +1275,7 @@ inline constexpr std::int64_t kModified = 2; ///< it is associated and differs f
 
 /// WHICH OF THE THREE THIS LAYOUT IS. Pure, total, and the ONE place the question
 /// is decided.
-///
-/// ⚠ `kCurrent` IS A CLAIM ABOUT WORKSHOP'S KNOWLEDGE, NOT ABOUT THE DISK. It
-/// means *this desk equals the last value this run successfully wrote to or read
-/// from that artifact* -- so it performs no filesystem access, and it is not
-/// invalidated by another process editing the file behind Workshop's back. There
-/// is deliberately no watcher, no stat and no reload: a status a paint path had
-/// to go to disk for would cost a syscall per frame and would still be stale
-/// between two of them.
+// WL-LAYOUT-02 -- agents/workshop/layouts.md
 inline std::int64_t link_status(const Setup& desk, const SetupLink& link) noexcept {
     if (link.path.empty()) {
         return setup_link::kNone;
@@ -2003,18 +1285,7 @@ inline std::int64_t link_status(const Setup& desk, const SetupLink& link) noexce
 
 /// ONE LAYOUT AS THE SHELF AND THE RUN HOLD IT: the desk, and the artifact it is
 /// associated with.
-///
-/// ⚠ THIS IS NOT THE TYPE THE LIVE DESK IS. `SetupState::active` is still a plain
-/// `Setup` and every consumer that reads the arrangement still reads that member
-/// (WUX-9's one-live-desk law, unmoved) -- the lifted element is the pair
-/// `active` + `active_link`, and this is that same pair for the layouts that are
-/// not live. Making the live desk a `Layout` would have re-typed every reader in
-/// Workshop to buy nothing but symmetry.
-///
-/// AND IT IS ONE STRUCT RATHER THAN TWO PARALLEL VECTORS on purpose: a shelf of
-/// desks beside a shelf of links is two containers whose indices somebody has to
-/// keep equal, and the first `erase` that forgets one is a layout wearing another
-/// layout's association.
+// WL-LAYOUT-01 -- agents/workshop/layouts.md
 struct Layout {
     Setup desk;
     SetupLink link;
@@ -2027,36 +1298,7 @@ struct Layout {
 
 /// THE LAYOUTS THIS WORKSHOP IS HOLDING, WHICH ONE IS LIVE, AND THE EDITOR OVER
 /// ITS NAME.
-///
-/// SEVERAL LAYOUTS, ONE OF THEM LIVE (WUX-9).
-///
-/// A LAYOUT'S DESK IS A `Setup`. What a maker calls a layout's arrangement is
-/// exactly what this file has always called a setup -- a name, which panes
-/// participate, where each one is, how big, and the front order -- so the plural
-/// costs a vector of the value that already existed and not one new owner of
-/// geometry, membership or presentation.
-///
-/// `active` REMAINS THE ONE LIVE DESK. Every consumer that reads the arrangement
-/// still reads that member; none of them indexes through a list, and there is
-/// never a second copy of the active layout to keep in step (the N-copies law).
-/// `shelved` holds the INACTIVE layouts and nothing else -- values, not
-/// presentations: no panel, no provider, no room and no selection belongs to one.
-///
-/// THE MAKER'S ORDER IS THE RUN, AND `active_at` IS WHERE THE LIVE ONE SITS IN
-/// IT. `shelved` + `active_at` is that run with exactly one element lifted out,
-/// which is what lets the order be STABLE while the live value stays in one
-/// member: switching puts the lifted value back where it was and lifts another,
-/// so no layout ever moves because a maker looked at it. Position IS a layout's
-/// identity -- nothing durable points at one, duplicate names are legal, and no
-/// id is minted.
-///
-/// EVERY LAYOUT OWNS ITS OWN SETUP ASSOCIATION (WUX-11), and `active_link` is the
-/// lifted one. Until this phase a single `on_file` was the comparison copy for a
-/// whole Workshop, which was already the wrong shape the moment there were
-/// several desks: two layouts both read `UNSAVED`, or both read `saved`, against
-/// a value only one of them had anything to do with. There is no `on_file` and no
-/// `saved()` any more -- `link_status` answers the question, per layout, from that
-/// layout's own link.
+// WL-LAYOUT-01, WL-LAYOUT-03 -- agents/workshop/layouts.md
 struct SetupState {
     Setup active = default_setup();
     SetupLink active_link;
@@ -2097,32 +1339,14 @@ inline const SetupLink& link_at(const SetupState& s, std::size_t at) noexcept {
     return s.shelved[shelf_index(s, at)].link;
 }
 
-/// THE MOST LAYOUTS ONE RUN KEEPS (WUX-9).
-///
-/// A BOUND ON WORK, NOT A CLAIM THAT THEY ALL FIT ON SCREEN. The tab run is
-/// composed against whatever room the band's status row has and says what it
-/// could not paint (`layout_tab_run`, screen.hpp), so raising this number is a
-/// number change and not a redesign. Eight is WUX-R9's measured recommendation.
+/// THE MOST LAYOUTS ONE RUN KEEPS.
+// WL-LAYOUT-08 -- agents/workshop/layouts.md
 inline constexpr std::size_t kMaxLayouts = 8;
 
 /// MAKE THE LAYOUT AT POSITION `to` THE LIVE ONE -- the whole of a switch's value
 /// half, and the only thing in this application that changes which layout is
 /// active.
-///
-/// PUT THE LIFTED PAIR BACK, THEN LIFT ANOTHER. `shelved` is the run with the
-/// active element removed at `active_at`, so restoring it and taking out `to` is
-/// the operation stated exactly: the surviving order is untouched, the departing
-/// layout lands back on its own position, and nothing is copied. A swap would be
-/// shorter and wrong -- it leaves the departing layout wherever the arriving one
-/// happened to sit, which is a run that reorders itself every time a maker looks
-/// at it.
-///
-/// THE ASSOCIATION TRAVELS WITH ITS DESK BECAUSE THEY ARE ONE ELEMENT (WUX-11):
-/// there is no second move to forget, and no position at which a link could be
-/// left behind.
-///
-/// FALSE MEANS NOTHING MOVED: an out-of-range position, or the layout that is
-/// already live. The caller reconciles presentations exactly when this says true.
+// WL-LAYOUT-03, WL-LAYOUT-05 -- agents/workshop/layouts.md
 inline bool activate_layout(SetupState& s, std::size_t to) {
     if (to >= layout_count(s) || to == s.active_at) {
         return false;
@@ -2136,19 +1360,8 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
     return true;
 }
 
-/// THE MAKER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS (WUX-10).
-///
-/// THE EXACT INVERSE OF THE LIFT, and it exists because the run is what leaves
-/// this program -- to the session file, and since WUX-11 to the three gestures
-/// that duplicate, close and reorder a layout that may not be the live one.
-/// `shelved` + `active_at` is the run with one element taken out, so putting that
-/// element back at `active_at` is the whole of the reading -- no sort, no rotation
-/// to make the live one first, and no second copy of any value. A durable owner
-/// that reached into `shelved` itself would be spelling this inverse a second
-/// time, in a file that has no business knowing there is a lift at all.
-///
-/// IT IS A READ. The argument is const and the run is a new vector: serialising a
-/// maker's layouts must not be able to reorder the layouts it is serialising.
+/// THE MAKER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS.
+// WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline std::vector<Layout> layout_run(const SetupState& s) {
     std::vector<Layout> run = s.shelved;
     // TOTAL OVER `active_at`, for `layout_at`'s reason exactly: nothing in this
@@ -2159,19 +1372,9 @@ inline std::vector<Layout> layout_run(const SetupState& s) {
     return run;
 }
 
-/// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE (WUX-10) -- the direction a
+/// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE -- the direction a
 /// restored session travels, and the only other place the run's spelling is made.
-///
-/// THE CALLER HAS ALREADY JUDGED THE RUN. Whether a durable run was legal --
-/// non-empty, within the ceiling, every desk a legal setup, every association
-/// legal, the position in range -- is the durable owner's law and is worded there
-/// (`session_persist::layouts_in`). What is checked here is the TYPE's own floor,
-/// which no caller can be trusted to keep for it: `active` is a value, so a run
-/// this could not lift from would leave Workshop with no live desk at all. False
-/// means nothing moved.
-///
-/// THE NAME EDITOR IS NOT TOUCHED, and neither is anything outside the run: this
-/// is the container's own operation and it knows nothing about presentations.
+// WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size_t active) {
     if (run.empty() || active >= run.size()) {
         return false;
@@ -2184,22 +1387,8 @@ inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size
     return true;
 }
 
-/// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE (WUX-11).
-///
-/// ⚠ NEW MEANS NEW. WUX-9 shipped this as a COPY of the live layout, on the
-/// pressure "variants of a desk that already works"; WUX-11 splits the two
-/// meanings, because a copy is what `duplicate_layout` is for and a maker who
-/// asks for a new desk is asking for an empty one. The blank is `default_setup()`
-/// -- the same canonical desk a Workshop with no session opens on, so "new" and
-/// "fresh" are one value here and not two.
-///
-/// AND IT CARRIES NO ASSOCIATION. A desk that has just been made has never been
-/// written to or read from any artifact, so `setup: none` is the only truthful
-/// thing it can say.
-///
-/// THE ORIGINAL GOES BACK ON THE SHELF AND THE NEW ONE TAKES THE LAST POSITION,
-/// so the run a maker had reads exactly as it did with one more layout after it.
-/// False means the ceiling refused; nothing moved.
+/// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE.
+// WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     if (layout_count(s) >= ceiling) {
         return false;
@@ -2212,21 +1401,8 @@ inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     return true;
 }
 
-/// COPY THE LAYOUT AT `at`, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY
-/// (WUX-11).
-///
-/// ⭐ DUPLICATION COPIES THE DESK, NEVER THE SETUP RELATIONSHIP. That is this
-/// phase's one mandatory law about copying, and it is kept here rather than asked
-/// of callers: an inherited association would have the copy claim
-/// `code.json | current` while that artifact knows nothing about it, and the first
-/// `s` would then overwrite the very file the maker duplicated in order not to
-/// touch. The NAME is copied -- duplicate names are legal, position is the
-/// identity, and inventing `Code (copy)` would be this file authoring a maker's
-/// word for them.
-///
-/// DIRECTLY AFTER THE SOURCE, because a duplicate is a variant of the thing beside
-/// it; appending it eight tabs away would make a maker hunt for what they just
-/// made. False means the ceiling refused, or `at` is not a layout; nothing moved.
+/// COPY THE LAYOUT AT `at`, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY.
+// WL-LAYOUT-04 -- agents/workshop/layouts.md
 inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling = kMaxLayouts) {
     if (at >= layout_count(s) || layout_count(s) >= ceiling) {
         return false;
@@ -2238,25 +1414,8 @@ inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling 
     return install_layout_run(s, std::move(run), copy_at);
 }
 
-/// DISCARD THE LAYOUT AT `at` (WUX-11; WUX-9 could only discard the live one).
-///
-/// THE ACTIVE DESK SURVIVES A CLOSE THAT WAS NOT ABOUT IT. Removing an inactive
-/// tab erases one shelf element and slides `active_at` past where the erase was,
-/// when the erase was before it; the live value is never touched, so no
-/// presentation is reconciled and no provider hears anything.
-///
-/// REMOVING THE LIVE ONE TAKES THE NEXT NEIGHBOUR where there is one, otherwise
-/// the previous -- deterministic, and stated as one expression: once the active
-/// value is discarded `shelved` IS the surviving run, so the survivor now standing
-/// at `active_at` is the next neighbour, and `active_at` past the end means the
-/// removed layout was last and the one before it is the previous.
-///
-/// THE ASSOCIATION DIES WITH THE LAYOUT, which is the whole of what per-layout
-/// ownership means at this end: no other layout's link is read, written or
-/// reconsidered.
-///
-/// FALSE IS THE FLOOR: removing the only layout would leave Workshop with none,
-/// and the refusal is the caller's to say.
+/// DISCARD THE LAYOUT AT `at`.
+// WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool remove_layout(SetupState& s, std::size_t at) {
     if (s.shelved.empty() || at >= layout_count(s)) {
         return false;
@@ -2277,19 +1436,8 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
     return true;
 }
 
-/// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE MAKER'S ORDER (WUX-11).
-///
-/// ONE VALUE CHANGES POSITION AND NOTHING ELSE HAPPENS. No desk is copied or lost,
-/// every association travels with its own desk, and the layout that was live is
-/// still live afterwards -- which is why this is spelled through the inverse pair
-/// rather than by hand: `layout_run` gives the order a maker can see, the move is
-/// one erase and one insert in it, and `install_layout_run` lifts the same live
-/// element back out at wherever it now sits. Index surgery on `shelved` +
-/// `active_at` would be a third spelling of the lift, in the one operation that
-/// crosses it.
-///
-/// FALSE MEANS NOTHING MOVED: a position that is not a layout, or a move to where
-/// the layout already is.
+/// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE MAKER'S ORDER.
+// WL-LAYOUT-04 -- agents/workshop/layouts.md; WL-TAB-11 -- agents/workshop/tab-run.md
 inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
     const std::size_t n = layout_count(s);
     if (from >= n || to >= n || from == to) {
@@ -2316,20 +1464,10 @@ inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
     return install_layout_run(s, std::move(run), live);
 }
 
-/// GIVE THE LAYOUT AT `at` A NEW NAME (WUX-11) -- the whole of a rename's value
+/// GIVE THE LAYOUT AT `at` A NEW NAME -- the whole of a rename's value
 /// half, and the only thing in this application that writes a layout's name
 /// without writing a file.
-///
-/// THE NAME IS THE CALLER'S TO JUDGE. `check_setup_name` is the admission and the
-/// caller meets it, in its own words, with the editor still open over what the
-/// maker typed -- exactly as a setup file's name has always been judged. What is
-/// checked here is the position.
-///
-/// THE ASSOCIATION IS NOT TOUCHED, and that is the point: a name is an authored
-/// fact of the desk, so renaming an associated layout normally makes it
-/// `modified` -- derived, by `link_status`, with nothing here to remember. It
-/// reads `current` again if and only if the new name is the one the known value
-/// already had, which is the honest answer and needs no special case.
+// WL-LAYOUT-04, WL-LAYOUT-10 -- agents/workshop/layouts.md
 inline bool rename_layout(SetupState& s, std::size_t at, std::string name) {
     if (at >= layout_count(s)) {
         return false;
@@ -2342,20 +1480,8 @@ inline bool rename_layout(SetupState& s, std::size_t at, std::string name) {
     return true;
 }
 
-/// TEACH EVERY LAYOUT ASSOCIATED WITH `path` WHAT THAT ARTIFACT NOW HOLDS
-/// (WUX-11).
-///
-/// ⭐ THE SHARED-ARTIFACT LAW, AND WHY IT IS A SWEEP RATHER THAN AN ASSIGNMENT.
-/// Two layouts may honestly refer to one Setup file. If saving from one of them
-/// advanced only its own baseline, the other would go on claiming `current`
-/// against a value that file no longer holds -- a status wrong about the only
-/// thing it is for. So a successful write or read of an artifact updates the known
-/// baseline of EVERY association to it, and each layout then answers `current` or
-/// `modified` independently by comparing its own desk.
-///
-/// IT ESTABLISHES NOTHING. A layout with no association, or one associated with a
-/// different artifact, is not touched: learning what one file contains is not a
-/// reason for an unrelated desk to acquire a relationship to it.
+/// TEACH EVERY LAYOUT ASSOCIATED WITH `path` WHAT THAT ARTIFACT NOW HOLDS.
+// WL-LAYOUT-11 -- agents/workshop/layouts.md
 inline void adopt_known_setup(SetupState& s, const std::string& path, const Setup& known) {
     if (path.empty()) {
         return;

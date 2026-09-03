@@ -4,36 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_CONTEXT_HPP
 #define ZENGINE_WORKSHOP_CONTEXT_HPP
 
-// WHAT CAN I DO WITH THIS? -- the contextual-action surface (CTX-0).
-//
-// A maker points at a thing and asks what can be done with it. Two laws bound everything
-// in this file:
-//
-//   POINTING NAMES A SUBJECT FOR ONE REQUEST. SELECTION IS A STATE A MAKER ENTERED.
-//   Opening this surface captures a temporary subject and changes no selection, no
-//   keyboard candidate and no mode. The one deliberate exception is choosing Arrange,
-//   whose meaning IS entering ongoing interest -- and even it admits its explicit
-//   target first and binds only on acceptance.
-//
-//   OPEN REMEMBERS AN IDENTITY. SPEND RE-ASKS ITS OWNER.
-//   The captured subject is only what a file could hold -- a `PaneRef`, an object id, or
-//   nothing. Never a resolved rectangle, a catalog row, a kind handle or a row list:
-//   every one of those is re-asked from its owner at the moment it is needed, which is
-//   how a subject that has since disappeared is answered by the owner's own truthful
-//   refusal instead of by a stale snapshot.
-//
-// THE DECLARATION BELOW NAMES ACTIONS AND HOLDS NO POWER -- `Condition::action`'s rule,
-// one surface over. A row references a stable `kActionCatalog` id; it mints no identity,
-// carries no callback, no `std::function`, no gesture (the keymap answers that), no label
-// (the action's own declaration answers that) and no availability (the owner answers that
-// at spend, in its own words). Which actions are MEANINGFUL for a kind of subject is a
-// static fact and is all this table says; whether an exact operation would succeed on an
-// exact subject right now is owner policy and never rides the paint path.
-//
-// It is a SEPARATE table rather than fields on `ActionRow` because the two are keyed
-// differently: the action catalog is (action x keyboard context x gesture) and an action
-// may own several rows there (`manage.done` owns three), while a menu must show an id
-// once, under a subject and a heading.
+// WHAT CAN I DO WITH THIS? -- the contextual-action surface.
+// Workshop law: agents/workshop/contextual.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
 #include "setup.hpp"
@@ -45,18 +17,8 @@
 
 namespace zengine::workshop {
 
-/// THE SUBJECT KINDS a contextual request can truthfully name -- and there are exactly
-/// four, because that is what Workshop's own resolvers can answer at a pointed position:
-/// a pane it placed (`occupied_at` -> the setup row that resolves to that kind), an
-/// authored document object (`object_at`), a painted layout tab (`band_tab_at`), or
-/// nothing at all, which is the empty room and is a real subject with no identity. Do not
-/// generalize these into a type-erased container: each kind's identity already has its own
-/// owned type.
-///
-/// A LAYOUT'S IDENTITY IS ITS POSITION (WUX-11), which is the same thing the tab run, the
-/// keyboard's stepping and the session file all mean by a layout -- no id is minted here
-/// either. It is captured at the press and re-judged by the owner at spend, exactly as a
-/// `PaneRef` is: a position is only a layout for as long as the run it indexes says so.
+/// THE SUBJECT KINDS a contextual request can truthfully name.
+// WL-CTX-01 -- agents/workshop/contextual.md; WL-TAB-12 -- agents/workshop/tab-run.md
 namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
@@ -76,21 +38,8 @@ inline constexpr std::int64_t kOnObject = context_bit(context_subject::kObject);
 inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
 
 /// THE SURFACE'S OWN STATE -- a mode in the picker's family: open, a captured subject,
-/// which group level is showing, and a cursor. Session, emphatically not content, and it
-/// holds an IDENTITY and a cursor, never a snapshot: no bounds, no rows, no resolved
-/// handles. `pane` is read exactly when `subject == kPane`, `object` exactly when
-/// `subject == kObject` and `layout` exactly when `subject == kLayout`; the other fields
-/// rest at their defaults.
-///
-/// THE ANCHOR IS THE GESTURE'S PLACE, NOT THE SUBJECT'S (ARR-0). A pointer-opened
-/// surface belongs beside the press that asked for it, so the opening press's canvas
-/// cell is captured here -- a fact about the maker's hand, exactly as `PaneGesture`
-/// captures where a drag began. It is two numbers and never a rectangle: the surface's
-/// bounds are DERIVED fresh at every paint and every press from this anchor, the level's
-/// own content and the live screen, so a resize re-clamps and the painter and the hit
-/// test cannot hold two geometries. A keyboard-opened surface has no pointer place and
-/// says so (`anchored == false`); its placement is the overlay stack's own corner --
-/// deterministic, never an invented coordinate.
+/// which group level is showing, and a cursor.
+// WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
 struct ContextMenu {
     bool open = false;
     std::int64_t subject = context_subject::kRoot;
@@ -108,18 +57,15 @@ struct ContextMenu {
 
 /// ONE DECLARATION: an action id, the subject kinds it is meaningful for, and the
 /// presentation group it is offered under ("" = the menu's own top level). A REFERENCE,
-/// never an identity -- see the header comment.
+/// never an identity.
 struct ContextRow {
     const char* action = "";
     std::int64_t subjects = 0;
     const char* group = "";
 };
 
-/// THE DECLARED FIRST POPULATIONS (CTX-0). Order inside a subject's group is
-/// presentation priority, `kActionCatalog`'s own rule. Everything here is
-/// Workshop-owned: a pane row acts on the RECTANGLE Workshop placed, never on a
-/// provider's content, and no provider contributes a row (the pane seam has no shape for
-/// one, deliberately).
+/// THE DECLARED FIRST POPULATIONS.
+// WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ContextRow kContextCatalog[] = {
     // -- the empty room: Workshop's own zero-target doors ------------------------------
     {"object.new", kOnRoot, ""},
@@ -137,7 +83,7 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.reset-order", kOnRoot, ""},
     // -- a pane: the arrangement vocabulary, on the pointed pane -----------------------
     //
-    // ARRANGE IS ONE ROW BECAUSE IT IS ONE INTENT (ARR-0): moving and resizing the
+    // ARRANGE IS ONE ROW BECAUSE IT IS ONE INTENT: moving and resizing the
     // pointed pane are one interaction state, entered here on the captured reference.
     // The ordering verbs live under `Order` -- the group's old name was `Arrange`,
     // which this row's arrival made a lie one indentation deep.
@@ -152,7 +98,7 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.remove", kOnPane, ""},
     // -- a document object -------------------------------------------------------------
     {"object.delete", kOnObject, ""},
-    // -- a layout tab (WUX-11) ---------------------------------------------------------
+    // -- a layout tab ------------------------------------------------------------------
     //
     // THE FIVE OPERATIONS A MAKER CAN DO TO A TAB, on the tab they pointed at. Rename is
     // first because it is the one a double-click already performs, so the menu names the
@@ -174,10 +120,7 @@ inline constexpr std::size_t kContextCatalogCount =
     sizeof(kContextCatalog) / sizeof(kContextCatalog[0]);
 
 // ---- The drift guard: every reference resolves, at compile time --------------------------
-//
-// `kPanelCatalog`'s own pattern: a stale or misspelled reference is a build failure, not a
-// silently missing menu row. The comparison is spelled here because the catalog holds
-// `const char*` and this must run in a constant expression.
+// WL-CTX-05 -- agents/workshop/contextual.md
 
 inline constexpr bool context_same_id(const char* a, const char* b) noexcept {
     while (*a != '\0' && *a == *b) {
@@ -231,15 +174,8 @@ struct ContextEntry {
     const ActionRow* row = nullptr;
 };
 
-/// THE POPULATION AT ONE LEVEL -- the one owner, spent by the painter, the cursor bound,
-/// the keyboard's choose and the pointer's press (`picker_population`'s discipline: one
-/// list, four consumers, or the cursor and the picture come to disagree about which index
-/// means what).
-///
-/// At the top level, a declared group appears ONCE, as a group entry at the position of
-/// its first member -- so an empty group disappears naturally, because a group entry only
-/// exists where a member declared it. Inside a group, exactly that group's members
-/// appear. Declaration order is presentation order throughout.
+/// THE POPULATION AT ONE LEVEL.
+// WL-CTX-05 -- agents/workshop/contextual.md
 inline std::vector<ContextEntry> context_population(std::int64_t subject,
                                                     std::string_view open_group) {
     const std::int64_t bit = context_bit(subject);
