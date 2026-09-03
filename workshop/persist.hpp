@@ -49,8 +49,9 @@ inline constexpr const char* kModePercent = "percent";
 /// to materialisation: a hostile document does not get to choose the cost.
 inline constexpr std::uintmax_t kMaxDocumentBytes = 1u << 22; // 4 MiB
 
-/// The file's suggested name. Workshop has no file browser and no project
-/// concept; it has one path, given on the command line or defaulted to this.
+/// The file's suggested name: a document has one path, given on the command line
+/// (`--document`) or defaulted to this -- the project browser and the recipes are about
+/// source, and neither chooses where the document lives.
 inline constexpr const char* kDefaultDocumentName = "workshop.json";
 
 // ---- The file's own shapes -------------------------------------------------
