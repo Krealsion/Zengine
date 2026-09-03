@@ -934,9 +934,16 @@ zengine_workshop_suite(editor SOURCES test_workshop_editor.cpp)
 # custody the host used to spell now live in `install_recipes` -- one seam the launch and a
 # maker's live choice both go through. "There is one recipe policy" is a claim about that
 # arrangement, and the two files have to be read together to make it.
+#
+# ...AND WHERE THE HOST'S EXECUTABLE LANDS (WL-PROJ-15), asked of the target rather than
+# spelled: the shipped recipe catalog is written beside it at generate time, and the witness
+# reads that file from there through the seam the launch installs it through. A definition,
+# not a NEEDS: the file is in place before the host is built, and the suite must not wait
+# for a link the maker's daily MinGW toolchain cannot finish (agents/verification.md).
 zengine_workshop_suite(files SOURCES test_workshop_files.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
-                "WORKSHOP_RECIPES_HPP=\"${CMAKE_SOURCE_DIR}/workshop/recipes.hpp\"")
+                "WORKSHOP_RECIPES_HPP=\"${CMAKE_SOURCE_DIR}/workshop/recipes.hpp\""
+                "WORKSHOP_HOST_DIR=\"$<TARGET_FILE_DIR:zengine-workshop>\"")
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
