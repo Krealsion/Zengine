@@ -684,6 +684,61 @@ TEST_CASE("PROJ-2: a linked directory is marked, entered, and left again LEXICAL
     CHECK(files_row_text(r.listing().rows.front()).find("not entered") == std::string::npos);
 }
 
+TEST_CASE("the fixture's sweep removes a link and never enters what it leads to") {
+    // THE FIXTURE EVERY DISK CASE HERE STANDS ON, asked the one question `remove_all` gets
+    // wrong on libstdc++/Windows: a directory a case linked INTO its temporary directory is
+    // not the case's to empty. Measured before `remove_tree` existed (MinGW-w64 GCC 13.1):
+    // the standard sweep walked the junction, deleted the target's contents through it,
+    // and -- when the target had gone first, as `outside` does before `project/away` in the
+    // case above -- stopped at the dangling junction and left it standing, so the NEXT
+    // process's `mklink /J` on that name failed and the case above took its early return.
+    // A green that had witnessed nothing. MSVC's STL and POSIX never followed, so there this
+    // case does not tell the old sweep from the new one, and says which arm it ran.
+    TempDir kept("kept"); // the targets' home: outside the directory whose sweep is under test
+    const std::filesystem::path target = kept.path() / "target";
+    std::filesystem::create_directory(target);
+    put_file(target / "secret.cpp", "int s;\n");
+    const std::filesystem::path doomed = kept.path() / "doomed";
+    std::filesystem::create_directory(doomed);
+
+    std::filesystem::path swept_root;
+    std::filesystem::path live;
+    std::filesystem::path dangling;
+    LinkArm arm = LinkArm::none;
+    {
+        TempDir swept("swept");
+        swept_root = swept.path();
+        live = swept_root / "away";
+        dangling = swept_root / "gone";
+        arm = make_linked_directory(live, target);
+        if (arm == LinkArm::none) {
+            MESSAGE("this platform made no linked directory for this process");
+            return;
+        }
+        // The second link's target goes away BEFORE the sweep runs: the arrangement the old
+        // sweep produced by itself, and the shape of what it left behind.
+        REQUIRE(make_linked_directory(dangling, doomed) == arm);
+        std::error_code doom_ec;
+        std::filesystem::remove_all(doomed, doom_ec);
+        REQUIRE_FALSE(doom_ec);
+        MESSAGE((std::string("both swept links made as a ") +
+                 (arm == LinkArm::junction ? "junction" : "symbolic link")));
+    } // `swept` is swept here
+
+    // BOTH LINKS ARE GONE, asked UNFOLLOWED -- a dangling link is still an entry, and an
+    // entry is exactly what the old sweep left.
+    std::error_code live_ec;
+    std::error_code dangling_ec;
+    std::error_code root_ec;
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::symlink_status(live, live_ec)));
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::symlink_status(dangling, dangling_ec)));
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::symlink_status(swept_root, root_ec)));
+    // ...AND THE TARGET WAS NEVER ENTERED: the directory and its contents are as they were.
+    CHECK(std::filesystem::is_directory(target));
+    CHECK(std::filesystem::is_regular_file(target / "secret.cpp"));
+    CHECK(slurp((target / "secret.cpp").string()) == "int s;\n");
+}
+
 TEST_CASE("EDIT-1: opening a row hands the path to the ONE editor door") {
     FilesRig r("door");
     std::filesystem::create_directory(r.root / "src");
