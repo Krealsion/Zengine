@@ -122,9 +122,11 @@ bytes, so a filename outside printable ASCII cannot be opened truthfully on both
 platforms. The row stays visible — with the bytes it cannot carry shown as `?` — and refuses to
 be opened, rather than quietly opening something else.
 
-This holds for names the system itself will not spell. Some filenames — a Windows filename
-holding an invalid character sequence, for instance — cannot be turned into text at all, and
-another program can leave one in any directory you walk into. **Such an entry is still a row.**
+This holds for names the system itself will not spell. Some filenames — on Windows, a filename
+holding an invalid UTF-16 sequence, for instance — cannot be turned into text at all, and
+another program can leave one in any directory you walk into. That is the answer of both
+supported Windows standard libraries, measured: MSVC's STL reports no mapping in the target code
+page, MinGW's libstdc++ an illegal byte sequence. **Such an entry is still a row.**
 You are shown that something is there, marked the same way, and it cannot be opened; the rest of
 the directory lists normally, and browsing is never interrupted by a name.
 
