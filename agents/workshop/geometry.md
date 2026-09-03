@@ -132,7 +132,7 @@ DOES NOT MEAN
 - that Workshop may hold one Skin's layout number — correct only while there is one medium.
 
 PROVEN BY — `workshop/screen.hpp` `adopt_screen`, `cell_px`, `text_advance_px`, `screen_w`,
-`screen_h`; `surface/vocabulary.hpp` `SurfaceExtent`; `workshop/weave.hpp` `on`;
+`screen_h`; `surface/vocabulary.hpp` `SurfaceExtent`; `workshop/weave.hpp` `on(SurfaceExtent)`;
 `tests/test_workshop_screen.cpp` case `"WUX-6: the canvas's device unit is the medium's answer,
 never Workshop's"`; `tests/test_surface.cpp` case `"WUX-6: each medium reports the device unit its
 own canvas is laid out at"`.

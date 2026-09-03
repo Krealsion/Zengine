@@ -152,8 +152,8 @@ MEANS
 DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
-PROVEN BY — `workshop/weave.hpp` `pane_editor_wheel`, `picker_wheel`, `on`, `files_wheel`;
-`workshop/screen.hpp` `kListWheelRows`, `list_window`, `spend_wheel`;
+PROVEN BY — `workshop/weave.hpp` `pane_editor_wheel`, `picker_wheel`, `on(PointerWheel)`,
+`files_wheel`; `workshop/screen.hpp` `kListWheelRows`, `list_window`, `spend_wheel`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: the wheel scrolls the editor's body, moves no
 caret, and is consumed there"`, case `"EDIT-0: the wheel elsewhere scrolls nothing, and a covered
 editor is not reached"`; `tests/test_workshop_files.cpp` case `"EDIT-1: the wheel moves the

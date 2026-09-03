@@ -123,16 +123,15 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`, `on`;
-`surface/vocabulary.hpp` `SurfacePlacement`, `SurfacePlacementRemembered`;
+PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`,
+`on(SurfacePlacement)`; `surface/vocabulary.hpp` `SurfacePlacement`, `SurfacePlacementRemembered`;
 `surface/skin_sdl_plan.hpp` `placement_within`; `workshop/session_persist.hpp` `kPlacementNone`,
 `WorkshopPlacement`, `Placement`; `workshop/screen.hpp` `placement_known`, `place_x`, `place_y`,
 `place_maximized`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a session with a placement
 round-trips byte-identically"`, case `"WUX-3: the placement's words are judged; its coordinates
 are not"`, case `"WUX-3: the desk remembers where its window sat, and offers it back"`, case
 `"WUX-3: a run whose medium reports no placement RETAINS the remembered one"`;
-`tests/test_surface.cpp` case
-`"WUX-3: placement is reported BEFORE the extent, at every door"`.
+`tests/test_surface.cpp` case `"WUX-3: placement is reported BEFORE the extent, at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
@@ -176,12 +175,12 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
-PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on`; `workshop/persist.hpp`
-`write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`; `workshop/session_persist.hpp`
-`save_file`; `tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the
-first, room and desk both"`, case `"WUX-0: a write that fails leaves the last good session where
-it was"`; `tests/test_workshop_document.cpp` case `"the native close request reaches the quit
-policy `q` already had"`.
+PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on(SurfaceCloseRequested)`;
+`workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp` `SurfaceCloseRequested`;
+`workshop/session_persist.hpp` `save_file`; `tests/test_workshop_persistence.cpp` case `"WUX-0 B:
+the second session replaces the first, room and desk both"`, case `"WUX-0: a write that fails
+leaves the last good session where it was"`; `tests/test_workshop_document.cpp` case `"the native
+close request reaches the quit policy `q` already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things

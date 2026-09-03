@@ -59,10 +59,10 @@ MEANS
 - `room_w > kStackW` implies `x + w < room_w`: columns of the panel's rows stay reachable.
 
 PROVEN BY — `workshop/screen.hpp` `paint_panel_frame`, `occupied_at`, `take_hold`, `kNoKind`,
-`Occupancy::what`; `workshop/weave.hpp` `on`; `tests/test_workshop_screen.cpp` case `"WIND-1: the
-columns the panel took are its own, and the band is the maker's"`, case `"a gesture that began on
-the workspace is not interrupted by a panel"`, case `"a visible panel occupies the pointer space
-it covers"`.
+`Occupancy::what`; `workshop/weave.hpp` `on(PointerMoved)`; `tests/test_workshop_screen.cpp` case
+`"WIND-1: the columns the panel took are its own, and the band is the maker's"`, case `"a gesture
+that began on the workspace is not interrupted by a panel"`, case `"a visible panel occupies the
+pointer space it covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
