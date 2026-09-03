@@ -206,6 +206,9 @@ struct CatalogRow {
 /// The one line the picker reads under a maker-made pane's name.
 inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
 
+/// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
+/// built-in in the catalog's own order, then every admitted runtime pane in
+/// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
 inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     std::vector<CatalogRow> rows;
     rows.reserve(kPanelKinds + 1 + panels.runtime.entries.size());
@@ -667,10 +670,14 @@ inline Written check_setup(const Setup& s) {
 
 // ---- Operations on the authored intent ---------------------------------------
 
-/// WHICH ROW OF THE SETUP NAMES THIS PANE, or `kNoPaneRow`.
+/// The answer for a pane the setup does not name.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr std::size_t kNoPaneRow = static_cast<std::size_t>(-1);
 
+/// WHICH ROW OF THE SETUP NAMES THIS PANE, or `kNoPaneRow`. The one lookup, so a selection,
+/// a geometry edit and an ordering operation all find a pane the same way -- by the
+/// `PaneRef` that IS its identity, never by a runtime kind.
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {
     for (std::size_t i = 0; i < s.panes.size(); ++i) {
         if (s.panes[i].ref == ref) {
@@ -1156,6 +1163,10 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
     return order;
 }
 
+/// MAKE THE OPEN PANELS BE WHAT THE SETUP SAYS -- the one path, and the only thing in this
+/// application that opens or closes a panel on a setup's behalf. Three cases, deliberately
+/// distinguished, and capacity spent in setup order; an unresolved reference is counted.
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md
 inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {
     Reconciled done;
     const Seating seating = seat_panes(setup, panels, room);

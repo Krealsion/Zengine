@@ -14,8 +14,8 @@ MEANS
 
 PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `to_text`,
 `WorkshopPaneSize`, `WorkshopSetupPane`; `workshop/setup.hpp` `PaneRef`, `kMaxPaneKeyLen`,
-`PaneSize`, `SetupPane`, `pane_ref_of`, `kNoPaneRow`, `kMaxSetupPanes`; `workshop/panel.hpp`
-`kWorkshopProvider`, `PanelKind`, `every_kind_is_referable`;
+`PaneSize`, `SetupPane`, `pane_ref_of`, `kNoPaneRow`, `kMaxSetupPanes`, `pane_row`;
+`workshop/panel.hpp` `kWorkshopProvider`, `PanelKind`, `every_kind_is_referable`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a fresh setup is version 3, sparse, and
 carries the identity ranks"`, case `"WIND-2: an unresolved reference round-trips every authored
 field exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no descriptor, room

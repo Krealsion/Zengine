@@ -2141,6 +2141,10 @@ private:
         return nullptr;
     }
 
+    /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? A projection of the one
+    /// resolved context rather than a second spelling of the routing, which closes the way
+    /// two spellings could deliver a paste to a draft the keys never reached.
+    // WL-KEY-03 -- agents/workshop/keyboard.md; WL-TEXT-09 -- agents/workshop/text-box.md
     PasteOwner paste_owner_now() {
         switch (keyboard_context(session_)) {
         case KeyContext::kTerminal: return PasteOwner::kTerminal;
@@ -2355,6 +2359,12 @@ private:
         return false;
     }
 
+    /// A PRESS INSIDE THE ACTIVE PROPERTY EDITOR, and nothing else: the raw pointer fact,
+    /// the resolved Info body, a prose row and column, a semantic property row, a column of
+    /// its value, a byte of the draft, the caret. It is a place, not a mode, and begins nothing.
+    // WL-PRESS-01, WL-PRESS-04 -- agents/workshop/press-chain.md
+    // WL-PTR-02 -- agents/workshop/pointer.md
+    // WL-INFO-01 -- agents/workshop/info-body.md
     bool info_press(const InfoBodyAt& where, std::int64_t modifiers) {
         if (!where.present) {
             return false;
@@ -5005,6 +5015,10 @@ private:
         return true;
     }
 
+    /// A PRESS IN THE BROWSER'S BODY: the first press on a row SELECTS it, and a press on the
+    /// row that is already selected ACTIVATES it -- only in a pane that already held the keys,
+    /// so no single press can replace what is open. Double-click is not what this is.
+    // WL-FOCUS-04 -- agents/workshop/focus.md
     void files_press(const zengine::input::PointerButton& b, bool had_keyboard,
                      loom::Mail& mail) {
         FilesPane& pane = session_.panels.files;

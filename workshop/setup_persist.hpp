@@ -137,6 +137,9 @@ inline WorkshopPaneSize size_out(const PaneSize& s) {
     return WorkshopPaneSize{unit_word(s.mode), s.amount};
 }
 
+/// The setup, as the value that gets written. NOTHING IS SORTED, NORMALISED, RESOLVED OR
+/// DROPPED ON THE WAY OUT: the order is the setup's, the keys are byte-for-byte what came
+/// in, and a reference this build cannot resolve is written exactly as it was read.
 inline WorkshopSetup to_setup(const Setup& s) {
     WorkshopSetup out;
     out.format = kFormat;
@@ -171,9 +174,9 @@ struct LoadedSetup {
     }
 };
 
-/// to disagree about what is legal).
-/// WHAT TO SAY ABOUT A SETUP VERSION THIS BUILD DOES NOT READ. One sentence, one
-/// place, so the two doors that can meet a wrong version -- the envelope's claim
+/// WHAT TO SAY ABOUT A SETUP VERSION THIS BUILD DOES NOT READ. One sentence, one place, so
+/// the two doors that can meet a wrong version -- the envelope's claim and the file's own
+/// `format_version` field -- cannot come to word it differently.
 // WL-SETUP-05 -- agents/workshop/setup-file.md
 inline std::string wrong_version(std::int64_t found) {
     return "setup version " + std::to_string(found) + " -- this Workshop reads versions " +
@@ -335,6 +338,11 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
     return Written::ok();
 }
 
+/// A WRITTEN SETUP, AS A LIVE ONE -- its format word, its version, its mode words and its
+/// law, in that order. Separate from `from_text` so a setup arriving as one field of a
+/// larger file meets the same layers; it writes through a reference and cannot half-restore.
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+// WL-SESSION-04, WL-SESSION-06 -- agents/workshop/session.md
 inline Written setup_in(const WorkshopSetup& file, Setup& out) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
@@ -378,6 +386,10 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out) {
     return Written::ok();
 }
 
+/// Text to a setup. Total: every input is either a setup or a refusal with a reason, and
+/// nothing here throws. Four layers, in order -- the envelope, the shape, the format and
+/// its version, then the setup's own law -- and the last is the one the name editor calls.
+// WL-SETUP-02, WL-SETUP-04, WL-SETUP-05 -- agents/workshop/setup-file.md
 inline LoadedSetup from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {

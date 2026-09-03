@@ -608,6 +608,10 @@ inline std::int64_t selected_pane(const Panels& panels) noexcept {
     return kind != kNoPaneKind && panels.has(kind) ? kind : kNoPaneKind;
 }
 
+/// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
+/// `Panels::keyboard` is a press's MEMORY and this is the ANSWER, resolved fresh at every
+/// spend rather than maintained: a pane that stops qualifying stops being the target.
+// WL-FOCUS-01, WL-FOCUS-05, WL-FOCUS-10 -- agents/workshop/focus.md
 inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
     const std::int64_t kind = panels.keyboard;
     if (!is_runtime_kind(kind) || !panels.has(kind)) {

@@ -488,7 +488,9 @@ inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) no
 }
 
 
-/// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
+/// CAN THIS MEDIUM PROJECT THE AUTHORED UNIT? A pane with either axis in pixels is not
+/// presented in any current build: the unit is a fact about the authored row, and fixed
+/// placement is not permission to present an unsupported unit as though it were understood.
 // WL-SETUP-06 -- agents/workshop/setup-file.md
 inline bool pane_unit_projectable(const SetupPane* authored) noexcept {
     if (authored == nullptr) {
@@ -498,6 +500,9 @@ inline bool pane_unit_projectable(const SetupPane* authored) noexcept {
            authored->height.mode != pane_unit::kPixels;
 }
 
+/// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
+// WL-GEO-06 -- agents/workshop/geometry.md
+// WL-PANE-01, WL-PANE-08, WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline PaneProjection project_pane(std::int64_t where, std::size_t slot,
                                    const SetupPane* authored, const Screen& sc) {
     PaneProjection out;
@@ -1081,6 +1086,8 @@ struct LayoutTabDrag {
     bool active = false;
 };
 
+/// The arming a press leaves behind -- written from the same three facts the test above
+/// reads, so an arming that could not qualify cannot be written.
 inline ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
                                 const component::WordSpan& word, std::int64_t now_ms) noexcept {
     return ClickMemory{true, place, epoch, word.begin, word.end, now_ms};
@@ -1119,6 +1126,9 @@ struct HotkeysView {
     bool open = false;
 };
 
+/// The session: what a maker is currently doing, as opposed to what they have authored.
+/// Kept out of `WorkshopDoc` deliberately, so the two kinds of fact cannot be mistaken for
+/// each other -- selection is not content, and neither is the window it is looked at through.
 struct Session {
     std::int64_t selected = 0;              ///< the selected object's IDENTITY (0 = none)
     /// HOW MUCH ROOM THE SURFACE SAID IT HAS, in canvas cells -- session, and the most
@@ -1289,6 +1299,12 @@ inline bool pane_editor_draft_live(const Session& s) {
     return false;
 }
 
+/// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
+/// them claims it. Split out of `keyboard_context` because the contextual surface needs
+/// exactly this half as a VALUE: what the keys would mean when the menu closes.
+// WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06 -- agents/workshop/focus.md
+// WL-ATTN-09 -- agents/workshop/attention.md; WL-CTX-06 -- agents/workshop/contextual.md
+// WL-PED-07 -- agents/workshop/pane-manager.md
 inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
@@ -1346,6 +1362,11 @@ inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     return KeyContext::kCommand;
 }
 
+/// WHERE THE KEYBOARD CURRENTLY GOES, AS ONE VALUE -- the routing chain, spelled once. It
+/// is resolved fresh from live session state at every spend and stored nowhere: there is
+/// no context stack, and a mode that closes stops being the answer with nothing to clear.
+// WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06, WL-FOCUS-09 -- agents/workshop/focus.md
+// WL-ARR-14 -- agents/workshop/arrangement.md; WL-CTX-08 -- agents/workshop/contextual.md
 inline KeyContext keyboard_context(const Session& s) {
     if (s.terminal.open) {
         return KeyContext::kTerminal;
@@ -2628,6 +2649,10 @@ inline constexpr std::size_t completion_first_shown(std::size_t selected,
     return selected >= room ? selected - room + 1 : 0;
 }
 
+/// THE LIST AS ROWS -- heading first, then as many candidates as the place holds, with the
+/// selected one marked. Windowed around the selection, and the heading says which slice it
+/// is showing; the `>` marker says which one on a medium with no colour at all.
+// WL-TERM-05, WL-TERM-06 -- agents/workshop/terminal.md
 inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& comp,
                                                             std::size_t capacity,
                                                             std::int64_t width) {
@@ -3345,6 +3370,9 @@ inline std::string picker_entry_text(const std::string& name, const char* state,
            detail::pad(state, kPaneStateCols) + tail;
 }
 
+/// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
+/// ALREADY OPEN, in a fixed column so the list reads down; it asks for the stack's first
+/// slot through `picker_bounds` rather than knowing where that is.
 inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
                          const Screen& sc, const Keymap& keymap) {
     const PanelPicker& picker = panels.picker;
@@ -5098,6 +5126,9 @@ inline ExternalPressAt external_press_at(const Panels& panels, const Setup& setu
 inline constexpr const char* kTypingHere = "> ";
 inline constexpr const char* kTypingElsewhere = "  ";
 
+/// THE HEADER: what this pane is, and WHOSE it is -- both halves validated at admission,
+/// neither echoed raw -- and whether typing goes here, said by a mark that costs no columns.
+// WL-EDIT-12 -- agents/workshop/editor.md; WL-FOCUS-10 -- agents/workshop/focus.md
 inline std::string external_header(const RuntimePane& row, bool typing) {
     return std::string(typing ? kTypingHere : kTypingElsewhere) + row.name + " @" +
            row.provider;
