@@ -45,10 +45,11 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `keyboard_context`, `keyboard_context_beneath_menu`;
 `workshop/keymap.hpp` `context_takes_text`, `KeyContext`; `workshop/weave.hpp` `paste_owner_now`,
-`on`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every Workshop mode owns the keyboard
-above a focused pane"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the editor context takes
-text, and its class algebra is exact"`; `tests/test_workshop_document.cpp` case `"KEY-0: the view
-lists the context beneath it, and three contexts differ"`.
+`on(KeyPressed)`, `on(TextEntered)`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every
+Workshop mode owns the keyboard above a focused pane"`; `tests/test_workshop_editor.cpp` case
+`"EDIT-0: the editor context takes text, and its class algebra is exact"`;
+`tests/test_workshop_document.cpp` case `"KEY-0: the view lists the context beneath it, and three
+contexts differ"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-04 — Matching is exact

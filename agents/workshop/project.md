@@ -96,10 +96,10 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 
 LAW — `on(RecipeCatalog)` follows the chosen recipe by name to its new row, `picked` intact, and releases it when the identity is gone; no fallback to an index, stem or nearest name.
 
-PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`, `on`; `workshop/panel.hpp` `picked`;
-`tests/test_workshop_panels.cpp` case `"PROJ-1: a reordered catalog moves the maker's choice to
-its recipe, not its row"`, case `"PROJ-1: a choice whose recipe is gone is cleared, not handed to
-its neighbour"`, case `"PROJ-1: an emptied catalog leaves no selection standing"`.
+PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`, `on(RecipeCatalog)`; `workshop/panel.hpp`
+`picked`; `tests/test_workshop_panels.cpp` case `"PROJ-1: a reordered catalog moves the maker's
+choice to its recipe, not its row"`, case `"PROJ-1: a choice whose recipe is gone is cleared, not
+handed to its neighbour"`, case `"PROJ-1: an emptied catalog leaves no selection standing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-09 — `Session::recipes_moved_to` is a projection, not an owner

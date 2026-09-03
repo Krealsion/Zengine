@@ -112,7 +112,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The mirror is written on copy and cut, said to the process once around the chain, and filled by copies heard from elsewhere, not counted as writes; never persisted, watching no system clipboard.
 
 PROVEN BY — `workshop/screen.hpp` `clipboard`; `component/text_box.hpp` `Clipboard`, `writes`;
-`surface/vocabulary.hpp` `ClipboardCopy`; `workshop/weave.hpp` `on`;
+`surface/vocabulary.hpp` `ClipboardCopy`; `workshop/weave.hpp` `on(ClipboardCopy)`;
 `tests/test_workshop_document.cpp` case `"TEXT-0: a copy is said to the process once, and a heard
 copy fills the mirror"`; `tests/test_component.cpp` case `"component: copy, cut and paste move
 text through the owner's clipboard"`, case `"component: copy with nothing selected leaves the
@@ -129,14 +129,15 @@ MEANS
 - anything else discards the payload whole; the book holds four asks and refuses a fifth.
 
 PROVEN BY — `component/text_box.hpp` `paste_requests`, `paste`, `draft_epoch`;
-`workshop/weave.hpp` `paste_owner_now`, `paste_asks_`, `answers_ask`, `AskBook`, `on`,
-`PasteOwner`, `naming_line`, `PendingPaste`, `begin_clipboard_paste`; `workshop/property.hpp`
-`paste`, `resume`; `surface/vocabulary.hpp` `ClipboardTextRequested`, `kSkinRole`;
-`tests/test_workshop_document.cpp` case `"QR-11: paste reads the platform current, not the mirror
-stale"`, case `"QR-11: an answer crossing a draft boundary lands nowhere, and the payload dies"`,
-case `"QR-11: the draft that asked keeps its paste across a rebuild in flight"`, case `"QR-11: an
-unsolicited ClipboardText enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11:
-paste is a request the owner applies, and set/clear name the draft"`.
+`workshop/weave.hpp` `paste_owner_now`, `paste_asks_`, `answers_ask`, `AskBook`,
+`on(ClipboardText)`, `PasteOwner`, `naming_line`, `PendingPaste`, `begin_clipboard_paste`;
+`workshop/property.hpp` `paste`, `resume`; `surface/vocabulary.hpp` `ClipboardTextRequested`,
+`kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste reads the platform current,
+not the mirror stale"`, case `"QR-11: an answer crossing a draft boundary lands nowhere, and the
+payload dies"`, case `"QR-11: the draft that asked keeps its paste across a rebuild in flight"`,
+case `"QR-11: an unsolicited ClipboardText enters no box and no mirror"`;
+`tests/test_component.cpp` case `"QR-11: paste is a request the owner applies, and set/clear name
+the draft"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
