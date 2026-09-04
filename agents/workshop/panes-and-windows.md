@@ -14,8 +14,9 @@ MEANS
 - `kinds_placed_in` pins the side region and the top band at one kind each, at compile time.
 
 PROVEN BY — `workshop/panel.hpp` `place_is_authorable`, `kSideRegion`, `kOverlayStack`,
-`kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`, `placement_of`; `workshop/screen.hpp`
-`project_pane`, `paint_pane_affordances`; `workshop/weave.hpp` `take_pane_hold`;
+`kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`, `placement_of`;
+`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_browser.cpp`
+`paint_pane_affordances`; `workshop/weave_arrange.cpp` `take_pane_hold`;
 `tests/test_workshop_panels.cpp` case `"a panel kind declares its place, and the place resolves to
 bounds"`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts
 pane, and the tabs with it"`.
@@ -30,10 +31,11 @@ MEANS
 - an oversubscribed authored setup keeps the extra reference, waiting for room.
 
 PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`,
-`Seating`; `workshop/screen.hpp` `bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp`
-`Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored
-place spends no reactive slot, and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp`
-case `"an oversubscribed authored setup keeps the extra reference, waiting for room"`.
+`Seating`; `workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `stack_slots_that_fit`;
+`workshop/panel.hpp` `Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case
+`"WIND-2: an authored place spends no reactive slot, and cannot wait for one"`;
+`tests/test_workshop_panes_seam.cpp` case `"an oversubscribed authored setup keeps the extra
+reference, waiting for room"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the maker
@@ -58,11 +60,12 @@ MEANS
 - a drag begun on the workspace still walks under the panel and releases normally;
 - `room_w > kStackW` implies `x + w < room_w`: columns of the panel's rows stay reachable.
 
-PROVEN BY — `workshop/screen.hpp` `paint_panel_frame`, `occupied_at`, `take_hold`, `kNoKind`,
-`Occupancy::what`; `workshop/weave.hpp` `on(PointerMoved)`; `tests/test_workshop_screen.cpp` case
-`"WIND-1: the columns the panel took are its own, and the band is the maker's"`, case `"a gesture
-that began on the workspace is not interrupted by a panel"`, case `"a visible panel occupies the
-pointer space it covers"`.
+PROVEN BY — `workshop/screen_pane_state.cpp` `paint_panel_frame`; `workshop/screen_chrome.cpp`
+`occupied_at`; `workshop/screen_gestures.cpp` `take_hold`; `workshop/screen.hpp` `kNoKind`,
+`Occupancy::what`; `workshop/weave_pointer.cpp` `on(PointerMoved)`;
+`tests/test_workshop_screen.cpp` case `"WIND-1: the columns the panel took are its own, and the
+band is the maker's"`, case `"a gesture that began on the workspace is not interrupted by a
+panel"`, case `"a visible panel occupies the pointer space it covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
@@ -73,11 +76,12 @@ MEANS
 - a dragged edge, a widened room and a hidden title all reach the provider by this one door;
 - what a grant carries, and that an unchanged capacity sends none, is the protocol's law.
 
-PROVEN BY — `workshop/screen.hpp` `external_body_place`, `kExternalHeaderRows`,
-`paint_external`; `workshop/weave.hpp` `refresh_external_rooms`; `surface/region.hpp`
-`fit_region`; `workshop/panel.hpp` `ExternalPane`; `tests/test_workshop_panes_seam.cpp` case
-`"WIND-1: an external grant follows the widened body through fit_region"`, case `"opening an
-external pane grants exactly the fit_region room, authored as Workshop"`.
+PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
+`workshop/screen.hpp` `kExternalHeaderRows`; `workshop/weave_save.cpp` `refresh_external_rooms`;
+`surface/region.hpp` `fit_region`; `workshop/panel.hpp` `ExternalPane`;
+`tests/test_workshop_panes_seam.cpp` case `"WIND-1: an external grant follows the widened body
+through fit_region"`, case `"opening an external pane grants exactly the fit_region room, authored
+as Workshop"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-07 — `panels.open` is never reordered
@@ -89,7 +93,7 @@ MEANS
 - ordering changes paint order and nothing else.
 
 PROVEN BY — `workshop/setup.hpp` `seat_panes`, `reconcile`, `Reconciled`, `Setup`, `add_pane`,
-`Seating`; `workshop/screen.hpp` `bounds_of`; `workshop/panel.hpp` `Panels::open`;
+`Seating`; `workshop/screen_chrome.cpp` `bounds_of`; `workshop/panel.hpp` `Panels::open`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: ordering changes paint order and NOTHING
 else"`; `tests/test_workshop_persistence.cpp` case `"reconciling opens what the setup names, in
 the setup's order"`.
@@ -103,8 +107,9 @@ MEANS
 - a movable Info would change the resolved size of objects in a maker's document;
 - the Layouts pane's authored geometry is spent: it moves, and its tabs with it.
 
-PROVEN BY — `workshop/screen.hpp` `project_pane`, `PaneProjection`, `pane_geometry_typeable`;
-`workshop/panel.hpp` `place_is_authorable`; `workshop/weave.hpp` `arrange_geometry_ready`;
+PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp` `PaneProjection`;
+`workshop/screen_pane_editor.cpp` `pane_geometry_typeable`; `workshop/panel.hpp`
+`place_is_authorable`; `workshop/weave_arrange.cpp` `arrange_geometry_ready`;
 `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts pane, and
 the tabs with it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
 setup-valid, projection-refused, and never falls back"`.
@@ -118,10 +123,10 @@ MEANS
 - every consumer that reads an empty rectangle as "nowhere" is correct for an off-room pane;
 - a wholly off-room pane is painted by nobody and its intent is not rewritten.
 
-PROVEN BY — `workshop/screen.hpp` `bounds_of`, `PanelBounds`, `PanelBounds::rect`,
-`PaneProjection`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a partly off-room pane is
-clipped, and its intent is not rewritten"`, case `"WIND-2: a wholly off-room pane is off-room,
-recoverable, and painted by nobody"`.
+PROVEN BY — `workshop/screen_chrome.cpp` `bounds_of`; `workshop/screen.hpp` `PanelBounds`,
+`PanelBounds::rect`, `PaneProjection`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a
+partly off-room pane is clipped, and its intent is not rewritten"`, case `"WIND-2: a wholly
+off-room pane is off-room, recoverable, and painted by nobody"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-10 — Seven states, one classifier, one precedence
@@ -133,13 +138,13 @@ MEANS
 - two panes that each cover half of a third leave nothing of it showing;
 - the state column is eleven cells (`kPaneStateCols`), because `unresolved` is ten bytes.
 
-PROVEN BY — `workshop/screen.hpp` `pane_state_of`, `pane_state`, `pane_state_word`,
-`kPaneStateCols`, `PaneProjection`, `pane_state_remedy`, `pane_is_covered`; `workshop/weave.hpp`
-`unresolved_note`; `workshop/panel.hpp` `Panels::waiting_for_room`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused pane is refused rather than
-waiting, and it still SEATS"`, case `"WIND-2: two panes that each cover HALF of a third leave
-nothing of it showing"`, case `"WIND-2: coverage is the UNION of what is in front, not containment
-by one pane"`.
+PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
+`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`, `kPaneStateCols`,
+`PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`; `workshop/panel.hpp`
+`Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused pane
+is refused rather than waiting, and it still SEATS"`, case `"WIND-2: two panes that each cover
+HALF of a third leave nothing of it showing"`, case `"WIND-2: coverage is the UNION of what is in
+front, not containment by one pane"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-11 — An authored place is absolute, and each axis is independent
@@ -147,10 +152,10 @@ WHY — `agents/decisions/three-places.md`
 LAW — An authored place is an absolute canvas position on the fine lattice, never an offset from the default; a place edit freezes no size, and a default width still follows the half-share.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `PanePlace`;
-`workshop/screen.hpp` `project_pane`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an
-authored place is absolute canvas position, not an offset from the default"`, case `"WIND-2: each
-axis is independent -- a place edit freezes no size, and back"`, case `"WIND-2: a default width
-still follows the WIND-1 half-share after a place edit"`.
+`workshop/screen_chrome.cpp` `project_pane`; `tests/test_workshop_panes_window.cpp` case `"WIND-2:
+an authored place is absolute canvas position, not an offset from the default"`, case `"WIND-2:
+each axis is independent -- a place edit freezes no size, and back"`, case `"WIND-2: a default
+width still follows the WIND-1 half-share after a place edit"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-PANE-12 — The picker keeps presence, and arrangement never touches it
@@ -161,13 +166,14 @@ MEANS
 - an unresolved row carries `kNoPaneKind`, so nothing can present it as the Builder;
 - arrangement binds no toggle, adds nothing and offers nothing.
 
-PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/weave.hpp`
-`picker_population`, `choose_panel`, `command`, `picker_move`, `toggle_participation`,
-`arrangeable`; `workshop/panel.hpp` `kNoPaneKind`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: the picker can reach and remove an unresolved row"`;
-`tests/test_workshop_panes_window.cpp` case `"ARR-0: participation stays the picker's; arrangement
-does not add or offer"`; `tests/test_workshop_panels.cpp` case `"selecting an open kind REMOVES
-it, and says what was not touched"`.
+PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/weave_panels.cpp`
+`picker_population`, `choose_panel`, `picker_move`, `toggle_participation`;
+`workshop/weave_terminal.cpp` `command`; `workshop/weave_arrange.cpp` `arrangeable`;
+`workshop/panel.hpp` `kNoPaneKind`; `tests/test_workshop_screen.cpp` case `"WIND-2a: the picker
+can reach and remove an unresolved row"`; `tests/test_workshop_panes_window.cpp` case `"ARR-0:
+participation stays the picker's; arrangement does not add or offer"`;
+`tests/test_workshop_panels.cpp` case `"selecting an open kind REMOVES it, and says what was not
+touched"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-13 — A panel is a kind and nothing else, and a kind has one instance

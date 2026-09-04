@@ -38,7 +38,7 @@ something, you are on one of the two paths above.
 |---|---|---|
 | who is this for? | a contributor changing Workshop's source | a weave/host integration using the bounded pane protocol |
 | how is it discovered? | the compile-time built-in catalog (`kPanelCatalog`) | an office-authored runtime offer, this session only |
-| who paints it? | a painter you write, in `workshop/screen.hpp` | Workshop's one generic external-pane painter |
+| who paints it? | a painter you write: declared in `workshop/screen.hpp`, its body in the subject's `workshop/screen_<subject>.cpp` | Workshop's one generic external-pane painter |
 | can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **one bounded primary press**, delivered as a row and column of the room it was granted. No keyboard, focus, capture, hover, release or drag |
 | durable identity | the catalog row's `provider` + `pane` | the Loom-stamped provider office + the pane key that office offered |
 | saved setup | a `PaneRef` and the maker's authored window | the same, unresolved until some office offers it |
@@ -74,13 +74,16 @@ You are editing Workshop. Everything in this part is ordinary source-contributor
   |---|---|
   | `workshop/panel.hpp` | the **built-in catalog**: which panels this build compiles in, what they are called, where they go, what session state each one owns — and the session-local runtime catalog beside it |
   | `workshop/setup.hpp` | **identity and intent**: `PaneRef`, the combined catalog, resolution, and how authored intent becomes open presentations |
-  | `workshop/screen.hpp` | **painting** and every **resolved place** — where a thing is, and the inverse a press is answered with |
-  | `workshop/weave.hpp` | **input**: the key modes, the pointer chain, and the operations a gesture performs |
+  | `workshop/screen.hpp` | **painting** and every **resolved place** — where a thing is, and the inverse a press is answered with. The declarations, the constants and the constexpr functions; the bodies are in `workshop/screen_<subject>.cpp`, one file per subject the header's section banners name |
+  | `workshop/weave.hpp` | **input**: the key modes, the pointer chain, and the operations a gesture performs. The class and its declarations; the bodies are in `workshop/weave_<subject>.cpp` |
   | `workshop/document.hpp` | the authored document, if your panel changes one |
 
-  `workshop/workshop.cpp` is the host. You do not normally touch it, and you never touch
-  `workshop/CMakeLists.txt`: the whole package is one header-only interface target, so a new
-  panel is **no build integration at all**.
+  `workshop/workshop.cpp` is the host. You do not normally touch it, and you rarely touch
+  `workshop/CMakeLists.txt`: the vocabulary is a header-only interface target and the bodies
+  compile once in `zengine-workshop-logic`, whose source list is the subject files that
+  already exist, so a new panel painted in one of them is **no build integration at all**. A
+  new subject file is one line in that list — and the list is regenerated from
+  `tools/workshop-split/sheet.tsv`, so a hand-added line lives until the next rerun.
 
 You do **not** need to understand the Info panel's row-sharing, the Terminal's transcript, the
 Builder's status protocol, the external-pane protocol, or anything in `surface/` beyond two
@@ -119,7 +122,9 @@ inline constexpr PanelKind kPanelCatalog[] = {
 };
 ```
 
-In `workshop/screen.hpp`, paint it, and add one arm to `paint_panels`:
+Declare the painter in `workshop/screen.hpp`, write its body in the subject's
+`workshop/screen_<subject>.cpp`, and add one arm to `paint_panels` (whose body is in
+`workshop/screen_pane_editor.cpp`, the last section's file):
 
 ```cpp
 inline void paint_status(surface::SurfaceLayer& layer, const ui::Rect& b) {
@@ -395,8 +400,9 @@ ground every ink reads on is `role::kMuted`, and **never pair a role with its ow
 Everything in this section and the two after it is **compiled-in only**. None of it — pointer
 forwarding, hotkeys, modes, `TextBox` — is available to an external pane.
 
-A press arrives at `WorkshopWeave::on(const input::PointerButton&)` in `workshop/weave.hpp`,
-which is a chain of handlers under `if (b.pressed)`. Each answers one question:
+A press arrives at `WorkshopWeave::on(const input::PointerButton&)`, declared in
+`workshop/weave.hpp` and defined in `workshop/weave_pointer.cpp`, which is a chain of handlers
+under `if (b.pressed)`. Each answers one question:
 
 ```text
 true   this layer CONSUMED the press -- stop routing
@@ -435,7 +441,8 @@ do not need to think about either unless your panel starts a gesture of its own.
 
 ## A6. Share one semantic operation between the pointer and a hotkey
 
-A command-mode key is one line in `command()` in `workshop/weave.hpp`:
+A command-mode key is one line in `command()`, declared in `workshop/weave.hpp` and defined in
+`workshop/weave_terminal.cpp`:
 
 ```cpp
 case input::scan::kI: status_bump(); break;
@@ -811,9 +818,10 @@ So read the split precisely, because the three parts are in different places:
 
 ```text
 WORKSHOP           needs no change for a new pane, and INTR-0 proved it: not one
-                   line of weave.hpp, panel.hpp or screen.hpp names Introspection,
-                   no kind was minted for it, and the picker learned its row from a
-                   live offer
+                   line of the presentation's sources under workshop/ -- weave.hpp,
+                   screen.hpp, panel.hpp and the subject .cpp files beside them,
+                   walked rather than listed -- names Introspection, no kind was
+                   minted for it, and the picker learned its row from a live offer
 THE HOST           names no stem at all since LOAD-0; it reads a plan and executes it
 THE PLAN           names every artifact. A FIRST-PARTY tool is a row; a THIRD PARTY
                    still has no door -- because putting a row in the plan is granting
@@ -1127,11 +1135,14 @@ I want to remember where MY panel was
 
 **For a compiled-in panel**, read these in order; each is a real, current panel:
 
-1. **`paint_builder`** in `workshop/screen.hpp` — the simplest whole panel: handed a rectangle,
+1. **`paint_builder`** (declared in `workshop/screen.hpp`, its body in
+   `workshop/screen_pane_state.cpp`) — the simplest whole panel: handed a rectangle,
    writes rows, reads nothing but its own copy of somebody else's facts.
-2. **`BuilderPane` and `choose_panel`** (`workshop/panel.hpp`, `workshop/weave.hpp`) — a panel
-   that speaks to a weave, and the picker's whole open/remove/refuse decision.
-3. **`paint_info` and `info_body_place`** in `workshop/screen.hpp` — one bounded region holding
+2. **`BuilderPane` and `choose_panel`** (`workshop/panel.hpp`; `workshop/weave.hpp`, with the
+   body in `workshop/weave_panels.cpp`) — a panel that speaks to a weave, and the picker's whole
+   open/remove/refuse decision.
+3. **`paint_info` and `info_body_place`** (declared in `workshop/screen.hpp`, their bodies in
+   `workshop/screen_info.cpp`) — one bounded region holding
    two lists, a heading and a footer of controls, resolved once and consumed by the painter, the
    caret, both windows and all three presses. This is the reference for anything harder than a
    list of rows; you should not need it to make your first panel work.

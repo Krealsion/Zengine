@@ -11,7 +11,7 @@ Every row below is classified from measurement on lanes that exist, not from a f
 |---|---|---|
 | **Linux (incl. WSL) / GCC 11.4+** | **fully supported.** The canonical lane | The Loom's OS sandbox exists only here |
 | Linux / Clang | builds | Not a routine lane; the sanitizer flags are the same |
-| **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | Runtime DLLs must be on `PATH` or beside the binaries. Binutils has a floor of its own: an assembler at or below 2.40 cannot assemble the Workshop application target (the test suites build either way); 2.45 can |
+| **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | Runtime DLLs must be on `PATH` or beside the binaries. Binutils 2.40 (CLion 2025.2's bundled MinGW) assembles the Workshop application's translation units since Workshop's bodies were split out of its headers and compiled once (measured 2026-09-03: the host translation unit into a 28.6 MB object); before that it refused the application target with `file too big` while 2.45 assembled it, and the test suites built either way |
 | **Windows / MSVC 19.50** (Visual Studio 2026) x64 | **supported.** The advisory Windows lane, and the toolchain released Windows users are expected to build with | clang-cl and ARM64 are **unverified** |
 | macOS / Apple Clang | **never built.** Unclassified | Not the same as "unsupported" |
 

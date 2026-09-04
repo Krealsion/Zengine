@@ -93,6 +93,11 @@ pane that wants typed input in its own room, and it is not a capture model.
 
 ### Ownership map
 
+A `where` that names `workshop/screen.hpp` or `workshop/weave.hpp` names the declaration; the
+bodies compile once from `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`
+beside them, one file per subject the header's section banners name
+(`workshop/CMakeLists.txt`, the logic target).
+
 | system | owner today | where |
 |---|---|---|
 | authored geometry → resolved rectangles | the **`ui` package**, as pure arithmetic. No viewport is remembered and no result is cached | [`ui/layout.hpp`](../../ui/layout.hpp) |
@@ -135,17 +140,20 @@ input conversation today.
 
 ## Large source units
 
-Two Workshop files are large. Judged by what lives in them rather than by their size:
+Two Workshop modules are large. Judged by what lives in them rather than by their size:
 
-| file | lines | judgement |
+| module | lines | judgement |
 |---|---|---|
-| [`workshop/screen.hpp`](../../workshop/screen.hpp) | ~5,400 | **Composition of one screen.** Everything in it answers "where does this go, and what does it look like": the fixed composition and its `static_assert`s, per-region placement, and one painter per region. Several independent machines *have* accreted here — the screen composition, per-region hit predicates, and the painters — but they share one invariant (a single resolved screen every consumer reads) and splitting them would put that invariant across a boundary. Read [the ownership note](#ownership-map) before moving anything |
-| [`workshop/weave.hpp`](../../workshop/weave.hpp) | ~3,650 | **The mode machine.** Genuinely several state machines — command, editing, picker, naming, management, terminal — plus the routing that puts them in order. This is where a split is most nearly earned, and the natural seam is *one mode per unit* with the routing table left behind. It is not earned yet: the modes share the session state and the refusal channel, and the routing order between them is itself load-bearing |
+| [`workshop/screen.hpp`](../../workshop/screen.hpp), with its bodies in fourteen `workshop/screen_<subject>.cpp` files | ~2,800 in the header (the composition, its `static_assert`s, the constants, the constexpr functions and every declaration); ~5,100 of bodies across the subject files | **Composition of one screen.** Everything in it answers "where does this go, and what does it look like": the fixed composition and its `static_assert`s, per-region placement, and one painter per region. Several independent machines *have* accreted here — the screen composition, per-region hit predicates, and the painters — but they share one invariant (a single resolved screen every consumer reads), and the subject files keep it: each holds bodies, not a boundary. Read [the ownership note](#ownership-map) before moving anything |
+| [`workshop/weave.hpp`](../../workshop/weave.hpp), with its bodies in ten `workshop/weave_<subject>.cpp` files | ~1,200 in the header (the class, its state and every declaration); ~5,200 of bodies across the subject files | **The mode machine.** Genuinely several state machines — command, editing, picker, naming, management, terminal — plus the routing that puts them in order. This is where a semantic split is most nearly earned, and the natural seam is *one mode per unit* with the routing table left behind. It is not earned yet: the modes share the session state and the refusal channel through one class, and the routing order between them is itself load-bearing |
 
-Neither is a "large file, therefore split" case, and neither is a "one cohesive machine,
-therefore leave it" case. The pressure that would decide it is the cross-pane work above: it
-adds a participant to the routing conversation, and that is the change that would make the mode
-machine's seam worth paying for.
+The split that did happen is not a semantic one. The bodies moved out of both headers into
+subject files that compile once (`workshop/CMakeLists.txt`, the logic target), because a body
+in a header is emitted in every translation unit that reaches it, and thirteen of them did;
+the declarations, and therefore the shape of both modules, are exactly where they were. The
+pressure that would decide a real seam is the cross-pane work above: it adds a participant to
+the routing conversation, and that is the change that would make the mode machine's seam worth
+paying for.
 
 ## Further reading
 

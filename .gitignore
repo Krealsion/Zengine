@@ -20,3 +20,6 @@ cmake-build-*/
 # The quarry's own tooling regenerates these if it is ever run in place
 reference/.venv/
 reference/all_code.txt
+
+# Python byte-code caches, left behind by tools/workshop-split/*.py
+__pycache__/

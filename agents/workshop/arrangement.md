@@ -11,11 +11,11 @@ MEANS
 - crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
 - outside arrangement an addressed pane behind another claims no press and no address auto-raises.
 
-PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandSubs`,
-`pane_edge_at`; `workshop/weave.hpp` `take_pane_hold`, `arrange_motion`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one gesture, and crossing
-anything does not move it"`, case `"WIND-2: outside arrangement, an addressed pane behind another
-clicks through nothing"`.
+PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandSubs`;
+`workshop/screen_arrange.cpp` `pane_edge_at`; `workshop/weave_arrange.cpp` `take_pane_hold`,
+`arrange_motion`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one
+gesture, and crossing anything does not move it"`, case `"WIND-2: outside arrangement, an
+addressed pane behind another clicks through nothing"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-02 — `end_held_gestures()` is the one release owner
@@ -25,8 +25,8 @@ LAW — Every branch that can see a release calls `end_held_gestures()`, because
 DOES NOT MEAN
 - that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
 
-PROVEN BY — `workshop/weave.hpp` `end_held_gestures`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: a release ends a pane gesture whatever mode sees it"`.
+PROVEN BY — `workshop/weave_pointer.cpp` `end_held_gestures`; `tests/test_workshop_screen.cpp`
+case `"WIND-2a: a release ends a pane gesture whatever mode sees it"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-03 — `forget_removed_selection()` clears on membership, never on presentation
@@ -37,11 +37,12 @@ MEANS
 - the desk stays open, its subject being the desk;
 - it runs inside `apply_setup`, the one door membership changes through.
 
-PROVEN BY — `workshop/weave.hpp` `forget_removed_selection`, `apply_setup`;
-`workshop/screen.hpp` `PaneArrange`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a removed
-target leaves no stale selection, submode or heading"`, case `"ARR-0: removing the pane being
-arranged ends the arrangement about it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2:
-clearing the selected pane clears its gesture safely"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `forget_removed_selection`;
+`workshop/weave_session.cpp` `apply_setup`; `workshop/screen.hpp` `PaneArrange`;
+`tests/test_workshop_screen.cpp` case `"WIND-2a: a removed target leaves no stale selection,
+submode or heading"`, case `"ARR-0: removing the pane being arranged ends the arrangement about
+it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: clearing the selected pane clears its
+gesture safely"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-04 — A resize begins from the resolved window
@@ -51,20 +52,22 @@ LAW — A first edit measures from `managed_bounds().resolved`, the unclipped as
 MEANS
 - a default pane resolving to 89 cells with four on screen answers one rightward step by five.
 
-PROVEN BY — `workshop/weave.hpp` `managed_bounds`, `managed_window_base`; `workshop/screen.hpp`
-`PanelBounds`, `pane_window_proposal`, `PanelBounds::rect`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: a clipped default resize begins from the full resolved size"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `managed_bounds`, `managed_window_base`;
+`workshop/screen.hpp` `PanelBounds`, `PanelBounds::rect`; `workshop/screen_gestures.cpp`
+`pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize
+begins from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-05 — Every resize edge preserves its opposite anchor
 
 LAW — The pulled edge follows the hand and the opposite edge holds still; a corner holds the corner across from it; right and bottom pulls leave a default place reactive by not writing it.
 
-PROVEN BY — `workshop/screen.hpp` `pane_window_proposal`, `pane_edge::kBottomRight`,
-`PaneWindowProposal`; `workshop/setup.hpp` `author_pane_window`; `workshop/weave.hpp`
-`arrange_resize`; `tests/test_workshop_screen.cpp` case `"WUX-2: every edge resizes pixel-fine and
-preserves its opposite anchor"`, case `"WUX-2: the reported top-edge defect is dead -- the bottom
-edge holds still"`, case `"WUX-2: a right or bottom resize leaves a default place reactive"`.
+PROVEN BY — `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
+`pane_edge::kBottomRight`, `PaneWindowProposal`; `workshop/setup.hpp` `author_pane_window`;
+`workshop/weave_arrange.cpp` `arrange_resize`; `tests/test_workshop_screen.cpp` case `"WUX-2:
+every edge resizes pixel-fine and preserves its opposite anchor"`, case `"WUX-2: the reported
+top-edge defect is dead -- the bottom edge holds still"`, case `"WUX-2: a right or bottom resize
+leaves a default place reactive"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-06 — Independent axes settle independently, refuse-never-clamp
@@ -79,12 +82,13 @@ DOES NOT MEAN
 - that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_window`, `check_pane_place_coord`,
-`PaneAxisProposal`; `workshop/screen.hpp` `pane_window_proposal`, `PaneWindowProposal`;
-`workshop/weave.hpp` `arrange_place`, `arrange_resize`; `tests/test_workshop_screen.cpp` case
-`"WUX-2: a refused anchored resize writes neither the place nor the size"`, case `"WUX-2a: a move
-blocked at the left wall still follows the hand down"`, case `"WUX-2a: a move past two walls at
-once writes nothing"`, case `"WUX-2a: a refused nudge does not author a reactive place"`, case
-`"WUX-2a: a corner resize blocked on one axis still resizes the other"`.
+`PaneAxisProposal`; `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
+`PaneWindowProposal`; `workshop/weave_arrange.cpp` `arrange_place`, `arrange_resize`;
+`tests/test_workshop_screen.cpp` case `"WUX-2: a refused anchored resize writes neither the place
+nor the size"`, case `"WUX-2a: a move blocked at the left wall still follows the hand down"`, case
+`"WUX-2a: a move past two walls at once writes nothing"`, case `"WUX-2a: a refused nudge does not
+author a reactive place"`, case `"WUX-2a: a corner resize blocked on one axis still resizes the
+other"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-07 — Arrangement is two scopes and one vocabulary
@@ -96,12 +100,12 @@ MEANS
 - in the one-pane scope a press elsewhere is consumed with the sentence naming the state;
 - on the desk a press takes hold and makes that pane the keyboard's target, topmost first.
 
-PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `Session::arrange`; `workshop/weave.hpp`
-`enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`, `open_arrange_desk`,
-`arrange_press`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: the one-pane scope is bound
--- another pane cannot be drawn into it"`, case `"ARR-0: the desk manipulates panes directly, and
-a press is its own targeting"`; `tests/test_workshop_panels.cpp` case `"CTX-0/ARR-0: contextual
-Arrange admission precedes binding"`.
+PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `Session::arrange`;
+`workshop/weave_arrange.cpp` `enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`,
+`open_arrange_desk`, `arrange_press`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: the
+one-pane scope is bound -- another pane cannot be drawn into it"`, case `"ARR-0: the desk
+manipulates panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
+case `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-08 — The arranging keys are one vocabulary in both scopes
@@ -113,8 +117,8 @@ MEANS
 - a hand and a key author the same setup values; escape unwinds one level and rolls nothing back.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `KeyContext::kArrangePane`,
-`KeyContext::kArrangeDesk`, `KeyContext::kArrangeReset`; `workshop/weave.hpp` `arrange_key`,
-`arrangeable`, `arrange_step`, `arrange_nudge`, `arrange_grow`;
+`KeyContext::kArrangeDesk`, `KeyContext::kArrangeReset`; `workshop/weave_arrange.cpp`
+`arrange_key`, `arrangeable`, `arrange_step`, `arrange_nudge`, `arrange_grow`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches every window
 operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case `"WIND-2: escape
 unwinds one level and rolls nothing back"`.
@@ -128,12 +132,12 @@ MEANS
 - rings: accent in the one-pane scope; over the desk muted, with accent on the target;
 - `arrange_status()` carries the pane's state word, so an invisible pane is recoverable by ear.
 
-PROVEN BY — `workshop/weave.hpp` `enter_arrange_pane`, `arrange_status`; `workshop/screen.hpp`
-`paint_pane_affordances`, `pane_edge_name`, `pane_edge_cell`; `tests/test_workshop_screen.cpp`
-case `"ARR-0: the arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7:
-contextual Arrange lifts the pane it addressed, not the one in front"`;
-`tests/test_workshop_panes_window.cpp` case `"ARR-0: stepping names the pane, its state and its
-authored window in words"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_status`;
+`workshop/screen_browser.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `pane_edge_name`;
+`workshop/screen_arrange.cpp` `pane_edge_cell`; `tests/test_workshop_screen.cpp` case `"ARR-0: the
+arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7: contextual Arrange
+lifts the pane it addressed, not the one in front"`; `tests/test_workshop_panes_window.cpp` case
+`"ARR-0: stepping names the pane, its state and its authored window in words"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-10 — The coarse step is the fine step with a bigger delta
@@ -144,11 +148,12 @@ MEANS
 - it meets the identical per-axis settlement a shifted arrow meets, and there is no second owner;
 - it cannot move the pane it resizes, moves no other pane, and measures no content.
 
-PROVEN BY — `workshop/weave.hpp` `arrange_grow`; `workshop/screen.hpp` `kCoarseStepCells`,
-`pane_window_proposal`, `pane_edge::kBottomRight`; `workshop/setup.hpp` `author_pane_window`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-5+SC-7: the coarse step is the resize
-seam with a bigger delta"`, case `"WUX-6/SC-5: a coarse shrink meets the same per-axis refusal
-a fine one does"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `arrange_grow`; `workshop/screen.hpp`
+`kCoarseStepCells`, `pane_edge::kBottomRight`; `workshop/screen_gestures.cpp`
+`pane_window_proposal`; `workshop/setup.hpp` `author_pane_window`;
+`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-5+SC-7: the coarse step is the resize seam
+with a bigger delta"`, case `"WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine
+one does"`.
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-11 — Four is pinned, not chosen
@@ -179,7 +184,7 @@ MEANS
 - a desk whose panes cover every usable cell still reaches selection = none;
 - it is not a keymap action: a recovery gesture must not be authorable into a lockout.
 
-PROVEN BY — `workshop/weave.hpp` `unselect_pane`; `workshop/screen.hpp`
+PROVEN BY — `workshop/weave_save.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `escape_may_shed_selection`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
 clears the ordinary selection last, and the Pane Editor's subject stands"`, case `"QR-18/SC-2:
 every more-specific Escape meaning answers first, and deselection waits"`, case `"QR-18/SC-4: a
@@ -190,7 +195,7 @@ WHY — `agents/decisions/escape-is-back.md`
 
 LAW — The source editor's Escape is a pinned no-op, and a focused external pane has already been sent the key; the way out of either is a press on a pane that takes no text, then Escape.
 
-PROVEN BY — `workshop/weave.hpp` `unselect_pane`; `workshop/screen.hpp`
+PROVEN BY — `workshop/weave_save.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `escape_may_shed_selection`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
 `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text,
 then Escape, puts the selection down"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: Escape

@@ -132,7 +132,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 LAW — A converted session is in-memory and the file first changes at the ordinary close-time save, which writes the current shape; a converter is needed only while yesterday's bytes exist.
 
-PROVEN BY — `workshop/weave.hpp` `save_last_session`, `restore_last_session`;
+PROVEN BY — `workshop/weave_session.cpp` `save_last_session`, `restore_last_session`;
 `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13: reading an old session does not rewrite
 it; the next close does"`, case `"WUX-12/SC-11: the maker sees no loss, and the next run spends no
 conversion"`.

@@ -127,16 +127,16 @@ MEANS
 - a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
-PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`,
-`on(SurfacePlacement)`; `surface/vocabulary.hpp` `SurfacePlacement`, `SurfacePlacementRemembered`;
-`surface/skin_sdl_plan.hpp` `placement_within`; `workshop/session_persist.hpp` `kPlacementNone`,
-`WorkshopPlacement`, `Placement`; `workshop/screen.hpp` `Session::placement_known`,
-`Session::place_x`, `Session::place_y`, `Session::place_maximized`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: a session with a placement round-trips
-byte-identically"`, case `"WUX-3: the placement's words are judged; its coordinates are not"`,
-case `"WUX-3: the desk remembers where its window sat, and offers it back"`, case `"WUX-3: a run
-whose medium reports no placement RETAINS the remembered one"`; `tests/test_surface.cpp` case
-`"WUX-3: placement is reported BEFORE the extent, at every door"`.
+PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlacement`;
+`workshop/weave_handlers.cpp` `on(SurfacePlacement)`; `surface/vocabulary.hpp` `SurfacePlacement`,
+`SurfacePlacementRemembered`; `surface/skin_sdl_plan.hpp` `placement_within`;
+`workshop/session_persist.hpp` `kPlacementNone`, `WorkshopPlacement`, `Placement`;
+`workshop/screen.hpp` `Session::placement_known`, `Session::place_x`, `Session::place_y`,
+`Session::place_maximized`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a session with a
+placement round-trips byte-identically"`, case `"WUX-3: the placement's words are judged; its
+coordinates are not"`, case `"WUX-3: the desk remembers where its window sat, and offers it
+back"`, case `"WUX-3: a run whose medium reports no placement RETAINS the remembered one"`;
+`tests/test_surface.cpp` case `"WUX-3: placement is reported BEFORE the extent, at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
@@ -146,11 +146,11 @@ LAW — `Session::normal_w/h` tracks the screen except while this run's medium s
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking.
 
-PROVEN BY — `workshop/screen.hpp` `Session::normal_w`; `workshop/weave.hpp` `normal_w`,
-`WorkshopWeave::medium_placed_`, `on(SurfacePlacement)`; `tests/test_workshop_persistence.cpp`
-case `"WUX-3: a maximized close remembers the NORMAL room beside the maximized state"`, case
-`"WUX-3: unmaximizing reopens the gate, and the normal room tracks again"`, case `"WUX-3: a
-restored maximized flag alone does not gate this run's viewport"`.
+PROVEN BY — `workshop/screen.hpp` `Session::normal_w`; `workshop/weave_handlers.cpp` `normal_w`,
+`on(SurfacePlacement)`; `workshop/weave.hpp` `WorkshopWeave::medium_placed_`;
+`tests/test_workshop_persistence.cpp` case `"WUX-3: a maximized close remembers the NORMAL room
+beside the maximized state"`, case `"WUX-3: unmaximizing reopens the gate, and the normal room
+tracks again"`, case `"WUX-3: a restored maximized flag alone does not gate this run's viewport"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-11 — The first picture of a run is Workshop's floor
@@ -160,18 +160,20 @@ LAW — The SDL medium makes a run's first picture the window's minimum, once, s
 MEANS
 - seeding the extent before the first canvas would leave a maker unable to shrink the window.
 
-PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `repaint`; `surface/skin_sdl.cpp`
-`SDL_SetWindowMinimumSize`; `tests/test_workshop_persistence.cpp` case `"WUX-0: the FIRST picture
-of a run is the floor, and the room is the second"`.
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_save.cpp`
+`repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0: the FIRST picture of a run is the floor, and
+the room is the second"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-12 — The room, and then the desk into it
 
 LAW — The desk is seated against the restored room's capacity, so the room is taken back before the restored desk is installed; reversing the two leaves a pane waiting for room it already had.
 
-PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `apply_setup`, `adopt_screen`;
-`workshop/screen.hpp` `stack_capacity`; `tests/test_workshop_persistence.cpp` case `"WUX-0: the
-desk is seated against the RESTORED room, not the default one"`.
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `apply_setup`;
+`workshop/weave_handlers.cpp` `adopt_screen`; `workshop/screen.hpp` `stack_capacity`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0: the desk is seated against the RESTORED room,
+not the default one"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
@@ -181,7 +183,8 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
-PROVEN BY — `workshop/weave.hpp` `quit`, `save_last_session`, `on(SurfaceCloseRequested)`,
+PROVEN BY — `workshop/weave_save.cpp` `quit`; `workshop/weave_session.cpp` `save_last_session`;
+`workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
 `tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the first, room
@@ -198,44 +201,44 @@ MEANS
 - the flag is set before the file is opened, so a refusal is final too;
 - `load_file` asks `exists` first, so a first launch is not an error and stays silent.
 
-PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `WorkshopWeave::restored_`;
-`workshop/session_persist.hpp` `LoadedSession::present`, `LoadedSession::outcome`,
-`LoadedSession`, `load_file`, `LoadedSession::honoured`, `LoadedSession::declined`;
-`surface/vocabulary.hpp` `SurfaceReady`; `tests/test_workshop_persistence.cpp` case `"WUX-0: the
-room is taken back only ONCE, however often a surface says hello"`, case `"WUX-0 C: a first launch
-is not an error, and needs no file to exist"`, case `"WUX-0 D: a malformed session costs the desk
-and nothing else"`.
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave.hpp`
+`WorkshopWeave::restored_`; `workshop/session_persist.hpp` `LoadedSession::present`,
+`LoadedSession::outcome`, `LoadedSession`, `load_file`, `LoadedSession::honoured`,
+`LoadedSession::declined`; `surface/vocabulary.hpp` `SurfaceReady`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0: the room is taken back only ONCE, however
+often a surface says hello"`, case `"WUX-0 C: a first launch is not an error, and needs no file to
+exist"`, case `"WUX-0 D: a malformed session costs the desk and nothing else"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-15 — A session this run could not read is never written over
 
 LAW — A session this run could not read is never written over: the save checks the refusal first; a declined viewport is not a refusal; the standing consequence is a condition, true all run, with an action.
 
-PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::session_refused_`, `save_last_session`,
-`kSessionWallKey`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13: a session this run
-could not read is never written over"`, case `"MIG-0/SC-13: the file survives the run that could
-not read it, and opens later"`.
+PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::session_refused_`; `workshop/weave_session.cpp`
+`save_last_session`, `kSessionWallKey`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13:
+a session this run could not read is never written over"`, case `"MIG-0/SC-13: the file survives
+the run that could not read it, and opens later"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file
 
 LAW — Closing writes a session and leaves the standalone artifact byte-identical; restoring reads no setup file; the session carries the associations without reading what they refer to.
 
-PROVEN BY — `workshop/weave.hpp` `restore_last_session`, `save_last_session`;
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `save_last_session`;
 `tests/test_workshop_persistence.cpp` case `"WUX-0 F: an automatic save never touches the file a
-maker named"`, case `"WUX-0 F: a restored session never touches the file a maker named,
-either"`, case `"WUX-11/SC-14: the whole run and every association come back after a restart"`.
+maker named"`, case `"WUX-0 F: a restored session never touches the file a maker named, either"`,
+case `"WUX-11/SC-14: the whole run and every association come back after a restart"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-17 — A restore returns the desks and the room, not what a maker was doing
 
 LAW — Selection, keyboard focus, the document, the browser's location and every other Workshop-global fact are this run's; a restored layout paints identically except for which pane wears the focus ink.
 
-PROVEN BY — `workshop/weave.hpp` `restore_last_session`; `tests/test_workshop_persistence.cpp`
-case `"WUX-0: a session file holds the desk and the room, and nothing runtime"`, case
-`"WUX-10/SC-13: the position that comes back is the one the maker stood on"`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: marks survive a restart, and the browsing location
-deliberately does not"`.
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
+`tests/test_workshop_persistence.cpp` case `"WUX-0: a session file holds the desk and the room,
+and nothing runtime"`, case `"WUX-10/SC-13: the position that comes back is the one the maker
+stood on"`; `tests/test_workshop_files.cpp` case `"PROJ-2: marks survive a restart, and the
+browsing location deliberately does not"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-18 — Roots are made on the first write, and a project directory is never invented

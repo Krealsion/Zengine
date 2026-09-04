@@ -3196,6 +3196,46 @@ inline std::string file_source(const char* path) {
 
 /// A keymap file's bytes, composed through the format's own serializer -- which is
 /// also what makes the round-trip cases byte-exact rather than approximately so.
+/// THE PRESENTATION, AS A POPULATION OF SOURCE FILES, for the tripwires that read Workshop
+/// as text: every `.hpp` and `.cpp` under `WORKSHOP_SOURCE_DIR` except the host's side of
+/// the seam -- the host itself, the load plan and its executor, the observation door and
+/// its vocabulary -- because those files' whole business is what the presentation must not
+/// reach, and a tripwire that read them would forbid the door from naming what it opens.
+///
+/// WALKED, NEVER ENUMERATED. A list of files fails open: a body that moves into a new
+/// `workshop/<subject>.cpp` is simply not on it, and every claim below stays green while
+/// the new file says whatever it likes. A directory walk puts the file in the population
+/// the moment it exists. The floor is the count the walk found when the logic was split
+/// out of the headers (workshop/CMakeLists.txt); a walk that finds fewer is a red, never a
+/// smaller claim.
+inline constexpr std::size_t kPresentationSourceFloor = 62;
+
+inline std::vector<std::string> presentation_sources() {
+    static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
+                                                "arrangement.hpp", "arrangement_vocabulary.hpp"};
+    std::vector<std::string> out;
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {
+        const std::string name = entry.path().filename().string();
+        const std::string ext = entry.path().extension().string();
+        if (ext != ".hpp" && ext != ".cpp") {
+            continue;
+        }
+        bool host_side = false;
+        for (const char* h : kHostSide) {
+            host_side = host_side || name == h;
+        }
+        if (!host_side) {
+            out.push_back(entry.path().generic_string());
+        }
+    }
+    std::sort(out.begin(), out.end());
+    REQUIRE_MESSAGE(out.size() >= kPresentationSourceFloor, "the walk of ", WORKSHOP_SOURCE_DIR,
+                    " found ", out.size(), " presentation sources, below the floor of ",
+                    kPresentationSourceFloor);
+    return out;
+}
+
 inline std::string keymap_file_text(const std::string& legend,
                                     const std::vector<std::pair<std::string, std::string>>& rows) {
     keymap_persist::WorkshopKeymap f;
