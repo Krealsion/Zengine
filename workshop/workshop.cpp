@@ -3,7 +3,7 @@
 
 // zengine-workshop — the first Workshop surface. One rectangle, selected,
 // inspected, edited, refused, moved, resized, typed into.
-// Workshop law: agents/workshop/project.md (+1 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/project.md (+2 registers; agents/workshop.md routes)
 
 #include "arrangement.hpp"
 #include "host_sources.hpp"

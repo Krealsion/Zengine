@@ -54,7 +54,7 @@ MEANS
 - a pane in front of an Info control takes the point; a pane in front of the tabs takes the press.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `take_hold`, `on(PointerButton)`;
-`workshop/weave_save.cpp` `external_press`; `workshop/weave_seam.cpp` `info_press`;
+`workshop/weave_external.cpp` `external_press`; `workshop/weave_seam.cpp` `info_press`;
 `workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen.hpp` `Occupancy::kind`,
 `ExternalPressAt`, `kNoKind`; `workshop/screen_external.cpp` `external_press_at`;
 `workshop/screen_gestures.cpp` `take_hold`; `tests/test_workshop_screen.cpp` case

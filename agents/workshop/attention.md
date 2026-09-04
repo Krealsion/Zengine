@@ -24,7 +24,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy file, a pane's refused update, a waiting frontier) left the notice; `speak_startup_notes` joins only the event halves.
 
 PROVEN BY — `workshop/weave_handlers.cpp` `speak_startup_notes`, `take_host_conditions`;
-`workshop/weave_save.cpp` `say`; `workshop/weave.hpp` `HostContext::transition_note`;
+`workshop/weave_document.cpp` `say`; `workshop/weave.hpp` `HostContext::transition_note`;
 `tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay events, and a condition needs
 no sentence"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a refused prefs file is spoken,
 stands, and is never overwritten"`.
@@ -45,9 +45,9 @@ LAW — A condition derived from a live owner — a pane's refusal, a pane's sta
 
 PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `ExternalPane::refusal`,
 `ExternalPane::refusal_why`, `ProjectFrontier`, `ExternalPane::clear_refusal`;
-`workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/screen_pane_editor.cpp` `paint`;
+`workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/screen_compose.cpp` `paint`;
 `workshop/screen_attention.cpp` `attention_conditions`; `workshop/attention.hpp` `HeldConditions`;
-`workshop/weave.hpp` `HostContext::frontier`; `workshop/weave_save.cpp` `frontier_now`;
+`workshop/weave.hpp` `HostContext::frontier`; `workshop/weave_run.cpp` `frontier_now`;
 `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and leaves attention
 with its subject"`, case `"WUX-4: the project frontier is a condition while it waits and nothing
 after"`.
@@ -66,7 +66,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — The loudest condition plus an honest `(+N more)` is published as `SurfaceText` on every repaint before the canvas, because the SDL medium composes it into the picture; no band row was taken.
 
-PROVEN BY — `workshop/weave_save.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
+PROVEN BY — `workshop/weave_run.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
 `SurfaceText`; `workshop/screen_attention.cpp` `attention_compact`;
 `tests/test_workshop_panels.cpp` case `"WUX-4: a healthy Workshop says nothing on the attention
 slot at all"`, case `"WUX-4: the compact line is ranked by truth, and says how many it is not

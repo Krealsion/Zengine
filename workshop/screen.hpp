@@ -51,7 +51,7 @@ inline constexpr std::int64_t kScreenMinW = 78;
 inline constexpr std::int64_t kScreenMinH = 22;
 
 /// The largest surface this screen will lay out.
-// WL-SESSION-07 -- agents/workshop/session.md
+// WL-SESSION-07 -- agents/workshop/session-restore.md
 inline constexpr std::int64_t kScreenMaxW = 640;
 inline constexpr std::int64_t kScreenMaxH = 400;
 
@@ -926,11 +926,11 @@ struct Session {
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
     /// THE NORMAL WINDOW'S ROOM -- what a session save remembers as the viewport.
-    // WL-SESSION-09 -- agents/workshop/session.md
+    // WL-SESSION-09 -- agents/workshop/session-restore.md
     std::int64_t normal_w = kScreenMinW;
     std::int64_t normal_h = kScreenMinH;
     /// THE WINDOW'S DESKTOP PLACEMENT, AS LAST REPORTED.
-    // WL-SESSION-08 -- agents/workshop/session.md
+    // WL-SESSION-08 -- agents/workshop/session-restore.md
     bool placement_known = false;
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
@@ -2819,6 +2819,8 @@ void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
 // `paint_layouts`, whose composition is the status row's and belongs beside the status
 // row's other halves. So the walk moved down to meet its last painter rather than the
 // composition moving up away from what it composes.
+
+// ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 /// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
 void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,

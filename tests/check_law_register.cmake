@@ -53,7 +53,12 @@
 #            that line, under this file -- an id whose law does not name the declaration
 #            is a content citation, and the pointer form has no room for one. What "the
 #            declaration" means here is a heuristic parse, stated at zen_law_declared()
-#            below.
+#            below. A qualified spelling `Scope::name` names the declaration only when
+#            the declaration is a member of Scope -- declared inside `struct|class Scope {`
+#            (or a namespace of that name), or defined out of line as `Scope::name` -- and
+#            is refused above a declaration of another scope: `LayoutTabPress::create`
+#            does not name the free function `create` (zen_law_pointer_names() below;
+#            measured: that respelling sat green for a phase under a suffix match).
 #
 # With STRICT ON, the default, both fail the entry; -DLAW_REGISTER_STRICT=OFF prints their
 # lists and a count without failing, which is the setting for a phase working a list down.
@@ -305,8 +310,10 @@ endfunction()
 
 # THE DECLARATION A POINTER POINTS AT (rule n) -- a heuristic over one code line, and this
 # comment is what it accepts. Sets ${out_name} to the declared identifier or "" when the
-# line declares nothing it can name, and ${out_kind} to one of: scope | alias | function |
-# variable | none.
+# line declares nothing it can name, ${out_kind} to one of: scope | alias | function |
+# variable | none, and ${out_qualifier} to the scope an out-of-line definition names before
+# its `::` (`WorkshopWeave` for `void WorkshopWeave::quit() {`; `A::B` for `A::B::f`), ""
+# for an unqualified declaration.
 #
 #   * a trailing `//` comment is dropped; template argument lists `<...>` (four levels)
 #     and attributes `[[...]]` are dropped;
@@ -341,10 +348,11 @@ set(ZEN_LAW_KEYWORDS
     template this throw true try typedef typeid typename union unsigned using virtual void
     volatile while)
 
-function(zen_law_declared line out_name out_kind out_param)
+function(zen_law_declared line out_name out_kind out_param out_qualifier)
     set(${out_name} "" PARENT_SCOPE)
     set(${out_kind} "none" PARENT_SCOPE)
     set(${out_param} "" PARENT_SCOPE)
+    set(${out_qualifier} "" PARENT_SCOPE)
     string(REGEX REPLACE "//.*$" "" l "${line}")
     string(STRIP "${l}" l)
     foreach(round RANGE 1 4)
@@ -434,9 +442,133 @@ function(zen_law_declared line out_name out_kind out_param)
     if(name IN_LIST ZEN_LAW_KEYWORDS)
         return()
     endif()
+    # An out-of-line definition's qualifier: the `A::B::` run ending at the name.
+    set(qualifier "")
+    string(STRIP "${head}" head_stripped)
+    if(head_stripped MATCHES "(([A-Za-z_][A-Za-z0-9_]*::)+)${name}$")
+        string(REGEX REPLACE "::$" "" qualifier "${CMAKE_MATCH_1}")
+    endif()
     set(${out_name} "${name}" PARENT_SCOPE)
     set(${out_kind} "${kind}" PARENT_SCOPE)
     set(${out_param} "${param}" PARENT_SCOPE)
+    set(${out_qualifier} "${qualifier}" PARENT_SCOPE)
+endfunction()
+
+# THE SCOPE A CODE LINE SITS IN (rule n's qualifier check). Brace depth is counted on the
+# line with its `//` comment and its string and character literals removed (an escaped
+# character first -- the backslash arrives as ZEN_EOT); a scope opener
+# `[template <...>] namespace|struct|class|union|enum [class|struct] NAME ... {` pushes NAME
+# with the depth inside it (the head stripped is one balanced `<...>` and the name stops at
+# its own `<`, so `template <> struct TextForm<ui::Extent> {` pushes TextForm -- measured: a
+# greedy strip swallowed that opener whole and four members lost their scope), an opener
+# whose `{` is on a later line (`struct Foo` / `: Base {`)
+# waits in ${pending_var} until that brace, a forward declaration (`;` on the line, no `{`)
+# pushes nothing, and a scope is popped when the depth falls below the one it opened. A
+# function body, a lambda, an initializer: braces counted, nothing pushed. Three variables
+# are carried by name: the depth, the stack (`NAME|inner depth` entries) and the pending
+# opener. zen_law_scope_path() joins the stack's names with `::`.
+function(zen_law_scope_step line depth_var stack_var pending_var)
+    set(depth "${${depth_var}}")
+    set(stack "${${stack_var}}")
+    set(pending "${${pending_var}}")
+    string(REGEX REPLACE "//.*$" "" l "${line}")
+    if(l MATCHES "^[ \t]*#")
+        return()
+    endif()
+    # Most lines open nothing and close nothing: two finds and one anchored match settle them.
+    string(FIND "${l}" "{" quick_open)
+    string(FIND "${l}" "}" quick_close)
+    if(quick_open EQUAL -1 AND quick_close EQUAL -1 AND pending STREQUAL ""
+       AND NOT l MATCHES "^[ \t]*(template|namespace|struct|class|union|enum)[ \t<]")
+        return()
+    endif()
+    string(REGEX REPLACE "${ZEN_EOT}." "" l "${l}")
+    string(REGEX REPLACE "\"[^\"]*\"" "" l "${l}")
+    string(REGEX REPLACE "'[^']*'" "" l "${l}")
+    string(REGEX REPLACE "^[ \t]*template[ \t]*<[^<>]*>[ \t]*" "" h "${l}")
+    string(STRIP "${h}" h)
+    string(FIND "${l}" "{" has_open)
+    string(FIND "${l}" "${ZEN_SOH}" has_semi)
+    set(opener "")
+    if(h MATCHES "^(namespace|struct|class|union|enum class|enum struct|enum)[ \t]+([A-Za-z_][A-Za-z0-9_:]*)")
+        set(pending "")
+        if(NOT has_open EQUAL -1)
+            set(opener "${CMAKE_MATCH_2}")
+        elseif(has_semi EQUAL -1)
+            set(pending "${CMAKE_MATCH_2}")
+        endif()
+    elseif(NOT pending STREQUAL "")
+        if(NOT has_open EQUAL -1)
+            set(opener "${pending}")
+            set(pending "")
+        elseif(NOT has_semi EQUAL -1)
+            set(pending "")
+        endif()
+    endif()
+    string(REGEX MATCHALL "{" opens "${l}")
+    string(REGEX MATCHALL "}" closes "${l}")
+    list(LENGTH opens n_open)
+    list(LENGTH closes n_close)
+    if(NOT opener STREQUAL "" AND n_open GREATER n_close)
+        math(EXPR inner "${depth} + 1")
+        list(APPEND stack "${opener}|${inner}")
+    endif()
+    math(EXPR depth "${depth} + ${n_open} - ${n_close}")
+    while(stack)
+        list(GET stack -1 top)
+        string(REGEX REPLACE "^.*\\|" "" opened_at "${top}")
+        if(depth LESS opened_at)
+            list(REMOVE_AT stack -1)
+        else()
+            break()
+        endif()
+    endwhile()
+    set(${depth_var} "${depth}" PARENT_SCOPE)
+    set(${stack_var} "${stack}" PARENT_SCOPE)
+    set(${pending_var} "${pending}" PARENT_SCOPE)
+endfunction()
+
+function(zen_law_scope_path stack out)
+    set(names "")
+    foreach(entry IN LISTS stack)
+        string(REGEX REPLACE "\\|.*$" "" name "${entry}")
+        list(APPEND names "${name}")
+    endforeach()
+    string(REPLACE ";" "::" path "${names}")
+    set(${out} "${path}" PARENT_SCOPE)
+endfunction()
+
+# DOES A LAW NAME THE DECLARATION UNDER A POINTER (rule n)? `owned` is what the law's PROVEN
+# BY spells under this file; `name`, `kind` and `param` are zen_law_declared()'s reading of
+# the line; `scope` is the path the line sits in -- the enclosing namespaces and classes, then
+# an out-of-line definition's own qualifier. The bare name names it; `Scope::name` (and the
+# overload form `Scope::name(Type)`) names it only when `scope` is Scope or ends in `::Scope`;
+# above a scope's own declaration, a law spelling any `NAME::member` names the scope.
+function(zen_law_pointer_names owned name kind param scope out)
+    set(named 0)
+    foreach(o IN LISTS owned)
+        if(o STREQUAL "${name}")
+            set(named 1)
+        elseif(kind STREQUAL "scope" AND o MATCHES "^${name}::")
+            set(named 1)
+        elseif(NOT param STREQUAL "" AND o STREQUAL "${name}(${param})")
+            set(named 1)
+        else()
+            set(q "")
+            if(o MATCHES "^(.+)::${name}$")
+                set(q "${CMAKE_MATCH_1}")
+            elseif(NOT param STREQUAL "" AND o MATCHES "^(.+)::${name}\\(${param}\\)$")
+                set(q "${CMAKE_MATCH_1}")
+            endif()
+            if(NOT q STREQUAL "")
+                zen_law_regex_escape("${q}" q_re)
+                if(scope STREQUAL "${q}" OR scope MATCHES "::${q_re}$")
+                    set(named 1)
+                endif()
+            endif()
+        endif()
+    endforeach()
+    set(${out} "${named}" PARENT_SCOPE)
 endfunction()
 
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
@@ -568,37 +700,105 @@ if(ok)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a pointer carrying a retired phase tag was accepted.")
 endif()
 
-zen_law_declared("inline constexpr std::int64_t kSideRegion = 0${ZEN_SOH}" name kind param)
+zen_law_declared("inline constexpr std::int64_t kSideRegion = 0${ZEN_SOH}" name kind param qual)
 if(NOT name STREQUAL "kSideRegion" OR NOT param STREQUAL "")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a constant's declaration parsed as '${name}' (${param}).")
 endif()
-zen_law_declared("struct PanelKind {" name kind param)
+zen_law_declared("struct PanelKind {" name kind param qual)
 if(NOT name STREQUAL "PanelKind" OR NOT kind STREQUAL "scope")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a struct's declaration parsed as '${name}' (${kind}).")
 endif()
-zen_law_declared("template <class T> struct TextForm${ZEN_SOH}" name kind param)
+zen_law_declared("template <class T> struct TextForm${ZEN_SOH}" name kind param qual)
 if(NOT name STREQUAL "TextForm" OR NOT kind STREQUAL "scope")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a one-line template forward declaration parsed as '${name}' (${kind}).")
 endif()
-zen_law_declared("std::function<RecipeSwap(const Recipe&)> swap = {}${ZEN_SOH}" name kind param)
+zen_law_declared("std::function<RecipeSwap(const Recipe&)> swap = {}${ZEN_SOH}" name kind param qual)
 if(NOT name STREQUAL "swap")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a member behind a template argument parsed as '${name}'.")
 endif()
-zen_law_declared("${ZEN_STX}${ZEN_STX}nodiscard${ZEN_ETX}${ZEN_ETX} bool on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) noexcept {" name kind param)
+zen_law_declared("${ZEN_STX}${ZEN_STX}nodiscard${ZEN_ETX}${ZEN_ETX} bool on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) noexcept {" name kind param qual)
 if(NOT name STREQUAL "on" OR NOT kind STREQUAL "function" OR NOT param STREQUAL "SurfaceExtent")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a function's declaration parsed as '${name}' (${kind}, first parameter '${param}').")
 endif()
-zen_law_declared("inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {" name kind param)
+zen_law_declared("inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {" name kind param qual)
 if(NOT name STREQUAL "pane_row" OR NOT param STREQUAL "Setup")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a free function's declaration parsed as '${name}' (first parameter '${param}').")
 endif()
-zen_law_declared("void picker_move(std::int64_t by) {" name kind param)
+zen_law_declared("void picker_move(std::int64_t by) {" name kind param qual)
 if(NOT name STREQUAL "picker_move" OR NOT param STREQUAL "int64_t")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a by-value parameter parsed as '${param}'.")
 endif()
-zen_law_declared("static_assert(kTopRows + kBottomRows == 6, \"six\")${ZEN_SOH}" name kind param)
+zen_law_declared("static_assert(kTopRows + kBottomRows == 6, \"six\")${ZEN_SOH}" name kind param qual)
 if(NOT name STREQUAL "")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a static_assert was read as declaring '${name}'.")
+endif()
+zen_law_declared("void WorkshopWeave::quit() {" name kind param qual)
+if(NOT name STREQUAL "quit" OR NOT kind STREQUAL "function" OR NOT qual STREQUAL "WorkshopWeave")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- an out-of-line member parsed as '${name}' (${kind}) qualified by '${qual}'.")
+endif()
+zen_law_declared("WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {" name kind param qual)
+if(NOT name STREQUAL "end_held_gestures" OR NOT qual STREQUAL "WorkshopWeave")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a nested return type was read as the qualifier ('${qual}' before '${name}').")
+endif()
+zen_law_declared("bool create = false${ZEN_SOH}" name kind param qual)
+if(NOT name STREQUAL "create" OR NOT qual STREQUAL "")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- an unqualified member parsed as '${name}' qualified by '${qual}'.")
+endif()
+
+# The scope tracker over a sample: a namespace, a struct and its member, the struct closed, a
+# free function whose body holds a brace inside a string literal, an opener whose brace is on
+# the next line, the namespace closed.
+set(st_depth 0)
+set(st_stack "")
+set(st_pending "")
+zen_law_scope_step("namespace zengine::workshop {" st_depth st_stack st_pending)
+zen_law_scope_step("struct LayoutTabPress {" st_depth st_stack st_pending)
+zen_law_scope_path("${st_stack}" st_in_struct)
+zen_law_scope_step("    bool create = false${ZEN_SOH}" st_depth st_stack st_pending)
+zen_law_scope_step("}${ZEN_SOH}" st_depth st_stack st_pending)
+zen_law_scope_path("${st_stack}" st_after_struct)
+zen_law_scope_step("inline std::int64_t create(WorkshopDoc& d, Session& s) {" st_depth st_stack st_pending)
+zen_law_scope_step("    return mint(d, s, \"{\")${ZEN_SOH}" st_depth st_stack st_pending)
+zen_law_scope_step("}" st_depth st_stack st_pending)
+zen_law_scope_path("${st_stack}" st_after_function)
+zen_law_scope_step("struct Late" st_depth st_stack st_pending)
+zen_law_scope_step("    : Base {" st_depth st_stack st_pending)
+zen_law_scope_path("${st_stack}" st_late)
+zen_law_scope_step("}${ZEN_SOH}" st_depth st_stack st_pending)
+zen_law_scope_step("} // namespace zengine::workshop" st_depth st_stack st_pending)
+zen_law_scope_path("${st_stack}" st_end)
+if(NOT st_in_struct STREQUAL "zengine::workshop::LayoutTabPress" OR NOT st_after_struct STREQUAL "zengine::workshop"
+   OR NOT st_after_function STREQUAL "zengine::workshop" OR NOT st_late STREQUAL "zengine::workshop::Late"
+   OR NOT st_end STREQUAL "" OR NOT st_depth EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the scope tracker read a nine-line sample as: in the struct "
+        "'${st_in_struct}', after it '${st_after_struct}', after a function '${st_after_function}', in a "
+        "late-braced struct '${st_late}', at the end '${st_end}' at depth ${st_depth}. Every qualified "
+        "spelling below would then be judged against the wrong scope.")
+endif()
+
+# The qualified twin: `LayoutTabPress::create` is refused above the free function `create`
+# and accepted above the in-class member and above the out-of-line definition; a nested
+# namespace's own qualifier is accepted from inside it and refused from outside; the bare
+# name, the scope form and the overload forms still answer.
+zen_law_pointer_names("LayoutTabPress::create" create function "WorkshopDoc" "zengine::workshop" over_free)
+zen_law_pointer_names("LayoutTabPress::create" create variable "" "zengine::workshop::LayoutTabPress" over_member)
+zen_law_pointer_names("LayoutTabPress::create" create function "int64_t" "zengine::workshop::LayoutTabPress" over_outofline)
+zen_law_pointer_names("create" create function "WorkshopDoc" "zengine::workshop" bare_free)
+zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop::detail" ns_inside)
+zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop" ns_outside)
+zen_law_pointer_names("Session::normal_w" Session scope "" "zengine::workshop" scope_named)
+zen_law_pointer_names("on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" overload)
+zen_law_pointer_names("WorkshopWeave::on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" q_overload)
+zen_law_pointer_names("Other::on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" q_overload_wrong)
+if(over_free OR NOT over_member OR NOT over_outofline OR NOT bare_free OR NOT ns_inside OR ns_outside
+   OR NOT scope_named OR NOT overload OR NOT q_overload OR q_overload_wrong)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- rule n's naming predicate disagrees with its twins (qualified "
+        "over a free function ${over_free}, over the member ${over_member}, over the out-of-line "
+        "definition ${over_outofline}, bare ${bare_free}, namespace inside ${ns_inside}, outside "
+        "${ns_outside}, scope ${scope_named}, overload ${overload}, qualified overload ${q_overload}, "
+        "wrong scope's overload ${q_overload_wrong}). A wrong `Scope::name` would then sit green.")
 endif()
 
 zen_law_proven_owes("PROVEN BY — `a.hpp` `x`; witness: none" owes)
@@ -753,8 +953,8 @@ endif()
 message(STATUS
     "law-register: self-test OK -- a bad heading, a commented-out identifier, a substring, a "
     "member under a substring scope, an overload whose type is only in a comment, a tagged "
-    "pointer, an undeclared witness, a one-sided witness debt and a one-sided clause debt are "
-    "refused; their well-formed twins are accepted")
+    "pointer, an undeclared witness, a one-sided witness debt, a one-sided clause debt and a "
+    "qualified spelling over a free function are refused; their well-formed twins are accepted")
 
 # ---- population 2: the registers ---------------------------------------------------------
 
@@ -1269,6 +1469,9 @@ foreach(rel IN LISTS source_files)
     string(REPLACE "\n" ";" lines "${content}")
     set(pending "")
     set(carry "")
+    set(scope_depth 0)
+    set(scope_stack "")
+    set(scope_pending "")
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
@@ -1319,6 +1522,19 @@ foreach(rel IN LISTS source_files)
             endif()
             continue()
         endif()
+        # The scope this line sits in is read before the line's own braces are counted, so a
+        # pointer above `struct Foo {` sees Foo's enclosing scope, and one above a member
+        # sees Foo. A line with no brace and no scope keyword steps nothing (two finds and
+        # one match, no call: the check's wall clock is paid per line of every pointer file).
+        if(pending)
+            zen_law_scope_path("${scope_stack}" scope_here)
+        endif()
+        string(FIND "${line}" "{" quick_open)
+        string(FIND "${line}" "}" quick_close)
+        if(NOT quick_open EQUAL -1 OR NOT quick_close EQUAL -1 OR NOT scope_pending STREQUAL ""
+           OR line MATCHES "^[ \t]*(template|namespace|struct|class|union|enum)[ \t<]")
+            zen_law_scope_step("${line}" scope_depth scope_stack scope_pending)
+        endif()
         if(NOT pending)
             continue()
         endif()
@@ -1354,7 +1570,7 @@ foreach(rel IN LISTS source_files)
             set(line "${carry} ${line}")
             set(carry "")
         endif()
-        zen_law_declared("${line}" name kind param)
+        zen_law_declared("${line}" name kind param qual)
         zen_law_show("${line}" shown_line)
         string(STRIP "${shown_line}" shown_line)
         foreach(p IN LISTS pending)
@@ -1368,24 +1584,23 @@ foreach(rel IN LISTS source_files)
                 zen_law_strict(n "${rel}:${at} (${idtext}) is followed by no declaration this parse can name (line ${n}): ${shown_line}")
                 continue()
             endif()
-            # What names the declaration: its bare name, `Scope::name`, or -- for a function --
-            # the overload spelling `name(Type)` with its first parameter's type.
-            # EVERY id on the line must name the declaration: a pointer is the inverse of
-            # each law it cites, not of one of them.
+            # What names the declaration: its bare name; `Scope::name` only from inside Scope
+            # (the enclosing namespaces and classes, then an out-of-line definition's own
+            # qualifier); for a function also the overload spelling `name(Type)` with its first
+            # parameter's type (zen_law_pointer_names()). EVERY id on the line must name the
+            # declaration: a pointer is the inverse of each law it cites, not of one of them.
+            set(scope_of_line "${scope_here}")
+            if(NOT qual STREQUAL "")
+                if(scope_of_line STREQUAL "")
+                    set(scope_of_line "${qual}")
+                else()
+                    set(scope_of_line "${scope_of_line}::${qual}")
+                endif()
+            endif()
             set(unnamed "")
             foreach(id IN LISTS ids)
                 get_property(owned GLOBAL PROPERTY "zen_law_owns_${id}_${relkey}")
-                set(named 0)
-                foreach(o IN LISTS owned)
-                    if(o STREQUAL "${name}" OR o MATCHES "::${name}$")
-                        set(named 1)
-                    elseif(kind STREQUAL "scope" AND o MATCHES "^${name}::")
-                        set(named 1)
-                    elseif(NOT param STREQUAL "" AND (o STREQUAL "${name}(${param})"
-                           OR o MATCHES "::${name}\\(${param}\\)$"))
-                        set(named 1)
-                    endif()
-                endforeach()
+                zen_law_pointer_names("${owned}" "${name}" "${kind}" "${param}" "${scope_of_line}" named)
                 if(NOT named)
                     list(APPEND unnamed "${id}")
                 endif()
@@ -1393,7 +1608,7 @@ foreach(rel IN LISTS source_files)
             if(unnamed)
                 string(REPLACE ";" ", " unnamed "${unnamed}")
                 math(EXPR rule_n_count "${rule_n_count} + 1")
-                zen_law_strict(n "${rel}:${at} (${idtext}) points at ${kind} `${name}` (line ${n}), which ${unnamed} does not name under ${rel}")
+                zen_law_strict(n "${rel}:${at} (${idtext}) points at ${kind} `${name}` in `${scope_of_line}` (line ${n}), which ${unnamed} does not name under ${rel}")
             endif()
         endforeach()
         set(pending "")

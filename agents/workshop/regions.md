@@ -40,7 +40,7 @@ DOES NOT MEAN
 - that the notice is ever shortened — it is cut with a mark and kept whole in the session.
 
 PROVEN BY — `workshop/screen.hpp` `band_bounds`, `band_fit`, `kBottomRows`;
-`workshop/screen_pane_editor.cpp` `band_region`; `workshop/screen_gestures.cpp` `help_rows`;
+`workshop/screen_compose.cpp` `band_region`; `workshop/screen_gestures.cpp` `help_rows`;
 `tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose their budgets, and
 the selector is row 0"`; `tests/test_workshop_screen.cpp` case `"TYPE-0/WUX-1: the notice is a
 band row, and the SENTENCE is never shortened"`.
@@ -65,9 +65,9 @@ MEANS
 - a one-cell object falls back to cells with no `if (h < N)` written anywhere;
 - the authored name is untouched; widening the object reveals more of the same bytes.
 
-PROVEN BY — `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_pane_editor.cpp`
-`paint`; `tests/test_workshop_screen.cpp` case `"QR-3: the name's bound is the OBJECT'S resolved
-width, clipped by the workspace"`, case `"QR-3: no part of a name is drawn outside the material it
+PROVEN BY — `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_compose.cpp` `paint`;
+`tests/test_workshop_screen.cpp` case `"QR-3: the name's bound is the OBJECT'S resolved width,
+clipped by the workspace"`, case `"QR-3: no part of a name is drawn outside the material it
 names"`, case `"TYPE-1: a tiny object shows its name in CELLS, and no rule was written to say
 so"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`

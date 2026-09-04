@@ -47,7 +47,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen.hpp` `Availability::kDraftLive`, `Availability::kNoTarget`,
 `Availability`, `action_availability`; `workshop/screen_info.cpp` `action_availability`,
-`draft_live`; `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_save.cpp`
+`draft_live`; `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_run.cpp`
 `finish_draft_first`; `workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case
 `"HD-8: availability is two reasons, one bit, and no prediction of a refusal"`, case `"HD-8:
 availability is not a prediction of what the document will say"`, case `"HD-8: an unavailable
@@ -74,7 +74,7 @@ MEANS
 DOES NOT MEAN
 - that the controls take keys — they are pointer-only, and no focus framework exists for them.
 
-PROVEN BY — `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_save.cpp`
+PROVEN BY — `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_document.cpp`
 `create_object`, `delete_object`; `tests/test_workshop_panels.cpp` case `"HD-8: pressing Create is
 the SAME operation the `n` key performs"`, case `"HD-8: pressing Delete is the SAME operation the
 `d` key performs"`, case `"HD-8: a live property draft survives both controls, with no implicit

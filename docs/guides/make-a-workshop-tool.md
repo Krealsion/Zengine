@@ -124,7 +124,7 @@ inline constexpr PanelKind kPanelCatalog[] = {
 
 Declare the painter in `workshop/screen.hpp`, write its body in the subject's
 `workshop/screen_<subject>.cpp`, and add one arm to `paint_panels` (whose body is in
-`workshop/screen_pane_editor.cpp`, the last section's file):
+`workshop/screen_compose.cpp`, the composition's file):
 
 ```cpp
 inline void paint_status(surface::SurfaceLayer& layer, const ui::Rect& b) {
