@@ -107,10 +107,10 @@ MEANS
 - `delete_object_at` reuses `delete_selected` for the selection; a live draft holds it back;
 - no owner predicate runs on the paint path: the menu renders an identity, not an existence.
 
-PROVEN BY — `workshop/weave_arrange.cpp` `spend_pane_action`; `workshop/weave_save.cpp`
-`delete_object_at`, `finish_draft_first`, `context_delete_object`; `workshop/weave_session.cpp`
-`open_layout_rename`, `duplicate_layout`, `shift_layout`, `drop_layout`;
-`workshop/weave_pointer.cpp` `spend_context_choice`; `workshop/screen_gestures.cpp`
+PROVEN BY — `workshop/weave_arrange.cpp` `spend_pane_action`; `workshop/weave_document.cpp`
+`delete_object_at`, `context_delete_object`; `workshop/weave_run.cpp` `finish_draft_first`;
+`workshop/weave_session.cpp` `open_layout_rename`, `duplicate_layout`, `shift_layout`,
+`drop_layout`; `workshop/weave_pointer.cpp` `spend_context_choice`; `workshop/screen_gestures.cpp`
 `delete_selected`; `tests/test_workshop_panels.cpp` case `"CTX-0: a contextual action acts on the
 pointed pane, not the selection"`, case `"CTX-0: a contextual remove removes the pointed pane"`,
 case `"WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at"`;

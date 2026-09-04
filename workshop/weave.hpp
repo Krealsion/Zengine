@@ -6,7 +6,7 @@
 
 // Workshop's own weave: the authored document, the session, and the bindings
 // from input MOMENTS to maker GESTURES.
-// Workshop law: agents/workshop/session.md (+12 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
 
 
 
@@ -988,6 +988,8 @@ private:
     /// cannot come to open differently.
     void open_on_first();
 
+    // ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+
     /// Make one. The notice names the IDENTITY and not the label, because the
     /// default label is the same word the other objects already carry -- which is
     /// the lesson, arriving at the moment a maker can see it is not a problem.
@@ -1072,6 +1074,8 @@ private:
     /// it is.
     std::string status_line() const;
 
+    // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+
     /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
     /// only when the answer has changed.
     void refresh_external_rooms(loom::Mail& mail);
@@ -1130,6 +1134,8 @@ private:
     void external_text(std::int64_t kind, const zengine::input::TextEntered& t,
                        loom::Mail& mail);
 
+    // ---- THE RUN: what is true now, the picture published, and the way out --------------
+
     /// THE PROJECT FRONTIER, READ ALIVE, NOW.
     ProjectFrontier frontier_now() const;
 
@@ -1182,7 +1188,7 @@ private:
     std::string swallow_text_;
 
     /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
-    // WL-SESSION-14 -- agents/workshop/session.md
+    // WL-SESSION-14 -- agents/workshop/session-restore.md
     bool restored_ = false;
 
     /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
@@ -1215,7 +1221,7 @@ private:
     bool prefs_bad_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
-    // WL-SESSION-09 -- agents/workshop/session.md
+    // WL-SESSION-09 -- agents/workshop/session-restore.md
     bool medium_placed_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been

@@ -39,6 +39,6 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 a want rather than a floor. A maximized close writes the room the maker chose with `maximized`
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
-**Laws supported.** [WL-SESSION-07](../workshop/session.md),
-[WL-SESSION-08](../workshop/session.md), [WL-SESSION-09](../workshop/session.md),
-[WL-SESSION-11](../workshop/session.md), [WL-SESSION-12](../workshop/session.md).
+**Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),
+[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md),
+[WL-SESSION-11](../workshop/session-restore.md), [WL-SESSION-12](../workshop/session-restore.md).

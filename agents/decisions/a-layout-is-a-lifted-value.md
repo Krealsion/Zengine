@@ -60,4 +60,4 @@ one desk, and a Setup file still means one desk.
 [WL-LAYOUT-08](../workshop/layouts.md), [WL-LAYOUT-09](../workshop/layouts.md),
 [WL-LAYOUT-10](../workshop/layouts.md), [WL-LAYOUT-11](../workshop/layouts.md),
 [WL-LAYOUT-12](../workshop/layouts.md), [WL-LAYOUT-13](../workshop/layouts.md),
-[WL-SESSION-05](../workshop/session.md), [WL-SESSION-06](../workshop/session.md).
+[WL-SESSION-05](../workshop/session-restore.md), [WL-SESSION-06](../workshop/session-restore.md).

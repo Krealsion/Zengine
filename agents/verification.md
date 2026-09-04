@@ -297,7 +297,9 @@ activation cursor and the header-only vocabularies).
   law is. Two stricter checks — an identifier must occur
   as a whole token in the named file's *code*, comments stripped, where a member spelled
   `Struct::member` and an overload spelled `name(Type)` are read as their parts; and the
-  declaration under a pointer must be named by **every** law on that line — sit behind
+  declaration under a pointer must be named by **every** law on that line, where a qualified
+  spelling `Scope::name` names it only from inside `Scope` (declared in `struct|class Scope {`
+  or defined out of line as `Scope::name`), never a free function by its suffix — sit behind
   `LAW_REGISTER_STRICT`, ON by default since their lists were cleared;
   `-DLAW_REGISTER_STRICT=OFF` prints the lists and a count without failing, the setting for a
   phase working one down. It cannot know that a phase edited a witnessed test; that rule is
@@ -369,6 +371,7 @@ names.
 | layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |
 | maker-pane | `workshop_panels` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
+| session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
 
 ## Driving a live graphical witness
 

@@ -101,7 +101,7 @@ and every older one is byte-identical.
   topmost answer — the same walk a press spends, the effective order with the selection lift
   — so a pane a maker never pressed into is scrolled by pointing at it, and a pane in front
   keeps the gesture for its own cells (`external_wheel`, declared in weave.hpp, its body in
-  weave_save.cpp). It is sent only while the
+  weave_external.cpp). It is sent only while the
   pointer names a prose row of the granted body (`external_press_at`: the header and the
   remainder under the last row send nothing) and only to a pane holding a room.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance

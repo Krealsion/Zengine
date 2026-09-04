@@ -38,7 +38,7 @@ inline constexpr std::int64_t kFormatVersion = 3;
 inline constexpr std::int64_t kLegacyFormatVersion = 2;
 
 /// A setup is a smaller thing than a document, and its ceiling says so.
-// WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-06 -- agents/workshop/session-restore.md
 inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
 
 // ---- The mode WORDS, and why they are words ----------------------------------
@@ -342,7 +342,7 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
 /// law, in that order. Separate from `from_text` so a setup arriving as one field of a
 /// larger file meets the same layers; it writes through a reference and cannot half-restore.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
-// WL-SESSION-04, WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written setup_in(const WorkshopSetup& file, Setup& out) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");

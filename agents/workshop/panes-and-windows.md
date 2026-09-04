@@ -77,8 +77,8 @@ MEANS
 - what a grant carries, and that an unchanged capacity sends none, is the protocol's law.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
-`workshop/screen.hpp` `kExternalHeaderRows`; `workshop/weave_save.cpp` `refresh_external_rooms`;
-`surface/region.hpp` `fit_region`; `workshop/panel.hpp` `ExternalPane`;
+`workshop/screen.hpp` `kExternalHeaderRows`; `workshop/weave_external.cpp`
+`refresh_external_rooms`; `surface/region.hpp` `fit_region`; `workshop/panel.hpp` `ExternalPane`;
 `tests/test_workshop_panes_seam.cpp` case `"WIND-1: an external grant follows the widened body
 through fit_region"`, case `"opening an external pane grants exactly the fit_region room, authored
 as Workshop"`.

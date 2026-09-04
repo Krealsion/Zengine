@@ -43,7 +43,7 @@ MEANS
 - no hidden-content marker, no scrollbar, no wheel or drag scrolling, no scroll command.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::first_visible`, `TextBox::keep_caret_visible`,
-`character_boundary_at_or_after`; `workshop/weave_save.cpp` `refresh_setup_name`;
+`character_boundary_at_or_after`; `workshop/weave_document.cpp` `refresh_setup_name`;
 `workshop/screen_layouts.cpp` `setup_name_columns`; `tests/test_component.cpp` case `"HD-4: the
 window is state, and every operation leaves the caret inside it"`, case `"HD-4: the window never
 begins inside a character"`, case `"component: the window moves as little as it must, and never

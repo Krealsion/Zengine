@@ -69,7 +69,7 @@ MEANS
 - a document edited and then edited back says `saved`, because it is;
 - a setup save or restore moves the document's status not at all.
 
-PROVEN BY — `workshop/weave_save.cpp` `status_line`; `surface/vocabulary.hpp` `kSlotStatus`;
+PROVEN BY — `workshop/weave_document.cpp` `status_line`; `surface/vocabulary.hpp` `kSlotStatus`;
 `tests/test_workshop_persistence.cpp` case `"^s saves and ^o loads, through the real message
 path"`, case `"with no document file, save and open say so instead of guessing one"`, case
 `"saving and restoring a setup does not touch the document or its saved status"`.

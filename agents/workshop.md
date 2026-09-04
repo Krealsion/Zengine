@@ -24,7 +24,7 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 | semantic text in a panel, the Builder's rows, the foot band, a name on material | [regions](workshop/regions.md) `WL-RGN` |
 | the source editor, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
-| several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
+| several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the Pane Manager, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the Terminal overlay, its pane, its completion | [terminal](workshop/terminal.md) `WL-TERM` |

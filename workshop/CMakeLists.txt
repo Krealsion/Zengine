@@ -160,6 +160,7 @@ add_library(zengine-workshop-logic STATIC
     screen_bindings.cpp
     screen_browser.cpp
     screen_chrome.cpp
+    screen_compose.cpp
     screen_editor.cpp
     screen_external.cpp
     screen_gestures.cpp
@@ -170,11 +171,14 @@ add_library(zengine-workshop-logic STATIC
     screen_pane_state.cpp
     screen_terminal.cpp
     weave_arrange.cpp
+    weave_document.cpp
     weave_editor.cpp
+    weave_external.cpp
     weave_handlers.cpp
     weave_pane_editor.cpp
     weave_panels.cpp
     weave_pointer.cpp
+    weave_run.cpp
     weave_save.cpp
     weave_seam.cpp
     weave_session.cpp

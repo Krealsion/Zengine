@@ -6,7 +6,7 @@
 
 // THE LAST SESSION -- a third artifact, beside the document's file and the setup's, and
 // beside them on purpose.
-// Workshop law: agents/workshop/session.md (+3 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/session-restore.md (+4 registers; agents/workshop.md routes)
 
 #include "operator/catalog.hpp"
 #include "operator/migration.hpp"
@@ -40,7 +40,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 /// The ONE session format version this build writes and admits.
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
 // WL-GEO-11 -- agents/workshop/geometry.md
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 inline constexpr std::int64_t kFormatVersion = 6;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
@@ -49,7 +49,7 @@ inline constexpr std::int64_t kFormatVersion = 6;
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
 
 /// HOW LARGE A SESSION MAY BE, DERIVED FROM WHAT ONE MAY HOLD.
-// WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-06 -- agents/workshop/session-restore.md
 inline constexpr std::uintmax_t kMaxLinkPathBytes = 4096;
 
 inline constexpr std::uintmax_t kMaxSessionBytes =
@@ -59,7 +59,7 @@ inline constexpr std::uintmax_t kMaxSessionBytes =
 // ---- The file's own shapes ----------------------------------------------------
 
 /// HOW MUCH ROOM THE SURFACE HAD, in canvas cells.
-// WL-SESSION-07 -- agents/workshop/session.md
+// WL-SESSION-07 -- agents/workshop/session-restore.md
 struct WorkshopViewport {
     std::int64_t width = 0;
     std::int64_t height = 0;
@@ -68,7 +68,7 @@ struct WorkshopViewport {
 };
 
 // ---- The placement's words, and why they are words -----------------------------------
-// WL-SESSION-08 -- agents/workshop/session.md
+// WL-SESSION-08 -- agents/workshop/session-restore.md
 
 inline constexpr const char* kPlacementNone = "none";
 inline constexpr const char* kPlacementDesktop = "desktop";
@@ -79,7 +79,7 @@ inline constexpr const char* kWindowMaximized = "maximized";
 inline constexpr const char* kWindowWords = "normal or maximized";
 
 /// WHERE THE WINDOW SAT ON ITS DESKTOP, as the last medium reported it.
-// WL-SESSION-08 -- agents/workshop/session.md
+// WL-SESSION-08 -- agents/workshop/session-restore.md
 struct WorkshopPlacement {
     std::string mode;   ///< none | desktop
     std::int64_t x = 0; ///< the normal window's top-left, in the medium's desktop units
@@ -92,7 +92,7 @@ struct WorkshopPlacement {
 
 /// A LAYOUT'S SETUP ASSOCIATION AS WRITTEN: which standalone artifact it refers
 /// to, and the last value Workshop successfully knew that artifact to hold.
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSetupLink {
     std::string path;
     setup_persist::WorkshopSetup known;
@@ -102,7 +102,7 @@ struct WorkshopSetupLink {
 
 /// ONE SAVED LAYOUT: the desk, and the artifact it is associated with.
 // WL-LAYOUT-09 -- agents/workshop/layouts.md
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopLayout {
     setup_persist::WorkshopSetup desk;
     WorkshopSetupLink link;
@@ -113,7 +113,7 @@ struct WorkshopLayout {
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
 /// LAYOUTS that were in the room and which one the maker was standing on, and where the
 /// room's window sat on the desktop.
-// WL-SESSION-04, WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSession {
     std::string format;
     std::int64_t format_version = 0;
@@ -122,7 +122,7 @@ struct WorkshopSession {
     std::int64_t active = 0;
     WorkshopPlacement placement;
 
-    // WL-MIG-03 -- agents/workshop/migration.md; WL-SESSION-05 -- agents/workshop/session.md
+    // WL-MIG-03 -- agents/workshop/migration.md; WL-SESSION-05 -- agents/workshop/session-restore.md
     ZEN_SHAPE(WorkshopSession, 6, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
               ZEN_FIELD(placement));
@@ -145,7 +145,7 @@ static_assert(setup_persist::WorkshopSetup::zen_version == 3,
 // ---- Would this viewport be honoured? ------------------------------------------
 
 /// IS THIS A VIEWPORT THIS WORKSHOP WOULD ACTUALLY OPEN AT?
-// WL-SESSION-07 -- agents/workshop/session.md
+// WL-SESSION-07 -- agents/workshop/session-restore.md
 inline constexpr bool viewport_honoured(std::int64_t width, std::int64_t height) noexcept {
     return width >= kScreenMinW && width <= kScreenMaxW && height >= kScreenMinH &&
            height <= kScreenMaxH;
@@ -164,7 +164,7 @@ inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
 
 /// THE PLACEMENT HALF OF A SESSION, AS A VALUE -- what the weave remembers between a
 /// medium's report and a save, and what a load hands back.
-// WL-SESSION-08 -- agents/workshop/session.md
+// WL-SESSION-08 -- agents/workshop/session-restore.md
 struct Placement {
     bool known = false;     ///< a medium has reported one (this run or a restored one)
     std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
@@ -174,7 +174,7 @@ struct Placement {
 
 /// One association, as the value that gets written: the path, and the desk the file was
 /// known to hold -- an absence written as an empty path beside a default desk.
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 inline WorkshopSetupLink to_link(const SetupLink& link) {
     // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
     // an empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` --
@@ -216,7 +216,7 @@ inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
 // ---- Reading -------------------------------------------------------------------
 
 /// What reading a session produced.
-// WL-SESSION-07, WL-SESSION-14 -- agents/workshop/session.md
+// WL-SESSION-07, WL-SESSION-14 -- agents/workshop/session-restore.md
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
@@ -255,7 +255,7 @@ inline std::string could_not_convert(std::uint32_t found, const std::string& why
 }
 
 // ---- THE LAYOUT RUN'S OWN LAW ----------------------------------------------------
-// WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-06 -- agents/workshop/session-restore.md
 
 /// A RUN WITH NO LAYOUT IN IT. Structurally impossible in runtime -- `SetupState::active`
 /// is a value, so there is always at least one desk -- which is exactly why a file that
@@ -280,13 +280,13 @@ inline std::string active_out_of_range(std::int64_t at, std::size_t held) {
 }
 
 /// WHICH LAYOUT REFUSED, in front of the setup owner's own sentence.
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 inline std::string in_layout(std::size_t at, const std::string& why) {
     return "layout at position " + std::to_string(at) + ": " + why;
 }
 
 /// AN ASSOCIATION THAT SAYS TWO THINGS AT ONCE.
-// WL-SESSION-05 -- agents/workshop/session.md
+// WL-SESSION-05 -- agents/workshop/session-restore.md
 inline std::string half_a_link(std::size_t at) {
     return in_layout(at,
                      "this layout names no Setup file and carries a remembered Setup value "
@@ -294,7 +294,7 @@ inline std::string half_a_link(std::size_t at) {
 }
 
 /// A LAYOUT'S ASSOCIATION, AS THE LIVE VALUE IT NAMES -- or why it is not one.
-// WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink& out) {
     if (file.path.empty()) {
         Setup nothing;
@@ -316,7 +316,7 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
 }
 
 /// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
-// WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session.md
+// WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
                           std::size_t& active) {
     if (file.layouts.empty()) {
@@ -501,7 +501,7 @@ inline Written save_file(const std::string& path, const std::vector<Layout>& run
 }
 
 /// Read the last session from a file.
-// WL-MIG-08 -- agents/workshop/migration.md; WL-SESSION-14 -- agents/workshop/session.md
+// WL-MIG-08 -- agents/workshop/migration.md; WL-SESSION-14 -- agents/workshop/session-restore.md
 inline LoadedSession load_file(const std::string& path,
                                const op::Catalog* conversions = nullptr) {
     std::error_code ec;
