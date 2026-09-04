@@ -8,7 +8,8 @@ tree a compile-judged entry writes. One method per heading; cite by ID. Router:
 
 METHOD — Quote `tests/verify.cmake`, never a bare `ctest`, whenever a result is going to be quoted: the bare run cannot say whether the population that ran is the one this repository meant to run.
 BECAUSE — a bare `ctest` accepts a selector that matched nothing and prints a full pass over it;
-the lane checks the inventory, the floors and the empty-population refusal first.
+the lane checks the inventory, the floors and the empty-population refusal before it believes a
+pass.
 SEEN — `tests/verify.cmake`; `AGENTS.md`.
 
 ## VM-LANE-02 — Stranger-by-default is deliberate
@@ -73,21 +74,24 @@ SEEN — `tests/verify.cmake`; `tests/check_population.cmake`.
 
 METHOD — The package witness is a third kind: both lanes reach Zengine through its own build tree, so a requirement the package fails to carry is invisible to them; it is not a CTest entry.
 BECAUSE — in the build tree every header is on the include path and every artifact is staged;
-the witness installs, builds an unrelated project outside the tree, then deletes a header.
+the witness installs, builds an unrelated project outside the tree, repeats against a moved
+prefix, then deletes a header to prove it read the prefix.
 SEEN — `tests/package/run.cmake`; `agents/packaging.md`.
 
 ## VM-LANE-11 — The lane may run in parallel on Linux/GCC
 
 METHOD — The lane may run in parallel on Linux/GCC with `-DZEN_CTEST_ARGS=-j<n>`, same proofs; Windows stays serial because `timer` fails there under `-j` on a weave-load assertion, an open defect.
 BECAUSE — no CTest entry writes this build tree, so the entries cannot race it; the `timer`
-failure is measured at the same rate before and after the compile-test repair, a separate defect.
+failure is measured at the same rate before and after the compile-test repair (two of six runs
+after, four of six before), so it is a separate defect.
 SEEN — `tests/verify.cmake` `ZEN_CTEST_ARGS`; `AGENTS.md`.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
 METHOD — What decides parallel safety is the build tree's FILESYSTEM, not the platform: quote the filesystem with the parallel number, and fall back to serial before suspecting your own change.
-BECAUSE — the same `timer` assertion fails the parallel sanitizer lane on a 9p-mounted tree and
-passes on an ext4 tree built from the same source; serial is green on both.
+BECAUSE — the same `timer` assertion fails the parallel sanitizer lane four of four on a
+9p-mounted tree and zero of three on an ext4 tree built from the same source; serial is green on
+both, and it is load-sensitive.
 SEEN — nowhere yet
 
 ## VM-LANE-13 — A parallel lane's floor is its longest entry
@@ -122,14 +126,16 @@ SEEN — `tests/verify.cmake` `RESULT_VARIABLE`; `.github/workflows/ci.yml` `PIP
 
 METHOD — A test whose evidence is a build is a WRITER of the tree it names; give it a tree nothing else depends on, and never `${CMAKE_BINARY_DIR}`.
 BECAUSE — a build command first brings the tree's build system up to date, unbounded work the
-entry then owns; eight entries naming the shared tree failed five to seven of twenty-two.
+entry then owns; eight entries naming the shared tree failed five to seven of twenty-two under a
+parallel run, three of three.
 SEEN — `tests/CMakeLists.txt` `compile-fixtures`; `CMakeLists.txt` `zengine_compile_test`.
 
 ## VM-LANE-18 — The fixture tree is this same project
 
 METHOD — The fixture tree is this same project entered under `ZENGINE_COMPILE_FIXTURES`, so fixtures compile as an in-tree target would; a private fixture project is a second copy of the contract.
-BECAUSE — the warnings and sanitizer targets, the package vocabularies, the compiler, the flags
-and the resolved Loom all pass through; a second copy of a contract is a second answer.
+BECAUSE — one warnings target, one sanitizer target, one vocabulary per package, and the
+compiler, its launcher, the flags, the build type and the resolved Loom all pass through; a second
+copy of a contract is a second answer.
 SEEN — `tests/CMakeLists.txt` `ZENGINE_COMPILE_FIXTURES`; `CMakeLists.txt`
 `ZENGINE_COMPILE_FIXTURES`.
 
@@ -151,7 +157,8 @@ SEEN — `tests/CMakeLists.txt` `ZENGINE_COMPILE_FIXTURES`.
 
 METHOD — One owner per build tree holds inside one test process too: a case that runs two builds at once gives each its own tree, because the hazard is the generator's bookkeeping and differs between generators.
 BECAUSE — Ninja recompacts its log through one fixed temp name per directory, so two builds
-entered at once in one tree collide: nine of forty over the threshold, none with a tree each.
+entered at once in one tree collide; measured nine of forty over the threshold, two of four
+hundred on a settled log, none with a tree each, none under Makefiles.
 SEEN — `tests/CMakeLists.txt` `build-fixture-b`; `tests/test_builder.cpp` case `"output is
 attributed to its own operation, and two can run at once"`.
 

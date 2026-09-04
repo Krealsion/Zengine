@@ -8,7 +8,8 @@ a durable format, a key. One method per heading; cite by ID. Router:
 
 METHOD — A claim about a BOUND needs the range, not a point: sweep it as a property, and run the real screen at the supported minimum; one arranged case proves that arrangement.
 BECAUSE — thirty cases and twenty-four caught mutations were green while the shipped terminal at
-its minimum width showed the marker cut; the crowded case stopped short of the boundary.
+its minimum width of 78 columns showed the marker cut; the crowded case stopped three tabs short
+of the boundary.
 SEEN — `tests/test_workshop_panels.cpp` case `"HD-7: the sharing policy is monotonic, bounded
 and never starves either list"`.
 
@@ -139,8 +140,9 @@ SEEN — `tests/test_builder.cpp`.
 ## VM-FIX-18 — Guard an index in the same keystroke
 
 METHOD — Guard `[0]` and `.back()` with `REQUIRE` in the same keystroke: a mutation that empties the container otherwise detonates the run and hides every later result.
-BECAUSE — two such guards turned 41 and 28 reported red cases into 140 and 132; the crash lands
-exactly when a mutation empties the container, and it hides every result after it.
+BECAUSE — two such guards turned forty-one and twenty-eight reported red cases into a hundred
+and forty and a hundred and thirty-two; the crash arrives exactly when a mutation empties the
+container, and hides every result after it.
 SEEN — nowhere yet
 
 ## VM-FIX-19 — Before widening a key's fallthrough, read the no-op cases as law

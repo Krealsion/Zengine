@@ -44,7 +44,8 @@ SEEN — nowhere yet
 
 METHOD — A check that reads through the product's own channel may also WRITE it: ask of every step what it repairs, order the hypothesis-destroying reads last, and when a falsifier survives suspect the sequence first.
 BECAUSE — an unmaximize before a second close handed the application a normal extent through the
-ordinary channel and repaired its remembered room; a sharp falsifier passed on a broken build.
+ordinary channel and repaired its remembered room; a sharp falsifier passed fourteen of fourteen
+against a half-broken build until the close moved first.
 SEEN — nowhere yet
 
 ## VM-WIT-20 — Diff the pane's own slot when a neighbour changes by design

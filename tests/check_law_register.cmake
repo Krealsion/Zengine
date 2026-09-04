@@ -27,10 +27,13 @@
 #   method registers  every `##` under a method-register directory (agents/verification/) is
 #                     one VM entry, or the one table heading `## Where a case goes`; an entry
 #                     has a METHOD of one line whose sentence is at most 210 bytes, a BECAUSE
-#                     of at most two lines, and a SEEN that is `nowhere yet` or names paths,
+#                     of at most three lines, and a SEEN that is `nowhere yet` or names paths,
 #                     identifiers and witnesses, resolved exactly as a PROVEN BY's are; no
 #                     line of an entry carries a phase tag; VM ids are unique under agents/
-#                     together with the WL ids
+#                     together with the WL ids; the count of entries applied somewhere in the
+#                     tree (a SEEN that is not `nowhere yet`) clears its floor,
+#                     ZEN_VM_APPLIED_FLOOR -- a floor like a case floor, raised when a method
+#                     gains a SEEN and lowered by no one to make a deletion pass
 #   budgets           every *.md under agents/ is within its byte budget -- a router 8,192, a
 #                     register and every other file under agents/ 16,384, AGENTS.md 20,480;
 #                     the routed documents not yet turned into registers are named in
@@ -98,7 +101,7 @@
 # THE SELF-TEST IS NOT OPTIONAL. A well-formed tree and a checker that finds nothing produce
 # byte-identical output, so before answering it makes each predicate say NO -- a bad
 # heading, an identifier that is only in a comment, a witness no test declares, a malformed
-# pointer, a phase tag, a VM entry with a long METHOD, a three-line BECAUSE and a stray
+# pointer, a phase tag, a VM entry with a long METHOD, a four-line BECAUSE and a stray
 # heading -- and say YES to their well-formed twins, one of them a case name read out of
 # the real test sources at runtime. The VM walker is exercised on a synthetic register held
 # in this file, never on a file written to the tree.
@@ -161,7 +164,11 @@ set(ZEN_LAW_DNM_MAX 2)
 # sentences were reviewed at; a LAW's is measured on the whole line, as the registers were
 # written to. A record over ZEN_LAW_RECORD_FLAG_BYTES is counted, not failed.
 set(ZEN_VM_METHOD_BYTES 210)
-set(ZEN_VM_BECAUSE_MAX 2)
+set(ZEN_VM_BECAUSE_MAX 3)
+# The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
+# same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
+# to `nowhere yet`, and nobody lowers it to make that pass.
+set(ZEN_VM_APPLIED_FLOOR 87)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
@@ -1289,7 +1296,7 @@ endfunction()
 
 # ---- the VM form: a method register ---------------------------------------------------------
 #
-# `## VM-<AREA>-NN — <title>` / `METHOD — <one sentence>` / `BECAUSE — <at most two lines>` /
+# `## VM-<AREA>-NN — <title>` / `METHOD — <one sentence>` / `BECAUSE — <at most three lines>` /
 # `SEEN — nowhere yet`, or `SEEN — <paths, identifiers, witnesses>`. Everything a SEEN names
 # is resolved by the PROVEN BY walk below, unchanged: a backticked path exists, a backticked
 # identifier occurs in the file named before it (as a whole token in the code, for a C/C++
@@ -1428,7 +1435,7 @@ function(zen_vm_walk_register rel)
 endfunction()
 
 # The VM walker over two synthetic registers: a well-formed one must raise nothing, and one
-# carrying a long METHOD, a three-line BECAUSE, a phase tag and a heading that is no entry must
+# carrying a long METHOD, a four-line BECAUSE, a phase tag and a heading that is no entry must
 # raise exactly those four. The problems property is saved around the run and the synthetic ids
 # are dropped, so nothing here reaches the real walk.
 get_property(vm_saved_problems GLOBAL PROPERTY zen_law_problems)
@@ -1438,7 +1445,7 @@ zen_vm_walk_text("selftest-good.md" "${vm_good}")
 get_property(vm_good_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
 string(REPEAT "x" 211 vm_long)
-set(vm_bad "## VM-ZZZ-02 — A long method\n\nMETHOD — ${vm_long}\nBECAUSE — one,\ntwo,\nthree.\nSEEN — nowhere yet\n\n## VM-ZZZ-03 — A tagged method\n\nMETHOD — Short.\nBECAUSE — measured (QR-13) once.\nSEEN — nowhere yet\n\n## Not an entry\n")
+set(vm_bad "## VM-ZZZ-02 — A long method\n\nMETHOD — ${vm_long}\nBECAUSE — one,\ntwo,\nthree,\nfour.\nSEEN — nowhere yet\n\n## VM-ZZZ-03 — A tagged method\n\nMETHOD — Short.\nBECAUSE — measured (QR-13) once.\nSEEN — nowhere yet\n\n## Not an entry\n")
 zen_vm_walk_text("selftest-bad.md" "${vm_bad}")
 get_property(vm_bad_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "${vm_saved_problems}")
@@ -1446,7 +1453,7 @@ set_property(GLOBAL PROPERTY zen_vm_ids "")
 set_property(GLOBAL PROPERTY zen_vm_nowhere "")
 zen_law_count_lines("${vm_bad_problems}" vm_bad_count)
 if(NOT vm_good_problems STREQUAL "" OR NOT vm_bad_count EQUAL 4
-   OR NOT vm_bad_problems MATCHES "METHOD is 211 bytes" OR NOT vm_bad_problems MATCHES "BECAUSE is 3 lines"
+   OR NOT vm_bad_problems MATCHES "METHOD is 211 bytes" OR NOT vm_bad_problems MATCHES "BECAUSE is 4 lines"
    OR NOT vm_bad_problems MATCHES "phase tag \\(QR-13\\)" OR NOT vm_bad_problems MATCHES "heading is neither")
     message(FATAL_ERROR
         "law-register: SELF-TEST FAILED -- the method-register walker raised '${vm_good_problems}' "
@@ -1497,6 +1504,10 @@ if(vm_entry_count EQUAL 0)
     message(FATAL_ERROR
         "law-register: ${vm_register_count} method register(s) yielded ZERO entries. Either the "
         "walker stopped recognising the entry form or every method is gone; both are failures.")
+endif()
+math(EXPR vm_applied_count "${vm_entry_count} - ${vm_nowhere_count}")
+if(vm_applied_count LESS ZEN_VM_APPLIED_FLOOR)
+    zen_law_fail("method registers: ${vm_applied_count} entries are applied in the tree, below the floor ${ZEN_VM_APPLIED_FLOOR}; a SEEN was deleted or a method went back to nowhere yet, and the floor is lowered by no one to make that pass")
 endif()
 
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
@@ -1954,11 +1965,10 @@ endif()
 
 # ---- the report --------------------------------------------------------------------------
 
-math(EXPR vm_applied_count "${vm_entry_count} - ${vm_nowhere_count}")
 message(STATUS "law-register: ${register_count} registers, ${entry_count} entries; ${record_count} "
                "records, ${why_target_count} WHY targets, ${why_count} WHY lines")
 message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
-               "${vm_applied_count} applied in the tree, ${vm_nowhere_count} nowhere yet")
+               "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
 message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
                "unbudgeted, still over:${unbudgeted_report}; records over "
                "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")

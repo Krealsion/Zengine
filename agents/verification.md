@@ -2,7 +2,7 @@
 
 Routed behind [`../AGENTS.md`](../AGENTS.md): how this repository is verified. The method lives
 in the registers under [`verification/`](verification/): one method per `##`, a `VM-<AREA>-<NN>`
-id that is permanent, a `METHOD` of one line, a `BECAUSE` of at most two, and a `SEEN` naming
+id that is permanent, a `METHOD` of one line, a `BECAUSE` of at most three, and a `SEEN` naming
 where the method is applied in this tree — a test file and case, a script, a lane step — or
 `SEEN — nowhere yet`, a debt of the same kind as an unwitnessed law. The lane commands are in
 [`../AGENTS.md`](../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom); the public

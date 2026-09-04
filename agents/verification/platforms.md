@@ -8,21 +8,24 @@ method per heading; cite by ID. Router: [`../verification.md`](../verification.m
 
 METHOD — MinGW needs `-mbig-obj` on `workshop.cpp`'s object, and that is not optional: one more inline function in a header fails the link with a relocation-truncated diagnostic that reads like a broken tree.
 BECAUSE — its debug COMDATs sit near COFF's section-relative limit, and the diagnostic names a
-truncated relocation against a debug frame section; the ceiling is the toolchain's.
+truncated relocation against a debug frame section; the ceiling is the toolchain's, not the
+object's, and a build that links today says nothing about tomorrow's header.
 SEEN — `CMakeLists.txt` `-mbig-obj`.
 
 ## VM-PLAT-02 — COFF has a second ceiling that big objects do not lift
 
 METHOD — COFF has a second ceiling `-mbig-obj` does not lift — the section-name string table stops at 9,999,999 bytes — and the diagnostic says which you met; it is the assembler's, lifted by a newer binutils.
-BECAUSE — the eight-byte name field holds a slash plus seven decimal digits; a string-table
-overflow names this ceiling, too many sections names the other, and a newer binutils assembles it.
+BECAUSE — the eight-byte name field holds a slash plus seven decimal digits; a string table
+overflow names this ceiling and too many sections names the other, and binutils 2.45 assembled
+into a 50 MB object what 2.40 refused.
 SEEN — `CMakeLists.txt` `-mbig-obj`; `docs/contributing/supported-toolchains.md`.
 
 ## VM-PLAT-03 — What spends the table is instantiations per object
 
 METHOD — What spends that table is instantiations per object, four names each: the remedy is another source under the same suite, never a flag or fewer cases; a finer cut buys less each time, so probe the floor first.
 BECAUSE — every vague-linkage function gets a COMDAT and the debug flag mirrors its name into
-four sections; a unit that only constructs the shared rigs spends most of the table already.
+four sections; a unit that only constructs the shared rigs spent 69% of the table before asserting
+anything, and a finer cut bought four points, not ten.
 SEEN — `tests/CMakeLists.txt` `workshop_panes`; `tools/workshop-split/census.py`.
 
 ## VM-PLAT-04 — Prove the toolchain on a hello-world first
@@ -43,14 +46,16 @@ SEEN — `tests/test_population.txt`; `tests/check_population.cmake`.
 
 METHOD — MinGW's `stat` reports `st_ino=0`, so libstdc++'s same-file guard refuses `copy_file` with `overwrite_existing` on any existing destination and leaves the old bytes; invisible on Linux and MSVC.
 BECAUSE — libstdc++ asks whether source and destination are the same file first, by device and
-inode, and MinGW answers inode zero for every file on the drive; measured with a probe on both.
+inode, and MinGW answers inode zero for every file on the drive; measured with a probe on both
+paths, a source changed to v2 left the destination reading v1.
 SEEN — `tests/test_workshop_load.cpp` `Stage::put`.
 
 ## VM-PLAT-07 — Live resize is provable on POSIX only
 
 METHOD — A Windows console client cannot resize its own window under the default terminal, and a pseudoconsole attribute can be accepted while the child still inherits the handles: live resize is provable on POSIX only.
-BECAUSE — the window call succeeds and does nothing under the default terminal, then fails once
-the buffer moved; the pseudoconsole attribute was accepted while the child inherited the handles.
+BECAUSE — the console window call returns success and does nothing under the default terminal,
+then fails with an invalid parameter once the buffer moved; the pseudoconsole attribute was
+accepted while the child still inherited the parent's handles.
 SEEN — `surface/terminal_size.hpp` `native_terminal_size`.
 
 ## VM-PLAT-08 — Windows narrows a wall-clock margin
@@ -71,22 +76,25 @@ SEEN — nowhere yet
 
 METHOD — On a 9p-mounted tree a built artifact can be byte-garbage from a partial write and a fresh source can look older than its object: scan with `file -b` before believing a mass failure; heed a clock-skew warning.
 BECAUSE — two built libraries on such a mount were byte-garbage from partially flushed writes,
-thirty-two failures and two red entries, none real; relinking each fixed it with no source change.
+thirty-two kernel failures and two red entries, none real; deleting and relinking each artifact
+fixed it with no source change.
 SEEN — nowhere yet
 
 ## VM-PLAT-11 — The MSVC lane's compile-negative fixtures need the developer shell
 
 METHOD — The MSVC lane's compile-negative fixtures spawn their own compiler: without the developer environment in the shell five entries die on a missing standard header, which reads exactly like a regression.
 BECAUSE — the build works from a bare shell because the cache holds the compiler's absolute
-path, but each compile-negative fixture spawns its own compiler, which then has no INCLUDE.
+path, but each compile-negative fixture spawns its own compiler, which has no INCLUDE without the
+developer shell: twenty-four of twenty-nine before, all after.
 SEEN — `.github/workflows/ci.yml` `Enter-VsDevShell`;
 `docs/contributing/supported-toolchains.md`.
 
 ## VM-PLAT-12 — A CMake feature must clear the declared floor, guarded
 
 METHOD — Two CMakes configure this repository and a feature must clear the declared floor, guarded, not the newest CMake present: a policy is set behind `if(POLICY …)`, in the file that reads it.
-BECAUSE — the newer CMake warns where the older cannot, and the per-call spelling its warning
-suggests is unknown to the floor version; a policy set in an included file is scoped to it.
+BECAUSE — the newer CMake prints warnings the older has never heard of, and the per-call
+spelling its warning suggests is an unknown argument on the floor version; a policy set in an
+included file is scoped to that file, where the fetch reads it.
 SEEN — `cmake/ZengineSdl.cmake` `CMP0135`; `CMakeLists.txt` `cmake_minimum_required`.
 
 ## VM-PLAT-13 — Never move or copy a build tree
@@ -100,12 +108,14 @@ SEEN — nowhere yet
 
 METHOD — Measure what a unit spends on the COFF name table with the census over its ELF objects: groups, name bytes, the four-name estimate against the ceiling, owner buckets; an object whose source is gone is skipped.
 BECAUSE — a build tree keeps the object of a source a phase removed, and two such objects would
-have named the wrong largest suite; the estimate is what the Windows assembler then witnesses.
+have named the wrong largest suite; the estimate on Linux objects (host 107% before the split, 59%
+after) is what the Windows assembler then witnesses.
 SEEN — `tools/workshop-split/census.py`.
 
 ## VM-PLAT-15 — The assembler on a bare compile is the direct witness of the ceiling
 
 METHOD — The direct witness of the name-table ceiling is the toolchain's own assembler on a bare `-c` compile of the one unit with the older binutils; the object's size and the assembler's sentence are the measurement.
-BECAUSE — the estimate is arithmetic over another platform's objects; the assembler refused the
-host unit before the split and assembled it after, and that sentence is the claim itself.
+BECAUSE — the estimate is arithmetic over another platform's objects; binutils 2.40 refused the
+host unit before the split and assembled it after into 28,609,284 bytes, and that sentence is what
+the flag's own comment rests on.
 SEEN — nowhere yet

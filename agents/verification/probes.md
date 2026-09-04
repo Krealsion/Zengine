@@ -8,7 +8,8 @@ method per heading; cite by ID. Router: [`../verification.md`](../verification.m
 
 METHOD — A wall-clock probe reads both compared counters at the SAME point in the dispatch stream: stamp the second at the arrival of the answer carrying the first, and the tolerance becomes derivable.
 BECAUSE — the two numbers were sampled at different moments, so the compared quantity was the
-difference of two jittering tails: off by one in one run of eight, and worse under load.
+difference of two jittering tails: off by one in one run of eight, past tolerance in one of sixty
+under oversubscription, and red on a contended runner.
 SEEN — `tests/test_audit_probes.cpp`.
 
 ## VM-PROBE-02 — Remove the skew, never widen the number
@@ -29,7 +30,8 @@ SEEN — nowhere yet
 
 METHOD — An instrument has a cost: measure it, name it as a constant, and pin it by asserting the service's own counter rather than absorbing it into the arithmetic.
 BECAUSE — a read of the service's clock costs queue turns and the beat parked behind the ask
-runs inside one, so the read is one beat stale; absorbed, that is a wrong number called exact.
+runs inside one, so the read is one beat stale; absorbed into the arithmetic, that is a suite
+proving the wrong number and calling it exact.
 SEEN — `tests/test_timer.cpp` `kRulerTrailingBeats`.
 
 ## VM-PROBE-05 — The probe's own process is a variable
@@ -49,8 +51,9 @@ SEEN — nowhere yet
 ## VM-PROBE-07 — A flake that needs the full lane's mix is usually state, not load
 
 METHOD — When a flake needs the full lane's mix, look for state earlier work leaves behind (a log over a threshold), not for load: pad the state and the rate moves.
-BECAUSE — the collision needed the build log over its recompaction threshold when the case ran,
-and the cases before it each recompacted it back under; padding the log moved the rate to half.
+BECAUSE — the collision needed the build log over its recompaction threshold at the moment the
+case ran, and the forty cases before it each recompacted it back under; padding the log moved the
+rate from one in two hundred to almost half.
 SEEN — nowhere yet
 
 ## VM-PROBE-08 — Fidelity of a moved build is checkable

@@ -23,7 +23,8 @@ SEEN — `workshop/user_paths.hpp` `resolve_durable_path`.
 
 METHOD — The channel lies silently: build the input structs in compiled code, never by indexed assignment in a shell; prove the foreground with `GetForegroundWindow() == hwnd`; a screenshot photographs what is on top.
 BECAUSE — an indexed assignment into an array of value types lands on a copy with no error, so
-every event went out all-zero, accepted and counted; a thread's queue facts name a buried window.
+every event went out all-zero and was accepted and counted in full; a thread's own queue facts
+name a buried window active, and only the foreground answers.
 SEEN — nowhere yet
 
 ## VM-WIT-04 — Taking the foreground is one function that returns whether it worked
@@ -92,8 +93,9 @@ SEEN — nowhere yet
 ## VM-WIT-19 — The fix for a wrong aim is a smaller fixture
 
 METHOD — The fix for a wrong aim is a smaller FIXTURE, not a cleverer search: plant a predecessor file that leaves one candidate, so a five-way search becomes two known presses.
-BECAUSE — a planted predecessor file naming one unarrangeable pane turned a five-way search into
-two known presses; the search it replaced reported success over a pane that never moved.
+BECAUSE — a planted predecessor file that names one unarrangeable pane turned a five-way search
+into two known presses, every run; the search it replaced reported success over a pane that never
+moved, because addressing a pane draws on the rows it watched.
 SEEN — nowhere yet
 
 ## VM-WIT-21 — tmux is a TUI witness harness

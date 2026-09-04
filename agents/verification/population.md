@@ -15,7 +15,8 @@ SEEN — `tests/verify.cmake`; `tests/check_population.cmake`.
 
 METHOD — `tests/test_population.txt` is the expectation and the only home of the floors; adding, renaming or removing an entry is a deliberate edit there, and a convenience copy elsewhere is a second answer.
 BECAUSE — it lives in the source tree so deleting a registration cannot delete the expectation
-with it; a copy of the floors kept in a document went stale twice before that rule was made.
+with it; a convenience copy of the floors kept in a document went stale twice, arithmetic
+included, before that rule was made.
 SEEN — `tests/test_population.txt`.
 
 ## VM-POP-03 — Register through the helpers, never a bare add_test
@@ -50,8 +51,9 @@ SEEN — nowhere yet
 ## VM-POP-07 — An assertion total is evidence, never a population
 
 METHOD — An assertion total is evidence to report with its date and lane, never a population, an acceptance oracle or coverage; a queue size or a delivery count is the same kind of number.
-BECAUSE — nothing enforces it and it is configuration-dependent: copies of it decayed twice, one
-property sweep moves it by ten thousand while pinning one law, and a moved case moves two totals.
+BECAUSE — nothing enforces it and it is configuration-dependent: convenience copies of it
+decayed in place twice, one property sweep moves it by ten thousand while pinning one law, and a
+case moving between suites makes one total fall while the repository's rises.
 SEEN — nowhere yet
 
 ## VM-POP-08 — A configuration-dependent population is declared
@@ -72,14 +74,16 @@ SEEN — `tests/verify.cmake` `ZEN_BUILD_DIR`.
 
 METHOD — Every suite but `smoke` needs a Loom exporting `loom::kernel`; against a kernel-less package `tests/` fails configuration out loud, and `-DBUILD_TESTING=OFF` is the library-only configuration.
 BECAUSE — every suite but `smoke` drives real weave libraries through the real kernel; against a
-kernel-less package the tests used to return quietly and the lane passed over one smoke test.
+kernel-less package the tests used to return quietly and the lane printed a full pass over the one
+surviving smoke test, from the supported default Windows package.
 SEEN — `tests/CMakeLists.txt` `BUILD_TESTING`.
 
 ## VM-POP-11 — The Workshop family is split by subject
 
 METHOD — The Workshop family is eight entries split by SUBJECT; pick the one your change can falsify and build that target alone.
 BECAUSE — one file behind one entry had reached thirty thousand lines: thirty seconds of
-compiling before an assertion could run, and a nineteen-second test only one worker could take.
+compiling before an assertion could run, and a nineteen-second test the scheduler could hand to
+one worker, a floor neither the machine nor the population explained.
 SEEN — `tests/CMakeLists.txt` `workshop_document`, `workshop_files`;
 `tests/test_population.txt`.
 
@@ -87,14 +91,16 @@ SEEN — `tests/CMakeLists.txt` `workshop_document`, `workshop_files`;
 
 METHOD — A SUITE IS NOT A FILE: sources in the entry's `SOURCES` list share its definitions by construction, and a source left out drops cases, which the floor catches and the build does not.
 BECAUSE — `panes` is five sources under one entry and one floor because one MinGW Debug object
-could no longer name all its instantiations; a source dropped from the list still links green.
+could no longer name all of its instantiations; a source dropped from the list builds and links
+green, and only the floor said it was gone.
 SEEN — `tests/CMakeLists.txt` `workshop_panes`; `tests/test_population.txt`.
 
 ## VM-POP-13 — The shared support header costs emission
 
 METHOD — `tests/workshop_support.hpp` holds what more than one suite needs; a helper costs ~0.4 s of parse to read and 5–8 s of emission per suite that uses it, so moving one in is a decision.
-BECAUSE — a suite pays for what it uses, not what it reads: the includes alone cost under a
-second more to parse, and emitting the helpers a suite calls cost five to eight seconds per unit.
+BECAUSE — a suite pays for what it uses, not what it reads: the includes alone cost 0.4 s more
+to parse, and the emission of the helpers a suite calls cost five to eight seconds per unit, so
+splitting the header buys nothing and out-of-lining does.
 SEEN — `tests/workshop_support.hpp`.
 
 ## VM-POP-14 — A temporary directory belongs to its suite and its process
@@ -123,7 +129,8 @@ SEEN — `tests/test_population.txt`.
 
 METHOD — Before splitting a binary, take per-entry and per-case timings and audit every process-local convention that becomes a cross-process contract: temp paths, state roots, env, files, sockets, display, children.
 BECAUSE — a temp path built from a tag and a counter was safe for years inside one process; six
-processes at once each start at zero, and one suite deleting another's files is not a red.
+processes at once each start the counter at zero, and one suite deleting another's files mid-case
+is not a red, because the constructor removes before it creates.
 SEEN — nowhere yet
 
 ## VM-POP-18 — Prove a mechanical move of cases by hashing
