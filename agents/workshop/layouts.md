@@ -27,8 +27,8 @@ MEANS
 - no stat, no reload, no watcher: a paint path never goes near a filesystem.
 
 PROVEN BY — `workshop/setup.hpp` `link_status`, `SetupLink`, `SetupLink::known`;
-`workshop/weave.hpp` `link_note`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-7: the three
-verdicts, and what makes a fresh desk `none`"`; `tests/test_workshop_persistence.cpp` case
+`workshop/weave_session.cpp` `link_note`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-7: the
+three verdicts, and what makes a fresh desk `none`"`; `tests/test_workshop_persistence.cpp` case
 `"WUX-11/SC-7: the standing verdict performs no filesystem read"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
@@ -42,10 +42,11 @@ MEANS
 - removing the last layout takes the previous neighbour instead.
 
 PROVEN BY — `workshop/setup.hpp` `SetupState::active_at`, `activate_layout`, `add_layout`,
-`remove_layout`, `default_setup`, `SetupState`; `workshop/weave.hpp` `new_layout`, `drop_layout`;
-`tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching never reorders the run, and the live
-value never doubles"`, case `"WUX-11/SC-1: new is BLANK and appended, and it is a value of its
-own"`, case `"WUX-9/SC-11: removing takes the next neighbour, the previous only at the end"`.
+`remove_layout`, `default_setup`, `SetupState`; `workshop/weave_session.cpp` `new_layout`,
+`drop_layout`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching never reorders the
+run, and the live value never doubles"`, case `"WUX-11/SC-1: new is BLANK and appended, and it is
+a value of its own"`, case `"WUX-9/SC-11: removing takes the next neighbour, the previous only at
+the end"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-04 — Duplicate copies the desk and clears the association
@@ -57,7 +58,7 @@ MEANS
 - move and duplicate go through the inverse pair; the live position is computed, never searched.
 
 PROVEN BY — `workshop/setup.hpp` `duplicate_layout`, `move_layout`, `rename_layout`,
-`layout_run`, `install_layout_run`; `workshop/weave.hpp` `commit_layout_rename`,
+`layout_run`, `install_layout_run`; `workshop/weave_session.cpp` `commit_layout_rename`,
 `duplicate_layout`, `shift_layout`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-2: duplicate
 copies the desk exactly and always clears the association"`, case `"WUX-11/SC-3: rename writes one
 layout's name and touches nothing else"`, case `"WUX-11/SC-4: moving a layout changes order and
@@ -68,7 +69,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 LAW — A switch activates, then applies the desk through the one door membership changes through, then says one sentence and repaints — a restore minus the file read, so it behaves exactly as a restore.
 
-PROVEN BY — `workshop/weave.hpp` `switch_layout`, `apply_setup`; `workshop/setup.hpp`
+PROVEN BY — `workshop/weave_session.cpp` `switch_layout`, `apply_setup`; `workshop/setup.hpp`
 `activate_layout`; `tests/test_workshop_panels.cpp` case `"WUX-9/SC-4: a switch returns
 membership, geometry and front order as authored"`; `tests/test_workshop_panes_window.cpp` case
 `"WUX-9/SC-6: leaving a layout withdraws a presentation and unloads nothing"`.
@@ -82,7 +83,7 @@ MEANS
 - the catalog, providers and their state, the Editor's document, the browser's location, marks;
 - recipes, the project anchor, the clipboard, the keymap, the window, selection and keyboard.
 
-PROVEN BY — `workshop/setup.hpp` `Setup`; `workshop/weave.hpp` `switch_layout`;
+PROVEN BY — `workshop/setup.hpp` `Setup`; `workshop/weave_session.cpp` `switch_layout`;
 `tests/test_workshop_panels.cpp` case `"WUX-9/SC-5: a switch touches no Workshop-global fact"`,
 case `"WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global state"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
@@ -94,11 +95,10 @@ LAW — Leaving a layout withdraws the presentation (`close_panel`; no unload, n
 MEANS
 - a pane in both layouts at the same prose capacity hears nothing: no grant, no ask.
 
-PROVEN BY — `workshop/weave.hpp` `apply_setup`; `workshop/panel.hpp` `close_panel`;
-`workshop/setup.hpp` `SetupState::shelved`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-9/SC-6: a pane in two layouts is one pane, one
-provider, one room"`, case `"WUX-9/SC-15: an inactive layout's rows are dormant, not
-maintained"`.
+PROVEN BY — `workshop/weave_session.cpp` `apply_setup`; `workshop/panel.hpp` `close_panel`;
+`workshop/setup.hpp` `SetupState::shelved`; `tests/test_workshop_panes_window.cpp` case
+`"WUX-9/SC-6: a pane in two layouts is one pane, one provider, one room"`, case `"WUX-9/SC-15: an
+inactive layout's rows are dormant, not maintained"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-08 — `kMaxLayouts` refuses a ninth rather than dropping one
@@ -115,7 +115,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 LAW — `s` writes the live layout to a setup file and `r` reads one into the live layout; neither touches the shelf, a Setup file still means one desk, and the session carries the whole run.
 
-PROVEN BY — `workshop/weave.hpp` `switch_layout`, `save_setup`, `restore_setup`;
+PROVEN BY — `workshop/weave_session.cpp` `switch_layout`, `save_setup`, `restore_setup`;
 `workshop/session_persist.hpp` `WorkshopLayout`; `tests/test_workshop_persistence.cpp` case
 `"WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone"`, case `"WUX-9/SC-12: `r`
 restores into the live layout and clears no shelf"`, case `"WUX-10/SC-13: the whole layout run
@@ -131,12 +131,13 @@ MEANS
 - the configured path is the acquisition door, never a default association.
 
 PROVEN BY — `workshop/keymap.hpp` `layout.rename`, `setup.name`, `setup.restore`;
-`workshop/weave.hpp` `open_layout_rename`, `commit_layout_rename`, `setup_artifact`, `save_setup`,
-`restore_setup`, `HostContext::setup_path`; `workshop/setup.hpp` `LayoutNaming`, `rename_layout`;
-`tests/test_workshop_panels.cpp` case `"WUX-11/SC-3: a double-click on a tab renames THAT layout,
-and writes no file"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-9: `s` establishes
-the association only after a successful write"`, case `"WUX-11/SC-10+SC-11: `r` establishes on
-success and changes nothing on refusal"`.
+`workshop/weave_session.cpp` `open_layout_rename`, `commit_layout_rename`, `setup_artifact`,
+`save_setup`, `restore_setup`; `workshop/weave.hpp` `HostContext::setup_path`;
+`workshop/setup.hpp` `LayoutNaming`, `rename_layout`; `tests/test_workshop_panels.cpp` case
+`"WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file"`;
+`tests/test_workshop_persistence.cpp` case `"WUX-11/SC-9: `s` establishes the association only
+after a successful write"`, case `"WUX-11/SC-10+SC-11: `r` establishes on success and changes
+nothing on refusal"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-11 — The shared-artifact law
@@ -146,7 +147,7 @@ LAW — When Workshop successfully learns what a Setup file holds, `adopt_known_
 DOES NOT MEAN
 - that a path is canonicalised before it is compared — associations compare by bytes.
 
-PROVEN BY — `workshop/setup.hpp` `adopt_known_setup`, `SetupLink`; `workshop/weave.hpp`
+PROVEN BY — `workshop/setup.hpp` `adopt_known_setup`, `SetupLink`; `workshop/weave_session.cpp`
 `save_setup`, `restore_setup`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-12: two
 layouts sharing one artifact cannot both claim `current`"`; `tests/test_workshop_screen.cpp` case
 `"WUX-11/SC-6+SC-12: switching carries the association, sharing keeps it honest"`.

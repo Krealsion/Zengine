@@ -90,8 +90,9 @@ MEANS
 DOES NOT MEAN
 - that fixed placement is permission to present an unsupported unit as understood.
 
-PROVEN BY — `workshop/screen.hpp` `pane_unit_projectable`, `pane_state_of`; `workshop/setup.hpp`
-`pane_unit`, `kMaxPanePixels`, `kPixels`, `check_pane_size`; `workshop/weave.hpp`
+PROVEN BY — `workshop/screen_chrome.cpp` `pane_unit_projectable`;
+`workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/setup.hpp` `pane_unit`,
+`kMaxPanePixels`, `kPixels`, `check_pane_size`; `workshop/weave_arrange.cpp`
 `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
 setup-valid, projection-refused, and never falls back"`; `tests/test_workshop_screen.cpp` case
 `"WIND-2a: a pixel axis refuses every current pane projection, Info included"`.

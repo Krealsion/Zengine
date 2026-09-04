@@ -100,7 +100,8 @@ and every older one is byte-identical.
 - **It follows the POINTER, not the keyboard.** Which pane receives it is `occupied_at`'s
   topmost answer — the same walk a press spends, the effective order with the selection lift
   — so a pane a maker never pressed into is scrolled by pointing at it, and a pane in front
-  keeps the gesture for its own cells (`external_wheel`, weave.hpp). It is sent only while the
+  keeps the gesture for its own cells (`external_wheel`, declared in weave.hpp, its body in
+  weave_save.cpp). It is sent only while the
   pointer names a prose row of the granted body (`external_press_at`: the header and the
   remainder under the last row send nothing) and only to a pane holding a room.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
@@ -122,8 +123,10 @@ and every older one is byte-identical.
 
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave, and it is the
 first thing in this repository whose pane arrives entirely through the external protocol.
-**Workshop compiled nothing for it**: `weave.hpp`, `panel.hpp` and `screen.hpp` do not name it,
-no `panel::k*` was minted, and the picker learned its row from a live offer.
+**Workshop compiled nothing for it**: no presentation source under `workshop/` names it —
+`weave.hpp`, `screen.hpp`, `panel.hpp` and the subject `.cpp` files beside them, walked by
+`presentation_sources` (tests/workshop_support.hpp) rather than listed — no `panel::k*` was
+minted, and the picker learned its row from a live offer.
 
 ```text
 PaneRef      zengine.introspection / loaded         the durable pair a saved setup names

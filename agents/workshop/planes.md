@@ -12,12 +12,12 @@ MEANS
 - a provider's text cannot bury the picker that recovers it;
 - the Terminal overlay outranks panels for the pointer too, and by a wider rule.
 
-PROVEN BY — `workshop/screen.hpp` `paint`, `paint_panels`, `paint_pane_affordances`,
-`band_region`, `on_own_layer`; `workshop/setup.hpp` `effective_pane_order`;
-`tests/test_workshop_screen.cpp` case `"WIND-2a: an overlapping pane is painted where it is hit,
-in both front orders"`, case `"the terminal overlay outranks panels for the pointer too, and by a
-wider rule"`; `tests/test_workshop_panes_seam.cpp` case `"WIND-2a: an external pane's own text
-cannot bury the surface that recovers it"`.
+PROVEN BY — `workshop/screen_pane_editor.cpp` `paint`, `paint_panels`, `band_region`;
+`workshop/screen_browser.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
+`workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case `"WIND-2a: an
+overlapping pane is painted where it is hit, in both front orders"`, case `"the terminal overlay
+outranks panels for the pointer too, and by a wider rule"`; `tests/test_workshop_panes_seam.cpp`
+case `"WIND-2a: an external pane's own text cannot bury the surface that recovers it"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
 ## WL-FRONT-02 — The foot band is in front of the panes and owns no pointer space
@@ -28,10 +28,11 @@ MEANS
 - a band is where the tool speaks: a pane authored over it is covered by it;
 - a pane in front of the Layouts pane takes the press, and the Layouts pane reads `covered`.
 
-PROVEN BY — `workshop/screen.hpp` `band_region`, `band_bounds`, `occupied_at`;
-`surface/vocabulary.hpp` `kGroundOwn`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a
-pane in front of the Layouts pane takes the press"`; `tests/test_workshop_document.cpp` case
-`"QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0"`.
+PROVEN BY — `workshop/screen_pane_editor.cpp` `band_region`; `workshop/screen.hpp`
+`band_bounds`; `workshop/screen_chrome.cpp` `occupied_at`; `surface/vocabulary.hpp` `kGroundOwn`;
+`tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
+takes the press"`; `tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose
+their budgets, and the selector is row 0"`.
 WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-03 — Three regions tile the screen exactly
@@ -59,10 +60,11 @@ MEANS
 - a refused Arrange leaves the selection exactly where it was.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPaneKind`;
-`workshop/weave.hpp` `enter_arrange_pane`, `unselect_pane`, `open_source`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: the selection lift never reaches the file, and no
-session starts with one"`, case `"WUX-7: contextual Arrange lifts the pane it addressed, not the
-one in front"`, case `"WUX-7: a refused Arrange leaves the selection exactly where it was"`.
+`workshop/weave_arrange.cpp` `enter_arrange_pane`; `workshop/weave_save.cpp` `unselect_pane`;
+`workshop/weave_pane_editor.cpp` `open_source`; `tests/test_workshop_screen.cpp` case `"WUX-5: the
+selection lift never reaches the file, and no session starts with one"`, case `"WUX-7: contextual
+Arrange lifts the pane it addressed, not the one in front"`, case `"WUX-7: a refused Arrange
+leaves the selection exactly where it was"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-05 — `effective_pane_order` is the one foreground order
@@ -74,10 +76,11 @@ MEANS
 - persistence and `reset order` want the authored base, and nothing else may.
 
 PROVEN BY — `workshop/setup.hpp` `effective_pane_order`, `presentation_order`;
-`workshop/screen.hpp` `paint_panels`, `occupied_at`, `pane_is_covered`; `workshop/panel.hpp`
-`selected_pane`; `workshop/weave.hpp` `arrange_press`; `tests/test_workshop_screen.cpp` case
-`"WUX-5: selecting a pane lifts it, in the picture and under the hand at once"`, case
-`"WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in front"`;
+`workshop/screen_pane_editor.cpp` `paint_panels`; `workshop/screen_chrome.cpp` `occupied_at`;
+`workshop/screen_pane_state.cpp` `pane_is_covered`; `workshop/panel.hpp` `selected_pane`;
+`workshop/weave_arrange.cpp` `arrange_press`; `tests/test_workshop_screen.cpp` case `"WUX-5:
+selecting a pane lifts it, in the picture and under the hand at once"`, case `"WUX-5/WUX-7: the
+arrangement desk's pointer takes what is visibly in front"`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: hit order is the exact reverse of paint
 order"`.
 WHY — `agents/decisions/the-selection-lift.md`
@@ -97,9 +100,9 @@ WHY — `agents/decisions/the-selection-lift.md`
 
 LAW — The lift orders the ordinary pane planes among themselves and reaches no further, so a selected pane is never drawn over the menu a maker just opened on it.
 
-PROVEN BY — `workshop/screen.hpp` `paint_context`, `paint_panels`, `paint`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: a transient surface stays over the pane it covers,
-selected or not"`.
+PROVEN BY — `workshop/screen_attention.cpp` `paint_context`; `workshop/screen_pane_editor.cpp`
+`paint_panels`, `paint`; `tests/test_workshop_screen.cpp` case `"WUX-5: a transient surface stays
+over the pane it covers, selected or not"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
 ## Do not assume

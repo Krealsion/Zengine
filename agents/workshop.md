@@ -29,6 +29,10 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 | the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the Terminal overlay, its pane, its completion | [terminal](workshop/terminal.md) `WL-TERM` |
 
+**Where the code is.** Declarations are in the headers; the bodies of `screen.hpp`'s and
+`weave.hpp`'s functions are in `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`,
+compiled once, and a `// WL-` pointer sits with the body — a prototype carries none.
+
 **Where a case goes.** Workshop's tests are seven suites, one per area — document, screen,
 panels, panes, persistence, load, editor — and a new case belongs to the one whose subject it
 proves; [`verification.md`](verification.md) names them.

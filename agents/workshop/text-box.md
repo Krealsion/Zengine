@@ -27,10 +27,10 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::consume`, `kEditingVocabulary`;
-`workshop/weave.hpp` `terminal_key`, `editing_key`; `workshop/property.hpp`
-`Row::keep_caret_visible`; `tests/test_component.cpp` case `"component: the capacity is an
-argument, so one box serves two different widths"`, case `"component: consume owns exactly the
-editing vocabulary and declines the rest"`.
+`workshop/weave_terminal.cpp` `terminal_key`; `workshop/weave_seam.cpp` `editing_key`;
+`workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_component.cpp` case `"component:
+the capacity is an argument, so one box serves two different widths"`, case `"component: consume
+owns exactly the editing vocabulary and declines the rest"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-03 — The editable line is a window onto its text
@@ -43,11 +43,11 @@ MEANS
 - no hidden-content marker, no scrollbar, no wheel or drag scrolling, no scroll command.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::first_visible`, `TextBox::keep_caret_visible`,
-`character_boundary_at_or_after`; `workshop/weave.hpp` `refresh_setup_name`; `workshop/screen.hpp`
-`setup_name_columns`; `tests/test_component.cpp` case `"HD-4: the window is state, and every
-operation leaves the caret inside it"`, case `"HD-4: the window never begins inside a character"`,
-case `"component: the window moves as little as it must, and never recentres"`, case `"component:
-no blank room on the right while text is hidden on the left"`.
+`character_boundary_at_or_after`; `workshop/weave_save.cpp` `refresh_setup_name`;
+`workshop/screen_layouts.cpp` `setup_name_columns`; `tests/test_component.cpp` case `"HD-4: the
+window is state, and every operation leaves the caret inside it"`, case `"HD-4: the window never
+begins inside a character"`, case `"component: the window moves as little as it must, and never
+recentres"`, case `"component: no blank room on the right while text is hidden on the left"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-04 — The Terminal's capacity is never guessed
@@ -59,7 +59,7 @@ MEANS
 - the reconcile stays above the return: a maker can type into a pane with no participant mounted.
 
 PROVEN BY — `workshop/screen.hpp` `terminal_input_place`, `TerminalInputPlace::columns`;
-`workshop/weave.hpp` `refresh_terminal`, `attached`, `terminal_key`;
+`workshop/weave_terminal.cpp` `refresh_terminal`, `attached`, `terminal_key`;
 `tests/test_workshop_screen.cpp` case `"HD-4: a long line is shown as a slice, and both media draw
 the caret against it"`, case `"HD-4: the window follows the caret across a resize"`, case `"HD-4:
 a press on a SCROLLED line lands in the full authored string"`.
@@ -73,12 +73,13 @@ MEANS
 - snapping backwards would carry the right edge back and push the caret off its row;
 - a caret is between characters, so the one after a full row needs somewhere to be.
 
-PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`; `workshop/screen.hpp`
-`detail::fit`, `kTerminalCaretCols`, `terminal_input_place`, `TerminalInputPlace::columns`;
-`surface/region.hpp` `project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4:
-clicking a SCROLLED multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte
-index are inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the window
-never begins inside a character, at any capacity"`.
+PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`;
+`workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen.hpp` `kTerminalCaretCols`,
+`terminal_input_place`, `TerminalInputPlace::columns`; `surface/region.hpp`
+`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: clicking a SCROLLED
+multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte index are inverses
+THROUGH the window"`; `tests/test_component.cpp` case `"component: the window never begins inside
+a character, at any capacity"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
@@ -112,7 +113,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The mirror is written on copy and cut, said to the process once around the chain, and filled by copies heard from elsewhere, not counted as writes; never persisted, watching no system clipboard.
 
 PROVEN BY — `workshop/screen.hpp` `Session::clipboard`; `component/text_box.hpp` `Clipboard`,
-`Clipboard::writes`; `surface/vocabulary.hpp` `ClipboardCopy`; `workshop/weave.hpp`
+`Clipboard::writes`; `surface/vocabulary.hpp` `ClipboardCopy`; `workshop/weave_pointer.cpp`
 `on(ClipboardCopy)`; `tests/test_workshop_document.cpp` case `"TEXT-0: a copy is said to the
 process once, and a heard copy fills the mirror"`; `tests/test_component.cpp` case `"component:
 copy, cut and paste move text through the owner's clipboard"`, case `"component: copy with nothing
@@ -129,26 +130,28 @@ MEANS
 - anything else discards the payload whole; the book holds four asks and refuses a fifth.
 
 PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::paste`,
-`TextBox::draft_epoch`; `workshop/weave.hpp` `paste_owner_now`, `WorkshopWeave::paste_asks_`,
-`answers_ask`, `AskBook`, `on(ClipboardText)`, `PasteOwner`, `naming_line`, `PendingPaste`,
-`begin_clipboard_paste`; `workshop/property.hpp` `Row::paste`, `Row::resume`;
-`surface/vocabulary.hpp` `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp`
-case `"QR-11: paste reads the platform current, not the mirror stale"`, case `"QR-11: an answer
-crossing a draft boundary lands nowhere, and the payload dies"`, case `"QR-11: the draft that
-asked keeps its paste across a rebuild in flight"`, case `"QR-11: an unsolicited ClipboardText
-enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the
-owner applies, and set/clear name the draft"`.
+`TextBox::draft_epoch`; `workshop/weave_seam.cpp` `paste_owner_now`, `naming_line`,
+`begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
+`PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
+`workshop/property.hpp` `Row::paste`, `Row::resume`; `surface/vocabulary.hpp`
+`ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
+reads the platform current, not the mirror stale"`, case `"QR-11: an answer crossing a draft
+boundary lands nowhere, and the payload dies"`, case `"QR-11: the draft that asked keeps its paste
+across a rebuild in flight"`, case `"QR-11: an unsolicited ClipboardText enters no box and no
+mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the owner applies, and
+set/clear name the draft"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
 
 LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the Skin's role stays open, bounded by the book, and inserts nothing.
 
-PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `answers_ask`,
-`begin_clipboard_paste`, `on(ClipboardText)`; `surface/vocabulary.hpp` `ClipboardText::readable`;
-`tests/test_workshop_document.cpp` case `"QR-11: with nobody at the skin role, paste inserts
-nothing and breaks nothing"`; `tests/test_surface.cpp` case `"QR-11: the terminal medium answers a
-clipboard read with its standing truth"`.
+PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::paste_asks_`; `workshop/weave_pointer.cpp`
+`answers_ask`, `on(ClipboardText)`; `workshop/weave_seam.cpp` `begin_clipboard_paste`;
+`surface/vocabulary.hpp` `ClipboardText::readable`; `tests/test_workshop_document.cpp` case
+`"QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing"`;
+`tests/test_surface.cpp` case `"QR-11: the terminal medium answers a clipboard read with its
+standing truth"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-11 — `zengine-component` links nothing
@@ -183,13 +186,13 @@ LAW — The caret measurers take the box itself, the visible selection is the on
 MEANS
 - `pasteable_line` flattens foreign bytes into one line, for the byte=column grid's sake.
 
-PROVEN BY — `workshop/screen.hpp` `terminal_caret_column`, `terminal_caret_of_column`,
-`terminal_selection_columns`, `property_selection_columns`, `TerminalSelectionSpan`,
-`property_caret_column`; `component/text_box.hpp` `TextBox`, `TextBox::visible_selection`,
-`pasteable_line`; `tests/test_workshop_screen.cpp` case `"caret geometry: a byte index and a prose
-column are one number, both ways"`; `tests/test_component.cpp` case `"component: the visible
-selection is the span both media may spend"`, case `"component: paste flattens foreign bytes into
-one line"`.
+PROVEN BY — `workshop/screen_terminal.cpp` `terminal_caret_column`, `terminal_caret_of_column`,
+`terminal_selection_columns`; `workshop/screen_info.cpp` `property_selection_columns`,
+`property_caret_column`; `workshop/screen.hpp` `TerminalSelectionSpan`; `component/text_box.hpp`
+`TextBox`, `TextBox::visible_selection`, `pasteable_line`; `tests/test_workshop_screen.cpp` case
+`"caret geometry: a byte index and a prose column are one number, both ways"`;
+`tests/test_component.cpp` case `"component: the visible selection is the span both media may
+spend"`, case `"component: paste flattens foreign bytes into one line"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-14 — A text-selection drag is a gesture record of its own

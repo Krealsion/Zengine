@@ -8,10 +8,25 @@
 # packages' — the Skin, the Input producer, the Timer service — through the same
 # ordinary LoadWeave commands snake's host sends.
 #
-# The vocabulary and the logic travel as a header-only interface target, the
-# pattern input/ and surface/ already use: the suite includes the same headers the
-# host does, so what the tests pin is what ships. Portable — it exists even where
-# no kernel does.
+# The vocabulary is a header-only interface target, the pattern input/ and surface/
+# already use -- the shapes, the constants, the constexpr functions, the prototypes and
+# the weave class itself -- and the suite includes the same headers the host does, so what
+# the tests pin is what ships. Portable — it exists even where no kernel does.
+#
+# THE LOGIC COMPILES ONCE, in `zengine-workshop-logic` below. The bodies of screen.hpp's
+# and weave.hpp's functions used to be inline in those headers, and a body in a header is
+# emitted in every translation unit that reaches it: the host and the twelve suite sources
+# that include tests/workshop_support.hpp, thirteen times over, each instantiating the
+# whole closure the bodies reach. Measured on the host object before the move (Linux/GCC,
+# -g -O0): 20,159 COMDAT groups whose mangled names average 124 bytes -- 10.7 MB of COFF
+# section-name spend against the 9,999,999-byte ceiling the top-level CMakeLists.txt
+# accounts for -- and Workshop's own functions were 12% of the groups; the std and loom
+# templates their bodies reach were the rest, which is why partitioning the headers would
+# have changed nothing. So the bodies live in `workshop/screen_<subject>.cpp` and
+# `workshop/weave_<subject>.cpp`, grouped by the subject their section banners name, and
+# the two Win32 halves in files.cpp and filesystem_roots.cpp (so <windows.h> is in no
+# header under workshop/); the declarations stay where they were. A declaration costs a
+# translation unit nothing; a body costs it the body's closure.
 #
 # It consumes two package vocabularies and the split between them is the W-1
 # result: `ui` owns what a maker AUTHORS and what a viewport MAKES of it;
@@ -121,6 +136,53 @@ target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabular
                                                       loom::core
                                                       loom::switchboard)
 
+# ---- The logic, compiled once ----------------------------------------------------------
+#
+# STATIC, AND LINKED RATHER THAN INCLUDED, for the reason the vocabulary's comment above
+# measures: a body in a header is paid for by every translation unit that reaches it. The
+# vocabulary is PUBLIC because every body here is declared there and a consumer that links
+# the logic needs the same include path and the same link line the header needs; the
+# warnings and the sanitizer are PRIVATE, so this library is inside the sanitizer witness
+# (agents/verification.md: omitting `zengine-sanitize` is the one way that lane degrades)
+# without exporting either to a consumer. Nothing but the host and the suites should need
+# it -- session_persist.hpp includes screen.hpp for its shapes and spends none of its
+# bodies -- and a target that fails to link names the body it wants.
+#
+# THE SOURCE LIST BETWEEN THE TWO LINES BELOW IS WRITTEN BY tools/workshop-split/apply.py
+# from tools/workshop-split/sheet.tsv, one file per row destination; a changed plan is a
+# rerun of the applier, not an edit here. It sits outside the kernel gate below because it
+# is as portable as the vocabulary it compiles.
+add_library(zengine-workshop-logic STATIC
+    files.cpp
+    filesystem_roots.cpp
+    screen_arrange.cpp
+    screen_attention.cpp
+    screen_bindings.cpp
+    screen_browser.cpp
+    screen_chrome.cpp
+    screen_editor.cpp
+    screen_external.cpp
+    screen_gestures.cpp
+    screen_hotkeys.cpp
+    screen_info.cpp
+    screen_layouts.cpp
+    screen_pane_editor.cpp
+    screen_pane_state.cpp
+    screen_terminal.cpp
+    weave_arrange.cpp
+    weave_editor.cpp
+    weave_handlers.cpp
+    weave_pane_editor.cpp
+    weave_panels.cpp
+    weave_pointer.cpp
+    weave_save.cpp
+    weave_seam.cpp
+    weave_session.cpp
+    weave_terminal.cpp
+)
+target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
+                                             PRIVATE zengine-warnings zengine-sanitize)
+
 # The host needs a Loom that can host .so weaves, for the same honest reason
 # snake's does: it loads a Skin and an Input producer.
 if(NOT TARGET loom::kernel)
@@ -153,6 +215,9 @@ add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
             zengine-workshop-vocabulary
+            # ...and the bodies, compiled once (the logic target above): this host reaches
+            # every one of them, and its object is where the ceiling was measured.
+            zengine-workshop-logic
             zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
             # ---- LOAD-0 SUBTRACTED THREE PACKAGE VOCABULARIES FROM THIS LINE -----------

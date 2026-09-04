@@ -387,8 +387,9 @@ feature is one read-only seam plus one gesture over the existing route.
   path `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same
   grant; everything downstream is the tool's, the runner's, and the owner's, unchanged. There
   is no second build path and no direct load, and a source tripwire beside INTR-1's pins it:
-  `weave.hpp`, `screen.hpp` and `panel.hpp` spell no `PlanExecutor`, `load_execute`,
-  `OfferArtifact`, `RunBuild` or `kBuildRunnerRole`.
+  no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp` and the
+  subject `.cpp` files beside them, walked by `presentation_sources` rather than listed —
+  spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or `kBuildRunnerRole`.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
   cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately
   not artifacts, and a case pins the acceptance). With several matches `f` refuses and names
