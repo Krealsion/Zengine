@@ -36,8 +36,9 @@ SEEN — nowhere yet
 ## VM-MUT-07 — A bad mutation has four costumes
 
 METHOD — A bad mutation has four costumes — BUILD-FAILED, TRUNCATED, NOT-APPLIED, GREEN-unexpressible — and none is evidence: repair and re-run all four; after a harness repair re-run every non-red row.
-BECAUSE — each costume is a mutation that never answered: an orphaned variable under `-Werror`,
-a loop past a shorter vector, a pattern matching nothing, a scenario that cannot stage the attack.
+BECAUSE — each costume is a mutation that never got to answer: an orphaned variable under
+`-Werror`, a loop reading past a shorter vector, a pattern that matched nothing, a scenario that
+cannot stage the attack; a first cmp of the output caught four more.
 SEEN — nowhere yet
 
 ## VM-MUT-08 — Snapshot the bytes, restore by rewriting them
@@ -93,14 +94,16 @@ SEEN — nowhere yet
 
 METHOD — A residue marker must be distinctive (a field default cries wolf); restore after every mutation and verify the tree clean at the end with `git status` and a grep for the marker.
 BECAUSE — a marker equal to a field default matched two honest sources and reported two
-remaining on a clean tree; a marker that cries wolf trains the eye to skip the last check.
+remaining on a clean tree; a marker that cries wolf trains the eye to ignore the one check
+standing between a mutant and a commit.
 SEEN — nowhere yet
 
 ## VM-MUT-25 — A compiler cache does not weaken any of this
 
 METHOD — A compiler cache does not weaken any of this: a hit replays the mutated object, never the baseline, and the artifact hash is the guard either way — cache freely, keep hashing.
 BECAUSE — measured both ways with artifact hashes: identical verdicts with and without the
-cache, and the no-rebuild probe was green with an unchanged hash in both; the hash is the guard.
+cache, a hit replaying the byte-identical mutated object, and the no-rebuild probe green with an
+unchanged hash in both modes, so the hash is the guard.
 SEEN — nowhere yet
 
 ## VM-MUT-26 — An in-place editor cannot write on a 9p mount

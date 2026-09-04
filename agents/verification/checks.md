@@ -37,14 +37,16 @@ SEEN — nowhere yet
 
 METHOD — A mass edit goes sheet → applier → proof, regenerated from the start commit: the sheet is the review, the applier converges from a clean checkout, and the proof is mechanical and travels with the commit.
 BECAUSE — the sheet is the review, one row per declaration; an applier that starts from the
-working tree drifts on a rerun, and a proof that is not mechanical does not travel.
+working tree drifts on a rerun, and a proof that is not mechanical does not travel with the
+commit.
 SEEN — `tools/workshop-split/apply.py`; `tools/workshop-split/prove.py`.
 
 ## VM-CHECK-06 — A sheet carries the whole pointer group; an index is stale at the first rewrite
 
 METHOD — A per-line sheet carries the whole pointer group above a declaration, and an index over a file is stale at its first rewrite: resolve fresh per lookup or re-index after every write.
-BECAUSE — a flagged line's neighbour is a banner or a citation, so the decision is about the
-group; a stale index marks good lines for dropping, which looks like judgment, not a tool.
+BECAUSE — a flagged line's neighbour is a section banner or a content citation and the decision
+is about the group; a stale index marks good lines for dropping, which is judgment-shaped, not
+tool-shaped.
 SEEN — `tools/workshop-split/apply.py`.
 
 ## VM-CHECK-07 — A verification grep is scoped to sources
@@ -64,29 +66,33 @@ SEEN — nowhere yet
 ## VM-CHECK-09 — A generated line is regenerated, never hand-edited
 
 METHOD — A generated line is regenerated, never hand-edited: a record's Laws supported is filled from the registers' WHY lines by the tool under `tools/`, and the check asserts the two agree.
-BECAUSE — a hand-edited generated line is the drift the generator ends; the check asserts each
-record lists exactly the laws whose WHY names it, and the tool writes that list.
+BECAUSE — a hand-edited generated line is the drift the generator exists to end; the check
+asserts each record lists exactly the laws whose WHY names it, and the tool writes that list from
+the WHY lines.
 SEEN — `tools/fill_laws.sh`; `tests/check_law_register.cmake`.
 
 ## VM-CHECK-10 — A retired spelling may appear in exactly one file
 
 METHOD — A retired spelling may appear in exactly one file, the checker that declares it, and the check asserts both halves of that.
-BECAUSE — a spelling allowed anywhere was never retired, and one allowed nowhere cannot be
-declared; the checker is the one file that carries it, and the check asserts both halves.
+BECAUSE — a spelling that may appear anywhere is a spelling nobody retired; one that may appear
+nowhere cannot be declared, so the checker is the one file that carries it, and the check asserts
+both halves.
 SEEN — `tests/check_package_vocabulary.cmake`.
 
 ## VM-CHECK-11 — Every current-facing text file is read whole for a path outside the repository
 
 METHOD — Every current-facing file of a text kind is read whole for a path outside the repository; the spellings live in the check alone, and the remedy is words.
-BECAUSE — a leak is a substring wherever it sits, so files are read raw; a clone has no sibling,
-and a check that passes only in one workspace layout is one a consumer cannot run.
+BECAUSE — a leak is a substring wherever it sits, comment or code, so files are read raw; a
+standalone clone has no sibling, and a check that passes only in one workspace layout cannot be
+run by a consumer.
 SEEN — `tests/check_doc_links.cmake` `ZEN_DOC_OUTSIDE_SPELLINGS`.
 
 ## VM-CHECK-12 — A body move out of a header goes sheet, applier, proof
 
 METHOD — A body move out of a header goes sheet → applier → proof: the sheet names each body and its rewrites, the applier regenerates from the start commit, and the proof diffs bodies, literals and registers.
-BECAUSE — 415 bodies moved under a proof of four checks and exit zero; the residues regenerated
-from a later commit, because the split's applier would rebuild what the residues filed.
+BECAUSE — four hundred and fifteen bodies moved under a proof of four checks and exit zero; the
+residues' rerun had to regenerate from a later commit, because the split's applier would rebuild
+what the residues filed.
 SEEN — `tools/workshop-split/apply.py`, `tools/workshop-split/prove.py`,
 `tools/workshop-split/sheet.tsv`; `tools/workshop-residues/apply.py`,
 `tools/workshop-residues/prove.py`.
@@ -94,6 +100,7 @@ SEEN — `tools/workshop-split/apply.py`, `tools/workshop-split/prove.py`,
 ## VM-CHECK-13 — A qualified spelling names a declaration only from inside its scope
 
 METHOD — A qualified spelling `Scope::name` names a declaration only from inside `Scope`, read by a scope tracker over the braces; the self-test pins the twin refused above a free function of that name.
-BECAUSE — a suffix match let a wrong `Struct::name` sit green for a phase; with scope tracking,
-run against the main branch's tip, the rule caught six: four a parser gap, two wrong spellings.
+BECAUSE — a suffix match let a wrong `Struct::name` sit green for a phase; run with scope
+tracking against the main branch's tip, the rule caught six: four a parser gap (a template
+specialization's opener) and two wrong spellings.
 SEEN — `tests/check_law_register.cmake` `zen_law_pointer_names`, `zen_law_scope_step`.

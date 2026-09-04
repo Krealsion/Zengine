@@ -36,8 +36,9 @@ SEEN — `CMakeLists.txt` `zengine_compile_test`; `tests/CMakeLists.txt`
 ## VM-WALL-05 — A detection probe deduces only what it asks about
 
 METHOD — A detection probe deduces only the thing it asks about: more template parameters than the question needs makes it ambiguous, and the check abstains on exactly the cases it exists to refuse.
-BECAUSE — a probe with more template parameters than the question matched everything and went
-ambiguous, so the check abstained and the negative fixture compiled clean; the canary caught it.
+BECAUSE — a probe with more template parameters than the question matched everything, went
+ambiguous and reported not detectable, so the negative fixture compiled clean; the hand-proven
+canary is what caught it, before any matrix.
 SEEN — `timer/binding.hpp`.
 
 ## VM-WALL-06 — Two guards that defer to each other leave a hole
@@ -51,15 +52,17 @@ SEEN — nowhere yet
 
 METHOD — A deleted overload is proven by `static_assert(!std::is_constructible_v<...>)` in an ordinary case, without paying for a compile-negative entry.
 BECAUSE — binding a long-lived reference to a temporary is a use-after-free whose first symptom
-is nonsense output; only the compiler can catch it in time, and an ordinary case can ask it.
+is nonsense output; the compiler is the only party that can catch it in time, and an ordinary case
+can ask it without a compile-negative entry.
 SEEN — `tests/test_builder.cpp` case `"PROJ-0: a build participant cannot be composed over a
 temporary catalog"`.
 
 ## VM-WALL-08 — A defect nothing can observe gets a wall where the choice is made
 
 METHOD — A defect nothing can observe gets a wall where the choice is made, not a test: when the falsifier for a repair comes back green, refuse the configuration that carried the defect.
-BECAUSE — restoring the ownership passed serially and in parallel on a warm tree, invisible
-downstream; nothing could notice it come back, so the guard went where the choice is made.
+BECAUSE — restoring the ownership passed serially, passed in parallel on a warm tree and was
+invisible downstream, since a listing prints entry names and not commands; nothing could have
+noticed it come back, so the guard went where the choice is made.
 SEEN — `CMakeLists.txt` `zengine_compile_test`, `ZENGINE_COMPILE_FIXTURE_TREE`.
 
 ## VM-WALL-09 — A detector keys on a marker's value, never on a name's presence
@@ -82,7 +85,8 @@ artifact directory"`, case `"a stem or a role that is not a NAME is refused"`;
 
 METHOD — A source tripwire with prose stripped is defence in depth beside a behavioural case, and the manifest says which rows are tripwires and which are proofs.
 BECAUSE — the reference member present, every by-value spelling absent and the deleted overload
-present are facts a grep can state; naming it defence in depth stops it reading as proof.
+present are three facts a grep can state; naming it defence in depth keeps it from reading as
+behaviour, which a value declared in `main` can never be.
 SEEN — `tests/test_population.txt`.
 
 ## VM-WALL-12 — When the bytes' meaning changed, only a tripwire can catch a retained branch
