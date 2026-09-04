@@ -52,12 +52,12 @@ MEANS
 - a successful load cancels a drag, re-establishes the selection and continues no old resize;
 - a failed load costs a maker nothing but the notice.
 
-PROVEN BY — `workshop/weave.hpp` `save_document`, `load_document`; `workshop/keymap.hpp`
+PROVEN BY — `workshop/weave_save.cpp` `save_document`, `load_document`; `workshop/keymap.hpp`
 `document.save`, `document.open`; `tests/test_workshop_persistence.cpp` case `"^s saves and ^o
 loads, through the real message path"`, case `"^s refuses while a row is being edited, and writes
-nothing"`, case `"a bare s and a bare o are not commands, and Ctrl is what makes them one"`,
-case `"a successful load cancels a drag and cannot continue an old resize"`, case `"a failed load
-costs a maker nothing but the notice"`.
+nothing"`, case `"a bare s and a bare o are not commands, and Ctrl is what makes them one"`, case
+`"a successful load cancels a drag and cannot continue an old resize"`, case `"a failed load costs
+a maker nothing but the notice"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-19 — The status line says which file, and `saved` is computed by comparing
@@ -69,7 +69,7 @@ MEANS
 - a document edited and then edited back says `saved`, because it is;
 - a setup save or restore moves the document's status not at all.
 
-PROVEN BY — `workshop/weave.hpp` `status_line`; `surface/vocabulary.hpp` `kSlotStatus`;
+PROVEN BY — `workshop/weave_save.cpp` `status_line`; `surface/vocabulary.hpp` `kSlotStatus`;
 `tests/test_workshop_persistence.cpp` case `"^s saves and ^o loads, through the real message
 path"`, case `"with no document file, save and open say so instead of guessing one"`, case
 `"saving and restoring a setup does not touch the document or its saved status"`.

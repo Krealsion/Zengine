@@ -14,11 +14,12 @@ MEANS
 DOES NOT MEAN
 - that the controls are a third claimant on `share_body_rows` — a fixed demand is not a list.
 
-PROVEN BY — `workshop/screen.hpp` `kActionRows`, `InfoBodyPlace::action_row`, `info_body_place`,
-`share_body_rows`, `kActionCreate`, `kActionDelete`; `tests/test_workshop_panels.cpp` case `"HD-8:
-the footer is reserved off the budget, and every HD-7 property survives it"`, case `"HD-8: the
-controls are the last two rows of the body, at every extent and size"`, case `"HD-8: growing the
-panel gives the lists more room and the footer exactly two rows"`.
+PROVEN BY — `workshop/screen.hpp` `kActionRows`, `InfoBodyPlace::action_row`, `kActionCreate`,
+`kActionDelete`; `workshop/screen_info.cpp` `info_body_place`, `share_body_rows`;
+`tests/test_workshop_panels.cpp` case `"HD-8: the footer is reserved off the budget, and every
+HD-7 property survives it"`, case `"HD-8: the controls are the last two rows of the body, at every
+extent and size"`, case `"HD-8: growing the panel gives the lists more room and the footer exactly
+two rows"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-02 — The body publishes exactly `capacity` rows
@@ -28,7 +29,7 @@ LAW — Spare rows are written blank because a region's rows are positional and 
 DOES NOT MEAN
 - that fewer than `capacity` rows are ever published — spare rows are blank, never absent.
 
-PROVEN BY — `workshop/screen.hpp` `prose_row_of_action`, `action_at_prose_row`;
+PROVEN BY — `workshop/screen_info.cpp` `prose_row_of_action`, `action_at_prose_row`;
 `tests/test_workshop_panels.cpp` case `"HD-8: the action row maps are inverses, and nothing else
 is a control"`, case `"HD-8: a resize moves the footer and changes no document and no draft"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
@@ -45,7 +46,8 @@ DOES NOT MEAN
 - that this is a `disabled` flag — a flag would collapse two facts with two owners.
 
 PROVEN BY — `workshop/screen.hpp` `Availability::kDraftLive`, `Availability::kNoTarget`,
-`Availability`, `action_availability`, `draft_live`; `workshop/weave.hpp` `actions_press`,
+`Availability`, `action_availability`; `workshop/screen_info.cpp` `action_availability`,
+`draft_live`; `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_save.cpp`
 `finish_draft_first`; `workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case
 `"HD-8: availability is two reasons, one bit, and no prediction of a refusal"`, case `"HD-8:
 availability is not a prediction of what the document will say"`, case `"HD-8: an unavailable
@@ -56,9 +58,9 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 LAW — `[ Create ]` is pressable and `( Delete )` is not, the same width either way; the muted role is the second signal and never the only one, because a terminal has no ground to tint.
 
-PROVEN BY — `workshop/screen.hpp` `Availability`, `say_row`, `action_row_text`;
-`tests/test_workshop_panels.cpp` case `"HD-8: unavailable is said in CHARACTERS, so a colourless
-medium reads it too"`.
+PROVEN BY — `workshop/screen.hpp` `Availability`; `workshop/screen_info.cpp` `say_row`,
+`action_row_text`; `tests/test_workshop_panels.cpp` case `"HD-8: unavailable is said in
+CHARACTERS, so a colourless medium reads it too"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-05 — The controls do not own the acts
@@ -72,10 +74,11 @@ MEANS
 DOES NOT MEAN
 - that the controls take keys — they are pointer-only, and no focus framework exists for them.
 
-PROVEN BY — `workshop/weave.hpp` `actions_press`, `create_object`, `delete_object`;
-`tests/test_workshop_panels.cpp` case `"HD-8: pressing Create is the SAME operation the `n` key
-performs"`, case `"HD-8: pressing Delete is the SAME operation the `d` key performs"`, case
-`"HD-8: a live property draft survives both controls, with no implicit commit"`.
+PROVEN BY — `workshop/weave_seam.cpp` `actions_press`; `workshop/weave_save.cpp`
+`create_object`, `delete_object`; `tests/test_workshop_panels.cpp` case `"HD-8: pressing Create is
+the SAME operation the `n` key performs"`, case `"HD-8: pressing Delete is the SAME operation the
+`d` key performs"`, case `"HD-8: a live property draft survives both controls, with no implicit
+commit"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-CTRL-06 — The structural rows sit on a ground
@@ -86,7 +89,7 @@ MEANS
 - the two consumers use one ground by agreement, not by a `kSectionGround` constant;
 - an unavailable control loses the ground entirely, so the ground means actionable, not present.
 
-PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/vocabulary.hpp` `kAccent`, `kMuted`,
+PROVEN BY — `workshop/screen_info.cpp` `say_row`; `surface/vocabulary.hpp` `kAccent`, `kMuted`,
 `kFill`, `kNone`, `SurfaceTextRow`, `SurfaceTextRow::background`;
 `tests/test_workshop_document.cpp` case `"HD-9: an available control sits on a ground and an
 unavailable one does not"`, case `"HD-9: no other row of the body was given a ground"`, case
@@ -97,9 +100,9 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 LAW — The grounded strip of a prose row is exactly the pixel partition the press inverse inverts — the row's own line height from the body's origin — and the text inset margin names no control.
 
-PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/pointing.hpp` `prose_row_of_pixel`;
-`surface/region.hpp` `kTextInsetPx`; `tests/test_workshop_document.cpp` case `"HD-9: the
-grounded strip is exactly the prose row a press resolves to"`, case `"HD-9: a ground changed no
-composition, no row index and no hit mapping"`, case `"HD-9: the ground reaches the whole row in
-a CELL medium, not just its characters"`.
+PROVEN BY — `workshop/screen_info.cpp` `say_row`; `surface/pointing.hpp` `prose_row_of_pixel`;
+`surface/region.hpp` `kTextInsetPx`; `tests/test_workshop_document.cpp` case `"HD-9: the grounded
+strip is exactly the prose row a press resolves to"`, case `"HD-9: a ground changed no
+composition, no row index and no hit mapping"`, case `"HD-9: the ground reaches the whole row in a
+CELL medium, not just its characters"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`

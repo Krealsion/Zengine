@@ -84,24 +84,24 @@ MEANS
 - a dirty Editor buffer over that path is neither consumed nor auto-saved; no Builder needed;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
-PROVEN BY — `workshop/keymap.hpp` `files.use-recipes`; `workshop/weave.hpp` `files_use_recipes`,
-`HostContext::use_recipes`, `RecipeSwap`; `tests/test_workshop_files.cpp` case `"PROJ-1: a maker
-chooses a catalog in Files and every consumer moves with it"`, case `"PROJ-1: selecting the
-catalog already in force is a reload, not a no-op"`, case `"PROJ-1: recipes come from the saved
-file, never from an unsaved editor buffer"`, case `"PROJ-1: the chooser does not need the Builder
-panel to be open"`, case `"PROJ-2: an external catalog is chosen live, and the project still owns
-relative sources"`.
+PROVEN BY — `workshop/keymap.hpp` `files.use-recipes`; `workshop/weave_editor.cpp`
+`files_use_recipes`; `workshop/weave.hpp` `HostContext::use_recipes`, `RecipeSwap`;
+`tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a catalog in Files and every
+consumer moves with it"`, case `"PROJ-1: selecting the catalog already in force is a reload, not a
+no-op"`, case `"PROJ-1: recipes come from the saved file, never from an unsaved editor buffer"`,
+case `"PROJ-1: the chooser does not need the Builder panel to be open"`, case `"PROJ-2: an
+external catalog is chosen live, and the project still owns relative sources"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-07 — Standing Builder intent survives by recipe identity, never by row position
 
 LAW — `on(RecipeCatalog)` follows the chosen recipe by name to its new row, `picked` intact, and releases it when the identity is gone; no fallback to an index, stem or nearest name.
 
-PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`, `on(RecipeCatalog)`; `workshop/panel.hpp`
-`BuilderPane::picked`; `tests/test_workshop_panels.cpp` case `"PROJ-1: a reordered catalog moves
-the maker's choice to its recipe, not its row"`, case `"PROJ-1: a choice whose recipe is gone is
-cleared, not handed to its neighbour"`, case `"PROJ-1: an emptied catalog leaves no selection
-standing"`.
+PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`; `workshop/weave_pointer.cpp`
+`on(RecipeCatalog)`; `workshop/panel.hpp` `BuilderPane::picked`; `tests/test_workshop_panels.cpp`
+case `"PROJ-1: a reordered catalog moves the maker's choice to its recipe, not its row"`, case
+`"PROJ-1: a choice whose recipe is gone is cleared, not handed to its neighbour"`, case `"PROJ-1:
+an emptied catalog leaves no selection standing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-09 — `Session::recipes_moved_to` is a projection, not an owner
@@ -125,10 +125,11 @@ MEANS
 - a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
 - it changes no stored identity, and no pane widens to avoid a cut.
 
-PROVEN BY — `workshop/screen.hpp` `fit_path`, `path_root_cue`, `files_header_prefix`;
-`tests/test_workshop_files.cpp` case `"PROJ-2: fitting a path keeps the end that says which file
-it is"`; `tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is
-scrolled at all"`.
+PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
+`workshop/screen_browser.cpp` `files_header_prefix`; `tests/test_workshop_files.cpp` case
+`"PROJ-2: fitting a path keeps the end that says which file it is"`;
+`tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is scrolled at
+all"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
 ## WL-PROJ-11 — The Builder panel announces only what it watched
@@ -141,7 +142,7 @@ MEANS
 - `awaiting_realization` is the twin latch, held longer; `chosen` is bounded at use, not at write.
 
 PROVEN BY — `workshop/panel.hpp` `BuilderPane`, `BuilderPane::heard`, `BuilderPane::awaiting`,
-`BuilderPane::awaiting_realization`, `BuilderPane::chosen`; `workshop/weave.hpp`
+`BuilderPane::awaiting_realization`, `BuilderPane::chosen`; `workshop/weave_pointer.cpp`
 `on(BuildStatus)`; `builder/vocabulary.hpp` `still_going`; `tests/test_workshop_panels.cpp` case
 `"a panel opened mid-build is TOLD it is running, and announces nothing"`, case `"a running build
 is on the panel, with its operation and its output count"`, case `"BLD-1: a build outcome and a
@@ -155,7 +156,7 @@ LAW — A `BuildStatus` with no Builder panel open is not remembered; closing th
 MEANS
 - a copy kept against a later panel makes a presentation a second owner of somebody else's facts.
 
-PROVEN BY — `workshop/weave.hpp` `on(BuildStatus)`; `workshop/panel.hpp` `close_panel`;
+PROVEN BY — `workshop/weave_pointer.cpp` `on(BuildStatus)`; `workshop/panel.hpp` `close_panel`;
 `tests/test_workshop_panels.cpp` case `"closing forgets the panel's copy; the TOOL keeps its own
 count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
@@ -168,11 +169,11 @@ MEANS
 - with no Builder panel open the key is unbound; a panel that has not heard cannot ask;
 - everything after the send belongs to the tool, the runner and the realization owner.
 
-PROVEN BY — `workshop/weave.hpp` `build_now`; `tests/test_workshop_panels.cpp` case `"Build asks
-for the name the TOOL gave, and asks for nothing without one"`, case `"a panel that has not heard
-from its tool cannot ask for a build"`, case `"BLD-1: `b` builds the recipe the maker chose, not
-the one last built"`, case `"BLD-1: `Shift+b` is BUILD & REALIZE, and the second intention crosses
-the seam"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `build_now`; `tests/test_workshop_panels.cpp` case
+`"Build asks for the name the TOOL gave, and asks for nothing without one"`, case `"a panel that
+has not heard from its tool cannot ask for a build"`, case `"BLD-1: `b` builds the recipe the
+maker chose, not the one last built"`, case `"BLD-1: `Shift+b` is BUILD & REALIZE, and the second
+intention crosses the seam"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
@@ -184,10 +185,10 @@ MEANS
 - `picked` tells an explicit pick from `chosen`'s default of 0, an index and not a choice;
 - there is no second build path, no direct load and no new sentence on the bus.
 
-PROVEN BY — `workshop/weave.hpp` `build_frontier`; `workshop/panel.hpp` `BuilderPane::picked`;
-`tests/test_workshop_panels.cpp` case `"BLD-2: `f` builds and realizes the ONE recipe that
-produces the frontier"`, case `"BLD-2: several recipes produce the frontier -- `f` never chooses
-for the maker"`.
+PROVEN BY — `workshop/weave_arrange.cpp` `build_frontier`; `workshop/panel.hpp`
+`BuilderPane::picked`; `tests/test_workshop_panels.cpp` case `"BLD-2: `f` builds and realizes the
+ONE recipe that produces the frontier"`, case `"BLD-2: several recipes produce the frontier -- `f`
+never chooses for the maker"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable

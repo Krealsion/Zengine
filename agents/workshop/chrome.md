@@ -11,12 +11,12 @@ MEANS
 - the outer rectangle — authored, dragged, hit-tested, ringed — is unchanged by the edge;
 - a terminal spends one cell; the shipped window spends one device pixel, drawn inside the pane.
 
-PROVEN BY — `workshop/screen.hpp` `pane_inside`, `pane_interior`, `chrome_grain`,
-`kChromeCells`, `kChromeSubs`; `surface/region.hpp` `subs_of_one_device`;
-`tests/test_workshop_screen.cpp` case
-`"WUX-5: a pane's interior is its outer rectangle less one cell of chrome"`, case `"WUX-8: the
-chrome a pane wears is one unit of the face in front of the maker"`, case `"WUX-8: the
-graphical boundary is one device pixel, drawn INSIDE the pane"`.
+PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `pane_interior`; `workshop/screen.hpp`
+`pane_interior`, `chrome_grain`, `kChromeCells`, `kChromeSubs`; `surface/region.hpp`
+`subs_of_one_device`; `tests/test_workshop_screen.cpp` case `"WUX-5: a pane's interior is its
+outer rectangle less one cell of chrome"`, case `"WUX-8: the chrome a pane wears is one unit of
+the face in front of the maker"`, case `"WUX-8: the graphical boundary is one device pixel, drawn
+INSIDE the pane"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-02 — Chrome thickness is presentation, never authored
@@ -45,10 +45,10 @@ MEANS
 DOES NOT MEAN
 - that the arrangement handles, the desk's stepping, the notice or the picker change with it.
 
-PROVEN BY — `workshop/screen.hpp` `pane_inside`, `detail::pane_inside_at`, `chrome_grain`,
-`kChromeSubs`; `tests/test_workshop_screen.cpp` case `"WUX-8: a face that describes an interior
-in CELLS pays the cell"`, case `"WUX-12/SC-2: a two-cell pane keeps its content and drops its
-boundary"`.
+PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `detail::pane_inside_at`;
+`workshop/screen.hpp` `chrome_grain`, `kChromeSubs`; `tests/test_workshop_screen.cpp` case
+`"WUX-8: a face that describes an interior in CELLS pays the cell"`, case `"WUX-12/SC-2: a
+two-cell pane keeps its content and drops its boundary"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-04 — The backdrop is the border
@@ -59,10 +59,10 @@ MEANS
 - there is no border painter and no thickness on any paint call to get wrong;
 - a face drawing the interior in pixels leaves a one-pixel ring; in cells, a one-cell ring.
 
-PROVEN BY — `workshop/screen.hpp` `pane_inside`, `paint_panel_frame`; `surface/vocabulary.hpp`
-`kGroundOwn`; `tests/test_workshop_screen.cpp` case `"WUX-8: the ring IS the backdrop the interior
-did not cover, on both faces"`, case `"WUX-5: the border a maker sees and the room a pane spends
-are one subtraction"`.
+PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`; `workshop/screen_pane_state.cpp`
+`paint_panel_frame`; `surface/vocabulary.hpp` `kGroundOwn`; `tests/test_workshop_screen.cpp` case
+`"WUX-8: the ring IS the backdrop the interior did not cover, on both faces"`, case `"WUX-5: the
+border a maker sees and the room a pane spends are one subtraction"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-05 — Every body resolution goes through `pane_inside`
@@ -74,8 +74,10 @@ MEANS
 - `PaneInside` carries the `RegionFit` beside the rectangle, so no interior is fitted twice;
 - the graphical room is the post-chrome pixels, and selection cannot move it.
 
-PROVEN BY — `workshop/screen.hpp` `external_body_place`, `info_body_place`, `panel_prose_place`,
-`layouts_body`, `pane_interior`, `PaneInside`, `RegionFit`, `PanelProsePlace`;
+PROVEN BY — `workshop/screen_external.cpp` `external_body_place`; `workshop/screen_info.cpp`
+`info_body_place`; `workshop/screen_pane_state.cpp` `panel_prose_place`;
+`workshop/screen_layouts.cpp` `layouts_body`; `workshop/screen.hpp` `pane_interior`, `PaneInside`,
+`RegionFit`, `PanelProsePlace`; `workshop/screen_chrome.cpp` `pane_interior`;
 `tests/test_workshop_screen.cpp` case `"WUX-5: the border a maker sees and the room a pane spends
 are one subtraction"`; `tests/test_workshop_panes_window.cpp` case `"WUX-8: the graphical room is
 the post-chrome pixels, and selection cannot move it"`.
@@ -98,9 +100,10 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 
 LAW — Ordinary and selected chrome have identical geometry — the same outer rect, body rect, capacity and press inverse — so pointing at a pane never moves its contents.
 
-PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`, `pane_inside`;
-`tests/test_workshop_screen.cpp` case `"WUX-8: selected and ordinary differ in INK, and in
-nothing else"`, case `"WUX-5: the selected pane wears its own chrome, and only it"`.
+PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`;
+`workshop/screen_chrome.cpp` `pane_inside`; `tests/test_workshop_screen.cpp` case `"WUX-8:
+selected and ordinary differ in INK, and in nothing else"`, case `"WUX-5: the selected pane wears
+its own chrome, and only it"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
