@@ -369,6 +369,7 @@ names.
 | layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |
 | maker-pane | `workshop_panels` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
+| session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
 
 ## Driving a live graphical witness
 

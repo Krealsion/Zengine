@@ -4,7 +4,7 @@
 // The bodies of `weave.hpp`'s sections -- the setup, the layout shelf and the last session --
 // compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
 // declarations, the constants and the constexpr functions stay in the header.
-// Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/layouts.md (+8 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
@@ -16,7 +16,7 @@ namespace zengine::workshop {
 // WL-ARR-03 -- agents/workshop/arrangement.md
 // WL-MAKER-09 -- agents/workshop/maker-pane.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
-// WL-SESSION-12 -- agents/workshop/session.md
+// WL-SESSION-12 -- agents/workshop/session-restore.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
     // MEMBERSHIP-DEPENDENT SESSION STATE FIRST. This is the one door a setup's
     // membership changes through -- the picker's removal, a restore, a geometry edit
@@ -297,7 +297,7 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
-// WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session.md
+// WL-SESSION-11, WL-SESSION-12, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MAKER-09 -- agents/workshop/maker-pane.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
@@ -453,7 +453,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-SESSION-13, WL-SESSION-15, WL-SESSION-16 -- agents/workshop/session.md
+// WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md; WL-SESSION-16 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::save_last_session() {
     if (host_->session_path.empty() || session_refused_) {

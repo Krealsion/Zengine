@@ -6,7 +6,7 @@
 
 // Workshop's own weave: the authored document, the session, and the bindings
 // from input MOMENTS to maker GESTURES.
-// Workshop law: agents/workshop/session.md (+12 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
 
 
 
@@ -1188,7 +1188,7 @@ private:
     std::string swallow_text_;
 
     /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
-    // WL-SESSION-14 -- agents/workshop/session.md
+    // WL-SESSION-14 -- agents/workshop/session-restore.md
     bool restored_ = false;
 
     /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
@@ -1221,7 +1221,7 @@ private:
     bool prefs_bad_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
-    // WL-SESSION-09 -- agents/workshop/session.md
+    // WL-SESSION-09 -- agents/workshop/session-restore.md
     bool medium_placed_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
