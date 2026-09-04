@@ -1720,9 +1720,14 @@ TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception
     // THE FORBIDDEN FORMS ARE QUOTED LITERALS AND IDENTIFIERS, never bare words. Prose
     // about a pane is not a branch on one, and a tripwire that could not tell the
     // difference would be a tripwire that forbids explaining the code.
-    for (const char* path : {WORKSHOP_HOST_CPP, WORKSHOP_WEAVE_HPP, WORKSHOP_SCREEN_HPP,
-                             WORKSHOP_PANEL_HPP}) {
-        const std::string source = file_source(path);
+    //
+    // THE POPULATION IS WALKED, NOT LISTED (`presentation_sources`, workshop_support.hpp):
+    // every presentation source under workshop/, the bodies in their own .cpp files
+    // included, plus the host -- a list of three headers failed open the day a body moved.
+    std::vector<std::string> sources = presentation_sources();
+    sources.push_back(WORKSHOP_HOST_CPP);
+    for (const std::string& path : sources) {
+        const std::string source = file_source(path.c_str());
         for (const char* forbidden : {"\"arrangement\"", "\"powers\"", "\"loaded\"",
                                       "kArrangementPane", "kPowersPane", "kLoadedPane",
                                       "introspection/", "kIntrospectionRole"}) {
@@ -1753,8 +1758,11 @@ TEST_CASE("BLD-2: the presentation holds no realization or build-runner reach") 
     // file, the offer only the TOOL may make, the runner's own order, and the runner's
     // office. A presentation that could spell any of them is a presentation one edit
     // away from building or realizing on its own authority.
-    for (const char* path : {WORKSHOP_WEAVE_HPP, WORKSHOP_SCREEN_HPP, WORKSHOP_PANEL_HPP}) {
-        const std::string source = file_source(path);
+    //
+    // The population is the presentation's sources, walked (`presentation_sources`): the
+    // bodies moved out of weave.hpp and screen.hpp are read under the same forms.
+    for (const std::string& path : presentation_sources()) {
+        const std::string source = file_source(path.c_str());
         for (const char* forbidden : {"PlanExecutor", "load_execute", "OfferArtifact",
                                       "RunBuild", "kBuildRunnerRole"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",

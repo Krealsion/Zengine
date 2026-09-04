@@ -835,7 +835,11 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # in `workshop_load`, whose rigs drain in bounded turns, and in the live run.
 set(ZENGINE_WORKSHOP_LIBS
     loom::kernel loom::switchboard loom::core loom::terminal
-    zengine-workshop-vocabulary zengine-workshop-load
+    # The vocabulary is the headers; the logic is their bodies, compiled once
+    # (workshop/CMakeLists.txt). A suite that included the bodies instead would emit the
+    # whole closure again -- which is what every suite did, and what the ceiling account
+    # in the top-level CMakeLists.txt measured.
+    zengine-workshop-vocabulary zengine-workshop-logic zengine-workshop-load
     zengine-surface-vocabulary zengine-ui-vocabulary
     zengine-introspection-view zengine-composer-vocabulary
     zengine-timer-vocabulary zengine-warnings
@@ -845,6 +849,12 @@ set(ZENGINE_WORKSHOP_LIBS
 # them. The three fixtures stand in for the things a plan can point at and get wrong;
 # `zengine-operators-basic` is what the shipped plan actually names.
 set(ZENGINE_WORKSHOP_DEFS
+    # THE PRESENTATION'S SOURCES, AS A DIRECTORY RATHER THAN A LIST. The tripwires that
+    # read Workshop as text used to be handed one macro per file, and a list of files
+    # fails OPEN: a body that moves into a new `workshop/<subject>.cpp` is simply not on
+    # it. `presentation_sources()` (workshop_support.hpp) walks this directory instead,
+    # asserts a floor on what it found, and excludes the host's side of the seam by name.
+    "WORKSHOP_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/workshop\""
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
@@ -966,7 +976,8 @@ zengine_workshop_suite(panels
 
 # ---- INTR-1's SOURCE TRIPWIRES -------------------------------------------------------
 #
-# FIVE FILES READ AS FILES, and the pair of claims is why. Workshop's four say
+# SOURCES READ AS FILES, and the pair of claims is why. The presentation's sources --
+# walked from WORKSHOP_SOURCE_DIR (ZENGINE_WORKSHOP_DEFS above), plus the host -- say
 # "this host was TAUGHT no pane" -- neither of the two INTR-1 added, nor the one
 # INTR-0 added -- which no rig can prove, because every rig here would stay green
 # if Workshop grew a special case that happened to agree with the generic path.
@@ -986,9 +997,6 @@ zengine_workshop_suite(panes
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
-                "WORKSHOP_WEAVE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/weave.hpp\""
-                "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
-                "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
                 "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\""
                 # SOURCE-1's structural half of "browsing does not evaluate": the pane's

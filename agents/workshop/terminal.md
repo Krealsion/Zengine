@@ -13,7 +13,7 @@ MEANS
 - a closed overlay leaves every ordinary Workshop gesture exactly as it was;
 - the above-mode chords still work inside it: `^s` saves, `^c` copies.
 
-PROVEN BY — `workshop/weave.hpp` `toggle_terminal`, `terminal_key`, `terminal_press`;
+PROVEN BY — `workshop/weave_terminal.cpp` `toggle_terminal`, `terminal_key`, `terminal_press`;
 `workshop/screen.hpp` `TerminalPane`; `workshop/keymap.hpp` `workshop.terminal`,
 `KeyContext::kTerminal`; `tests/test_workshop_screen.cpp` case `"the terminal toggle opens the
 overlay, and the same toggle closes it"`, case `"the toggle's own keystroke never becomes text, in
@@ -29,12 +29,13 @@ LAW — A typed line reaches the `loom::TerminalSession`'s own record; a typed s
 MEANS
 - an address without its sigil sends nothing and records nothing.
 
-PROVEN BY — `workshop/weave.hpp` `submit_terminal_line`, `HostContext::terminal`;
-`workshop/complete.hpp` `read_command_line`; `workshop/screen.hpp` `terminal_address`;
-`tests/test_workshop_screen.cpp` case `"a typed line reaches the participant's own record,
-understood or not"`, case `"a typed send leaves through the PARTICIPANT's door, on Workshop's own
-bus"`, case `"the address grammar the pane reads is Loom's own, not a second one"`, case `"an ask
-waits, and LOOM's own answer settles it on the screen"`.
+PROVEN BY — `workshop/weave_terminal.cpp` `submit_terminal_line`; `workshop/weave.hpp`
+`HostContext::terminal`; `workshop/complete.hpp` `read_command_line`;
+`workshop/screen_terminal.cpp` `terminal_address`; `tests/test_workshop_screen.cpp` case `"a typed
+line reaches the participant's own record, understood or not"`, case `"a typed send leaves through
+the PARTICIPANT's door, on Workshop's own bus"`, case `"the address grammar the pane reads is
+Loom's own, not a second one"`, case `"an ask waits, and LOOM's own answer settles it on the
+screen"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-03 — The pane is one bounded region that fits entries, and says what it omits
@@ -46,14 +47,15 @@ MEANS
 - a medium that sets type reflows the pane, and the omission stays true;
 - the snapshot outlives the participant it came from.
 
-PROVEN BY — `workshop/screen.hpp` `TerminalPane`, `entries_that_fit`, `terminal_omission`,
-`paint_terminal`, `kTerminalMinH`, `kTerminalChrome`, `kTerminalMinCols`, `Screen::terminal_cols`,
-`Screen::terminal_rows`; `workshop/weave.hpp` `refresh_terminal`; `tests/test_workshop_screen.cpp`
-case `"the pane is published as ONE bounded region, placed in cells"`, case `"a medium that sets
-real type reflows the pane, and the omission stays true"`, case `"the pane says what it is not
-showing, in the two senses that differ"`, case `"the pane's snapshot outlives the participant it
-came from"`; `tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what
-it could not show"`.
+PROVEN BY — `workshop/screen.hpp` `TerminalPane`, `kTerminalMinH`, `kTerminalChrome`,
+`kTerminalMinCols`, `Screen::terminal_cols`, `Screen::terminal_rows`;
+`workshop/screen_terminal.cpp` `entries_that_fit`, `terminal_omission`, `paint_terminal`;
+`workshop/weave_terminal.cpp` `refresh_terminal`; `tests/test_workshop_screen.cpp` case `"the pane
+is published as ONE bounded region, placed in cells"`, case `"a medium that sets real type reflows
+the pane, and the omission stays true"`, case `"the pane says what it is not showing, in the two
+senses that differ"`, case `"the pane's snapshot outlives the participant it came from"`;
+`tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what it could not
+show"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
@@ -67,12 +69,12 @@ MEANS
 
 PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `TerminalVerb`,
 `kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`,
-`CommandLine::said`, `starts_with`, `named_already`; `workshop/weave.hpp` `submit_terminal_line`;
-`tests/test_workshop_panels.cpp` case `"a half-typed line says which part of it the maker is
-standing in"`, case `"the verbs a maker is offered are the verbs the submitter runs"`, case `"an
-address offers the three forms and never pretends to know the values"`, case `"arguments offer
-field NAMES, never values, and the heading is compose()'s verdict"`, case `"a quoted token is left
-alone, because the quote is not on the line the completer sees"`.
+`CommandLine::said`, `starts_with`, `named_already`; `workshop/weave_terminal.cpp`
+`submit_terminal_line`; `tests/test_workshop_panels.cpp` case `"a half-typed line says which part
+of it the maker is standing in"`, case `"the verbs a maker is offered are the verbs the submitter
+runs"`, case `"an address offers the three forms and never pretends to know the values"`, case
+`"arguments offer field NAMES, never values, and the heading is compose()'s verdict"`, case `"a
+quoted token is left alone, because the quote is not on the line the completer sees"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-05 — Browsing candidates authors nothing
@@ -82,14 +84,14 @@ LAW — Browsing sends no traffic, opens no ask and writes no transcript entry; 
 MEANS
 - the completion keys are unbound in this mode: Tab opens, Up and Down move, Up at the top stays.
 
-PROVEN BY — `workshop/weave.hpp` `accept_completion`, `move_completion`,
-`completion_selectable`, `terminal_key`; `workshop/screen.hpp` `completion_rows`,
-`completion_first_shown`, `kCompletionMinRows`, `TerminalPane::dismissed`, `TerminalPane::asked`;
-`tests/test_workshop_panels.cpp` case `"browsing candidates authors NOTHING -- no traffic, no ask,
-no transcript entry"`, case `"accepting a candidate edits the line, and the grammar's separators
-stay right"`, case `"the completion keys were unbound in this mode, and the ones that were not
-still work"`, case `"an untouched line asks nothing, so the answer to the last command stays
-readable"`.
+PROVEN BY — `workshop/weave_terminal.cpp` `accept_completion`, `move_completion`,
+`completion_selectable`, `terminal_key`; `workshop/screen_terminal.cpp` `completion_rows`;
+`workshop/screen.hpp` `completion_first_shown`, `kCompletionMinRows`, `TerminalPane::dismissed`,
+`TerminalPane::asked`; `tests/test_workshop_panels.cpp` case `"browsing candidates authors NOTHING
+-- no traffic, no ask, no transcript entry"`, case `"accepting a candidate edits the line, and the
+grammar's separators stay right"`, case `"the completion keys were unbound in this mode, and the
+ones that were not still work"`, case `"an untouched line asks nothing, so the answer to the last
+command stays readable"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-06 — The completion list is a bounded region inside the pane
@@ -100,32 +102,32 @@ MEANS
 - the list clears the input line under a real metric too, where a row is not a cell;
 - the terminal medium projects the list honestly, ground and all.
 
-PROVEN BY — `workshop/screen.hpp` `completion_rows`, `completion_first_shown`,
-`CompletionPlace`; `tests/test_workshop_panels.cpp` case `"the list is a bounded region inside the
-pane, and never over the input line"`, case `"the list clears the input line under a real metric
-too, where a row is not a cell"`, case `"the list says which slice of a long vocabulary it is
-showing"`, case `"the list covers transcript rows and changes nothing about what the pane omits"`,
-case `"the terminal medium projects the list honestly, ground and all"`.
+PROVEN BY — `workshop/screen_terminal.cpp` `completion_rows`; `workshop/screen.hpp`
+`completion_first_shown`, `CompletionPlace`; `tests/test_workshop_panels.cpp` case `"the list is a
+bounded region inside the pane, and never over the input line"`, case `"the list clears the input
+line under a real metric too, where a row is not a cell"`, case `"the list says which slice of a
+long vocabulary it is showing"`, case `"the list covers transcript rows and changes nothing about
+what the pane omits"`, case `"the terminal medium projects the list honestly, ground and all"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-07 — Wrapping is a presentation act
 
 LAW — A sentence takes as many rows as it needs, and the pane states its whole grammar wrapped with nothing elided.
 
-PROVEN BY — `workshop/screen.hpp` `paint_terminal`, `wrap`, `terminal_line`, `terminal_legend`,
-`terminal_wrapped`; `tests/test_workshop_panels.cpp` case `"wrapping is a presentation act: as
-many rows as the sentence needs"`, case `"the pane states its whole grammar, wrapped, with nothing
-elided"`.
+PROVEN BY — `workshop/screen_terminal.cpp` `paint_terminal`, `terminal_line`, `terminal_legend`,
+`terminal_wrapped`; `workshop/screen_gestures.cpp` `wrap`; `tests/test_workshop_panels.cpp` case
+`"wrapping is a presentation act: as many rows as the sentence needs"`, case `"the pane states its
+whole grammar, wrapped, with nothing elided"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-08 — A fresh skin clears nothing, and no participant is said plainly
 
 LAW — A fresh skin's hello does not clear the presentation context, and a Workshop with no participant says so and authors nothing; `open` is the mode and `attached` the participant.
 
-PROVEN BY — `workshop/weave.hpp` `refresh_terminal`, `attached`; `workshop/screen.hpp`
+PROVEN BY — `workshop/weave_terminal.cpp` `refresh_terminal`, `attached`; `workshop/screen.hpp`
 `TerminalPane`; `tests/test_workshop_screen.cpp` case `"a fresh skin's hello does NOT clear the
-presentation context -- measured, not blessed"`, case `"a Workshop with no participant says so
-and authors nothing"`.
+presentation context -- measured, not blessed"`, case `"a Workshop with no participant says so and
+authors nothing"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-09 — A press in the pane is the pane's
@@ -137,11 +139,11 @@ MEANS
 - clicking a completion row selects it, and Tab accepts what was clicked;
 - a terminal medium's press reaches the same local hit model.
 
-PROVEN BY — `workshop/weave.hpp` `terminal_press`; `workshop/screen.hpp` `terminal_input_place`,
-`kTerminalPromptCols`, `kTerminalCaretCols`, `TerminalInputPlace`, `terminal_input_hit`,
-`TerminalInputPlace::columns`; `tests/test_workshop_screen.cpp` case `"HD-3: a press on the input
-row places the caret where the maker aimed"`, case `"HD-3: a press in the pane never reaches the
-workspace underneath it"`, case `"HD-3: opening the pane mid-drag does not strand the gesture"`,
-case `"HD-3: clicking a completion row selects it, and Tab accepts what was clicked"`, case
-`"HD-3: the pane publishes a caret, and both media answer it in their own type"`.
+PROVEN BY — `workshop/weave_terminal.cpp` `terminal_press`; `workshop/screen.hpp`
+`terminal_input_place`, `kTerminalPromptCols`, `kTerminalCaretCols`, `TerminalInputPlace`,
+`terminal_input_hit`, `TerminalInputPlace::columns`; `tests/test_workshop_screen.cpp` case `"HD-3:
+a press on the input row places the caret where the maker aimed"`, case `"HD-3: a press in the
+pane never reaches the workspace underneath it"`, case `"HD-3: opening the pane mid-drag does not
+strand the gesture"`, case `"HD-3: clicking a completion row selects it, and Tab accepts what was
+clicked"`, case `"HD-3: the pane publishes a caret, and both media answer it in their own type"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
