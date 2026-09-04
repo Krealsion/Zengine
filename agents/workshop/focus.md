@@ -14,7 +14,7 @@ MEANS
 
 PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;
 `workshop/screen_arrange.cpp` `editor_has_keyboard`, `files_has_keyboard`,
-`pane_editor_has_keyboard`; `workshop/weave_save.cpp` `keyboard_pane`;
+`pane_editor_has_keyboard`; `workshop/weave_external.cpp` `keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external pane's room points
 the keyboard at it"`, case `"MSG-0: a press into a second external pane moves the keyboard to
 it"`, case `"MSG-0: a pane that stops being presentable stops being typed into"`.
@@ -67,10 +67,10 @@ LAW — A pane that closes, stops resolving or loses its room stops being the an
 MEANS
 - a press on nothing, and Escape's final fallthrough, say "nowhere" — not a clearing path.
 
-PROVEN BY — `workshop/panel.hpp` `keyboard_pane`, `Panels::keyboard`; `workshop/weave_save.cpp`
-`unselect_pane`, `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a pane that
-stops being presentable stops being typed into"`, case `"MSG-0: a pane with no room granted is not
-typed into"`.
+PROVEN BY — `workshop/panel.hpp` `keyboard_pane`, `Panels::keyboard`;
+`workshop/weave_external.cpp` `unselect_pane`, `keyboard_pane`;
+`tests/test_workshop_panes_input.cpp` case `"MSG-0: a pane that stops being presentable stops
+being typed into"`, case `"MSG-0: a pane with no room granted is not typed into"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-06 — The modes above it never reach that line
@@ -118,7 +118,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — The pane with the keys wears the `> ` mark in its header, and the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`, its chords from the keymap.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
-`workshop/screen.hpp` `kTypingHere`; `workshop/screen_pane_editor.cpp` `band_region`;
+`workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the
 screen says which pane the keys are going to, in two places"`; `tests/test_workshop_editor.cpp`
 case `"EDIT-0: the band and the header both say where typing goes"`.

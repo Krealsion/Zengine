@@ -136,7 +136,7 @@ MEANS
 - the full rows fold four families exactly while every member sits on its default (`help_pairs`);
 - the hotkey view remains the complete list in every mode.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `band_region`; `workshop/screen_gestures.cpp`
+PROVEN BY — `workshop/screen_compose.cpp` `band_region`; `workshop/screen_gestures.cpp`
 `help_rows`; `workshop/screen_bindings.cpp` `help_pairs`; `workshop/keymap.hpp` `legend_mode`;
 `workshop/keymap_persist.hpp` `kLegendDefault`; `tests/test_workshop_document.cpp` case `"KEY-0:
 the legend's three modes project the band, and hidden unbinds nothing"`, case `"WUX-1/SC-3: the

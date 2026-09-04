@@ -1,0 +1,38 @@
+# The Workshop residues' sheet, regenerated from 45da4e8 by apply.py seed grab-bags; one row per moved body.
+source	name	first_param	pointer_first	start_line	end_line	pointer_ids	destination	banner
+workshop/screen_pane_editor.cpp	paint_panels	SurfaceCanvas	771	773	848	WL-FRONT-01,WL-FRONT-05,WL-FRONT-07,WL-MAKER-05	workshop/screen_compose.cpp	// ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
+workshop/screen_pane_editor.cpp	band_region	Session	850	850	949		workshop/screen_compose.cpp	// ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
+workshop/screen_pane_editor.cpp	paint	WorkshopDoc	951	955	1205	WL-FRONT-01,WL-FRONT-07,WL-ATTN-04,WL-DOC-18,WL-RGN-05	workshop/screen_compose.cpp	// ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
+workshop/weave_save.cpp	create_object		75	75	85		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	deleted_notice	int64_t	87	88	94	WL-DOC-10	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	delete_object		96	96	104		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	delete_object_at	int64_t	106	107	116	WL-CTX-07	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	context_delete_object	int64_t	118	119	133	WL-CTX-07	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	move_by	int64_t	135	135	145		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	size_by	int64_t	147	148	158	WL-DOC-07	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	edge_of	Handled	160	161	163	WL-DOC-08	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	move_notice	Element	165	166	172	WL-DOC-06	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	size_notice	Element	174	174	177		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	inspector_shown		179	179	179		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	inspector_absent		181	182	190	WL-INFO-10	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	move_cursor	int64_t	192	192	203		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	begin_edit		205	206	224	WL-INFO-05	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	resize_workspace	int64_t	226	226	243		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	select_next		245	245	257		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	select	int64_t	259	259	265		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	rebuild_rows		267	268	268	WL-INFO-06	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	refresh_setup_name		270	271	277	WL-TEXT-03	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	say	string	279	279	282		workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	status_line		284	285	294	WL-DOC-19	workshop/weave_document.cpp	// ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+workshop/weave_save.cpp	refresh_external_rooms	Mail	296	297	334	WL-PANE-06	workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	external_press	int64_t	336	337	356	WL-PRESS-04	workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	keyboard_pane		358	359	361	WL-FOCUS-01,WL-FOCUS-05	workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	external_key	int64_t	363	363	371		workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	external_wheel	int64_t	373	373	388		workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	unselect_pane		390	393	398	WL-ARR-13,WL-ARR-14,WL-FOCUS-05,WL-FRONT-04	workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	external_text	int64_t	400	400	408		workshop/weave_external.cpp	// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+workshop/weave_save.cpp	frontier_now		410	411	413	WL-ATTN-04	workshop/weave_run.cpp	// ---- THE RUN: what is true now, the picture published, and the way out --------------
+workshop/weave_save.cpp	interaction_now		415	415	417		workshop/weave_run.cpp	// ---- THE RUN: what is true now, the picture published, and the way out --------------
+workshop/weave_save.cpp	repaint	Mail	419	419	448		workshop/weave_run.cpp	// ---- THE RUN: what is true now, the picture published, and the way out --------------
+workshop/weave_save.cpp	quit		450	453	481	WL-EDIT-03,WL-MAKER-08,WL-SESSION-13	workshop/weave_run.cpp	// ---- THE RUN: what is true now, the picture published, and the way out --------------
+workshop/weave_save.cpp	finish_draft_first		483	484	487	WL-CTX-07,WL-CTRL-03	workshop/weave_run.cpp	// ---- THE RUN: what is true now, the picture published, and the way out --------------

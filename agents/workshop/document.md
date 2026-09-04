@@ -71,7 +71,7 @@ MEANS
 - the inspector and the maker's hand write through the one operation.
 
 PROVEN BY — `workshop/document.hpp` `move`, `set_x`, `set_y`, `check_coord`, `kFirstCell`;
-`workshop/weave_save.cpp` `move_notice`; `workshop/screen_gestures.cpp` `nudge`, `place`;
+`workshop/weave_document.cpp` `move_notice`; `workshop/screen_gestures.cpp` `nudge`, `place`;
 `tests/test_workshop_document.cpp` case `"a move is ONE authored change: a refused move writes
 neither coordinate"`, case `"the inspector and the maker's hand write through ONE position
 operation"`; `tests/test_workshop_screen.cpp` case `"a coordinate is a workspace cell at the root
@@ -86,7 +86,7 @@ MEANS
 - the inspector and the maker's hand write through the one operation.
 
 PROVEN BY — `workshop/document.hpp` `resize`, `set_width`, `set_height`, `check_extent`,
-`kMaxCells`; `workshop/weave_save.cpp` `size_by`; `workshop/screen_gestures.cpp`
+`kMaxCells`; `workshop/weave_document.cpp` `size_by`; `workshop/screen_gestures.cpp`
 `extent_from_drag`, `size_to`, `grow`; `tests/test_workshop_document.cpp` case `"resizing a cells
 extent authors cells, and every reading of the object follows"`, case `"resizing a share authors a
 SHARE, and the number is the smallest one that fits"`, case `"the projection is stable: the same
@@ -100,7 +100,7 @@ LAW — `check_extent` sets the minimum (one cell, one percent), not the resolut
 
 PROVEN BY — `workshop/document.hpp` `check_extent`; `workshop/screen.hpp` `Handled`,
 `kAtWholeContext`, `kAtWorkspaceStart`; `workshop/screen_gestures.cpp` `place`;
-`workshop/weave_save.cpp` `edge_of`; `tests/test_workshop_document.cpp` case `"the authored
+`workshop/weave_document.cpp` `edge_of`; `tests/test_workshop_document.cpp` case `"the authored
 minimum is the DOCUMENT's, not the resolution floor"`, case `"a hand STOPS at a boundary and a
 written value is REFUSED, and they are told apart"`, case `"move and resize meet the workspace
 with one policy, in two different walls"`.
@@ -115,11 +115,12 @@ MEANS
 - a body press reaches move, a handle press reaches resize; Shift turns move into resize.
 
 PROVEN BY — `workshop/screen.hpp` `Drag`, `kHandleGlyph`, `Handle`;
-`workshop/screen_gestures.cpp` `size_handle`, `begin_drag`, `drag_to`; `workshop/weave_save.cpp`
-`move_by`; `tests/test_workshop_document.cpp` case `"a drag takes hold of what the maker can see,
-and the grabbed point follows"`, case `"a press on empty space grabs nothing, and a drag against
-the edge slides along it"`, case `"a press grabs from ITS OWN position, with no motion event
-anywhere"`, case `"the four resize keys and the handle are ONE gesture, reached two ways"`.
+`workshop/screen_gestures.cpp` `size_handle`, `begin_drag`, `drag_to`;
+`workshop/weave_document.cpp` `move_by`; `tests/test_workshop_document.cpp` case `"a drag takes
+hold of what the maker can see, and the grabbed point follows"`, case `"a press on empty space
+grabs nothing, and a drag against the edge slides along it"`, case `"a press grabs from ITS OWN
+position, with no motion event anywhere"`, case `"the four resize keys and the handle are ONE
+gesture, reached two ways"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-10 — Creating mints, deleting removes exactly one identity
@@ -131,7 +132,7 @@ MEANS
 - create after empty: the document comes back, and the tool never left.
 
 PROVEN BY — `workshop/document.hpp` `add_default`, `remove`, `kNewX`, `kNewWidthCells`,
-`kNewLabel`; `workshop/weave_save.cpp` `create_object`, `delete_object`, `deleted_notice`;
+`kNewLabel`; `workshop/weave_document.cpp` `create_object`, `delete_object`, `deleted_notice`;
 `workshop/screen_gestures.cpp` `create`, `delete_selected`; `tests/test_workshop_document.cpp`
 case `"creating mints a fresh identity, and the identity is not the label or the index"`, case
 `"delete removes exactly one identity, and the other duplicate label survives"`, case `"the
@@ -175,7 +176,7 @@ MEANS
 - a run no medium measures is exactly the run Workshop had before.
 
 PROVEN BY — `workshop/screen_bindings.cpp` `adopt_screen`; `workshop/screen.hpp` `kWorkspaceW`,
-`kWorkspaceH`; `workshop/weave_save.cpp` `resize_workspace`; `workshop/weave_handlers.cpp`
+`kWorkspaceH`; `workshop/weave_document.cpp` `resize_workspace`; `workshop/weave_handlers.cpp`
 `on(SurfaceExtent)`; `workshop/keymap.hpp` `workspace.narrower`, `workspace.wider`;
 `tests/test_workshop_panels.cpp` case `"taking the room refits the workspace, and says whether
 anything moved"`, case `"a maker's authored work keeps its place while the surface grows"`, case
@@ -191,7 +192,7 @@ LAW — Canvas, object list and inspector agree after every gesture, through the
 MEANS
 - a pointer in a space Workshop does not speak is ignored, not mis-placed.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `paint`; `workshop/screen_bindings.cpp`
+PROVEN BY — `workshop/screen_compose.cpp` `paint`; `workshop/screen_bindings.cpp`
 `workspace_scene`; `tests/test_workshop_document.cpp` case `"canvas, object list and inspector
 agree after every gesture in a session"`, case `"the semantic operations are still the only
 authority, through the message path"`, case `"the pointer lands where the Skin actually drew the

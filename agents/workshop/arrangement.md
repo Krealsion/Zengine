@@ -184,7 +184,7 @@ MEANS
 - a desk whose panes cover every usable cell still reaches selection = none;
 - it is not a keymap action: a recovery gesture must not be authorable into a lockout.
 
-PROVEN BY — `workshop/weave_save.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
+PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `escape_may_shed_selection`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
 clears the ordinary selection last, and the Pane Editor's subject stands"`, case `"QR-18/SC-2:
 every more-specific Escape meaning answers first, and deselection waits"`, case `"QR-18/SC-4: a
@@ -195,7 +195,7 @@ WHY — `agents/decisions/escape-is-back.md`
 
 LAW — The source editor's Escape is a pinned no-op, and a focused external pane has already been sent the key; the way out of either is a press on a pane that takes no text, then Escape.
 
-PROVEN BY — `workshop/weave_save.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
+PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `escape_may_shed_selection`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
 `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text,
 then Escape, puts the selection down"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: Escape
