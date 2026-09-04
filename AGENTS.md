@@ -15,7 +15,7 @@ routed: read a surface's document when the task touches that surface, not before
 
 | the task touches… | read |
 |---|---|
-| lanes, suites, populations, CI, what a green means, platform build traps | [agents/verification.md](agents/verification.md) |
+| lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers under `agents/verification/` |
 | `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
 | `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
@@ -118,8 +118,9 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Three entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names
   a path outside the repository), `package_vocabulary` (the installed package's nouns) and
-  `law_register` (Workshop's registers: the form, and every name they make). Full contract
-  detail: [agents/verification.md](agents/verification.md).
+  `law_register` (the registers under `agents/`: the form, every name they make, and every
+  file's byte budget). Full contract detail:
+  [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
 
