@@ -1083,7 +1083,8 @@ ui_authored_element_compiles      compile-positive  always
 doc_links                         script            always
 package_vocabulary                script            always
 # The law-register check joins the two script rows, in `always` for their reason: it reads
-# the source tree -- the registers under agents/workshop/, the decision records, the tests'
-# TEST_CASE literals and the `// WL-` pointers -- so no gate opens or closes over it, and its
-# registration being declared here is what makes deleting it a red rather than a quieter lane.
+# the source tree -- the registers under agents/workshop/ and agents/verification/, the
+# decision records, the tests' TEST_CASE literals, the `// WL-` pointers and the byte size of
+# every file under agents/ -- so no gate opens or closes over it, and its registration being
+# declared here is what makes deleting it a red rather than a quieter lane.
 law_register                      script            always
