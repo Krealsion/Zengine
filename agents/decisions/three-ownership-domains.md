@@ -46,9 +46,9 @@ carry; an environment with no resolvable root is the same absence, said once. A 
 viewport is not a refusal, so that run keeps its session; a refused one stands as a condition
 with a maker action. The document is still not read at launch.
 
-**Laws supported.** [WL-SESSION-01](../workshop/session.md),
-[WL-SESSION-02](../workshop/session.md), [WL-SESSION-03](../workshop/session.md),
-[WL-SESSION-04](../workshop/session.md), [WL-SESSION-13](../workshop/session.md),
-[WL-SESSION-14](../workshop/session-restore.md), [WL-SESSION-15](../workshop/session.md),
+**Laws supported.** [WL-SESSION-14](../workshop/session-restore.md),
 [WL-SESSION-16](../workshop/session-restore.md), [WL-SESSION-17](../workshop/session-restore.md),
+[WL-SESSION-01](../workshop/session.md), [WL-SESSION-02](../workshop/session.md),
+[WL-SESSION-03](../workshop/session.md), [WL-SESSION-04](../workshop/session.md),
+[WL-SESSION-13](../workshop/session.md), [WL-SESSION-15](../workshop/session.md),
 [WL-SESSION-18](../workshop/session.md).

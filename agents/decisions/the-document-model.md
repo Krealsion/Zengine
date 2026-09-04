@@ -79,13 +79,13 @@ The safe write's rename replaces an existing destination on both lanes, measured
 `rename(2)`, and on Windows libstdc++'s `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING` (case
 `"a detected write failure leaves the last good save readable and unchanged"`).
 
-**Laws supported.** [WL-DOC-01](../workshop/document.md), [WL-DOC-02](../workshop/document.md),
+**Laws supported.** [WL-DOC-13](../workshop/document-file.md),
+[WL-DOC-14](../workshop/document-file.md), [WL-DOC-15](../workshop/document-file.md),
+[WL-DOC-16](../workshop/document-file.md), [WL-DOC-19](../workshop/document-file.md),
+[WL-DOC-01](../workshop/document.md), [WL-DOC-02](../workshop/document.md),
 [WL-DOC-03](../workshop/document.md), [WL-DOC-04](../workshop/document.md),
 [WL-DOC-05](../workshop/document.md), [WL-DOC-06](../workshop/document.md),
 [WL-DOC-07](../workshop/document.md), [WL-DOC-08](../workshop/document.md),
 [WL-DOC-09](../workshop/document.md), [WL-DOC-10](../workshop/document.md),
 [WL-DOC-11](../workshop/document.md), [WL-DOC-12](../workshop/document.md),
-[WL-DOC-13](../workshop/document-file.md), [WL-DOC-14](../workshop/document-file.md),
-[WL-DOC-15](../workshop/document-file.md), [WL-DOC-16](../workshop/document-file.md),
-[WL-DOC-17](../workshop/document.md), [WL-DOC-18](../workshop/document.md),
-[WL-DOC-19](../workshop/document-file.md).
+[WL-DOC-17](../workshop/document.md), [WL-DOC-18](../workshop/document.md).
