@@ -115,14 +115,15 @@ MEANS
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
 PROVEN BY — `workshop/weave.hpp` `quit`, `open_maker_pane`, `save_maker_pane`,
-`discard_maker_pane_edits`, `pane_refused_`, `new_maker_pane`, `pane_path`, `host_pane_path`,
-`load_pane_definition`; `workshop/screen.hpp` `kPaneWallKey`;
-`workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp` `Panels::maker`;
-`workshop/pane_definition.hpp` `MakerPane`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
-the maker saves or discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its
-file, and closes a pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a
-malformed file cannot replace a live definition, and a refused file is never written over"`.
+`discard_maker_pane_edits`, `WorkshopWeave::pane_refused_`, `new_maker_pane`,
+`HostContext::pane_path`, `host_pane_path`, `load_pane_definition`; `workshop/screen.hpp`
+`kPaneWallKey`; `workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp`
+`Panels::maker`; `workshop/pane_definition.hpp` `MakerPane`;
+`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-14: dirty pane truth refuses the quit, a
+second new pane and a replacing open until the maker saves or discards"`, case `"WUX-14/SC-14: the
+discard door puts a saved pane back to its file, and closes a pane that was never saved while
+keeping its row"`, case `"WUX-14/SC-15: a malformed file cannot replace a live definition, and a
+refused file is never written over"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-09 — Startup order is the relaunch story
@@ -130,11 +131,11 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 LAW — The pane definition is loaded before the last session is restored, because the restore seats only what resolves at that moment; the session carries the row and no byte of the interior.
 
 PROVEN BY — `workshop/weave.hpp` `apply_setup`, `load_pane_definition`,
-`restore_last_session`, `pane_loaded_`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its
-reference; remove the file and the row is kept unresolved"`, case `"WUX-14/SC-9: the maker's
-pane is edited, ordered and removed by the doors every pane has, and comes back through the
-session by its reference"`.
+`restore_last_session`, `WorkshopWeave::pane_loaded_`; `tests/test_workshop_panels_creator.cpp`
+case `"WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its
+reference; remove the file and the row is kept unresolved"`, case `"WUX-14/SC-9: the maker's pane
+is edited, ordered and removed by the doors every pane has, and comes back through the session by
+its reference"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-10 — The pane file, and what it cannot say
@@ -162,8 +163,8 @@ MEANS
 - `kNewRegionX/Y/W/H` are 0, 0, 24 cells, 2 cells: two tall so the face sets one row of type;
 - at the minimum composition a new pane lands `waiting`, says so, and stays the editable subject.
 
-PROVEN BY — `workshop/keymap.hpp` `kPaneNaming`; `workshop/screen.hpp` `pane_naming`,
-`PaneNaming`; `workshop/weave.hpp` `new_maker_pane`, `save_maker_pane`,
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kPaneNaming`; `workshop/screen.hpp`
+`Session::pane_naming`, `PaneNaming`; `workshop/weave.hpp` `new_maker_pane`, `save_maker_pane`,
 `discard_maker_pane_edits`, `naming_line`; `workshop/pane_definition.hpp` `kNewRegionX`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14: the name prompt refuses a bad name in
 words and keeps it, cancels cleanly, and swallows its own trigger"`, case `"WUX-14: at the minimum

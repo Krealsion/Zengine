@@ -74,9 +74,9 @@ MEANS
 - the refusal leaves the live setup and its on-file copy untouched.
 
 PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `from_text`,
-`format_version`, `wrong_version`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a
-version-1 file is refused BY NUMBER, before its rows are judged"`, case `"WIND-2: a version-1 file
-leaves the live setup and its on-file copy untouched"`.
+`WorkshopSetup::format_version`, `wrong_version`; `tests/test_workshop_panes_window.cpp` case
+`"WIND-2: a version-1 file is refused BY NUMBER, before its rows are judged"`, case `"WIND-2: a
+version-1 file leaves the live setup and its on-file copy untouched"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-06 — `pixels` is declared, valid everywhere, and refused at projection

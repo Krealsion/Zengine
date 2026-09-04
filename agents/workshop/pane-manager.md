@@ -29,7 +29,7 @@ MEANS
 - that is what lets the manager be its own subject: choose it, type into its `X`, and it moves;
 - it is not persisted: a subject is interaction state, not a preference riding an artifact.
 
-PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `pane_editor`; `workshop/weave.hpp`
+PROVEN BY — `workshop/screen.hpp` `PaneEditor`, `Session::pane_editor`; `workshop/weave.hpp`
 `choose_subject`, `pane_editor_press`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the
 subject is chosen, and interacting inside the editor does not retarget it"`, case `"WUX-13/SC-15:
 the Pane Editor can be its own subject, and its own rows do not retarget it"`, case
@@ -110,9 +110,10 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `keyboard_context_beneath_menu`, `pane_editor_has_keyboard`,
 `draft_live`, `pane_editor_draft_live`; `workshop/weave.hpp` `editing_row`;
-`workshop/keymap.hpp` `kDraft`, `kPaneEditor`; `tests/test_workshop_panels.cpp` case
-`"WUX-13/SC-1: the subject is chosen, and interacting inside the editor does not retarget it"`,
-case `"WUX-13/SC-10: editing a pane in a layout related to a current Setup makes it modified"`.
+`workshop/keymap.hpp` `KeyContext::kDraft`, `KeyContext::kPaneEditor`;
+`tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the subject is chosen, and interacting inside
+the editor does not retarget it"`, case `"WUX-13/SC-10: editing a pane in a layout related to a
+current Setup makes it modified"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-08 — Both lists scroll under the wheel, and the wheel moves no keys
@@ -123,9 +124,9 @@ MEANS
 - a section heading is stepped over, never onto; `on_rows` and the subject are untouched.
 
 PROVEN BY — `workshop/weave.hpp` `pane_editor_move_in`, `pane_editor_wheel`;
-`workshop/screen.hpp` `on_rows`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-5: the Pane
-Editor's two lists are reached by the wheel past their windows"`, case `"QR-18/SC-1+SC-3: Escape
-clears the ordinary selection last, and the Pane Editor's subject stands"`.
+`workshop/screen.hpp` `PaneEditor::on_rows`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-5:
+the Pane Editor's two lists are reached by the wheel past their windows"`, case `"QR-18/SC-1+SC-3:
+Escape clears the ordinary selection last, and the Pane Editor's subject stands"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## Do not assume
