@@ -4,7 +4,7 @@
 // The bodies of `weave.hpp`'s sections -- the startup files, the host's conditions, and the
 // surface handlers -- compiled once into `zengine-workshop-logic` and linked by the host and
 // every suite; the declarations, the constants and the constexpr functions stay in the header.
-// Workshop law: agents/workshop/attention.md (+6 registers; agents/workshop.md routes)
+// Workshop law: agents/workshop/attention.md (+7 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
@@ -216,7 +216,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
     repaint(mail);
 }
 
-// WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session.md
+// WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session-restore.md
 void WorkshopWeave::on(const zengine::surface::SurfacePlacement& p, loom::Mail&) {
     medium_placed_ = true;
     session_.placement_known = true;

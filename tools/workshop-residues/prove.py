@@ -234,14 +234,171 @@ def prove_grab_bags(repo, start, sheet_path):
     return failures
 
 
+# ---- session: the seam, and everything else byte-identical ---------------------------------
+#
+#   (1) session.md at END is START with the moved entries cut out and nothing else;
+#   (2) session-restore.md holds exactly the moved entries, byte-identical, in START order,
+#       after a preamble whose lines are within 98 bytes; a `## Do not assume` in either
+#       register names only laws of that register;
+#   (3) every other file that differs from START differs only by: a `// WL-` pointer line
+#       whose session.md segment was split by the seam (ids and order kept); the
+#       `// Workshop law:` header of a file with such a line; a decision record's link
+#       `[WL-SESSION-NN](../workshop/session.md)` re-pathed for a moved id; the router's one
+#       row naming both registers; verification.md's one added row. Anything else is a FAIL,
+#       and so is a changed file outside those classes (tools/workshop-residues/ aside).
+#
+#   python3 tools/workshop-residues/prove.py session --repo . --start <commit>
+
+import difflib
+
+SESSION = "agents/workshop/session.md"
+RESTORE = "agents/workshop/session-restore.md"
+
+
+def register_blocks(text):
+    lines = text.split("\n")
+    idx = [i for i, l in enumerate(lines) if l.startswith("## ")]
+    pre = lines[:idx[0]]
+    return pre, [(lines[i], lines[i:(idx[k + 1] if k + 1 < len(idx) else len(lines))]) for k, i in enumerate(idx)]
+
+
+def entry_id(heading):
+    m = re.match(r"^## (WL-[A-Z]+-[0-9]+) ", heading)
+    return m.group(1) if m else None
+
+
+def pointer_segments(line):
+    m = re.match(r"^([ \t]*)// (WL-.*)$", line)
+    if not m:
+        return None
+    out = []
+    for seg in m.group(2).split(";"):
+        mm = re.match(r"^\s*(WL-[A-Z]+-[0-9]+(?:\s*,\s*WL-[A-Z]+-[0-9]+)*)\s+--\s+(\S+\.md)\s*$", seg)
+        if not mm:
+            return None
+        out.append(([i.strip() for i in mm.group(1).split(",")], mm.group(2)))
+    return m.group(1), out
+
+
+def prove_session(repo, start, sheet_path):
+    failures = []
+    seam = collections.OrderedDict()
+    with open(sheet_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip() or line.startswith("id\t"):
+                continue
+            id_, reg = line.rstrip("\n").split("\t")
+            seam[id_] = reg
+    moved_ids = [i for i, r in seam.items() if r == RESTORE]
+    pre, blocks = register_blocks(git_show(repo, start, SESSION))
+    stay_lines, moved_blocks = [], []
+    for heading, lines in blocks:
+        id_ = entry_id(heading)
+        if id_ and seam.get(id_) == RESTORE:
+            moved_blocks.append((id_, lines))
+        else:
+            stay_lines += lines
+    # (1)
+    if "\n".join(pre + stay_lines) == read(repo, SESSION):
+        session_ok = True
+    else:
+        session_ok = False
+        failures.append("(1) %s is not START minus the moved entries" % SESSION)
+    # (2)
+    rpre, rblocks = register_blocks(read(repo, RESTORE))
+    got = [(entry_id(h), l) for h, l in rblocks if entry_id(h)]
+    restore_ok = got == moved_blocks
+    if not restore_ok:
+        failures.append("(2) %s does not hold exactly the moved entries in START order (%s vs %s)"
+                        % (RESTORE, [g[0] for g in got], [m[0] for m in moved_blocks]))
+    for l in rpre:
+        if len(l.encode("utf-8")) > 98:
+            failures.append("(2) %s preamble line over 98 bytes: %s" % (RESTORE, l))
+    for reg, own in ((SESSION, set(i for i, r in seam.items() if r == SESSION)), (RESTORE, set(moved_ids))):
+        _, bl = register_blocks(read(repo, reg))
+        for h, lines in bl:
+            if h == "## Do not assume":
+                for id_ in re.findall(r"WL-SESSION-[0-9]+", "\n".join(lines)):
+                    if id_ not in own:
+                        failures.append("(2) %s's Do not assume names %s, which is not its law" % (reg, id_))
+    sizes = {reg: len(read(repo, reg).encode("utf-8")) for reg in (SESSION, RESTORE)}
+    for reg, n in sizes.items():
+        if n > REGISTER_BYTES:
+            failures.append("(2) %s is %d bytes, over %d" % (reg, n, REGISTER_BYTES))
+    # (3)
+    changed = subprocess.run(["git", "-C", repo, "diff", "--name-only", start], check=True,
+                             capture_output=True).stdout.decode().split()
+    untracked = subprocess.run(["git", "-C", repo, "ls-files", "--others", "--exclude-standard"], check=True,
+                               capture_output=True).stdout.decode().split()
+    classes = collections.Counter()
+
+    def pointer_pair_ok(a, b):
+        pa, pb = pointer_segments(a), pointer_segments(b)
+        if not pa or not pb or pa[0] != pb[0]:
+            return False
+        ida = [(i, r) for ids, r in pa[1] for i in ids]
+        idb = [(i, r) for ids, r in pb[1] for i in ids]
+        want = [(i, RESTORE if (r == SESSION and i in moved_ids) else r) for i, r in ida]
+        return sorted(want) == sorted(idb) and [i for i, _ in ida] == [i for i, _ in idb]
+
+    for f in sorted(set(changed) | set(untracked)):
+        if f in (SESSION, RESTORE) or f.startswith("tools/workshop-residues/"):
+            continue
+        if f in untracked:
+            failures.append("(3) %s is new" % f)
+            continue
+        a, b = git_show(repo, start, f).split("\n"), read(repo, f).split("\n")
+        pointer_changed = False
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+            if tag == "equal":
+                continue
+            if tag == "insert" and f == "agents/verification.md" and j2 - j1 == 1 and b[j1].startswith("| session-restore |"):
+                classes["verification row"] += 1
+                continue
+            if tag != "replace" or i2 - i1 != j2 - j1:
+                failures.append("(3) %s: %s of %d/%d lines at %d is not a re-pathing" % (f, tag, i2 - i1, j2 - j1, i1 + 1))
+                continue
+            for x, y in zip(a[i1:i2], b[j1:j2]):
+                if f.endswith((".hpp", ".cpp", ".h", ".ipp", ".cc", ".cxx", ".c")):
+                    if pointer_pair_ok(x, y):
+                        classes["pointer line"] += 1
+                        pointer_changed = True
+                        continue
+                    if x.startswith("// Workshop law:") and y.startswith("// Workshop law:"):
+                        classes["law header"] += 1
+                        continue
+                elif f.startswith("agents/decisions/"):
+                    def relink(m):
+                        return "[%s](../workshop/session-restore.md)" % m.group(1) if m.group(1) in moved_ids else m.group(0)
+                    if re.sub(r"\[(WL-SESSION-[0-9]+)\]\(\.\./workshop/session\.md\)", relink, x) == y:
+                        classes["record link"] += 1
+                        continue
+                elif f == "agents/workshop.md":
+                    if x.replace("[session](workshop/session.md) `WL-SESSION`",
+                                 "[session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION`") == y:
+                        classes["router row"] += 1
+                        continue
+                failures.append("(3) %s: a line changed that is no re-pathing:\n      START: %s\n      END:   %s" % (f, x, y))
+        if classes["law header"] and not pointer_changed and f.endswith((".hpp", ".cpp")):
+            failures.append("(3) %s: its law header changed though no pointer line did" % f)
+    print("prove session: (1) %s outside the moved entries %s; (2) %s holds the %d moved entries %s, "
+          "%d and %d bytes of %d; (3) %d other files changed -- %s"
+          % (SESSION, "byte-identical" if session_ok else "CHANGED", RESTORE, len(moved_blocks),
+             "byte-identical" if restore_ok else "DIFFERENT", sizes[SESSION], sizes[RESTORE], REGISTER_BYTES,
+             len([f for f in changed if f not in (SESSION, RESTORE) and not f.startswith("tools/workshop-residues/")]),
+             ", ".join("%s %d" % kv for kv in sorted(classes.items())) or "nothing"))
+    return failures
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", choices=["grab-bags"])
+    ap.add_argument("what", choices=["grab-bags", "session"])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--start", required=True)
-    ap.add_argument("--sheet", default=os.path.join(HERE, "sheet.tsv"))
+    ap.add_argument("--sheet", default=None)
     a = ap.parse_args()
-    failures = prove_grab_bags(a.repo, a.start, a.sheet)
+    sheet = a.sheet or os.path.join(HERE, "sheet.tsv" if a.what == "grab-bags" else "session.tsv")
+    failures = prove_grab_bags(a.repo, a.start, sheet) if a.what == "grab-bags" else prove_session(a.repo, a.start, sheet)
     for f in failures:
         print("FAIL", f)
     sys.exit(1 if failures else 0)

@@ -414,19 +414,217 @@ def repath_registers(repo, commit, rows, end_code_order, report=None):
     return out
 
 
+# ---- SESSION.MD BECOMES TWO ----------------------------------------------------------------
+#
+# Seventeen laws at 16,339 of 16,384 bytes. The seam is the one the headings make: the files
+# and their domains stay in session.md (where the files live, the precedence, the transition,
+# one desk two files, the one door that writes, never written over, the roots); what a
+# session holds and how it comes back goes to session-restore.md (the run of layouts and its
+# admission, the viewport, the placement, the normal window, the first picture, the room
+# then the desk, the restore that runs once, neither direction opens a setup file, what a
+# restore returns). Ids are permanent and keep their WL-SESSION-NN spelling.
+#
+#   python3 tools/workshop-residues/apply.py seed  session --repo . --start <commit>
+#          writes tools/workshop-residues/session.tsv: one row per law, id and END register.
+#   python3 tools/workshop-residues/apply.py apply session --repo . --start <commit>
+#          writes both registers; re-paths every `// WL-` pointer segment, decision-record
+#          link and `// Workshop law:` header the move reached; edits the router's row and
+#          adds verification.md's.
+#
+# Every moved entry is byte-identical to START; session.md outside the moved entries is
+# byte-identical to START; the new register's preamble is the one text this mode writes
+# fresh. It carries no `## Do not assume`: none of the laws it receives writes a debt, and
+# both of session.md's bullets name laws that stay.
+
+SESSION = "agents/workshop/session.md"
+RESTORE = "agents/workshop/session-restore.md"
+RESTORE_IDS = ("05", "06", "07", "08", "09", "11", "12", "14", "16", "17")
+RESTORE_PREAMBLE = [
+    "# Workshop law — the session, restored",
+    "",
+    "Register `WL-SESSION`, its second file: what a session holds, and how it comes back — the run of",
+    "layouts and their associations, the room and the window, the restore that runs once. One law per",
+    "heading; cite by ID. The files and their domains are in [`session.md`](session.md). Router:",
+    "[`../workshop.md`](../workshop.md).",
+    "",
+]
+ROUTER = "agents/workshop.md"
+ROUTER_OLD = "[session](workshop/session.md) `WL-SESSION`"
+ROUTER_NEW = "[session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION`"
+VERIFICATION = "agents/verification.md"
+DECISIONS = "agents/decisions"
+SOURCE_SUFFIXES = (".h", ".hpp", ".ipp", ".c", ".cc", ".cpp", ".cxx")
+SUITE_OF_TEST = re.compile(r"`tests/test_([a-z_]+)\.cpp`")
+
+
+def register_blocks(text):
+    """(preamble lines, [(heading, lines)]) -- one block per `## ` heading, each block
+    carrying the blank line that separates it from the next."""
+    lines = text.split("\n")
+    idx = [i for i, l in enumerate(lines) if l.startswith("## ")]
+    pre = lines[:idx[0]]
+    blocks = []
+    for k, i in enumerate(idx):
+        j = idx[k + 1] if k + 1 < len(idx) else len(lines)
+        blocks.append((lines[i], lines[i:j]))
+    return pre, blocks
+
+
+def seam_of(sheet_path):
+    """id -> END register, from the session sheet."""
+    out = collections.OrderedDict()
+    with open(sheet_path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip() or line.startswith("id\t"):
+                continue
+            id_, reg = line.rstrip("\n").split("\t")
+            out[id_] = reg
+    return out
+
+
+def seed_session(repo, commit, out):
+    pre, blocks = register_blocks(git_show(repo, commit, SESSION))
+    rows = []
+    for heading, _ in blocks:
+        m = re.match(r"^## (WL-SESSION-([0-9]+)) ", heading)
+        if m:
+            rows.append((m.group(1), RESTORE if m.group(2) in RESTORE_IDS else SESSION))
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("# The session seam, regenerated from %s by apply.py seed session; one row per law, its END register.\n" % commit)
+        f.write("id\tregister\n")
+        for id_, reg in rows:
+            f.write("%s\t%s\n" % (id_, reg))
+    return rows
+
+
+def repath_pointer(line, seam):
+    """A `// WL-` pointer line with its session.md segment split by the seam: the ids that
+    stay first, under session.md, then the moved ids under session-restore.md."""
+    m = re.match(r"^([ \t]*)// (WL-.*)$", line)
+    indent, rest = m.groups()
+    out = []
+    for seg in rest.split(";"):
+        mm = re.match(r"^\s*(WL-[A-Z]+-[0-9]+(?:\s*,\s*WL-[A-Z]+-[0-9]+)*)\s+--\s+(\S+\.md)\s*$", seg)
+        if not mm:
+            raise SystemExit("not a pointer segment: %r" % seg)
+        ids = [i.strip() for i in mm.group(1).split(",")]
+        reg = mm.group(2)
+        if reg != SESSION:
+            out.append((ids, reg))
+            continue
+        for target in (SESSION, RESTORE):
+            part = [i for i in ids if seam.get(i, SESSION) == target]
+            if part:
+                out.append((part, target))
+    return indent + "// " + "; ".join("%s -- %s" % (", ".join(ids), reg) for ids, reg in out)
+
+
+def source_files_at(repo, commit):
+    out = subprocess.run(["git", "-C", repo, "ls-tree", "-r", "--name-only", commit], check=True,
+                         capture_output=True).stdout.decode().split("\n")
+    return sorted(f for f in out if f.endswith(SOURCE_SUFFIXES))
+
+
+def apply_session(repo, commit, sheet_path):
+    seam = seam_of(sheet_path)
+    written = []
+    # 1. the two registers
+    pre, blocks = register_blocks(git_show(repo, commit, SESSION))
+    stay, moved = [], []
+    for heading, lines in blocks:
+        m = re.match(r"^## (WL-SESSION-[0-9]+) ", heading)
+        if m and seam[m.group(1)] == RESTORE:
+            moved += lines
+        else:
+            stay += lines
+    for l in RESTORE_PREAMBLE:
+        if len(l.encode("utf-8")) > WRAP:
+            raise SystemExit("preamble line over %d bytes: %s" % (WRAP, l))
+    split.write(repo, SESSION, "\n".join(pre + stay))
+    split.write(repo, RESTORE, "\n".join(RESTORE_PREAMBLE + moved))
+    written += [SESSION, RESTORE]
+    for reg in (SESSION, RESTORE):
+        print("  %s: %d bytes" % (reg, os.path.getsize(os.path.join(repo, reg))))
+    # 2. the pointers, and the law header of every file a pointer changed in
+    for f in source_files_at(repo, commit):
+        text = git_show(repo, commit, f)
+        if SESSION not in text:
+            continue
+        lines = text.split("\n")
+        changed = False
+        for i, l in enumerate(lines):
+            if cxx.POINTER_LINE.match(l) and SESSION in l:
+                new = repath_pointer(l, seam)
+                if new != l:
+                    lines[i] = new
+                    changed = True
+        if not changed:
+            continue
+        new_text = "\n".join(lines)
+        law = split.workshop_law_line([l for l in lines if cxx.POINTER_LINE.match(l)])
+        if law and split.WORKSHOP_LAW.search(new_text):
+            new_text = split.WORKSHOP_LAW.sub(law, new_text, count=1)
+        split.write(repo, f, new_text)
+        written.append(f)
+    # 3. the decision records' links
+    for f in subprocess.run(["git", "-C", repo, "ls-tree", "--name-only", commit, DECISIONS + "/"], check=True,
+                            capture_output=True).stdout.decode().split():
+        text = git_show(repo, commit, f)
+
+        def relink(m):
+            return "[%s](../workshop/%s)" % (m.group(1), os.path.basename(seam.get(m.group(1), SESSION)))
+        new_text = re.sub(r"\[(WL-SESSION-[0-9]+)\]\(\.\./workshop/session\.md\)", relink, text)
+        if new_text != text:
+            split.write(repo, f, new_text)
+            written.append(f)
+    # 4. the router's row
+    text = git_show(repo, commit, ROUTER)
+    if text.count(ROUTER_OLD) != 1:
+        raise SystemExit("the router names the session register %d times" % text.count(ROUTER_OLD))
+    split.write(repo, ROUTER, text.replace(ROUTER_OLD, ROUTER_NEW))
+    written.append(ROUTER)
+    # 5. verification.md's row: the suites the moved laws cite, most-cited first
+    suites = collections.Counter()
+    for l in moved:
+        for s in SUITE_OF_TEST.findall(l):
+            suites[s] += 1
+    ranked = [s for s, _ in sorted(suites.items(), key=lambda kv: (-kv[1], kv[0]))]
+    row = "| session-restore | `%s`, then %s |" % (ranked[0], " and ".join("`%s`" % s for s in ranked[1:]))
+    text = git_show(repo, commit, VERIFICATION)
+    lines = text.split("\n")
+    at = [i for i, l in enumerate(lines) if l.startswith("| regions |")]
+    if len(at) != 1:
+        raise SystemExit("verification.md's table has %d `regions` rows" % len(at))
+    lines.insert(at[0] + 1, row)
+    split.write(repo, VERIFICATION, "\n".join(lines))
+    written.append(VERIFICATION)
+    print("  %s" % row)
+    print("apply session: wrote %d files" % len(written))
+    for w in written:
+        print("  ", w)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["seed", "apply"])
-    ap.add_argument("what", choices=["grab-bags"])
+    ap.add_argument("what", choices=["grab-bags", "session"])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--start", required=True)
-    ap.add_argument("--sheet", default=os.path.join(HERE, "sheet.tsv"))
+    ap.add_argument("--sheet", default=None)
     a = ap.parse_args()
-    if a.mode == "seed":
-        rows = seed(a.repo, a.start, a.sheet)
-        print("seed grab-bags: %d rows -> %s" % (len(rows), a.sheet))
+    sheet = a.sheet or os.path.join(HERE, "sheet.tsv" if a.what == "grab-bags" else "session.tsv")
+    if a.what == "grab-bags":
+        if a.mode == "seed":
+            rows = seed(a.repo, a.start, sheet)
+            print("seed grab-bags: %d rows -> %s" % (len(rows), sheet))
+        else:
+            apply(a.repo, a.start, sheet)
     else:
-        apply(a.repo, a.start, a.sheet)
+        if a.mode == "seed":
+            rows = seed_session(a.repo, a.start, sheet)
+            print("seed session: %d rows -> %s" % (len(rows), sheet))
+        else:
+            apply_session(a.repo, a.start, sheet)
 
 
 if __name__ == "__main__":
