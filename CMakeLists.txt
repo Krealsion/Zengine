@@ -149,11 +149,20 @@ target_compile_options(zengine-warnings INTERFACE
 # suite into five translation units under its one CTest entry (tests/CMakeLists.txt).
 #
 # THE PRACTICAL BUDGET, MEASURED, because it is what the next phase needs and it is not
-# obvious: a translation unit that includes `tests/workshop_support.hpp` and merely
-# constructs `PaneRig` and `Live` already spends 6,917,756 bytes -- 69% of the table --
-# before it asserts anything. Cutting a suite finer therefore has a floor it cannot go
-# below, and the Workshop objects now sit between 63% and 86% of the ceiling. A phase that
-# adds heavily-templated cases to a hot suite should expect to add a source, not a section.
+# obvious. Before the Workshop split, a translation unit that included
+# `tests/workshop_support.hpp` and merely constructed `PaneRig` and `Live` already spent
+# 6,917,756 bytes -- 69% of the table -- before it asserted anything, and on the Linux
+# objects (four names per COMDAT group, the estimate tools/workshop-split/census.py makes)
+# the suite objects sat between 26% and 102% of the ceiling and the host object at 107%.
+# What spent it was the bodies of screen.hpp and weave.hpp, inline in the headers and so
+# emitted in every one of the thirteen translation units that reached them. They compile
+# once now (workshop/CMakeLists.txt, `zengine-workshop-logic`), and the same estimate on
+# the same tree reads 59% for the host object, 26% to 73% for the suite objects and 21% for
+# the largest logic object (measured 2026-09-03); the host translation unit that binutils
+# 2.40 refused assembles under it into a 28.6 MB object. Cutting a suite finer still has
+# the floor it always had -- a translation unit pays for the closure it instantiates -- so
+# a phase that adds heavily-templated cases to a hot suite should still expect to add a
+# source, not a section.
 if(MINGW)
     target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
 endif()

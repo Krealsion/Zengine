@@ -165,9 +165,9 @@ library the process has mapped — and `zengine-workshop` rebuilding itself is t
 aimed at the host binary, which stays out of scope: nothing here reloads a live artifact, and
 an already-loaded artifact is refused in words rather than replaced.
 
-Workshop's weave lives in `workshop/weave.hpp`, not in the host's translation unit — so the
-suite mounts it on a real bus and walks `input message -> gesture -> semantic operation` end to
-end. It is mounted **in-process**: nothing asks to unload it, so the
+Workshop's weave is declared in `workshop/weave.hpp` and its bodies compile once from
+`workshop/weave_<subject>.cpp`, not in the host's translation unit — so the suite mounts it on a
+real bus and walks `input message -> gesture -> semantic operation` end to end. It is mounted **in-process**: nothing asks to unload it, so the
 reloadable-weave machinery would be ceremony bought with nothing. The weaves it *loads* are
 other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
 
