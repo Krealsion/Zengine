@@ -1,7 +1,9 @@
 # Workshop law — the session
 
-Register `WL-SESSION`: the durable files, the session, the room and the window. One law per
-heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+Register `WL-SESSION`: the durable files, their domains and precedence, the door that writes,
+the roots. What a session holds and how it comes back is in
+[`session-restore.md`](session-restore.md). One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md).
 
 ## WL-SESSION-01 — Workshop writes the desk, the room and the window, and reads them back
 
