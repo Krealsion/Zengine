@@ -97,10 +97,14 @@ workshop_files         where source comes from: the project browser, what a
   link line by construction, and a source left out of it is not compiled — its cases then go
   missing from the population, which the floor catches and the build does not.
 - **`tests/workshop_support.hpp` holds what more than one of them needs** — fixtures, canvas
-  readers, the `Live` and `PaneRig` rigs. A helper one suite uses stays in that suite's file.
-  It is not free: measured, the header adds ~0.4 s of parse to a translation unit that only
-  reads it, and roughly 5–8 s to one that USES it, because every suite emits the helpers it
-  calls. Editing it rebuilds five suites. Moving a helper into it is a decision.
+  readers, the `Live` and `PaneRig` rigs, and `presentation_sources`, the walk the source
+  tripwires read Workshop through. A helper one suite uses stays in that suite's file. It is
+  not free: every suite emits the helpers it calls, and editing it rebuilds all twelve
+  sources that include it. What it no longer costs is Workshop's own bodies — since the logic
+  compiles once (`workshop/CMakeLists.txt`), a source that includes it instantiates the rigs
+  and the closure they reach, not `screen.hpp`'s and `weave.hpp`'s functions; measured on
+  the Linux objects, the suite sources went from 26–102% of the COFF name table to 26–73%.
+  Moving a helper into it is a decision.
 - **A temporary directory belongs to the suite that made it, in the process that made it.**
   The suites run at once and every `TempDir` counter starts at zero, so the root carries
   `ZENGINE_WORKSHOP_SUITE` and the process id — two processes of one suite (an MSVC build and
@@ -435,7 +439,9 @@ have. Rules, each learned by a harness that fooled itself:
   section-relative limit; one more inline function in a header it includes fails the link with
   `relocation truncated to fit: IMAGE_REL_AMD64_SECREL against .debug_frame$...`, which reads
   like a broken repository and is not one. `zengine-warnings` carries the flag under
-  `if(MINGW)`. Do not remove it because a build happens to link without it today.
+  `if(MINGW)`. Do not remove it because a build happens to link without it today — the
+  Workshop split halved that object (below), and the ceiling is the toolchain's, not the
+  object's.
 - **COFF has a SECOND, lower ceiling and `-mbig-obj` does not lift it (QR-13).** A section
   name over eight bytes lives in the string table, and the eight-byte name field holds `/`
   plus at most seven decimal digits — so the section-name string table stops at 9,999,999
@@ -444,17 +450,26 @@ have. Rules, each learned by a harness that fooled itself:
   `string table overflow at offset 10000097` / `file too big` is this one;
   `too many sections (N)` is the count. **Read the sentence before reaching for a flag** —
   the flag was already present when panes met this. **And it is the assembler's ceiling, not
-  the format's**: the same GCC 13.1 assembly of `workshop.cpp` that binutils 2.40 (CLion
-  2025.2's bundled MinGW) refuses as `string table overflow at offset 10000011` / `file too
-  big`, binutils 2.45 assembles into a 50 MB object (measured 2026-09-02, unchanged source).
-  The MinGW lane's runner carries a newer binutils, so it builds `workshop.cpp` while a CLion
-  2025.2 toolchain does not, and internal linkage does not buy the object back under 2.40's
-  ceiling (measured: a `static inline` predicate still overflowed).
+  the format's**: the GCC 13.1 assembly of `workshop.cpp` before the Workshop split, which
+  binutils 2.40 (CLion 2025.2's bundled MinGW) refused as `string table overflow` / `file
+  too big` (measured 2026-09-02, and again 2026-09-03 at the split's START commit), binutils
+  2.45 assembled into a 50 MB object. With `screen.hpp`'s and `weave.hpp`'s bodies compiled
+  once, 2.40 assembles the same translation unit into a 28,609,284-byte object in 17 s and
+  the largest logic source (`weave_handlers.cpp`) into a 10.5 MB one (measured 2026-09-03).
+  The MinGW lane's
+  runner carries a newer binutils either way, and internal linkage does not buy an object
+  back under 2.40's ceiling (measured before the split: a `static inline` predicate still
+  overflowed).
 - **What spends that table is instantiations per object, four names each.** Every
   vague-linkage function gets a COMDAT, and `-g` mirrors it into `.text$`, `.pdata$`,
-  `.xdata$` and `.debug_frame$` — the same mangled suffix stored four times. Measured, a TU
-  that includes `tests/workshop_support.hpp` and only constructs `PaneRig` and `Live` spends
-  **69%** of the table before it asserts anything, and the Workshop objects run 63–86%. So
-  the remedy is fewer instantiations per object — **another source under the same suite**,
-  not a flag and not fewer cases. Splitting has a floor it cannot go below; do not expect a
-  finer cut to buy proportionally more room.
+  `.xdata$` and `.debug_frame$` — the same mangled suffix stored four times. **A body in a
+  header is emitted in every translation unit that reaches it**, and `screen.hpp`'s and
+  `weave.hpp`'s were reached by thirteen; measured before the split, a TU that includes
+  `tests/workshop_support.hpp` and only constructs `PaneRig` and `Live` spent **69%** of the
+  table before it asserted anything, the suite objects ran 26–102% and the host 107%
+  (Linux objects, four names per COMDAT group). With the bodies compiled once in
+  `workshop/<subject>.cpp` the host reads 59%, the suites 26–73% and the largest logic
+  object 21% (measured 2026-09-03; `tools/workshop-split/census.py` measures a tree's
+  objects). Beyond that the remedy is still fewer instantiations per object — **another
+  source under the same suite**, not a flag and not fewer cases. Splitting has a floor it
+  cannot go below; do not expect a finer cut to buy proportionally more room.
