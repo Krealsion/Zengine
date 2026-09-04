@@ -28,11 +28,11 @@ MEANS
 - the band rows, title hints, mode headings, the terminal header and prompt, the boot line;
 - adding a gesture claim as a literal reintroduces the drift once measured in six places.
 
-PROVEN BY — `workshop/screen.hpp` `keymap`, `hotkey_text`, `setup_hints`; `workshop/keymap.hpp`
-`gesture_text`; `tests/test_workshop_document.cpp` case `"KEY-0: an authored override changes
-dispatch AND every displayed spelling"`, case `"KEY-0: the terminal header and hints spell the
-effective toggle"`; `tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is
-ordinary action vocabulary, not pane chrome"`.
+PROVEN BY — `workshop/screen.hpp` `Session::keymap`, `hotkey_text`, `setup_hints`;
+`workshop/keymap.hpp` `gesture_text`; `tests/test_workshop_document.cpp` case `"KEY-0: an authored
+override changes dispatch AND every displayed spelling"`, case `"KEY-0: the terminal header and
+hints spell the effective toggle"`; `tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the
+coarse step is ordinary action vocabulary, not pane chrome"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-03 — `keyboard_context` is the routing chain, spelled once
@@ -56,7 +56,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 LAW — A binding matches the observed modifier bits exactly, one family spelled two ways is two declared actions, and `shift+space` is gone rather than aliased.
 
-PROVEN BY — `workshop/keymap.hpp` `Keymap`, `Gesture`, `action_for`;
+PROVEN BY — `workshop/keymap.hpp` `Keymap`, `Gesture`, `Keymap::action_for`;
 `tests/test_workshop_document.cpp` case `"KEY-0: exact modifier matching -- the accidental subset
 aliases no longer fire"`, case `"KEY-0: shift+space is gone -- not a binding, not an invisible
 alias"`.
@@ -72,7 +72,7 @@ MEANS
 - `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`KeyContext::kNoEditor`, `above_mode_action`, `workshop.quit`, `workshop.attention`,
+`KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`, `workshop.attention`,
 `document.save`, `editor.save`; `workshop/weave.hpp` `on(KeyPressed)`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save or
 the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
@@ -104,8 +104,8 @@ MEANS
 - `Keymap::authored` is what a save writes back, so a round trip edits nothing.
 
 PROVEN BY — `workshop/keymap_persist.hpp` `zengine-workshop-keymap`, `kFormatVersion`,
-`to_keymap`, `load_file`; `workshop/weave.hpp` `load_keymap`, `keymap_path`;
-`workshop/workshop.cpp` `keymap`; `workshop/keymap.hpp` `Keymap::authored`;
+`to_keymap`, `load_file`; `workshop/weave.hpp` `load_keymap`, `HostContext::keymap_path`;
+`workshop/workshop.cpp` `Arguments::keymap`; `workshop/keymap.hpp` `Keymap::authored`;
 `tests/test_workshop_document.cpp` case `"KEY-0: an override survives restart, and deleting the
 file restores defaults"`.
 WHY — `agents/decisions/one-binding-truth.md`
@@ -181,11 +181,12 @@ WHY — `agents/decisions/content-sized-popups.md`
 
 LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, and the very next key or text clears it; no site hard-codes a character.
 
-PROVEN BY — `workshop/keymap.hpp` `expected_text_of`; `workshop/weave.hpp` `swallow_text_`,
-`same_keystroke`, `on(KeyPressed)`; `tests/test_workshop_document.cpp` case `"KEY-0: a printable
-trigger's own character is swallowed, wherever it is authored"`, case `"KEY-0: the swallow eats
-only the trigger's own character, never a different one"`, case `"KEY-0: a shift+letter binding
-swallows the capital its keystroke produced"`.
+PROVEN BY — `workshop/keymap.hpp` `expected_text_of`; `workshop/weave.hpp`
+`WorkshopWeave::swallow_text_`, `same_keystroke`, `on(KeyPressed)`;
+`tests/test_workshop_document.cpp` case `"KEY-0: a printable trigger's own character is swallowed,
+wherever it is authored"`, case `"KEY-0: the swallow eats only the trigger's own character, never
+a different one"`, case `"KEY-0: a shift+letter binding swallows the capital its keystroke
+produced"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-13 — A row may answer to no key at all

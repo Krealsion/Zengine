@@ -33,10 +33,10 @@ MEANS
 DOES NOT MEAN
 - that `kTerminalWantW` is a floor — it is a want, and eight cells at the minimum is the price.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `kTerminalWantW`, `kScreenMinW`, `room_w`,
-`terminal_x`, `terminal_w`; `tests/test_workshop_screen.cpp` case `"HD-10: the want is unchanged
-and the room is the ceiling"`, case `"HD-10: the pane and the side region share no cell, at any
-extent or metric"`.
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `kTerminalWantW`, `kScreenMinW`,
+`Screen::room_w`, `Screen::terminal_x`, `Screen::terminal_w`; `tests/test_workshop_screen.cpp`
+case `"HD-10: the want is unchanged and the room is the ceiling"`, case `"HD-10: the pane and the
+side region share no cell, at any extent or metric"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-03 — The reservation is the screen's, not the pane's
@@ -50,8 +50,8 @@ MEANS
 DOES NOT MEAN
 - that the reserved rows are the Layouts pane's — `placement_bounds` merely defaults it there.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `room_w`, `room_h`, `kTopRows`, `kBottomRows`,
-`placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::room_w`, `Screen::room_h`, `kTopRows`,
+`kBottomRows`, `placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
 `placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"HD-10: the reservation is the
 SCREEN's, and holds with no panel in it"`, case `"WUX-12/SC-9: the reservation does not follow the
 Layouts pane"`.
@@ -68,10 +68,11 @@ MEANS
 DOES NOT MEAN
 - that a test may forbid overlap generally — it would forbid the three intentional ones.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `panel_x`, `kPanelGap`, `kStackRows`, `kMinSide`;
-`tests/test_workshop_screen.cpp` case `"HD-10: what the pane DOES cover is unchanged, and is on
-purpose"`, case `"HD-10/QR-14: the pane and the overlay stack meet only at the shortest screens"`,
-case `"WIND-1: the stack/pane overlap grew by a bounded amount, and stayed in the room"`.
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kPanelGap`, `kStackRows`,
+`kMinSide`; `tests/test_workshop_screen.cpp` case `"HD-10: what the pane DOES cover is unchanged,
+and is on purpose"`, case `"HD-10/QR-14: the pane and the overlay stack meet only at the shortest
+screens"`, case `"WIND-1: the stack/pane overlap grew by a bounded amount, and stayed in the
+room"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric
@@ -113,7 +114,7 @@ MEANS
 - the device unit before a fractional edge does not answer — what you see is what you can grab;
 - the TUI quantizes at its projection and never writes back; a thousand frames rewrite nothing.
 
-PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `contains_at`, `PointedAt`,
+PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `FineRect::contains_at`, `PointedAt`,
 `PointedAt::sub`, `pane_edge_at`; `surface/skin_tui.hpp` `canvas_body`; `surface/pointing.hpp`
 `sub_span_contains`; `tests/test_workshop_screen.cpp` case `"WUX-2: the hand meets exactly the
 pixels a fine pane paints"`, case `"WUX-2: the TUI projects a fine pane onto its covered cells and
@@ -132,11 +133,12 @@ MEANS
 DOES NOT MEAN
 - that Workshop may hold one Skin's layout number — correct only while there is one medium.
 
-PROVEN BY — `workshop/screen.hpp` `adopt_screen`, `cell_px`, `text_advance_px`, `screen_w`,
-`screen_h`; `surface/vocabulary.hpp` `SurfaceExtent`; `workshop/weave.hpp` `on(SurfaceExtent)`;
-`tests/test_workshop_screen.cpp` case `"WUX-6: the canvas's device unit is the medium's answer,
-never Workshop's"`; `tests/test_surface.cpp` case `"WUX-6: each medium reports the device unit its
-own canvas is laid out at"`.
+PROVEN BY — `workshop/screen.hpp` `adopt_screen`, `Session::cell_px`,
+`Session::text_advance_px`, `Session::screen_w`, `Session::screen_h`; `surface/vocabulary.hpp`
+`SurfaceExtent`; `workshop/weave.hpp` `on(SurfaceExtent)`; `tests/test_workshop_screen.cpp` case
+`"WUX-6: the canvas's device unit is the medium's answer, never Workshop's"`;
+`tests/test_surface.cpp` case `"WUX-6: each medium reports the device unit its own canvas is laid
+out at"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-09 — Geometry is spelled in the face's unit by one derivation

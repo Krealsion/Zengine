@@ -11,18 +11,18 @@ MEANS
 - an utterance is replaced by the next thing said and retracted no other way;
 - a condition disappears because it resolved, never because something else was said.
 
-PROVEN BY — `workshop/screen.hpp` `notice`, `say`, `conditions`, `kKeymapWallKey`;
-`workshop/attention.hpp` `HeldConditions`, `Condition`; `workshop/weave.hpp`
-`standing_conditions`, `take_host_conditions`, `prefs_bad_`; `tests/test_workshop_panels.cpp` case
-`"WUX-4: event sentences stay events, and a condition needs no sentence"`, case `"WUX-4: a held
-condition stands until its owner retracts it"`.
+PROVEN BY — `workshop/screen.hpp` `Session::notice`, `say`, `Session::conditions`,
+`kKeymapWallKey`; `workshop/attention.hpp` `HeldConditions`, `Condition`; `workshop/weave.hpp`
+`HostContext::standing_conditions`, `take_host_conditions`, `WorkshopWeave::prefs_bad_`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay events, and a condition needs
+no sentence"`, case `"WUX-4: a held condition stands until its owner retracts it"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-02 — `Session::notice` is the utterance row and nothing else
 
 LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy file, a pane's refused update, a waiting frontier) left the notice; `speak_startup_notes` joins only the event halves.
 
-PROVEN BY — `workshop/weave.hpp` `speak_startup_notes`, `say`, `transition_note`,
+PROVEN BY — `workshop/weave.hpp` `speak_startup_notes`, `say`, `HostContext::transition_note`,
 `take_host_conditions`; `tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay
 events, and a condition needs no sentence"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a
 refused prefs file is spoken, stands, and is never overwritten"`.
@@ -42,12 +42,13 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 LAW — A condition derived from a live owner — a pane's refusal, a pane's state, the project frontier — is never copied into the held set; the owner's next truth clears it with no retraction call.
 
-PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `refusal`, `refusal_why`, `ProjectFrontier`,
-`clear_refusal`; `workshop/screen.hpp` `pane_state_of`, `paint`, `attention_conditions`;
-`workshop/attention.hpp` `HeldConditions`; `workshop/weave.hpp` `HostContext::frontier`,
-`frontier_now`; `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and
-leaves attention with its subject"`, case `"WUX-4: the project frontier is a condition while it
-waits and nothing after"`.
+PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `ExternalPane::refusal`,
+`ExternalPane::refusal_why`, `ProjectFrontier`, `ExternalPane::clear_refusal`;
+`workshop/screen.hpp` `pane_state_of`, `paint`, `attention_conditions`; `workshop/attention.hpp`
+`HeldConditions`; `workshop/weave.hpp` `HostContext::frontier`, `frontier_now`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and leaves attention
+with its subject"`, case `"WUX-4: the project frontier is a condition while it waits and nothing
+after"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — Three pane states earn ambient attention and four do not
@@ -86,21 +87,22 @@ LAW — A dismissal remembers the key and a stamp of the statement — compact, 
 MEANS
 - session-only, never persisted; dismiss is not resolve and changes no underlying truth.
 
-PROVEN BY — `workshop/attention.hpp` `AttentionView::dismissed`, `stamp`, `Dismissal`,
-`AttentionView`, `hides`; `workshop/weave.hpp` `attention_key`; `tests/test_workshop_panels.cpp`
-case `"WUX-4: dismissal hides a presentation and changes nothing that is true"`, case `"WUX-4: a
-dismissed condition comes back when it materially changes"`, case `"WUX-4: dismiss is not resolve,
-resolve is not dismiss"`.
+PROVEN BY — `workshop/attention.hpp` `AttentionView::dismissed`, `Condition::stamp`,
+`Dismissal::stamp`, `Dismissal`, `AttentionView`, `AttentionView::hides`; `workshop/weave.hpp`
+`attention_key`; `tests/test_workshop_panels.cpp` case `"WUX-4: dismissal hides a presentation and
+changes nothing that is true"`, case `"WUX-4: a dismissed condition comes back when it materially
+changes"`, case `"WUX-4: dismiss is not resolve, resolve is not dismiss"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-09 — `KeyContext::kAttention` is a mode in the picker's place
 
 LAW — A mode in the picker's place, below the Terminal and the arrangement scopes and above a focused pane and a live draft; not keys-modal, its gestures being catalog rows; its toggle is a no-text row.
 
-PROVEN BY — `workshop/keymap.hpp` `kAttention`, `workshop.attention`, `kNoText`;
-`workshop/screen.hpp` `keyboard_context_beneath_menu`, `paint_attention`, `attention_bounds`;
-`workshop/weave.hpp` `toggle_attention`, `attention_key`; `tests/test_workshop_panels.cpp` case
-`"WUX-4: the view's gestures are the keymap's, and every help surface says so"`.
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kAttention`, `workshop.attention`,
+`KeyContext::kNoText`; `workshop/screen.hpp` `keyboard_context_beneath_menu`, `paint_attention`,
+`attention_bounds`; `workshop/weave.hpp` `toggle_attention`, `attention_key`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: the view's gestures are the keymap's, and every
+help surface says so"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-10 — A condition names an action and holds no power

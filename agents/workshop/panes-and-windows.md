@@ -31,9 +31,9 @@ MEANS
 
 PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`,
 `Seating`; `workshop/screen.hpp` `bounds_of`, `stack_slots_that_fit`; `workshop/panel.hpp`
-`waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored place spends
-no reactive slot, and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp` case `"an
-oversubscribed authored setup keeps the extra reference, waiting for room"`.
+`Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: an authored
+place spends no reactive slot, and cannot wait for one"`; `tests/test_workshop_panes_seam.cpp`
+case `"an oversubscribed authored setup keeps the extra reference, waiting for room"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the maker
@@ -89,7 +89,7 @@ MEANS
 - ordering changes paint order and nothing else.
 
 PROVEN BY — `workshop/setup.hpp` `seat_panes`, `reconcile`, `Reconciled`, `Setup`, `add_pane`,
-`Seating`; `workshop/screen.hpp` `bounds_of`; `workshop/panel.hpp` `open`;
+`Seating`; `workshop/screen.hpp` `bounds_of`; `workshop/panel.hpp` `Panels::open`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: ordering changes paint order and NOTHING
 else"`; `tests/test_workshop_persistence.cpp` case `"reconciling opens what the setup names, in
 the setup's order"`.

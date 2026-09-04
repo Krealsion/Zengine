@@ -120,6 +120,19 @@ with source paths, the legacy interaction shape, and where the comparable questi
 today. It is archaeology, not authority: an entry saying a capability is absent is a statement
 about coverage, never a request for work.
 
+## Naming
+
+**A name carries its terminating condition.** An operation that may never return says so in its
+name, and one that returns after a bounded turn says that: the bus's two dispatch turns are
+`pump_pending()` and `drain_until_idle()`, and the second is unbounded by contract, which is
+what its name is for. A name an ordinary reader takes for the bounded turn is how a host once
+chose the call that never returned.
+
+**A retired name is never redefined.** When a name is retired because it misled, the repair is
+a new name with the honest promise. The old spelling is not reintroduced as a synonym and is
+not given a different meaning later; what it used to mean is in Git history, not in a new
+definition.
+
 ## Source comment conventions
 
 Public header comments are documentation, and a stranger reads them while using the API. So:

@@ -160,10 +160,10 @@ many builds a case runs at once, not only how many entries CTest runs at once.**
 ## The sanitizer lane is a SECOND kind of evidence (W-3a)
 
 `-DZENGINE_SANITIZE=ON` (ASan + UBSan, non-recovering) runs the same population under
-instrumentation; CI runs it on every push and PR. It is not a second correctness lane and it
-does not replace `verify.cmake` — the ordinary lane asks whether the intended population ran
-and passed, which cannot see a defect whose symptom is that *no answer changes*. Measured, both
-ways round:
+instrumentation; CI runs it on pull requests and on pushes to `main`. It is not a second
+correctness lane and it does not replace `verify.cmake` — the ordinary lane asks whether the
+intended population ran and passed, which cannot see a defect whose symptom is that *no answer
+changes*. Measured, both ways round:
 
 ```text
 a Placed bound into a temporary Scene   ordinary PASSES   ASan  heap-use-after-free

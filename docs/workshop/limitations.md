@@ -352,7 +352,7 @@ somebody else's pane other than by editing a plan file and having the artifact o
 |---|---|
 | Linux / WSL, GCC 11+ | fully supported; the canonical lane |
 | Linux, Clang | builds; not a routine lane |
-| Windows, MinGW-w64 GCC 13.1+ (libstdc++) x64 | supported; the required Windows lane, and the build this project is developed on day to day. Runtime DLLs must be on `PATH` or beside the binaries |
+| Windows, MinGW-w64 GCC 13.1+ (libstdc++) x64 | supported; the required Windows lane, and the build this project is developed on day to day. Runtime DLLs must be on `PATH` or beside the binaries; a binutils at or below 2.40 cannot assemble the Workshop application itself (2.45 can), though the test suites build either way |
 | Windows, MSVC 19.50 (VS 2026) x64 | supported; the advisory Windows lane, and the toolchain released Windows users are expected to build with. clang-cl and ARM64 are unverified |
 | macOS | never built. Unclassified, not "unsupported" |
 | the Loom's OS sandbox | **Linux only.** On Windows the kernel exists as an explicit development/demo backend with **no isolation**, and says so at every surface |

@@ -12,7 +12,7 @@ MEANS
 - `editor_has_keyboard`, `files_has_keyboard`, `pane_editor_has_keyboard` are the built-ins';
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
-PROVEN BY — `workshop/panel.hpp` `keyboard`, `keyboard_pane`; `workshop/screen.hpp`
+PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`; `workshop/screen.hpp`
 `editor_has_keyboard`, `files_has_keyboard`, `pane_editor_has_keyboard`; `workshop/weave.hpp`
 `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external
 pane's room points the keyboard at it"`, case `"MSG-0: a press into a second external pane moves
@@ -82,19 +82,19 @@ MEANS
 - pressing back into the Info body clears the candidate by the same line that set it.
 
 PROVEN BY — `workshop/screen.hpp` `keyboard_context`, `keyboard_context_beneath_menu`;
-`workshop/keymap.hpp` `above_mode_action`; `tests/test_workshop_panes_input.cpp` case `"MSG-0:
-every Workshop mode owns the keyboard above a focused pane"`, case `"MSG-0: the keys that mean
-the same thing in every mode still outrank a pane"`.
+`workshop/keymap.hpp` `Keymap::above_mode_action`; `tests/test_workshop_panes_input.cpp` case
+`"MSG-0: every Workshop mode owns the keyboard above a focused pane"`, case `"MSG-0: the keys that
+mean the same thing in every mode still outrank a pane"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-08 — The pane gets every bare key, `q` included
 
 LAW — The global survivors are chorded, and admission's refusal of a bare printable on a global row enforces it, which is why typing `p` into a field does not open the picker.
 
-PROVEN BY — `workshop/keymap.hpp` `kGlobal`; `workshop/keymap_persist.hpp` `from_text`;
-`tests/test_workshop_panes_input.cpp` case `"MSG-0: typing `p` into a focused pane does not open
-the picker"`; `tests/test_workshop_document.cpp` case `"KEY-0: a global action cannot take a
-bare printable or the editing vocabulary"`.
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`; `workshop/keymap_persist.hpp`
+`from_text`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: typing `p` into a focused pane
+does not open the picker"`; `tests/test_workshop_document.cpp` case `"KEY-0: a global action
+cannot take a bare printable or the editing vocabulary"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-09 — `^c` follows the keyboard
@@ -131,13 +131,14 @@ MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
 - a hidden title returns its row to the provider through the ordinary grant-on-change door.
 
-PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp` `pane_titles`,
-`external_title_rows`, `header_rows`, `kExternalHeaderRows`; `workshop/prefs_persist.hpp`
-`kTitlesDefaultValue`, `kTitlesDefault`; `workshop/weave.hpp` `prefs_path`, `load_prefs`,
-`prefs_loaded_`, `prefs_bad_`; `tests/test_workshop_document.cpp` case `"WUX-1/SC-5: pane titles
-are one action, one binding truth, one dispatch"`, case `"WUX-1/SC-5+SC-6: hiding titles returns
-the row; the keyboard's pane keeps its own"`; `tests/test_workshop_persistence.cpp` case `"WUX-3:
-a toggle writes the preference, and a reopened Workshop wears it"`.
+PROVEN BY — `workshop/keymap.hpp` `workshop.pane-titles`; `workshop/screen.hpp`
+`Session::pane_titles`, `external_title_rows`, `ExternalBodyPlace::header_rows`,
+`kExternalHeaderRows`; `workshop/prefs_persist.hpp` `kTitlesDefaultValue`, `kTitlesDefault`;
+`workshop/weave.hpp` `HostContext::prefs_path`, `load_prefs`, `WorkshopWeave::prefs_loaded_`,
+`WorkshopWeave::prefs_bad_`; `tests/test_workshop_document.cpp` case `"WUX-1/SC-5: pane titles are
+one action, one binding truth, one dispatch"`, case `"WUX-1/SC-5+SC-6: hiding titles returns the
+row; the keyboard's pane keeps its own"`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a
+toggle writes the preference, and a reopened Workshop wears it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## Do not assume
