@@ -46,6 +46,6 @@ lays out; a maker-made pane's name is thirty-two. The bounds are input boundarie
 capacities: none is a statement about how many panes Workshop can usefully show, and a refusal
 keeps nothing of what it refused.
 
-**Laws supported.** [WL-SETUP-09](../workshop/setup-file.md),
-[WL-SETUP-10](../workshop/setup-file.md), [WL-CAT-02](../workshop/catalog.md),
-[WL-MAKER-13](../workshop/maker-pane.md).
+**Laws supported.** [WL-CAT-02](../workshop/catalog.md),
+[WL-MAKER-13](../workshop/maker-pane.md), [WL-SETUP-09](../workshop/setup-file.md),
+[WL-SETUP-10](../workshop/setup-file.md).
