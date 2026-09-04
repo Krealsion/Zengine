@@ -13,9 +13,9 @@ MEANS
 - the interval is a product constant, not a preference: one gesture means one thing everywhere.
 
 PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/screen.hpp`
-`kDoubleClickMs`, `doubles_a_click`, `ClickMemory`, `click`; `workshop/weave.hpp`
-`interaction_now`; `tests/test_workshop_screen.cpp` case `"WUX-7: what makes two presses one
-double-click, and what does not"`.
+`kDoubleClickMs`, `doubles_a_click`, `ClickMemory`, `Session::click`; `workshop/weave.hpp`
+`HostContext::interaction_now`; `tests/test_workshop_screen.cpp` case `"WUX-7: what makes two
+presses one double-click, and what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — One seam, both editable lines
@@ -55,9 +55,10 @@ MEANS
 DOES NOT MEAN
 - that the reveal is asked while a mode or a held gesture owns the pointer — it is empty then.
 
-PROVEN BY — `workshop/screen.hpp` `Revealed`, `reveal`, `detail::reveal_shown`, `revealed_row`;
-`tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is scrolled
-at all"`, case `"WUX-7: a revealed row is a window over the same string, never a wider row"`.
+PROVEN BY — `workshop/screen.hpp` `Revealed`, `Session::reveal`, `detail::reveal_shown`,
+`revealed_row`; `tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row
+is scrolled at all"`, case `"WUX-7: a revealed row is a window over the same string, never a wider
+row"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-05 — The item is the identity, never the prose row

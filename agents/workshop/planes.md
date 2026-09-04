@@ -43,7 +43,7 @@ MEANS
 - the reserved rows are two because one cell holds zero rows of a real face;
 - slots, the side region, the overlay column and occupancy all begin at `kWorkspaceY`.
 
-PROVEN BY — `workshop/screen.hpp` `kTopRows`, `kBottomRows`, `kWorkspaceY`, `room_h`,
+PROVEN BY — `workshop/screen.hpp` `kTopRows`, `kBottomRows`, `kWorkspaceY`, `Screen::room_h`,
 `band_bounds`, `top_band_bounds`; `tests/test_workshop_screen.cpp` case `"QR-14/SC-2: the layout
 selector is the first Workshop row, on both media"`, case `"QR-14/SC-2: the move re-homed
 reserved rows and did not add one"`, case `"QR-14/SC-6: every owner of the body agrees about
@@ -58,7 +58,7 @@ MEANS
 - the press line, `enter_arrange_pane` after admission, `open_source`, Escape's fallthrough;
 - a refused Arrange leaves the selection exactly where it was.
 
-PROVEN BY — `workshop/panel.hpp` `selected`, `selected_pane`, `kNoPaneKind`;
+PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPaneKind`;
 `workshop/weave.hpp` `enter_arrange_pane`, `unselect_pane`, `open_source`;
 `tests/test_workshop_screen.cpp` case `"WUX-5: the selection lift never reaches the file, and no
 session starts with one"`, case `"WUX-7: contextual Arrange lifts the pane it addressed, not the

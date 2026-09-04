@@ -14,12 +14,12 @@ MEANS
 - the above-mode chords still work inside it: `^s` saves, `^c` copies.
 
 PROVEN BY — `workshop/weave.hpp` `toggle_terminal`, `terminal_key`, `terminal_press`;
-`workshop/screen.hpp` `TerminalPane`; `workshop/keymap.hpp` `workshop.terminal`, `kTerminal`;
-`tests/test_workshop_screen.cpp` case `"the terminal toggle opens the overlay, and the same
-toggle closes it"`, case `"the toggle's own keystroke never becomes text, in either direction"`,
-case `"a closed overlay leaves every ordinary Workshop gesture exactly as it was"`, case `"while
-the overlay is open the keys and the pointer belong to it"`, case `"^s still means save with the
-overlay open, and ^c means copy there (TEXT-0)"`.
+`workshop/screen.hpp` `TerminalPane`; `workshop/keymap.hpp` `workshop.terminal`,
+`KeyContext::kTerminal`; `tests/test_workshop_screen.cpp` case `"the terminal toggle opens the
+overlay, and the same toggle closes it"`, case `"the toggle's own keystroke never becomes text, in
+either direction"`, case `"a closed overlay leaves every ordinary Workshop gesture exactly as it
+was"`, case `"while the overlay is open the keys and the pointer belong to it"`, case `"^s still
+means save with the overlay open, and ^c means copy there (TEXT-0)"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-02 — The pane presents an ordinary participant on Workshop's own bus
@@ -47,13 +47,13 @@ MEANS
 - the snapshot outlives the participant it came from.
 
 PROVEN BY — `workshop/screen.hpp` `TerminalPane`, `entries_that_fit`, `terminal_omission`,
-`paint_terminal`, `kTerminalMinH`, `kTerminalChrome`, `kTerminalMinCols`, `terminal_cols`,
-`terminal_rows`; `workshop/weave.hpp` `refresh_terminal`; `tests/test_workshop_screen.cpp` case
-`"the pane is published as ONE bounded region, placed in cells"`, case `"a medium that sets real
-type reflows the pane, and the omission stays true"`, case `"the pane says what it is not showing,
-in the two senses that differ"`, case `"the pane's snapshot outlives the participant it came
-from"`; `tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what it
-could not show"`.
+`paint_terminal`, `kTerminalMinH`, `kTerminalChrome`, `kTerminalMinCols`, `Screen::terminal_cols`,
+`Screen::terminal_rows`; `workshop/weave.hpp` `refresh_terminal`; `tests/test_workshop_screen.cpp`
+case `"the pane is published as ONE bounded region, placed in cells"`, case `"a medium that sets
+real type reflows the pane, and the omission stays true"`, case `"the pane says what it is not
+showing, in the two senses that differ"`, case `"the pane's snapshot outlives the participant it
+came from"`; `tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what
+it could not show"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
@@ -66,8 +66,8 @@ MEANS
 - a quoted token is left alone: the quote is not on the line the completer sees.
 
 PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `TerminalVerb`,
-`kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`, `said`,
-`starts_with`, `named_already`; `workshop/weave.hpp` `submit_terminal_line`;
+`kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`,
+`CommandLine::said`, `starts_with`, `named_already`; `workshop/weave.hpp` `submit_terminal_line`;
 `tests/test_workshop_panels.cpp` case `"a half-typed line says which part of it the maker is
 standing in"`, case `"the verbs a maker is offered are the verbs the submitter runs"`, case `"an
 address offers the three forms and never pretends to know the values"`, case `"arguments offer
@@ -84,7 +84,7 @@ MEANS
 
 PROVEN BY — `workshop/weave.hpp` `accept_completion`, `move_completion`,
 `completion_selectable`, `terminal_key`; `workshop/screen.hpp` `completion_rows`,
-`completion_first_shown`, `kCompletionMinRows`, `dismissed`, `asked`;
+`completion_first_shown`, `kCompletionMinRows`, `TerminalPane::dismissed`, `TerminalPane::asked`;
 `tests/test_workshop_panels.cpp` case `"browsing candidates authors NOTHING -- no traffic, no ask,
 no transcript entry"`, case `"accepting a candidate edits the line, and the grammar's separators
 stay right"`, case `"the completion keys were unbound in this mode, and the ones that were not

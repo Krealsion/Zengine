@@ -60,11 +60,11 @@ MEANS
 - narrowing the pane narrows the run; markers, reservation and `+` degrade by their own rules;
 - a tab's span is recorded as the row is written, so there is no second measurement to drift.
 
-PROVEN BY — `workshop/screen.hpp` `text`, `tabs`, `band_status`, `paint_layouts`, `band_tab_at`,
-`layouts_body`, `band_tab_row`, `kNoBandRow`, `BandStatus`, `layout_tab_run`;
-`tests/test_workshop_screen.cpp` case `"WUX-9/SC-7: the tab run is one composition on both
-media"`, case `"WUX-9/SC-9: a press answers a painted tab and nothing else on the band"`, case
-`"WUX-9/SC-8: the run never spends more columns than it was given"`.
+PROVEN BY — `workshop/screen.hpp` `LayoutTabRun::text`, `LayoutTabRun::tabs`, `band_status`,
+`paint_layouts`, `band_tab_at`, `layouts_body`, `band_tab_row`, `kNoBandRow`, `BandStatus`,
+`layout_tab_run`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-7: the tab run is one
+composition on both media"`, case `"WUX-9/SC-9: a press answers a painted tab and nothing else on
+the band"`, case `"WUX-9/SC-8: the run never spends more columns than it was given"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-06 — The marker brackets the live name, one cell each side
@@ -130,7 +130,7 @@ MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
 
 PROVEN BY — `workshop/screen.hpp` `ClickMemory`, `TabClickMemory`, `doubles_a_tab_click`,
-`tab_click`, `kDoubleClickMs`; `tests/test_workshop_panels.cpp`
+`Session::tab_click`, `kDoubleClickMs`; `tests/test_workshop_panels.cpp`
 case `"WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file"`;
 `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor opens on the tab's
 own name and writes nothing"`.
@@ -143,8 +143,8 @@ LAW — A tab drag holds nothing but whether it is active, the hand always carry
 MEANS
 - nothing is cached or reconciled; a release ends the gesture wherever the hand is.
 
-PROVEN BY — `workshop/screen.hpp` `LayoutTabDrag`, `tab_drag`; `workshop/weave.hpp`
-`end_held_gestures`; `workshop/setup.hpp` `active_at`, `move_layout`;
+PROVEN BY — `workshop/screen.hpp` `LayoutTabDrag`, `Session::tab_drag`; `workshop/weave.hpp`
+`end_held_gestures`; `workshop/setup.hpp` `SetupState::active_at`, `move_layout`;
 `tests/test_workshop_panels.cpp` case `"WUX-11/SC-4: dragging a tab along the run reorders it
 and nothing else"`.
 WHY — `agents/decisions/the-layouts-pane.md`

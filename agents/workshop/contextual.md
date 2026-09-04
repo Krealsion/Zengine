@@ -45,13 +45,13 @@ MEANS
 - a group re-derives at the same anchor; a level taller than the room is cut, and says so;
 - `popup_bounds_at`: one measurer, one chrome, one clamp in the overlay band; the hotkeys use it.
 
-PROVEN BY — `workshop/context.hpp` `ContextMenu`, `anchored`, `anchor_x`; `workshop/screen.hpp`
-`context_bounds`, `popup_bounds_at`, `kContextMaxCols`, `chrome_outer_of`, `hotkeys_bounds`,
-`context_entry_text`; `surface/region.hpp` `region_cells_for`; `tests/test_workshop_screen.cpp`
-case `"ARR-0: the popup opens at the press's own cell, and its extent is its content"`, case
-`"ARR-0: the popup shifts to stay usable inside the room, at every boundary"`, case `"ARR-0: the
-keyboard entrance has no pointer and invents none"`, case `"ARR-0: entering a group stays at the
-anchor, and the popup resizes to it"`.
+PROVEN BY — `workshop/context.hpp` `ContextMenu`, `ContextMenu::anchored`,
+`ContextMenu::anchor_x`; `workshop/screen.hpp` `context_bounds`, `popup_bounds_at`,
+`kContextMaxCols`, `chrome_outer_of`, `hotkeys_bounds`, `context_entry_text`; `surface/region.hpp`
+`region_cells_for`; `tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's
+own cell, and its extent is its content"`, case `"ARR-0: the popup shifts to stay usable inside
+the room, at every boundary"`, case `"ARR-0: the keyboard entrance has no pointer and invents
+none"`, case `"ARR-0: entering a group stays at the anchor, and the popup resizes to it"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-04 — The first row is an action
@@ -126,11 +126,11 @@ MEANS
 DOES NOT MEAN
 - that anything crosses the provider seam — no second-button `PanePressed`, no provider rows.
 
-PROVEN BY — `workshop/keymap.hpp` `kContext`; `workshop/screen.hpp` `keyboard_context`,
-`context_press_at`, `ContextPressAt`; `workshop/weave.hpp` `spend_context_choice`,
-`choose_context_row`, `context_press`; `tests/test_workshop_panels.cpp` case `"CTX-0: input spent
-on the open surface does not leak through it"`, case `"CTX-0: navigation backtracks cleanly and
-every way out closes"`; `tests/test_workshop_panes_window.cpp` case `"CTX-0: a right press over a
-provider's pane crosses the seam not at all"`, case `"CTX-0: input spent on the open surface
-reaches no provider"`.
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen.hpp`
+`keyboard_context`, `context_press_at`, `ContextPressAt`; `workshop/weave.hpp`
+`spend_context_choice`, `choose_context_row`, `context_press`; `tests/test_workshop_panels.cpp`
+case `"CTX-0: input spent on the open surface does not leak through it"`, case `"CTX-0: navigation
+backtracks cleanly and every way out closes"`; `tests/test_workshop_panes_window.cpp` case
+`"CTX-0: a right press over a provider's pane crosses the seam not at all"`, case `"CTX-0: input
+spent on the open surface reaches no provider"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`

@@ -11,11 +11,12 @@ MEANS
 - no panel, provider, room or selection belongs to a shelved layout;
 - `Layout` is desk + link, one struct rather than two parallel vectors whose indices could drift.
 
-PROVEN BY — `workshop/setup.hpp` `Setup`, `active`, `SetupState`, `active_link`, `shelved`,
-`active_at`, `naming`, `Layout`, `SetupLink`; `workshop/screen.hpp` `Session::setup`;
-`tests/test_workshop_screen.cpp` case `"WUX-9/SC-2: a layout is a Setup and the run is the shelf
-plus the live value"`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the
-lifted-active representation are one fact"`.
+PROVEN BY — `workshop/setup.hpp` `Setup`, `SetupState::active`, `SetupState`,
+`SetupState::active_link`, `SetupState::shelved`, `SetupState::active_at`, `SetupState::naming`,
+`Layout`, `SetupLink`; `workshop/screen.hpp` `Session::setup`; `tests/test_workshop_screen.cpp`
+case `"WUX-9/SC-2: a layout is a Setup and the run is the shelf plus the live value"`;
+`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the lifted-active
+representation are one fact"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-02 — There is no `on_file` and no `saved()`
@@ -25,10 +26,10 @@ LAW — Every layout owns its own association, one function decides the verdict 
 MEANS
 - no stat, no reload, no watcher: a paint path never goes near a filesystem.
 
-PROVEN BY — `workshop/setup.hpp` `link_status`, `SetupLink`, `known`; `workshop/weave.hpp`
-`link_note`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-7: the three verdicts, and what
-makes a fresh desk `none`"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-7: the
-standing verdict performs no filesystem read"`.
+PROVEN BY — `workshop/setup.hpp` `link_status`, `SetupLink`, `SetupLink::known`;
+`workshop/weave.hpp` `link_note`; `tests/test_workshop_screen.cpp` case `"WUX-11/SC-7: the three
+verdicts, and what makes a fresh desk `none`"`; `tests/test_workshop_persistence.cpp` case
+`"WUX-11/SC-7: the standing verdict performs no filesystem read"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-03 — The run is the shelf with one element lifted out
@@ -40,8 +41,8 @@ MEANS
 - `add_layout` makes `default_setup()` with no association: new means new;
 - removing the last layout takes the previous neighbour instead.
 
-PROVEN BY — `workshop/setup.hpp` `active_at`, `activate_layout`, `add_layout`, `remove_layout`,
-`default_setup`, `SetupState`; `workshop/weave.hpp` `new_layout`, `drop_layout`;
+PROVEN BY — `workshop/setup.hpp` `SetupState::active_at`, `activate_layout`, `add_layout`,
+`remove_layout`, `default_setup`, `SetupState`; `workshop/weave.hpp` `new_layout`, `drop_layout`;
 `tests/test_workshop_screen.cpp` case `"WUX-9/SC-3: switching never reorders the run, and the live
 value never doubles"`, case `"WUX-11/SC-1: new is BLANK and appended, and it is a value of its
 own"`, case `"WUX-9/SC-11: removing takes the next neighbour, the previous only at the end"`.
@@ -94,7 +95,7 @@ MEANS
 - a pane in both layouts at the same prose capacity hears nothing: no grant, no ask.
 
 PROVEN BY — `workshop/weave.hpp` `apply_setup`; `workshop/panel.hpp` `close_panel`;
-`workshop/setup.hpp` `shelved`;
+`workshop/setup.hpp` `SetupState::shelved`;
 `tests/test_workshop_panes_window.cpp` case `"WUX-9/SC-6: a pane in two layouts is one pane, one
 provider, one room"`, case `"WUX-9/SC-15: an inactive layout's rows are dormant, not
 maintained"`.
@@ -155,11 +156,11 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 LAW — The run leaves the state as a new vector with the live value back in place and returns by lifting one out again, one inverse pair; the durable owner never touches the shelf or the position.
 
-PROVEN BY — `workshop/setup.hpp` `shelved`, `active_at`, `layout_run`, `install_layout_run`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the lifted-active
-representation are one fact"`, case `"WUX-10/SC-9: installing a run touches nothing else the
-session owns"`, case `"WUX-10/SC-8: every position in the run is a position a session can be
-saved at"`.
+PROVEN BY — `workshop/setup.hpp` `SetupState::shelved`, `SetupState::active_at`, `layout_run`,
+`install_layout_run`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-9: the run and the
+lifted-active representation are one fact"`, case `"WUX-10/SC-9: installing a run touches nothing
+else the session owns"`, case `"WUX-10/SC-8: every position in the run is a position a session can
+be saved at"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-13 — The layout gestures are ordinary rows in command mode

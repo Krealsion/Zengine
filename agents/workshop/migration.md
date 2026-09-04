@@ -94,11 +94,11 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 LAW — This format's whole law is one function with two callers — off the gate, and out of a conversion's answer — so no conversion skips a check; the format word crosses untouched, the version cannot.
 
-PROVEN BY — `workshop/session_persist.hpp` `current_in`, `forged_version`, `format_version`;
-`workshop/session_history.hpp` `mismatched_version`; `tests/test_workshop_persistence.cpp` case
-`"MIG-0: an old session's OWN law still runs -- the conversion skips no check"`, case `"MIG-0: a
-current-version file whose own field says otherwise is a forgery"`, case `"WUX-0 D/MIG-0: an
-unreadable session names its version by NUMBER"`.
+PROVEN BY — `workshop/session_persist.hpp` `current_in`, `forged_version`,
+`WorkshopSession::format_version`; `workshop/session_history.hpp` `mismatched_version`;
+`tests/test_workshop_persistence.cpp` case `"MIG-0: an old session's OWN law still runs -- the
+conversion skips no check"`, case `"MIG-0: a current-version file whose own field says otherwise
+is a forgery"`, case `"WUX-0 D/MIG-0: an unreadable session names its version by NUMBER"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-08 — The catalog reaches the reader as a reading, never a power
@@ -108,10 +108,10 @@ LAW — The conversion catalog reaches the reader as a read-only pointer the hos
 MEANS
 - an old file's version claim is a lookup key that reaches no load door.
 
-PROVEN BY — `workshop/weave.hpp` `conversions`; `workshop/session_persist.hpp` `op::migrate`,
-`from_text`, `load_file`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6: with the
-conversion mounted, the desk comes back through the weave"`, case `"MIG-0/SC-11: unmounting the
-artifact takes the conversion with it"`.
+PROVEN BY — `workshop/weave.hpp` `HostContext::conversions`; `workshop/session_persist.hpp`
+`op::migrate`, `from_text`, `load_file`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6:
+with the conversion mounted, the desk comes back through the weave"`, case `"MIG-0/SC-11:
+unmounting the artifact takes the conversion with it"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-09 — The ordering is authored plan order, and nothing else
@@ -121,7 +121,7 @@ LAW — A provider-only row runs inside `PlanExecutor::begin()`; the first weave
 MEANS
 - both shipped plans name it second; there is no retry, no pending posture and no demand-load.
 
-PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor`, `begin`;
+PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor`, `PlanExecutor::begin`;
 `workshop/graphical-load-plan.json` `zengine-workshop-session-history`;
 `tests/test_workshop_load.cpp` case `"BOOT-0: a plan of provider-only rows finishes inside
 begin(), turning nothing"`, case `"the shipped default plan is a legal plan, and it is the
