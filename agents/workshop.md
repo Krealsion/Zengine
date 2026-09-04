@@ -33,9 +33,10 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 `weave.hpp`'s functions are in `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`,
 compiled once, and a `// WL-` pointer sits with the body — a prototype carries none.
 
-**Where a case goes.** Workshop's tests are seven suites, one per area — document, screen,
-panels, panes, persistence, load, editor — and a new case belongs to the one whose subject it
-proves; [`verification.md`](verification.md) names them.
+**Where a case goes.** Workshop's tests are eight suites, one per area, and a new case belongs
+to the one whose subject it proves;
+[`verification/population.md`](verification/population.md#where-a-case-goes) names them and
+which register each witnesses.
 
 ## Ongoing rules
 

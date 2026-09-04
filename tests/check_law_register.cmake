@@ -24,6 +24,22 @@
 #   source pointers   every `// WL-... -- agents/workshop/<register>.md` line names
 #                     registers that exist and ids that are entries of the register named
 #                     on that line; every `// Workshop law:` header names existing files
+#   method registers  every `##` under a method-register directory (agents/verification/) is
+#                     one VM entry, or the one table heading `## Where a case goes`; an entry
+#                     has a METHOD of one line whose sentence is at most 210 bytes, a BECAUSE
+#                     of at most three lines, and a SEEN that is `nowhere yet` or names paths,
+#                     identifiers and witnesses, resolved exactly as a PROVEN BY's are; no
+#                     line of an entry carries a phase tag; VM ids are unique under agents/
+#                     together with the WL ids; the count of entries applied somewhere in the
+#                     tree (a SEEN that is not `nowhere yet`) clears its floor,
+#                     ZEN_VM_APPLIED_FLOOR -- a floor like a case floor, raised when a method
+#                     gains a SEEN and lowered by no one to make a deletion pass
+#   budgets           every *.md under agents/ is within its byte budget -- a router 8,192, a
+#                     register and every other file under agents/ 16,384, AGENTS.md 20,480;
+#                     the routed documents not yet turned into registers are named in
+#                     ZEN_LAW_UNBUDGETED and must stay OVER the register budget while they
+#                     are, so that list can only shrink; a decision record over 4,096 bytes
+#                     is counted and printed, never failed (AGENTS.md rule i says flagged)
 #
 # WHY IT IS MECHANICAL. The register replaced a 200 KB document in which a law existed
 # three times -- the document, a header essay above the function, and the code -- and went
@@ -85,8 +101,10 @@
 # THE SELF-TEST IS NOT OPTIONAL. A well-formed tree and a checker that finds nothing produce
 # byte-identical output, so before answering it makes each predicate say NO -- a bad
 # heading, an identifier that is only in a comment, a witness no test declares, a malformed
-# pointer -- and say YES to their well-formed twins, one of them a case name read out of
-# the real test sources at runtime.
+# pointer, a phase tag, a VM entry with a long METHOD, a four-line BECAUSE and a stray
+# heading -- and say YES to their well-formed twins, one of them a case name read out of
+# the real test sources at runtime. The VM walker is exercised on a synthetic register held
+# in this file, never on a file written to the tree.
 #
 #   cmake -P tests/check_law_register.cmake                          (from the repository root)
 #   cmake -DLAW_REGISTER_STRICT=OFF -P tests/check_law_register.cmake
@@ -118,6 +136,20 @@ set(ZEN_LAW_RECORD_DIR agents/decisions)
 set(ZEN_LAW_CORE AGENTS.md)
 set(ZEN_LAW_WITNESS_DIR tests)
 
+# The method registers (the VM form), their router, and the one heading a method register may
+# carry that is not an entry. A phase tag is a parenthesised token shaped like an id whose
+# family is not one of these law families; the families are the only list this check keeps.
+set(ZEN_VM_REGISTER_DIRS agents/verification)
+set(ZEN_VM_ROUTERS agents/verification.md)
+set(ZEN_VM_TABLE_HEADING "## Where a case goes")
+set(ZEN_VM_ID_FAMILIES WL VM TIMER POP KERN)
+
+# Every *.md under this directory is budgeted (below). The routed documents that are not yet
+# registers are over the register budget today and are named here, so the sweep can demand
+# that each one either stays over it or leaves this list -- the list shrinks, never grows.
+set(ZEN_LAW_AGENTS_DIR agents)
+set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md agents/surface.md)
+
 # The budgets, in BYTES. `string(LENGTH)` and `file(SIZE)` both count bytes, and an em dash
 # is three of them; a byte count is the stricter reading and the one the registers were
 # written to.
@@ -128,6 +160,16 @@ set(ZEN_LAW_LAW_BYTES 210)
 set(ZEN_LAW_LINE_BYTES 98)
 set(ZEN_LAW_MEANS_MAX 3)
 set(ZEN_LAW_DNM_MAX 2)
+# A METHOD's budget is measured on the sentence after `METHOD -- `, which is the measure the
+# sentences were reviewed at; a LAW's is measured on the whole line, as the registers were
+# written to. A record over ZEN_LAW_RECORD_FLAG_BYTES is counted, not failed.
+set(ZEN_VM_METHOD_BYTES 210)
+set(ZEN_VM_BECAUSE_MAX 3)
+# The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
+# same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
+# to `nowhere yet`, and nobody lowers it to make that pass.
+set(ZEN_VM_APPLIED_FLOOR 87)
+set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
 set(ZEN_LAW_EXCLUDE
@@ -142,7 +184,7 @@ set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 
 # A backticked token in PROVEN BY is a path when it ends in one of these; otherwise it is
 # an identifier checked against the path named before it.
-set(ZEN_LAW_PATH_RE "^[A-Za-z0-9_./-]+\\.(hpp|cpp|h|ipp|cc|cxx|c|md|txt|cmake|json|in|yml|yaml)$")
+set(ZEN_LAW_PATH_RE "^[A-Za-z0-9_./-]+\\.(hpp|cpp|h|ipp|cc|cxx|c|md|txt|cmake|json|in|yml|yaml|py|sh|tsv)$")
 
 # ---- reading a file without letting its punctuation reshape a CMake list ---------------
 #
@@ -280,6 +322,33 @@ function(zen_law_entry_heading line out_id out_retired)
             set(${out_retired} 1 PARENT_SCOPE)
         endif()
     endif()
+endfunction()
+
+# A method-register heading. Sets ${out_id} to the VM id, or to "" for anything else -- a WL
+# heading included, since a law id has one home and it is not a method register.
+function(zen_vm_entry_heading line out_id)
+    set(${out_id} "" PARENT_SCOPE)
+    if(line MATCHES "^## (VM-[A-Z]+-[0-9][0-9]) (—|--) (.+)$")
+        set(${out_id} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+# A phase tag on a line: a parenthesised token shaped like an id -- letters, a dash, an optional
+# letter, a digit, whatever follows to the closing parenthesis -- whose family is not a law
+# family (ZEN_VM_ID_FAMILIES). Quoted text is removed first: a witness title may carry a fossil,
+# and the router says a tag inside a TEST_CASE literal is one. Sets ${out} to the first tag
+# found, or "".
+function(zen_vm_phase_tag line out)
+    set(${out} "" PARENT_SCOPE)
+    string(REGEX REPLACE "\"[^\"]*\"" "" bare "${line}")
+    string(REGEX MATCHALL "\\([A-Z]+-[A-Z]?[0-9][^)]*\\)" tags "${bare}")
+    foreach(tag IN LISTS tags)
+        string(REGEX REPLACE "^\\(([A-Z]+)-.*$" "\\1" family "${tag}")
+        if(NOT family IN_LIST ZEN_VM_ID_FAMILIES)
+            set(${out} "${tag}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
 endfunction()
 
 # A pointer line: `// WL-A-01, WL-A-02 -- agents/workshop/a.md; WL-B-03 -- agents/workshop/b.md`.
@@ -668,6 +737,27 @@ if(NOT id STREQUAL "WL-ZZZ-02" OR NOT retired)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- the retired one-line form was not recognised.")
 endif()
 
+zen_vm_entry_heading("## VM-ZZZ-01 — A method heading" vm_id)
+zen_vm_entry_heading("## WL-ZZZ-01 — A law heading is not a method heading" vm_not_law)
+zen_vm_entry_heading("## Where a case goes" vm_not_table)
+if(NOT vm_id STREQUAL "VM-ZZZ-01" OR NOT vm_not_law STREQUAL "" OR NOT vm_not_table STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the method heading predicate read '${vm_id}', "
+        "'${vm_not_law}' for a law heading and '${vm_not_table}' for the table heading.")
+endif()
+zen_vm_phase_tag("BECAUSE — measured on a 9p mount (QR-13), and again later" tag_phase)
+zen_vm_phase_tag("BECAUSE — the same rule (ZOOM-P2) one level down" tag_letter)
+zen_vm_phase_tag("METHOD — a verdict read through a pipe is no verdict (VM-LANE-16)." tag_law)
+zen_vm_phase_tag("SEEN — `tests/t.cpp` case `\"HD-7: the policy (QR-9) holds\"`" tag_quoted)
+zen_vm_phase_tag("BECAUSE — a tolerance (one pixel) of rounding is fine" tag_prose)
+if(NOT tag_phase STREQUAL "(QR-13)" OR NOT tag_letter STREQUAL "(ZOOM-P2)" OR NOT tag_law STREQUAL ""
+   OR NOT tag_quoted STREQUAL "" OR NOT tag_prose STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the phase-tag predicate answered '${tag_phase}', "
+        "'${tag_letter}', law id '${tag_law}', quoted '${tag_quoted}', prose '${tag_prose}'. A "
+        "phase chronicle would then walk back into the registers unnoticed.")
+endif()
+
 set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\nvoid on(const SurfaceRect& r)${ZEN_SOH}\n")
 zen_law_mentions("${selftest_src}" "kBeta" yes)
 zen_law_strip_comments("${selftest_src}" selftest_code)
@@ -953,8 +1043,9 @@ endif()
 message(STATUS
     "law-register: self-test OK -- a bad heading, a commented-out identifier, a substring, a "
     "member under a substring scope, an overload whose type is only in a comment, a tagged "
-    "pointer, an undeclared witness, a one-sided witness debt, a one-sided clause debt and a "
-    "qualified spelling over a free function are refused; their well-formed twins are accepted")
+    "pointer, an undeclared witness, a one-sided witness debt, a one-sided clause debt, a "
+    "qualified spelling over a free function and a phase tag are refused; their well-formed "
+    "twins are accepted")
 
 # ---- population 2: the registers ---------------------------------------------------------
 
@@ -1076,8 +1167,8 @@ function(zen_law_walk_register rel is_router)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
         string(LENGTH "${line}" len)
-        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^LAW " AND NOT line MATCHES "^\\|")
-            zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; LAW and table rows excepted)")
+        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^(LAW|METHOD) " AND NOT line MATCHES "^\\|")
+            zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; LAW, METHOD and table rows excepted)")
         endif()
         if(line MATCHES "^SINCE")
             zen_law_fail("${rel}:${n} has a SINCE line; phase codes are retired, provenance is the WHY line's record")
@@ -1203,11 +1294,174 @@ function(zen_law_walk_register rel is_router)
     zen_law_flush_bullet()
 endfunction()
 
-foreach(rel IN LISTS register_files)
-    file(SIZE "${ZEN_REPO}/${rel}" bytes)
-    if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
-        zen_law_fail("${rel} is ${bytes} bytes (a register is at most ${ZEN_LAW_REGISTER_BYTES})")
+# ---- the VM form: a method register ---------------------------------------------------------
+#
+# `## VM-<AREA>-NN — <title>` / `METHOD — <one sentence>` / `BECAUSE — <at most three lines>` /
+# `SEEN — nowhere yet`, or `SEEN — <paths, identifiers, witnesses>`. Everything a SEEN names
+# is resolved by the PROVEN BY walk below, unchanged: a backticked path exists, a backticked
+# identifier occurs in the file named before it (as a whole token in the code, for a C/C++
+# file), a quoted witness is a TEST_CASE/SUBCASE literal. A method register may carry one
+# heading that is not an entry, ZEN_VM_TABLE_HEADING, whose section is free text (the table of
+# which suite witnesses which area). No line of an entry carries a phase tag: a method is keyed
+# by the lesson, never by the phase that paid for it. The walker takes the register's text so
+# the self-test can hand it a synthetic one.
+macro(zen_vm_flush_entry)
+    if(NOT id STREQUAL "")
+        if(method EQUAL 0)
+            zen_law_fail("${rel} ${id} has no METHOD line")
+        endif()
+        if(because_lines EQUAL 0)
+            zen_law_fail("${rel} ${id} has no BECAUSE line")
+        elseif(because_lines GREATER ZEN_VM_BECAUSE_MAX)
+            zen_law_fail("${rel} ${id} BECAUSE is ${because_lines} lines (at most ${ZEN_VM_BECAUSE_MAX})")
+        endif()
+        if(NOT seen)
+            zen_law_fail("${rel} ${id} has no SEEN line")
+        elseif(seen_text STREQUAL "nowhere yet")
+            set_property(GLOBAL APPEND PROPERTY zen_vm_nowhere "${id}")
+            set(seen_text "")
+        elseif(NOT seen_text MATCHES "`")
+            zen_law_fail("${rel} ${id} SEEN names nothing in backticks and is not `nowhere yet`")
+        endif()
+        set_property(GLOBAL PROPERTY "zen_law_file_${id}" "${rel}")
+        set_property(GLOBAL PROPERTY "zen_law_proven_${id}" "${seen_text}")
+        set_property(GLOBAL PROPERTY "zen_law_word_${id}" "SEEN")
+        set_property(GLOBAL APPEND PROPERTY zen_vm_ids "${id}")
     endif()
+    set(id "")
+    set(method 0)
+    set(because_lines 0)
+    set(seen 0)
+    set(seen_text "")
+    set(section "")
+endmacro()
+
+function(zen_vm_walk_text rel content)
+    string(REPLACE "\n" ";" lines "${content}")
+    set(id "")
+    zen_vm_flush_entry()
+    set(tables 0)
+    set(in_table 0)
+    set(n 0)
+    foreach(line IN LISTS lines)
+        math(EXPR n "${n} + 1")
+        string(LENGTH "${line}" len)
+        if(len GREATER ZEN_LAW_LINE_BYTES AND NOT line MATCHES "^METHOD " AND NOT line MATCHES "^\\|")
+            zen_law_fail("${rel}:${n} is ${len} bytes (at most ${ZEN_LAW_LINE_BYTES}; METHOD and table rows excepted)")
+        endif()
+        if(line MATCHES "^SINCE")
+            zen_law_fail("${rel}:${n} has a SINCE line; phase codes are retired")
+        endif()
+        if(line MATCHES "^## ")
+            zen_vm_flush_entry()
+            set(in_table 0)
+            if(line STREQUAL "${ZEN_VM_TABLE_HEADING}")
+                math(EXPR tables "${tables} + 1")
+                if(tables GREATER 1)
+                    zen_law_fail("${rel}:${n} is a second '${ZEN_VM_TABLE_HEADING}'; a register carries one")
+                endif()
+                set(in_table 1)
+                continue()
+            endif()
+            zen_vm_entry_heading("${line}" id)
+            if(id STREQUAL "")
+                zen_law_show("${line}" shown)
+                zen_law_fail("${rel}:${n} heading is neither a VM entry nor '${ZEN_VM_TABLE_HEADING}': ${shown}")
+                continue()
+            endif()
+            get_property(known GLOBAL PROPERTY "zen_law_file_${id}" SET)
+            if(known)
+                get_property(where GLOBAL PROPERTY "zen_law_file_${id}")
+                zen_law_fail("${rel}:${n} duplicates id ${id}, already an entry of ${where}")
+            endif()
+            zen_vm_phase_tag("${line}" tag)
+            if(NOT tag STREQUAL "")
+                zen_law_fail("${rel}:${n} ${id} carries a phase tag ${tag}; a method is keyed by the lesson")
+            endif()
+            continue()
+        endif()
+        if(in_table OR id STREQUAL "")
+            continue()
+        endif()
+        zen_vm_phase_tag("${line}" tag)
+        if(NOT tag STREQUAL "")
+            zen_law_fail("${rel}:${n} ${id} carries a phase tag ${tag}; a method is keyed by the lesson")
+        endif()
+        if(line MATCHES "^METHOD (—|--) (.*)$")
+            set(sentence "${CMAKE_MATCH_2}")
+            math(EXPR method "${method} + 1")
+            if(method GREATER 1)
+                zen_law_fail("${rel}:${n} ${id} has ${method} METHOD lines (one sentence, one line)")
+            endif()
+            string(LENGTH "${sentence}" mlen)
+            if(mlen GREATER ZEN_VM_METHOD_BYTES)
+                zen_law_fail("${rel}:${n} ${id} METHOD is ${mlen} bytes (at most ${ZEN_VM_METHOD_BYTES})")
+            endif()
+            set(section "method")
+            continue()
+        endif()
+        if(line MATCHES "^BECAUSE (—|--) ")
+            set(because_lines 1)
+            set(section "because")
+            continue()
+        endif()
+        if(line MATCHES "^SEEN (—|--) (.*)$")
+            set(seen 1)
+            string(STRIP "${CMAKE_MATCH_2}" seen_text)
+            set(section "seen")
+            continue()
+        endif()
+        if(line MATCHES "^[ \t]*$")
+            set(section "")
+            continue()
+        endif()
+        if(section STREQUAL "method")
+            zen_law_fail("${rel}:${n} ${id} METHOD wraps onto a second line (it is one line)")
+        elseif(section STREQUAL "because")
+            math(EXPR because_lines "${because_lines} + 1")
+        elseif(section STREQUAL "seen")
+            string(APPEND seen_text " ${line}")
+        else()
+            zen_law_show("${line}" shown)
+            zen_law_fail("${rel}:${n} ${id} has a line outside METHOD, BECAUSE and SEEN: ${shown}")
+        endif()
+    endforeach()
+    zen_vm_flush_entry()
+endfunction()
+
+function(zen_vm_walk_register rel)
+    zen_law_text("${rel}" content)
+    zen_vm_walk_text("${rel}" "${content}")
+endfunction()
+
+# The VM walker over two synthetic registers: a well-formed one must raise nothing, and one
+# carrying a long METHOD, a four-line BECAUSE, a phase tag and a heading that is no entry must
+# raise exactly those four. The problems property is saved around the run and the synthetic ids
+# are dropped, so nothing here reaches the real walk.
+get_property(vm_saved_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(vm_good "## VM-ZZZ-01 — A well-formed method\n\nMETHOD — One sentence.\nBECAUSE — one line,\nand a second.\nSEEN — nowhere yet\n\n## Where a case goes\n\n| a | b |\n")
+zen_vm_walk_text("selftest-good.md" "${vm_good}")
+get_property(vm_good_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+string(REPEAT "x" 211 vm_long)
+set(vm_bad "## VM-ZZZ-02 — A long method\n\nMETHOD — ${vm_long}\nBECAUSE — one,\ntwo,\nthree,\nfour.\nSEEN — nowhere yet\n\n## VM-ZZZ-03 — A tagged method\n\nMETHOD — Short.\nBECAUSE — measured (QR-13) once.\nSEEN — nowhere yet\n\n## Not an entry\n")
+zen_vm_walk_text("selftest-bad.md" "${vm_bad}")
+get_property(vm_bad_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "${vm_saved_problems}")
+set_property(GLOBAL PROPERTY zen_vm_ids "")
+set_property(GLOBAL PROPERTY zen_vm_nowhere "")
+zen_law_count_lines("${vm_bad_problems}" vm_bad_count)
+if(NOT vm_good_problems STREQUAL "" OR NOT vm_bad_count EQUAL 4
+   OR NOT vm_bad_problems MATCHES "METHOD is 211 bytes" OR NOT vm_bad_problems MATCHES "BECAUSE is 4 lines"
+   OR NOT vm_bad_problems MATCHES "phase tag \\(QR-13\\)" OR NOT vm_bad_problems MATCHES "heading is neither")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the method-register walker raised '${vm_good_problems}' "
+        "on a well-formed register and ${vm_bad_count} problem(s) on one with four defects:\n"
+        "${vm_bad_problems}\nEvery VM entry below would then be judged by a walker that cannot say no.")
+endif()
+
+foreach(rel IN LISTS register_files)
     zen_law_walk_register("${rel}" 0)
 endforeach()
 foreach(rel IN LISTS ZEN_LAW_ROUTERS)
@@ -1215,11 +1469,87 @@ foreach(rel IN LISTS ZEN_LAW_ROUTERS)
         zen_law_fail("router ${rel} does not exist")
         continue()
     endif()
-    file(SIZE "${ZEN_REPO}/${rel}" bytes)
-    if(bytes GREATER ZEN_LAW_ROUTER_BYTES)
-        zen_law_fail("${rel} is ${bytes} bytes (a router is at most ${ZEN_LAW_ROUTER_BYTES})")
+    zen_law_walk_register("${rel}" 1)
+endforeach()
+
+# ---- population 2b: the method registers -----------------------------------------------------
+
+set(vm_register_files "")
+foreach(dir IN LISTS ZEN_VM_REGISTER_DIRS)
+    file(GLOB found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${dir}/*.md")
+    list(APPEND vm_register_files ${found})
+endforeach()
+list(SORT vm_register_files)
+list(LENGTH vm_register_files vm_register_count)
+if(vm_register_count EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: no method register was found under ${ZEN_VM_REGISTER_DIRS}. An empty "
+        "population is a failure here and not a quiet pass.")
+endif()
+foreach(rel IN LISTS vm_register_files)
+    zen_vm_walk_register("${rel}")
+endforeach()
+foreach(rel IN LISTS ZEN_VM_ROUTERS)
+    if(NOT EXISTS "${ZEN_REPO}/${rel}")
+        zen_law_fail("router ${rel} does not exist")
+        continue()
     endif()
     zen_law_walk_register("${rel}" 1)
+endforeach()
+get_property(vm_ids GLOBAL PROPERTY zen_vm_ids)
+get_property(vm_nowhere GLOBAL PROPERTY zen_vm_nowhere)
+list(LENGTH vm_ids vm_entry_count)
+list(LENGTH vm_nowhere vm_nowhere_count)
+if(vm_entry_count EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: ${vm_register_count} method register(s) yielded ZERO entries. Either the "
+        "walker stopped recognising the entry form or every method is gone; both are failures.")
+endif()
+math(EXPR vm_applied_count "${vm_entry_count} - ${vm_nowhere_count}")
+if(vm_applied_count LESS ZEN_VM_APPLIED_FLOOR)
+    zen_law_fail("method registers: ${vm_applied_count} entries are applied in the tree, below the floor ${ZEN_VM_APPLIED_FLOOR}; a SEEN was deleted or a method went back to nowhere yet, and the floor is lowered by no one to make that pass")
+endif()
+
+# ---- the budgets: every *.md under agents/ -----------------------------------------------------
+#
+# `file(SIZE)` counts bytes. A router is one named in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; every
+# other file under agents/ -- a register, a routed document, a decision record -- has the
+# register budget, except the documents ZEN_LAW_UNBUDGETED names, which must stay over it
+# while they are listed. A record over the flag size is counted for the report.
+
+file(GLOB_RECURSE agents_md RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${ZEN_LAW_AGENTS_DIR}/*.md")
+list(SORT agents_md)
+list(LENGTH agents_md agents_md_count)
+if(agents_md_count EQUAL 0)
+    message(FATAL_ERROR "law-register: no *.md under ${ZEN_LAW_AGENTS_DIR}/ at all; check ZEN_REPO.")
+endif()
+set(records_flagged 0)
+set(unbudgeted_report "")
+foreach(rel IN LISTS agents_md)
+    file(SIZE "${ZEN_REPO}/${rel}" bytes)
+    if(rel IN_LIST ZEN_LAW_ROUTERS OR rel IN_LIST ZEN_VM_ROUTERS)
+        if(bytes GREATER ZEN_LAW_ROUTER_BYTES)
+            zen_law_fail("${rel} is ${bytes} bytes (a router is at most ${ZEN_LAW_ROUTER_BYTES})")
+        endif()
+    elseif(rel IN_LIST ZEN_LAW_UNBUDGETED)
+        if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
+            string(APPEND unbudgeted_report " ${rel} ${bytes}")
+        else()
+            zen_law_fail("${rel} is ${bytes} bytes, within the register budget, and is still named in ZEN_LAW_UNBUDGETED; remove it there")
+        endif()
+    else()
+        if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
+            zen_law_fail("${rel} is ${bytes} bytes (a file under ${ZEN_LAW_AGENTS_DIR}/ is at most ${ZEN_LAW_REGISTER_BYTES}; a router ${ZEN_LAW_ROUTER_BYTES})")
+        endif()
+        if(rel MATCHES "^${ZEN_LAW_RECORD_DIR}/" AND bytes GREATER ZEN_LAW_RECORD_FLAG_BYTES)
+            math(EXPR records_flagged "${records_flagged} + 1")
+        endif()
+    endif()
+endforeach()
+foreach(rel IN LISTS ZEN_LAW_UNBUDGETED)
+    if(NOT rel IN_LIST agents_md)
+        zen_law_fail("ZEN_LAW_UNBUDGETED names ${rel}, which does not exist; remove it there")
+    endif()
 endforeach()
 file(SIZE "${ZEN_REPO}/${ZEN_LAW_CORE}" bytes)
 if(bytes GREATER ZEN_LAW_CORE_BYTES)
@@ -1283,18 +1613,17 @@ if(entry_count EQUAL 0)
         "neither is a green.")
 endif()
 
-# Ids are unique across agents/, not only across the registers: a `## WL-` heading in any
-# other document under agents/ is a second copy of a law that has one home.
-file(GLOB_RECURSE agents_md RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/agents/*.md")
+# Ids are unique across agents/, not only across the registers: a `## WL-` or `## VM-` heading
+# in any other document under agents/ is a second copy of an entry that has one home.
 foreach(rel IN LISTS agents_md)
-    if(rel IN_LIST register_files)
+    if(rel IN_LIST register_files OR rel IN_LIST vm_register_files)
         continue()
     endif()
     zen_law_text("${rel}" content)
-    string(REGEX MATCHALL "\n## WL-[A-Z]+-[0-9]+" strays "\n${content}")
+    string(REGEX MATCHALL "\n## (WL|VM)-[A-Z]+-[0-9]+" strays "\n${content}")
     foreach(stray IN LISTS strays)
         string(REGEX REPLACE "^\n## " "" stray "${stray}")
-        zen_law_fail("${rel} carries a '## ${stray}' heading outside the registers; a law id has one home")
+        zen_law_fail("${rel} carries a '## ${stray}' heading outside the registers; an id has one home")
     endforeach()
     string(REGEX MATCHALL "\nSINCE" sinces "\n${content}")
     list(LENGTH sinces since_count)
@@ -1303,20 +1632,25 @@ foreach(rel IN LISTS agents_md)
     endif()
 endforeach()
 
-# ---- population 3: PROVEN BY -- paths, identifiers, witnesses --------------------------------
+# ---- population 3: PROVEN BY and SEEN -- paths, identifiers, witnesses ------------------------
 #
 # The paragraph is one line here. Quoted witnesses come out first and are removed, so a
 # case name that itself contains backticks cannot shed fragments into the identifier walk;
 # what remains in backticks is a path (which sets the file every later identifier is
-# checked against) or an identifier.
+# checked against) or an identifier. A VM entry's SEEN is the same paragraph under another
+# word, and walks through the same predicates.
 
 set(path_count 0)
 set(ident_count 0)
 set(witness_checked 0)
 set(rule_m_count 0)
-foreach(id IN LISTS all_ids)
+foreach(id IN LISTS all_ids vm_ids)
     get_property(rel GLOBAL PROPERTY "zen_law_file_${id}")
     get_property(para GLOBAL PROPERTY "zen_law_proven_${id}")
+    get_property(word GLOBAL PROPERTY "zen_law_word_${id}")
+    if(word STREQUAL "")
+        set(word "PROVEN BY")
+    endif()
     if(para STREQUAL "")
         continue()
     endif()
@@ -1326,7 +1660,7 @@ foreach(id IN LISTS all_ids)
         zen_law_witnessed("${w}" ok)
         if(NOT ok)
             zen_law_show("${w}" shown)
-            zen_law_fail("${rel} ${id} witness is not a TEST_CASE/SUBCASE literal under ${ZEN_LAW_WITNESS_DIR}/: ${shown}")
+            zen_law_fail("${rel} ${id} ${word} witness is not a TEST_CASE/SUBCASE literal under ${ZEN_LAW_WITNESS_DIR}/: ${shown}")
         endif()
     endforeach()
     string(REGEX REPLACE "\"[^\"]*\"" "" rest "${para}")
@@ -1342,7 +1676,7 @@ foreach(id IN LISTS all_ids)
             math(EXPR path_count "${path_count} + 1")
             set(cur "${tok}")
             if(NOT EXISTS "${ZEN_REPO}/${tok}")
-                zen_law_fail("${rel} ${id} PROVEN BY names a path that does not exist: ${tok}")
+                zen_law_fail("${rel} ${id} ${word} names a path that does not exist: ${tok}")
                 set(cur "")
             endif()
             continue()
@@ -1350,13 +1684,13 @@ foreach(id IN LISTS all_ids)
         math(EXPR ident_count "${ident_count} + 1")
         zen_law_show("${tok}" shown)
         if(cur STREQUAL "")
-            zen_law_fail("${rel} ${id} PROVEN BY names identifier ${shown} before any existing path")
+            zen_law_fail("${rel} ${id} ${word} names identifier ${shown} before any existing path")
             continue()
         endif()
         zen_law_text("${cur}" text)
         zen_law_mentions("${text}" "${tok}" mentioned)
         if(NOT mentioned)
-            zen_law_fail("${rel} ${id} PROVEN BY names ${shown}, which does not occur in ${cur}")
+            zen_law_fail("${rel} ${id} ${word} names ${shown}, which does not occur in ${cur}")
             continue()
         endif()
         string(MAKE_C_IDENTIFIER "${cur}" curkey)
@@ -1633,6 +1967,11 @@ endif()
 
 message(STATUS "law-register: ${register_count} registers, ${entry_count} entries; ${record_count} "
                "records, ${why_target_count} WHY targets, ${why_count} WHY lines")
+message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
+               "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
+message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
+               "unbudgeted, still over:${unbudgeted_report}; records over "
+               "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
 message(STATUS "law-register: ${path_count} PROVEN BY paths, ${ident_count} identifiers, "
                "${witness_checked} witnesses checked against ${witness_count} TEST_CASE/SUBCASE "
                "literals in ${witness_file_count} files")
