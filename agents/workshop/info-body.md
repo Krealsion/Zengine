@@ -26,8 +26,8 @@ MEANS
 - 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one body;
 - a body too short for the face falls back to cells, with no rule written to say so.
 
-PROVEN BY — `workshop/screen.hpp` `value_columns`, `kPropertyMarkCols`, `kPropertyLabelCols`,
-`kPropertyCaretCols`; `surface/region.hpp` `fit_region`, `kTextInsetPx`;
+PROVEN BY — `workshop/screen.hpp` `InfoBodyPlace::value_columns`, `kPropertyMarkCols`,
+`kPropertyLabelCols`, `kPropertyCaretCols`; `surface/region.hpp` `fit_region`, `kTextInsetPx`;
 `tests/test_workshop_panels.cpp` case `"HD-6: the body's row capacity is the ACTIVE medium's, from
 one equation"`, case `"HD-6: the property layer never learned that graphical rows got taller"`,
 case `"HD-6: the body falls back to cells when it is too short for the face"`.
@@ -72,11 +72,11 @@ MEANS
 - at most one row is ever editing: `begin_edit` is reachable only from command mode.
 
 PROVEN BY — `workshop/screen.hpp` `detail::fit`, `property_row_prefix`; `workshop/weave.hpp`
-`begin_edit`, `refresh_inspector`; `component/text_box.hpp` `visible`; `workshop/property.hpp`
-`display`, `begin`; `tests/test_workshop_panels.cpp` case `"HD-6: a resting value that does not
-fit is MARKED, not dropped"`; `tests/test_workshop_document.cpp` case `"HD-5: a long property
-draft is a window, and no part of it is lost"`, case `"HD-5: a resize reconciles the property
-window with no path of its own"`.
+`begin_edit`, `refresh_inspector`; `component/text_box.hpp` `TextBox::visible`;
+`workshop/property.hpp` `Row::display`, `Row::begin`; `tests/test_workshop_panels.cpp` case
+`"HD-6: a resting value that does not fit is MARKED, not dropped"`;
+`tests/test_workshop_document.cpp` case `"HD-5: a long property draft is a window, and no part of
+it is lost"`, case `"HD-5: a resize reconciles the property window with no path of its own"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A `SurfaceExtent` must not drop a live draft
@@ -112,9 +112,9 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — The heading rows are reserved before either list is offered anything; body rows begin at zero beneath them and the press inverse subtracts the heading, so a press on a heading names no row.
 
 PROVEN BY — `workshop/screen.hpp` `info_body_place`, `kInfoHeadingRows`, `info_body_at`,
-`region_x`, `paint_info`; `tests/test_workshop_panels.cpp` case `"HD-7: neither list paints
-through the other, at any extent"`; `tests/test_workshop_document.cpp` case `"HD-9: `PROPERTIES`
-is set on a ground, and the row above it is not"`.
+`InfoBodyPlace::region_x`, `paint_info`; `tests/test_workshop_panels.cpp` case `"HD-7: neither
+list paints through the other, at any extent"`; `tests/test_workshop_document.cpp` case `"HD-9:
+`PROPERTIES` is set on a ground, and the row above it is not"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-09 — An object row is fitted whole, and a press on it selects in command mode only

@@ -14,7 +14,7 @@ MEANS
 DOES NOT MEAN
 - that the controls are a third claimant on `share_body_rows` — a fixed demand is not a list.
 
-PROVEN BY — `workshop/screen.hpp` `kActionRows`, `action_row`, `info_body_place`,
+PROVEN BY — `workshop/screen.hpp` `kActionRows`, `InfoBodyPlace::action_row`, `info_body_place`,
 `share_body_rows`, `kActionCreate`, `kActionDelete`; `tests/test_workshop_panels.cpp` case `"HD-8:
 the footer is reserved off the budget, and every HD-7 property survives it"`, case `"HD-8: the
 controls are the last two rows of the body, at every extent and size"`, case `"HD-8: growing the
@@ -44,12 +44,12 @@ MEANS
 DOES NOT MEAN
 - that this is a `disabled` flag — a flag would collapse two facts with two owners.
 
-PROVEN BY — `workshop/screen.hpp` `kDraftLive`, `kNoTarget`, `Availability`,
-`action_availability`, `draft_live`; `workshop/weave.hpp` `actions_press`, `finish_draft_first`;
-`workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case `"HD-8: availability is
-two reasons, one bit, and no prediction of a refusal"`, case `"HD-8: availability is not a
-prediction of what the document will say"`, case `"HD-8: an unavailable Delete presents as
-unavailable and mutates nothing"`.
+PROVEN BY — `workshop/screen.hpp` `Availability::kDraftLive`, `Availability::kNoTarget`,
+`Availability`, `action_availability`, `draft_live`; `workshop/weave.hpp` `actions_press`,
+`finish_draft_first`; `workshop/document.hpp` `remove`; `tests/test_workshop_panels.cpp` case
+`"HD-8: availability is two reasons, one bit, and no prediction of a refusal"`, case `"HD-8:
+availability is not a prediction of what the document will say"`, case `"HD-8: an unavailable
+Delete presents as unavailable and mutates nothing"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — Unavailable is said in characters
@@ -87,10 +87,10 @@ MEANS
 - an unavailable control loses the ground entirely, so the ground means actionable, not present.
 
 PROVEN BY — `workshop/screen.hpp` `say_row`; `surface/vocabulary.hpp` `kAccent`, `kMuted`,
-`kFill`, `kNone`, `SurfaceTextRow`, `background`; `tests/test_workshop_document.cpp` case
-`"HD-9: an available control sits on a ground and an unavailable one does not"`, case `"HD-9: no
-other row of the body was given a ground"`, case `"HD-9: a live draft takes the ground off BOTH
-controls, and gives it back"`.
+`kFill`, `kNone`, `SurfaceTextRow`, `SurfaceTextRow::background`;
+`tests/test_workshop_document.cpp` case `"HD-9: an available control sits on a ground and an
+unavailable one does not"`, case `"HD-9: no other row of the body was given a ground"`, case
+`"HD-9: a live draft takes the ground off BOTH controls, and gives it back"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-07 — The ground is presentation and moved no geometry

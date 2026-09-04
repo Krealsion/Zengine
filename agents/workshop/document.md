@@ -25,12 +25,12 @@ MEANS
 - `TextForm<T>` is written once per type: canonical out, the typeable spelling in.
 
 PROVEN BY — `workshop/property.hpp` `Row`, `Commit`, `Written`, `TextForm`, `Property`,
-`format`, `expected`; `workshop/document.hpp` `name_of`, `width_of`, `height_of`, `context_of`;
-`tests/test_workshop_document.cpp` case `"a successful commit writes through the semantic
-setter"`, case `"an unparseable draft leaves the property untouched and says so"`, case `"a
-parseable value the property refuses is a DIFFERENT outcome, with its reason"`, case `"cancel
-abandons the draft and never touched the property"`, case `"reuse: two properties of one type
-share every line of conversion"`.
+`TextForm::format`, `TextForm::expected`; `workshop/document.hpp` `name_of`, `width_of`,
+`height_of`, `context_of`; `tests/test_workshop_document.cpp` case `"a successful commit writes
+through the semantic setter"`, case `"an unparseable draft leaves the property untouched and says
+so"`, case `"a parseable value the property refuses is a DIFFERENT outcome, with its reason"`,
+case `"cancel abandons the draft and never touched the property"`, case `"reuse: two properties of
+one type share every line of conversion"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-03 — The name's own refusals are empty and too long
@@ -47,7 +47,7 @@ WHY — `agents/decisions/the-document-model.md`
 
 LAW — `12` is cells and `70%` a share; `70p` is accepted for `70%`; the empty string, `%`, `banana` and `12x` parse to nothing.
 
-PROVEN BY — `workshop/property.hpp` `TextForm`, `parse`, `expected`;
+PROVEN BY — `workshop/property.hpp` `TextForm`, `TextForm::parse`, `TextForm::expected`;
 `tests/test_workshop_document.cpp` case `"the extent text form: canonical out, and the typeable
 spelling in"`, case `"a maker types `70%` through the canonical text route, and 70p is history"`.
 WHY — `agents/decisions/the-document-model.md`
@@ -57,8 +57,8 @@ WHY — `agents/decisions/the-document-model.md`
 LAW — A resolved row cannot be edited because it has nothing to write to, and the painted rectangle is the resolved rectangle, never the panel's.
 
 PROVEN BY — `workshop/screen.hpp` `workspace_scene`, `inspector_rows`; `workshop/property.hpp`
-`show`; `tests/test_workshop_document.cpp` case `"a resolved row cannot be edited, because it has
-nothing to write to"`, case `"authored and resolved are different facts, and only one of them
+`Row::show`; `tests/test_workshop_document.cpp` case `"a resolved row cannot be edited, because it
+has nothing to write to"`, case `"authored and resolved are different facts, and only one of them
 moves"`, case `"the painted rectangle IS the resolved rectangle, and the panel is not"`.
 WHY — `agents/decisions/the-document-model.md`
 
@@ -129,11 +129,12 @@ MEANS
 
 PROVEN BY — `workshop/document.hpp` `add_default`, `remove`, `kNewX`, `kNewWidthCells`,
 `kNewLabel`; `workshop/weave.hpp` `create_object`, `delete_object`, `deleted_notice`;
-`workshop/screen.hpp` `create`, `delete_selected`; `tests/test_workshop_document.cpp` case
-`"creating mints a fresh identity, and the identity is not the label or the index"`, case `"delete
-removes exactly one identity, and the other duplicate label survives"`, case `"the post-delete
-selection rule: the one that took its place, then the last, then none"`, case `"deleting nothing
-is a refusal a maker can read, not a crash or a silence"`.
+`workshop/screen.hpp` `LayoutTabPress::create`, `delete_selected`;
+`tests/test_workshop_document.cpp` case `"creating mints a fresh identity, and the identity is not
+the label or the index"`, case `"delete removes exactly one identity, and the other duplicate
+label survives"`, case `"the post-delete selection rule: the one that took its place, then the
+last, then none"`, case `"deleting nothing is a refusal a maker can read, not a crash or a
+silence"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-11 — A context is authored by identity, and a bad one is refused by name
@@ -145,11 +146,11 @@ MEANS
 
 PROVEN BY — `workshop/document.hpp` `set_context`, `check_context`, `chain_text`,
 `check_document`, `dependents_of`, `kMaxChainChars`; `workshop/property.hpp` `ContextRef`,
-`parse`, `expected`; `tests/test_workshop_screen.cpp` case `"a context is authored BY IDENTITY,
-and an identity is not a position"`, case `"a relationship that cannot mean anything is refused,
-and says which"`, case `"a rewire is ONE authored act: a refused one writes neither half"`, case
-`"changing a context does not rewrite the values whose meaning it changed"`, case `"the
-relationship law is the document law, and a poke cannot smuggle one past it"`.
+`TextForm::parse`, `TextForm::expected`; `tests/test_workshop_screen.cpp` case `"a context is
+authored BY IDENTITY, and an identity is not a position"`, case `"a relationship that cannot mean
+anything is refused, and says which"`, case `"a rewire is ONE authored act: a refused one writes
+neither half"`, case `"changing a context does not rewrite the values whose meaning it changed"`,
+case `"the relationship law is the document law, and a poke cannot smuggle one past it"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-12 — Composition re-resolves and rewrites nothing

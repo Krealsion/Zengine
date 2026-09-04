@@ -11,7 +11,7 @@ MEANS
 - crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
 - outside arrangement an addressed pane behind another claims no press and no address auto-raises.
 
-PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `pane_drag`, `kPaneEdgeBandSubs`,
+PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandSubs`,
 `pane_edge_at`; `workshop/weave.hpp` `take_pane_hold`, `arrange_motion`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one gesture, and crossing
 anything does not move it"`, case `"WIND-2: outside arrangement, an addressed pane behind another
@@ -112,11 +112,12 @@ MEANS
 - the desk adds `tab`/`shift+tab` over `arrangeable()` — every setup row — and Return;
 - a hand and a key author the same setup values; escape unwinds one level and rolls nothing back.
 
-PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `kArrangePane`, `kArrangeDesk`,
-`kArrangeReset`; `workshop/weave.hpp` `arrange_key`, `arrangeable`, `arrange_step`,
-`arrange_nudge`, `arrange_grow`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: the
-keyboard alone reaches every window operation"`, case `"WIND-2: a hand and a key author the same
-setup values"`, case `"WIND-2: escape unwinds one level and rolls nothing back"`.
+PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `KeyContext::kArrangePane`,
+`KeyContext::kArrangeDesk`, `KeyContext::kArrangeReset`; `workshop/weave.hpp` `arrange_key`,
+`arrangeable`, `arrange_step`, `arrange_nudge`, `arrange_grow`;
+`tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches every window
+operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case `"WIND-2: escape
+unwinds one level and rolls nothing back"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement
