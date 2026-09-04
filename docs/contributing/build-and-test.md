@@ -51,6 +51,18 @@ A dependency's proof rides its version, so the sibling build contributes its lib
 nothing else: its tests and examples are forced off, as is its own SDL2 UI-tree renderer (which
 is a different thing from Zengine's SDL3 skin).
 
+### Where a fetched dependency goes, and that nothing prunes it
+
+The SDL skin fetches SDL3, SDL_ttf and FreeType at configure time
+([supported toolchains](supported-toolchains.md#sdl)). Under WSL, building from a
+Windows-mounted checkout, those trees cannot live in the build directory — that filesystem cannot
+hold the symlinks inside SDL's tarball — so the build sends them to
+`~/.cache/zen-fetch/zengine-<name>`, where `<name>` is the build directory's **basename** and
+nothing else. Two consequences. A build directory under a new name is a fresh fetch and a fresh
+dependency build, so reuse names. And nothing ever prunes that cache: every name you have
+configured is still in it, and it grows until you delete `~/.cache/zen-fetch` by hand. Setting
+`FETCHCONTENT_BASE_DIR` yourself is respected and replaces the whole arrangement.
+
 ## The sanitizer lane
 
 ```sh
@@ -63,7 +75,7 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 `-DZENGINE_SANITIZE=ON` builds Zengine's own targets with **AddressSanitizer +
 UndefinedBehaviorSanitizer** (`-fsanitize=address,undefined -fno-omit-frame-pointer
 -fno-sanitize-recover=all`), and the verifier then runs the *same* population under them. CI
-runs it on every push and pull request; there is nothing to remember.
+runs it on every pull request and on every push to `main`; there is nothing to remember.
 
 **Two lanes, two questions, and neither substitutes for the other.** The ordinary verifier asks
 whether the population this repository meant to run existed, ran and passed. It cannot ask

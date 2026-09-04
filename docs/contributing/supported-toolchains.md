@@ -11,7 +11,7 @@ Every row below is classified from measurement on lanes that exist, not from a f
 |---|---|---|
 | **Linux (incl. WSL) / GCC 11.4+** | **fully supported.** The canonical lane | The Loom's OS sandbox exists only here |
 | Linux / Clang | builds | Not a routine lane; the sanitizer flags are the same |
-| **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | Runtime DLLs must be on `PATH` or beside the binaries |
+| **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | Runtime DLLs must be on `PATH` or beside the binaries. Binutils has a floor of its own: an assembler at or below 2.40 cannot assemble the Workshop application target (the test suites build either way); 2.45 can |
 | **Windows / MSVC 19.50** (Visual Studio 2026) x64 | **supported.** The advisory Windows lane, and the toolchain released Windows users are expected to build with | clang-cl and ARM64 are **unverified** |
 | macOS / Apple Clang | **never built.** Unclassified | Not the same as "unsupported" |
 
@@ -66,10 +66,30 @@ Two things behave differently on MSVC and are recorded rather than smoothed over
 
 ### MinGW
 
+Two shapes, and which one you want follows from what you are asking.
+
+**The lane** — what CI runs, and the shape a released consumer has: a stranger against an
+installed Loom prefix. The prefix is a Debug Loom configured with
+`-DLOOM_ENABLE_WINDOWS_KERNEL=ON` (against a kernel-less prefix Zengine configures, reports
+every weave skipped, and its `tests/` refuse to configure). Ninja, Debug, SDL off:
+
 ```powershell
-cmake -S . -B build-win -G Ninja -DZEN_LOOM_DEV=ON
+cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
+      -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
+      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_SDL_SKIN=OFF
 cmake --build build-win
 cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
+```
+
+**The sibling override** — for editing both trees together without an install round-trip, and
+for the demos (on Windows it implies the kernel, above). It reaches the whole Loom build tree,
+so a dependency on an unexported Loom target stays invisible here; the lane shape is the one
+that says a change is done:
+
+```powershell
+cmake -S . -B build-win-dev -G Ninja -DZEN_LOOM_DEV=ON
+cmake --build build-win-dev
+cmake -DZEN_BUILD_DIR=build-win-dev -P tests/verify.cmake
 ```
 
 MinGW objects are allowed to be large — the embedded typeface makes one translation unit big

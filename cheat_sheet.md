@@ -42,6 +42,21 @@ cmake --build build-msvc
 Zengine adds no MSVC-specific flag: `loom::core` carries `/Zc:preprocessor` as an interface
 requirement, so linking inherits it.
 
+**Windows / MinGW-w64** — the required Windows lane, in the shape CI runs it: a stranger against
+an installed Loom prefix (a Debug Loom configured with `-DLOOM_ENABLE_WINDOWS_KERNEL=ON`),
+Ninja, Debug, SDL off:
+
+```powershell
+cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
+      -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
+      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_SDL_SKIN=OFF
+cmake --build build-win
+cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
+```
+
+The runtime DLLs must be on `PATH` or beside the binaries, and the assembler has a floor of its
+own — [supported toolchains](docs/contributing/supported-toolchains.md#the-matrix).
+
 **Why `verify.cmake` and not `ctest`.** A bare `ctest` runs the tests but cannot tell you
 whether the population that ran is the population this repository meant to run — a deleted
 registration or a filter matching nothing both exit 0. `verify.cmake` checks the inventory in
