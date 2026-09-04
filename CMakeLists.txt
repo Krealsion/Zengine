@@ -153,7 +153,7 @@ target_compile_options(zengine-warnings INTERFACE
 # `tests/workshop_support.hpp` and merely constructed `PaneRig` and `Live` already spent
 # 6,917,756 bytes -- 69% of the table -- before it asserted anything, and on the Linux
 # objects (four names per COMDAT group, the estimate tools/workshop-split/census.py makes)
-# the suite objects sat between 26% and 102% of the ceiling and the host object at 107%.
+# the suite objects sat between 43% and 102% of the ceiling and the host object at 107%.
 # What spent it was the bodies of screen.hpp and weave.hpp, inline in the headers and so
 # emitted in every one of the thirteen translation units that reached them. They compile
 # once now (workshop/CMakeLists.txt, `zengine-workshop-logic`), and the same estimate on

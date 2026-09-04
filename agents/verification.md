@@ -103,7 +103,7 @@ workshop_files         where source comes from: the project browser, what a
   sources that include it. What it no longer costs is Workshop's own bodies — since the logic
   compiles once (`workshop/CMakeLists.txt`), a source that includes it instantiates the rigs
   and the closure they reach, not `screen.hpp`'s and `weave.hpp`'s functions; measured on
-  the Linux objects, the suite sources went from 26–102% of the COFF name table to 26–73%.
+  the Linux objects, the suite sources went from 43–102% of the COFF name table to 26–73%.
   Moving a helper into it is a decision.
 - **A temporary directory belongs to the suite that made it, in the process that made it.**
   The suites run at once and every `TempDir` counter starts at zero, so the root carries
@@ -466,7 +466,7 @@ have. Rules, each learned by a harness that fooled itself:
   header is emitted in every translation unit that reaches it**, and `screen.hpp`'s and
   `weave.hpp`'s were reached by thirteen; measured before the split, a TU that includes
   `tests/workshop_support.hpp` and only constructs `PaneRig` and `Live` spent **69%** of the
-  table before it asserted anything, the suite objects ran 26–102% and the host 107%
+  table before it asserted anything, the suite objects ran 43–102% and the host 107%
   (Linux objects, four names per COMDAT group). With the bodies compiled once in
   `workshop/<subject>.cpp` the host reads 59%, the suites 26–73% and the largest logic
   object 21% (measured 2026-09-03; `tools/workshop-split/census.py` measures a tree's
