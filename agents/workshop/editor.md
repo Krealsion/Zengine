@@ -45,7 +45,7 @@ MEANS
 - process death still loses drafts: no crash recovery is claimed.
 
 PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`, `discard_source_edits`;
-`workshop/weave_save.cpp` `quit`; `workshop/editor.hpp` `EditorBuffer::revert_to`, `EditorState`;
+`workshop/weave_run.cpp` `quit`; `workshop/editor.hpp` `EditorBuffer::revert_to`, `EditorState`;
 `workshop/keymap.hpp` `editor.discard`; `tests/test_workshop_editor.cpp` case `"EDIT-0: removing
 and reopening the pane cannot lose a byte of dirty source"`, case `"EDIT-0: a dirty buffer refuses
 a different source, and save or discard opens the way"`, case `"EDIT-0: an orderly close refuses

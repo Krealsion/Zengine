@@ -160,7 +160,7 @@ LAW — The SDL medium makes a run's first picture the window's minimum, once, s
 MEANS
 - seeding the extent before the first canvas would leave a maker unable to shrink the window.
 
-PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_save.cpp`
+PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_run.cpp`
 `repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
 `tests/test_workshop_persistence.cpp` case `"WUX-0: the FIRST picture of a run is the floor, and
 the room is the second"`.
@@ -183,7 +183,7 @@ LAW — The quit key, the interrupt chord and the medium's close request all rea
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
 
-PROVEN BY — `workshop/weave_save.cpp` `quit`; `workshop/weave_session.cpp` `save_last_session`;
+PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_session.cpp` `save_last_session`;
 `workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;

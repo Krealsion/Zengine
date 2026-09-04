@@ -66,9 +66,9 @@ MEANS
 - a region authored at 126 px sits at pixel 126 of the interior; a terminal reads `~10 cells`;
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `paint_panels`, `paint_maker_pane`,
-`present_region`; `workshop/screen_chrome.cpp` `bounds_of`, `pane_inside`, `fit_region_subs`;
-`workshop/screen.hpp` `clip_to_fine`; `surface/vocabulary.hpp` `kGroundOwn`;
+PROVEN BY — `workshop/screen_compose.cpp` `paint_panels`; `workshop/screen_pane_editor.cpp`
+`paint_maker_pane`, `present_region`; `workshop/screen_chrome.cpp` `bounds_of`, `pane_inside`,
+`fit_region_subs`; `workshop/screen.hpp` `clip_to_fine`; `surface/vocabulary.hpp` `kGroundOwn`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed relative to the
 pane's INTERIOR and painted through the ordinary pane path in cells"`, case `"WUX-14/SC-8: one
 authored fine value, read in pixels on the window and projected to cells on a terminal, and
@@ -116,17 +116,16 @@ MEANS
 - refusals name `s` and `ctrl+d`; `open_maker_pane` is spent by startup and nothing else yet;
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
-PROVEN BY — `workshop/weave_save.cpp` `quit`; `workshop/weave_pane_editor.cpp`
-`open_maker_pane`, `save_maker_pane`, `discard_maker_pane_edits`, `new_maker_pane`;
-`workshop/weave.hpp` `WorkshopWeave::pane_refused_`, `HostContext::pane_path`;
-`workshop/weave_handlers.cpp` `host_pane_path`, `load_pane_definition`; `workshop/screen.hpp`
-`kPaneWallKey`; `workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp`
-`Panels::maker`; `workshop/pane_definition.hpp` `MakerPane`;
-`tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-14: dirty pane truth refuses the quit, a
-second new pane and a replacing open until the maker saves or discards"`, case `"WUX-14/SC-14: the
-discard door puts a saved pane back to its file, and closes a pane that was never saved while
-keeping its row"`, case `"WUX-14/SC-15: a malformed file cannot replace a live definition, and a
-refused file is never written over"`.
+PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_pane_editor.cpp` `open_maker_pane`,
+`save_maker_pane`, `discard_maker_pane_edits`, `new_maker_pane`; `workshop/weave.hpp`
+`WorkshopWeave::pane_refused_`, `HostContext::pane_path`; `workshop/weave_handlers.cpp`
+`host_pane_path`, `load_pane_definition`; `workshop/screen.hpp` `kPaneWallKey`;
+`workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp` `Panels::maker`;
+`workshop/pane_definition.hpp` `MakerPane`; `tests/test_workshop_panels_creator.cpp` case
+`"WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until
+the maker saves or discards"`, case `"WUX-14/SC-14: the discard door puts a saved pane back to its
+file, and closes a pane that was never saved while keeping its row"`, case `"WUX-14/SC-15: a
+malformed file cannot replace a live definition, and a refused file is never written over"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-09 — Startup order is the relaunch story

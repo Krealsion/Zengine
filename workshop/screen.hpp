@@ -2820,6 +2820,8 @@ void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
 // row's other halves. So the walk moved down to meet its last painter rather than the
 // composition moving up away from what it composes.
 
+// ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
+
 /// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
 void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc, const ProjectFrontier& frontier = {});

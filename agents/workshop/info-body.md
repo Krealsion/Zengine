@@ -72,7 +72,7 @@ MEANS
 - at most one row is ever editing: `begin_edit` is reachable only from command mode.
 
 PROVEN BY — `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_info.cpp`
-`property_row_prefix`; `workshop/weave_save.cpp` `begin_edit`; `workshop/weave_seam.cpp`
+`property_row_prefix`; `workshop/weave_document.cpp` `begin_edit`; `workshop/weave_seam.cpp`
 `refresh_inspector`; `component/text_box.hpp` `TextBox::visible`; `workshop/property.hpp`
 `Row::display`, `Row::begin`; `tests/test_workshop_panels.cpp` case `"HD-6: a resting value that
 does not fit is MARKED, not dropped"`; `tests/test_workshop_document.cpp` case `"HD-5: a long
@@ -88,7 +88,7 @@ MEANS
 - `Name` is a row every object has: a draft carried across a selection would land elsewhere.
 
 PROVEN BY — `workshop/screen_bindings.cpp` `refocus_keeping_draft`, `inspector_rows`;
-`workshop/weave_save.cpp` `rebuild_rows`; `workshop/weave_seam.cpp` `refresh_inspector`;
+`workshop/weave_document.cpp` `rebuild_rows`; `workshop/weave_seam.cpp` `refresh_inspector`;
 `workshop/property.hpp` `Row::resume`; `tests/test_workshop_document.cpp` case `"HD-5: a surface
 extent does not take a maker's hands off a draft"`; `tests/test_workshop_panels.cpp` case `"HD-6:
 a resize reconciles the row count, the window and the draft together"`.
@@ -135,6 +135,6 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 LAW — A cursor or edit key with Info not showing says so and which key opens the panel, opens no draft and moves no cursor; silence would not tell a removed panel from a broken tool.
 
-PROVEN BY — `workshop/weave_save.cpp` `inspector_absent`; `tests/test_workshop_panels.cpp` case
-`"the inspector's keys say so when Info is not showing, and open no draft"`.
+PROVEN BY — `workshop/weave_document.cpp` `inspector_absent`; `tests/test_workshop_panels.cpp`
+case `"the inspector's keys say so when Info is not showing, and open no draft"`.
 WHY — `agents/decisions/one-body-two-lists.md`

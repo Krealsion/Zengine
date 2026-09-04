@@ -988,6 +988,8 @@ private:
     /// cannot come to open differently.
     void open_on_first();
 
+    // ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
+
     /// Make one. The notice names the IDENTITY and not the label, because the
     /// default label is the same word the other objects already carry -- which is
     /// the lesson, arriving at the moment a maker can see it is not a problem.
@@ -1072,6 +1074,8 @@ private:
     /// it is.
     std::string status_line() const;
 
+    // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+
     /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
     /// only when the answer has changed.
     void refresh_external_rooms(loom::Mail& mail);
@@ -1129,6 +1133,8 @@ private:
     /// character here any more than it does anywhere else.
     void external_text(std::int64_t kind, const zengine::input::TextEntered& t,
                        loom::Mail& mail);
+
+    // ---- THE RUN: what is true now, the picture published, and the way out --------------
 
     /// THE PROJECT FRONTIER, READ ALIVE, NOW.
     ProjectFrontier frontier_now() const;
