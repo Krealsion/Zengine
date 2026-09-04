@@ -135,11 +135,11 @@ DOES NOT MEAN
 - that Workshop may hold one Skin's layout number — correct only while there is one medium.
 
 PROVEN BY — `workshop/screen_bindings.cpp` `adopt_screen`; `workshop/screen.hpp`
-`Session::cell_px`, `Session::text_advance_px`, `Session::screen_w`, `Session::screen_h`;
-`surface/vocabulary.hpp` `SurfaceExtent`; `workshop/weave_handlers.cpp` `on(SurfaceExtent)`;
-`tests/test_workshop_screen.cpp` case `"WUX-6: the canvas's device unit is the medium's answer,
-never Workshop's"`; `tests/test_surface.cpp` case `"WUX-6: each medium reports the device unit its
-own canvas is laid out at"`.
+`Session::cell_px`, `Session::text_advance_px`, `Session::screen_w`, `Session::screen_h`,
+`Screen::cell_px`, `Screen::text_advance_px`; `surface/vocabulary.hpp` `SurfaceExtent`;
+`workshop/weave_handlers.cpp` `on(SurfaceExtent)`; `tests/test_workshop_screen.cpp` case `"WUX-6:
+the canvas's device unit is the medium's answer, never Workshop's"`; `tests/test_surface.cpp` case
+`"WUX-6: each medium reports the device unit its own canvas is laid out at"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-09 — Geometry is spelled in the face's unit by one derivation
