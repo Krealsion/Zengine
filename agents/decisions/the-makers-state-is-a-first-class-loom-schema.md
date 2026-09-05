@@ -3,9 +3,10 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [definition](../maker/definition.md) and [weave](../maker/weave.md).
 
-**Context.** Every weave in this repository had a `ZEN_SHAPE` state and a class; the Switchboard
-claims a weave's state schema from its first snapshot and gates every reload against it. A maker
-at the Workshop's editor produces no class. Something must still be a `loom::Weave`, and its
+**Context.** A compiled weave had a `ZEN_SHAPE` state and a class, and reached the bus through
+a build, the Builder's job; the Switchboard claims a weave's state schema from its first
+snapshot and gates every reload against it. A maker's definition reaches the bus through
+admission and produces no class. Something must still be a `loom::Weave`, and its
 state must still be a Value the gate admits, the registry resolves, the poke doors describe and
 `serialize` writes.
 

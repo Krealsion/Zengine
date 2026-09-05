@@ -1,13 +1,15 @@
 # The Maker package -- a Loom weave built from a maker's DEFINITION rather than from a class.
 #
-# WHAT IT IS FOR. Every weave in this repository so far is C++: a ZEN_SHAPE state, a class
-# with handlers, a build. A maker at the Workshop's editor has no compiler in the loop, so the
-# thing they make must be data -- a definition (the state schema, the accepted and emitted
-# shapes, the triggers as compositions over the host's operator catalog) and a state (their own
-# value at their own schema) -- and something must register one Loom weave per definition and
-# run it. This package is that interpreter: `maker::Weave` implements the raw `loom::Weave`
-# contract over a schema decoded at runtime, with `loom::construct_blind` and the schema codec
-# doing what a static struct cannot.
+# WHAT IT IS FOR. What sets a maker weave apart is what the maker authors and how it reaches
+# the bus. A class -- a ZEN_SHAPE state, handlers -- reaches the bus through a build, the
+# Builder's job (builder/, docs/reference/builder.md). A definition reaches it through
+# admission, so an edit is a swap or a succession, never a build. What the maker authors is
+# data -- a definition (the state schema, the accepted and emitted shapes, the triggers as
+# compositions over the host's operator catalog) and a state (their own value at their own
+# schema) -- and something must register one Loom weave per definition and run it. This package
+# is that interpreter: `maker::Weave` implements the raw `loom::Weave` contract over a schema
+# decoded at runtime, with `loom::construct_blind` and the schema codec doing what a static
+# struct cannot.
 #
 # WHAT IT DELIBERATELY IS NOT. Not a second type system (the seven Loom kinds close the maker
 # path; a keyed table is a list of entries, a one-of is several optional fields), not a second
