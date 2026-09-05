@@ -52,11 +52,12 @@ self-test before they answer:
   path outside the repository in any current-facing text file.
 - **`package_vocabulary`** (`tests/check_package_vocabulary.cmake`) — the installed package's
   public variables name the physical thing; a retired spelling appears only in the checker.
-- **`law_register`** (`tests/check_law_register.cmake`) — the registers under `agents/workshop/`
-  (the WL form) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
+- **`law_register`** (`tests/check_law_register.cmake`) — the law registers its family table
+  names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`; a family is a property of its
+  directory) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
-  every `// WL-` pointer naming the declaration beneath it, and every file under `agents/` within
-  its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480.
+  every `// WL-` or `// MW-` pointer naming the declaration beneath it, and every file under
+  `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480.
 
 ## Where the method is
 

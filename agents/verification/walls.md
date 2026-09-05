@@ -79,7 +79,8 @@ BECAUSE — a role in a grant says who may be spoken to and cannot become a load
 went red on exactly that, and a comment can trip the same check by saying the stem.
 SEEN — `tests/test_workshop_load.cpp` case `"an artifact stem may not climb out of the host's
 artifact directory"`, case `"a stem or a role that is not a NAME is refused"`;
-`tests/test_population.txt`.
+`tests/test_population.txt`; `tests/test_maker.cpp` case `"b: the definition schema carries no
+author field, and the file says so"`.
 
 ## VM-WALL-11 — A tripwire beside a behavioural case is defence in depth
 

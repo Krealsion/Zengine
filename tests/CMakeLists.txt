@@ -720,6 +720,37 @@ target_include_directories(zengine-composer-tests PRIVATE
 
 zengine_doctest_test(composer zengine-composer-tests)
 
+# ---- The Maker suite: a weave from a maker's definition (High-water) ---------------------
+#
+# What it asks: whether one Loom weave can be registered from DATA -- the state schema, the
+# accepted and emitted shapes, the triggers as compositions over the host's catalog -- and
+# behave as a native weave does: accept, spend, write back, emit, be inspected, be edited live
+# (a behaviour edit as `swap_state`, a schema edit as a prepared replacement with an authored
+# conversion), and survive a process as two native files. Nothing named `hw` exists in C++
+# anywhere in this repository; the suite authors it through the doors a Workshop editor will
+# use, and the fresh-process case is the witness that the files are the artifact.
+#
+# It links loom::switchboard and not loom::kernel: a definition is registered natively, never
+# loaded, and the coordinator's handle is the kernel-less constructor. `zengine-maker-author` is
+# the fresh process the two-files case runs through `std::system`, asserting its status first.
+add_executable(zengine-maker-author maker_author.cpp)
+target_link_libraries(zengine-maker-author
+    PRIVATE zengine-maker loom::switchboard loom::core zengine-warnings zengine-sanitize)
+
+add_executable(zengine-maker-tests test_maker.cpp doctest_main.cpp)
+target_link_libraries(zengine-maker-tests
+    PRIVATE zengine-maker loom::switchboard loom::core zengine-warnings zengine-sanitize)
+target_include_directories(zengine-maker-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+add_dependencies(zengine-maker-tests zengine-maker-author)
+target_compile_definitions(zengine-maker-tests PRIVATE
+    "MAKER_AUTHOR_EXE=\"$<TARGET_FILE:zengine-maker-author>\""
+    # The definition header's SOURCE, for the no-author-field tripwire: a property that is true
+    # because of what a file does NOT contain is read off the file (VM-WALL-10).
+    "MAKER_DEFINITION_HPP=\"${CMAKE_SOURCE_DIR}/maker/definition.hpp\"")
+
+zengine_doctest_test(maker zengine-maker-tests)
+
 # ---- The fence's compile-negative lane (owned by the UI suite) ---------------
 #
 # The authored/resolved fence is a COMPILE-TIME refusal, so a runtime suite
@@ -1247,10 +1278,12 @@ zengine_script_test(package_vocabulary
 
 # ---- The law-register contract ----------------------------------------------------------
 #
-# The third entry that interrogates the SOURCE TREE rather than a build. Workshop's law is
-# written once, in the registers under agents/workshop/, and it touches the code at two
-# joints that are both names: a PROVEN BY line names the owner identifiers and the exact
-# witness cases, and a `// WL-...` pointer above a declaration names the laws it implements.
+# The third entry that interrogates the SOURCE TREE rather than a build. Each law family's
+# law is written once, in the register directory the check's family table names (Workshop's
+# under agents/workshop/, the maker package's under agents/maker/), and it touches the code at
+# two joints that are both names: a PROVEN BY line names the owner identifiers and the exact
+# witness cases, and a `// WL-...` or `// MW-...` pointer above a declaration names the laws it
+# implements.
 # A rename breaks a name silently and no compiler will say so; this entry is what does. It
 # checks the form of every entry; that every path, identifier, witness and WHY target
 # resolves; that a decision record's "Laws supported" is exactly the set of laws whose WHY
