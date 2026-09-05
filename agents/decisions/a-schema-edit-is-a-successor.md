@@ -3,12 +3,13 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [succession](../maker/succession.md) and [weave](../maker/weave.md).
 
-**Context.** A maker edits a live weave at an editor with no compiler in the loop. Two edits look
-alike and are not: a new trigger body over the same state, and a new state shape. The Loom's
-reload is shape-only by law — `swap_state` and `reload` admit only at the record's state schema,
-and the kernel requires the identical schema — and the Loom's replacement is a prepared candidate
-with an authored migration, never an inferred one. The research traced both to file and line and
-found nothing in the substrate that needed to change.
+**Context.** A maker edits a live definition, which reached the bus through admission and not
+through a build (the Builder's job), so an edit is a swap or a succession, never a build. Two
+edits look alike and are not: a new trigger body over the same state, and a new state shape. The
+Loom's reload is shape-only by law — `swap_state` and `reload` admit only at the record's state
+schema, and the kernel requires the identical schema — and the Loom's replacement is a prepared
+candidate with an authored migration, never an inferred one. The research traced both to file and
+line and found nothing in the substrate that needed to change.
 
 **Decision.** A behaviour edit with the state schema unchanged is `swap_state`: the successor
 revision's bodies mount beside the incumbent's, the live weave takes the definition, the old

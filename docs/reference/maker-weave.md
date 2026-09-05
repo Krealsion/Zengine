@@ -4,10 +4,11 @@
 live definition is edited. The package is `maker/`, header-only, in-tree; the substrate it spends
 is the Loom's, unchanged.
 
-Every other weave in this repository is C++: a shape for its state, a class for its handlers, a
-build. A maker at the Workshop's editor has no compiler in the loop, so what they make is **data**
-— and the maker package is the interpreter that registers one Loom weave per definition and runs
-it as any native weave runs.
+What sets a maker weave apart is what the maker authors and how it reaches the bus. A compiled
+weave — a shape for its state, a class for its handlers — reaches the bus through a build, the
+[Builder](builder.md)'s job. A definition reaches it through admission, so what the maker makes
+is **data**, an edit is a swap or a succession, never a build, and the maker package is the
+interpreter that registers one Loom weave per definition and runs it as any native weave runs.
 
 > **A definition is the maker's stable dotted name, a state schema, the shapes it accepts and
 > emits, and its triggers — each one composition over the host's operator catalog, writing one
