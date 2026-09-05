@@ -118,3 +118,10 @@ METHOD — Working harnesses for both media are kept with the phase records, out
 BECAUSE — the programs restate what these rows say, and a register restates the method, not the
 program; rebuilding one costs the defects every row above was paid for.
 SEEN — nowhere yet
+
+## VM-WIT-25 — A reload witness reads the weave's own painted state, twice
+
+METHOD — Read the live weave's own painted state on its slot before and after, take the `WeaveId` from the `loaded` projection, edit a code literal the weave paints, and expect the new literal with the OLD state.
+BECAUSE — a state read through a new Terminal shape widens the overlay's grant for a witness's
+convenience; a weave that paints its own fields needs no authority the maker did not give it.
+SEEN — nowhere yet

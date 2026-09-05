@@ -163,7 +163,7 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
 
-LAW — Workshop holds no target, recipe or command: `build_now` names the row under the maker's cursor, refuses in words with no answer or no recipes yet, and says `realize` in the same sentence.
+LAW — Workshop holds no target, recipe or command: `build_now` names the row under the maker's cursor, refuses in words with no answer or no recipes yet, and says `realize` from the armed toggle.
 
 MEANS
 - with no Builder panel open the key is unbound; a panel that has not heard cannot ask;
@@ -172,8 +172,8 @@ MEANS
 PROVEN BY — `workshop/weave_arrange.cpp` `build_now`; `tests/test_workshop_panels.cpp` case
 `"Build asks for the name the TOOL gave, and asks for nothing without one"`, case `"a panel that
 has not heard from its tool cannot ask for a build"`, case `"BLD-1: `b` builds the recipe the
-maker chose, not the one last built"`, case `"BLD-1: `Shift+b` is BUILD & REALIZE, and the second
-intention crosses the seam"`.
+maker chose, not the one last built"`, case `"BLD-1: armed by `Shift+b`, `b` is BUILD & REALIZE,
+and the second intention crosses the seam"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
@@ -201,6 +201,33 @@ PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`; `workshop/wor
 the name the launch resolves"`, case `"the launch resolves the shipped catalog beside the
 executable, and --recipes is the only other road"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
+
+## WL-PROJ-16 — A live weave-only row reloads in place from an image off the loaded path
+
+LAW — A single-source build lands in its workspace; the host stages the product to the plan's file (a first load) or off it (a reload); `B` is one action in two states; promote and revert are the owner's.
+
+MEANS
+- `complete_recipes` completes an empty single-source `artifact_dir` to `<workspace>/out`;
+- the toggle arms `b`; the button re-sends the finished build's own recipe with `realize`;
+- `StageArtifact` and `PromoteImage` are the host's; a promotion keeps what it writes over.
+
+DOES NOT MEAN
+- that a changed shape is replaced or migrated — the kernel refuses it and the words say so;
+- that a provider+weave row is reloaded — refused until unmount-and-remount exists.
+
+PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/staging.hpp` `stage`,
+`promote`; `workshop/load_execute.hpp` `PlanExecutor::reload`, `PlanExecutor::promote`,
+`PlanExecutor::revert`, `reload_refusal_words`; `workshop/weave.hpp` `build_realize`,
+`promote_image`, `revert_image`; `workshop/weave_arrange.cpp` `build_realize`, `promote_image`,
+`revert_image`; `workshop/panel.hpp` `BuilderPane::arm`; `tests/test_workshop_files.cpp` case
+`"RELOAD-1: a single-source recipe's product lands in its workspace, never on the loaded path"`;
+`tests/test_workshop_load.cpp` case `"RELOAD-1: a live weave-only row reloads in place -- same
+WeaveId, state kept, Ack settles it"`, case `"RELOAD-1: promote writes the running image into the
+plan's file, sibling then rename, and revert reloads the image before the last reload"`;
+`tests/test_workshop_panels.cpp` case `"RELOAD-2: `B` before a build is a toggle: armed, `b` asks
+to build AND load"`, case `"RELOAD-2: after a plain build that succeeded and nothing armed, `B` is
+a button that loads the built artifact now"`.
+WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
 ## Do not assume
 

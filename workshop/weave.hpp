@@ -196,6 +196,8 @@ class WorkshopWeave
                                         zengine::surface::SurfacePlacementRemembered,
                                         zengine::builder::StatusRequested,
                                         zengine::builder::BuildRequested,
+                                        zengine::builder::PromoteArtifact,
+                                        zengine::builder::RevertArtifact,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PanePressed,
@@ -761,6 +763,22 @@ private:
     /// works, offer it to the project". Everything after that belongs to two owners
     /// neither of which is here.
     void build_now(loom::Mail& mail, bool realize);
+
+    /// THE ONE ACTION IN TWO STATES (RELOAD-1): the toggle that arms `b` to load what
+    /// it builds, or -- when an artifact is built and ready and nothing is armed -- the
+    /// button that loads it now by re-sending the finished build's own ask.
+    // WL-PROJ-16 -- agents/workshop/project.md
+    void build_realize(loom::Mail& mail);
+
+    /// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS: one offer to the realization
+    /// owner, decided there.
+    // WL-PROJ-16 -- agents/workshop/project.md
+    void promote_image(loom::Mail& mail);
+
+    /// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN: one offer to the realization owner,
+    /// answered as a realization is.
+    // WL-PROJ-16 -- agents/workshop/project.md
+    void revert_image(loom::Mail& mail);
 
     /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED.
     void choose_recipe(int by, loom::Mail& mail);

@@ -243,19 +243,32 @@ inline Written save_file(const std::string& path, const std::vector<builder::Rec
 }
 
 /// FILL IN THE FACTS AN AUTHORED RECIPE CANNOT CARRY, and only those.
-// WL-PROJ-02 -- agents/workshop/project.md
+///
+/// WHERE A SINGLE-SOURCE BUILD LANDS IS ITS OWN WORKSPACE, NEVER THE LOADED FILE
+/// (RELOAD-1). An empty `artifact_dir` on a `single_source` recipe completes to
+/// `<workspace>/out`, after the workspace itself is completed -- so a rebuild of an
+/// artifact this process has loaded writes a file the process has NOT mapped: Windows
+/// would refuse the link on the mapped one, and Linux would let it change code under a
+/// running program. The product reaches the host's directory by the realization owner's
+/// staging copy, at the moment a maker asks for it. A `cmake_target` recipe's empty
+/// `artifact_dir` still completes to the host's directory: that project puts its file
+/// where it puts it, and a recipe that names nowhere else means beside the host.
+// WL-PROJ-02, WL-PROJ-16 -- agents/workshop/project.md
 inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::string& host_dir,
                              const std::string& project_dir) {
     for (builder::Recipe& r : recipes) {
-        if (r.artifact_dir.empty()) {
-            r.artifact_dir = host_dir;
-        }
         if (r.single_source.has_value()) {
             if (r.single_source->workspace.empty()) {
                 r.single_source->workspace = host_dir + "/build-workspace/" + r.id;
             }
+            if (r.artifact_dir.empty()) {
+                r.artifact_dir = r.single_source->workspace + "/out";
+            }
             r.single_source->source =
                 persist::resolved_against(project_dir, r.single_source->source);
+        }
+        if (r.artifact_dir.empty()) {
+            r.artifact_dir = host_dir;
         }
     }
 }
