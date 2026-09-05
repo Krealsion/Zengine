@@ -128,6 +128,27 @@ same WeaveId, Revived announced, state kept, the new body spent"`, case `"e: a d
 state schema differs is refused as a behaviour edit, and the live weave is untouched"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
+## MW-WEAVE-10 — The ceremony doors trust the sender the host armed, not the shape
+
+LAW — `Quiesce` and `Resume` are honoured only from the coordinator and token the host armed on the weave it holds, `Adopt` only by an unbound candidate from that coordinator; any other is refused by name.
+
+MEANS
+- the sender is the bus's stamp, never a payload field; `begin_schema_edit` arms both weaves;
+- a weave registered to its role is bound; a candidate is bound by its attested `zen.Activated`;
+- the armed coordinator's `Resume` disarms; a bound weave's refusal says its triggers write it.
+
+DOES NOT MEAN
+- that a stranger's `Quiesce` answers anything but `zen.Refused`: no `Quiesced` leaves.
+
+PROVEN BY — `maker/weave.hpp` `Weave::arm`, `Weave::disarm`, `Weave::set_bound`,
+`Weave::from_armed_coordinator`, `Weave::handle`, `Weave::refused_at_door`;
+`maker/succession.hpp` `begin_schema_edit`; `tests/test_maker.cpp` case `"before the merge:
+Quiesce and Resume are honoured only from the coordinator the host armed for this boundary; a
+stranger's are refused by name and the weave keeps serving"`, case `"before the merge: Adopt is
+honoured only by an unbound candidate and only from its coordinator; a bound weave refuses it by
+name and its state stands"`.
+WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
+
 ## Do not assume
 
 - That the interpreter is a `WeaveBase` (MW-WEAVE-02): it implements `loom::Weave` raw, so its

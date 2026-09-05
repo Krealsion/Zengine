@@ -1033,7 +1033,7 @@ ui                                doctest           always  22
 component                         doctest           always  39
 operator                          doctest           always  125
 composer                          doctest           always  35
-maker                             doctest           always  23
+maker                             doctest           always  26
 builder                           doctest           always  53
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,

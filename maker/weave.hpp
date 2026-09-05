@@ -26,6 +26,15 @@
 // scalar; `zen.PokeWrite` and `zen.PokeResetState` are refused by name -- a maker weave's state
 // is written by its triggers.
 //
+// THE CEREMONY DOORS TRUST THE SENDER, NOT THE SHAPE -- Loom's own rule. Every maker weave accepts
+// `Quiesce`, `Resume` and `Adopt`, so the shape alone would let any participant freeze a weave,
+// un-freeze one mid-edit, or rewrite its state with bytes that admit. Instead the HOST arms the
+// weave for one boundary through the object it holds (`arm`): the coordinator's bus-stamped id and
+// the boundary token. `Quiesce` and `Resume` are honoured only from that sender with that token;
+// `Adopt` only while the weave is an unbound candidate and only from that sender. Anything else is
+// refused by name and the weave keeps serving. A weave registered bound to its role is never a
+// candidate; a candidate becomes bound when Loom attests its `zen.Activated`.
+//
 // THE TWO EDITS. A behaviour edit with the schema unchanged is `apply_behaviour_edit`: the
 // successor revision's bodies mount beside the incumbent's, the weave takes the new definition,
 // the old bodies unmount, and `swap_state` bumps the incarnation and announces `Revived` -- same
@@ -151,6 +160,26 @@ public:
     void set_self(loom::WeaveId id) noexcept { self_ = id; }
     loom::WeaveId id() const noexcept { return self_; }
     const Definition& definition() const noexcept { return definition_; }
+
+    /// HOST AUTHORITY: this weave holds a role (it is the service), or it is an unbound candidate.
+    /// Set by `register_definition`; a candidate turns bound when its activation is attested.
+    void set_bound(bool bound) noexcept { bound_ = bound; }
+    bool bound() const noexcept { return bound_; }
+
+    /// HOST AUTHORITY: arm this weave for one boundary -- the coordinator whose `Quiesce`,
+    /// `Resume` and `Adopt` are honoured, and the token they must carry. Called by
+    /// `begin_schema_edit` through the object the host holds, never by a message; `disarm` ends
+    /// it, and `Resume` from the armed coordinator disarms.
+    // MW-WEAVE-10 -- agents/maker/weave.md
+    void arm(loom::WeaveId coordinator, std::int64_t token) noexcept {
+        coordinator_ = coordinator;
+        token_ = token;
+    }
+    void disarm() noexcept {
+        coordinator_ = loom::WeaveId{};
+        token_ = 0;
+    }
+    loom::WeaveId coordinator() const noexcept { return coordinator_; }
     const loom::Value& state() const noexcept { return state_; }
 
     /// Triggers that ran and wrote.
@@ -159,6 +188,8 @@ public:
     std::uint64_t refused() const noexcept { return refused_; }
     /// Messages declined by name after the boundary, while this weave still held the role.
     std::uint64_t refused_after_boundary() const noexcept { return refused_after_boundary_; }
+    /// Ceremony messages refused at the door: a stranger's, or an `Adopt` on a bound weave.
+    std::uint64_t refused_at_door() const noexcept { return refused_at_door_; }
     bool quiescing() const noexcept { return quiescing_; }
     /// The sequence of the last `zen.Activated` delivered here, and whether Loom attested it.
     std::optional<std::int64_t> activated() const noexcept { return activated_; }
@@ -211,24 +242,51 @@ public:
             activated_ = fact.sequence;
             activation_attested_ = in.provenance.lifecycle_activation() &&
                                    in.provenance.attested_sequence() == fact.sequence;
+            if (activation_attested_) {
+                // Loom's word that this incarnation is the committed service: a candidate no
+                // longer, so `Adopt` is refused from here on, whoever asks.
+                bound_ = true;
+            }
             return;
         }
         if (loom::same_identity(*loom::schema_of<Quiesce>(), shape)) {
+            const Quiesce boundary = loom::from_value<Quiesce>(in.payload);
+            if (!from_armed_coordinator(in, boundary.token)) {
+                refuse_at_door(in, bus, "zengine.maker.Quiesce");
+                return;
+            }
             // THE BOUNDARY (HANDOFF-02): from here the state is final and exact, and every
             // trigger message is declined by name until Resume or retirement.
             quiescing_ = true;
             Quiesced final;
-            final.token = loom::from_value<Quiesce>(in.payload).token;
+            final.token = boundary.token;
             const std::string bytes = loom::serialize(state_);
             final.state.assign(bytes.begin(), bytes.end());
             answer(in, bus, loom::to_value(final));
             return;
         }
         if (loom::same_identity(*loom::schema_of<Resume>(), shape)) {
+            if (!from_armed_coordinator(in, loom::from_value<Resume>(in.payload).token)) {
+                refuse_at_door(in, bus, "zengine.maker.Resume");
+                return;
+            }
             quiescing_ = false;
+            disarm();
             return;
         }
         if (loom::same_identity(*loom::schema_of<Adopt>(), shape)) {
+            if (bound_) {
+                ++refused_at_door_;
+                refuse(in, bus,
+                       "`zengine.maker.Adopt` refused: `" + definition_.name +
+                           "` is bound to its role and is not a candidate; a maker weave's state "
+                           "is written by its triggers");
+                return;
+            }
+            if (!(coordinator_.valid() && in.sender == coordinator_)) {
+                refuse_at_door(in, bus, "zengine.maker.Adopt");
+                return;
+            }
             adopt(in, bus);
             return;
         }
@@ -276,6 +334,22 @@ private:
 
     void refuse(const loom::Message& in, loom::Bus& bus, std::string reason) {
         answer(in, bus, loom::to_value(loom::Refused{std::move(reason)}));
+    }
+
+    /// Is this delivery the armed coordinator's, carrying this boundary's token? The sender is
+    /// the bus's stamp, never a payload field.
+    // MW-WEAVE-10 -- agents/maker/weave.md
+    bool from_armed_coordinator(const loom::Message& in, std::int64_t token) const noexcept {
+        return coordinator_.valid() && in.sender == coordinator_ && token == token_;
+    }
+
+    void refuse_at_door(const loom::Message& in, loom::Bus& bus, const char* shape) {
+        ++refused_at_door_;
+        refuse(in, bus,
+               std::string("`") + shape + "` refused: the sender is not the coordinator the host "
+                                          "armed for `" + definition_.name +
+                                          "`'s boundary, or the token is not this boundary's; the "
+                                          "weave keeps serving");
     }
 
     /// One trigger: pack, spend, write back, emit.
@@ -376,7 +450,11 @@ private:
     std::uint64_t handled_ = 0;
     std::uint64_t refused_ = 0;
     std::uint64_t refused_after_boundary_ = 0;
+    std::uint64_t refused_at_door_ = 0;
     bool quiescing_ = false;
+    bool bound_ = true;
+    loom::WeaveId coordinator_{};
+    std::int64_t token_ = 0;
     std::optional<std::int64_t> activated_;
     bool activation_attested_ = false;
 };
@@ -446,6 +524,7 @@ inline Registered register_definition(loom::Switchboard& bus, op::Catalog& catal
         return Registered::no(e.what());
     }
     raw->set_self(id);
+    raw->set_bound(hold_role);
     Registered r;
     r.ok = true;
     r.id = id;

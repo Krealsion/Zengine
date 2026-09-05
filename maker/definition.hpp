@@ -411,12 +411,12 @@ inline bool binds_input(const op::Composite& body, std::string_view field) {
 } // namespace detail
 
 /// ADMIT A DEFINITION VALUE THAT HAS PASSED THE GATE at `definition_schema()`: the format word
-/// and the format version; the name and its namespace over the state; every descriptor
+/// and the format version; the name and its namespace over the state and the emits; every descriptor
 /// decoded through the codec with `referenced` first; every trigger's message accepted, output
 /// declared, pack free of a name both carry, and free of an optional state field it binds;
 /// every emit declared and its write planned; the conversion's write planned against its own
 /// `from`. Refused in one sentence, naming what would have worked.
-// MW-DEF-02, MW-DEF-04, MW-DEF-06 -- agents/maker/definition.md
+// MW-DEF-02, MW-DEF-04, MW-DEF-06, MW-DEF-08 -- agents/maker/definition.md
 inline Admitted admit_definition(const loom::Value& v) {
     try {
         Definition d;
@@ -454,7 +454,19 @@ inline Admitted admit_definition(const loom::Value& v) {
             d.accepts.push_back(loom::decode_schema(*c.as_message(), deps));
         }
         for (const loom::Cell& c : v.get("emits")->as_list()) {
-            d.emits.push_back(loom::decode_schema(*c.as_message(), deps));
+            std::shared_ptr<const loom::Schema> emitted = loom::decode_schema(*c.as_message(), deps);
+            // THE STATE'S RULE, APPLIED TO EMITS: a maker speaks only in its own namespace. A
+            // definition is pure data, and every maker weave accepts the package's ceremony
+            // shapes, so an emit outside the namespace could speak `zengine.maker.Adopt` or
+            // `Quiesce` to every sibling on each trigger. Accepts stay free: a weave listens to
+            // what others say.
+            if (emitted->name().size() <= prefix.size() ||
+                emitted->name().compare(0, prefix.size(), prefix) != 0) {
+                return Admitted::no("the emitted shape `" + emitted->name() +
+                                    "` is outside the definition's namespace; its name must "
+                                    "begin `" + prefix + "`");
+            }
+            d.emits.push_back(std::move(emitted));
         }
 
         for (const loom::Cell& c : v.get("on")->as_list()) {
