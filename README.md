@@ -166,6 +166,7 @@ Each is independently linkable; most are header-only vocabularies plus one loada
 | `component/` | reusable pieces of a tool — currently one: `TextBox` | `zengine::component` | [component](docs/reference/component.md) |
 | `activation/` | reading your own activation, once, without replay | `zengine::activation` | [timed weaves](docs/guides/timed-weaves.md) |
 | `operator/` | typed reusable rules, supplied by artifacts | `zengine::operator` | [operators](docs/reference/operator-providers.md) |
+| `maker/` | a weave built from a maker's definition — state, triggers and emits as data, edited live | not exported | [maker weave](docs/reference/maker-weave.md) |
 | `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
 | `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
 | `workshop/` | the maker environment | not exported | [Workshop docs](docs/workshop/getting-started.md) |
