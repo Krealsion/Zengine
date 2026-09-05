@@ -256,7 +256,7 @@ struct Begun {
 /// the coordinator. SCHEDULES AND RETURNS: nothing here pumps, and commit is the host's call
 /// (`txn.commit(sequence)`), as the handle's own law says. A refusal at any step leaves the
 /// world as it was.
-// MW-SUCC-01 -- agents/maker/succession.md
+// MW-SUCC-01 -- agents/maker/succession.md; MW-WEAVE-10 -- agents/maker/weave.md
 inline Begun begin_schema_edit(loom::Switchboard& bus, op::Catalog& catalog,
                                const Coordinator& coordinator, const std::string& role,
                                Definition successor, loom::PreparedReplacement& txn,
@@ -268,6 +268,10 @@ inline Begun begin_schema_edit(loom::Switchboard& bus, op::Catalog& catalog,
     const loom::WeaveId incumbent = bus.role_holder(role);
     if (!incumbent.valid()) {
         return Begun::no("nobody holds the role `" + role + "`");
+    }
+    auto* incumbent_weave = dynamic_cast<Weave*>(bus.weave(incumbent));
+    if (incumbent_weave == nullptr) {
+        return Begun::no("the holder of `" + role + "` is not a maker weave");
     }
     Registered candidate =
         register_definition(bus, catalog, std::move(successor), std::nullopt, /*hold_role=*/false);
@@ -285,6 +289,11 @@ inline Begun begin_schema_edit(loom::Switchboard& bus, op::Catalog& catalog,
         return Begun::no(std::string("the prepared replacement refused to begin: ") +
                          loom::name_of(started.begin_reason));
     }
+    // WHO MAY SPEAK AT THE BOUNDARY: the host arms both weaves for this coordinator and this
+    // token through the objects it holds -- never by a message -- before the first ceremony
+    // message is sent. Any other sender's Quiesce, Resume or Adopt is refused by name.
+    incumbent_weave->arm(coordinator.id, token);
+    candidate.weave->arm(coordinator.id, token);
     coordinator.weave->begin(&txn, candidate.weave->definition().state, incumbent, token);
     bus.send_as(coordinator.id, incumbent,
                 loom::Message(loom::to_value(Quiesce{token}), coordinator.id, coordinator.id,

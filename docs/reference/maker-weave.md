@@ -105,6 +105,17 @@ performs one, with the conversion authored as data:
 A `hw.Sample` sent during the edit is handled before the boundary, refused by name after it while
 the incumbent holds the role, and handled by the successor after the role moves — never lost.
 
+### Who may speak at the boundary
+
+Every maker weave accepts the ceremony shapes, so their shape says nothing about who sent them.
+When an edit begins the host arms the incumbent and the candidate, through the objects it holds,
+for one coordinator and one token; `Quiesce` and `Resume` are honoured only from that sender with
+that token, and `Adopt` only while the weave is an unbound candidate and only from that sender —
+a weave registered to its role, or bound by Loom's attested `zen.Activated`, refuses it by name.
+Anything else is refused by name and the weave keeps serving. For the same reason a definition's
+emitted shapes must lie in its own namespace, as its state must: a definition cannot speak the
+ceremony shapes to its siblings. Its accepted shapes stay free.
+
 ### What the conversion may say
 
 Each successor field is written from one source: a same-named or renamed predecessor field of the

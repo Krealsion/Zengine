@@ -106,6 +106,19 @@ PROVEN BY — `maker/definition.hpp` `read_state`; `tests/test_maker.cpp` case `
 of another version is refused by name at load, and nothing converts it"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
+## MW-DEF-08 — Emits are namespaced too
+
+LAW — Each emitted shape's name begins `<name>.`, in the state's own words; a definition cannot speak the package's ceremony shapes or another maker's, and accepts stay free.
+
+MEANS
+- every maker weave accepts `Quiesce`, `Resume` and `Adopt`; an emit of one would reach them all;
+- a weave listens to what others say: an accepted shape may be anyone's.
+
+PROVEN BY — `maker/definition.hpp` `admit_definition`; `tests/test_maker.cpp` case `"before the
+merge: a definition whose emits lie outside its namespace is refused, and so a definition cannot
+emit the ceremony shapes"`.
+WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
+
 ## Do not assume
 
 - That the definition's `accepts` are namespaced as the state is (MW-DEF-02): only the state

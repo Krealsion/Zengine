@@ -1173,3 +1173,180 @@ TEST_CASE("3: an optional state field bound by a trigger is refused at admission
     CHECK(high_of(*r.weave) == 6);
     CHECK(r.weave->state().get("bonus") == nullptr);
 }
+
+// ---- before the merge: the ceremony doors trust the sender, not the shape ------------------------
+
+TEST_CASE("before the merge: a definition whose emits lie outside its namespace is refused, and so "
+          "a definition cannot emit the ceremony shapes") {
+    Host h;
+    // The attack, as data: a definition that emits the package's own `Adopt` -- a shape every
+    // maker weave accepts -- would rewrite every sibling's state on each trigger.
+    maker::Definition speaks_adopt = hwfix::high_water(h.catalog);
+    speaks_adopt.emits = {loom::schema_of<maker::Adopt>()};
+    speaks_adopt.on[0].emits.clear();
+    maker::Admitted a = round_trip(speaks_adopt);
+    CHECK_FALSE(a.ok);
+    CHECK(contains(a.reason, "`zengine.maker.Adopt`"));
+    CHECK(contains(a.reason, "outside the definition's namespace"));
+    CHECK(contains(a.reason, "`hw.`"));
+
+    // Any other maker's namespace is refused the same way, in the state's own words.
+    maker::Definition speaks_other = hwfix::high_water(h.catalog);
+    speaks_other.emits = {loom::SchemaBuilder("other.Note", 1).field("high", loom::Kind::Int).build()};
+    speaks_other.on[0].emits.clear();
+    a = round_trip(speaks_other);
+    CHECK_FALSE(a.ok);
+    CHECK(contains(a.reason, "`other.Note`"));
+
+    // Accepts stay free: a weave listens to what others say.
+    maker::Definition listens = hwfix::high_water(h.catalog);
+    listens.accepts.push_back(loom::SchemaBuilder("other.Note", 1).field("n", loom::Kind::Int).build());
+    CHECK(round_trip(listens).ok);
+    CHECK(round_trip(hwfix::high_water(h.catalog)).ok);
+}
+
+TEST_CASE("before the merge: Quiesce and Resume are honoured only from the coordinator the host "
+          "armed for this boundary; a stranger's are refused by name and the weave keeps serving") {
+    Host h;
+    h.listen();
+    const maker::Coordinator c = maker::register_succession(h.bus, h.catalog);
+    const maker::Registered r = maker::register_definition(h.bus, h.catalog, hwfix::high_water(h.catalog));
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    h.send(r.id, hwfix::sample(7));
+    h.pump();
+
+    // A stranger's Quiesce, before any edit: refused by name, nothing frozen, the state stays
+    // private -- no Quiesced went anywhere.
+    h.send(r.id, loom::to_value(maker::Quiesce{1}), 41);
+    h.pump();
+    CHECK_FALSE(r.weave->quiescing());
+    CHECK(r.weave->refused_at_door() == 1);
+    const Message* refused = h.client->last("zen.Refused");
+    REQUIRE(refused != nullptr);
+    CHECK(refused->correlation == 41);
+    CHECK(contains(reason_of(*refused), "`zengine.maker.Quiesce`"));
+    CHECK(contains(reason_of(*refused), "coordinator the host armed"));
+    CHECK(h.client->count("zengine.maker.Quiesced") == 0);
+    // ...and the weave keeps serving.
+    h.send(r.id, hwfix::sample(9));
+    h.pump();
+    CHECK(high_of(*r.weave) == 9);
+
+    // A real edit arms the incumbent for one coordinator and one token.
+    loom::PreparedReplacement txn(h.bus);
+    const maker::Begun b =
+        maker::begin_schema_edit(h.bus, h.catalog, c, "hw", hwfix::high_water_v2(h.catalog), txn);
+    REQUIRE_MESSAGE(b.ok, b.reason);
+    CHECK(r.weave->coordinator() == c.id);
+    h.pump();
+    REQUIRE(r.weave->quiescing());
+    REQUIRE(txn.state() == loom::TxnState::Ready);
+
+    // A stranger's Resume with the right token: refused, still quiesced.
+    h.send(r.id, loom::to_value(maker::Resume{1}), 42);
+    h.pump();
+    CHECK(r.weave->quiescing());
+    const Message* resumed = h.client->last("zen.Refused");
+    REQUIRE(resumed != nullptr);
+    CHECK(contains(reason_of(*resumed), "`zengine.maker.Resume`"));
+    // The coordinator's own id with the WRONG token (the host speaking as it): refused too.
+    h.bus.send_as(c.id, r.id, Message(loom::to_value(maker::Quiesce{99}), c.id, c.id, 43));
+    h.pump();
+    CHECK(r.weave->refused_at_door() == 3);
+    CHECK(c.weave->quiesced()); // the real Quiesced was the first; the wrong-token one answered nothing new
+
+    // The host decides against the edit: the armed coordinator's Resume IS honoured.
+    REQUIRE(maker::abort_schema_edit(h.bus, c, txn).ok);
+    h.pump();
+    CHECK_FALSE(r.weave->quiescing());
+    CHECK_FALSE(r.weave->coordinator().valid()); // disarmed with it
+    h.send(r.id, hwfix::sample(11));
+    h.pump();
+    CHECK(high_of(*r.weave) == 11);
+    CHECK(r.weave->refused_after_boundary() == 0);
+}
+
+TEST_CASE("before the merge: Adopt is honoured only by an unbound candidate and only from its "
+          "coordinator; a bound weave refuses it by name and its state stands") {
+    Host h;
+    h.listen();
+    loom::Value ninety_nine(hwfix::state_v1());
+    ninety_nine.set("high", loom::Cell::integer(99));
+    const std::string bytes = loom::serialize(ninety_nine);
+    maker::Adopt rewrite;
+    rewrite.state.assign(bytes.begin(), bytes.end());
+
+    // A bound weave -- the service -- refuses an Adopt whoever sends it: PokeWrite by another name.
+    const maker::Registered r = maker::register_definition(h.bus, h.catalog, hwfix::high_water(h.catalog));
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    CHECK(r.weave->bound());
+    h.send(r.id, hwfix::sample(7));
+    h.send(r.id, loom::to_value(rewrite), 51);
+    h.pump();
+    CHECK(high_of(*r.weave) == 7);
+    CHECK(r.weave->refused_at_door() == 1);
+    const Message* refused = h.client->last("zen.Refused");
+    REQUIRE(refused != nullptr);
+    CHECK(refused->correlation == 51);
+    CHECK(contains(reason_of(*refused), "bound to its role"));
+    CHECK(contains(reason_of(*refused), "written by its triggers"));
+
+    // An unbound weave that nobody armed refuses a stranger's Adopt; armed for that sender by the
+    // host, through the object the host holds, it adopts.
+    Host h2;
+    h2.listen();
+    maker::Definition loose = hwfix::high_water(h2.catalog);
+    loose.name = "hw2";
+    loose.state = loom::SchemaBuilder("hw2.State", 1).field("high", loom::Kind::Int).build();
+    loose.emits = {loom::SchemaBuilder("hw2.HighWater", 1).field("high", loom::Kind::Int).build()};
+    loose.on[0].emits[0].message = loose.emits[0];
+    loose.on[0].body = hwfix::two_arg_body(h2.catalog, loose.trigger_identity(loose.on[0]), *loose.state,
+                                           *loose.on[0].message, op::kMaxInt);
+    const maker::Registered u =
+        maker::register_definition(h2.bus, h2.catalog, loose, std::nullopt, /*hold_role=*/false);
+    REQUIRE_MESSAGE(u.ok, u.reason);
+    CHECK_FALSE(u.weave->bound());
+    loom::Value hw2_state(loose.state);
+    hw2_state.set("high", loom::Cell::integer(99));
+    const std::string hw2_bytes = loom::serialize(hw2_state);
+    maker::Adopt rewrite2;
+    rewrite2.state.assign(hw2_bytes.begin(), hw2_bytes.end());
+    h2.send(u.id, loom::to_value(rewrite2), 52);
+    h2.pump();
+    CHECK(high_of(*u.weave) == 0);
+    CHECK(u.weave->refused_at_door() == 1);
+    const Message* stranger = h2.client->last("zen.Refused");
+    REQUIRE(stranger != nullptr); // guarded: an honoured Adopt would answer nothing here
+    CHECK(contains(reason_of(*stranger), "`zengine.maker.Adopt`"));
+    u.weave->arm(h2.client_id, 1); // host authority: the client is this candidate's coordinator
+    h2.send(u.id, loom::to_value(rewrite2), 53);
+    h2.pump();
+    CHECK(high_of(*u.weave) == 99);
+    CHECK(u.weave->refused_at_door() == 1);
+
+    // After a real succession commits, the successor is bound by Loom's attested activation, and
+    // refuses an Adopt from anyone -- its coordinator included.
+    const maker::Coordinator c = maker::register_succession(h.bus, h.catalog);
+    loom::PreparedReplacement txn(h.bus);
+    const maker::Begun b =
+        maker::begin_schema_edit(h.bus, h.catalog, c, "hw", hwfix::high_water_v2(h.catalog), txn);
+    REQUIRE_MESSAGE(b.ok, b.reason);
+    CHECK_FALSE(b.candidate_weave->bound());
+    h.pump();
+    REQUIRE(txn.state() == loom::TxnState::Ready);
+    REQUIRE(txn.commit(1).ok);
+    h.pump();
+    REQUIRE(txn.take_outcome().has_value());
+    CHECK(b.candidate_weave->bound());
+    loom::Value v2_state(hwfix::state_v2());
+    v2_state.set("label", loom::Cell::text("forged"));
+    v2_state.set("high", loom::Cell::integer(99));
+    const std::string v2_bytes = loom::serialize(v2_state);
+    maker::Adopt rewrite3;
+    rewrite3.state.assign(v2_bytes.begin(), v2_bytes.end());
+    h.bus.send_as(c.id, b.candidate, Message(loom::to_value(rewrite3), c.id, c.id, 54));
+    h.pump();
+    CHECK(high_of(*b.candidate_weave) == 7);
+    CHECK(b.candidate_weave->state().get("label")->as_text() == "high water");
+    CHECK(b.candidate_weave->refused_at_door() == 1);
+}
