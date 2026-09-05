@@ -20,6 +20,7 @@ routed: read a surface's document when the task touches that surface, not before
 | `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
+| `maker/` — a weave built from a maker's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
 | load plans, realization, the load conversation, `builder/` | [agents/realization.md](agents/realization.md) |
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
 | Timer semantics | [docs/laws/timer-laws.md](docs/laws/timer-laws.md) (TIMER-01..05) and the `docs/reference/timer-*.md` pages |
@@ -44,7 +45,7 @@ record's Alternatives split tried (evidence inline) from argued. **i** records w
 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
 generated from WHY lines: edit the WHY. **l** a record over ten laws is suspected of being two.
 **m** an owner identifier is a whole token in the named file's code, comments stripped.
-**n** a `// WL-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
+**n** a `// WL-` or `// MW-` pointer is PROVEN BY inverted: every law on it names the declaration beneath.
 **o** a mass edit is sheet → applier → proof, regenerated from the start commit. **p** after a
 compaction, re-measure the report's claims. **q** a tree-reading check self-tests; an empty
 population is red. **r** a tree-reading check quotes its filesystem with its wall clock. **s** a
