@@ -3,11 +3,15 @@
 #
 # THE LAW-REGISTER CHECK -- the `law_register` CTest entry.
 #
-# It answers one question: is Workshop's law, as written in the registers under agents/,
-# still well-formed, and does every name it makes still resolve? Four populations, one rule:
+# It answers one question: is the law written in the registers under agents/ -- Workshop's
+# today, and every family the table below names -- still well-formed, and does every name it
+# makes still resolve? Four populations, one rule:
 #
 #   registers         every `##` under a register directory is one law entry (or the one
-#                     `## Do not assume`); an entry has a LAW of one line and a PROVEN BY;
+#                     `## Do not assume`); an entry's family is its directory's family in the
+#                     family table (ZEN_LAW_FAMILIES below) -- a `## MW-...` heading under
+#                     agents/workshop/ is misfiled, and a heading of a family the table does
+#                     not name is no entry; an entry has a LAW of one line and a PROVEN BY;
 #                     MEANS and DOES NOT MEAN are bounded; no SINCE line; ids are unique
 #                     under agents/; each file is under its byte budget; an entry whose
 #                     PROVEN BY says `witness: none` is repeated under its register's
@@ -21,9 +25,11 @@
 #                     SUBCASE literal under tests/
 #   decision records  every WHY target exists; a record's "Laws supported" is exactly the
 #                     set of ids whose WHY names it
-#   source pointers   every `// WL-... -- agents/workshop/<register>.md` line names
-#                     registers that exist and ids that are entries of the register named
-#                     on that line; every `// Workshop law:` header names existing files
+#   source pointers   every `// WL-... -- agents/workshop/<register>.md` line -- any family
+#                     of the table, `// <FAMILY>-<AREA>-NN` -- names registers that exist and
+#                     ids that are entries of the register named on that line, and a pointer
+#                     spelling a family the table does not name is refused by that family's
+#                     name; every `// Workshop law:` header names existing files
 #   method registers  every `##` under a method-register directory (agents/verification/) is
 #                     one VM entry, or the one table heading `## Where a case goes`; an entry
 #                     has a METHOD of one line whose sentence is at most 210 bytes, a BECAUSE
@@ -64,7 +70,7 @@
 #            `SurfaceRect`). A member is spelled `Struct::member` and an overload
 #            `name(Type)`; both are read as their parts, each of which must be a whole
 #            token in the code (zen_law_token_parts() below).
-#   rule n   a `// WL-...` pointer is PROVEN BY inverted: for each pointer line, the
+#   rule n   a `// WL-...` pointer (of any family) is PROVEN BY inverted: for each pointer line, the
 #            declaration on the next code line is named by the PROVEN BY of EVERY law on
 #            that line, under this file -- an id whose law does not name the declaration
 #            is a content citation, and the pointer form has no room for one. What "the
@@ -93,18 +99,21 @@
 # HONEST LIMITS OF THE PARSE, all in the direction of a visible red rather than a quiet
 # green: a `//` inside a string literal is read as a comment start (rule m then sees less
 # code, never more); a pointer written after code on the same line is not a pointer line,
-# and a comment line that BEGINS `// WL-` is read as a pointer and fails as malformed when
-# it is prose (reword the comment; the check does not guess); a `## WL-...-NN -- RETIRED`
-# heading is an entry with no LAW or PROVEN BY owed, exactly as the router says a retired
-# law keeps its number and one line.
+# and a comment line that BEGINS with an id-shaped token (`// WL-`, `// MW-`, any
+# `// <LETTERS>-<LETTERS>-<digit>`) is read as a pointer and fails as malformed when it is
+# prose (reword the comment; the check does not guess); a `## WL-...-NN -- RETIRED` heading
+# is an entry with no LAW or PROVEN BY owed, exactly as the router says a retired law keeps
+# its number and one line.
 #
 # THE SELF-TEST IS NOT OPTIONAL. A well-formed tree and a checker that finds nothing produce
 # byte-identical output, so before answering it makes each predicate say NO -- a bad
 # heading, an identifier that is only in a comment, a witness no test declares, a malformed
-# pointer, a phase tag, a VM entry with a long METHOD, a four-line BECAUSE and a stray
-# heading -- and say YES to their well-formed twins, one of them a case name read out of
-# the real test sources at runtime. The VM walker is exercised on a synthetic register held
-# in this file, never on a file written to the tree.
+# pointer, a pointer of a family the table does not name, an entry filed under another
+# family's directory, a phase tag, a VM entry with a long METHOD, a four-line BECAUSE and a
+# stray heading -- and say YES to their well-formed twins, one of them a case name read out
+# of the real test sources at runtime. Both walkers are exercised on synthetic registers held
+# in this file, never on a file written to the tree, and the family canaries run on a
+# synthetic second family bound beside the real table and unbound after.
 #
 #   cmake -P tests/check_law_register.cmake                          (from the repository root)
 #   cmake -DLAW_REGISTER_STRICT=OFF -P tests/check_law_register.cmake
@@ -127,22 +136,72 @@ endif()
 
 # ---- scope, declared here so a standalone clone carries its own rule -----------------
 #
-# One line per routed area that has been turned into registers. The instruction that made
-# Workshop's registers applies to every routed document under agents/ in turn; each one
-# joins this list when its registers exist.
-set(ZEN_LAW_REGISTER_DIRS agents/workshop)
-set(ZEN_LAW_ROUTERS agents/workshop.md)
+# THE FAMILY TABLE. One row per law family, and a family is a property of its DIRECTORY: the
+# row names the id prefix (the `WL` of `WL-GEO-01`), the register directory that owns it, and
+# its router. The ids an entry, a pointer, a Do-not-assume bullet or a Laws-supported line may
+# spell are exactly the table's families, and an entry's family must be the family of the
+# directory it sits in. The instruction that made Workshop's registers applies to every routed
+# document under agents/ in turn; a family joins this table when its registers exist -- a row
+# whose directory holds no register is a red, not a placeholder. tools/fill_laws.sh reads the
+# three spellings below (`set(ZEN_LAW_FAMILIES ...)`, `set(ZEN_LAW_DIR_<F> ...)`) at column 0,
+# one line each, so the table has one copy; the self-test binds its synthetic family with
+# list(APPEND) and never with a second `set`.
+set(ZEN_LAW_FAMILIES WL)
+set(ZEN_LAW_DIR_WL agents/workshop)
+set(ZEN_LAW_ROUTER_WL agents/workshop.md)
 set(ZEN_LAW_RECORD_DIR agents/decisions)
 set(ZEN_LAW_CORE AGENTS.md)
 set(ZEN_LAW_WITNESS_DIR tests)
 
+# The lists the table derives, recomputed by zen_law_families_derive() whenever the table is
+# rebound (the self-test binds a synthetic second family, then restores this one): the
+# register directories and routers in table order, the family alternation `(WL|...)`, and the
+# id pattern `(WL|...)-<AREA>-<NN>`. A row missing either half is refused before anything runs.
+macro(zen_law_families_derive)
+    set(ZEN_LAW_REGISTER_DIRS "")
+    set(ZEN_LAW_ROUTERS "")
+    set(ZEN_LAW_FAMILY_RE "")
+    foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
+        if(NOT DEFINED ZEN_LAW_DIR_${zen_family} OR NOT DEFINED ZEN_LAW_ROUTER_${zen_family})
+            message(FATAL_ERROR
+                "law-register: family ${zen_family} is in ZEN_LAW_FAMILIES without a "
+                "ZEN_LAW_DIR_${zen_family} or a ZEN_LAW_ROUTER_${zen_family}; a row of the "
+                "family table is its prefix, its register directory and its router.")
+        endif()
+        list(APPEND ZEN_LAW_REGISTER_DIRS "${ZEN_LAW_DIR_${zen_family}}")
+        list(APPEND ZEN_LAW_ROUTERS "${ZEN_LAW_ROUTER_${zen_family}}")
+        if(ZEN_LAW_FAMILY_RE STREQUAL "")
+            set(ZEN_LAW_FAMILY_RE "${zen_family}")
+        else()
+            string(APPEND ZEN_LAW_FAMILY_RE "|${zen_family}")
+        endif()
+    endforeach()
+    set(ZEN_LAW_FAMILY_RE "(${ZEN_LAW_FAMILY_RE})")
+    set(ZEN_LAW_ID_RE "${ZEN_LAW_FAMILY_RE}-[A-Z]+-[0-9]+")
+endmacro()
+zen_law_families_derive()
+
 # The method registers (the VM form), their router, and the one heading a method register may
-# carry that is not an entry. A phase tag is a parenthesised token shaped like an id whose
-# family is not one of these law families; the families are the only list this check keeps.
+# carry that is not an entry. A phase tag is a parenthesised two-part token -- letters, a dash,
+# an optional letter, a digit: `(QR-13)`, `(ZOOM-P2)` -- whose family is none of these; a
+# three-part citation such as `(WL-GEO-01)` or `(MW-DEF-01)` is never read as a tag by its
+# shape alone, whatever this list says. The list holds every law family of the table above,
+# the method family VM, the families the `docs/laws/` of this repository and of Loom spell
+# (TIMER, POP, KERN), and MW, the maker package's family, named here before its registers
+# exist -- it joins the table above with its first register. Every table family must be in
+# this list, so the two lists cannot disagree about what a family is; that is checked here.
 set(ZEN_VM_REGISTER_DIRS agents/verification)
 set(ZEN_VM_ROUTERS agents/verification.md)
 set(ZEN_VM_TABLE_HEADING "## Where a case goes")
-set(ZEN_VM_ID_FAMILIES WL VM TIMER POP KERN)
+set(ZEN_VM_ID_FAMILIES WL MW VM TIMER POP KERN)
+foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
+    if(NOT zen_family IN_LIST ZEN_VM_ID_FAMILIES)
+        message(FATAL_ERROR
+            "law-register: family ${zen_family} is in the family table and not in "
+            "ZEN_VM_ID_FAMILIES; a `(${zen_family}-...)` citation in a method register would "
+            "then be read as a phase tag. Add it there.")
+    endif()
+endforeach()
 
 # Every *.md under this directory is budgeted (below). The routed documents that are not yet
 # registers are over the register budget today and are named here, so the sweep can demand
@@ -312,16 +371,35 @@ function(zen_law_token_in code token out)
 endfunction()
 
 # A register heading. Sets ${out_id} to the law id, or to "" for a heading that is not an
-# entry; ${out_retired} to 1 for the one-line retired form.
+# entry -- a heading of a family the table does not name included; ${out_retired} to 1 for
+# the one-line retired form. Whether the heading sits in its own family's directory is the
+# walker's question (zen_law_walk_text), not this one's.
 function(zen_law_entry_heading line out_id out_retired)
     set(${out_id} "" PARENT_SCOPE)
     set(${out_retired} 0 PARENT_SCOPE)
-    if(line MATCHES "^## (WL-[A-Z]+-[0-9][0-9]) (—|--) (.*)$")
+    if(line MATCHES "^## (${ZEN_LAW_FAMILY_RE}-[A-Z]+-[0-9][0-9]) (—|--) (.*)$")
         set(${out_id} "${CMAKE_MATCH_1}" PARENT_SCOPE)
-        if(CMAKE_MATCH_3 MATCHES "^RETIRED")
+        if(CMAKE_MATCH_4 MATCHES "^RETIRED")
             set(${out_retired} 1 PARENT_SCOPE)
         endif()
     endif()
+endfunction()
+
+# The family of an id is its prefix; the family of a register path is its directory's row in
+# the table, "" for a path under no register directory.
+function(zen_law_family_of_id id out)
+    string(REGEX REPLACE "-.*$" "" family "${id}")
+    set(${out} "${family}" PARENT_SCOPE)
+endfunction()
+function(zen_law_family_of_path rel out)
+    set(${out} "" PARENT_SCOPE)
+    get_filename_component(dir "${rel}" DIRECTORY)
+    foreach(family IN LISTS ZEN_LAW_FAMILIES)
+        if(dir STREQUAL "${ZEN_LAW_DIR_${family}}")
+            set(${out} "${family}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
 endfunction()
 
 # A method-register heading. Sets ${out_id} to the VM id, or to "" for anything else -- a WL
@@ -351,26 +429,37 @@ function(zen_vm_phase_tag line out)
     endforeach()
 endfunction()
 
-# A pointer line: `// WL-A-01, WL-A-02 -- agents/workshop/a.md; WL-B-03 -- agents/workshop/b.md`.
-# Sets ${out_ok} to 0 for anything else, and ${out_segments} to a list whose elements are
-# `<register>|<id>,<id>,...`. The separator between segments arrives as ZEN_SOH.
-function(zen_law_parse_pointer line out_ok out_segments)
+# A pointer line: `// WL-A-01, WL-A-02 -- agents/workshop/a.md; WL-B-03 -- agents/workshop/b.md`,
+# its ids of any family the table names. Sets ${out_ok} to 0 for anything else -- an id of a
+# family the table does not name included, in which case ${out_why} names that family -- and
+# ${out_segments} to a list whose elements are `<register>|<id>,<id>,...`. The separator
+# between segments arrives as ZEN_SOH.
+function(zen_law_parse_pointer line out_ok out_segments out_why)
     set(${out_ok} 0 PARENT_SCOPE)
     set(${out_segments} "" PARENT_SCOPE)
+    set(${out_why} "" PARENT_SCOPE)
     string(STRIP "${line}" l)
-    if(NOT l MATCHES "^// (WL-.*)$")
+    if(NOT l MATCHES "^// ([A-Z]+-.*)$")
         return()
     endif()
     string(REPLACE "${ZEN_SOH}" ";" pieces "${CMAKE_MATCH_1}")
     set(segments "")
     foreach(piece IN LISTS pieces)
         string(STRIP "${piece}" piece)
-        if(NOT piece MATCHES "^(WL-[A-Z]+-[0-9]+([ \t]*,[ \t]*WL-[A-Z]+-[0-9]+)*)[ \t]+--[ \t]+([A-Za-z0-9_./-]+\\.md)$")
+        if(NOT piece MATCHES "^([A-Z]+-[A-Z]+-[0-9]+([ \t]*,[ \t]*[A-Z]+-[A-Z]+-[0-9]+)*)[ \t]+--[ \t]+([A-Za-z0-9_./-]+\\.md)$")
             return()
         endif()
         set(ids "${CMAKE_MATCH_1}")
         set(register "${CMAKE_MATCH_3}")
         string(REGEX REPLACE "[ \t]" "" ids "${ids}")
+        string(REPLACE "," ";" id_list "${ids}")
+        foreach(id IN LISTS id_list)
+            zen_law_family_of_id("${id}" family)
+            if(NOT family IN_LIST ZEN_LAW_FAMILIES)
+                set(${out_why} "; ${id} spells family ${family}, which no row of the family table owns" PARENT_SCOPE)
+                return()
+            endif()
+        endforeach()
         list(APPEND segments "${register}|${ids}")
     endforeach()
     set(${out_ok} 1 PARENT_SCOPE)
@@ -667,17 +756,17 @@ function(zen_law_unwitnessed_clause line out)
     endif()
 endfunction()
 
-# The ids a Do-not-assume bullet repeats as debts of one kind: every WL id on a bullet that
-# says the marker (`witness: none` or `UNWITNESSED`), and nothing at all for a bullet that
-# does not say it, whatever else it names -- the prose bullets that cite a law for another
-# reason are not debt statements.
+# The ids a Do-not-assume bullet repeats as debts of one kind: every law id (of any family
+# the table names) on a bullet that says the marker (`witness: none` or `UNWITNESSED`), and
+# nothing at all for a bullet that does not say it, whatever else it names -- the prose
+# bullets that cite a law for another reason are not debt statements.
 function(zen_law_debt_ids bullet marker out)
     set(${out} "" PARENT_SCOPE)
     string(FIND "${bullet}" "${marker}" said)
     if(said EQUAL -1)
         return()
     endif()
-    string(REGEX MATCHALL "WL-[A-Z]+-[0-9]+" ids "${bullet}")
+    string(REGEX MATCHALL "${ZEN_LAW_ID_RE}" ids "${bullet}")
     if(ids)
         list(REMOVE_DUPLICATES ids)
     endif()
@@ -737,6 +826,53 @@ if(NOT id STREQUAL "WL-ZZZ-02" OR NOT retired)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- the retired one-line form was not recognised.")
 endif()
 
+# THE FAMILY TABLE'S CANARIES, on a synthetic second family QQ bound beside the real rows and
+# unbound after: a heading of the second family is an entry; a heading of a family the table
+# does not name is not; a pointer spelling both families parses, and one spelling a family
+# the table does not name is refused with that family in the reason; a Do-not-assume bullet
+# repeats a second-family id; the family of an id and of a path answer; and once the table is
+# restored the second family is a stranger again. The walker's half -- a second-family entry
+# filed under the first family's directory -- runs below, after the walker is defined.
+set(zen_law_real_families "${ZEN_LAW_FAMILIES}")
+list(APPEND ZEN_LAW_FAMILIES QQ)
+set(ZEN_LAW_DIR_QQ agents/qq-selftest)
+set(ZEN_LAW_ROUTER_QQ agents/qq-selftest.md)
+zen_law_families_derive()
+zen_law_entry_heading("## QQ-ZZZ-01 — A heading of the second family" fam_id fam_retired)
+zen_law_entry_heading("## MW-ZZZ-01 — A heading of a family the table does not name" fam_unnamed fam_unnamed_retired)
+zen_law_parse_pointer("// WL-AAA-01, QQ-BBB-02 -- agents/workshop/a.md${ZEN_SOH} QQ-CCC-03 -- agents/qq-selftest/c.md" fam_ok fam_segs fam_why)
+list(LENGTH fam_segs fam_nsegs)
+zen_law_parse_pointer("// WL-AAA-01, MW-AAA-01 -- agents/maker/a.md" fam_unnamed_ok fam_unnamed_segs fam_unnamed_why)
+zen_law_debt_ids("- That QQ-ZZZ-01 is witnessed — it is not (witness: none)." "witness: none" fam_debt)
+zen_law_family_of_id("QQ-ZZZ-01" fam_of_id)
+zen_law_family_of_path("agents/qq-selftest/c.md" fam_of_path)
+zen_law_family_of_path("${ZEN_LAW_DIR_WL}/a.md" fam_of_wl_path)
+zen_law_family_of_path("agents/decisions/a.md" fam_of_record)
+if(NOT fam_id STREQUAL "QQ-ZZZ-01" OR NOT fam_unnamed STREQUAL "" OR NOT fam_ok OR NOT fam_nsegs EQUAL 2
+   OR fam_unnamed_ok OR NOT fam_unnamed_why MATCHES "MW-AAA-01 spells family MW"
+   OR NOT fam_debt STREQUAL "QQ-ZZZ-01" OR NOT fam_of_id STREQUAL "QQ" OR NOT fam_of_path STREQUAL "QQ"
+   OR NOT fam_of_wl_path STREQUAL "WL" OR NOT fam_of_record STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the family-table predicates disagree with a synthetic "
+        "second family (heading '${fam_id}', unnamed family's heading '${fam_unnamed}', two-family "
+        "pointer ${fam_ok} with ${fam_nsegs} segments, unnamed family's pointer ${fam_unnamed_ok} "
+        "'${fam_unnamed_why}', debt '${fam_debt}', family of id '${fam_of_id}', of path "
+        "'${fam_of_path}', of a WL path '${fam_of_wl_path}', of a record '${fam_of_record}'). A "
+        "second family's law would then be judged by a check that knows one.")
+endif()
+set(ZEN_LAW_FAMILIES "${zen_law_real_families}")
+unset(ZEN_LAW_DIR_QQ)
+unset(ZEN_LAW_ROUTER_QQ)
+zen_law_families_derive()
+zen_law_entry_heading("## QQ-ZZZ-01 — A heading of the second family" fam_after fam_after_retired)
+zen_law_parse_pointer("// QQ-BBB-02 -- agents/qq-selftest/b.md" fam_after_ok fam_after_segs fam_after_why)
+if(NOT fam_after STREQUAL "" OR fam_after_ok OR NOT fam_after_why MATCHES "family QQ")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- after the family table was restored the synthetic family "
+        "is still known (heading '${fam_after}', pointer ${fam_after_ok} '${fam_after_why}'). The "
+        "real walk below would then accept a family that has no register directory.")
+endif()
+
 zen_vm_entry_heading("## VM-ZZZ-01 — A method heading" vm_id)
 zen_vm_entry_heading("## WL-ZZZ-01 — A law heading is not a method heading" vm_not_law)
 zen_vm_entry_heading("## Where a case goes" vm_not_table)
@@ -780,12 +916,12 @@ if(NOT yes OR NOT yes_code OR no_comment OR no_block OR no_substring OR NOT yes_
         "'present' below would then be meaningless.")
 endif()
 
-zen_law_parse_pointer("// WL-AAA-01, WL-AAA-02 -- agents/workshop/a.md${ZEN_SOH} WL-BBB-03 -- agents/workshop/b.md" ok segs)
+zen_law_parse_pointer("// WL-AAA-01, WL-AAA-02 -- agents/workshop/a.md${ZEN_SOH} WL-BBB-03 -- agents/workshop/b.md" ok segs why)
 list(LENGTH segs nsegs)
 if(NOT ok OR NOT nsegs EQUAL 2)
-    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a well-formed two-register pointer was refused (${ok}, ${nsegs}).")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a well-formed two-register pointer was refused (${ok}, ${nsegs}${why}).")
 endif()
-zen_law_parse_pointer("// WL-AAA-01 (WUX-8) -- agents/workshop/a.md" ok segs)
+zen_law_parse_pointer("// WL-AAA-01 (WUX-8) -- agents/workshop/a.md" ok segs why)
 if(ok)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a pointer carrying a retired phase tag was accepted.")
 endif()
@@ -1043,24 +1179,31 @@ endif()
 message(STATUS
     "law-register: self-test OK -- a bad heading, a commented-out identifier, a substring, a "
     "member under a substring scope, an overload whose type is only in a comment, a tagged "
-    "pointer, an undeclared witness, a one-sided witness debt, a one-sided clause debt, a "
-    "qualified spelling over a free function and a phase tag are refused; their well-formed "
-    "twins are accepted")
+    "pointer, a pointer of a family the table does not name, an undeclared witness, a "
+    "one-sided witness debt, a one-sided clause debt, a qualified spelling over a free "
+    "function and a phase tag are refused; their well-formed twins are accepted")
 
 # ---- population 2: the registers ---------------------------------------------------------
+#
+# Per family: its directory's `*.md` files are its registers, and a row whose directory holds
+# none is a red -- a family joins the table when its registers exist, and an empty population
+# is a failure here and not a quiet pass.
 
 set(register_files "")
-foreach(dir IN LISTS ZEN_LAW_REGISTER_DIRS)
-    file(GLOB found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${dir}/*.md")
+foreach(family IN LISTS ZEN_LAW_FAMILIES)
+    file(GLOB found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${ZEN_LAW_DIR_${family}}/*.md")
+    list(LENGTH found n)
+    if(n EQUAL 0)
+        message(FATAL_ERROR
+            "law-register: family ${family} names ${ZEN_LAW_DIR_${family}}/ and no register is "
+            "there. A family joins the table when its registers exist; an empty population is a "
+            "failure here and not a quiet pass.")
+    endif()
     list(APPEND register_files ${found})
+    set(zen_law_registers_${family} ${n})
 endforeach()
 list(SORT register_files)
 list(LENGTH register_files register_count)
-if(register_count EQUAL 0)
-    message(FATAL_ERROR
-        "law-register: no register was found under ${ZEN_LAW_REGISTER_DIRS}. An empty "
-        "population is a failure here and not a quiet pass.")
-endif()
 
 set_property(GLOBAL PROPERTY zen_law_ids "")
 set_property(GLOBAL PROPERTY zen_law_debt_bullets "")
@@ -1154,9 +1297,12 @@ macro(zen_law_flush_entry)
     set(why_target "")
 endmacro()
 
-function(zen_law_walk_register rel is_router)
+# One register (or router), walked over its text -- handed in, so the self-test can walk a
+# synthetic one. A register's family is its directory's row in the table; every entry heading
+# must spell that family, and one spelling another is misfiled and recorded as nothing.
+function(zen_law_walk_text rel content is_router)
     string(MAKE_C_IDENTIFIER "${rel}" relkey)
-    zen_law_text("${rel}" content)
+    zen_law_family_of_path("${rel}" family)
     string(REPLACE "\n" ";" lines "${content}")
     set(id "")
     zen_law_flush_entry()
@@ -1191,7 +1337,13 @@ function(zen_law_walk_register rel is_router)
             zen_law_entry_heading("${line}" id retired)
             if(id STREQUAL "")
                 zen_law_show("${line}" shown)
-                zen_law_fail("${rel}:${n} heading is neither a WL entry nor the one Do-not-assume: ${shown}")
+                zen_law_fail("${rel}:${n} heading is neither an entry of a family the table names ${ZEN_LAW_FAMILY_RE} nor the one Do-not-assume: ${shown}")
+                continue()
+            endif()
+            zen_law_family_of_id("${id}" id_family)
+            if(NOT id_family STREQUAL "${family}")
+                zen_law_fail("${rel}:${n} ${id} is a ${id_family} entry filed under ${ZEN_LAW_DIR_${family}}/, the ${family} family's directory; a family is a property of its directory")
+                set(id "")
                 continue()
             endif()
             get_property(known GLOBAL PROPERTY "zen_law_file_${id}" SET)
@@ -1293,6 +1445,58 @@ function(zen_law_walk_register rel is_router)
     zen_law_flush_entry()
     zen_law_flush_bullet()
 endfunction()
+
+function(zen_law_walk_register rel is_router)
+    zen_law_text("${rel}" content)
+    zen_law_walk_text("${rel}" "${content}" "${is_router}")
+endfunction()
+
+# The law walker over synthetic registers, on the synthetic second family bound again: under
+# the WL directory a WL entry raises nothing, a QQ entry is misfiled and a heading of a family
+# the table does not name is no entry -- exactly two problems; the same QQ entry under its own
+# directory raises nothing. The problems property is saved around the run, the synthetic ids
+# are dropped and the table is restored, so nothing here reaches the real walk.
+get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+list(APPEND ZEN_LAW_FAMILIES QQ)
+set(ZEN_LAW_DIR_QQ agents/qq-selftest)
+set(ZEN_LAW_ROUTER_QQ agents/qq-selftest.md)
+zen_law_families_derive()
+set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QQ-ZZZ-01 — A law of the second family, misfiled here\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## MW-ZZZ-01 — A law of a family the table does not name\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
+zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-misfiled.md" "${law_misfiled}" 0)
+get_property(law_misfiled_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set(law_filed "## QQ-ZZZ-02 — A law of the second family in its own directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
+zen_law_walk_text("agents/qq-selftest/selftest-filed.md" "${law_filed}" 0)
+get_property(law_filed_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
+foreach(synthetic WL-ZZZ-01 QQ-ZZZ-02)
+    foreach(facet file proven why retired)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic}")
+    endforeach()
+endforeach()
+foreach(synthetic_rel ${ZEN_LAW_DIR_WL}/selftest-misfiled.md agents/qq-selftest/selftest-filed.md)
+    string(MAKE_C_IDENTIFIER "${synthetic_rel}" synthetic_key)
+    foreach(facet ids_of nowitness partial debts partial_echo)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic_key}")
+    endforeach()
+endforeach()
+set_property(GLOBAL PROPERTY zen_law_ids "")
+set_property(GLOBAL PROPERTY zen_law_debt_bullets "")
+set(ZEN_LAW_FAMILIES "${zen_law_real_families}")
+unset(ZEN_LAW_DIR_QQ)
+unset(ZEN_LAW_ROUTER_QQ)
+zen_law_families_derive()
+zen_law_count_lines("${law_misfiled_problems}" law_misfiled_count)
+if(NOT law_filed_problems STREQUAL "" OR NOT law_misfiled_count EQUAL 2
+   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:7 QQ-ZZZ-01 is a QQ entry filed under ${ZEN_LAW_DIR_WL}/, the WL family's directory"
+   OR NOT law_misfiled_problems MATCHES "selftest-misfiled.md:13 heading is neither an entry of a family the table names")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the law walker raised '${law_filed_problems}' on a "
+        "second-family register in its own directory and ${law_misfiled_count} problem(s) on one "
+        "holding a WL entry, a misfiled QQ entry and an entry of a family the table does not name:\n"
+        "${law_misfiled_problems}\nA law filed under another family's directory would then sit green.")
+endif()
 
 # ---- the VM form: a method register ---------------------------------------------------------
 #
@@ -1613,14 +1817,16 @@ if(entry_count EQUAL 0)
         "neither is a green.")
 endif()
 
-# Ids are unique across agents/, not only across the registers: a `## WL-` or `## VM-` heading
-# in any other document under agents/ is a second copy of an entry that has one home.
+# Ids are unique across agents/, not only across the registers: an id-shaped `##` heading of
+# any family (`## WL-`, `## VM-`, `## MW-`, any `## <LETTERS>-<LETTERS>-<digits>`) in any other
+# document under agents/ is a second copy of an entry that has one home -- or a register of a
+# family the table does not name yet, filed where no walker reads it.
 foreach(rel IN LISTS agents_md)
     if(rel IN_LIST register_files OR rel IN_LIST vm_register_files)
         continue()
     endif()
     zen_law_text("${rel}" content)
-    string(REGEX MATCHALL "\n## (WL|VM)-[A-Z]+-[0-9]+" strays "\n${content}")
+    string(REGEX MATCHALL "\n## [A-Z]+-[A-Z]+-[0-9]+" strays "\n${content}")
     foreach(stray IN LISTS strays)
         string(REGEX REPLACE "^\n## " "" stray "${stray}")
         zen_law_fail("${rel} carries a '## ${stray}' heading outside the registers; an id has one home")
@@ -1744,7 +1950,7 @@ foreach(rel IN LISTS record_files)
     set(listed "")
     if(NOT at EQUAL -1)
         string(SUBSTRING "${content}" ${at} -1 tail)
-        string(REGEX MATCHALL "WL-[A-Z]+-[0-9]+" listed "${tail}")
+        string(REGEX MATCHALL "${ZEN_LAW_ID_RE}" listed "${tail}")
         if(listed)
             list(REMOVE_DUPLICATES listed)
         endif()
@@ -1775,9 +1981,12 @@ endforeach()
 
 # ---- population 5: source pointers ---------------------------------------------------------
 #
-# Every first-party C/C++ file is read; the ones carrying no `WL-` are skipped whole. A
-# pointer line is a line of its own beginning `// WL-`. Rule n walks on from each pointer to
-# the next code line and asks whether a law on the pointer names what is declared there.
+# Every first-party C/C++ file is read; the ones carrying no id-shaped comment are skipped
+# whole. A pointer line is a line of its own beginning `// <LETTERS>-<LETTERS>-<digit>` -- a
+# `// WL-` pointer, and a pointer of any family the table names; one of a family it does not
+# name is refused by that family's name rather than passed over as prose. Rule n walks on from
+# each pointer to the next code line and asks whether a law on the pointer names what is
+# declared there.
 
 zen_law_sweep("${ZEN_LAW_SOURCE_GLOBS}" source_files)
 list(LENGTH source_files source_count)
@@ -1793,9 +2002,9 @@ set(rule_n_count 0)
 set(rule_n_pointers 0)
 foreach(rel IN LISTS source_files)
     zen_law_text("${rel}" content)
-    string(FIND "${content}" "WL-" any)
+    string(REGEX MATCH "// [A-Z]+-[A-Z]+-[0-9]" any "${content}")
     string(FIND "${content}" "// Workshop law:" anyheader)
-    if(any EQUAL -1 AND anyheader EQUAL -1)
+    if(any STREQUAL "" AND anyheader EQUAL -1)
         continue()
     endif()
     math(EXPR pointer_files "${pointer_files} + 1")
@@ -1819,13 +2028,13 @@ foreach(rel IN LISTS source_files)
             endforeach()
             continue()
         endif()
-        if(line MATCHES "^[ \t]*// WL-")
+        if(line MATCHES "^[ \t]*// [A-Z]+-[A-Z]+-[0-9]")
             math(EXPR pointer_lines "${pointer_lines} + 1")
-            zen_law_parse_pointer("${line}" ok segments)
+            zen_law_parse_pointer("${line}" ok segments why)
             if(NOT ok)
                 zen_law_show("${line}" shown)
                 string(STRIP "${shown}" shown)
-                zen_law_fail("${rel}:${n} is not a well-formed pointer (`// WL-X-NN[, ...] -- agents/<area>/<register>.md[; ...]`): ${shown}")
+                zen_law_fail("${rel}:${n} is not a well-formed pointer (`// <family>-X-NN[, ...] -- agents/<area>/<register>.md[; ...]`, the family one of ${ZEN_LAW_FAMILY_RE}${why}): ${shown}")
                 continue()
             endif()
             set(line_ids "")
@@ -1958,15 +2167,29 @@ foreach(rel IN LISTS source_files)
 endforeach()
 if(pointer_lines EQUAL 0)
     message(FATAL_ERROR
-        "law-register: ${source_count} first-party C/C++ files carry ZERO `// WL-` pointer lines. "
-        "The router's rule 3 puts one above every declaration a law names; none at all means "
-        "the sweep is not reading this repository.")
+        "law-register: ${source_count} first-party C/C++ files carry ZERO pointer lines (`// WL-`, "
+        "or any family of the table). The router's rule 3 puts one above every declaration a law "
+        "names; none at all means the sweep is not reading this repository.")
 endif()
 
 # ---- the report --------------------------------------------------------------------------
 
 message(STATUS "law-register: ${register_count} registers, ${entry_count} entries; ${record_count} "
                "records, ${why_target_count} WHY targets, ${why_count} WHY lines")
+foreach(family IN LISTS ZEN_LAW_FAMILIES)
+    set(family_entries 0)
+    foreach(rel IN LISTS register_files)
+        zen_law_family_of_path("${rel}" of)
+        if(of STREQUAL "${family}")
+            string(MAKE_C_IDENTIFIER "${rel}" relkey)
+            get_property(entries GLOBAL PROPERTY "zen_law_ids_of_${relkey}")
+            list(LENGTH entries n)
+            math(EXPR family_entries "${family_entries} + ${n}")
+        endif()
+    endforeach()
+    message(STATUS "law-register: family ${family} -- ${ZEN_LAW_DIR_${family}}/ ${zen_law_registers_${family}} "
+                   "registers, ${family_entries} entries, router ${ZEN_LAW_ROUTER_${family}}")
+endforeach()
 message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
                "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
 message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
@@ -2021,7 +2244,7 @@ if(NOT problems STREQUAL "")
         "${problems}\n\n"
         "  A register entry that contradicts a passing test is the thing that is wrong: fix "
         "downward (tests > code > register > decision record), never upward. The form is the "
-        "router's (agents/workshop.md, Ongoing rules).")
+        "routers' (${ZEN_LAW_ROUTERS}, Ongoing rules).")
 endif()
 
 message(STATUS "law-register: PASSED -- every register is well-formed and every name it makes resolves"
