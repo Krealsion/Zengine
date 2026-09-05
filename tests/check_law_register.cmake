@@ -146,9 +146,11 @@ endif()
 # three spellings below (`set(ZEN_LAW_FAMILIES ...)`, `set(ZEN_LAW_DIR_<F> ...)`) at column 0,
 # one line each, so the table has one copy; the self-test binds its synthetic family with
 # list(APPEND) and never with a second `set`.
-set(ZEN_LAW_FAMILIES WL)
+set(ZEN_LAW_FAMILIES WL MW)
 set(ZEN_LAW_DIR_WL agents/workshop)
 set(ZEN_LAW_ROUTER_WL agents/workshop.md)
+set(ZEN_LAW_DIR_MW agents/maker)
+set(ZEN_LAW_ROUTER_MW agents/maker.md)
 set(ZEN_LAW_RECORD_DIR agents/decisions)
 set(ZEN_LAW_CORE AGENTS.md)
 set(ZEN_LAW_WITNESS_DIR tests)
@@ -187,9 +189,8 @@ zen_law_families_derive()
 # three-part citation such as `(WL-GEO-01)` or `(MW-DEF-01)` is never read as a tag by its
 # shape alone, whatever this list says. The list holds every law family of the table above,
 # the method family VM, the families the `docs/laws/` of this repository and of Loom spell
-# (TIMER, POP, KERN), and MW, the maker package's family, named here before its registers
-# exist -- it joins the table above with its first register. Every table family must be in
-# this list, so the two lists cannot disagree about what a family is; that is checked here.
+# (TIMER, POP, KERN). Every table family must be in this list, so the two lists cannot
+# disagree about what a family is; that is checked here.
 set(ZEN_VM_REGISTER_DIRS agents/verification)
 set(ZEN_VM_ROUTERS agents/verification.md)
 set(ZEN_VM_TABLE_HEADING "## Where a case goes")
@@ -227,7 +228,7 @@ set(ZEN_VM_BECAUSE_MAX 3)
 # The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
 # same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
 # to `nowhere yet`, and nobody lowers it to make that pass.
-set(ZEN_VM_APPLIED_FLOOR 87)
+set(ZEN_VM_APPLIED_FLOOR 88)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
@@ -828,7 +829,7 @@ endif()
 
 # THE FAMILY TABLE'S CANARIES, on a synthetic second family QQ bound beside the real rows and
 # unbound after: a heading of the second family is an entry; a heading of a family the table
-# does not name is not; a pointer spelling both families parses, and one spelling a family
+# never names (QX) is not; a pointer spelling both families parses, and one spelling a family
 # the table does not name is refused with that family in the reason; a Do-not-assume bullet
 # repeats a second-family id; the family of an id and of a path answer; and once the table is
 # restored the second family is a stranger again. The walker's half -- a second-family entry
@@ -839,17 +840,17 @@ set(ZEN_LAW_DIR_QQ agents/qq-selftest)
 set(ZEN_LAW_ROUTER_QQ agents/qq-selftest.md)
 zen_law_families_derive()
 zen_law_entry_heading("## QQ-ZZZ-01 — A heading of the second family" fam_id fam_retired)
-zen_law_entry_heading("## MW-ZZZ-01 — A heading of a family the table does not name" fam_unnamed fam_unnamed_retired)
+zen_law_entry_heading("## QX-ZZZ-01 — A heading of a family the table does not name" fam_unnamed fam_unnamed_retired)
 zen_law_parse_pointer("// WL-AAA-01, QQ-BBB-02 -- agents/workshop/a.md${ZEN_SOH} QQ-CCC-03 -- agents/qq-selftest/c.md" fam_ok fam_segs fam_why)
 list(LENGTH fam_segs fam_nsegs)
-zen_law_parse_pointer("// WL-AAA-01, MW-AAA-01 -- agents/maker/a.md" fam_unnamed_ok fam_unnamed_segs fam_unnamed_why)
+zen_law_parse_pointer("// WL-AAA-01, QX-AAA-01 -- agents/qx/a.md" fam_unnamed_ok fam_unnamed_segs fam_unnamed_why)
 zen_law_debt_ids("- That QQ-ZZZ-01 is witnessed — it is not (witness: none)." "witness: none" fam_debt)
 zen_law_family_of_id("QQ-ZZZ-01" fam_of_id)
 zen_law_family_of_path("agents/qq-selftest/c.md" fam_of_path)
 zen_law_family_of_path("${ZEN_LAW_DIR_WL}/a.md" fam_of_wl_path)
 zen_law_family_of_path("agents/decisions/a.md" fam_of_record)
 if(NOT fam_id STREQUAL "QQ-ZZZ-01" OR NOT fam_unnamed STREQUAL "" OR NOT fam_ok OR NOT fam_nsegs EQUAL 2
-   OR fam_unnamed_ok OR NOT fam_unnamed_why MATCHES "MW-AAA-01 spells family MW"
+   OR fam_unnamed_ok OR NOT fam_unnamed_why MATCHES "QX-AAA-01 spells family QX"
    OR NOT fam_debt STREQUAL "QQ-ZZZ-01" OR NOT fam_of_id STREQUAL "QQ" OR NOT fam_of_path STREQUAL "QQ"
    OR NOT fam_of_wl_path STREQUAL "WL" OR NOT fam_of_record STREQUAL "")
     message(FATAL_ERROR
@@ -1453,7 +1454,7 @@ endfunction()
 
 # The law walker over synthetic registers, on the synthetic second family bound again: under
 # the WL directory a WL entry raises nothing, a QQ entry is misfiled and a heading of a family
-# the table does not name is no entry -- exactly two problems; the same QQ entry under its own
+# the table never names (QX) is no entry -- exactly two problems; the same QQ entry under its own
 # directory raises nothing. The problems property is saved around the run, the synthetic ids
 # are dropped and the table is restored, so nothing here reaches the real walk.
 get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
@@ -1462,7 +1463,7 @@ list(APPEND ZEN_LAW_FAMILIES QQ)
 set(ZEN_LAW_DIR_QQ agents/qq-selftest)
 set(ZEN_LAW_ROUTER_QQ agents/qq-selftest.md)
 zen_law_families_derive()
-set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QQ-ZZZ-01 — A law of the second family, misfiled here\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## MW-ZZZ-01 — A law of a family the table does not name\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
+set(law_misfiled "## WL-ZZZ-01 — A law in its own family's directory\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QQ-ZZZ-01 — A law of the second family, misfiled here\n\nLAW — One line.\n\nPROVEN BY — witness: none\n\n## QX-ZZZ-01 — A law of a family the table does not name\n\nLAW — One line.\n\nPROVEN BY — witness: none\n")
 zen_law_walk_text("${ZEN_LAW_DIR_WL}/selftest-misfiled.md" "${law_misfiled}" 0)
 get_property(law_misfiled_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")

@@ -41,7 +41,9 @@ SEEN — nowhere yet
 METHOD — A UNIFORM fixture collapses two laws into one sentence; ask what pair of assertions the uniformity makes indistinguishable and inject a non-uniform instance (no value a multiple of another).
 BECAUSE — under a uniform width "this line fits" and "this line is N codepoints" are one
 sentence; a proportional metric caught two production defects that all nine uniform cases pass.
-SEEN — nowhere yet
+SEEN — `tests/test_maker.cpp` case `"FC-4: the answer lands in the named state field, and an
+answer of another kind is refused with the state unchanged"` (`label` first, so a write by
+position is caught).
 
 ## VM-FIX-06 — A fixed population is derived from a capacity the code owns
 
@@ -135,7 +137,9 @@ SEEN — `tests/test_population.txt`.
 METHOD — Assert that the work HAPPENED (`status == 0`) before asserting anything about what it said: a child that died before building still ends, ends once, and attributes correctly.
 BECAUSE — a case asserted operation identity and output text and never the status, so a child
 that died before building reported only a missing first line, for five weeks.
-SEEN — `tests/test_builder.cpp`.
+SEEN — `tests/test_builder.cpp`; `tests/test_maker.cpp` case `"FC-8: the definition and the
+state are two native files written by one process, and a fresh process reads them back with
+high == 7"`.
 
 ## VM-FIX-18 — Guard an index in the same keystroke
 
