@@ -391,6 +391,11 @@ struct BuilderPane {
     /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived?
     // WL-PROJ-07, WL-PROJ-14 -- agents/workshop/project.md
     bool picked = false;
+    /// LOAD AFTER BUILD IS ARMED (RELOAD-1): the next `b` asks to build AND to load the
+    /// result. The maker's own intent on a presentation, like `chosen`; false when the
+    /// panel opens, flipped only by the one action, and read by nothing but `build_now`.
+    // WL-PROJ-16 -- agents/workshop/project.md
+    bool arm = false;
 };
 
 /// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG: a pane some office

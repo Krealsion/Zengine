@@ -129,7 +129,7 @@ The editor edits what is in the file and writes what you edited — nothing else
 
 ```
 open a file (Files pane, or the Builder's e) → edit → save (Ctrl+s)
-    → build (b) or build & realize (Shift+b / f) → inspect (Project / Powers / Loaded)
+    → build (b), load after build (Shift+b then b, or f) → inspect (Project / Powers / Loaded)
     → press back into the editor and go again
 ```
 

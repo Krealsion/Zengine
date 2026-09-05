@@ -61,6 +61,7 @@
 #include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
+#include "workshop/staging.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
@@ -133,13 +134,16 @@ struct ReporterState {
 class Reporter
     : public loom::WeaveBase<Reporter, ReporterState,
                              loom::Accept<builder::BuildStatus, builder::RecipeCatalog>,
-                             loom::Emit<builder::BuildRequested>> {
+                             loom::Emit<builder::BuildRequested, builder::PromoteArtifact,
+                                        builder::RevertArtifact>> {
 public:
     /// `stop` IS THE HOST'S OWN DOOR, handed over exactly as `HostContext::request_stop`
     /// is: this weave decides that the conversation it was following is over, and the
     /// HOST decides what that means for the process.
-    Reporter(std::string recipe, bool realize, std::function<void()> stop)
-        : recipe_(std::move(recipe)), realize_(realize), stop_(std::move(stop)) {}
+    Reporter(std::string recipe, bool realize, bool then_promote, bool then_revert,
+             std::function<void()> stop)
+        : recipe_(std::move(recipe)), realize_(realize), then_promote_(then_promote),
+          then_revert_(then_revert), stop_(std::move(stop)) {}
 
     /// THE CATALOG ARRIVES FIRST, and this is where the ask is made -- from inside a
     /// delivery, the way a panel's key press makes one, rather than from `main` before
@@ -161,7 +165,7 @@ public:
                                 builder::BuildRequested{recipe_, realize_});
     }
 
-    void on(const builder::BuildStatus& said, loom::Mail&) {
+    void on(const builder::BuildStatus& said, loom::Mail& mail) {
         ++state_.heard;
         // ⚠ IS THIS STATUS ABOUT THE ASK THIS HOST MADE? The tool publishes what it is
         // the moment it is asked, and at that moment it is about NOTHING -- an empty
@@ -198,6 +202,26 @@ public:
             said.realization != builder::realization::kRefused) {
             return;
         }
+        // THE TWO ACTS AFTER A RELOAD (RELOAD-1), each one offer and one quoted answer.
+        // `default_image` is the owner's word carried by the tool, printed so the lane
+        // can check it against the bytes on disk.
+        std::printf("witness: default-image=%s\n", said.default_image ? "yes" : "no");
+        if (then_promote_ && said.realization == builder::realization::kRealized &&
+            !promoted_) {
+            promoted_ = true;
+            std::printf("witness: asking to promote `%s`\n", said.artifact.c_str());
+            std::fflush(stdout);
+            (void)mail.publish(builder::PromoteArtifact{said.artifact});
+            return;
+        }
+        if (then_revert_ && said.realization == builder::realization::kRealized &&
+            !reverted_) {
+            reverted_ = true;
+            std::printf("witness: asking to revert `%s`\n", said.artifact.c_str());
+            std::fflush(stdout);
+            (void)mail.publish(builder::RevertArtifact{said.artifact});
+            return;
+        }
         done = true;
         if (stop_) {
             stop_();
@@ -210,6 +234,10 @@ public:
 private:
     std::string recipe_;
     bool realize_ = false;
+    bool then_promote_ = false;
+    bool then_revert_ = false;
+    bool promoted_ = false;
+    bool reverted_ = false;
     bool asked_ = false;
     std::function<void()> stop_;
 };
@@ -220,6 +248,8 @@ struct Arguments {
     std::string recipes;   ///< the authored build recipes
     std::string recipe;    ///< which recipe to build
     bool realize = false;  ///< BUILD, or BUILD & REALIZE
+    bool then_promote = false; ///< after a realization: promote the running image
+    bool then_revert = false;  ///< after a realization (and a promotion): revert it
 };
 
 bool parse(int argc, char** argv, Arguments& args) {
@@ -227,6 +257,14 @@ bool parse(int argc, char** argv, Arguments& args) {
         const std::string arg = argv[i];
         if (arg == "--realize") {
             args.realize = true;
+            continue;
+        }
+        if (arg == "--then-promote") {
+            args.then_promote = true;
+            continue;
+        }
+        if (arg == "--then-revert") {
+            args.then_revert = true;
             continue;
         }
         if (i + 1 >= argc) {
@@ -278,18 +316,15 @@ int main(int argc, char** argv) {
     workshop::CurrentRecipes current_recipes;
     {
         std::vector<builder::Recipe> recipes = std::move(read_recipes.recipes);
-        // THE HOST'S TWO DEFAULTS, filled in exactly as `workshop.cpp` fills them. This
-        // host completes no SOURCE, because it has no project to complete one against:
-        // the lane authors absolute spellings, and guessing a base is the one thing
-        // worse than the refusal (`recipe_persist::complete_recipes` says so at length).
-        for (builder::Recipe& r : recipes) {
-            if (r.artifact_dir.empty()) {
-                r.artifact_dir = args.dir;
-            }
-            if (r.single_source.has_value() && r.single_source->workspace.empty()) {
-                r.single_source->workspace = args.dir + "/build-workspace/" + r.id;
-            }
-        }
+        // COMPLETED BY THE ONE FUNCTION WORKSHOP COMPLETES WITH (RELOAD-1), so the
+        // witness builds into the workspace the product lands in and judges the same
+        // file; a second spelling of the rule here is how this lane came to look for
+        // the product beside the host while the build wrote it elsewhere. The lane
+        // authors absolute sources, so the project base only has to be a directory.
+        std::error_code ec;
+        const std::filesystem::path here = std::filesystem::current_path(ec);
+        recipe_persist::complete_recipes(recipes, args.dir,
+                                         ec ? std::string() : here.generic_string());
         // THE CATALOG AND THE FILE IT CAME FROM GO IN TOGETHER (PROJ-1), which is why
         // this hands over `args.recipes` beside the rows: there is no door that installs
         // one without the other, here or in `workshop.cpp`.
@@ -339,8 +374,11 @@ int main(int argc, char** argv) {
     // ---- The realization owner, its voice, and the one dangerous grant ----------
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
                          builder::ArtifactRealized::zen_version);
+    operate.allow_to_any(builder::ArtifactPromoted::zen_name,
+                         builder::ArtifactPromoted::zen_version);
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
@@ -348,6 +386,7 @@ int main(int argc, char** argv) {
     voice.zen_set_self(booter);
 
     bool refused = false;
+    workshop::staging::Host staging_host{args.dir, &current_recipes, &so_in, 0};
     load::PlanExecutor executor(
         bus, operators, operator_host, voice, manager, answers,
         [&args](const std::string& stem) { return so_in(args.dir, stem); },
@@ -379,6 +418,12 @@ int main(int argc, char** argv) {
                 return !std::filesystem::exists(std::filesystem::path(so_in(args.dir, stem)));
             }
             return false;
+        },
+        [&staging_host](const std::string& stem, const std::string& recipe, bool reload) {
+            return workshop::staging::stage(staging_host, stem, recipe, reload);
+        },
+        [&staging_host](const std::string& stem, const std::string& image) {
+            return workshop::staging::promote(staging_host, stem, image);
         });
 
     // ---- The thing that asks, and the thing that ends the loop ------------------
@@ -387,9 +432,12 @@ int main(int argc, char** argv) {
                         builder::kBuilderRole);
     speak.allow_to_role(builder::StatusRequested::zen_name,
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
+    speak.allow_to_any(builder::PromoteArtifact::zen_name, builder::PromoteArtifact::zen_version);
+    speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
     Reporter* reporter = nullptr;
     (void)mount_in_office<Reporter>(bus, std::move(speak), "zengine.witness", &reporter,
-                                    args.recipe, args.realize, [&bus] { bus.stop(); });
+                                    args.recipe, args.realize, args.then_promote,
+                                    args.then_revert, [&bus] { bus.stop(); });
 
     executor.begin(read_plan.plan);
 
@@ -429,7 +477,17 @@ int main(int argc, char** argv) {
     std::printf("witness: RESULT build=%s realization=%s\n",
                 builder::name_of_outcome(last.outcome),
                 builder::name_of_realization(last.realization));
+    // TWO FILES SINCE RELOAD-1: the one the build produced (the recipe's completed
+    // artifact directory) and the one the plan resolves the stem to, beside the host.
+    // A plain build changes only the first; a realization copies it to the second.
+    const builder::RecipeView* view = builder::view_named(current_recipes.views(), last.recipe);
     std::printf("witness: artifact-present=%s\n",
+                view != nullptr &&
+                        std::filesystem::exists(std::filesystem::path(view->path))
+                    ? "yes"
+                    : "no");
+    std::printf("witness: product=%s\n", view != nullptr ? view->path.c_str() : "(none)");
+    std::printf("witness: default-present=%s\n",
                 std::filesystem::exists(std::filesystem::path(
                     so_in(args.dir, last.artifact)))
                     ? "yes"

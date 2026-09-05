@@ -164,8 +164,14 @@ is not used: the owner resolves a stem with the host's own rule, so a message na
 cannot redirect a load. The dangerous grant in a Zengine host is still exactly one, and it is
 still the plan booter's.
 
-An already-loaded artifact is **refused in words**. BLD-1 does not unload, reload, replace or
-migrate anything, and a second load of a live artifact would be pretending otherwise.
+An already-loaded weave-only artifact is **reloaded in place** (RELOAD-1): the host stages the
+product off the loaded file, the owner asks the Manager for `zen.ReloadWeave` over the copy,
+and the Loom swaps the code behind the same `WeaveId` with the state carried across — for a
+weave whose shapes did not change, and refused by the kernel before the incumbent is touched
+otherwise. Two more offers, `PromoteArtifact` and `RevertArtifact`, are the acts a reload leaves
+a maker: write the running image into the file a restart loads, or run the previous image again;
+the first is answered with `ArtifactPromoted`, the second as a realization. Nothing here unloads,
+replaces or migrates a weave, and a provider+weave artifact is refused in words.
 
 ## The build outlives the turn that asked for it
 
@@ -219,8 +225,8 @@ them, exactly as Workshop's own weave is.
 - **No arbitrary shell recipe**, in any file, message or field.
 - **No multi-source recipe**, no globbed source list, no dependency graph, no solver, no
   parallel artifact scheduler and no generic task runtime.
-- **No hot reload**: no unload, no replacement, no state migration, no rollback of a live
-  artifact.
+- **No replacement**: a reload in place is same shapes only; no unload, no state migration,
+  and no rollback beyond a revert to the image before the last reload.
 - **No automatic build-on-missing.** Every build begins with a maker saying `BuildRequested`.
 - **No cancel and no timeout.** A running operation is simply running; how long is too long is
   an observer's judgement about itself, and no observer here makes one.

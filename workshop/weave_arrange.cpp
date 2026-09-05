@@ -703,6 +703,86 @@ void WorkshopWeave::build_now(loom::Mail& mail, bool realize) {
         false);
 }
 
+// WL-PROJ-16 -- agents/workshop/project.md
+void WorkshopWeave::build_realize(loom::Mail& mail) {
+    if (!session_.panels.has(panel::kBuilder)) {
+        return; // an unbound key with no Builder panel open, exactly as `b` is
+    }
+    BuilderPane& pane = session_.panels.builder;
+    const zengine::builder::BuildStatus& s = pane.shown;
+    // THE BUTTON: an artifact is built and ready to load, nothing is armed, and no
+    // build is in flight. What it sends is the finished build's OWN ask again, with the
+    // second intention aboard -- `shown.recipe`, never the cursor's row, because the
+    // thing that is ready is the thing that was built. The incremental build is a
+    // no-op the tool reports as `already up to date`, and the offer follows.
+    const bool ready = pane.heard && !pane.awaiting && !pane.arm && !s.recipe.empty() &&
+                       s.outcome == zengine::builder::outcome::kSucceeded &&
+                       s.realization == zengine::builder::realization::kNotAsked;
+    if (ready) {
+        (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                zengine::builder::BuildRequested{s.recipe, true});
+        pane.awaiting = true;
+        pane.awaiting_realization = true;
+        say("loading the built `" + s.artifact +
+                "` now -- Workshop stays live while the incremental build confirms it",
+            false);
+        return;
+    }
+    // THE TOGGLE, everywhere else: before a build, during one, and after one that was
+    // already offered. It flips the maker's standing intent and nothing is sent; `b`
+    // reads it. A running build keeps the intention it started with -- the tool holds
+    // that for the length of the build, and this changes only the NEXT ask.
+    pane.arm = !pane.arm;
+    say(pane.arm ? "load after build: on -- the next build is offered to the running project "
+                   "when it works"
+                 : "load after build: off -- the next build is a plain build",
+        false);
+    repaint(mail);
+}
+
+// WL-PROJ-16 -- agents/workshop/project.md
+void WorkshopWeave::promote_image(loom::Mail& mail) {
+    if (!session_.panels.has(panel::kBuilder)) {
+        return; // an unbound key with no Builder panel open, exactly as `b` is
+    }
+    BuilderPane& pane = session_.panels.builder;
+    // THE ONE LOCAL JUDGEMENT: the tool's picture names a realization this Builder was
+    // part of. Everything else -- live, reloaded, promotable -- is the owner's to say.
+    if (!pane.heard || pane.shown.artifact.empty() ||
+        (pane.shown.realization != zengine::builder::realization::kRealized &&
+         pane.shown.realization != zengine::builder::realization::kRefused)) {
+        say("nothing this Builder realized is standing -- nothing to promote", true);
+        return;
+    }
+    // ONE OFFER, DECIDED ELSEWHERE. Whether the artifact is live, whether it runs from
+    // a per-operation copy, and whether the write is possible are the realization
+    // owner's and the host's; this weave says one sentence and shows the answer.
+    (void)mail.publish(zengine::builder::PromoteArtifact{pane.shown.artifact});
+    pane.awaiting_realization = true;
+    say("asked to promote `" + pane.shown.artifact +
+            "` -- the file a restart loads takes the running image",
+        false);
+}
+
+// WL-PROJ-16 -- agents/workshop/project.md
+void WorkshopWeave::revert_image(loom::Mail& mail) {
+    if (!session_.panels.has(panel::kBuilder)) {
+        return; // an unbound key with no Builder panel open, exactly as `b` is
+    }
+    BuilderPane& pane = session_.panels.builder;
+    if (!pane.heard || pane.shown.artifact.empty() ||
+        (pane.shown.realization != zengine::builder::realization::kRealized &&
+         pane.shown.realization != zengine::builder::realization::kRefused)) {
+        say("nothing this Builder realized is standing -- nothing to revert", true);
+        return;
+    }
+    (void)mail.publish(zengine::builder::RevertArtifact{pane.shown.artifact});
+    pane.awaiting_realization = true;
+    say("asked to revert `" + pane.shown.artifact +
+            "` -- the image before the last reload runs again, state kept",
+        false);
+}
+
 void WorkshopWeave::choose_recipe(int by, loom::Mail& mail) {
     if (!session_.panels.has(panel::kBuilder)) {
         return; // an unbound key with no Builder panel open, exactly as `b` is

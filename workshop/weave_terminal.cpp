@@ -439,8 +439,13 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // BUILDING AND REALIZING stay two deliberate halves: realizing an
     // artifact is the one Builder gesture that changes what is running, and its
     // default is the chorded sibling of the plain build's.
-    case Act::kBuild: build_now(mail, false); break;
-    case Act::kBuildRealize: build_now(mail, true); break;
+    // `b` READS THE ARM (RELOAD-1): a plain build, or a build that loads when it works,
+    // by what the maker toggled; `B` is the toggle, or the button that loads the built
+    // artifact now -- one action, two states, decided in `build_realize`.
+    case Act::kBuild: build_now(mail, session_.panels.builder.arm); break;
+    case Act::kBuildRealize: build_realize(mail); break;
+    case Act::kPromote: promote_image(mail); break;
+    case Act::kRevert: revert_image(mail); break;
     case Act::kRecipeNext: choose_recipe(+1, mail); break;
     case Act::kRecipeBack: choose_recipe(-1, mail); break;
     case Act::kBuildFrontier: build_frontier(mail); break;

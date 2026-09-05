@@ -185,6 +185,9 @@ inline ArtifactStamp stamp_of(const std::string& path) {
 /// v3 (BLD-1): `target` became `recipe`, `recipe` became `command`, and the
 /// artifact and realization fields joined -- the tool now answers two questions
 /// about one ask, and neither is derivable from the other.
+/// v4 (RELOAD-1): `default_image` joined, heard from the realization owner and never
+/// derived here: whether the running image is the file a restart loads is the
+/// owner's fact, and this tool only carries it to the presentation.
 struct BuilderState {
     std::string recipe;               ///< the recipe this picture is about
     std::string artifact;             ///< the artifact stem that recipe produces
@@ -200,19 +203,21 @@ struct BuilderState {
     std::int64_t realization = realization::kNotAsked;
     std::string realized_detail;      ///< realization's own words, when it has said any
     std::int64_t offered = 0;         ///< artifacts this tool has offered for realization
+    bool default_image = false;       ///< the realized image is the file a restart loads
 
     ZEN_EXPOSE();
-    ZEN_SHAPE(BuilderState, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
+    ZEN_SHAPE(BuilderState, 4, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
               ZEN_FIELD(status), ZEN_FIELD(command), ZEN_FIELD(detail), ZEN_FIELD(builds),
               ZEN_FIELD(stray), ZEN_FIELD(op), ZEN_FIELD(chunks), ZEN_FIELD(realize),
-              ZEN_FIELD(realization), ZEN_FIELD(realized_detail), ZEN_FIELD(offered));
+              ZEN_FIELD(realization), ZEN_FIELD(realized_detail), ZEN_FIELD(offered),
+              ZEN_FIELD(default_image));
 };
 
 class BuilderWeave
     : public loom::WeaveBase<BuilderWeave, BuilderState,
                              loom::Accept<BuildRequested, StatusRequested, BuildStarted,
                                           BuildOutput, BuildFinished, BuildNotStarted,
-                                          ArtifactRealized>,
+                                          ArtifactRealized, ArtifactPromoted>,
                              loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact>> {
 public:
     /// THE RECIPE VIEWS ARE READ FROM THEIR OWNER, WHICH IS THE HOST, and they are a
@@ -309,6 +314,7 @@ public:
         state_.realize = ask.realize;
         state_.realization = ask.realize ? realization::kAsked : realization::kNotAsked;
         state_.realized_detail.clear();
+        state_.default_image = false;
         remembered_.clear();
         // WHICH FILE THIS OPERATION IS ABOUT, TAKEN WHEN IT IS ORDERED (PROJ-1).
         //
@@ -465,12 +471,49 @@ public:
     /// IT IS MATCHED BY ARTIFACT AND NOT BY OPERATION, because realization has no
     /// operation: what it answers about is an artifact stem, and an answer about an
     /// artifact this tool did not just offer is somebody else's conversation.
+    ///
+    /// ⚠ A REALIZED ARTIFACT MAY BE ANSWERED ABOUT AGAIN (RELOAD-1). A revert is a
+    /// realization of the previous image through the same arm, and it is announced the
+    /// same way; so an answer about the artifact this tool last offered, realized or
+    /// was refused about is folded in too, and only an answer about an artifact this
+    /// tool has no realization question open on is somebody else's. The row then says
+    /// what the LAST ask came to -- a refused revert of a running weave reads REFUSED,
+    /// and its words say the weave is running still.
     void on(const ArtifactRealized& answer, loom::Mail& mail) {
-        if (state_.realization != realization::kOffered || answer.artifact != state_.artifact) {
+        const bool about_mine = answer.artifact == state_.artifact &&
+                                (state_.realization == realization::kOffered ||
+                                 state_.realization == realization::kRealized ||
+                                 state_.realization == realization::kRefused);
+        if (!about_mine) {
             ++state_.stray;
             return;
         }
         state_.realization = answer.realized ? realization::kRealized : realization::kRefused;
+        state_.realized_detail = answer.detail;
+        state_.default_image = answer.default_image;
+        say(mail);
+    }
+
+    /// THE FILE A RESTART LOADS WAS (OR WAS NOT) MADE THE RUNNING IMAGE. Heard for the
+    /// artifact this tool has realized, and only that one; a promotion of something
+    /// this tool never realized is somebody else's conversation, as an answer about it
+    /// would be. The build is untouched either way -- a promotion is a fact about a
+    /// file, and the sentence lands on the realization row because that is where the
+    /// maker is reading.
+    void on(const ArtifactPromoted& answer, loom::Mail& mail) {
+        const bool about_mine = answer.artifact == state_.artifact &&
+                                (state_.realization == realization::kRealized ||
+                                 state_.realization == realization::kRefused);
+        if (!about_mine) {
+            ++state_.stray;
+            return;
+        }
+        if (answer.promoted) {
+            // A PROMOTED IMAGE IS A RUNNING ONE, whatever the last ask came to: the
+            // owner refuses a promotion of anything that is not live.
+            state_.realization = realization::kRealized;
+            state_.default_image = true;
+        }
         state_.realized_detail = answer.detail;
         say(mail);
     }
@@ -536,7 +579,8 @@ private:
         (void)mail.publish(BuildStatus{state_.recipe, state_.artifact, state_.outcome,
                                        state_.status, state_.command, state_.detail,
                                        state_.builds, state_.op, state_.chunks, state_.realize,
-                                       state_.realization, state_.realized_detail});
+                                       state_.realization, state_.realized_detail,
+                                       state_.default_image});
     }
 
     /// The recipes this tool may be asked for -- identity, artifact, and the one file

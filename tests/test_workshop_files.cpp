@@ -1480,7 +1480,10 @@ TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is hold
     // ...AND THE COMPLETED ARTIFACT DIRECTORY IS WHAT THE VIEW SPELLS, not the host's
     // own: a recipe whose product lands in somebody else's tree is the reason `so_in`
     // takes a directory at all.
-    CHECK(owner.views()[0].path == HostContext::so_in("/install", "one"));
+    // ...AND A SINGLE-SOURCE RECIPE'S EMPTY DIRECTORY IS ITS WORKSPACE'S `out`, never
+    // the host's own (RELOAD-1): the build must not write the file the process maps.
+    CHECK(owner.views()[0].path ==
+          HostContext::so_in("/install/build-workspace/one/out", "one"));
     CHECK(owner.views()[1].path == HostContext::so_in("/elsewhere", "zengine-two"));
     // AND NOTHING IN THE VIEW CARRIES A BUILD PROCEDURE. The subtraction is the split,
     // and it survived being derived by the owner instead of by `main`.
@@ -1856,10 +1859,11 @@ TEST_CASE("PROJ-1: installing a catalog moves its source, its rows and its views
     REQUIRE(owner.views().size() == 2);
     CHECK(owner.views()[1].id == "two");
     // ...AND THE COMPLETION LAW RAN, ONCE, ON THE WAY IN: a relative source means the
-    // PROJECT, and an empty artifact directory means the install.
+    // PROJECT, and an empty artifact directory on a single-source recipe means the
+    // workspace's `out` (RELOAD-1) -- off the install, where the loaded file is.
     CHECK(owner.all()[0].single_source->source == (root / "src/one.cpp").generic_string());
-    CHECK(owner.all()[0].artifact_dir == "/install");
-    CHECK(owner.views()[0].path == HostContext::so_in("/install", "one"));
+    CHECK(owner.all()[0].artifact_dir == "/install/build-workspace/one/out");
+    CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
 }
 
 TEST_CASE("PROJ-1: a candidate that cannot be read installs nothing at all") {
@@ -3762,4 +3766,50 @@ TEST_CASE("WUX-7: a SCROLLED listing reveals the row it is showing, not the row 
     hover_body(r, 0, body.columns - 1);
     CHECK_FALSE(r.session().reveal.present());
     CHECK(row_shown(r, at) == at_rest);
+}
+
+TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, never on the "
+          "loaded path") {
+    // THE PATH RULE'S FIRST HALF: a build of an artifact this process has loaded must
+    // not write the file the process has mapped -- Windows refuses the link on it and
+    // Linux changes code under the program. So an empty `artifact_dir` on a
+    // single-source recipe completes to the WORKSPACE's `out`, after the workspace
+    // itself is completed, and the tool judges the file the build actually wrote. A
+    // CMake-target recipe's empty directory still means the host's, and an explicit one
+    // is honoured as written for both kinds.
+    zengine::builder::SingleSourceRecipe one;
+    one.source = "/abs/one.cpp";
+    zengine::builder::Recipe single;
+    single.id = "one";
+    single.artifact = "zengine-one";
+    single.single_source = one;
+    zengine::builder::Recipe target;
+    target.id = "two";
+    target.artifact = "zengine-two";
+    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    zengine::builder::Recipe aimed;
+    aimed.id = "three";
+    aimed.artifact = "zengine-three";
+    aimed.artifact_dir = "/elsewhere";
+    aimed.single_source = one;
+    std::vector<zengine::builder::Recipe> all{single, target, aimed};
+    recipe_persist::complete_recipes(all, "/install", "/project");
+    REQUIRE(all.size() == 3);
+    CHECK(all[0].single_source->workspace == "/install/build-workspace/one");
+    CHECK(all[0].artifact_dir == "/install/build-workspace/one/out");
+    CHECK(all[1].artifact_dir == "/install");
+    CHECK(all[2].artifact_dir == "/elsewhere");
+    // THE VIEW FOLLOWS, so the tool looks where CMake was told to write...
+    CurrentRecipes owner;
+    owner.hold("/project/recipes.json", all, &HostContext::so_in);
+    REQUIRE(owner.views().size() == 3);
+    CHECK(owner.views()[0].path ==
+          HostContext::so_in("/install/build-workspace/one/out", "zengine-one"));
+    CHECK(owner.views()[0].path.find("/install/zengine-one") == std::string::npos);
+    // ...AND THE GENERATED PROJECT AIMS THE SAME DIRECTORY.
+    CHECK(zengine::builder::generated_project(owner.all()[0])
+              .find("/install/build-workspace/one/out") != std::string::npos);
+    // ...WHILE THE FILE'S OWN ROW STAYS AS AUTHORED: the completion is never written back.
+    const std::vector<zengine::builder::Recipe> authored{single};
+    CHECK(recipe_persist::to_text(authored).find("build-workspace") == std::string::npos);
 }

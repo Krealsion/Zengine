@@ -182,11 +182,13 @@ filename, reads a `CMakeLists.txt`, detects a build system or writes a recipe. T
 not remembered either — the next launch starts from `--recipes` or the shipped default, exactly
 as before.
 
-A successful build **can** enter the running project, but only where the project already
-authored participation for that artifact and this run left the row waiting. There is no hot
-reload — an artifact that is already live is refused in words, and a rebuilt file has not
-changed the image that is running — and no automatic build-on-missing: a maker presses a key.
-Detail in [Builder](builder.md).
+A successful build **can** enter the running project, where the project already authored
+participation for that artifact: a waiting row is realized, and a row that is already live is
+**reloaded in place** — same `WeaveId`, state kept, for a weave whose shapes did not change. A
+changed shape is refused before the running weave is touched, and the refusal names the change;
+replacing it is the Loom's prepared replacement with an authored migration, which Workshop does
+not host yet. No automatic build-on-missing and no reload on a file appearing: a maker presses a
+key. Detail in [Builder](builder.md).
 
 ### The source editor holds one file at a time, in plain ASCII
 
@@ -283,26 +285,32 @@ outside printable ASCII is still visible and still not openable.
 | roll back one artifact's partial record | **yes** — one artifact is the atomic unit |
 | roll back a whole plan | **no** — earlier artifacts stay; you are told which artifact stopped it and what still stands |
 | unload a weave at run time | **no** from Workshop |
-| reload or replace a weave in place | **no** from Workshop |
-| any run-time change to what is loaded | **no** |
+| reload a weave in place — same shapes, same `WeaveId`, state kept | **yes** — from the Builder, for a weave-only row this project built; the rebuilt image lands off the loaded file, and promote / revert say which image a restart loads |
+| replace a weave whose shape changed, or migrate its state | **no** — a prepared replacement with an authored migration is the maker's, and Workshop does not host one yet |
+| reload an artifact that also supplies operators | **no** — refused in words until unmount-and-remount exists |
 
-**Loading is initial and restart intent.** The plan executor has no unload, reload or remount
-path — that is written down in its own source, not inferred.
+**Loading is initial and restart intent, and a reload in place changes no row.** The plan
+executor has no unload or remount path — that is written down in its own source, not inferred —
+and its one reload path keeps the plan's row exactly as authored: what changes is which image the
+row runs, never how it participates.
 
 **What realizes a project is now a live thing rather than a call**, and that changes what is
 *missing* rather than what is possible. Workshop begins the project and returns to its ordinary
 loop; each row settles when its own load answer arrives, and the owner of that work is still
-there afterwards, holding the authored plan, a cursor and what each row produced. Nothing new is
-offered to a maker by that on its own — there is still no unload, no reload, and no run-time
-change to what is loaded. What it removes is the reason those were impossible to *reach*: the
-object that would have to perform them used to have returned before the host loop started.
+there afterwards, holding the authored plan, a cursor and what each row produced. What that made
+reachable is the reload in place above — the object that performs it is still there when the
+maker rebuilds — and what is still not offered is an unload, a replacement or a migration.
 
 **Reversible provider overlay is not artifact hot reload**, and the two must not be read as one.
 Overlay and unmount are reversible *within the host's operator catalog*: unmounting an overlay
 reveals what was underneath, unchanged and unrebuilt. That is a real, proven capability about
 **contributions**. It says nothing about replacing a loaded **artifact** while the system runs.
-The Loom's `Kernel::reload_from` exists and has open provider-custody caveats; nothing in
-Workshop reaches it.
+The Loom's `Kernel::reload_from` is what a reload in place spends, through the Manager's
+`zen.ReloadWeave`, and its provider-custody caveat is exactly why a provider+weave artifact is
+refused: reloading the weave half alone would leave the catalog on the old image. One platform
+fact shapes all of this: a loaded artifact's file is **mapped** by the process — Windows refuses
+a writer on it and Linux lets a writer change code under the running program — so a rebuilt
+product never lands on it, and the image a reload opens is a per-operation copy.
 
 ### The Pane Manager edits the pane grammar that exists, and no more
 

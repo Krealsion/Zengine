@@ -103,6 +103,7 @@ inline const char* state_token(load::RowState state) {
     case load::RowState::Loading: return kLoadingToken;
     case load::RowState::Resolved: return kResolvedToken;
     case load::RowState::Refused: return kRefusedToken;
+    case load::RowState::Reloading: return kReloadingToken;
     case load::RowState::Authored: break;
     }
     return kAuthoredToken;
@@ -163,10 +164,11 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
         // The boot repair's delta: `authored`, `loading` and `refused` are three different
         // sentences that used to be one absent row.
         row.state = state_token(realization.state_of(intent.stem));
-        if (row.state != kResolvedToken) {
+        if (row.state != kResolvedToken && row.state != kReloadingToken) {
             // ONLY A SETTLED ROW CARRIES RESOLVED FIELDS. See
             // `arrangement_vocabulary.hpp`: a row still loading has not decided what
-            // came of it, and a refused row's own mount was rolled back.
+            // came of it, and a refused row's own mount was rolled back. A RELOADING
+            // row is settled and live -- it keeps them (RELOAD-1).
             out.artifacts.push_back(std::move(row));
             continue;
         }

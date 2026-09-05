@@ -48,12 +48,17 @@
 //                StatusRequested{}        "Say what you are."
 //                OfferArtifact{...}       "Take this, if you want  (BLD-1,
 //                                          it."                    named BLD-1a)
+//                PromoteArtifact{...}     "Make the running image  (RELOAD-1)
+//                                          the one a restart loads."
+//                RevertArtifact{...}      "Run the image before    (RELOAD-1)
+//                                          the last reload again."
 //
 //   OBSERVATION  BuildStarted{...}        "I saw a process begin."
 //                BuildOutput{...}         "I saw it say this."     immutable,
 //                BuildFinished{...}       "I saw it exit."         each about
 //                BuildNotStarted{...}     "I saw it never begin."  ONE moment
 //                ArtifactRealized{...}    "and the project took it."
+//                ArtifactPromoted{...}    "and the file a restart loads is it."
 //
 // ⚠ THE FOURTH COMMAND WAS FILED AS AN OBSERVATION FOR ONE PHASE, and the audit
 // that moved it is worth keeping. It shipped as `ArtifactBuilt`, which reads as a
@@ -123,11 +128,17 @@
 //     Nothing here publishes absence, and a maker who wants to know whether a
 //     build is alive reads `BuildStatus` -- which says so because the runner
 //     genuinely saw it, not because a clock ran out.
-//   - no REPLACE, no unload, no reload, no swap. `OfferArtifact` offers a file
-//     and `ArtifactRealized` says what a project made of the offer; neither can
-//     be said about an artifact that is already loaded, and there is no shape
-//     here that could ask for one to be exchanged. BLD-1 does not earn hot reload
-//     and does not pretend to: an already-loaded artifact is refused, in words.
+//   - no REPLACE, no unload, no migration, no swap. `OfferArtifact` offers a file
+//     and `ArtifactRealized` says what a project made of the offer. Since RELOAD-1
+//     an offer for an artifact that is ALREADY LIVE is a reload in place -- same
+//     WeaveId, state kept, same shapes only -- and that is the realization owner's
+//     act through the Loom's own `zen.ReloadWeave`; there is still no shape here
+//     that could ask for a weave to be exchanged for a differently-shaped one, and a
+//     changed shape is refused by the kernel before the incumbent is touched.
+//     `PromoteArtifact` and `RevertArtifact` are the two acts a reload leaves a
+//     maker: make the running image the one a restart loads, or run the image
+//     before the last reload again. Both are OFFERS to the realization owner, as
+//     `OfferArtifact` is, and every eligibility rule is the owner's.
 //   - no build-on-missing, no automatic anything. Every build in this vocabulary
 //     begins with a maker saying `BuildRequested`. Nothing here fires on a
 //     missing file, a changed source or a failed load.
@@ -518,6 +529,10 @@ struct BuildNotStarted {
 /// three that carry the SECOND axis: `realize` (was this a BUILD & REALIZE?),
 /// `realization` (where that stands) and `realized_detail` (its own words). A
 /// panel therefore reads two outcomes and never has to derive one from the other.
+/// v4 (RELOAD-1): `default_image` joined. A realized artifact's running image is
+/// either the file a restart loads or it is not -- a reload in place runs code from a
+/// per-operation copy until the maker promotes it -- and a presentation that could not
+/// say which would let a maker quit believing the next launch runs what they see.
 struct BuildStatus {
     std::string recipe;      ///< the recipe this picture is about; empty before any ask
     std::string artifact;    ///< the artifact stem that recipe produces
@@ -531,10 +546,11 @@ struct BuildStatus {
     bool realize = false;    ///< the maker asked for BUILD & REALIZE
     std::int64_t realization = realization::kNotAsked;
     std::string realized_detail; ///< realization's own sentence, when it has one
-    ZEN_SHAPE(BuildStatus, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
+    bool default_image = false;  ///< the realized image is the file a restart loads
+    ZEN_SHAPE(BuildStatus, 4, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
               ZEN_FIELD(status), ZEN_FIELD(command), ZEN_FIELD(detail), ZEN_FIELD(builds),
               ZEN_FIELD(op), ZEN_FIELD(chunks), ZEN_FIELD(realize), ZEN_FIELD(realization),
-              ZEN_FIELD(realized_detail));
+              ZEN_FIELD(realized_detail), ZEN_FIELD(default_image));
 };
 
 /// ONE ROW OF WHAT CAN BE BUILT HERE.
@@ -622,11 +638,60 @@ struct OfferArtifact {
 /// the failure mode this whole repository keeps refusing: `detail` carries the
 /// deepest layer's own sentence -- the plan's, the catalog's, the loader's -- and on
 /// the accepting path it says what participated.
+///
+/// v2 (RELOAD-1): `default_image` joined. An artifact realized for the first time
+/// runs from the file a restart loads, and this says so; an artifact RELOADED in place
+/// runs from a per-operation copy, and this says that instead, so the sentence a maker
+/// reads about a reload never lets them believe the next launch runs it.
 struct ArtifactRealized {
     std::string artifact;
     bool realized = false;
     std::string detail;
-    ZEN_SHAPE(ArtifactRealized, 1, ZEN_FIELD(artifact), ZEN_FIELD(realized),
+    bool default_image = false; ///< the running image is the file a restart loads
+    ZEN_SHAPE(ArtifactRealized, 2, ZEN_FIELD(artifact), ZEN_FIELD(realized),
+              ZEN_FIELD(detail), ZEN_FIELD(default_image));
+};
+
+/// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS -- a maker's intent, after a
+/// reload in place (RELOAD-1).
+///
+/// A reload runs new code from a per-operation copy and leaves the file the plan
+/// resolves a stem to exactly as it was, so a maker who quits without saying this
+/// runs the old code next launch. Saying it asks the realization owner to write the
+/// running image's bytes into that file -- through the HOST's own durable-file
+/// discipline, a sibling and a rename -- and the owner answers with
+/// `ArtifactPromoted`. ⚠ IT IS AN OFFER, exactly as `OfferArtifact` is: whether the
+/// artifact is live, whether it was reloaded at all, and whether the write is possible
+/// are the owner's and the host's to decide, and the refusal is theirs in words.
+struct PromoteArtifact {
+    std::string artifact; ///< the artifact STEM
+    ZEN_SHAPE(PromoteArtifact, 1, ZEN_FIELD(artifact));
+};
+
+/// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN -- a maker's intent, after a reload in
+/// place (RELOAD-1).
+///
+/// It is a reload through the very same arm the rebuilt image came in by: the same
+/// WeaveId, the state kept, the shapes identical by construction because that image
+/// WAS the running one a moment ago. It answers as `ArtifactRealized`, because a
+/// revert is a realization of the previous image and nothing else; a refusal -- no
+/// previous image, a conversation already open -- is the owner's own sentence.
+struct RevertArtifact {
+    std::string artifact; ///< the artifact STEM
+    ZEN_SHAPE(RevertArtifact, 1, ZEN_FIELD(artifact));
+};
+
+/// WHAT CAME OF A PROMOTION: the file a restart loads now holds the running image, or
+/// it does not and `detail` says why in the operating system's own words.
+///
+/// THE BUILDER DOES NOT SAY THIS ONE either; it is the realization owner's sentence,
+/// said by the participant that speaks for it, and the tool hears it so the Builder
+/// panel's realize row can say `default` where it said `not the default yet`.
+struct ArtifactPromoted {
+    std::string artifact;
+    bool promoted = false;
+    std::string detail;
+    ZEN_SHAPE(ArtifactPromoted, 1, ZEN_FIELD(artifact), ZEN_FIELD(promoted),
               ZEN_FIELD(detail));
 };
 

@@ -145,6 +145,8 @@ enum class Act : std::uint8_t {
     kPicker,
     kBuild,
     kBuildRealize,
+    kPromote,
+    kRevert,
     kRecipeNext,
     kRecipeBack,
     kBuildFrontier,
@@ -335,8 +337,19 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kRightBracket, mod::kNone}},
     {Act::kPicker, "workshop.picker", "+ panel", KeyContext::kCommand, {scan::kP, mod::kNone}},
     {Act::kBuild, "builder.build", "build", KeyContext::kCommand, {scan::kB, mod::kNone}},
-    {Act::kBuildRealize, "builder.build-realize", "build+realize", KeyContext::kCommand,
+    // ONE ACTION IN TWO STATES (RELOAD-1): before or during a build it is a toggle --
+    // pressed, the next `b` builds AND loads; when an artifact is built and ready to
+    // load and nothing is armed, it is the button that loads it now. The identity is
+    // the row it always was (WL-KEY-06), so a maker's authored override keeps working;
+    // what moved is the label, which says what the row means now.
+    {Act::kBuildRealize, "builder.build-realize", "load after build", KeyContext::kCommand,
      {scan::kB, mod::kShift}},
+    // THE TWO ACTS A RELOAD LEAVES A MAKER: make the running image the one a restart
+    // loads, or run the image before the last reload again. Ordinary rows, movable.
+    {Act::kPromote, "builder.promote", "promote image", KeyContext::kCommand,
+     {scan::kP, mod::kShift}},
+    {Act::kRevert, "builder.revert", "revert image", KeyContext::kCommand,
+     {scan::kR, mod::kShift}},
     {Act::kRecipeNext, "builder.recipe", "recipe", KeyContext::kCommand,
      {scan::kC, mod::kNone}},
     {Act::kRecipeBack, "builder.recipe-back", "recipe back", KeyContext::kCommand,

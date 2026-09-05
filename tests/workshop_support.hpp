@@ -3211,8 +3211,13 @@ inline std::string file_source(const char* path) {
 inline constexpr std::size_t kPresentationSourceFloor = 62;
 
 inline std::vector<std::string> presentation_sources() {
+    // `staging.hpp` IS HOST-SIDE (RELOAD-1): the two rules the host wires into the
+    // realization owner -- where a built product is opened from, and how a running image
+    // becomes the file a restart loads -- shared with the build witness so there is one
+    // spelling. No presentation includes it, and it names the owner it serves.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
-                                                "arrangement.hpp", "arrangement_vocabulary.hpp"};
+                                                "arrangement.hpp", "arrangement_vocabulary.hpp",
+                                                "staging.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :
          std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {

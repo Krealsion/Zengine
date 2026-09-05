@@ -1230,3 +1230,34 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
                       "', which is plan-specific control flow in a host loop");
     }
 }
+
+TEST_CASE("the host writes the booter's two lifecycle rules, and no third") {
+    // THE DANGEROUS GRANT IN A ZENGINE HOST IS THE MANAGER'S TWO LIFECYCLE OPS, both
+    // target-scoped to the Manager, both written by the host and held by the plan
+    // booter alone (RELOAD-1). Read off the source, for the same defence-in-depth reason
+    // the authoring tripwire above reads it: a rig that minted the grant could not
+    // notice the host widening it.
+    const std::string host = host_source();
+    const char* load_rule =
+        "operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);";
+    const char* reload_rule =
+        "operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);";
+    CHECK_MESSAGE(host.find(load_rule) != std::string::npos,
+                  "workshop.cpp does not write the booter's zen.LoadWeave rule to the Manager");
+    CHECK_MESSAGE(host.find(reload_rule) != std::string::npos,
+                  "workshop.cpp does not write the booter's zen.ReloadWeave rule to the Manager");
+    // ...AND NEITHER OP IS EVER GRANTED TO ANYONE, nor to a role, nor a third op at all.
+    for (const char* wide : {"allow_to_any(loom::LoadWeave", "allow_to_any(loom::ReloadWeave",
+                             "allow_to_role(loom::LoadWeave", "allow_to_role(loom::ReloadWeave",
+                             "loom::SwapWeave", "loom::UnloadWeave"}) {
+        CHECK_MESSAGE(host.find(wide) == std::string::npos, "workshop.cpp spells '", wide,
+                      "', which widens or adds to the booter's lifecycle reach");
+    }
+    std::size_t rules = 0;
+    for (std::size_t at = host.find("operate.allow("); at != std::string::npos;
+         at = host.find("operate.allow(", at + 1)) {
+        ++rules;
+    }
+    CHECK_MESSAGE(rules == 2, "workshop.cpp writes ", rules,
+                  " target-scoped rules on the booter's grant; the law is exactly two");
+}

@@ -1072,8 +1072,15 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
 # plan can point at and get wrong.
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
+          zengine-operator-consumer-weave zengine-introspection
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+                # RELOAD-1's two more images: a GOOD consumer weave (the reload's offer
+                # bracket must say `Offered` again) and a weave with a different state
+                # shape than the plain one (the changed-shape refusal), both real
+                # artifacts built by other phases' rules.
+                "CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
+                "INTROSPECTION_SO=\"$<TARGET_FILE:zengine-introspection>\""
                 # An ordinary weave that is not a provider and not an operator consumer,
                 # built by another phase's rules and untouched by this one.
                 "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
