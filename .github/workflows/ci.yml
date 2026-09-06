@@ -356,7 +356,8 @@ jobs:
           $t = Get-Process -Name 'zengine-workshop-load-tests' -ErrorAction SilentlyContinue
           if ($t) {
             Write-Host "hung test pid $($t.Id); attaching gdb"
-            & 'C:\mingw64\bin\gdb.exe' -p $t.Id -batch -ex 'info threads' -ex 'thread apply all bt 25' 2>&1 | Select-Object -First 400
+            Set-Content -Path gdbcmds.txt -Value "info threads`nthread apply all bt 30`ndetach`nquit"
+            & 'C:\mingw64\bin\gdb.exe' -p $t.Id -batch -x gdbcmds.txt 2>&1 | Select-Object -First 400
             Stop-Process -Id $t.Id -Force -ErrorAction SilentlyContinue
           } else {
             Write-Host "the test process is not running after 60 s"
