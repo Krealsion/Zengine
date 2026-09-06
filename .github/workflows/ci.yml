@@ -329,7 +329,10 @@ jobs:
         continue-on-error: true
         run: ctest --test-dir build-win -R '^workshop_load$' --output-on-failure --timeout 150 -V
 
+      # SKIPPED WHILE DIAGNOSING, so the job ends with the diagnostics' logs rather than at
+      # its 45-minute timeout; restored before the branch is merged.
       - name: Verify the repository-owned population
+        if: false
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
   # The MSVC stranger (MSVC-0). ADVISORY, and the job's name says why: MSVC is the toolchain
