@@ -1485,7 +1485,8 @@ TEST_CASE("BLD-1: `b` builds the recipe the maker chose, not the one last built"
     CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
 }
 
-TEST_CASE("BLD-1: `Shift+b` is BUILD & REALIZE, and the second intention crosses the seam") {
+TEST_CASE("BLD-1: armed by `Shift+b`, `b` is BUILD & REALIZE, and the second intention crosses "
+          "the seam") {
     Live t;
     ToolSeat* tool = mount_tool(t, "snake");
     // THE STUB ANSWERS EVERY ASK AT ONCE, so a case that wants to watch a build has to
@@ -1493,7 +1494,8 @@ TEST_CASE("BLD-1: `Shift+b` is BUILD & REALIZE, and the second intention crosses
     tool->next.outcome = zengine::builder::outcome::kAsked;
     open_builder(t);
 
-    t.key(input::scan::kB, input::mod::kShift);
+    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
+    t.key(input::scan::kB);
     REQUIRE(tool->asked.size() == 1);
     CHECK(tool->asked[0] == "snake");
     REQUIRE(tool->realize_asked.size() == 1);
@@ -1511,7 +1513,8 @@ TEST_CASE("BLD-1: a build outcome and a realization outcome are TWO rows and TWO
     ToolSeat* tool = mount_tool(t, "snake");
     tool->next.outcome = zengine::builder::outcome::kAsked;
     open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift);
+    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
+    t.key(input::scan::kB);
 
     // THE BUILD ENDS FIRST, and it is announced first.
     tool->next.outcome = zengine::builder::outcome::kSucceeded;
@@ -1530,6 +1533,7 @@ TEST_CASE("BLD-1: a build outcome and a realization outcome are TWO rows and TWO
     // watched it begin.
     tool->next.realization = zengine::builder::realization::kRealized;
     tool->next.realized_detail = "weave #9 as zengine.oven";
+    tool->next.default_image = true; // a first realization runs from the plan's own file
     t.publish(loom::to_value(tool->next));
     CHECK(t.w->session().notice == "realized snake -- weave #9 as zengine.oven");
     CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
@@ -1545,7 +1549,8 @@ TEST_CASE("BLD-1: a build that WORKED whose realization was REFUSED says both") 
     ToolSeat* tool = mount_tool(t, "snake");
     tool->next.outcome = zengine::builder::outcome::kAsked;
     open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift);
+    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
+    t.key(input::scan::kB);
 
     tool->next.outcome = zengine::builder::outcome::kSucceeded;
     tool->next.realize = true;
@@ -1571,7 +1576,8 @@ TEST_CASE("BLD-1: when a failed build refuses realization, the CAUSE is the noti
     ToolSeat* tool = mount_tool(t, "snake");
     tool->next.outcome = zengine::builder::outcome::kAsked;
     open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift);
+    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
+    t.key(input::scan::kB);
 
     tool->next.outcome = zengine::builder::outcome::kFailed;
     tool->next.status = 2;
@@ -7827,4 +7833,262 @@ TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past
     t.wheel_canvas(+1.0, b.x + 2, b.y);
     CHECK(t.session().pane_editor.row_cursor == at);
     CHECK(t.session().pane_editor.cursor == panes_cursor);
+}
+
+namespace {
+
+/// EARS FOR THE TWO OFFERS `P` AND `R` PUBLISH (RELOAD-2), so a case can say what was
+/// SAID rather than infer it from a notice. Plain ears: no grant, no answer.
+struct OfferEarsState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(OfferEarsState, 1, ZEN_FIELD(heard));
+};
+
+class OfferEars
+    : public loom::WeaveBase<OfferEars, OfferEarsState,
+                             loom::Accept<zengine::builder::PromoteArtifact,
+                                          zengine::builder::RevertArtifact>,
+                             loom::Emit<>> {
+public:
+    void on(const zengine::builder::PromoteArtifact& said, loom::Mail&) {
+        ++state_.heard;
+        promotes.push_back(said.artifact);
+    }
+    void on(const zengine::builder::RevertArtifact& said, loom::Mail&) {
+        ++state_.heard;
+        reverts.push_back(said.artifact);
+    }
+    std::vector<std::string> promotes;
+    std::vector<std::string> reverts;
+};
+
+OfferEars* mount_offer_ears(Live& t) {
+    auto held = std::make_unique<OfferEars>();
+    OfferEars* raw = held.get();
+    const loom::WeaveId id = t.bus.register_weave(std::move(held), loom::Grant{});
+    raw->zen_set_self(id);
+    return raw;
+}
+
+} // namespace
+
+// ============================================================================
+// RELOAD-2 -- `B` IS ONE ACTION IN TWO STATES, and the realize row has three faces.
+//
+// `builder.build-realize` keeps its identity and its default gesture. Before or during
+// a build it is a TOGGLE: pressed, the panel is armed and the next `b` asks to build AND
+// to load; when an artifact is built and ready to load and nothing is armed, it is a
+// BUTTON that loads the built artifact now by re-sending the finished build's own ask.
+// Every case drives the real weave through the real keymap and reads the real canvas.
+
+TEST_CASE("RELOAD-2: `B` before a build is a toggle: armed, `b` asks to build AND load") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    REQUIRE_FALSE(t.w->session().panels.builder.arm);
+
+    // THE TOGGLE: nothing is sent, the panel is armed, and the row says so.
+    t.key(input::scan::kB, input::mod::kShift);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().panels.builder.arm);
+    CHECK(t.w->session().notice.find("load after build: on") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
+
+    // ...AND `b` READS IT: one ask, with the second intention aboard.
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "oven");
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
+}
+
+TEST_CASE("RELOAD-2: `B` toggles back off, and `b` is a plain build again") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(t.w->session().panels.builder.arm);
+    t.key(input::scan::kB, input::mod::kShift);
+    CHECK_FALSE(t.w->session().panels.builder.arm);
+    CHECK(t.w->session().notice.find("load after build: off") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("[x] load after build") == std::string::npos);
+    CHECK(tool->asked.empty());
+
+    t.key(input::scan::kB);
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK_FALSE(tool->realize_asked[0]);
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+}
+
+TEST_CASE("RELOAD-2: after a plain build that succeeded and nothing armed, `B` is a button "
+          "that loads the built artifact now") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"snake", "zengine-snake"});
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    // THE BUILD ENDS, PLAIN: succeeded, nothing asked about realizing it.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.recipe = "oven";
+    tool->next.artifact = "zengine-oven";
+    tool->next.realization = zengine::builder::realization::kNotAsked;
+    t.publish(loom::to_value(tool->next));
+    CHECK_FALSE(t.w->session().panels.builder.awaiting);
+    CHECK(stack_text(t.canvases.back()).find("B loads zengine-oven now") != std::string::npos);
+
+    // THE MAKER MOVES THE CURSOR TO ANOTHER RECIPE FIRST, deliberately: the button sends
+    // the FINISHED build's recipe, never the cursor's row.
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 1);
+    // THE STUB ANSWERS AT ONCE, so give the load-now ask a condition a build can be IN.
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kAsked;
+    t.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(tool->asked.size() == 2);
+    CHECK(tool->asked[1] == "oven");
+    REQUIRE(tool->realize_asked.size() == 2);
+    CHECK(tool->realize_asked[1]);
+    CHECK_FALSE(t.w->session().panels.builder.arm);
+    CHECK(t.w->session().panels.builder.awaiting);
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK(t.w->session().notice.find("loading the built `zengine-oven` now") !=
+          std::string::npos);
+}
+
+TEST_CASE("RELOAD-2: while a build is running `B` is the toggle, and the running build "
+          "keeps the intention it started with") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK_FALSE(tool->realize_asked[0]);
+    // THE BUILD IS RUNNING. `B` arms the NEXT ask and sends nothing; the tool was never
+    // told anything about this one.
+    tool->next.outcome = zengine::builder::outcome::kRunning;
+    tool->next.op = 3;
+    t.publish(loom::to_value(tool->next));
+    t.key(input::scan::kB, input::mod::kShift);
+    CHECK(tool->asked.size() == 1);
+    CHECK(t.w->session().panels.builder.arm);
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+    // ...AND WHEN IT ENDS AS A PLAIN BUILD, THAT IS WHAT IT WAS: no realization is
+    // announced, and the button does not appear because the arm is set.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.recipe = "oven";
+    tool->next.artifact = "zengine-oven";
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice == "built zengine-oven -- exit 0");
+    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("loads the built") == std::string::npos);
+}
+
+TEST_CASE("RELOAD-2: the realize row shows the toggle, the button, or the outcome -- one "
+          "row, three faces") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    open_builder(t);
+    // FACE ZERO: nothing built, nothing armed -- the row says what `B` does.
+    CHECK(stack_text(t.canvases.back()).find("B arms load after build") != std::string::npos);
+    // THE TOGGLE'S FACE.
+    t.key(input::scan::kB, input::mod::kShift);
+    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
+    t.key(input::scan::kB, input::mod::kShift);
+    // THE BUTTON'S FACE: a plain build that succeeded.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.recipe = "oven";
+    tool->next.artifact = "zengine-oven";
+    t.publish(loom::to_value(tool->next));
+    CHECK(stack_text(t.canvases.back()).find("B loads zengine-oven now") != std::string::npos);
+    // THE OUTCOME'S FACE: realized, and NOT the default -- the two acts named.
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kRealized;
+    tool->next.realized_detail = "reloaded in place -- weave #9 keeps its id and its state";
+    tool->next.default_image = false;
+    t.publish(loom::to_value(tool->next));
+    std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("realized, NOT DEFAULT (P") != std::string::npos);
+    CHECK(shown.find("loads the built") == std::string::npos);
+    // ...AND AFTER A PROMOTION, THE CLAUSE IS GONE: the image is the default.
+    tool->next.default_image = true;
+    tool->next.realized_detail = "promoted: the next launch runs the image weave #9 is running now";
+    t.publish(loom::to_value(tool->next));
+    shown = stack_text(t.canvases.back());
+    CHECK(shown.find("realized -- promoted") != std::string::npos);
+    CHECK(shown.find("NOT DEFAULT") == std::string::npos);
+    // ARMED OVER A SETTLED OUTCOME, THE OUTCOME KEEPS THE ROW: it is what the maker is
+    // watching, and the row is one row of a narrow panel. The arm is on the pane and in
+    // the notice, and `b` reads it.
+    t.key(input::scan::kB, input::mod::kShift);
+    shown = stack_text(t.canvases.back());
+    CHECK(t.w->session().panels.builder.arm);
+    CHECK(t.w->session().notice.find("load after build: on") != std::string::npos);
+    CHECK(shown.find("realized -- promoted") != std::string::npos);
+    CHECK(shown.find("[x] load after build") == std::string::npos);
+}
+
+TEST_CASE("RELOAD-2: `f` builds and realizes the frontier whatever the toggle says") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+    ProjectFrontier live;
+    live.waiting = true;
+    live.artifact = "zengine-oven";
+    live.blocked = 1;
+    t.host.frontier = [&live] { return live; };
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    REQUIRE_FALSE(t.w->session().panels.builder.arm);
+    t.key(input::scan::kF);
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+    CHECK(tool->asked[0] == "oven");
+    CHECK_FALSE(t.w->session().panels.builder.arm);
+}
+
+TEST_CASE("RELOAD-2: `P` and `R` are one offer each, sent about the built artifact, and "
+          "refused in words with nothing built") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    OfferEars* ears = mount_offer_ears(t);
+    open_builder(t);
+    // NOTHING BUILT YET: both refuse in words and say nothing on the bus.
+    t.key(input::scan::kP, input::mod::kShift);
+    CHECK(t.w->session().notice.find("nothing to promote") != std::string::npos);
+    t.key(input::scan::kR, input::mod::kShift);
+    CHECK(t.w->session().notice.find("nothing to revert") != std::string::npos);
+    CHECK(ears->promotes.empty());
+    CHECK(ears->reverts.empty());
+    // A REALIZED ARTIFACT: each key is one sentence naming it, and the panel watches
+    // for the answer on the realization latch.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.recipe = "oven";
+    tool->next.artifact = "zengine-oven";
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kRealized;
+    tool->next.realized_detail = "reloaded in place -- weave #9 keeps its id and its state";
+    t.publish(loom::to_value(tool->next));
+    t.key(input::scan::kP, input::mod::kShift);
+    REQUIRE(ears->promotes.size() == 1);
+    CHECK(ears->promotes[0] == "zengine-oven");
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK(t.w->session().notice.find("asked to promote `zengine-oven`") != std::string::npos);
+    t.key(input::scan::kR, input::mod::kShift);
+    REQUIRE(ears->reverts.size() == 1);
+    CHECK(ears->reverts[0] == "zengine-oven");
+    CHECK(t.w->session().notice.find("asked to revert `zengine-oven`") != std::string::npos);
+    // THE ANSWER IS NEWS, because the panel asked: the row and the notice both carry it.
+    tool->next.realized_detail = "promoted: the next launch runs the image weave #9 is running now";
+    tool->next.default_image = true;
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice.find("realized zengine-oven -- promoted") != std::string::npos);
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
 }

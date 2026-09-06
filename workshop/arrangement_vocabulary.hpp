@@ -147,7 +147,7 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 /// all. It could not have had one before: nothing survived the executor's stack frame
 /// long enough to be asked.
 ///
-/// FIVE TOKENS, FIVE OWNERS, and the owner is why each one exists rather than the
+/// SIX TOKENS, SIX OWNERS, and the owner is why each one exists rather than the
 /// word sounding useful; `load::RowState` names them and names the three that were
 /// refused.
 ///
@@ -174,6 +174,11 @@ inline constexpr const char* kPendingToken = "pending";
 inline constexpr const char* kLoadingToken = "loading";
 inline constexpr const char* kResolvedToken = "resolved";
 inline constexpr const char* kRefusedToken = "refused";
+/// `reloading` IS THE SIXTH TOKEN (RELOAD-1): a resolved row whose reload-in-place
+/// conversation is open. Unlike `loading` it KEEPS its resolved fields, because the
+/// weave is live and serving while the kernel decides; a projection that blanked them
+/// would say a running weave was not there.
+inline constexpr const char* kReloadingToken = "reloading";
 
 /// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
 ///
@@ -193,7 +198,7 @@ inline constexpr const char* kRefusedToken = "refused";
 /// ---- WHICH ARE RESOLVED --------------------------------------------------------
 ///
 ///   `state`              where realization has got with this row: `authored`,
-///                        `loading`, `resolved` or `refused`
+///                        `pending`, `loading`, `resolved`, `refused` or `reloading`
 ///   `provider`           the identity THE ARTIFACT DECLARED ABOUT ITSELF when it
 ///                        was mounted -- never the stem, and never what the plan said
 ///   `powers`             how many contributions that mount installed

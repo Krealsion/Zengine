@@ -48,10 +48,18 @@
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/load_plan.hpp"
+#include "workshop/pane_vocabulary.hpp"
+#include "workshop/recipes.hpp"
+#include "workshop/staging.hpp"
 
+#include "builder/recipe.hpp"
+#include "builder/vocabulary.hpp"
+
+#include <zen/admission.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
+#include <zen/schema.hpp>
 #include <zen/serialize.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -65,6 +73,7 @@
 #include <string>
 #include <utility>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -3522,13 +3531,22 @@ struct RealizedHeardState {
 
 class RealizedEars
     : public loom::WeaveBase<RealizedEars, RealizedHeardState,
-                             loom::Accept<zengine::builder::ArtifactRealized>, loom::Emit<>> {
+                             loom::Accept<zengine::builder::ArtifactRealized,
+                                          zengine::builder::ArtifactPromoted>,
+                             loom::Emit<>> {
 public:
     void on(const zengine::builder::ArtifactRealized& said, loom::Mail&) {
         ++state_.heard;
         answers.push_back(said);
     }
+    /// ...AND THE OTHER SENTENCE THE BOOTER PUBLISHES (RELOAD-1): what came of a
+    /// promotion.
+    void on(const zengine::builder::ArtifactPromoted& said, loom::Mail&) {
+        ++state_.heard;
+        promotions.push_back(said);
+    }
     std::vector<zengine::builder::ArtifactRealized> answers;
+    std::vector<zengine::builder::ArtifactPromoted> promotions;
 };
 
 /// Mount the ears and hand back the object, because a case reads what they heard.
@@ -4052,12 +4070,13 @@ TEST_CASE("BLD-1a: the door refuses everything the AUTHORED PLAN does not sancti
     CHECK_FALSE(stranger.started);
     CHECK(stranger.refusal.find("does not name artifact") != std::string::npos);
 
-    // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ THIS IS WHERE HOT RELOAD
-    // IS REFUSED, in words, rather than by quietly loading the image a second time.
+    // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ SINCE RELOAD-1 THIS ARM IS
+    // A RELOAD IN PLACE, and a provider-only row has no weave to reload: refused in
+    // words, never loaded a second time. (A live WEAVE row's reload has tier 9.)
     const load::PlanExecutor::Asked live = rig.executor.realize("zengine-operators-basic");
     CHECK_FALSE(live.started);
-    CHECK(live.refusal.find("already part of this running project") != std::string::npos);
-    CHECK(live.refusal.find("restart") != std::string::npos);
+    CHECK(live.refusal.find("loaded no weave in this run") != std::string::npos);
+    CHECK(live.refusal.find("unmount-and-remount is not built") != std::string::npos);
 
     // AND NOTHING WAS DONE ABOUT EITHER. The arrangement is exactly as it was.
     CHECK(rig.executor.state() == load::Realization::Waiting);
@@ -4206,4 +4225,627 @@ TEST_CASE("BLD-1a: a waiting row is `pending` in the Project projection, and the
     // THE COUNT IS READABLE OFF THE VALUE and needs no denominator field: the list
     // length is what the plan declared, and each row says what happened to it.
     CHECK(said.artifacts.size() == 3);
+}
+
+// ============================================================================
+// Tier 9 -- A LIVE ROW RELOADED IN PLACE (RELOAD-1)
+//
+// The already-resolved arm of `realize` used to refuse in the word *restart*. It now
+// opens one `zen.ReloadWeave` conversation over an image the HOST staged off the loaded
+// path, bracketed by the same operator offer a load carries, settled by the same booter
+// on the same wall. Every case here drives a real Kernel, a real Manager and a real
+// artifact, and reads the live weave's STATE off the bus's own snapshot before and after
+// -- the one window a loaded weave has on itself, and no back channel.
+//
+// THE RIG'S HOST STAGES THROUGH THE PRODUCTION RULE (`workshop/staging.hpp`), over a
+// real catalog of one recipe per "built" product, so what is measured is the copy the
+// Workshop performs and not a stand-in for it.
+
+namespace {
+
+/// THE LIVE WEAVE'S STATE, READ OFF THE BUS. `HelloState` is the plain weave's own
+/// shape (tests/weavelib/workshop_hello.cpp): three counters, and `refused` is the one a
+/// forged `PaneRoom` bumps -- which is how a case makes state that a reconstructed
+/// weave would NOT have, and then asks whether it survived the swap.
+struct HelloCounters {
+    std::int64_t rooms = 0;
+    std::int64_t offers = 0;
+    std::int64_t refused = 0;
+};
+
+HelloCounters hello_state(loom::Switchboard& bus, loom::WeaveId id) {
+    static const std::shared_ptr<const loom::Schema> shape =
+        loom::SchemaBuilder("HelloState", 1)
+            .field("rooms", loom::Kind::Int)
+            .field("offers", loom::Kind::Int)
+            .field("refused", loom::Kind::Int)
+            .build();
+    const loom::Unverified claim = loom::parse(bus.snapshot_bytes(id));
+    const loom::Admission admitted = loom::admit(claim, shape);
+    REQUIRE_MESSAGE(admitted.ok(), "the plain weave's snapshot did not admit as HelloState: ",
+                    admitted.first_error().message());
+    HelloCounters out;
+    out.rooms = admitted.value().get("rooms")->as_int();
+    out.offers = admitted.value().get("offers")->as_int();
+    out.refused = admitted.value().get("refused")->as_int();
+    return out;
+}
+
+/// A PANE ROOM NOBODY AUTHORED AS THE WORKSHOP OFFICE. The plain weave refuses it and
+/// counts the refusal -- state made by this run, in the running instance, that a
+/// freshly constructed instance would not have.
+void forge_room(loom::Switchboard& bus, loom::WeaveId id) {
+    bus.send(id, loom::Message(loom::to_value(zengine::workshop::PaneRoom{"hello", 3, 20}),
+                               loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int i = 0; i < 8; ++i) {
+        bus.pump_pending();
+    }
+}
+
+std::string so_of(std::string_view dir, std::string_view stem) {
+    return std::string(dir) + "/" + std::string(stem) + kArtifactSuffix;
+}
+
+/// THE HOST'S BOOTER GRANT SINCE RELOAD-1: `zen.LoadWeave` and `zen.ReloadWeave` to the
+/// Manager, and the two observations it may publish. Spelled out for `mount_booter_in`'s
+/// reason -- a rig that minted the grant could not notice a host quietly widening it.
+load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId manager,
+                                         load::BootAnswers& answers, loom::WeaveId& id) {
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    operate.allow_to_any(zengine::builder::ArtifactRealized::zen_name,
+                         zengine::builder::ArtifactRealized::zen_version);
+    operate.allow_to_any(zengine::builder::ArtifactPromoted::zen_name,
+                         zengine::builder::ArtifactPromoted::zen_version);
+    auto speaker = std::make_unique<load::PlanBooter>(answers);
+    load::PlanBooter& voice = *speaker;
+    id = bus.register_weave(std::move(speaker), std::move(operate));
+    voice.zen_set_self(id);
+    return voice;
+}
+
+/// A RIG WHOSE HOST CAN STAGE A BUILT PRODUCT AND PROMOTE A RUNNING IMAGE (RELOAD-1).
+///
+/// `PendingRig` with the two seams filled in through the production rule: a catalog of
+/// one recipe per product a case "built" (`product`), whose completed artifact directory
+/// is a `products/` directory beside the stage, so the staging copy is a real copy from
+/// where a build lands to where the plan loads from -- or, for a reload, to the
+/// per-operation path off it.
+struct ReloadRig {
+    loom::Switchboard bus;
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::Kernel kernel{bus};
+    loom::WeaveId control = loom::mount_control(kernel, bus);
+    loom::WeaveId manager = loom::mount_manager(control, bus);
+
+    load::BootAnswers answers;
+    loom::WeaveId booter;
+    load::PlanBooter& voice = mount_booter_reloading(bus, manager, answers, booter);
+
+    std::vector<std::string> waiting;
+    RealizedEars* ears = nullptr;
+
+    /// WHAT THIS RIG'S BUILDS PRODUCED, as a real catalog: `recipe-<stem>` produces
+    /// `<stem>` into `products/`.
+    std::vector<zengine::builder::Recipe> built;
+    workshop::CurrentRecipes recipes;
+    workshop::staging::Host staging{stage().dir.string(), &recipes, &so_of, 0};
+
+    load::PlanExecutor executor{
+        bus,
+        catalog,
+        operators,
+        voice,
+        manager,
+        answers,
+        [](const std::string& stem) { return stage().so(stem); },
+        load::PlanExecutor::Settled(),
+        [this](const std::string& stem) {
+            for (const std::string& held : waiting) {
+                if (held == stem) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [this](const std::string& stem, const std::string& recipe, bool reload) {
+            return workshop::staging::stage(staging, stem, recipe, reload);
+        },
+        [this](const std::string& stem, const std::string& image) {
+            return workshop::staging::promote(staging, stem, image);
+        }};
+
+    ReloadRig() {
+        ears = &mount_ears(bus, loom::Grant{});
+        std::error_code ec;
+        std::filesystem::create_directories(products(), ec);
+        REQUIRE_MESSAGE(!ec, "cannot make ", products().string());
+    }
+
+    std::filesystem::path products() const { return stage().dir / "products"; }
+
+    /// "A BUILD PRODUCED `stem` FROM `from`": the product lands in `products/`, and the
+    /// catalog gains (or keeps) the recipe that names it. `Stage::put`'s discipline --
+    /// remove, then copy -- because a second run of this binary finds its own output.
+    void product(const char* stem, const char* from) {
+        const std::filesystem::path dest = products() / (std::string(stem) + kArtifactSuffix);
+        std::error_code ec;
+        std::filesystem::remove(dest, ec);
+        REQUIRE_MESSAGE(!ec, "cannot clear ", dest.string());
+        std::filesystem::copy_file(from, dest, ec);
+        REQUIRE_MESSAGE(!ec, "cannot stage ", std::string(from), " as ", dest.string(), ": ",
+                        ec.message());
+        bool known = false;
+        for (const zengine::builder::Recipe& r : built) {
+            known = known || r.artifact == stem;
+        }
+        if (!known) {
+            zengine::builder::Recipe r;
+            r.id = "recipe-" + std::string(stem);
+            r.artifact = stem;
+            r.artifact_dir = products().generic_string();
+            r.cmake_target = zengine::builder::CMakeTargetRecipe{"/a/tree", stem, std::string()};
+            built.push_back(r);
+        }
+        recipes.hold("products.json", built, &so_of);
+    }
+
+    void drain(int turns = 8) {
+        for (int i = 0; i < turns; ++i) {
+            bus.pump_pending();
+        }
+    }
+
+    load::Executed realize(load::LoadPlan plan, int turns = 32) {
+        executor.begin(std::move(plan));
+        drain(turns);
+        return executor.outcome();
+    }
+
+    /// THE BUILDER'S OFFER, as the tool says it: the recipe that names the product, the
+    /// stem, and a path the owner ignores.
+    void offer(const char* stem) {
+        (void)bus.publish(loom::Message(loom::to_value(zengine::builder::OfferArtifact{
+            7, "recipe-" + std::string(stem), stem, "/a/path/the/owner/ignores"})));
+        drain(24);
+    }
+
+    void promote(const char* stem) {
+        (void)bus.publish(loom::Message(loom::to_value(zengine::builder::PromoteArtifact{stem})));
+        drain(8);
+    }
+
+    void revert(const char* stem) {
+        (void)bus.publish(loom::Message(loom::to_value(zengine::builder::RevertArtifact{stem})));
+        drain(24);
+    }
+
+    /// The plan's own file for a stem -- where a restart would load it from.
+    std::string plan_file(const char* stem) const { return stage().so(stem); }
+};
+
+/// A PLAN WITH ONE LIVE WEAVE-ONLY ROW, realized from the plan at startup. The plain
+/// weave is staged by `Stage` already, so the row loads on `begin`.
+load::LoadPlan one_live_weave() { return plan_of({weaves("zengine-plain-weave", "zen.plain")}); }
+
+} // namespace
+
+TEST_CASE("RELOAD-1: an offered artifact is staged by the HOST's rule before it is loaded, "
+          "and the announced path still counts for nothing") {
+    // THE BUILT PRODUCT IS NOT WHERE THE PLAN LOADS FROM -- it is in `products/`, where
+    // a build lands -- and the plan's file is absent, so the row waits. The offer names
+    // a path the owner ignores; what moves the file is the host's staging rule, spent
+    // by the owner with the offer's RECIPE, and the load then opens the plan's file.
+    std::error_code ec;
+    std::filesystem::remove(stage().so(kBuiltLate), ec);
+    REQUIRE(!ec);
+    ReloadRig rig;
+    rig.waiting = {kBuiltLate};
+    rig.product(kBuiltLate, PLAIN_WEAVE_SO);
+    REQUIRE(rig.realize(plan_of({weaves(kBuiltLate, "zen.late")})).waiting_on == kBuiltLate);
+    REQUIRE_FALSE(std::filesystem::exists(std::filesystem::path(rig.plan_file(kBuiltLate))));
+
+    rig.offer(kBuiltLate);
+
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.kernel.is_loaded(kBuiltLate));
+    // THE COPY HAPPENED, TO THE PLAN'S FILE: the running row's image IS that file, and
+    // it is the default a restart loads.
+    CHECK(std::filesystem::exists(std::filesystem::path(rig.plan_file(kBuiltLate))));
+    REQUIRE(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.resolved()[0].image == rig.plan_file(kBuiltLate));
+    CHECK(rig.executor.resolved()[0].default_image);
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].default_image);
+    // ...AND NO RELOAD COPY WAS MADE: this was a first realization.
+    CHECK(rig.staging.reloads == 0);
+}
+
+TEST_CASE("RELOAD-1: a staging refusal is the row's own refusal, in the host's words, and "
+          "the frontier stays where it was") {
+    std::error_code ec;
+    std::filesystem::remove(stage().so(kBuiltLate), ec);
+    REQUIRE(!ec);
+    ReloadRig rig;
+    rig.waiting = {kBuiltLate};
+    // THE CATALOG NAMES NO RECIPE FOR IT: the offer's recipe is unknown to the host, so
+    // the product cannot be found and nothing is copied. The words are the staging
+    // rule's, prefixed by the row.
+    REQUIRE(rig.realize(plan_of({weaves(kBuiltLate, "zen.late"),
+                                 provides("zengine-operators-basic")}))
+                .waiting_on == kBuiltLate);
+
+    rig.offer(kBuiltLate);
+
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("is not in the catalog in force") !=
+          std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find(kBuiltLate) != std::string::npos);
+    // NOTHING MOVED. The row is pending, the owner waits, the row behind it is authored.
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kBuiltLate);
+    CHECK(rig.executor.state_of(kBuiltLate) == load::RowState::Pending);
+    CHECK_FALSE(rig.kernel.is_loaded(kBuiltLate));
+    CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::path(rig.plan_file(kBuiltLate))));
+}
+
+TEST_CASE("RELOAD-1: a live weave-only row reloads in place -- same WeaveId, state kept, "
+          "Ack settles it") {
+    ReloadRig rig;
+    REQUIRE(rig.realize(one_live_weave()).ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
+    REQUIRE(before.value != 0);
+    // STATE THIS RUN MADE, in the running instance: one refused room.
+    forge_room(rig.bus, before);
+    REQUIRE(hello_state(rig.bus, before).refused == 1);
+
+    // "THE MAKER REBUILT IT": the product is a copy of the same image, in `products/`.
+    rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
+    rig.offer("zengine-plain-weave");
+
+    // THE SAME WEAVE, STILL THERE, WITH THE STATE IT HAD.
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(rig.kernel.weave_id("zengine-plain-weave") == before);
+    CHECK(hello_state(rig.bus, before).refused == 1);
+    // ...AND THE OWNER SAYS SO, in the sentence the Builder shows.
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == "zengine-plain-weave");
+    CHECK(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("reloaded in place") != std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("weave #" + std::to_string(before.value)) !=
+          std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("keeps its id and its state") != std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("not the default yet") != std::string::npos);
+    CHECK_FALSE(rig.ears->answers[0].default_image);
+    // THE ROW IS RESOLVED AGAIN AND THE OWNER IS COMPLETE AGAIN; the frontier never moved.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    REQUIRE(rig.executor.resolved().size() == 1);
+    // THE IMAGE MOVED TO THE PER-OPERATION COPY, OFF THE LOADED PATH, and the plan's file
+    // is exactly what it was: the previous image.
+    const load::ResolvedArtifact& row = rig.executor.resolved()[0];
+    CHECK(row.image != rig.plan_file("zengine-plain-weave"));
+    CHECK(row.image.find("zengine-plain-weave.reloads/zengine-plain-weave-1") !=
+          std::string::npos);
+    CHECK(std::filesystem::exists(std::filesystem::path(row.image)));
+    CHECK(row.previous == rig.plan_file("zengine-plain-weave"));
+    CHECK_FALSE(row.default_image);
+    CHECK(rig.staging.reloads == 1);
+    // ...AND THE WEAVE STILL ANSWERS: a second forged room is refused and counted by the
+    // reloaded code.
+    forge_room(rig.bus, before);
+    CHECK(hello_state(rig.bus, before).refused == 2);
+}
+
+TEST_CASE("RELOAD-1: a changed shape is refused before the incumbent is touched, and the "
+          "refusal names the change") {
+    ReloadRig rig;
+    REQUIRE(rig.realize(one_live_weave()).ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
+    forge_room(rig.bus, before);
+    REQUIRE(hello_state(rig.bus, before).refused == 1);
+
+    // "THE REBUILT PRODUCT" KEEPS A DIFFERENT STATE: the introspection weave's image,
+    // staged as the plain weave's product. The kernel refuses before the swap.
+    rig.product("zengine-plain-weave", INTROSPECTION_SO);
+    rig.offer("zengine-plain-weave");
+
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    // THAT the shape changed, WHAT changed, and the kernel's own words after the maker's.
+    CHECK(rig.ears->answers[0].detail.find("keeps a different STATE") != std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("prepared replacement") != std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("Loom: state schema version mismatch") !=
+          std::string::npos);
+    // THE INCUMBENT IS UNTOUCHED: same id, same state, still serving; the row is
+    // resolved and the owner Complete; the image is still the plan's file; the copy was
+    // made (the host staged it) and simply not opened as the running code.
+    CHECK(rig.kernel.weave_id("zengine-plain-weave") == before);
+    CHECK(hello_state(rig.bus, before).refused == 1);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.resolved()[0].image == rig.plan_file("zengine-plain-weave"));
+    CHECK(rig.executor.resolved()[0].default_image);
+    CHECK(rig.executor.resolved()[0].previous.empty());
+    CHECK(rig.ears->answers[0].default_image);
+}
+
+TEST_CASE("RELOAD-1: the reload is bracketed by the host's operator offer, and the record "
+          "says so") {
+    // A CONSUMER WEAVE, loaded from the plan (the offer brackets the load: `Offered`),
+    // then reloaded from a copy of itself. The bracket goes up over the STAGED image,
+    // because that is the file the kernel opens, and the record says `Offered` again.
+    ReloadRig rig;
+    stage().put("zengine-consumer-weave", CONSUMER_SO);
+    REQUIRE(rig.realize(plan_of({weaves("zengine-consumer-weave", "zen.consumer")})).ok);
+    REQUIRE(rig.executor.resolved()[0].offer == op::OfferOutcome::Offered);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-consumer-weave");
+
+    rig.product("zengine-consumer-weave", CONSUMER_SO);
+    rig.offer("zengine-consumer-weave");
+
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_MESSAGE(rig.ears->answers[0].realized, rig.ears->answers[0].detail);
+    CHECK(rig.kernel.weave_id("zengine-consumer-weave") == before);
+    CHECK(rig.executor.resolved()[0].offer == op::OfferOutcome::Offered);
+    CHECK(rig.executor.resolved()[0].image.find(".reloads/") != std::string::npos);
+}
+
+TEST_CASE("RELOAD-1: a provider+weave row is refused in words: reloading its weave would "
+          "leave the catalog on the old image") {
+    ReloadRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 both("zengine-timer", "zengine.timer")}))
+                .ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-timer");
+
+    rig.product("zengine-timer", TIMER_SO);
+    rig.offer("zengine-timer");
+
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("also supplies operators to the catalog") !=
+          std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("unmount-and-remount is not built") !=
+          std::string::npos);
+    // NOTHING REACHED THE MANAGER AND NOTHING WAS STAGED: the words come before the copy.
+    CHECK(rig.staging.reloads == 0);
+    CHECK(rig.kernel.weave_id("zengine-timer") == before);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Resolved);
+    // ...AND A PROVIDER-ONLY ROW IS REFUSED FOR ITS OWN REASON.
+    rig.product("zengine-operators-basic", PROVIDER_BASIC_SO);
+    rig.offer("zengine-operators-basic");
+    REQUIRE(rig.ears->answers.size() == 2);
+    CHECK_FALSE(rig.ears->answers[1].realized);
+    CHECK(rig.ears->answers[1].detail.find("loaded no weave in this run") != std::string::npos);
+}
+
+TEST_CASE("RELOAD-1: a reload is one conversation: a second ask is refused while it is open, "
+          "a stray Ack settles nothing, and the frontier comes back") {
+    // A PLAN THAT IS WAITING, with one live row before the frontier, so the frontier
+    // has somewhere to come back to.
+    ReloadRig rig;
+    rig.waiting = {kUnbuilt};
+    REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain"),
+                                 weaves(kUnbuilt, "zen.oven")}))
+                .waiting_on == kUnbuilt);
+    rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
+    // OPEN THE RELOAD BY HAND, and hold it open: no turns are spent.
+    const load::PlanExecutor::Asked asked =
+        rig.executor.realize("zengine-plain-weave", "recipe-zengine-plain-weave");
+    REQUIRE_MESSAGE(asked.started, asked.refusal);
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Reloading);
+    // A SECOND ASK, OF ANY KIND, IS REFUSED: the owner is not between rows.
+    const load::PlanExecutor::Asked again =
+        rig.executor.realize("zengine-plain-weave", "recipe-zengine-plain-weave");
+    CHECK_FALSE(again.started);
+    CHECK(again.refusal.find("not between rows") != std::string::npos);
+    CHECK_FALSE(rig.executor.revert("zengine-plain-weave").started);
+    CHECK_FALSE(rig.executor.promote("zengine-plain-weave").ok);
+    // A STRAY `zen.Ack` FROM NOBODY SETTLES NOTHING: wrong sender, wrong correlation.
+    (void)rig.bus.send(rig.booter, loom::Message(loom::to_value(loom::Ack{}), loom::WeaveId{},
+                                                 loom::WeaveId{}, rig.executor.asking()));
+    rig.bus.pump_pending();
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Reloading);
+    // THE REAL ANSWER SETTLES IT, and the owner is back where the ask found it: waiting
+    // on the same row, with the same count of rows behind.
+    rig.drain(24);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
+    CHECK(rig.executor.behind() == 0);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
+    REQUIRE(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.resolved()[0].image.find(".reloads/") != std::string::npos);
+}
+
+TEST_CASE("RELOAD-1: every Loom reload refusal has a maker's sentence, and an unknown one is "
+          "quoted whole") {
+    // THE MAPPING, AS A PURE FUNCTION: the kernel's nine sentences, each answered with
+    // the artifact named, the next act said, and the kernel's words kept.
+    const std::string stem = "zengine-oven";
+    struct Row {
+        const char* loom;
+        const char* said;
+    };
+    const Row rows[] = {
+        {"state schema version mismatch; reload refused", "keeps a different STATE"},
+        {"accepted schema contract mismatch; reload refused", "answers to different MESSAGES"},
+        {"not loaded: zengine-oven", "this would be an initial load"},
+        {"open failed: dlopen said no", "did not open"},
+        {"library create() returned null", "produced no weave"},
+        {"new library refused: no host", "refused to construct"},
+        {"snapshot of the live weave failed: bad", "could not be snapshotted"},
+        {"revive after swap was refused", "could not take the saved state"},
+        {"the reload ended a prepared replacement that had bound this weave as its candidate",
+         "was a replacement candidate"},
+    };
+    for (const Row& row : rows) {
+        const std::string said = load::reload_refusal_words(stem, row.loom);
+        CHECK_MESSAGE(said.find(row.said) != std::string::npos, said);
+        CHECK_MESSAGE(said.find(stem) != std::string::npos, said);
+        CHECK_MESSAGE(said.find(std::string("(Loom: ") + row.loom + ")") != std::string::npos,
+                      said);
+    }
+    // THE TWO SHAPE MISMATCHES SAY WHERE THE ROAD GOES ON: a prepared replacement.
+    CHECK(load::reload_refusal_words(stem, "state schema version mismatch; reload refused")
+              .find("prepared replacement") != std::string::npos);
+    CHECK(load::reload_refusal_words(stem, "accepted schema contract mismatch; reload refused")
+              .find("prepared replacement") != std::string::npos);
+    // AN UNKNOWN REASON -- the control door's own activation block, say -- is quoted
+    // whole after a sentence that says who refused.
+    const std::string unknown =
+        load::reload_refusal_words(stem, "activation blocked: a replacement is pending");
+    CHECK(unknown.find("control door refused") != std::string::npos);
+    CHECK(unknown.find("(Loom: activation blocked: a replacement is pending)") !=
+          std::string::npos);
+
+    // ...AND ONE REACHED LIVE: a text file staged as the rebuilt product does not open,
+    // and the running weave is unchanged.
+    ReloadRig rig;
+    REQUIRE(rig.realize(one_live_weave()).ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
+    const std::filesystem::path text = rig.products() / "not-a-library.txt";
+    {
+        std::ofstream out(text, std::ios::binary | std::ios::trunc);
+        out << "this is not a shared library\n";
+    }
+    rig.product("zengine-plain-weave", text.string().c_str());
+    rig.offer("zengine-plain-weave");
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("did not open") != std::string::npos);
+    CHECK(rig.ears->answers[0].detail.find("(Loom: open failed:") != std::string::npos);
+    CHECK(rig.kernel.weave_id("zengine-plain-weave") == before);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+}
+
+TEST_CASE("RELOAD-1: the row is `reloading` while the conversation is open, keeps its "
+          "resolved fields, and is `resolved` again after") {
+    ReloadRig rig;
+    REQUIRE(rig.realize(one_live_weave()).ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
+    rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
+    REQUIRE(rig.executor.realize("zengine-plain-weave", "recipe-zengine-plain-weave").started);
+
+    // THE PROJECTION, MID-RELOAD: the sixth token, and the resolved fields still there --
+    // the weave is live and serving while the kernel decides.
+    const workshop::ResolvedArrangement mid =
+        workshop::describe_arrangement(rig.executor, "plan.json");
+    REQUIRE(mid.artifacts.size() == 1);
+    CHECK(mid.artifacts[0].state == std::string(workshop::kReloadingToken));
+    CHECK(mid.artifacts[0].weave == static_cast<std::int64_t>(before.value));
+    CHECK(mid.artifacts[0].offer == std::string(workshop::kNotAConsumerToken));
+    // ...AND THE OWNER'S OWN WORD IS `Loading`, reused: one conversation outstanding.
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.waiting_on().empty());
+    CHECK(rig.executor.behind() == 0);
+
+    rig.drain(24);
+    const workshop::ResolvedArrangement after =
+        workshop::describe_arrangement(rig.executor, "plan.json");
+    CHECK(after.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(after.artifacts[0].weave == static_cast<std::int64_t>(before.value));
+    CHECK(rig.executor.state() == load::Realization::Complete);
+}
+
+TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibling then "
+          "rename, and revert reloads the image before the last reload") {
+    ReloadRig rig;
+    REQUIRE(rig.realize(one_live_weave()).ok);
+    const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
+    forge_room(rig.bus, before);
+    REQUIRE(hello_state(rig.bus, before).refused == 1);
+    const std::string plan_file = rig.plan_file("zengine-plain-weave");
+
+    // BEFORE ANY RELOAD, A PROMOTION HAS NOTHING TO DO, and says so.
+    rig.promote("zengine-plain-weave");
+    REQUIRE(rig.ears->promotions.size() == 1);
+    CHECK_FALSE(rig.ears->promotions[0].promoted);
+    CHECK(rig.ears->promotions[0].detail.find("already runs from the file a restart loads") !=
+          std::string::npos);
+    // ...AND A REVERT HAS NO PREVIOUS IMAGE.
+    rig.revert("zengine-plain-weave");
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("no previous image") != std::string::npos);
+    CHECK(rig.ears->answers[0].default_image);
+
+    // THE RELOAD: a "rebuilt" product with one extra byte of trailing data, so the two
+    // images are distinguishable as bytes while identical as code.
+    {
+        std::error_code ec;
+        std::filesystem::copy_file(PLAIN_WEAVE_SO, rig.products() / "rebuilt.tmp",
+                                   std::filesystem::copy_options::overwrite_existing, ec);
+        REQUIRE(!ec);
+        std::ofstream out(rig.products() / "rebuilt.tmp", std::ios::binary | std::ios::app);
+        out << '\0';
+    }
+    rig.product("zengine-plain-weave", (rig.products() / "rebuilt.tmp").string().c_str());
+    rig.offer("zengine-plain-weave");
+    REQUIRE(rig.ears->answers.size() == 2);
+    REQUIRE_MESSAGE(rig.ears->answers[1].realized, rig.ears->answers[1].detail);
+    CHECK_FALSE(rig.ears->answers[1].default_image);
+    const std::string reloaded_from = rig.executor.resolved()[0].image;
+    REQUIRE(std::filesystem::file_size(std::filesystem::path(reloaded_from)) ==
+            std::filesystem::file_size(std::filesystem::path(PLAIN_WEAVE_SO)) + 1);
+    REQUIRE(std::filesystem::file_size(std::filesystem::path(plan_file)) ==
+            std::filesystem::file_size(std::filesystem::path(PLAIN_WEAVE_SO)));
+
+    // PROMOTE: the plan's file now holds the reloaded image's bytes, byte for byte, and
+    // the bytes it wrote over were KEPT at a per-operation path, so a revert still has the
+    // code the maker had.
+    rig.promote("zengine-plain-weave");
+    REQUIRE(rig.ears->promotions.size() == 2);
+    CHECK_MESSAGE(rig.ears->promotions[1].promoted, rig.ears->promotions[1].detail);
+    CHECK(rig.ears->promotions[1].detail.find("promoted") != std::string::npos);
+    CHECK(std::filesystem::file_size(std::filesystem::path(plan_file)) ==
+          std::filesystem::file_size(std::filesystem::path(reloaded_from)));
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::path(plan_file + ".promoting")));
+    CHECK(rig.executor.resolved()[0].default_image);
+    CHECK(rig.executor.resolved()[0].image == reloaded_from);
+    const std::string kept = rig.executor.resolved()[0].previous;
+    REQUIRE_FALSE(kept.empty());
+    CHECK(kept != plan_file);
+    CHECK(kept.find("-promoted-over") != std::string::npos);
+    CHECK(std::filesystem::file_size(std::filesystem::path(kept)) ==
+          std::filesystem::file_size(std::filesystem::path(PLAIN_WEAVE_SO)));
+
+    // REVERT AFTER THE PROMOTION: the kept image runs again -- same id, state kept -- and
+    // it is NOT the default any more, because the plan's file holds the promoted bytes.
+    rig.revert("zengine-plain-weave");
+    REQUIRE(rig.ears->answers.size() == 3);
+    CHECK_MESSAGE(rig.ears->answers[2].realized, rig.ears->answers[2].detail);
+    CHECK(rig.ears->answers[2].detail.find("reverted") != std::string::npos);
+    CHECK(rig.ears->answers[2].detail.find("runs the image before the last reload again") !=
+          std::string::npos);
+    CHECK(rig.executor.resolved()[0].image == kept);
+    CHECK(rig.executor.resolved()[0].previous == reloaded_from);
+    CHECK_FALSE(rig.executor.resolved()[0].default_image);
+    CHECK_FALSE(rig.ears->answers[2].default_image);
+    CHECK(rig.kernel.weave_id("zengine-plain-weave") == before);
+    CHECK(hello_state(rig.bus, before).refused == 1);
+
+    // ...AND A REVERT OF THE REVERT runs the promoted copy again, which IS the default:
+    // the owner knows which per-operation copy the plan's file holds, and says so.
+    rig.revert("zengine-plain-weave");
+    REQUIRE(rig.ears->answers.size() == 4);
+    CHECK_MESSAGE(rig.ears->answers[3].realized, rig.ears->answers[3].detail);
+    CHECK(rig.executor.resolved()[0].image == reloaded_from);
+    CHECK(rig.executor.resolved()[0].previous == kept);
+    CHECK(rig.executor.resolved()[0].default_image);
+    CHECK(rig.ears->answers[3].default_image);
+    CHECK(rig.kernel.weave_id("zengine-plain-weave") == before);
+    CHECK(hello_state(rig.bus, before).refused == 1);
+    // THE PLAN'S FILE WAS TOUCHED BY THE PROMOTION AND BY NOTHING ELSE.
+    CHECK(std::filesystem::file_size(std::filesystem::path(plan_file)) ==
+          std::filesystem::file_size(std::filesystem::path(reloaded_from)));
 }

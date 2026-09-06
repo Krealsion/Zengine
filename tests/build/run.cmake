@@ -26,7 +26,8 @@
 #   5. does a source path with a SPACE in it work
 #   6. does changing the source converge the artifact to the new source
 #   7. does a successful, eligible build enter the ALREADY RUNNING host's realization owner
-#   8. is an already-loaded artifact refused rather than silently reloaded
+#   8. does a rebuild of an artifact the host has LOADED land off the loaded file, reload in
+#      place with the same WeaveId, promote into the plan's file, and revert (RELOAD-1)
 #   9. does a FAILED build send no load request at all
 
 foreach(v ZEN_BUILD_DIR ZEN_WORK)
@@ -320,6 +321,9 @@ function(zen_expect_not said needle what)
 endfunction()
 
 set(artifact "${house}/zengine-oven${artifact_suffix}")
+# WHERE THE BUILD LANDS SINCE RELOAD-1: the recipe's workspace, under `out/`, never the file
+# the host has loaded. `artifact` above is the PLAN's file, which a realization copies into.
+set(product "${space}/out/zengine-oven${artifact_suffix}")
 
 # ---- 2, 5, 7. one .cpp -> a real artifact -> the RUNNING host's realization owner -------
 zen_witness("one source, built and realized" said --build oven --realize)
@@ -332,75 +336,97 @@ zen_expect("${said}" "RESULT build=succeeded realization=realized"
            "one .cpp did not become a realized artifact")
 zen_expect("${said}" "artifact-present=yes" "the artifact the recipe names is not on disk")
 zen_expect("${said}" "loaded=yes" "the Kernel does not hold the artifact it was handed")
+zen_expect("${said}" "default-image=yes" "a first realization does not run from the plan's file")
+if(NOT EXISTS "${product}")
+    message(FATAL_ERROR "build witness: ${product} was not produced in the workspace")
+endif()
 if(NOT EXISTS "${artifact}")
-    message(FATAL_ERROR "build witness: ${artifact} was not produced")
+    message(FATAL_ERROR
+        "build witness: ${artifact} was not staged beside the host by the realization")
 endif()
 message(STATUS "build witness: one .cpp -> a real Zengine artifact -> realized, in one run ok")
 
-# ---- 8. an already-loaded artifact is REFUSED, not silently reloaded --------------------
+# ---- 8. REBUILDING AN ARTIFACT THIS HOST HAS LOADED: off the loaded path, then in place ----
 #
-# The artifact is on disk now, so the row is no longer waiting: the plan realizes it at
-# startup, and a maker asking to realize it again is told what BLD-1 does not do.
-zen_witness("build and realize an artifact that is already live" again --build oven --realize)
-zen_expect("${again}" "loaded: zengine-oven" "the plan did not realize the built artifact")
-zen_expect("${again}" "RESULT build=succeeded realization=REFUSED"
-           "an already-loaded artifact was not refused")
-zen_expect("${again}" "already part of this running project"
-           "the refusal did not say why")
-zen_expect("${again}" "restart" "the refusal did not say what a maker should do instead")
-message(STATUS "build witness: an already-loaded artifact is refused in words ok")
-
-# ---- REBUILDING AN ARTIFACT THIS HOST HAS LOADED: two platforms, two answers -------------
-#
-# MEASURED RATHER THAN AVOIDED, because it is the hazard this repository has been writing
-# comments about since BLD-0 and nobody had put a number on it. The run below realizes the
-# artifact at startup -- so the process has the image OPEN -- and then rebuilds it:
-#
-#   Windows   the linker cannot open its own output. The build FAILS, with the platform's
-#             own words, and the running image is untouched.
-#   Linux     the link SUCCEEDS and replaces the file under a process that has it mapped.
-#
-# Neither is BLD-1 doing anything: it is what an operating system does with a mapped image,
-# and it is the strongest argument there is for the refusal above -- what a maker gets from
-# a rebuild of something live is a locked file or a silently divergent one, never a reload.
+# THE PATH RULE, MEASURED ON BOTH PLATFORMS. The run below realizes the artifact at startup --
+# so the process has the plan's file OPEN -- and rebuilds it from a changed source. Before
+# RELOAD-1 the recipe wrote the loaded file itself: Windows refused the link (`Permission
+# denied` / `LNK1168`) and Linux replaced the file under the running program. Now the build
+# lands in the workspace and the loaded file is byte-identical afterwards, on both.
+file(READ "${artifact}" loaded_before HEX)
 zen_write_oven("second" OFF)
-zen_witness("rebuild an artifact this host has loaded" live_rebuild --build oven)
-if(WIN32)
-    zen_expect("${live_rebuild}" "RESULT build=FAILED"
-               "Windows let a process relink a DLL it has mapped")
-    # ⚠ TWO LINKERS, TWO SENTENCES FOR ONE FACT, and both are the toolchain's own words
-    # reaching the maker rather than anything Zengine wrote: GNU `ld` says
-    # `cannot open output file ... Permission denied`, and MSVC `link` says
-    # `LNK1168: cannot open ... for writing`. Accepting either is the honest check;
-    # accepting neither would pin one lane's wording as if it were the platform's.
-    string(FIND "${live_rebuild}" "Permission denied" said_gnu)
-    string(FIND "${live_rebuild}" "LNK1168" said_msvc)
-    if(said_gnu EQUAL -1 AND said_msvc EQUAL -1)
-        message(FATAL_ERROR
-            "build witness: the link failed but neither linker's own reason reached the "
-            "maker -- expected `Permission denied` (GNU ld) or `LNK1168` (MSVC link).")
-    endif()
-    message(STATUS
-        "build witness: rebuilding a LOADED artifact fails at the link on Windows, and says "
-        "why ok")
-else()
-    zen_expect("${live_rebuild}" "RESULT build=succeeded"
-               "a rebuild of a loaded artifact failed on a platform that permits it")
-    message(STATUS
-        "build witness: rebuilding a LOADED artifact is permitted on this platform and "
-        "changes nothing about the image already running ok")
+zen_witness("rebuild an artifact this host has loaded, plainly" live_rebuild --build oven)
+zen_expect("${live_rebuild}" "loaded: zengine-oven" "the plan did not realize the built artifact")
+zen_expect("${live_rebuild}" "RESULT build=succeeded"
+           "a rebuild of a loaded artifact FAILED: the build wrote the loaded file")
+zen_expect("${live_rebuild}" "artifact-present=yes" "the rebuilt product is not in the workspace")
+file(READ "${artifact}" loaded_after HEX)
+if(NOT loaded_after STREQUAL loaded_before)
+    message(FATAL_ERROR
+        "build witness: a plain rebuild changed ${artifact}, the file the running host has "
+        "loaded. The product must land off the loaded path.")
 endif()
+message(STATUS
+    "build witness: a rebuild of a LOADED artifact lands in the workspace and leaves the loaded "
+    "file untouched, on this platform ok")
+
+# ---- ...AND THE RELOAD IN PLACE, WITH ITS TWO ACTS (RELOAD-1) ----------------------------
+#
+# The same rebuilt product, offered: the realization owner reloads the live weave from a copy
+# staged off the loaded path, keeps its WeaveId and its state, and says so. Then the witness
+# PROMOTES (the plan's file takes the running image's bytes, and is byte-identical to the
+# reload copy) and REVERTS (the image before the last reload runs again, and the row says so).
+zen_witness("reload a live artifact in place, promote it, revert it" reloaded
+            --build oven --realize --then-promote --then-revert)
+if(NOT reloaded_code EQUAL 0)
+    message(FATAL_ERROR "build witness: the reload run FAILED (exit ${reloaded_code})")
+endif()
+zen_expect("${reloaded}" "loaded: zengine-oven" "the plan did not realize the artifact at startup")
+zen_expect("${reloaded}" "witness: realization: reloaded in place"
+           "a rebuilt live artifact was not reloaded in place")
+zen_expect("${reloaded}" "keeps its id and its state" "the reload did not say the id and state were kept")
+zen_expect_not("${reloaded}" "restart" "the reload arm still says restart")
+zen_expect("${reloaded}" "default-image=no" "a reloaded image claimed to be the file a restart loads")
+zen_expect("${reloaded}" "witness: asking to promote" "the witness never asked to promote")
+zen_expect("${reloaded}" "witness: realization: promoted" "the promotion was not answered as promoted")
+zen_expect("${reloaded}" "witness: asking to revert" "the witness never asked to revert")
+zen_expect("${reloaded}" "witness: realization: reverted" "the revert was not answered as reverted")
+zen_expect("${reloaded}" "RESULT build=succeeded realization=realized"
+           "the reload run did not end realized")
+zen_expect("${reloaded}" "loaded=yes" "the Kernel does not hold the artifact after the reload")
+file(GLOB reload_copies "${house}/zengine-oven.reloads/zengine-oven-*${artifact_suffix}")
+list(LENGTH reload_copies reload_copy_count)
+if(reload_copy_count LESS 2)
+    message(FATAL_ERROR
+        "build witness: expected the reload copy and the kept image under "
+        "${house}/zengine-oven.reloads, found ${reload_copy_count}")
+endif()
+# THE PROMOTION, READ OFF THE BYTES: the plan's file now holds the reload copy, exactly.
+file(READ "${house}/zengine-oven.reloads/zengine-oven-1${artifact_suffix}" reload_copy HEX)
+file(READ "${artifact}" promoted HEX)
+if(NOT promoted STREQUAL reload_copy)
+    message(FATAL_ERROR
+        "build witness: after the promotion ${artifact} is not byte-identical to the reload "
+        "copy, so the next launch would not run the promoted image")
+endif()
+if(promoted STREQUAL loaded_before)
+    message(FATAL_ERROR
+        "build witness: the promotion changed nothing: ${artifact} still holds the old image")
+endif()
+message(STATUS
+    "build witness: a live artifact reloads in place, promotes into the plan's file, and "
+    "reverts, on this platform ok")
 
 # ---- 6. a changed source converges the artifact to the NEW source -----------------------
 #
 # A HOST THAT HAS NOT OPENED THE ARTIFACT, so what is measured is convergence and not the
 # platform question above.
-file(READ "${artifact}" before_bytes HEX)
+file(READ "${product}" before_bytes HEX)
 zen_write_oven("third" OFF)
 zen_witness_with("${work}/load-plan-host-only.json" "rebuild after changing the source"
                  changed --build oven)
 zen_expect("${changed}" "RESULT build=succeeded" "the rebuild did not succeed")
-file(READ "${artifact}" after_bytes HEX)
+file(READ "${product}" after_bytes HEX)
 if(after_bytes STREQUAL before_bytes)
     message(FATAL_ERROR
         "build witness: the artifact is byte-identical after the source changed. The build "
@@ -428,7 +454,7 @@ zen_expect_not("${broke}" "realization=realized" "a failed build was realized")
 zen_expect_not("${broke}" "realization=offered" "a failed build offered its artifact")
 zen_expect("${broke}" "the build failed, so nothing was offered"
            "a failed build did not say why nothing was realized")
-if(NOT EXISTS "${artifact}")
+if(NOT EXISTS "${product}")
     message(FATAL_ERROR
         "build witness: the failing build removed the previous artifact, so the stale-output "
         "question cannot be asked here at all.")
@@ -510,7 +536,7 @@ file(REMOVE_RECURSE "${canary_a}" "${space_a}")
 file(COPY "${prefix}/" DESTINATION "${canary_a}")
 file(REMOVE "${canary_a}/lib/cmake/zengine/zengineConfig.cmake")
 zen_write_recipes("\"${canary_a}\", \"${loom_prefix}\"" "${space_a}")
-file(REMOVE "${artifact}")
+file(REMOVE "${product}")
 zen_witness_with("${work}/load-plan-host-only.json" "the package config removed from the prefix"
                  canary_said --build oven)
 if(canary_said_code EQUAL 0)
@@ -543,7 +569,7 @@ if(EXISTS "${canary_b}/include/zengine/timer/vocabulary.hpp")
     message(FATAL_ERROR "build witness: the canary could not remove the header it needs to")
 endif()
 zen_write_recipes("\"${canary_b}\", \"${loom_prefix}\"" "${space_b}")
-file(REMOVE "${artifact}")
+file(REMOVE "${product}")
 zen_witness_with("${work}/load-plan-host-only.json" "one installed header removed" header_said
                  --build oven)
 if(header_said_code EQUAL 0)

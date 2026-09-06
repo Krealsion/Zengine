@@ -17,7 +17,7 @@ new one everywhere, because nothing else has a spelling of its own.
 A binding matches its modifiers **exactly**. `n` creates an object; `Ctrl`+`n` is a different
 gesture and does nothing unless something is bound to it. Where one family is deliberately
 spelled two ways — move and resize on `h j k l` and `Shift`+`h j k l`, build and
-build-and-realize on `b` and `Shift`+`b` — those are separate actions with separate bindings,
+load-after-build on `b` and `Shift`+`b` — those are separate actions with separate bindings,
 each remappable on its own.
 
 A remap changes how an action is **requested**, never what it may do or who performs it. The

@@ -154,8 +154,8 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   different truths with different owners, so the panel shows both and derives neither from the
   other: a build that worked whose realization was refused is a completely different situation
   from a build that failed. `c` moves the maker's choice through the recipes the tool published,
-  `b` builds the chosen one, and `Shift+b` builds it and offers the result to the running
-  project. The choice is genuinely the panel's — what the tool holds is what it *built*.
+  `b` builds the chosen one, and with *load after build* armed (`Shift+b`) it offers the result
+  to the running project too. The choice is genuinely the panel's — what the tool holds is what it *built*.
 
 What can be built is an **authored file** now, not a target compiled into the executable
 ([Builder](../workshop/builder.md)); what this Workshop ships is a recipe for

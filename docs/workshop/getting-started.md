@@ -14,7 +14,8 @@ without leaving the application. Your desk comes back on its own when you relaun
 
 **What it is not yet** is written down in [limitations](limitations.md) rather than left to
 be discovered — the editor holds one plain-ASCII file at a time, the document itself still
-needs `Ctrl`+`o` at launch, and a rebuilt artifact that is already live needs a restart.
+needs `Ctrl`+`o` at launch, and a rebuilt weave whose shape changed needs a prepared
+replacement rather than a reload.
 
 ## Launch it
 

@@ -1344,7 +1344,10 @@ TEST_CASE("EDIT-0: build and realize stay the Builder's, reached from the editor
     REQUIRE(r.tool->asked.size() == 1);
     CHECK(r.tool->asked[0] == "hello");
     CHECK(r.tool->realize_asked[0] == false);
+    // ...and, armed by `Shift+b` (one action in two states since RELOAD-2), the same `b`
+    // asks to build AND load.
     r.t.key(input::scan::kB, input::mod::kShift);
+    r.t.key(input::scan::kB);
     REQUIRE(r.tool->asked.size() == 2);
     CHECK(r.tool->realize_asked[1] == true);
     // ...and the editor still holds the document, caret coherent, for the next edit.

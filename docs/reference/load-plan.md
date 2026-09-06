@@ -239,7 +239,7 @@ Every eligibility rule is about the **authored plan**:
 | refused when | because |
 |---|---|
 | a realization is already in flight | one is not interruptible, and queueing one would make this a scheduler |
-| the row is already **resolved** | **this is where hot reload is refused** — nothing unloads, replaces or migrates, so an artifact already live is told so in words |
+| the row is already **resolved** | **this is the reload arm** (RELOAD-1) — a live weave-only row is reloaded in place from its rebuilt product, same `WeaveId`, state kept, same shapes only; a provider+weave row, a provider-only row, a host with no staging rule and every kernel refusal are refused in words |
 | the plan does not name the artifact | a build can produce a file; only the project's plan can say how it participates |
 | it is not the row being waited on | authored order is realization order — a later row may be **built** now, and it participates when the rows in front of it have. The refusal names the row it is behind |
 

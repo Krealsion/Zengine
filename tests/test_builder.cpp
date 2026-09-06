@@ -2349,3 +2349,41 @@ TEST_CASE("PROJ-0: the two build participants declare no catalog storage of thei
           std::string::npos);
     CHECK(tool.find("BuilderWeave(std::vector<RecipeView>&&) = delete;") != std::string::npos);
 }
+
+TEST_CASE("RELOAD-1: a realized artifact is answered about again -- a promotion lands on the "
+          "realize row, a revert's answer replaces it, and a stranger's is counted") {
+    Live live({cmake_recipe("quick", "fixture-quick")});
+    live.tell_tool(BuildRequested{"quick", /*realize=*/true});
+    live.carry_until_over();
+    REQUIRE(live.ears->last().realization == realization::kOffered);
+    // THE PROJECT TOOK IT, AND SAYS IT IS NOT THE DEFAULT: a reload in place.
+    live.tell_tool(ArtifactRealized{"fixture-quick", true, "reloaded in place", false});
+    REQUIRE(live.ears->last().realization == realization::kRealized);
+    CHECK_FALSE(live.ears->last().default_image);
+
+    // A PROMOTION ABOUT SOMEBODY ELSE'S ARTIFACT IS SOMEBODY ELSE'S CONVERSATION.
+    const std::int64_t stray = live.tool->known().stray;
+    live.tell_tool(ArtifactPromoted{"some-other-artifact", true, "promoted"});
+    CHECK(live.tool->known().stray == stray + 1);
+    CHECK_FALSE(live.ears->last().default_image);
+
+    // A PROMOTION OF THIS ONE lands on the realization row: still realized, now the
+    // default, in the owner's words.
+    live.tell_tool(ArtifactPromoted{"fixture-quick", true, "promoted: the next launch runs it"});
+    CHECK(live.ears->last().realization == realization::kRealized);
+    CHECK(live.ears->last().default_image);
+    CHECK(live.ears->last().realized_detail.find("promoted") != std::string::npos);
+    // ...AND THE BUILD IS UNTOUCHED.
+    CHECK(live.ears->last().outcome == outcome::kSucceeded);
+
+    // A REVERT ANSWERS AS A REALIZATION, and a realized artifact is answered about again.
+    live.tell_tool(ArtifactRealized{"fixture-quick", true, "reverted", false});
+    CHECK(live.ears->last().realization == realization::kRealized);
+    CHECK_FALSE(live.ears->last().default_image);
+    CHECK(live.ears->last().realized_detail == "reverted");
+    // A REFUSED PROMOTION changes the words and not the bit.
+    live.tell_tool(ArtifactPromoted{"fixture-quick", false, "could not replace: busy"});
+    CHECK_FALSE(live.ears->last().default_image);
+    CHECK(live.ears->last().realized_detail.find("busy") != std::string::npos);
+    CHECK(live.ears->last().realization == realization::kRealized);
+}

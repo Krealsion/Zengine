@@ -39,6 +39,16 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <cstdio>
 
 namespace {
@@ -85,6 +95,14 @@ struct PopulationListener : doctest::IReporter {
 DOCTEST_REGISTER_LISTENER("zengine-population", 0, PopulationListener);
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+    // THE SUITES ARE HOSTS TOO, and say what a bad image means the way Workshop does: a
+    // refusal, never a modal. A case that stages a non-library as a rebuilt product hung
+    // a CI runner inside `ntdll!ZwRaiseHardError` under `LoadLibrary` until the job's
+    // timeout (RELOAD-1, measured through gdb on the runner); a desktop session refused
+    // the same file with error 193 and the case passed. The lane must not depend on which.
+    ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+#endif
     doctest::Context context(argc, argv);
     const int result = context.run();
 

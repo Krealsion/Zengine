@@ -128,7 +128,7 @@ That is what a project looks like on its first run: the plan says how the artifa
 participates, the artifact has not been built yet, and Workshop still starts. The Builder pane
 shows the same fact on its `project` row — the waiting artifact, the recipe that produces it,
 and how many authored rows are stopped behind it — and **`f`** builds and realizes it in one
-gesture (or `Shift+b`, having chosen the recipe with `c`; see
+gesture (or `b` with *load after build* armed, having chosen the recipe with `c`; see
 [the frontier](builder.md#the-project-frontier)). Its authored participation is performed **in
 the same run** — the role, the mount mode and the order all come from this file, and the
 Builder supplies nothing but the file. The moment it settles, the rows after it are performed
@@ -145,13 +145,15 @@ participating are different things. Asking to *realize* it early is answered wit
 the artifact the project is waiting on, and nothing changes.
 
 An artifact that is missing and that **nothing here can build** still refuses the plan by name.
-And an artifact that is already loaded is refused rather than reloaded: a rebuilt file has not
-changed the image that is running.
+And an artifact that is already loaded is **reloaded in place** when you load its rebuilt
+product — same `WeaveId`, state kept, same shapes only; the plan's row is untouched, and which
+image a restart loads is a separate, explicit act (see [Builder](builder.md)).
 
 The `Project` pane calls the waiting row `pending`, and every row behind it `authored`.
 
 ## What a plan cannot do
 
 No directory scan, no artifact enumeration, no dependency resolution, no version consultation,
-no network, no resolution cache, and no rewriting itself. And **no unload and no reload**: a
-plan is initial and restart intent. See [limitations](limitations.md#lifecycle).
+no network, no resolution cache, and no rewriting itself. And **no unload and no replacement**:
+a plan is initial and restart intent, and a reload in place changes no row of it. See
+[limitations](limitations.md#lifecycle).
