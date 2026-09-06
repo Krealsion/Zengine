@@ -309,6 +309,15 @@ jobs:
       # into a slack floor, so a green here means the same test-population thing. The
       # numbers are in that file; a workflow comment that repeated them would be one
       # more copy to go stale, and this one had.
+      # DIAGNOSTIC (RELOAD-1, temporary): the load suite hung on this runner alone for the
+      # whole job timeout while it passes locally in 14 s; print each case as it finishes so
+      # the log names the one that never does. Bounded, and it fails nothing on its own.
+      - name: Diagnose -- the load suite, case by case
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          & '.uild-win	ests\zengine-workshop-load-tests.exe' -d -s 2>&1 | Select-Object -Last 400
+
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
