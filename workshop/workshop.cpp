@@ -247,6 +247,16 @@ Arguments parse_arguments(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+    // A HOST THAT OPENS ARTIFACTS SAYS WHAT A BAD ONE MEANS: a refusal in words, never a
+    // modal dialog. Windows raises a hard error -- a message box the process waits on --
+    // when `LoadLibrary` is handed a file that is not a valid image, unless the process
+    // says otherwise; measured (RELOAD-1): a rebuilt product that was not a library hung
+    // the load suite on a CI runner inside `ntdll!ZwRaiseHardError` until the job's
+    // timeout, while the same file on a desktop session was refused with error 193. The
+    // error mode is inherited by children, so the Builder's runner is covered too.
+    ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+#endif
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
