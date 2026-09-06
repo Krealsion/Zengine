@@ -55,6 +55,7 @@
 #include <sstream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -162,8 +163,8 @@ RecipeView view_of(const Recipe& r) {
 }
 
 /// Drive one held process to its end the way nothing in production does -- by
-/// looking as fast as it can -- and answer everything it said plus how many
-/// looks it took.
+/// looking again the instant the last look found nothing -- and answer everything
+/// it said plus how many looks it took.
 struct Drained {
     std::string said;
     std::int64_t looks = 0;      ///< looks taken in total
@@ -174,9 +175,35 @@ struct Drained {
     std::string trouble;
 };
 
-Drained drain(RunningRecipe& process, int guard = 2000000) {
+/// HOW LONG A DRAIN WILL WAIT BEFORE IT GIVES UP -- a clock, because what it is
+/// waiting for is measured in time and not in machine speed.
+///
+/// This loop used to stop after two million looks, and that bound was a bound on
+/// the wrong quantity. A look is one non-blocking read (builder/run.hpp), so a
+/// count of looks is a count of syscalls, while the thing being waited for is a
+/// child that sleeps for six tenths of a second: `slow(4, "0.15")`, the longest
+/// recipe any case here drains, says `done` only after 0.6 s of `cmake -E sleep`.
+/// Measured on this workspace's fastest machine (WSL2, Ryzen 9 7900X) the child
+/// took 690 ms and the loop spent 1.40-1.47 M looks getting there -- a margin of
+/// about 1.4x under the old count. A runner half again as quick at a syscall
+/// spends two million of them before the child has finished sleeping, and the
+/// case then fails for having looked too fast. That is not hypothetical: it
+/// reddened `:701` and `:704` of "a started recipe is HELD" on the Linux
+/// canonical CI job twice in three attempts, in pull requests that touched
+/// nothing in this package.
+///
+/// Thirty seconds is FIFTY TIMES the wall time the child is known to need, so a
+/// machine fifty times slower than the one above still finishes inside it. It is
+/// a HANG GUARD, not a schedule: it exists so a `look()` that never reports an
+/// ending fails a case instead of hanging a lane, and no passing run comes within
+/// a factor of forty of it.
+constexpr std::chrono::seconds kDrainPatience{30};
+
+Drained drain(RunningRecipe& process,
+              std::chrono::milliseconds patience = kDrainPatience) {
     Drained out;
-    while (guard-- > 0) {
+    const auto deadline = std::chrono::steady_clock::now() + patience;
+    while (std::chrono::steady_clock::now() < deadline) {
         const RunLook seen = process.look();
         ++out.looks;
         if (!seen.fresh.empty()) {
@@ -190,6 +217,11 @@ Drained drain(RunningRecipe& process, int guard = 2000000) {
             out.trouble = seen.trouble;
             return out;
         }
+        // A LOOK THAT FOUND NOTHING WAS A LOOK TOO EARLY: hand the core back
+        // rather than ask again in the same instant. The look itself stays
+        // non-blocking -- that is the property these cases measure, and it is
+        // untouched -- so this is the loop's manners and not the mechanism's.
+        std::this_thread::yield();
     }
     return out;
 }
