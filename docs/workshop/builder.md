@@ -80,6 +80,59 @@ The choice lasts for the session. Nothing is remembered: the next launch picks i
 Once you have changed catalogs, the Builder pane carries a `catalog` row naming the one in
 force, so the banner's answer being out of date is not something you have to keep in your head.
 
+## Authoring a recipe from Files
+
+A recipe row can be written from inside Workshop, one at a time. In the [Files](files.md) pane
+put the cursor anywhere in a directory and press **`a`** (*pick buildable*). A chooser lists what
+that directory can at least *try* to build: every `.cpp` file, and every directory that holds a
+`CMakeCache.txt` — a **configured** CMake tree. A directory with only a `CMakeLists.txt` is a
+source tree, not a candidate; nothing reads it, and nothing guesses what it would produce.
+
+Choose one with `↑` `↓` and `Return`. Then answer, one line at a time, the few things nothing can
+detect: for a source, the recipe's name (suggested from the file), the artifact stem (suggested
+from the name), the package prefix — or several, comma-separated — and the link targets; for a
+tree, the name, the CMake target, the stem, and an optional artifact directory. `Return` commits a
+field; a required field left blank is refused and asked again; `Escape` cancels the whole thing,
+and nothing was written. Every field is typed as you would type it into the file, and that is how
+it is written: the source or the tree as Files spelled it, the lists as you gave them, nothing
+completed, nothing resolved.
+
+Where the row goes:
+
+- If the catalog in force is one **you named** (`--recipes`, or `u` in Files) or one `a` already
+  created, the row is appended to *that* file, after the rows exactly as they were written.
+- If the **shipped default** is in force, the row goes into **`build-recipes.json` in your
+  project**, seeded with the shipped rows so nothing you could build disappears — and that file
+  becomes the catalog in force, as if you had pressed `u` on it. The shipped file is never written.
+- With no catalog at all, the project catalog is created from the new row alone.
+
+The file is saved the same way every other Workshop file is — written beside itself and renamed
+into place — and installed through the same door `u` uses, so the Builder shows the new recipe at
+once. A row the recipe law refuses (a duplicate name, a `-l` where a target name belongs) is
+refused whole in the law's own words, and the file's bytes are exactly what they were. Editing or
+removing a row is still a text editor's job.
+
+## Loading a built artifact into the plan
+
+The reload story [below](#load-after-build-and-reload-in-place) needs the project to already
+name the artifact. When it does not — a recipe you just authored, say — press **`o`** (*load it*)
+on the chosen recipe. Workshop asks for one thing, the **role** the weave should occupy, and
+refuses an empty one in the plan's own words. Then:
+
+1. the row `{ artifact, weave: { role } }` is handed to the running project **first**, and the
+   project walks to it exactly as it walks a startup row: an artifact whose file is where the
+   plan loads from is loaded now; one that is not becomes the frontier, `pending`. A product
+   that a plain `b` left in its workspace is the second case — the realize row then reads
+   `B loads <artifact> now`, and that button (or `f`) stages it and loads it. A project that
+   refuses (the stem is already in the plan; a row is mid-conversation; the arrangement stopped
+   at a refusal) refuses the whole act, and nothing is written;
+2. then the row is appended to **`workshop-plan.json` in your project** — the plan in force as
+   it was read, plus the new row, through the same codec that reads it.
+
+That file is the plan in force next time you launch from that directory with no `--load-plan`;
+see [load plans](load-plans.md). `o` on an artifact the plan already names refuses and points at
+`B`, which is the gesture that builds *and* loads a named artifact.
+
 ## Using it
 
 Open the pane with **`p`** → `Builder` → `Enter`. Then:
@@ -91,6 +144,7 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`Shift+b`** | **load after build** — one action in two states. Before or during a build it is a *toggle*: armed, the next `b` builds **and** loads the result into the running project. When an artifact is built, nothing was asked about loading it and nothing is armed, it is a *button*: press it and the built artifact is loaded now |
 | **`Shift+p`** | **promote** the running image — make it the file a restart loads (after a reload in place; below) |
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
+| **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
 | **`p`** | remove the pane |
@@ -180,7 +234,8 @@ around it, and CMake compiles and links it.
   is read, so the editor, the check that the file exists, and the generated project that
   compiles it all name the same file. That stays true of a catalog you choose later: it is
   completed against the same project, wherever the file itself happens to live. Your recipe
-  file is never rewritten: what you wrote stays what you wrote.
+  file is never rewritten behind your back: what you wrote stays what you wrote, and the one
+  thing that adds to it is your own `a` in Files ([below](#authoring-a-recipe-from-files)).
 - `packages` is `CMAKE_PREFIX_PATH`. The generated project says `find_package(zengine CONFIG
   REQUIRED)` and nothing else, so it is an **ordinary external consumer** of the installed
   package — the same thing any other project is. If the prefix does not carry a Zengine
@@ -293,8 +348,10 @@ leaves the row waiting until you load it: nothing is realized because a file app
 - **No automatic build-on-missing.** Nothing starts a build because a file is absent. A maker
   presses a key.
 - **No recipe discovery.** Nothing searches for recipe files, adopts a conventional filename,
-  reads a `CMakeLists.txt`, detects a build system or writes a recipe for you. The catalog is a
-  file you named — at launch, or by pointing at it.
+  reads a `CMakeLists.txt`, detects a build system or writes a recipe on its own. A recipe is
+  written when *you* press `a` on a source or a configured tree in Files and answer its
+  questions. The catalog is a file you named — at launch, by pointing at it, or the project's
+  `build-recipes.json` that `a` creates.
 - **No rewriting of a build that is already running.** Changing catalogs while a build is in
   flight does not cancel it, restart it or re-aim it: that operation finishes from the facts it
   started with, and its result is reported as being about the recipe that actually started it.
@@ -305,8 +362,8 @@ leaves the row waiting until you load it: nothing is realized because a file app
 
 ## What the pane still asks of a maker
 
-- A recipe file is edited in a text editor, not in Workshop. There is no recipe editor and no
-  way to add a single recipe at run time — what you can change at run time is *which whole
+- A recipe row is *added* from Files (`a`) and *edited or removed* in a text editor. There is
+  no recipe editor: what you can change at run time is one appended row, or *which whole
   catalog file* is in force. (A `single_source` recipe's **source** opens in Workshop's own
   editor with `e`; any other project file — a recipe catalog included — opens from the
   [Files](files.md) pane, see [the source editor](editor.md).)

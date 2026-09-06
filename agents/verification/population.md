@@ -170,6 +170,7 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 | contextual, press-chain | `workshop_panels`, `workshop_screen`, `workshop_document` |
 | document | `workshop_document`; the file half (document-file) in `workshop_persistence` |
 | editor, files, project | `workshop_editor` and `workshop_files`; project also `workshop_panels` |
+| authoring | `workshop_files` (the chooser), `workshop_panels` (`o`), `workshop_load` (the append door and the plan writer) |
 | focus | `workshop_panes` (input), then `workshop_editor`, `workshop_files`, `workshop_document` |
 | keyboard, text-box | `workshop_document`; text-box also `component` |
 | layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |

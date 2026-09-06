@@ -23,7 +23,7 @@ WHY — `agents/decisions/project-is-several-mechanisms.md`
 LAW — Completion is the one place a host fact enters a recipe — the artifact directory and the workspace from the install, a relative source against the project — and it runs once per install.
 
 MEANS
-- the recipe file is never rewritten;
+- completion never rewrites the recipe file; only a maker's own act appends a row (WL-AUTH-01);
 - the falsifier: the project and the workspace both hold `src/example.cpp` with different bytes.
 
 PROVEN BY — `workshop/recipe_persist.hpp` `WorkshopRecipe::artifact_dir`,
@@ -75,7 +75,7 @@ case `"PROJ-1: a candidate that cannot be read installs nothing at all"`, case `
 EMPTY catalog is a replacement, not a failure"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
-## WL-PROJ-05 — The first live chooser is `files.use-recipes`
+## WL-PROJ-05 — The first live chooser is `files.use-recipes`, and the authoring one spends it
 
 LAW — `u` in Project Files resolves a row to a path as activation does, refuses a directory and an uncarriable name, and hands it to `use_recipes`; every judgement about the bytes is the recipe owner's.
 

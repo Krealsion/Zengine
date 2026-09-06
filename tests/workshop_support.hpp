@@ -3217,7 +3217,7 @@ inline std::vector<std::string> presentation_sources() {
     // spelling. No presentation includes it, and it names the owner it serves.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
-                                                "staging.hpp"};
+                                                "staging.hpp", "authoring.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :
          std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {

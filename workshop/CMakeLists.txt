@@ -182,6 +182,7 @@ add_library(zengine-workshop-logic STATIC
     weave_save.cpp
     weave_seam.cpp
     weave_session.cpp
+    weave_recipes.cpp
     weave_terminal.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary

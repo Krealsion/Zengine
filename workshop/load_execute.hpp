@@ -1274,6 +1274,67 @@ public:
                         std::string()};
     }
 
+    // ---- A row appended to the plan, because a maker asked (LOAD-IT) -----------------
+
+    /// WHAT APPENDING ONE AUTHORED ROW CAME TO, IMMEDIATELY. `accepted` false means the
+    /// plan is exactly what it was and `refusal` says why; true means the row is the plan's
+    /// last and `detail` says what happened to it: performed and resolved (a provider-only
+    /// row settles inside this call), loading (a weave row's conversation is outstanding),
+    /// pending (the host said it is waiting on the maker), or authored behind the frontier.
+    struct Appended {
+        bool accepted = false;
+        std::string refusal;
+        std::string detail;
+    };
+
+    /// APPEND ONE AUTHORED ROW TO THE PLAN THIS OWNER IS REALIZING, and perform it by the
+    /// ordinary three steps when the walk has room to.
+    ///
+    /// THE PLAN'S OWN LAW FIRST: the row and the whole plan are checked exactly as a file's
+    /// rows are, so a duplicate stem or an empty role is refused by the same sentence the
+    /// file would get. THEN THE OWNER'S STATE: in `Complete` the walk resumes from the new
+    /// row -- the `awaiting_` predicate decides whether it loads now or waits, exactly as
+    /// at startup -- and `Complete` means what it says again once the row settles; in
+    /// `Waiting` the row is `Authored` behind the frontier and is reached when the walk
+    /// resumes; `Unstarted`, `Loading`, `Advancing` and `Failed` refuse, because a row
+    /// appended under a conversation, a refusal or a plan that never began has no honest
+    /// place to go.
+    ///
+    /// ⚠ NOTHING HERE WRITES A FILE. The plan a maker's act persists is the host's
+    /// (`workshop/authoring.hpp`); this owner's copy is the AUTHORED half the projection
+    /// reads, and it gains the row so the Project pane can say `pending` or `resolved` of it.
+    // WL-AUTH-03 -- agents/workshop/authoring.md
+    Appended append(ArtifactIntent row) {
+        if (state_ == Realization::Unstarted || state_ == Realization::Failed ||
+            state_ == Realization::Loading || state_ == Realization::Advancing) {
+            return Appended{false, why_not_asked_now(), std::string()};
+        }
+        LoadPlan candidate = plan_;
+        candidate.artifacts.push_back(std::move(row));
+        const Written legal = check_plan(candidate);
+        if (!legal.accepted) {
+            return Appended{false, legal.refusal, std::string()};
+        }
+        plan_ = std::move(candidate);
+        const std::string& stem = plan_.artifacts.back().stem;
+        if (state_ == Realization::Waiting) {
+            return Appended{true, std::string(),
+                            "authored behind '" + waiting_on() + "', which the project is waiting on"};
+        }
+        // COMPLETE: the cursor rests at the old end, which is exactly the new row.
+        state_ = Realization::Advancing;
+        advance();
+        std::string said;
+        switch (state_of(stem)) {
+        case RowState::Resolved: said = "resolved"; break;
+        case RowState::Loading: said = "loading"; break;
+        case RowState::Pending: said = "pending -- the project is waiting on it"; break;
+        case RowState::Refused: said = "refused: " + refusal_; break;
+        default: said = "authored"; break;
+        }
+        return Appended{true, std::string(), said};
+    }
+
     /// IS THIS ROW'S RUNNING IMAGE THE FILE A RESTART LOADS? False for a stem this run
     /// did not resolve -- the answer a refusal about it carries.
     bool default_image_of(const std::string& stem) const noexcept {

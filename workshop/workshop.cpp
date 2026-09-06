@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/project.md (+2 registers; agents/workshop.md routes)
 
 #include "arrangement.hpp"
+#include "authoring.hpp"
 #include "host_sources.hpp"
 #include "sample_door.hpp"
 #include "load_execute.hpp"
@@ -394,9 +395,14 @@ int main(int argc, char** argv) {
     }
     host.transition_note = transition;
 
-    const std::string plan_path =
-        args.load_plan.empty() ? host.dir + "/" + load_persist::kDefaultLoadPlanName
-                               : args.load_plan;
+    // WHICH PLAN IS IN FORCE: `--load-plan`, else the PROJECT plan at the captured root when
+    // there is one (LOAD-IT authors it), else the shipped default. One rule, in
+    // `load_persist::plan_in_force`, pinned as a pure function.
+    const std::string plan_path = load_persist::plan_in_force(
+        args.load_plan, host.project_dir, host.dir, [](const std::string& path) {
+            std::error_code ec;
+            return std::filesystem::exists(std::filesystem::path(path), ec) && !ec;
+        });
 
     // The honest line, in plain scrollback, exactly as snake's host prints it:
     // this host isolates nothing. (The `--isolated` below is about the maker's FILES,
@@ -1372,6 +1378,29 @@ int main(int argc, char** argv) {
         now.waiting = !now.artifact.empty();
         now.blocked = executor.behind();
         return now;
+    };
+
+    // ---- THE TWO AUTHORED FILES GAIN A WRITER, THE MAKER'S OWN ACT (PICK-1, LOAD-IT) --
+    //
+    // Both rules are `workshop/authoring.hpp`'s, wired the way `use_recipes` is: over the
+    // owners this host already holds, read at the moment of the act. A recipe row goes
+    // into the catalog in force or a project catalog seeded from it; a plan row goes into
+    // the project plan seeded from the plan read at launch, and only after the running
+    // project took it.
+    authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,
+                                          host.use_recipes};
+    host.author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
+        return authoring::author_recipe(recipe_author, draft);
+    };
+    authoring::PlanAuthor plan_author{
+        host.project_dir.empty() ? std::string()
+                                 : host.project_dir + "/" + load_persist::kProjectLoadPlanName,
+        read_plan.plan, &executor};
+    host.append_plan_row = [&plan_author](const std::string& stem, const std::string& role) {
+        return authoring::append_plan_row(plan_author, stem, role);
+    };
+    host.plan_names = [&plan_author](const std::string& stem) {
+        return authoring::plan_names(plan_author, stem);
     };
 
     // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS -------------------

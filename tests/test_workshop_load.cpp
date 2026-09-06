@@ -44,6 +44,7 @@
 #include "timer/normalize.hpp"
 #include "timer/vocabulary.hpp"
 #include "workshop/arrangement.hpp"
+#include "workshop/authoring.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
@@ -4848,4 +4849,221 @@ TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibl
     // THE PLAN'S FILE WAS TOUCHED BY THE PROMOTION AND BY NOTHING ELSE.
     CHECK(std::filesystem::file_size(std::filesystem::path(plan_file)) ==
           std::filesystem::file_size(std::filesystem::path(reloaded_from)));
+}
+
+// ============================================================================
+// Tier 10 -- A ROW APPENDED TO THE PLAN, BECAUSE A MAKER ASKED (LOAD-IT)
+//
+// The executor gains one door, `append`: the plan's own law first, then the owner's state.
+// In `Complete` the walk resumes from the new row by the ordinary three steps; in `Waiting`
+// the row is authored behind the frontier; under a conversation, a refusal or a plan that
+// never began it is refused in words. Nothing here writes a file; the host's writer
+// (`workshop/authoring.hpp`) asks this door FIRST and writes the project plan after.
+
+TEST_CASE("LOAD-IT: `append` in Complete performs the new row by the ordinary three steps, and "
+          "Complete means complete again") {
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+    // THE ROW IS APPENDED AND PERFORMED: the offer, the load, the conversation -- the
+    // owner is `Loading`, as a startup weave row leaves it.
+    const load::PlanExecutor::Appended taken =
+        rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
+    REQUIRE_MESSAGE(taken.accepted, taken.refusal);
+    CHECK(taken.detail == "loading");
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.plan().artifacts.size() == 2);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Loading);
+    rig.drain(16);
+    // ...AND COMPLETE MEANS COMPLETE AGAIN, with the new row resolved in authored order.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.outcome().ok);
+    REQUIRE(rig.executor.resolved().size() == 2);
+    CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
+    CHECK(rig.executor.resolved()[1].role == "zen.plain");
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+    // THE PROJECTION READS THE APPENDED ROW off the same owner.
+    const workshop::ResolvedArrangement said =
+        workshop::describe_arrangement(rig.executor, "plan.json");
+    REQUIRE(said.artifacts.size() == 2);
+    CHECK(said.artifacts[1].artifact == "zengine-plain-weave");
+    CHECK(said.artifacts[1].state == std::string(workshop::kResolvedToken));
+    // A PROVIDER-ONLY ROW SETTLES INSIDE THE CALL, as at startup (an overlay, because
+    // the basic provider already supplies `math.max` and a silent shadowing is refused).
+    const load::PlanExecutor::Appended synchronous =
+        rig.executor.append(provides("zengine-provider-min", op::MountMode::Overlay));
+    REQUIRE_MESSAGE(synchronous.accepted, synchronous.refusal);
+    CHECK(synchronous.detail == "resolved");
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.catalog.mounted(kMinProvider));
+}
+
+TEST_CASE("LOAD-IT: `append` while Waiting queues the row behind the frontier as `authored`") {
+    std::error_code ec;
+    std::filesystem::remove(stage().so(kBuiltLate), ec);
+    REQUIRE(!ec);
+    PendingRig rig;
+    rig.waiting = {kBuiltLate};
+    REQUIRE(rig.realize(plan_of({weaves(kBuiltLate, "zen.late")})).waiting_on == kBuiltLate);
+    // BEHIND THE FRONTIER: authored, not looked at, and the frontier unmoved.
+    const load::PlanExecutor::Appended taken =
+        rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
+    REQUIRE_MESSAGE(taken.accepted, taken.refusal);
+    CHECK(taken.detail.find("authored behind '" + std::string(kBuiltLate) + "'") !=
+          std::string::npos);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kBuiltLate);
+    CHECK(rig.executor.behind() == 1);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    // WHEN THE FRONTIER SETTLES, THE WALK REACHES THE APPENDED ROW in authored order.
+    stage().put(kBuiltLate, PLAIN_WEAVE_SO);
+    REQUIRE(rig.executor.realize(kBuiltLate).started);
+    rig.drain(24);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    REQUIRE(rig.executor.resolved().size() == 2);
+    CHECK(rig.executor.resolved()[0].stem == kBuiltLate);
+    CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
+    // ...AND AN APPENDED ROW THE HOST SAYS IS WAITING becomes the new frontier.
+    rig.waiting.push_back(kUnbuilt);
+    const load::PlanExecutor::Appended pending = rig.executor.append(weaves(kUnbuilt, "zen.oven"));
+    REQUIRE_MESSAGE(pending.accepted, pending.refusal);
+    CHECK(pending.detail.find("pending") != std::string::npos);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
+}
+
+TEST_CASE("LOAD-IT: `append` is refused mid-row and after a refusal, and a duplicate stem is "
+          "refused") {
+    {
+        // BEFORE THE PLAN BEGAN.
+        PlanRig rig;
+        const load::PlanExecutor::Appended early =
+            rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
+        CHECK_FALSE(early.accepted);
+        CHECK(early.refusal.find("has not begun") != std::string::npos);
+        CHECK(rig.executor.plan().artifacts.empty());
+    }
+    {
+        // MID-ROW: a conversation is open and no turn has been spent.
+        PlanRig rig;
+        rig.executor.begin(plan_of({weaves("zengine-plain-weave", "zen.plain")}));
+        REQUIRE(rig.executor.state() == load::Realization::Loading);
+        const load::PlanExecutor::Appended mid =
+            rig.executor.append(provides("zengine-operators-basic"));
+        CHECK_FALSE(mid.accepted);
+        CHECK(mid.refusal.find("not between rows") != std::string::npos);
+        CHECK(rig.executor.plan().artifacts.size() == 1);
+        rig.drain(16);
+        REQUIRE(rig.executor.state() == load::Realization::Complete);
+        // A DUPLICATE STEM IS THE PLAN'S OWN REFUSAL, in the file's own words, and the
+        // plan is exactly what it was.
+        const load::PlanExecutor::Appended twice =
+            rig.executor.append(weaves("zengine-plain-weave", "zen.again"));
+        CHECK_FALSE(twice.accepted);
+        CHECK(twice.refusal.find("declared twice") != std::string::npos);
+        CHECK(rig.executor.plan().artifacts.size() == 1);
+        CHECK(rig.executor.state() == load::Realization::Complete);
+        // ...AND AN EMPTY ROLE TOO.
+        const load::PlanExecutor::Appended nameless = rig.executor.append(weaves(kUnbuilt, ""));
+        CHECK_FALSE(nameless.accepted);
+        CHECK(nameless.refusal.find("needs a role") != std::string::npos);
+    }
+    {
+        // AFTER A REFUSAL: the arrangement stopped, and a row has no honest place to go.
+        PlanRig rig;
+        REQUIRE_FALSE(rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")})).ok);
+        REQUIRE(rig.executor.state() == load::Realization::Failed);
+        const load::PlanExecutor::Appended after =
+            rig.executor.append(provides("zengine-operators-basic"));
+        CHECK_FALSE(after.accepted);
+        CHECK(after.refusal.find("stopped at a refusal") != std::string::npos);
+        CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+    }
+}
+
+TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips byte for byte, "
+          "and a duplicate stem is refused by the plan's own law") {
+    // THE HOST'S WRITER, END TO END: the running project first, then the project plan.
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    const std::filesystem::path dir = stage().dir / "loadit-project";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    REQUIRE(!ec);
+    const std::filesystem::path plan_file = dir / load_persist::kProjectLoadPlanName;
+    std::filesystem::remove(plan_file, ec);
+    workshop::authoring::PlanAuthor author{plan_file.generic_string(), rig.executor.plan(),
+                                           &rig.executor};
+    REQUIRE(workshop::authoring::plan_names(author, "zengine-operators-basic"));
+    REQUIRE_FALSE(workshop::authoring::plan_names(author, "zengine-plain-weave"));
+
+    const workshop::HostContext::PlanAppend done =
+        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.plain");
+    REQUIRE_MESSAGE(done.accepted, done.refusal);
+    CHECK(done.detail == "loading");
+    CHECK(done.path == plan_file.generic_string());
+    rig.drain(16);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(workshop::authoring::plan_names(author, "zengine-plain-weave"));
+
+    // THE FILE: the plan in force as read, plus the minimum row -- a stem, a weave with a
+    // role, no provider -- and it round-trips byte for byte through the codec.
+    const load_persist::LoadedPlan read = load_persist::load_file(plan_file.generic_string());
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    REQUIRE(read.plan.artifacts.size() == 2);
+    CHECK(read.plan.artifacts[0].stem == "zengine-operators-basic");
+    CHECK(read.plan.artifacts[1].stem == "zengine-plain-weave");
+    CHECK_FALSE(read.plan.artifacts[1].provider.has_value());
+    REQUIRE(read.plan.artifacts[1].weave.has_value());
+    CHECK(read.plan.artifacts[1].weave->role == "zen.plain");
+    std::ifstream in(plan_file, std::ios::binary);
+    const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    CHECK(bytes == load_persist::to_text(read.plan));
+    CHECK_FALSE(std::filesystem::exists(dir / (std::string(load_persist::kProjectLoadPlanName) + ".saving")));
+
+    // A DUPLICATE STEM IS REFUSED BY THE PLAN'S OWN LAW, BEFORE THE OWNER IS ASKED: the
+    // running project and the file are exactly what they were.
+    const workshop::HostContext::PlanAppend twice =
+        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.again");
+    CHECK_FALSE(twice.accepted);
+    CHECK(twice.refusal.find("declared twice") != std::string::npos);
+    CHECK(rig.executor.plan().artifacts.size() == 2);
+    std::ifstream again(plan_file, std::ios::binary);
+    const std::string same((std::istreambuf_iterator<char>(again)), std::istreambuf_iterator<char>());
+    CHECK(same == bytes);
+    // ...AND WITH NO PROJECT, NOTHING IS APPENDED AND NOTHING IS WRITTEN.
+    workshop::authoring::PlanAuthor nowhere{std::string(), rig.executor.plan(), &rig.executor};
+    const workshop::HostContext::PlanAppend refused =
+        workshop::authoring::append_plan_row(nowhere, "zengine-provider-min", "zen.min");
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal.find("began nowhere") != std::string::npos);
+    CHECK(rig.executor.plan().artifacts.size() == 2);
+    // ...AND THE PLAN'S LAW GOES FIRST, before the path and before the owner: a duplicate on
+    // the nowhere author is refused as a duplicate, not as a missing project.
+    const workshop::HostContext::PlanAppend nowhere_twice =
+        workshop::authoring::append_plan_row(nowhere, "zengine-plain-weave", "zen.again");
+    CHECK_FALSE(nowhere_twice.accepted);
+    CHECK(nowhere_twice.refusal.find("declared twice") != std::string::npos);
+    CHECK(rig.executor.plan().artifacts.size() == 2);
+    // ...AND THE OWNER'S REFUSAL IS THE WRITER'S REFUSAL: a row the plan's law accepts but
+    // the running project refuses (mid-conversation) writes nothing and reports the owner's
+    // words -- the file is not durable before it is true.
+    PlanRig mid;
+    mid.executor.begin(plan_of({weaves("zengine-plain-weave", "zen.plain")}));
+    REQUIRE(mid.executor.state() == load::Realization::Loading);
+    const std::filesystem::path mid_file = dir / "mid-plan.json";
+    std::filesystem::remove(mid_file, ec);
+    workshop::authoring::PlanAuthor mid_author{mid_file.generic_string(), mid.executor.plan(),
+                                               &mid.executor};
+    const workshop::HostContext::PlanAppend under =
+        workshop::authoring::append_plan_row(mid_author, "zengine-operators-basic", "zen.basic");
+    CHECK_FALSE(under.accepted);
+    CHECK(under.refusal.find("not between rows") != std::string::npos);
+    CHECK(under.path.empty());
+    CHECK_FALSE(std::filesystem::exists(mid_file));
+    CHECK(mid.executor.plan().artifacts.size() == 1);
+    CHECK_FALSE(workshop::authoring::plan_names(mid_author, "zengine-operators-basic"));
+    mid.drain(16);
 }

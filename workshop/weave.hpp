@@ -98,6 +98,42 @@ struct HostContext {
     // WL-PROJ-04, WL-PROJ-05 -- agents/workshop/project.md
     std::function<RecipeSwap(const std::string&)> use_recipes;
 
+    /// WHAT A MAKER'S CHOICE OF SOMETHING BUILDABLE COMPOSED (PICK-1): the row's fields as
+    /// the maker typed them, handed to the HOST, which composes the recipe, checks it by
+    /// the recipe law, appends it to the catalog file AS AUTHORED through the atomic save,
+    /// and installs the file through the one seam. `RecipeSwap` is the answer, because
+    /// after the write the catalog in force IS the answer.
+    // WL-AUTH-01 -- agents/workshop/authoring.md
+    struct RecipeDraft {
+        std::string id;                  ///< what the maker calls it
+        std::string artifact;            ///< the stem it produces
+        std::string source;              ///< single-source: the one .cpp, as the browser spelled it
+        std::vector<std::string> packages; ///< single-source: CMAKE_PREFIX_PATH entries
+        std::vector<std::string> links;    ///< single-source: exported target names
+        std::string build_dir;           ///< cmake-target: the configured tree
+        std::string target;              ///< cmake-target: the target in it
+        std::string artifact_dir;        ///< cmake-target: where it lands, or empty
+        bool tree = false;               ///< which of the two kinds this draft is
+    };
+    std::function<RecipeSwap(const RecipeDraft&)> author_recipe;
+
+    /// WHAT AUTHORING THE MINIMUM PLAN ROW CAME TO (LOAD-IT): the row appended to the
+    /// running project and written to the project's plan file, or refused in the plan's
+    /// own words or the executor's.
+    // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
+    struct PlanAppend {
+        bool accepted = false;
+        std::string refusal;  ///< empty exactly when accepted
+        std::string path;     ///< the plan file written, when one was
+        std::string detail;   ///< what the running project made of the row, in its words
+    };
+    std::function<PlanAppend(const std::string& stem, const std::string& role)> append_plan_row;
+
+    /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? Answered by the host, which
+    /// holds the plan; the weave asks at the gesture and stores nothing.
+    // WL-AUTH-02 -- agents/workshop/authoring.md
+    std::function<bool(const std::string& stem)> plan_names;
+
     /// The one file this Workshop saves to and loads from.
     // WL-SESSION-01 -- agents/workshop/session.md
     std::string document_path;
@@ -880,6 +916,34 @@ private:
 
     /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG.
     void files_use_recipes(loom::Mail& mail);
+
+    // ---- PICK SOMETHING BUILDABLE, AND LOAD IT (PICK-1, LOAD-IT) -- weave_recipes.cpp ---
+
+    /// THE GESTURE: enumerate what the browser's location can build, ONCE, and open the
+    /// chooser over it. Files hands over a place and its listing and judges nothing.
+    // WL-AUTH-01 -- agents/workshop/authoring.md; WL-FILES-15 -- agents/workshop/files.md
+    void files_pick_buildable(loom::Mail& mail);
+
+    /// The chooser's keys: up, down, choose, close.
+    void recipe_chooser_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
+
+    /// A CANDIDATE WAS CHOSEN: close the chooser and ask for the first typed field.
+    void recipe_choose(loom::Mail& mail);
+
+    /// The authoring prompt's keys: the line's own vocabulary first, then commit or cancel.
+    void authoring_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
+
+    /// ONE FIELD COMMITTED: refuse in the law's words and re-ask, ask the next, or -- on
+    /// the last -- hand the draft to the host and say what came of it.
+    void authoring_commit(loom::Mail& mail);
+
+    /// Close the prompt whole, so a later open cannot inherit a stale draft.
+    void close_authoring();
+
+    /// LOAD IT: the chosen recipe's artifact gains the minimum plan row, with a role the
+    /// maker types; refused in words when the plan already names it.
+    // WL-AUTH-02 -- agents/workshop/authoring.md
+    void load_it(loom::Mail& mail);
 
     /// THE BROWSER'S KEYS -- nine verbs, every one of them a keymap row, so a maker who
     /// remapped them gets their own bindings here and on every help surface.
