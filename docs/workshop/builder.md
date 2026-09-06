@@ -19,7 +19,9 @@ row *is* an artifact. So "can this project build `zengine-oven`?" and "does this
 other's fields — no roles, mount modes or load order in a recipe, no compiler flags, source
 lists or build trees in a plan.
 
-Both files live **beside the executable**, and both can be named at launch:
+The shipped files live **beside the executable**; a project's own — `build-recipes.json` and
+`workshop-plan.json` in the directory you launched from, the files `a` and `o` write — win when
+they exist; and both can be named at launch:
 
 ```
 zengine-workshop --recipes <path> --load-plan <path>
@@ -91,8 +93,10 @@ source tree, not a candidate; nothing reads it, and nothing guesses what it woul
 Choose one with `↑` `↓` and `Return`. Then answer, one line at a time, the few things nothing can
 detect: for a source, the recipe's name (suggested from the file), the artifact stem (suggested
 from the name), the package prefix — or several, comma-separated — and the link targets; for a
-tree, the name, the CMake target, the stem, and an optional artifact directory. `Return` commits a
-field; a required field left blank is refused and asked again; `Escape` cancels the whole thing,
+tree, the name, the CMake target, the stem, and an optional artifact directory — never `config`:
+a tree under a multi-config generator needs that field written by hand afterwards
+([below](#an-existing-cmake-target)). `Return` commits a field; a required field left blank is
+refused and asked again; `Escape` cancels the whole thing,
 and nothing was written. Every field is typed as you would type it into the file, and that is how
 it is written: the source or the tree as Files spelled it, the lists as you gave them, nothing
 completed, nothing resolved.
@@ -104,11 +108,17 @@ Where the row goes:
 - If the **shipped default** is in force, the row goes into **`build-recipes.json` in your
   project**, seeded with the shipped rows so nothing you could build disappears — and that file
   becomes the catalog in force, as if you had pressed `u` on it. The shipped file is never written.
+  The shipped rows are seeded exactly as shipped, and they carry the absolute `build_dir` and
+  `artifact_dir` of the build tree this Workshop was configured beside — so a project catalog
+  seeded from them names that tree, and a project that moves edits those two paths.
 - With no catalog at all, the project catalog is created from the new row alone.
 
 The file is saved the same way every other Workshop file is — written beside itself and renamed
-into place — and installed through the same door `u` uses, so the Builder shows the new recipe at
-once. A row the recipe law refuses (a duplicate name, a `-l` where a target name belongs) is
+into place, as **one line** of JSON, which is what you will find if you open it in an editor —
+and installed through the same door `u` uses, so the Builder shows the new recipe at once. It is
+also the catalog in force next time you launch from that directory with no `--recipes`, by the
+same rule that finds the project plan ([below](#loading-a-built-artifact-into-the-plan)).
+A row the recipe law refuses (a duplicate name, a `-l` where a target name belongs) is
 refused whole in the law's own words, and the file's bytes are exactly what they were. Editing or
 removing a row is still a text editor's job.
 
@@ -122,16 +132,21 @@ refuses an empty one in the plan's own words. Then:
 1. the row `{ artifact, weave: { role } }` is handed to the running project **first**, and the
    project walks to it exactly as it walks a startup row: an artifact whose file is where the
    plan loads from is loaded now; one that is not becomes the frontier, `pending`. A product
-   that a plain `b` left in its workspace is the second case — the realize row then reads
-   `B loads <artifact> now`, and that button (or `f`) stages it and loads it. A project that
-   refuses (the stem is already in the plan; a row is mid-conversation; the arrangement stopped
-   at a refusal) refuses the whole act, and nothing is written;
+   that a plain `b` left in its workspace is the second case, and `o` finishes it for you: the
+   `B` button's own act is performed — the recipe is asked for again with *load* aboard, the
+   incremental build confirms it, the product is staged and loaded — so the row lands
+   `resolved` with no second key, and the notice says `loading it now`. Nothing built yet: the
+   row waits `pending`, the notice says so, and `f` (or `b` with load-after-build armed)
+   builds and loads it. A project that refuses (the stem is already in the plan; a row is
+   mid-conversation; the arrangement stopped at a refusal) refuses the whole act, and nothing
+   is written;
 2. then the row is appended to **`workshop-plan.json` in your project** — the plan in force as
    it was read, plus the new row, through the same codec that reads it.
 
-That file is the plan in force next time you launch from that directory with no `--load-plan`;
-see [load plans](load-plans.md). `o` on an artifact the plan already names refuses and points at
-`B`, which is the gesture that builds *and* loads a named artifact.
+That file is the plan in force next time you launch from that directory with no `--load-plan`,
+and `build-recipes.json` beside it is the catalog in force by the same rule, with no
+`--recipes`; see [load plans](load-plans.md). `o` on an artifact the plan already names refuses
+and points at `B`, which is the gesture that builds *and* loads a named artifact.
 
 ## Using it
 
@@ -144,7 +159,7 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`Shift+b`** | **load after build** — one action in two states. Before or during a build it is a *toggle*: armed, the next `b` builds **and** loads the result into the running project. When an artifact is built, nothing was asked about loading it and nothing is armed, it is a *button*: press it and the built artifact is loaded now |
 | **`Shift+p`** | **promote** the running image — make it the file a restart loads (after a reload in place; below) |
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
-| **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type ([below](#loading-a-built-artifact-into-the-plan)) |
+| **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
 | **`p`** | remove the pane |
@@ -210,7 +225,9 @@ cmake --build <build tree> --target <target>
 It names a *configured* tree rather than a source tree on purpose: the project it builds has
 already been configured by whoever owns it, with whatever policy they chose, and a Builder that
 re-configured somebody else's tree would be deciding a policy that is not its to decide.
-`config` is for a multi-config generator and is empty everywhere else.
+`config` is for a multi-config generator (Visual Studio's) and is empty — and right — under a
+single-config one such as Ninja. Under a multi-config generator it must be authored, and `a`
+does not ask for it: a row `a` wrote for such a tree is finished in a text editor.
 
 ### One source file
 

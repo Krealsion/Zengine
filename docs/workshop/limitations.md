@@ -182,9 +182,10 @@ globbed source list, no dependency solver.
 and it is the whole of the automation: nothing searches for catalogs, adopts a conventional
 filename, reads a `CMakeLists.txt` or detects a build system; a recipe is written only when a
 maker presses `a` and answers. The `u` choice is not remembered — the next launch starts from
-`--recipes` or the shipped default — but a catalog `a` created lives in the project as
-`build-recipes.json`, and a plan row `o` authored lives beside it as `workshop-plan.json`, which
-*is* the plan in force next launch from that directory.
+`--recipes`, else the project's own catalog, else the shipped default — and a catalog `a`
+created lives in the project as `build-recipes.json`, beside the `workshop-plan.json` a row `o`
+authored goes into: both *are* in force next launch from that directory with no flags. Both
+are one line of JSON, as every file Workshop writes is.
 
 A successful build **can** enter the running project, where the project already authored
 participation for that artifact: a waiting row is realized, and a row that is already live is

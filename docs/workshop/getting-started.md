@@ -49,6 +49,7 @@ See [load plans](load-plans.md).
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
+| `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([Builder](builder.md)) |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
 
@@ -56,8 +57,9 @@ An empty path is refused by name. `--log` and `--dump` are two different questio
 journal is what you keep on purpose, the dump is most of a session's story recovered after the
 fact. Without either, nothing is written and `q` always leaves a live process.
 
-The two **project files** (document, setup) follow the project: launch from two directories
-and you have two projects. The three **maker files** follow *you*: on Windows the config
+The **project files** (document, setup, and — once you have written them — plan and recipes)
+follow the project: launch from two directories and you have two projects. The three **maker
+files** follow *you*: on Windows the config
 folder is `%APPDATA%\zengine-workshop` and the state folder is
 `%LOCALAPPDATA%\zengine-workshop`; elsewhere they are `$XDG_CONFIG_HOME/zengine-workshop`
 (falling back to `~/.config/...`) and `$XDG_STATE_HOME/zengine-workshop` (falling back to

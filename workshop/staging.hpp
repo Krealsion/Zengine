@@ -127,6 +127,30 @@ inline load::PlanExecutor::Staged stage(Host& host, const std::string& stem,
     return out;
 }
 
+/// THE PRODUCT `recipe` HAS ALREADY MADE FOR `stem`, when one is on disk: the exact file the
+/// catalog in force expects the recipe to produce, or empty. `load it` asks this once the new
+/// row is the frontier (LOAD-IT, decision 3): a product sitting in its workspace is loaded by
+/// the button's own act rather than by a second key, and a product that is not there leaves
+/// the row pending for `f` or an armed `b`. The same view `stage` spends, so where a product
+/// is lives in one place; `stage`'s two refusals are "no product" here, because this is a
+/// probe and not an act.
+// WL-AUTH-02 -- agents/workshop/authoring.md
+inline std::string product_of(const Host& host, const std::string& stem,
+                              const std::string& recipe) {
+    if (host.recipes == nullptr) {
+        return std::string();
+    }
+    const builder::RecipeView* view = builder::view_named(host.recipes->views(), recipe);
+    if (view == nullptr || view->artifact != stem) {
+        return std::string();
+    }
+    std::error_code ec;
+    if (!std::filesystem::exists(std::filesystem::path(view->path), ec) || ec) {
+        return std::string();
+    }
+    return view->path;
+}
+
 /// WRITE `image`'S BYTES INTO THE FILE THE PLAN RESOLVES `stem` TO, sibling then rename --
 /// and KEEP THE BYTES IT WRITES OVER, at a per-operation path beside the reload copies, so
 /// a revert after a promotion has an honest image to run. The signature is the owner's
