@@ -14,7 +14,9 @@ zengine-workshop --load-plan <path>
 
 Default: `workshop-plan.json` in the directory you launched from, when there is one — the file
 `o` in the [Builder](builder.md#loading-a-built-artifact-into-the-plan) writes — else
-`default-load-plan.json`, beside the binary.
+`default-load-plan.json`, beside the binary. The build-recipe catalog is found by the same
+rule: `build-recipes.json` there, else the shipped one
+([Builder](builder.md#authoring-a-recipe-from-files)).
 
 That is why there is no `--skin` flag and no `--input` flag. Those two were the flags a plan
 replaced, and the replacement is not cosmetic: a plan is repeatable, diffable and durable, so
