@@ -114,6 +114,32 @@ inline constexpr std::int64_t kFormatVersion = 1;
 /// third copies one of these and passes `--load-plan`; there is no plan registry, no
 /// picker, no recent list and no search path.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
+
+/// THE PLAN A MAKER AUTHORS INTO, under the project (LOAD-IT, decision 3c): where `load it`
+/// writes the minimum row, seeded from the plan in force as read at launch. It is the plan
+/// in force at the next launch by the rule below, and the shipped default stays what it is.
+// WL-AUTH-02 -- agents/workshop/authoring.md
+inline constexpr const char* kProjectLoadPlanName = "workshop-plan.json";
+
+/// WHICH PLAN IS IN FORCE AT LAUNCH -- one rule, and it is the host's. An explicit
+/// `--load-plan` wins; otherwise a project plan at the captured project root, when there is
+/// one; otherwise the shipped default beside the executable. `present` is the host's own
+/// existence probe, handed in so the rule is a pure function a case can pin.
+// WL-AUTH-02 -- agents/workshop/authoring.md
+template <class Present>
+inline std::string plan_in_force(const std::string& explicit_path, const std::string& project_dir,
+                                 const std::string& host_dir, Present present) {
+    if (!explicit_path.empty()) {
+        return explicit_path;
+    }
+    if (!project_dir.empty()) {
+        const std::string project = project_dir + "/" + kProjectLoadPlanName;
+        if (present(project)) {
+            return project;
+        }
+    }
+    return host_dir + "/" + kDefaultLoadPlanName;
+}
 inline constexpr const char* kGraphicalLoadPlanName = "graphical-load-plan.json";
 
 /// A load plan is the smallest of the three durable artifacts and its ceiling says
@@ -380,8 +406,9 @@ inline LoadedPlan from_text(std::string_view bytes) {
 /// to a sibling, then a rename over the destination.
 ///
 /// THE PROMISE IS THE ONE `persist::write_file` MAKES and it is not restated here as
-/// though it were a second mechanism. Nothing in the production host calls this --
-/// Workshop READS its plan and never writes one, because a host that rewrote its own
+/// though it were a second mechanism. Since LOAD-IT the production host calls this for one
+/// act -- the maker's own `load it`, which appends the minimum row to the PROJECT plan as
+/// authored -- and for nothing else; Workshop never rewrites a plan on its own, because a host that rewrote its own
 /// authored intent is the one thing §13 forbids. It exists because a plan is a
 /// durable authored artifact and a durable authored artifact whose codec cannot be
 /// round-tripped is a codec nobody has checked.

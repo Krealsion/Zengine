@@ -30,6 +30,14 @@ enum class KeyContext : std::uint8_t {
     // WL-MAKER-11 -- agents/workshop/maker-pane.md
     kPaneNaming,
     kPicker,
+    /// THE RECIPE CHOOSER: a list with a cursor over what the browser's location can
+    /// build, the picker's shape one gesture over (PICK-1).
+    // WL-AUTH-01 -- agents/workshop/authoring.md
+    kRecipeChooser,
+    /// THE AUTHORING PROMPT: one line a maker types a recipe's field or a plan row's
+    /// role into (PICK-1, LOAD-IT).
+    // WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
+    kAuthoring,
     kAttention,
     kContext,
     kPane,
@@ -52,7 +60,7 @@ enum class KeyContext : std::uint8_t {
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
     return c == KeyContext::kTerminal || c == KeyContext::kNaming ||
            c == KeyContext::kPaneNaming || c == KeyContext::kPane || c == KeyContext::kDraft ||
-           c == KeyContext::kEditor;
+           c == KeyContext::kEditor || c == KeyContext::kAuthoring;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -147,6 +155,7 @@ enum class Act : std::uint8_t {
     kBuildRealize,
     kPromote,
     kRevert,
+    kLoadIt,
     kRecipeNext,
     kRecipeBack,
     kBuildFrontier,
@@ -178,6 +187,7 @@ enum class Act : std::uint8_t {
     kFilesMark,
     kFilesNextMark,
     kFilesPreviousMark,
+    kFilesPickBuildable,
     // -- the Pane Editor's keys -------------------------------------------------------
     kPaneEditorUp,
     kPaneEditorDown,
@@ -205,6 +215,13 @@ enum class Act : std::uint8_t {
     kPickerDown,
     kPickerChoose,
     kPickerClose,
+    // -- the recipe chooser and the authoring prompt (PICK-1, LOAD-IT) ------------------
+    kRecipeUp,
+    kRecipeDown,
+    kRecipeChoose,
+    kRecipeClose,
+    kAuthoringCommit,
+    kAuthoringCancel,
     // -- the current-condition view -----------------------------------------------------
     kAttentionUp,
     kAttentionDown,
@@ -350,6 +367,10 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kP, mod::kShift}},
     {Act::kRevert, "builder.revert", "revert image", KeyContext::kCommand,
      {scan::kR, mod::kShift}},
+    // LOAD IT (LOAD-IT): the chosen recipe's artifact gains the minimum plan row, with a
+    // role the maker types. `o` is a bare letter free in command mode (`l` is `object.right`),
+    // and it is a command-mode row because its subject is the Builder's chosen recipe.
+    {Act::kLoadIt, "builder.load", "load it", KeyContext::kCommand, {scan::kO, mod::kNone}},
     {Act::kRecipeNext, "builder.recipe", "recipe", KeyContext::kCommand,
      {scan::kC, mod::kNone}},
     {Act::kRecipeBack, "builder.recipe-back", "recipe back", KeyContext::kCommand,
@@ -535,6 +556,11 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kN, mod::kNone}},
     {Act::kFilesPreviousMark, "files.previous-mark", "previous mark", KeyContext::kFiles,
      {scan::kN, mod::kShift}},
+    // PICK SOMETHING BUILDABLE (PICK-1): the browser hands over its location and its
+    // listing, the chooser enumerates once, and a choice authors ONE recipe row. `a` is a
+    // bare letter for `u`'s reason and free in every context that intersects `kFiles`.
+    {Act::kFilesPickBuildable, "files.pick-buildable", "pick buildable", KeyContext::kFiles,
+     {scan::kA, mod::kNone}},
     // -- the Terminal line's controls --------------------------------------------------
     // THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it
     // is on, in the Files pane's own shape. `up`/`down` step whichever list the keys are
@@ -599,6 +625,20 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kPickerChoose, "picker.choose", "open or remove", KeyContext::kPicker,
      {scan::kReturn, mod::kNone}},
     {Act::kPickerClose, "picker.close", "cancel", KeyContext::kPicker,
+     {scan::kEscape, mod::kNone}},
+    // -- the recipe chooser, the picker's four keys one context over (PICK-1) -----------
+    {Act::kRecipeUp, "recipe.up", "row up", KeyContext::kRecipeChooser,
+     {scan::kUp, mod::kNone}},
+    {Act::kRecipeDown, "recipe.down", "row down", KeyContext::kRecipeChooser,
+     {scan::kDown, mod::kNone}},
+    {Act::kRecipeChoose, "recipe.choose", "author a recipe for it", KeyContext::kRecipeChooser,
+     {scan::kReturn, mod::kNone}},
+    {Act::kRecipeClose, "recipe.close", "cancel", KeyContext::kRecipeChooser,
+     {scan::kEscape, mod::kNone}},
+    // -- the authoring prompt's own two keys (PICK-1, LOAD-IT) --------------------------
+    {Act::kAuthoringCommit, "authoring.commit", "next field", KeyContext::kAuthoring,
+     {scan::kReturn, mod::kNone}},
+    {Act::kAuthoringCancel, "authoring.cancel", "cancel", KeyContext::kAuthoring,
      {scan::kEscape, mod::kNone}},
     // -- the current-condition view's own keys ------------------------------------------
     //

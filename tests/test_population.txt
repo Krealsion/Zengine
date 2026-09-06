@@ -1066,12 +1066,12 @@ builder                           doctest           always  54
 #
 workshop_document                 doctest           always  142
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  213
+workshop_panels                   doctest           always  215
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
-workshop_load                     doctest           always  125
+workshop_load                     doctest           always  129
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  90
+workshop_files                    doctest           always  100
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

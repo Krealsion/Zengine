@@ -169,8 +169,10 @@ Two smaller edges, in both media:
 
 ### Builder builds what an authored file says, and no more
 
-What can be built is a **recipe catalog a maker wrote**, edited in a text editor: there is no
-recipe editor in Workshop and no way to add a single recipe at run time. Two recipe kinds exist
+What can be built is a **recipe catalog a maker wrote**: edited in a text editor, or grown one
+row at a time from the Files pane (`a`), which asks for what nothing can detect and appends
+exactly what was typed. There is no recipe editor in Workshop, and no row is changed or removed
+except in a text editor. Two recipe kinds exist
 — an existing CMake target, and one `.cpp` that Zengine wraps in a generated CMake project —
 and there is deliberately no third: no arbitrary shell recipe, no multi-source recipe, no
 globbed source list, no dependency solver.
@@ -178,9 +180,11 @@ globbed source list, no dependency solver.
 **Which catalog file** is in force can be changed while Workshop runs: point at it in the
 [Files](files.md) pane and press `u`. That is one explicit choice of one file a maker selected,
 and it is the whole of the automation: nothing searches for catalogs, adopts a conventional
-filename, reads a `CMakeLists.txt`, detects a build system or writes a recipe. The choice is
-not remembered either — the next launch starts from `--recipes` or the shipped default, exactly
-as before.
+filename, reads a `CMakeLists.txt` or detects a build system; a recipe is written only when a
+maker presses `a` and answers. The `u` choice is not remembered — the next launch starts from
+`--recipes` or the shipped default — but a catalog `a` created lives in the project as
+`build-recipes.json`, and a plan row `o` authored lives beside it as `workshop-plan.json`, which
+*is* the plan in force next launch from that directory.
 
 A successful build **can** enter the running project, where the project already authored
 participation for that artifact: a waiting row is realized, and a row that is already live is

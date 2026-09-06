@@ -56,6 +56,7 @@ Press into the pane to point your keys at it, then:
 | `Backspace` | up one directory |
 | `r` | look again |
 | `u` | **use this file as the current recipe catalog** — see [the Builder](builder.md#choosing-a-recipe-catalog-while-workshop-is-running) |
+| `a` | **pick buildable** — list what this directory can try to build and author one recipe row — see [the Builder](builder.md#authoring-a-recipe-from-files) |
 | `m` | **mark** this directory, or unmark it if it is already marked |
 | `n` / `N` | go to the **next** / **previous** marked place |
 
@@ -161,13 +162,22 @@ The whole of what that gesture does — including what happens to a build alread
 why nothing is remembered for next time — is on [the Builder's
 page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
 
+## Authoring a recipe from here
+
+`a` lists what the directory you are looking at can at least try to build — a `.cpp` file, or a
+directory that holds a configured CMake tree — and, when you choose one, asks the few things
+nothing can detect and appends one recipe row, as you typed it, to the catalog in force (or to a
+`build-recipes.json` it creates in your project). The pane's part ends at the handover: it gives
+the chooser a place and the names in it, and the row it writes never comes back to a listing. The
+whole of it is on [the Builder's page](builder.md#authoring-a-recipe-from-files).
+
 ## What it is not
 
 Not a file manager: nothing here renames, deletes, copies or creates. Not a search: there is
 no filter box and no recursive index. Not a second place where your project is described —
 what a row knows is a name and whether it is a directory, and nothing else. In particular it
-knows nothing about recipes: `u` above hands over a *path*, and every judgement about what is
-in the file belongs to the owner that reads it.
+knows nothing about recipes: `u` above hands over a *path*, `a` hands over a *place* and its
+names, and every judgement about what is in a file belongs to the owner that reads it.
 
 Marks are not bookmarks with names, not a history of where you have been, not folders you can
 group, and not a way to say "these directories are my project". They are places, and that is

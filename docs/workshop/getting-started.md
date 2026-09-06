@@ -48,7 +48,7 @@ See [load plans](load-plans.md).
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state — for tests, scratch experiments and clean-start diagnosis |
-| `--load-plan <path>` | `default-load-plan.json`, beside the binary | which artifacts this run is made of |
+| `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
 

@@ -603,6 +603,81 @@ void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setu
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
 
+// WL-AUTH-01 -- agents/workshop/authoring.md
+void paint_recipe_chooser(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    const RecipeChooser& chooser = s.recipe_chooser;
+    const AuthoringPrompt& a = s.authoring;
+    if (!chooser.open && !a.open) {
+        return;
+    }
+    // THE PICKER'S OWN BOX AND THE PICKER'S OWN PROSE PLACE: one mode's rectangle, spent
+    // by the mode that is open, and never both at once (the chooser closes before the
+    // prompt opens).
+    const FineRect b = picker_bounds(sc);
+    paint_panel_frame(layer, b, kTransientChrome);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return;
+    }
+    surface::SurfaceTextRegion region = panel_prose_region(place);
+    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
+        region.rows.push_back(
+            surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+    };
+    if (a.open) {
+        // THE PROMPT IS THE HEADING, the pane creator's name prompt's shape: the words,
+        // then the line with its caret and selection where the face can show them.
+        const std::int64_t prompt = static_cast<std::int64_t>(a.prompt.size());
+        const std::int64_t cols = place.columns > prompt + 1 ? place.columns - prompt - 1 : 1;
+        const std::string shown = a.line.visible(cols);
+        const component::TextBox::VisibleSpan vis = a.line.visible_selection(cols);
+        const std::int64_t at = static_cast<std::int64_t>(a.line.caret_column());
+        region.caret_row = 0;
+        region.caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
+                                         ? at
+                                         : static_cast<std::int64_t>(shown.size()));
+        if (vis.present()) {
+            region.sel_begin_row = 0;
+            region.sel_begin_col = prompt + vis.begin;
+            region.sel_end_row = 0;
+            region.sel_end_col = prompt + vis.end;
+        }
+        say(a.prompt + shown, surface::role::kAccent);
+        if (a.for_role) {
+            say("  load " + a.stem + " -- the plan's row, written as authored",
+                surface::role::kMuted);
+        } else {
+            say(std::string("  ") + (a.chosen.tree ? "configured tree " : "source ") +
+                    a.chosen.name + " in " + a.dir,
+                surface::role::kMuted);
+            for (std::size_t i = 0; i < a.answers.size(); ++i) {
+                say("  " + std::to_string(i + 1) + ". " +
+                        (a.answers[i].empty() ? std::string("(none)") : a.answers[i]),
+                    surface::role::kFill);
+            }
+        }
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    say("PICK BUILDABLE in " + chooser.dir, surface::role::kAccent);
+    const std::size_t budget = place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
+    const ListWindow win = list_window(chooser.candidates.size(), chooser.cursor, budget);
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const bool here = i == chooser.cursor;
+        const BuildCandidate& c = chooser.candidates[i];
+        say(std::string(here ? "> " : "  ") + c.name +
+                (c.tree ? "   configured CMake tree" : "   source file"),
+            here ? surface::role::kAccent : surface::role::kFill);
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+    }
+    layer.texts.push_back(std::move(region));
+}
+
 const char* geometry_unit(std::int64_t cell_px) {
     return cell_px > 0 ? "px" : "cells";
 }
