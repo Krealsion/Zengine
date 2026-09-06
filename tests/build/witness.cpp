@@ -73,6 +73,16 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -295,6 +305,11 @@ bool parse(int argc, char** argv, Arguments& args) {
 } // namespace
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+    // The host's own error mode, for `workshop.cpp`'s reason: a file that is not an
+    // image is a refusal in words, never a hard-error dialog the lane waits on.
+    ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+#endif
     Arguments args;
     if (!parse(argc, argv, args)) {
         return 2;
