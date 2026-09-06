@@ -163,6 +163,7 @@ Two smaller edges, in both media:
 | | today |
 |---|---|
 | Which surfaces can be read past? | the Info panel's object and property rows, and the Files pane's location and its listed names — the places Workshop itself cut a value it still holds |
+| The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([Builder](builder.md#using-it)) |
 | A pane that shortened its own text before sending it | **not recoverable** — Workshop can only show what it was given, and it does not ask a provider for a longer version |
 | Does the reveal follow the pointer out of the window? | the reveal follows the last position the pointer reported; nothing tells Workshop the pointer left the window, so a reveal can stay on screen until the pointer comes back or something else repaints |
 | Is there a timed marquee? | **no** — the reveal is driven by where your pointer is along the row, because Workshop draws when something happens and nothing here happens on its own |

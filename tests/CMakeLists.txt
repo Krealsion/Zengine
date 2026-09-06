@@ -1203,7 +1203,14 @@ target_compile_definitions(zengine-builder-tests PRIVATE
     # precedent; these are the same question asked of the two participants a build
     # conversation passes through.
     "ZENGINE_TEST_TOOL_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/weave.hpp\""
-    "ZENGINE_TEST_RUNNER_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/runner.hpp\"")
+    "ZENGINE_TEST_RUNNER_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/runner.hpp\""
+    # ...and the PRODUCTION HOST, read the same way, for the durable-record case. The
+    # host's journal selection is three shape names inside `main()`, which claims a
+    # terminal and can therefore never be run by a case; a suite that only copied the
+    # selection would prove what a Logger does and nothing about what Workshop chose.
+    # The operator suite reads this same file for the ownership tripwire, and this is
+    # that defence applied to the one question this suite owns.
+    "ZENGINE_TEST_HOST_SOURCE=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
 
 zengine_doctest_test(builder zengine-builder-tests)
 
