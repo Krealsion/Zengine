@@ -2407,7 +2407,8 @@ TEST_CASE("the shipped catalog is staged beside the executable, under the name t
              " recipe(s) from " + read.path));
 }
 
-TEST_CASE("the launch resolves the shipped catalog beside the executable, and --recipes is the only other road") {
+TEST_CASE("the launch resolves the catalog by one rule: --recipes, else the project catalog at "
+          "the root, else the shipped default beside the executable") {
     // THE LAUNCH IS `main()`'s, AND `main()` CANNOT RUN HERE, so the choice it makes is read
     // out of its code -- comments stripped, expressions rather than words (BLD-0's tripwire
     // rule), because the host EXPLAINS this arrangement at length above the lines that make it.
@@ -2416,20 +2417,45 @@ TEST_CASE("the launch resolves the shipped catalog beside the executable, and --
     // THE HOST'S DIRECTORY IS THE EXECUTABLE'S, resolved once.
     CHECK(count_of(host, "host.dir = exe_dir();") == 1);
 
-    // THE DEFAULT IS COMPOSED ONCE, from that directory and the one name -- so there is no
-    // second place the shipped catalog could be looked for -- and `--recipes` is the one
-    // thing that names a different file.
-    CHECK(count_of(host, "recipe_persist::kDefaultRecipesName") == 1);
-    CHECK(host.find("const bool named = !args.recipes.empty();") != std::string::npos);
-    CHECK(host.find("named ? args.recipes : host.dir + \"/\" + "
-                    "recipe_persist::kDefaultRecipesName") != std::string::npos);
+    // THE RULE IS SPELLED ONCE, AND IT IS THE PLAN'S TWIN: the host names the function and
+    // no second default -- the shipped name is the rule's to spell, not `main()`'s -- and it
+    // hands both rules the same existence probe, so the two project files are found alike.
+    CHECK(count_of(host, "recipe_persist::recipes_in_force(") == 1);
+    CHECK(host.find("recipe_persist::kDefaultRecipesName") == std::string::npos);
+    CHECK(count_of(host, "args.recipes, host.project_dir, host.dir, present)") == 1);
+    CHECK(count_of(host, "args.load_plan, host.project_dir, host.dir, present)") == 1);
 
     // ...AND `--recipes` IS A PATH THE MAKER TYPED: parsed as one, refused empty rather than
     // quietly defaulted, and spent nowhere but in that choice -- a second consumer would be
-    // the registry or the picker this law says there is not.
+    // the registry or the picker this law says there is not. The third spending is the
+    // "nothing to build" sentence, which is only ever said of the shipped default.
     CHECK(host.find("arg == \"--recipes\"") != std::string::npos);
     CHECK(host.find("args.recipes = value;") != std::string::npos);
     CHECK(count_of(host, "args.recipes") == 3);
+    CHECK(host.find("if (args.recipes.empty() && !present(recipe_path))") != std::string::npos);
+}
+
+TEST_CASE("the project catalog at the captured root is the catalog in force when no --recipes "
+          "is given") {
+    // THE PLAN'S TWIN, AS A PURE FUNCTION (WL-PROJ-15): explicit wins; else the project
+    // catalog when it is there; else the shipped default -- the same three answers, in the
+    // same order, on the same kind of probe `plan_in_force` is pinned on.
+    const auto present_at = [](const std::string& where) {
+        return [where](const std::string& path) { return path == where; };
+    };
+    const std::string project = "/project/" + std::string(recipe_persist::kProjectRecipesName);
+    const std::string shipped = "/install/" + std::string(recipe_persist::kDefaultRecipesName);
+    CHECK(recipe_persist::recipes_in_force("/explicit.json", "/project", "/install",
+                                           present_at(project)) == "/explicit.json");
+    CHECK(recipe_persist::recipes_in_force("", "/project", "/install", present_at(project)) ==
+          project);
+    CHECK(recipe_persist::recipes_in_force("", "/project", "/install",
+                                           present_at("/elsewhere")) == shipped);
+    CHECK(recipe_persist::recipes_in_force("", "", "/install", present_at(project)) == shipped);
+    // ...AND THE SHIPPED DEFAULT IS NAMED EVEN WHEN NOTHING IS THERE: the rule names a file
+    // and the caller judges it, which is what lets an absent default stay "nothing to build".
+    CHECK(recipe_persist::recipes_in_force("", "/project", "/install",
+                                           [](const std::string&) { return false; }) == shipped);
 }
 
 // ============================================================================

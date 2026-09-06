@@ -9,7 +9,7 @@ LAW — `a` in Files enumerates once at the gesture and asks what nothing can de
 
 MEANS
 - a `.cpp` and a directory holding `CMakeCache.txt` are candidates; a source tree is not;
-- the row goes into the catalog in force, or into `<project>/build-recipes.json` over the shipped;
+- the row goes to the catalog in force, else a project catalog in force next launch (WL-PROJ-15);
 - a row the recipe law refuses is refused whole, in its words, and the file's bytes are the bytes.
 
 DOES NOT MEAN
@@ -44,25 +44,31 @@ LAW — `o` asks a role for the Builder's chosen artifact; the host appends thro
 MEANS
 - the row is a stem and a weave with the typed role; an empty role or a named stem refuses first;
 - the file is the plan as read plus the new row, through the codec, after the executor said yes;
-- the launch rule is one function, decided by the caller's probe, never by a second host default.
+- a frontier row whose product is on disk gets the button's own ask from `o`: no second key.
 
 DOES NOT MEAN
 - that a plan is edited, reordered or pruned — the one act is one appended row;
-- that `o` builds or stages — a product still in its workspace makes the row the frontier.
+- that `o` builds from nothing or stages — with no product the row is the frontier, for `f`.
 
 PROVEN BY — `workshop/keymap.hpp` `builder.load`, `KeyContext::kAuthoring`;
 `workshop/screen.hpp` `AuthoringPrompt`, `Session::recipe_chooser`, `Session::authoring`;
 `workshop/weave.hpp` `HostContext::PlanAppend`, `HostContext::append_plan_row`,
 `HostContext::plan_names`, `load_it`; `workshop/weave_recipes.cpp` `load_it`,
 `authoring_commit`; `workshop/authoring.hpp` `PlanAuthor`, `plan_names`, `append_plan_row`;
-`workshop/load_persist.hpp` `kProjectLoadPlanName`, `plan_in_force`; `workshop/workshop.cpp`
-`plan_path`; `tests/test_workshop_panels.cpp` case `"LOAD-IT: `o` asks for a role, refuses an
-empty one in the plan's words, and authors nothing until it has one"`, case `"LOAD-IT: `o` on an
-artifact the plan already names refuses and points at `B`"`; `tests/test_workshop_load.cpp` case
-`"LOAD-IT: the minimum row is written as authored, the plan round-trips byte for byte, and a
-duplicate stem is refused by the plan's own law"`; `tests/test_workshop_files.cpp` case
-`"LOAD-IT: the project plan at the captured root is the plan in force when no --load-plan is
-given"`.
+`workshop/staging.hpp` `product_of`; `workshop/load_persist.hpp` `kProjectLoadPlanName`,
+`plan_in_force`; `workshop/workshop.cpp` `plan_path`; `tests/test_workshop_panels.cpp` case
+`"LOAD-IT: `o` asks for a role, refuses an empty one in the plan's words, and authors nothing
+until it has one"`, case `"LOAD-IT: `o` on an artifact the plan already names refuses and points
+at `B`"`, case `"`o` on a recipe whose product is already built finishes the load: the button's
+own ask with the second intention aboard, and the row's sentence says so"`, case `"`o` with
+nothing built yet leaves the row pending and asks the Builder nothing, and names the frontier
+key; a row that is not the frontier says only what the project said"`;
+`tests/test_workshop_load.cpp` case `"LOAD-IT: the minimum row is written as authored, the plan
+round-trips byte for byte, and a duplicate stem is refused by the plan's own law"`, case `"the
+writer says where the frontier row's product is, through the staging rule: present when the
+chosen recipe's file is on disk, absent behind another frontier and absent when nothing is
+built"`; `tests/test_workshop_files.cpp` case `"LOAD-IT: the project plan at the captured root
+is the plan in force when no --load-plan is given"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-03 — The executor has one append door, and the plan's law goes first

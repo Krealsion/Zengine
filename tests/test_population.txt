@@ -1053,6 +1053,13 @@ builder                           doctest           always  54
 # counted, and a smaller rectangle is still nobody's pointer space and moves no reservation.
 # The other seven re-baseline cases earlier phases had left above the floor.
 #
+# The pick-and-load repairs raised three floors -- workshop_files 100 -> 101, workshop_panels
+# 215 -> 217, workshop_load 129 -> 130 -- and moved no other. The one in `files` pins the
+# catalog's launch rule as the plan's twin (a pure function, and the host spelling it once
+# with the plan's own probe); the two in `panels` are the two branches `o` ends on (the button's
+# own ask when the product is built; nothing sent and the frontier key named when it is not);
+# the one in `load` is the writer's product answer through the staging rule over a real catalog.
+#
 # WUX-14 raised ONE floor -- workshop_panels 184 -> 206 -- and moved no other. The
 # twenty-two are the Pane Creator's, in a second source under the same entry
 # (test_workshop_panels_creator.cpp): the value a maker-made pane's interior is and its law,
@@ -1066,12 +1073,12 @@ builder                           doctest           always  54
 #
 workshop_document                 doctest           always  142
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  215
+workshop_panels                   doctest           always  217
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
-workshop_load                     doctest           always  129
+workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  100
+workshop_files                    doctest           always  101
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

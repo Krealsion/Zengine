@@ -397,12 +397,14 @@ int main(int argc, char** argv) {
 
     // WHICH PLAN IS IN FORCE: `--load-plan`, else the PROJECT plan at the captured root when
     // there is one (LOAD-IT authors it), else the shipped default. One rule, in
-    // `load_persist::plan_in_force`, pinned as a pure function.
-    const std::string plan_path = load_persist::plan_in_force(
-        args.load_plan, host.project_dir, host.dir, [](const std::string& path) {
-            std::error_code ec;
-            return std::filesystem::exists(std::filesystem::path(path), ec) && !ec;
-        });
+    // `load_persist::plan_in_force`, pinned as a pure function -- and the probe it is handed
+    // is the one the catalog's twin rule is handed below, so the two files are found alike.
+    const auto present = [](const std::string& path) {
+        std::error_code ec;
+        return std::filesystem::exists(std::filesystem::path(path), ec) && !ec;
+    };
+    const std::string plan_path =
+        load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
 
     // The honest line, in plain scrollback, exactly as snake's host prints it:
     // this host isolates nothing. (The `--isolated` below is about the maker's FILES,
@@ -503,10 +505,10 @@ int main(int argc, char** argv) {
     // answers which question: `dir` is INSTALLATION truth and `project_dir` is where the
     // maker is standing, and that decision is made once, in the closure below.
     //
-    // SO THE LAUNCH INSTALLS THROUGH THE MAKER'S OWN DOOR. `--recipes` and the shipped
-    // default are INITIAL STATE and not a second recipe policy: the flag chooses which
-    // file this session STARTS with, and the block below hands that file to the very
-    // function a maker's later choice reaches. A launch that completed recipes its own way
+    // SO THE LAUNCH INSTALLS THROUGH THE MAKER'S OWN DOOR. `--recipes`, a project catalog
+    // and the shipped default are INITIAL STATE and not a second recipe policy: one rule
+    // chooses which file this session STARTS with, and the block below hands that file to
+    // the very function a maker's later choice reaches. A launch that completed recipes its own way
     // would be free to complete them DIFFERENTLY, which is two-files defect
     // waiting one layer up -- and it is why this closure is wired BEFORE the file is read
     // rather than after.
@@ -527,10 +529,13 @@ int main(int argc, char** argv) {
         return done;
     };
     {
-        const bool named = !args.recipes.empty();
-        const std::string recipe_path =
-            named ? args.recipes : host.dir + "/" + recipe_persist::kDefaultRecipesName;
-        if (!named && !std::filesystem::exists(std::filesystem::path(recipe_path))) {
+        // THE PLAN'S TWIN (WL-PROJ-15): `--recipes`, else the project catalog `a` wrote at
+        // the captured root, else the shipped default -- one rule, the same probe the plan
+        // spent, and the file it names goes through the door above. An absent SHIPPED
+        // default is the ordinary "nothing to build"; an absent named file is a refusal.
+        const std::string recipe_path = recipe_persist::recipes_in_force(
+            args.recipes, host.project_dir, host.dir, present);
+        if (args.recipes.empty() && !present(recipe_path)) {
             std::printf("zengine-workshop - build recipes: none (%s is not there, so this "
                         "Workshop can build nothing)\n",
                         recipe_path.c_str());
@@ -1386,7 +1391,9 @@ int main(int argc, char** argv) {
     // owners this host already holds, read at the moment of the act. A recipe row goes
     // into the catalog in force or a project catalog seeded from it; a plan row goes into
     // the project plan seeded from the plan read at launch, and only after the running
-    // project took it.
+    // project took it -- and the answer says where the chosen recipe's product is when the
+    // new row is the frontier and the product exists, read through the staging rule, so the
+    // weave can finish `load it` with the button's own act.
     authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,
                                           host.use_recipes};
     host.author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
@@ -1395,9 +1402,10 @@ int main(int argc, char** argv) {
     authoring::PlanAuthor plan_author{
         host.project_dir.empty() ? std::string()
                                  : host.project_dir + "/" + load_persist::kProjectLoadPlanName,
-        read_plan.plan, &executor};
-    host.append_plan_row = [&plan_author](const std::string& stem, const std::string& role) {
-        return authoring::append_plan_row(plan_author, stem, role);
+        read_plan.plan, &executor, &staging_host};
+    host.append_plan_row = [&plan_author](const std::string& stem, const std::string& role,
+                                          const std::string& recipe) {
+        return authoring::append_plan_row(plan_author, stem, role, recipe);
     };
     host.plan_names = [&plan_author](const std::string& stem) {
         return authoring::plan_names(plan_author, stem);

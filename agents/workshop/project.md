@@ -193,13 +193,19 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable
 
-LAW — The recipe catalog Workshop ships is staged beside the executable under `kDefaultRecipesName`; `--recipes` names a different one, and there is no registry, no picker and no search path.
+LAW — The shipped catalog sits beside the executable under `kDefaultRecipesName`; `--recipes` wins, else `<project>/build-recipes.json` when present, else the shipped; no registry, picker or search path.
 
-PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`; `workshop/workshop.cpp`
-`exe_dir`, `Arguments::recipes`; `workshop/CMakeLists.txt` `zengine_workshop_dir`;
-`tests/test_workshop_files.cpp` case `"the shipped catalog is staged beside the executable, under
-the name the launch resolves"`, case `"the launch resolves the shipped catalog beside the
-executable, and --recipes is the only other road"`.
+MEANS
+- `recipes_in_force` is `plan_in_force`'s twin, decided by the host's one probe, never a default;
+- an absent shipped default is "nothing to build"; an absent named file is a refusal.
+
+PROVEN BY — `workshop/recipe_persist.hpp` `kDefaultRecipesName`, `recipes_in_force`;
+`workshop/workshop.cpp` `exe_dir`, `Arguments::recipes`; `workshop/CMakeLists.txt`
+`zengine_workshop_dir`; `tests/test_workshop_files.cpp` case `"the shipped catalog is staged
+beside the executable, under the name the launch resolves"`, case `"the launch resolves the
+catalog by one rule: --recipes, else the project catalog at the root, else the shipped default
+beside the executable"`, case `"the project catalog at the captured root is the catalog in
+force when no --recipes is given"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-16 — A live weave-only row reloads in place from an image off the loaded path
