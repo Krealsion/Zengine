@@ -25,6 +25,8 @@
 // compiles it -- so the generated project and the preflight are read here, against the
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
+#include "workshop/authoring.hpp"
+#include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
 // ...AND WHO HOLDS THE COMPLETED ANSWER (PROJ-0), and how a catalog file BECOMES that
 // answer (PROJ-1). One owner per running Workshop, read by every recipe consumer; the two
@@ -3812,4 +3814,416 @@ TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, ne
     // ...WHILE THE FILE'S OWN ROW STAYS AS AUTHORED: the completion is never written back.
     const std::vector<zengine::builder::Recipe> authored{single};
     CHECK(recipe_persist::to_text(authored).find("build-workspace") == std::string::npos);
+}
+
+// ============================================================================
+// PICK-1 / LOAD-IT -- the two authored files gain a writer, and it is the maker's act.
+//
+// The browser hands over a place; the chooser enumerates once; a choice asks for what
+// nothing can detect and hands a DRAFT to the host, whose rule composes the row, checks it
+// by the recipe law, appends it to the file's rows AS WRITTEN, saves atomically and
+// installs through the one seam `u` spends. Every case drives the real weave through the
+// real keymap; the host's rule is the production one (`workshop/authoring.hpp`).
+
+namespace {
+
+/// The gesture, as a maker makes it: the key, then the character it produced (swallowed).
+inline void pick_buildable(FilesRig& r) {
+    r.t.key(input::scan::kA);
+    r.t.text("a");
+}
+
+/// Clear the line's suggested default, then type the field and commit it.
+inline void answer(FilesRig& r, const std::string& text) {
+    const std::size_t held = r.session().authoring.line.text().size();
+    for (std::size_t i = 0; i < held; ++i) {
+        r.t.key(input::scan::kBackspace);
+    }
+    if (!text.empty()) {
+        r.t.text(text);
+    }
+    r.t.key(input::scan::kReturn);
+}
+
+/// Wire the production recipe writer over the suite's owner, as `workshop.cpp` wires it.
+inline void wire_author(FilesRig& r, CurrentRecipes& owner, const std::string& install) {
+    r.t.host.use_recipes = host_use_recipes(owner, install, r.t.host.project_dir);
+    static std::vector<std::unique_ptr<authoring::RecipeAuthor>> kept;
+    kept.push_back(std::make_unique<authoring::RecipeAuthor>(
+        authoring::RecipeAuthor{install, r.t.host.project_dir, &owner, r.t.host.use_recipes}));
+    authoring::RecipeAuthor* author = kept.back().get();
+    r.t.host.author_recipe = [author](const HostContext::RecipeDraft& draft) {
+        return authoring::author_recipe(*author, draft);
+    };
+}
+
+/// A place with something buildable in it: one source, one configured tree, one source
+/// tree (a CMakeLists.txt alone), and one file that is neither.
+inline void put_buildables(const std::filesystem::path& root) {
+    put_file(root / "oven.cpp", "// a maker's weave\n");
+    std::filesystem::create_directories(root / "tree");
+    put_file(root / "tree" / "CMakeCache.txt", "# configured\n");
+    std::filesystem::create_directories(root / "src");
+    put_file(root / "src" / "CMakeLists.txt", "project(not-configured)\n");
+    put_file(root / "notes.txt", "not buildable\n");
+}
+
+} // namespace
+
+TEST_CASE("PICK-1: the gesture is an ordinary row on the one binding truth, and Files hands over "
+          "a place, never a recipe") {
+    CurrentRecipes owner;
+    FilesRig r("pickgesture");
+    put_buildables(r.root);
+    wire_author(r, owner, r.root.generic_string());
+    r.open();
+    r.press_body(0);
+    // THE ROW: an ordinary keymap row in the browser's context, a bare letter, movable.
+    CHECK(r.session().keymap.matches(Act::kFilesPickBuildable, input::scan::kA,
+                                     input::mod::kNone));
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    // WHAT FILES HANDED OVER: the location it was browsing, and nothing about a recipe --
+    // the chooser holds names and a kind, and the browser's rows are what they were.
+    REQUIRE(r.session().recipe_chooser.open);
+    CHECK(r.session().recipe_chooser.dir == r.root.generic_string());
+    for (const FileRow& row : r.listing().rows) {
+        CHECK(row.name.find("recipe") == std::string::npos);
+    }
+    CHECK(keyboard_context(r.session()) == KeyContext::kRecipeChooser);
+    // ...AND WITH NO PROJECT AND NO LOCATION, THE GESTURE REFUSES IN WORDS.
+    FilesRig bare("picknowhere", /*with_project=*/false);
+    wire_author(bare, owner, r.root.generic_string());
+    bare.open();
+    if (!bare.listing().rows.empty()) {
+        bare.press_body(0);
+    }
+    if (keyboard_context(bare.session()) == KeyContext::kFiles) {
+        pick_buildable(bare);
+        CHECK_FALSE(bare.session().recipe_chooser.open);
+    }
+}
+
+TEST_CASE("PICK-1: the chooser enumerates once, at the gesture: a .cpp and a configured tree "
+          "are candidates, a source tree is not") {
+    CurrentRecipes owner;
+    FilesRig r("pickenum");
+    put_buildables(r.root);
+    wire_author(r, owner, r.root.generic_string());
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    const RecipeChooser& chooser = r.session().recipe_chooser;
+    REQUIRE(chooser.open);
+    // THE LISTING'S OWN ORDER: directories first, then names -- the configured tree, then
+    // the source. `src/` holds a CMakeLists.txt and nothing configured: not a row.
+    // `notes.txt` is neither: not a row.
+    REQUIRE(chooser.candidates.size() == 2);
+    CHECK(chooser.candidates[0].name == "tree");
+    CHECK(chooser.candidates[0].tree);
+    CHECK(chooser.candidates[1].name == "oven.cpp");
+    CHECK_FALSE(chooser.candidates[1].tree);
+    CHECK(r.shown().find("PICK BUILDABLE") != std::string::npos);
+    CHECK(r.shown().find("tree   configured CMake tree") != std::string::npos);
+    CHECK(r.shown().find("oven.cpp   source file") != std::string::npos);
+    CHECK(r.shown().find("src") == std::string::npos);
+    CHECK(r.shown().find("notes") == std::string::npos);
+}
+
+TEST_CASE("PICK-1: painting the chooser walks nothing") {
+    CurrentRecipes owner;
+    FilesRig r("pickpaint");
+    put_buildables(r.root);
+    wire_author(r, owner, r.root.generic_string());
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    REQUIRE(r.session().recipe_chooser.candidates.size() == 2);
+    // THE PLACE CHANGES UNDER THE OPEN CHOOSER: a new source appears, the tree loses its
+    // cache. A chooser that walked on the paint path would show the difference; this one
+    // holds what the gesture found until the mode closes.
+    put_file(r.root / "later.cpp", "// arrived after the gesture\n");
+    std::filesystem::remove(r.root / "tree" / "CMakeCache.txt");
+    r.resize_screen(38);
+    r.resize_screen(40);
+    REQUIRE(r.session().recipe_chooser.open);
+    CHECK(r.session().recipe_chooser.candidates.size() == 2);
+    CHECK(r.shown().find("later") == std::string::npos);
+    CHECK(r.shown().find("tree   configured CMake tree") != std::string::npos);
+}
+
+TEST_CASE("PICK-1: the chooser is a mode: it opens over the first slot, choosing closes it, and "
+          "Escape authors nothing") {
+    CurrentRecipes owner;
+    FilesRig r("pickmode");
+    put_buildables(r.root);
+    wire_author(r, owner, r.root.generic_string());
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kRecipeChooser);
+    // OVER THE FIRST SLOT, exactly where the `+ panel` picker paints.
+    CHECK(r.shown().find("PICK BUILDABLE") != std::string::npos);
+    // ESCAPE: the mode closes, the keyboard goes back to the browser, and no file exists.
+    r.t.key(input::scan::kEscape);
+    CHECK_FALSE(r.session().recipe_chooser.open);
+    CHECK(keyboard_context(r.session()) == KeyContext::kFiles);
+    CHECK(r.notice().find("no recipe was authored") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(r.root / recipe_persist::kProjectRecipesName));
+    // CHOOSING: the chooser closes and the prompt opens; the chooser is not both.
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    CHECK_FALSE(r.session().recipe_chooser.open);
+    REQUIRE(r.session().authoring.open);
+    CHECK(keyboard_context(r.session()) == KeyContext::kAuthoring);
+    CHECK(r.session().authoring.chosen.name == "oven.cpp");
+}
+
+TEST_CASE("PICK-1: the typed fields are asked in order, a blank required field refuses in the "
+          "recipe law's words, and Escape writes nothing") {
+    CurrentRecipes owner;
+    FilesRig r("pickfields");
+    put_buildables(r.root);
+    wire_author(r, owner, r.root.generic_string());
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    // THE FIRST FIELD, WITH THE ONE DEFAULT A PLACE SUGGESTS: the name, from the file.
+    REQUIRE(r.session().authoring.open);
+    CHECK(r.session().authoring.prompt == "recipe name> ");
+    CHECK(r.session().authoring.line.text() == "oven");
+    CHECK(r.shown().find("recipe name> oven") != std::string::npos);
+    r.t.key(input::scan::kReturn);
+    CHECK(r.session().authoring.prompt == "artifact stem> ");
+    CHECK(r.session().authoring.line.text() == "oven"); // the artifact is the name unless said
+    r.t.key(input::scan::kReturn);
+    CHECK(r.session().authoring.prompt.rfind("package prefix", 0) == 0);
+    // A BLANK REQUIRED FIELD REFUSES AND RE-ASKS: the step does not move, nothing is written.
+    r.t.key(input::scan::kReturn);
+    CHECK(r.notice().find("package prefix (comma-separated) is required") != std::string::npos);
+    CHECK(r.session().authoring.step == 2);
+    CHECK(r.session().authoring.open);
+    // ESCAPE CANCELS THE WHOLE AUTHORING: no file, no catalog change.
+    r.t.key(input::scan::kEscape);
+    CHECK_FALSE(r.session().authoring.open);
+    CHECK(keyboard_context(r.session()) == KeyContext::kFiles);
+    CHECK(r.notice().find("no recipe was written") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(r.root / recipe_persist::kProjectRecipesName));
+    CHECK(owner.all().empty());
+}
+
+TEST_CASE("PICK-1: choosing authors ONE row, appended to the file's rows as written, through the "
+          "atomic save and the one seam") {
+    // A CATALOG THE MAKER NAMED IS IN FORCE, holding one row: the new row goes into THAT
+    // file, after the row as it was written -- not after the completed row the session
+    // holds, whose source is absolute and whose artifact directory is the install's.
+    CurrentRecipes owner;
+    FilesRig r("pickauthor");
+    put_buildables(r.root);
+    const std::filesystem::path catalog = r.root / "mine.json";
+    put_catalog(catalog, {authored_recipe("alpha", "src/alpha.cpp")});
+    const std::string install = (r.root / "install").generic_string();
+    wire_author(r, owner, install);
+    REQUIRE(r.t.host.use_recipes(catalog.generic_string()).accepted);
+    zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
+    open_builder(r.t);
+    r.open();
+    r.press_body(0);
+    REQUIRE(r.session().panels.builder.known.recipes.size() == 1);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+
+    pick_buildable(r);
+    REQUIRE(r.session().recipe_chooser.open);
+    REQUIRE(r.session().recipe_chooser.candidates.size() == 2);
+    r.t.key(input::scan::kDown); // the source
+    r.t.key(input::scan::kReturn);
+    REQUIRE(r.session().authoring.open);
+    answer(r, "oven");
+    answer(r, "zengine-oven");
+    answer(r, "/opt/zengine, /opt/loom");
+    answer(r, "zengine::timer, loom::switchboard");
+    CHECK_FALSE(r.session().authoring.open);
+    CHECK(r.notice().find("authored recipe `oven` -> zengine-oven in " + catalog.generic_string()) !=
+          std::string::npos);
+
+    // THE FILE: two rows, the first exactly as written, the second as authored -- an empty
+    // artifact directory, the source as the browser spelled it, the two lists as typed.
+    const recipe_persist::LoadedRecipes read = recipe_persist::load_file(catalog.generic_string());
+    REQUIRE(read.outcome.accepted);
+    REQUIRE(read.recipes.size() == 2);
+    CHECK(read.recipes[0].id == "alpha");
+    CHECK(read.recipes[0].single_source->source == "src/alpha.cpp"); // never completed
+    CHECK(read.recipes[0].artifact_dir.empty());
+    CHECK(read.recipes[1].id == "oven");
+    CHECK(read.recipes[1].artifact == "zengine-oven");
+    CHECK(read.recipes[1].artifact_dir.empty());
+    REQUIRE(read.recipes[1].single_source.has_value());
+    CHECK(read.recipes[1].single_source->source == (r.root / "oven.cpp").generic_string());
+    CHECK(read.recipes[1].single_source->packages ==
+          std::vector<std::string>{"/opt/zengine", "/opt/loom"});
+    CHECK(read.recipes[1].single_source->links ==
+          std::vector<std::string>{"zengine::timer", "loom::switchboard"});
+    CHECK_FALSE(std::filesystem::exists(r.root / "mine.json.saving"));
+    // THE ONE SEAM: the owner holds the file's two rows, completed; the tool answers them;
+    // the panel shows them, republished as `u` republishes.
+    CHECK(owner.source() == catalog.generic_string());
+    REQUIRE(owner.all().size() == 2);
+    CHECK(owner.all()[1].artifact_dir == install + "/build-workspace/oven/out");
+    REQUIRE(tool->recipes().size() == 2);
+    CHECK(tool->recipes()[1].id == "oven");
+    REQUIRE(r.session().panels.builder.known.recipes.size() == 2);
+    CHECK(r.session().recipes_moved_to == catalog.generic_string());
+}
+
+TEST_CASE("PICK-1: a row that fails the recipe law is refused whole, and the file is untouched") {
+    CurrentRecipes owner;
+    FilesRig r("pickrefused");
+    put_buildables(r.root);
+    const std::filesystem::path catalog = r.root / "mine.json";
+    put_catalog(catalog, {authored_recipe("alpha", "src/alpha.cpp")});
+    wire_author(r, owner, (r.root / "install").generic_string());
+    REQUIRE(r.t.host.use_recipes(catalog.generic_string()).accepted);
+    const std::string before = bytes_of(catalog);
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    // THE SAME NAME AS A ROW THE FILE HOLDS: the catalog law refuses the whole, in its
+    // own words, and the bytes are the bytes.
+    answer(r, "alpha");
+    answer(r, "alpha-again");
+    answer(r, "/opt/zengine");
+    answer(r, "loom::kernel");
+    CHECK_FALSE(r.session().authoring.open);
+    CHECK(r.notice().find("no recipe was written") != std::string::npos);
+    CHECK(r.notice().find("alpha") != std::string::npos);
+    CHECK(bytes_of(catalog) == before);
+    CHECK(owner.all().size() == 1);
+    // ...AND A LINK THAT IS NOT A TARGET NAME is the recipe law's own refusal, same result.
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    REQUIRE(r.session().authoring.open);
+    answer(r, "oven");
+    answer(r, "zengine-oven");
+    answer(r, "/opt/zengine");
+    answer(r, "-lfoo");
+    CHECK(r.notice().find("no recipe was written") != std::string::npos);
+    CHECK(r.notice().find("-lfoo") != std::string::npos);
+    CHECK(bytes_of(catalog) == before);
+}
+
+TEST_CASE("PICK-1: when the catalog in force is the shipped default, the chooser authors a "
+          "PROJECT catalog and installs it") {
+    // THE SHIPPED CATALOG IS INSTALLATION TRUTH: it is never written into. The row goes
+    // into `<project>/build-recipes.json`, seeded with the shipped rows AS WRITTEN so
+    // nothing buildable disappears from the panel, and that file is installed.
+    CurrentRecipes owner;
+    FilesRig r("pickshipped");
+    put_buildables(r.root);
+    const std::filesystem::path install = r.root / "install";
+    std::filesystem::create_directories(install);
+    const std::filesystem::path shipped = install / recipe_persist::kDefaultRecipesName;
+    put_catalog(shipped, {authored_recipe("skin", "src/skin.cpp")});
+    wire_author(r, owner, install.generic_string());
+    REQUIRE(r.t.host.use_recipes(shipped.generic_string()).accepted);
+    const std::string shipped_bytes = bytes_of(shipped);
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    r.t.key(input::scan::kReturn); // the configured tree
+    answer(r, "tree");
+    answer(r, "my-target");
+    answer(r, "zengine-mine");
+    answer(r, ""); // the artifact directory is optional
+    CHECK_FALSE(r.session().authoring.open);
+    const std::filesystem::path project = r.root / recipe_persist::kProjectRecipesName;
+    REQUIRE(std::filesystem::exists(project));
+    CHECK(bytes_of(shipped) == shipped_bytes);
+    const recipe_persist::LoadedRecipes read = recipe_persist::load_file(project.generic_string());
+    REQUIRE(read.outcome.accepted);
+    REQUIRE(read.recipes.size() == 2);
+    CHECK(read.recipes[0].id == "skin");
+    CHECK(read.recipes[1].id == "tree");
+    REQUIRE(read.recipes[1].cmake_target.has_value());
+    CHECK(read.recipes[1].cmake_target->build_dir == (r.root / "tree").generic_string());
+    CHECK(read.recipes[1].cmake_target->target == "my-target");
+    CHECK(read.recipes[1].artifact == "zengine-mine");
+    CHECK(read.recipes[1].artifact_dir.empty());
+    CHECK(owner.source() == project.generic_string());
+    CHECK(owner.all().size() == 2);
+    // A SECOND ROW GOES INTO THE PROJECT CATALOG NOW IN FORCE, not a fresh seed.
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    REQUIRE(r.session().authoring.open);
+    answer(r, "oven");
+    answer(r, "zengine-oven");
+    answer(r, "/opt/zengine");
+    answer(r, "loom::kernel");
+    const recipe_persist::LoadedRecipes again = recipe_persist::load_file(project.generic_string());
+    REQUIRE(again.outcome.accepted);
+    CHECK(again.recipes.size() == 3);
+    CHECK(bytes_of(shipped) == shipped_bytes);
+}
+
+TEST_CASE("PICK-1: with no catalog in force, the project catalog is created from the new row "
+          "alone") {
+    CurrentRecipes owner;
+    FilesRig r("picknone");
+    put_buildables(r.root);
+    wire_author(r, owner, (r.root / "install").generic_string());
+    REQUIRE(owner.source().empty());
+    r.open();
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    pick_buildable(r);
+    r.t.key(input::scan::kDown);
+    r.t.key(input::scan::kReturn);
+    REQUIRE(r.session().authoring.open);
+    answer(r, "oven");
+    answer(r, "zengine-oven");
+    answer(r, "/opt/zengine");
+    answer(r, "loom::kernel");
+    const std::filesystem::path project = r.root / recipe_persist::kProjectRecipesName;
+    REQUIRE(std::filesystem::exists(project));
+    const recipe_persist::LoadedRecipes read = recipe_persist::load_file(project.generic_string());
+    REQUIRE(read.outcome.accepted);
+    REQUIRE(read.recipes.size() == 1);
+    CHECK(read.recipes[0].id == "oven");
+    CHECK(owner.source() == project.generic_string());
+    CHECK(owner.all().size() == 1);
+}
+
+TEST_CASE("LOAD-IT: the project plan at the captured root is the plan in force when no "
+          "--load-plan is given") {
+    // THE LAUNCH RULE, AS A PURE FUNCTION: explicit wins; else the project plan when it is
+    // there; else the shipped default. The probe is the caller's, so the rule is decided
+    // by an answer and never by a disk.
+    const auto present_at = [](const std::string& where) {
+        return [where](const std::string& path) { return path == where; };
+    };
+    const std::string project = "/project/" + std::string(load_persist::kProjectLoadPlanName);
+    const std::string shipped = "/install/" + std::string(load_persist::kDefaultLoadPlanName);
+    CHECK(load_persist::plan_in_force("/explicit.json", "/project", "/install",
+                                      present_at(project)) == "/explicit.json");
+    CHECK(load_persist::plan_in_force("", "/project", "/install", present_at(project)) ==
+          project);
+    CHECK(load_persist::plan_in_force("", "/project", "/install", present_at("/elsewhere")) ==
+          shipped);
+    CHECK(load_persist::plan_in_force("", "", "/install", present_at(project)) == shipped);
+    // ...AND THE HOST SPELLS THE RULE ONCE: it names the function and no second default.
+    const std::string host = file_source(WORKSHOP_HOST_CPP);
+    CHECK(host.find("load_persist::plan_in_force(") != std::string::npos);
+    CHECK(host.find("kDefaultLoadPlanName") == std::string::npos);
 }

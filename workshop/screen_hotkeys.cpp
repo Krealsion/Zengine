@@ -19,6 +19,8 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kNaming: return "naming a layout";
     case KeyContext::kPaneNaming: return "naming a new pane";
     case KeyContext::kPicker: return "the + panel picker";
+    case KeyContext::kRecipeChooser: return "choosing something buildable";
+    case KeyContext::kAuthoring: return s.authoring.for_role ? "naming a role" : "authoring a recipe";
     case KeyContext::kAttention: return "what needs attention";
     case KeyContext::kContext: return "the contextual actions";
     case KeyContext::kArrangePane: {

@@ -76,6 +76,9 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_picker(layer, panels, s.setup.active, sc, s.keymap);
     });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_recipe_chooser(layer, s, sc);
+    });
     // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
     // covers, under the screen's own chrome. The band keeps speaking while it is open --
     // what a maker is READING is what is currently true, and what the band SAYS is what

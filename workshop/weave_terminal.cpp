@@ -446,6 +446,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kBuildRealize: build_realize(mail); break;
     case Act::kPromote: promote_image(mail); break;
     case Act::kRevert: revert_image(mail); break;
+    case Act::kLoadIt: load_it(mail); break;
     case Act::kRecipeNext: choose_recipe(+1, mail); break;
     case Act::kRecipeBack: choose_recipe(-1, mail); break;
     case Act::kBuildFrontier: build_frontier(mail); break;

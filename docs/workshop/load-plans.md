@@ -12,7 +12,9 @@ loaded into which roles is a file, read at startup:
 zengine-workshop --load-plan <path>
 ```
 
-Default: `default-load-plan.json`, beside the binary.
+Default: `workshop-plan.json` in the directory you launched from, when there is one — the file
+`o` in the [Builder](builder.md#loading-a-built-artifact-into-the-plan) writes — else
+`default-load-plan.json`, beside the binary.
 
 That is why there is no `--skin` flag and no `--input` flag. Those two were the flags a plan
 replaced, and the replacement is not cosmetic: a plan is repeatable, diffable and durable, so
@@ -154,6 +156,9 @@ The `Project` pane calls the waiting row `pending`, and every row behind it `aut
 ## What a plan cannot do
 
 No directory scan, no artifact enumeration, no dependency resolution, no version consultation,
-no network, no resolution cache, and no rewriting itself. And **no unload and no replacement**:
+no network, no resolution cache, and no rewriting itself: the one thing that adds a row is your
+own `o` in the [Builder](builder.md#loading-a-built-artifact-into-the-plan), which appends to the
+project's `workshop-plan.json` after the running project accepted the row, and nothing edits,
+reorders or removes one. And **no unload and no replacement**:
 a plan is initial and restart intent, and a reload in place changes no row of it. See
 [limitations](limitations.md#lifecycle).

@@ -256,7 +256,8 @@ build is a retry, and the host keeps running.
 |---|---|
 | shipped default | `workshop/default-load-plan.json`, staged beside the host binary |
 | shipped graphical | `workshop/graphical-load-plan.json`, staged only where both SDL artifacts were built |
-| default lookup | `<directory of the executable>/default-load-plan.json` |
+| project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
+| default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
 | override | `--load-plan <path>`, used exactly as given |
 | missing | refused by path, and the host exits without mounting or loading anything |
 

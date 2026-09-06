@@ -406,6 +406,7 @@ void WorkshopWeave::files_key(const zengine::input::KeyPressed& k, loom::Mail& m
         say("listed " + files_where() + " again", false);
         break;
     case Act::kFilesUseRecipes: files_use_recipes(mail); break;
+    case Act::kFilesPickBuildable: files_pick_buildable(mail); break;
     case Act::kFilesMark: files_mark(); break;
     case Act::kFilesNextMark: files_jump_mark(1); break;
     case Act::kFilesPreviousMark: files_jump_mark(-1); break;

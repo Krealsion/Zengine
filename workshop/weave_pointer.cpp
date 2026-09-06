@@ -336,6 +336,10 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         session_.pane_naming.line.type(t.text);
         repaint(mail);
         return;
+    case KeyContext::kAuthoring:
+        session_.authoring.line.type(t.text);
+        repaint(mail);
+        return;
     case KeyContext::kTerminal:
         // AT THE CARET, WHICH IS NOT ALWAYS THE END. `type` is the only
         // door that moves the text and the caret together, so a keystroke in the
@@ -349,6 +353,7 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     case KeyContext::kArrangeDesk:
     case KeyContext::kArrangeReset:
     case KeyContext::kPicker:
+    case KeyContext::kRecipeChooser:
         return;
     case KeyContext::kPane:
         external_text(keyboard_pane(), t, mail);
