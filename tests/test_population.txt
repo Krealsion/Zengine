@@ -1034,7 +1034,16 @@ component                         doctest           always  39
 operator                          doctest           always  126
 composer                          doctest           always  35
 maker                             doctest           always  26
-builder                           doctest           always  54
+# THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
+# case is the journal's: what the project made of an artifact it was offered is a durable fact
+# now (`ArtifactRealized` joins the host's selection in workshop.cpp), because the realize row
+# and the notice are one row each and a load the Loom refuses says more than either holds. The
+# case drives a refused answer onto a bus, closes the journal, and reads the file back to find
+# the refusal's whole sentence in it -- and it is red with that one line removed, which is how
+# the host's choice is the thing being pinned. The same phase's other change to this suite --
+# `drain` bounded by a wall clock instead of by two million looks -- moved no floor and added
+# no case: the same population, no longer able to fail for having looked too fast.
+builder                           doctest           always  55
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that

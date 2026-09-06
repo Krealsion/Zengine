@@ -162,6 +162,13 @@ RecipeView view_of(const Recipe& r) {
     return RecipeView{r.id, r.artifact, fixture_path(r.artifact)};
 }
 
+/// One source file, with its prose stripped -- DEFINED with the scheduler audit at the
+/// bottom of this file, where the discipline it embodies is argued. Declared up here
+/// because a second tripwire wants it: the journal case in Tier 5b reads the production
+/// host the same way, for the same reason (a property that is true because of what a file
+/// NAMES cannot be proved by running anything the file is compiled into).
+std::string code_of(const char* path);
+
 /// Drive one held process to its end the way nothing in production does -- by
 /// looking again the instant the last look found nothing -- and answer everything
 /// it said plus how many looks it took.
@@ -236,7 +243,8 @@ struct HeardState {
 
 class Listener
     : public loom::WeaveBase<Listener, HeardState,
-                             loom::Accept<BuildStatus, RecipeCatalog, OfferArtifact>,
+                             loom::Accept<BuildStatus, RecipeCatalog, OfferArtifact,
+                                          ArtifactRealized>,
                              loom::Emit<>> {
 public:
     void on(const BuildStatus& s, loom::Mail&) {
@@ -249,10 +257,17 @@ public:
     /// them sees exactly what a panel sees.
     void on(const RecipeCatalog& c, loom::Mail&) { catalogs.push_back(c); }
     void on(const OfferArtifact& a, loom::Mail&) { built.push_back(a); }
+    /// ...AND THE REALIZATION OWNER'S ANSWER, for one case's sake. A Logger captures a
+    /// payload from the DELIVERY that carried it, so a case about what the journal keeps
+    /// needs somebody on this bus who accepts the shape -- in the running Workshop that
+    /// somebody is the Builder tool, which folds the answer into the picture it
+    /// publishes (builder/weave.hpp).
+    void on(const ArtifactRealized& r, loom::Mail&) { realized.push_back(r); }
     const BuildStatus& last() const { return said.back(); }
     std::vector<BuildStatus> said;
     std::vector<RecipeCatalog> catalogs;
     std::vector<OfferArtifact> built;
+    std::vector<ArtifactRealized> realized;
 };
 
 /// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
@@ -1637,6 +1652,98 @@ TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed ar
     }
     CHECK(finished == 1);
     std::remove(path.c_str());
+}
+
+TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, whole") {
+    // WHERE A REFUSAL CAN BE READ WHOLE -- and it needed a place, because it had none.
+    // The realization outcome is ONE row of a narrow panel and the notice is ONE row of
+    // the bottom band; both are fitted to their width, and neither is a surface a
+    // pointer can read past. So a load refused deep in the Loom reaches a maker cut at
+    // the ellipsis twice over, and the sentence that says WHICH schema collided is the
+    // half that does not fit.
+    //
+    // THE HOST NAMES THE SHAPE THAT CARRIES IT. `ArtifactRealized` is the realization
+    // owner's own answer -- published once per realize, promote or revert, refused or
+    // accepted -- so it is rare by construction, exactly like the two build shapes
+    // beside it in the host's selection, and it is the opposite of `BuildStatus`, which
+    // is republished on every chunk of compiler chatter and is working memory by the
+    // ton.
+    //
+    // THE SELECTION IS THE HOST'S, COPIED FROM `workshop.cpp` AND NOT INVENTED HERE,
+    // for the same reason `tool_grant()` above is copied: a fixture with a wider
+    // selection is a fixture in which the host's own choice is untested.
+    loom::Switchboard bus;
+    Listener* ears = nullptr;
+    const loom::WeaveId ears_id = mount_plain<Listener>(bus, loom::Grant{}, &ears);
+
+    const std::string path = "zengine-rth1a-refusal.log";
+    std::remove(path.c_str());
+
+    // THE REFUSAL AS A MAKER MEETS IT, AT THE LENGTH IT REALLY IS -- the executor's
+    // artifact-and-step prefix in front of the Loom registry's own sentence, which is
+    // `SchemaConflict`'s (Loom src/registry.cpp). A default pane is 46 columns wide on a
+    // terminal and the realize row spends nine of them on its label, so this cannot be
+    // shown whole there by any arrangement of the pane.
+    const std::string whole =
+        "artifact 'zengine-oven2': weave load refused: load refused: schema 'OvenState' "
+        "v1 is already published with a different shape (published schemas are immutable)";
+    REQUIRE(whole.size() > 46);
+
+    loom::LoggerSelection selection = loom::default_selection();
+    selection.shapes.push_back(loom::LogRule{std::string(BuildFinished::zen_name), 0});
+    selection.shapes.push_back(loom::LogRule{std::string(BuildNotStarted::zen_name), 0});
+    selection.shapes.push_back(loom::LogRule{std::string(ArtifactRealized::zen_name), 0});
+    {
+        loom::Logger journal(bus, std::move(selection));
+        REQUIRE(journal.open(path));
+        (void)bus.send(ears_id, loom::Message(loom::to_value(ArtifactRealized{
+                                    std::string("zengine-oven2"), false, whole, false})));
+        bus.drain_until_idle();
+        REQUIRE(ears->realized.size() == 1);
+        CHECK(journal.appended_of(std::string(ArtifactRealized::zen_name)) == 1);
+    }
+
+    std::vector<loom::LogRecord> back;
+    std::string error;
+    REQUIRE(loom::Logger::read(path, &back, &error));
+    std::size_t answers = 0;
+    for (const loom::LogRecord& r : back) {
+        if (r.observation.shape != ArtifactRealized::zen_name) {
+            continue;
+        }
+        ++answers;
+        // WHOLE, AND THAT IS THE CLAIM. A durable record of a rare fact without its
+        // content is half a record: the bytes the row could not show are in the file,
+        // not a note that something somewhere was refused.
+        CHECK(r.observation.payload == loom::PayloadDisposition::Retained);
+        CHECK(r.payload_body.find(whole) != std::string::npos);
+    }
+    CHECK(answers == 1);
+    std::remove(path.c_str());
+
+    // ...AND THE PRODUCTION HOST REALLY NAMES IT. The selection above is copied by hand,
+    // so on its own it proves what a Logger does with three shapes and nothing at all
+    // about which three `workshop.cpp` chose -- and `main()` claims a terminal, so no
+    // case here can run it. What a case CAN do is read the file, between the two
+    // statements that bracket the host's selection and with its prose stripped, so that
+    // deleting the line is a red here rather than a silence. The window matters: the host
+    // names this shape a second time, in a grant, which is a different sentence.
+    const std::string host = code_of(ZENGINE_TEST_HOST_SOURCE);
+    const std::size_t opens = host.find("loom::LoggerSelection log_selection");
+    const std::size_t closes = host.find("loom::Logger journal(");
+    REQUIRE(opens != std::string::npos);
+    REQUIRE(closes != std::string::npos);
+    REQUIRE(opens < closes);
+    const std::string chosen = host.substr(opens, closes - opens);
+    CHECK_MESSAGE(chosen.find("builder::ArtifactRealized::zen_name") != std::string::npos,
+                  "workshop.cpp's log selection does not name ArtifactRealized, so a realize "
+                  "refusal is kept whole nowhere");
+    CHECK(chosen.find("builder::BuildFinished::zen_name") != std::string::npos);
+    CHECK(chosen.find("builder::BuildNotStarted::zen_name") != std::string::npos);
+    // AND NOT THE CHATTY ONE. `BuildStatus` carries the same sentence and is republished
+    // on every chunk of compiler output; naming it here would put the traffic this
+    // whitelist exists to exclude into the file a maker keeps for good.
+    CHECK(chosen.find("builder::BuildStatus::zen_name") == std::string::npos);
 }
 
 // ============================================================================
