@@ -315,8 +315,7 @@ jobs:
       - name: Diagnose -- the load suite, case by case
         timeout-minutes: 8
         continue-on-error: true
-        run: |
-          & '.uild-win	ests\zengine-workshop-load-tests.exe' -d -s 2>&1 | Select-Object -Last 400
+        run: ./build-win/tests/zengine-workshop-load-tests.exe -d
 
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
