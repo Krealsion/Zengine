@@ -798,6 +798,26 @@ struct PaneNaming {
     component::TextBox line;
 };
 
+/// WHAT THE MAKER IS BEING ASKED TO TYPE (PICK-1, LOAD-IT): one field of the recipe a
+/// chosen candidate still needs, or the role a new plan row needs. A mode beside
+/// `pane_naming`, for the same reason -- a hand halfway through a word -- and the SAME
+/// shape for both askers: one prompt, one line, Return commits, Escape cancels the whole
+/// authoring. Nothing here is written anywhere until the last field commits.
+// WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
+struct AuthoringPrompt {
+    bool open = false;
+    bool for_role = false;     ///< LOAD-IT's role prompt; otherwise a recipe field
+    std::string prompt;        ///< the words before the line
+    component::TextBox line;
+    // ---- a recipe being authored --------------------------------------------------
+    BuildCandidate chosen;
+    std::string dir;
+    std::size_t step = 0;               ///< which field is being asked
+    std::vector<std::string> answers;   ///< the fields committed so far, in order
+    // ---- a plan row being authored ---------------------------------------------------
+    std::string stem;                   ///< the artifact the role is for
+};
+
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
 // WL-ARR-01 -- agents/workshop/arrangement.md
 struct PaneGesture {
@@ -979,6 +999,11 @@ struct Session {
     /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
     /// layout-name editor's for the same reason: a maker's hand halfway through a word.
     PaneNaming pane_naming;
+    /// THE RECIPE CHOOSER AND THE AUTHORING PROMPT (PICK-1, LOAD-IT): two modes, session
+    /// and not pane state, for `pane_naming`'s reason exactly.
+    // WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
+    RecipeChooser recipe_chooser;
+    AuthoringPrompt authoring;
     /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
     /// buffer with its caret/selection/history, the saved copy the dirty answer derives
     /// from, and the viewport. Session and not pane state, emphatically: the Editor PANE
@@ -1654,6 +1679,11 @@ std::string picker_entry_text(const std::string& name, const char* state,
 /// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
 /// ALREADY OPEN, in a fixed column so the list reads down; it asks for the stack's first
 /// slot through `picker_bounds` rather than knowing where that is.
+/// THE RECIPE CHOOSER'S BOX, over the first slot as the picker's is, and the authoring
+/// prompt's line as its heading while a field is being typed (PICK-1).
+// WL-AUTH-01 -- agents/workshop/authoring.md
+void paint_recipe_chooser(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+
 void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
                          const Screen& sc, const Keymap& keymap);
 

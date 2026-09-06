@@ -8092,3 +8092,99 @@ TEST_CASE("RELOAD-2: `P` and `R` are one offer each, sent about the built artifa
     CHECK(t.w->session().notice.find("realized zengine-oven -- promoted") != std::string::npos);
     CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
 }
+
+// ============================================================================
+// LOAD-IT -- the chosen recipe's artifact gains the minimum plan row, with a role the maker
+// types. The weave asks the host whether the plan names it, asks the maker for a role on
+// the authoring prompt, and hands both to the host's writer; everything after that is the
+// plan law's, the executor's and the file's.
+
+namespace {
+
+struct LoadItCalls {
+    std::vector<std::pair<std::string, std::string>> rows;
+    bool names = false;
+    HostContext::PlanAppend answer;
+};
+
+inline void wire_load_it(Live& t, LoadItCalls& calls) {
+    t.host.plan_names = [&calls](const std::string&) { return calls.names; };
+    t.host.append_plan_row = [&calls](const std::string& stem, const std::string& role) {
+        calls.rows.emplace_back(stem, role);
+        return calls.answer;
+    };
+}
+
+} // namespace
+
+TEST_CASE("LOAD-IT: `o` asks for a role, refuses an empty one in the plan's words, and authors "
+          "nothing until it has one") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.artifact = "zengine-oven";
+    tool->catalog.recipes[0].artifact = "zengine-oven";
+    LoadItCalls calls;
+    calls.answer.accepted = true;
+    calls.answer.detail = "loading";
+    calls.answer.path = "/project/workshop-plan.json";
+    wire_load_it(t, calls);
+    open_builder(t);
+    // THE GESTURE OPENS THE PROMPT, and its own character is swallowed.
+    t.key(input::scan::kO);
+    t.text("o");
+    REQUIRE(t.w->session().authoring.open);
+    CHECK(t.w->session().authoring.for_role);
+    CHECK(t.w->session().authoring.stem == "zengine-oven");
+    CHECK(t.w->session().authoring.line.text().empty());
+    CHECK(keyboard_context(t.w->session()) == KeyContext::kAuthoring);
+    CHECK(stack_text(t.canvases.back()).find("role for zengine-oven>") != std::string::npos);
+    // AN EMPTY ROLE IS REFUSED IN THE PLAN'S WORDS, and nothing reached the host.
+    t.key(input::scan::kReturn);
+    CHECK(t.w->session().notice.find("a weave declaration needs a role") != std::string::npos);
+    CHECK(t.w->session().authoring.open);
+    CHECK(calls.rows.empty());
+    // THE ROLE, TYPED: one call to the host, the stem and the role as typed, and the
+    // host's own sentence on the notice.
+    t.text("zengine.oven");
+    t.key(input::scan::kReturn);
+    REQUIRE(calls.rows.size() == 1);
+    CHECK(calls.rows[0].first == "zengine-oven");
+    CHECK(calls.rows[0].second == "zengine.oven");
+    CHECK_FALSE(t.w->session().authoring.open);
+    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- loading") !=
+          std::string::npos);
+    CHECK(t.w->session().notice.find("written to /project/workshop-plan.json") !=
+          std::string::npos);
+    // ESCAPE ON THE PROMPT LOADS NOTHING.
+    t.key(input::scan::kO);
+    t.text("o");
+    REQUIRE(t.w->session().authoring.open);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.w->session().authoring.open);
+    CHECK(calls.rows.size() == 1);
+    CHECK(t.w->session().notice.find("nothing was loaded") != std::string::npos);
+}
+
+TEST_CASE("LOAD-IT: `o` on an artifact the plan already names refuses and points at `B`") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->catalog.recipes[0].artifact = "zengine-oven";
+    LoadItCalls calls;
+    calls.names = true;
+    wire_load_it(t, calls);
+    open_builder(t);
+    t.key(input::scan::kO);
+    t.text("o");
+    CHECK_FALSE(t.w->session().authoring.open);
+    CHECK(t.w->session().notice.find("`zengine-oven` is already in this project's plan") !=
+          std::string::npos);
+    CHECK(t.w->session().notice.find("builds and loads it") != std::string::npos);
+    CHECK(calls.rows.empty());
+    // ...AND WITH NO BUILDER PANEL THE KEY IS UNBOUND, exactly as `b` is.
+    Live bare;
+    LoadItCalls none;
+    wire_load_it(bare, none);
+    bare.key(input::scan::kO);
+    CHECK_FALSE(bare.w->session().authoring.open);
+    CHECK(none.rows.empty());
+}

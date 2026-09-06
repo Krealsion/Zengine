@@ -215,6 +215,21 @@ end of it"`, case `"an entry whose kind cannot be asked keeps its row as a file,
 door refuses it"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
+## WL-FILES-15 — `pick buildable` hands over a place, and Files still knows no recipe
+
+LAW — `a` is an ordinary row in the browser's context; the gesture hands the browsing location and the listing's names to the chooser, and a row learns nothing — no recipe, no artifact, no build rides it.
+
+MEANS
+- the one thing added to the listing is an existence probe per directory row, at the gesture;
+- the chooser and the prompt are session state beside the picker, not fields on a row.
+
+PROVEN BY — `workshop/weave.hpp` `files_pick_buildable`; `workshop/weave_recipes.cpp`
+`files_pick_buildable`; `workshop/keymap.hpp` `files.pick-buildable`;
+`tests/test_workshop_files.cpp` case `"PICK-1: the gesture is an ordinary row on the one binding
+truth, and Files hands over a place, never a recipe"`, case `"PICK-1: painting the chooser walks
+nothing"`.
+WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+
 ## Do not assume
 
 - That the Files pane cannot leave the project, that a linked directory is refused, or that its

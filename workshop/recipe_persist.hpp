@@ -40,6 +40,12 @@ inline constexpr std::int64_t kFormatVersion = 1;
 // WL-PROJ-15 -- agents/workshop/project.md
 inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 
+/// THE CATALOG A MAKER AUTHORS INTO, under the project (PICK-1): where a chosen candidate's
+/// row goes when the catalog in force is the shipped default or there is none. The shipped
+/// file is installation truth and is never written into.
+// WL-AUTH-01 -- agents/workshop/authoring.md
+inline constexpr const char* kProjectRecipesName = "build-recipes.json";
+
 /// A recipe catalog is small, and its ceiling says so. Thirty-two recipes of a name, an
 /// artifact, two paths, eight prefixes and sixteen link targets is comfortably under
 /// this; what it bounds is a forged file, which does not get to choose the cost of

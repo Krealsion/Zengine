@@ -315,6 +315,28 @@ struct PanelPicker {
 // WL-PANE-14 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kPickerName = "+ panel";
 
+/// ONE THING THE RECIPE CHOOSER FOUND BUILDABLE (PICK-1): a name in the browser's
+/// location, and which of the two recipe kinds it can at least be TRIED as -- a source
+/// file, or a configured CMake tree. Nothing more rides here: the row is a place, and
+/// what the recipe needs beyond the place is typed by the maker.
+// WL-AUTH-01 -- agents/workshop/authoring.md
+struct BuildCandidate {
+    std::string name;
+    bool tree = false; ///< a directory holding `CMakeCache.txt` (`cmake_target`); else a `.cpp`
+};
+
+/// THE RECIPE CHOOSER: a MODE over the browser's location, like the `+ panel` picker,
+/// whose candidates were enumerated ONCE, at the gesture, and are never re-walked on the
+/// paint path. `dir` is the location the gesture was made in, kept so a later browse
+/// cannot move what a choice authors.
+// WL-AUTH-01 -- agents/workshop/authoring.md
+struct RecipeChooser {
+    bool open = false;
+    std::size_t cursor = 0;
+    std::string dir;
+    std::vector<BuildCandidate> candidates;
+};
+
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
 /// spend and held by nobody.
 // WL-ATTN-04 -- agents/workshop/attention.md
