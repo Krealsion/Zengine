@@ -652,14 +652,26 @@ int main(int argc, char** argv) {
     // replacement or a failed handler needs.
     //
     // Loom's default selection already covers what code is loaded, who may
-    // speak, every handler failure and every death. This host adds the two
-    // application facts of the same kind: a build that FINISHED and a build that
-    // never started. Both are rare, both are what a maker asks about tomorrow,
-    // and neither is BuildOutput -- a thousand lines of compiler chatter is
+    // speak, every handler failure and every death. This host adds the three
+    // application facts of the same kind: a build that FINISHED, a build that
+    // never started, and what the project MADE of an artifact it was offered.
+    // All three are rare, all three are what a maker asks about tomorrow, and
+    // none of them is BuildOutput -- a thousand lines of compiler chatter is
     // working memory, not a record.
+    //
+    // THE THIRD IS WHERE A REFUSAL CAN BE READ WHOLE, and before it there was
+    // nowhere. `ArtifactRealized` carries the deepest layer's own sentence, and
+    // the two surfaces that show one -- the Builder's realize row and the notice
+    // -- are one row each and cut it, with no gesture that reads either past its
+    // ellipsis. So a maker who ran with `--log` keeps the whole refusal and a
+    // maker who did not keeps its beginning; docs/workshop/builder.md says so
+    // beside the row. `BuildStatus` carries the same sentence and is deliberately
+    // NOT named here: it is republished on every chunk of build output, which is
+    // exactly the traffic this whitelist exists to keep out.
     loom::LoggerSelection log_selection = loom::default_selection();
     for (const char* shape :
-         {builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name}) {
+         {builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
+          builder::ArtifactRealized::zen_name}) {
         log_selection.shapes.push_back(loom::LogRule{std::string(shape), /*cap=*/0});
     }
     loom::Logger journal(bus, std::move(log_selection));

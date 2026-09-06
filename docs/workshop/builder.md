@@ -173,6 +173,14 @@ said (three rows ordinarily, two while the project-frontier row below is present
 that worked whose realization was refused is a completely different situation from a build that
 failed, and both are ordinary.
 
+**A long refusal is cut on that row, and on the notice, and those are the only two places it is
+shown.** Each of them is one row, and a load refused deep in the Loom — a shape that changed, a
+schema name a copied weave still shares — says more than one row holds; neither is a row you can
+[read past](panes.md#reading-a-value-the-pane-had-to-cut). Launch with `--log <path>`
+([arguments](getting-started.md#arguments)) and the whole sentence is kept: that journal holds
+every realization answer — refused, realized, promoted, reverted — carrying the words the layer
+that refused actually said.
+
 ## The project frontier
 
 When realization is **waiting** on an artifact this project can build, the pane says so on a
