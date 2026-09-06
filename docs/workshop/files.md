@@ -167,7 +167,8 @@ page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
 `a` lists what the directory you are looking at can at least try to build — a `.cpp` file, or a
 directory that holds a configured CMake tree — and, when you choose one, asks the few things
 nothing can detect and appends one recipe row, as you typed it, to the catalog in force (or to a
-`build-recipes.json` it creates in your project). The pane's part ends at the handover: it gives
+`build-recipes.json` it creates in your project — the catalog in force from then on, the next
+launch from there included). The pane's part ends at the handover: it gives
 the chooser a place and the names in it, and the row it writes never comes back to a listing. The
 whole of it is on [the Builder's page](builder.md#authoring-a-recipe-from-files).
 

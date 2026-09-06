@@ -46,6 +46,30 @@ inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 // WL-AUTH-01 -- agents/workshop/authoring.md
 inline constexpr const char* kProjectRecipesName = "build-recipes.json";
 
+/// WHICH CATALOG IS IN FORCE AT LAUNCH -- one rule, the plan's twin
+/// (`load_persist::plan_in_force`, in shape and in words), and it is the host's. An explicit
+/// `--recipes` wins; otherwise a project catalog at the captured project root, when there is
+/// one; otherwise the shipped default beside the executable. `present` is the host's own
+/// existence probe, handed in so the rule is a pure function a case can pin. The shipped
+/// default may be absent -- that is the ordinary "nothing to build" -- and it is the caller
+/// that says so, with the same probe, because this rule names a file and does not judge one.
+// WL-PROJ-15 -- agents/workshop/project.md
+template <class Present>
+inline std::string recipes_in_force(const std::string& explicit_path,
+                                    const std::string& project_dir, const std::string& host_dir,
+                                    Present present) {
+    if (!explicit_path.empty()) {
+        return explicit_path;
+    }
+    if (!project_dir.empty()) {
+        const std::string project = project_dir + "/" + kProjectRecipesName;
+        if (present(project)) {
+            return project;
+        }
+    }
+    return host_dir + "/" + kDefaultRecipesName;
+}
+
 /// A recipe catalog is small, and its ceiling says so. Thirty-two recipes of a name, an
 /// artifact, two paths, eight prefixes and sixteen link targets is comfortably under
 /// this; what it bounds is a forged file, which does not get to choose the cost of

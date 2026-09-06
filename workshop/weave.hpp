@@ -119,15 +119,22 @@ struct HostContext {
 
     /// WHAT AUTHORING THE MINIMUM PLAN ROW CAME TO (LOAD-IT): the row appended to the
     /// running project and written to the project's plan file, or refused in the plan's
-    /// own words or the executor's.
+    /// own words or the executor's -- and, when the new row is the frontier and the chosen
+    /// recipe's product is already on disk, where that product is, so `o` can finish with
+    /// the button's own act instead of leaving the maker a second key.
     // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
     struct PlanAppend {
         bool accepted = false;
-        std::string refusal;  ///< empty exactly when accepted
-        std::string path;     ///< the plan file written, when one was
-        std::string detail;   ///< what the running project made of the row, in its words
+        std::string refusal;   ///< empty exactly when accepted
+        std::string path;      ///< the plan file written, when one was
+        std::string detail;    ///< what the running project made of the row, in its words
+        bool frontier = false; ///< the new row is what the project is now waiting on
+        std::string product;   ///< the recipe's product on disk, when the row is the frontier
+                               ///< and the product is there; empty otherwise
     };
-    std::function<PlanAppend(const std::string& stem, const std::string& role)> append_plan_row;
+    std::function<PlanAppend(const std::string& stem, const std::string& role,
+                             const std::string& recipe)>
+        append_plan_row;
 
     /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? Answered by the host, which
     /// holds the plan; the weave asks at the gesture and stores nothing.

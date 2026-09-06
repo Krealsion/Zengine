@@ -816,6 +816,7 @@ struct AuthoringPrompt {
     std::vector<std::string> answers;   ///< the fields committed so far, in order
     // ---- a plan row being authored ---------------------------------------------------
     std::string stem;                   ///< the artifact the role is for
+    std::string recipe;                 ///< the chosen recipe, whose product `o` may load
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.

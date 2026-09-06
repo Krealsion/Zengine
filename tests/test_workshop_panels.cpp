@@ -8103,14 +8103,17 @@ namespace {
 
 struct LoadItCalls {
     std::vector<std::pair<std::string, std::string>> rows;
+    std::vector<std::string> recipes; ///< the recipe named beside each row, in order
     bool names = false;
     HostContext::PlanAppend answer;
 };
 
 inline void wire_load_it(Live& t, LoadItCalls& calls) {
     t.host.plan_names = [&calls](const std::string&) { return calls.names; };
-    t.host.append_plan_row = [&calls](const std::string& stem, const std::string& role) {
+    t.host.append_plan_row = [&calls](const std::string& stem, const std::string& role,
+                                      const std::string& recipe) {
         calls.rows.emplace_back(stem, role);
+        calls.recipes.push_back(recipe);
         return calls.answer;
     };
 }
@@ -8187,4 +8190,88 @@ TEST_CASE("LOAD-IT: `o` on an artifact the plan already names refuses and points
     bare.key(input::scan::kO);
     CHECK_FALSE(bare.w->session().authoring.open);
     CHECK(none.rows.empty());
+}
+
+TEST_CASE("`o` on a recipe whose product is already built finishes the load: the button's own "
+          "ask with the second intention aboard, and the row's sentence says so") {
+    // THE HOST SAID WHERE THE PRODUCT IS (the row is the frontier and the file exists), so
+    // `load it` ends loaded: the same `BuildRequested` the `B` button sends, for the chosen
+    // recipe, realize aboard -- and no second key.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.artifact = "zengine-oven";
+    tool->catalog.recipes[0].artifact = "zengine-oven";
+    LoadItCalls calls;
+    calls.answer.accepted = true;
+    calls.answer.detail = "pending -- the project is waiting on it";
+    calls.answer.path = "/project/workshop-plan.json";
+    calls.answer.frontier = true;
+    calls.answer.product = "/host/build-workspace/oven/out/zengine-oven.so";
+    wire_load_it(t, calls);
+    open_builder(t);
+    t.key(input::scan::kO);
+    t.text("o");
+    REQUIRE(t.w->session().authoring.open);
+    CHECK(t.w->session().authoring.recipe == "oven");
+    CHECK(tool->asked.empty());
+    t.text("zengine.oven");
+    t.key(input::scan::kReturn);
+    // THE HOST HEARD THE RECIPE BESIDE THE ROW...
+    REQUIRE(calls.rows.size() == 1);
+    REQUIRE(calls.recipes.size() == 1);
+    CHECK(calls.recipes[0] == "oven");
+    // ...AND THE BUTTON'S ACT WAS PERFORMED: one ask, the chosen recipe, realize aboard.
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "oven");
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK_FALSE(t.w->session().authoring.open);
+    const std::string& notice = t.w->session().notice;
+    CHECK(notice.find("loaded `zengine-oven` as zengine.oven -- pending") != std::string::npos);
+    CHECK(notice.find("its product is built, loading it now") != std::string::npos);
+    CHECK(notice.find("written to /project/workshop-plan.json") != std::string::npos);
+}
+
+TEST_CASE("`o` with nothing built yet leaves the row pending and asks the Builder nothing, and "
+          "names the frontier key; a row that is not the frontier says only what the project "
+          "said") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "oven");
+    tool->next.artifact = "zengine-oven";
+    tool->catalog.recipes[0].artifact = "zengine-oven";
+    LoadItCalls calls;
+    calls.answer.accepted = true;
+    calls.answer.detail = "pending -- the project is waiting on it";
+    calls.answer.path = "/project/workshop-plan.json";
+    calls.answer.frontier = true;
+    wire_load_it(t, calls);
+    open_builder(t);
+    // THE FRONTIER, NOTHING BUILT: no ask leaves the weave, the arm covers "load when
+    // built", and the sentence names the key that builds and loads the frontier.
+    t.key(input::scan::kO);
+    t.text("o");
+    t.text("zengine.oven");
+    t.key(input::scan::kReturn);
+    REQUIRE(calls.rows.size() == 1);
+    CHECK(tool->asked.empty());
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- pending") !=
+          std::string::npos);
+    CHECK(t.w->session().notice.find("nothing is built yet -- ") != std::string::npos);
+    CHECK(t.w->session().notice.find("builds and loads it") != std::string::npos);
+    // NOT THE FRONTIER (resolved on the spot, or authored behind another): the project's
+    // own sentence, nothing sent, nothing added.
+    calls.answer.detail = "resolved";
+    calls.answer.frontier = false;
+    t.key(input::scan::kO);
+    t.text("o");
+    t.text("zengine.oven");
+    t.key(input::scan::kReturn);
+    REQUIRE(calls.rows.size() == 2);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- resolved") !=
+          std::string::npos);
+    CHECK(t.w->session().notice.find("nothing is built yet") == std::string::npos);
+    CHECK(t.w->session().notice.find("loading it now") == std::string::npos);
 }

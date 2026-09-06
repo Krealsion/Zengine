@@ -260,13 +260,39 @@ void WorkshopWeave::authoring_commit(loom::Mail& mail) {
             return;
         }
         const std::string stem = a.stem;
-        const HostContext::PlanAppend done = host_->append_plan_row(stem, typed);
+        const std::string recipe = a.recipe;
+        const HostContext::PlanAppend done = host_->append_plan_row(stem, typed, recipe);
         close_authoring();
+        const std::string written =
+            done.path.empty() ? std::string() : "; written to " + done.path;
         if (!done.accepted) {
             say("not loaded: " + done.refusal, true);
-        } else {
+        } else if (!done.product.empty()) {
+            // THE INTENT FINISHES: the row is the frontier and its product is already
+            // built, so this is the button's own act -- the finished build's recipe asked
+            // for again with the second intention aboard, to the same office, under the
+            // same grant -- and the row lands resolved without a second key. No new route:
+            // the tool confirms the build, offers, and the owner decides in its words.
+            (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                    zengine::builder::BuildRequested{recipe, true});
+            if (session_.panels.has(panel::kBuilder)) {
+                session_.panels.builder.awaiting = true;
+                session_.panels.builder.awaiting_realization = true;
+            }
             say("loaded `" + stem + "` as " + typed + " -- " + done.detail +
-                    (done.path.empty() ? std::string() : "; written to " + done.path),
+                    "; its product is built, loading it now -- Workshop stays live while the "
+                    "incremental build confirms it" +
+                    written,
+                false);
+        } else {
+            // NOTHING TO FINISH: resolved already, authored behind another frontier, or
+            // the frontier with nothing built yet -- in which case the arm covers it, and
+            // the sentence names the key that builds and loads the frontier.
+            say("loaded `" + stem + "` as " + typed + " -- " + done.detail +
+                    (done.frontier ? "; nothing is built yet -- " +
+                                         hotkey(Act::kBuildFrontier) + " builds and loads it"
+                                   : std::string()) +
+                    written,
                 false);
         }
         repaint(mail);
@@ -366,6 +392,7 @@ void WorkshopWeave::load_it(loom::Mail& mail) {
     a.open = true;
     a.for_role = true;
     a.stem = stem;
+    a.recipe = pane.known.recipes[at].recipe;
     a.prompt = "role for " + stem + "> ";
     a.line.set(std::string(), 0);
     session_.authoring = std::move(a);

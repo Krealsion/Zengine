@@ -4999,7 +4999,8 @@ TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips
     REQUIRE_FALSE(workshop::authoring::plan_names(author, "zengine-plain-weave"));
 
     const workshop::HostContext::PlanAppend done =
-        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.plain");
+        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.plain",
+                                         "recipe-zengine-plain-weave");
     REQUIRE_MESSAGE(done.accepted, done.refusal);
     CHECK(done.detail == "loading");
     CHECK(done.path == plan_file.generic_string());
@@ -5026,7 +5027,8 @@ TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips
     // A DUPLICATE STEM IS REFUSED BY THE PLAN'S OWN LAW, BEFORE THE OWNER IS ASKED: the
     // running project and the file are exactly what they were.
     const workshop::HostContext::PlanAppend twice =
-        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.again");
+        workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.again",
+                                         "recipe-zengine-plain-weave");
     CHECK_FALSE(twice.accepted);
     CHECK(twice.refusal.find("declared twice") != std::string::npos);
     CHECK(rig.executor.plan().artifacts.size() == 2);
@@ -5036,14 +5038,16 @@ TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips
     // ...AND WITH NO PROJECT, NOTHING IS APPENDED AND NOTHING IS WRITTEN.
     workshop::authoring::PlanAuthor nowhere{std::string(), rig.executor.plan(), &rig.executor};
     const workshop::HostContext::PlanAppend refused =
-        workshop::authoring::append_plan_row(nowhere, "zengine-provider-min", "zen.min");
+        workshop::authoring::append_plan_row(nowhere, "zengine-provider-min", "zen.min",
+                                         "recipe-zengine-provider-min");
     CHECK_FALSE(refused.accepted);
     CHECK(refused.refusal.find("began nowhere") != std::string::npos);
     CHECK(rig.executor.plan().artifacts.size() == 2);
     // ...AND THE PLAN'S LAW GOES FIRST, before the path and before the owner: a duplicate on
     // the nowhere author is refused as a duplicate, not as a missing project.
     const workshop::HostContext::PlanAppend nowhere_twice =
-        workshop::authoring::append_plan_row(nowhere, "zengine-plain-weave", "zen.again");
+        workshop::authoring::append_plan_row(nowhere, "zengine-plain-weave", "zen.again",
+                                         "recipe-zengine-plain-weave");
     CHECK_FALSE(nowhere_twice.accepted);
     CHECK(nowhere_twice.refusal.find("declared twice") != std::string::npos);
     CHECK(rig.executor.plan().artifacts.size() == 2);
@@ -5058,7 +5062,8 @@ TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips
     workshop::authoring::PlanAuthor mid_author{mid_file.generic_string(), mid.executor.plan(),
                                                &mid.executor};
     const workshop::HostContext::PlanAppend under =
-        workshop::authoring::append_plan_row(mid_author, "zengine-operators-basic", "zen.basic");
+        workshop::authoring::append_plan_row(mid_author, "zengine-operators-basic", "zen.basic",
+                                         "recipe-zengine-operators-basic");
     CHECK_FALSE(under.accepted);
     CHECK(under.refusal.find("not between rows") != std::string::npos);
     CHECK(under.path.empty());
@@ -5066,4 +5071,76 @@ TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips
     CHECK(mid.executor.plan().artifacts.size() == 1);
     CHECK_FALSE(workshop::authoring::plan_names(mid_author, "zengine-operators-basic"));
     mid.drain(16);
+}
+
+TEST_CASE("the writer says where the frontier row's product is, through the staging rule: "
+          "present when the chosen recipe's file is on disk, absent behind another frontier "
+          "and absent when nothing is built") {
+    // THE THIRD ANSWER `o` NEEDS, measured on the production rule over a real catalog: the
+    // product's path exactly when the new row is what the project is now waiting on AND the
+    // chosen recipe's file exists -- the frontier derived from the owner's cursor, the file
+    // from the catalog in force, and neither from the detail's words.
+    std::error_code ec;
+    std::filesystem::remove(stage().so(kBuiltLate), ec);
+    REQUIRE(!ec);
+    std::filesystem::remove(stage().so(kUnbuilt), ec);
+    REQUIRE(!ec);
+    ReloadRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+    const std::filesystem::path dir = stage().dir / "loadit-product";
+    std::filesystem::create_directories(dir, ec);
+    REQUIRE(!ec);
+    const std::filesystem::path plan_file = dir / load_persist::kProjectLoadPlanName;
+    std::filesystem::remove(plan_file, ec);
+    workshop::authoring::PlanAuthor author{plan_file.generic_string(), rig.executor.plan(),
+                                           &rig.executor, &rig.staging};
+
+    // A PRODUCT IN ITS WORKSPACE AND THE ROW THE FRONTIER: the answer is the product.
+    rig.waiting = {kBuiltLate};
+    rig.product(kBuiltLate, PLAIN_WEAVE_SO);
+    const std::string late_recipe = "recipe-" + std::string(kBuiltLate);
+    const workshop::HostContext::PlanAppend built =
+        workshop::authoring::append_plan_row(author, kBuiltLate, "zen.late", late_recipe);
+    REQUIRE_MESSAGE(built.accepted, built.refusal);
+    CHECK(built.frontier);
+    CHECK(built.product ==
+          (rig.products() / (std::string(kBuiltLate) + kArtifactSuffix)).generic_string());
+    CHECK(built.detail.find("pending") != std::string::npos);
+    CHECK(rig.executor.waiting_on() == kBuiltLate);
+    // ...AND THE PROBE REFUSES AS `stage` WOULD, in silence: a recipe the catalog does not
+    // hold, or one that produces a different stem, is "no product".
+    CHECK(workshop::staging::product_of(rig.staging, kBuiltLate, "recipe-nobody").empty());
+    CHECK(workshop::staging::product_of(rig.staging, "zengine-other", late_recipe).empty());
+
+    // BEHIND THAT FRONTIER: the file is on disk and the answer is still empty, because the
+    // row is authored, not looked at, and an ask to realize it would be refused.
+    rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
+    const workshop::HostContext::PlanAppend behind = workshop::authoring::append_plan_row(
+        author, "zengine-plain-weave", "zen.plain", "recipe-zengine-plain-weave");
+    REQUIRE_MESSAGE(behind.accepted, behind.refusal);
+    CHECK_FALSE(behind.frontier);
+    CHECK(behind.product.empty());
+    CHECK(behind.detail.find("authored behind") != std::string::npos);
+
+    // THE FRONTIER WITH NOTHING BUILT: settle the walk, then a waiting row whose recipe is
+    // in the catalog and whose file is not on disk.
+    rig.offer(kBuiltLate);
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+    rig.waiting.push_back(kUnbuilt);
+    rig.product(kUnbuilt, PLAIN_WEAVE_SO);
+    std::filesystem::remove(rig.products() / (std::string(kUnbuilt) + kArtifactSuffix), ec);
+    REQUIRE(!ec);
+    const workshop::HostContext::PlanAppend bare = workshop::authoring::append_plan_row(
+        author, kUnbuilt, "zen.oven", "recipe-" + std::string(kUnbuilt));
+    REQUIRE_MESSAGE(bare.accepted, bare.refusal);
+    CHECK(bare.frontier);
+    CHECK(bare.product.empty());
+    CHECK(bare.detail.find("pending") != std::string::npos);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
+    // ...AND A WRITER WITH NO STAGING RULE WIRED never claims a product.
+    workshop::authoring::PlanAuthor blind{plan_file.generic_string(), rig.executor.plan(),
+                                          &rig.executor, nullptr};
+    CHECK(blind.staging == nullptr);
+    rig.drain(8);
 }

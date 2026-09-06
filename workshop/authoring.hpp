@@ -24,6 +24,12 @@
 // THE RUNNING PROJECT FIRST, THEN THE FILE. The executor's `append` is asked before the
 // plan file is written, so a row the running project refuses is written nowhere; a row it
 // took whose file could not be written is said in both halves.
+//
+// ...AND THEN THE PRODUCT, WHEN THERE IS ONE (decision 3). A row that became the frontier
+// whose recipe has already built its product -- a plain `b` left it in its workspace -- is
+// one key from loaded, and `load it` should end loaded. The writer says where the product
+// is, through the staging rule that owns that question, and the weave performs the button's
+// own act with it; nothing here builds, stages or loads.
 // Workshop law: agents/workshop/authoring.md
 
 #include "load_execute.hpp"
@@ -31,6 +37,7 @@
 #include "persist.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
+#include "staging.hpp"
 #include "weave.hpp"
 
 #include "builder/recipe.hpp"
@@ -159,11 +166,13 @@ inline HostContext::RecipeSwap author_recipe(const RecipeAuthor& host,
 }
 
 /// WHAT THE PLAN WRITER SPENDS: the project plan's path (empty with no project), the plan
-/// in force as read at launch and appended since, and the running project's owner.
+/// in force as read at launch and appended since, the running project's owner, and the
+/// host's staging rule -- read for where a product is, never for an act.
 struct PlanAuthor {
     std::string path;
     load::LoadPlan rows;
     load::PlanExecutor* executor = nullptr;
+    const staging::Host* staging = nullptr;
 };
 
 inline bool plan_names(const PlanAuthor& plan, const std::string& stem) {
@@ -175,10 +184,12 @@ inline bool plan_names(const PlanAuthor& plan, const std::string& stem) {
     return false;
 }
 
-/// AUTHOR THE MINIMUM PLAN ROW: the running project first, then the file.
+/// AUTHOR THE MINIMUM PLAN ROW: the running project first, then the file, then where the
+/// chosen recipe's product is when the row is the frontier and the product exists.
 // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
 inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::string& stem,
-                                               const std::string& role) {
+                                               const std::string& role,
+                                               const std::string& recipe) {
     HostContext::PlanAppend out;
     load::ArtifactIntent row;
     row.stem = stem;
@@ -211,6 +222,14 @@ inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::stri
     plan.rows = std::move(candidate);
     out.accepted = true;
     out.detail = taken.detail;
+    // THE BRANCH `o` FINISHES ON: the new row is the frontier -- derived from the owner's
+    // cursor, never from the detail's words -- and its recipe's product is on disk. Behind
+    // another frontier, resolved already, or with nothing built yet, there is nothing to
+    // finish, and `product` stays empty.
+    out.frontier = plan.executor->waiting_on() == stem;
+    if (out.frontier && plan.staging != nullptr) {
+        out.product = staging::product_of(*plan.staging, stem, recipe);
+    }
     const Written saved = load_persist::save_file(plan.path, plan.rows);
     if (!saved.accepted) {
         out.detail += "; the plan file was NOT written: " + saved.refusal;
