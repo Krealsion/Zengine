@@ -346,23 +346,23 @@ jobs:
           $env:CTEST_INTERACTIVE_DEBUG_MODE = '1'
           cmd /c "cd build-win\tests && zengine-workshop-load-tests.exe -d < NUL"
 
-      - name: Diagnose -- under ctest with -d, so the captured output names the last case
+      - name: Diagnose -- the hung suite's threads, under ctest, through the toolchain's gdb
         timeout-minutes: 6
         continue-on-error: true
         run: |
-          $f = 'build-win/tests/CTestTestfile.cmake'
-          (Get-Content $f) -replace 'zengine-workshop-load-tests.exe"\)', 'zengine-workshop-load-tests.exe" "-d")' | Set-Content $f
-          Select-String -Path $f -Pattern 'add_test\(workshop_load'
-          ctest --test-dir build-win -R '^workshop_load$' --output-on-failure --timeout 150 -V
-
-      - name: Diagnose -- under ctest through a console shell
-        timeout-minutes: 6
-        continue-on-error: true
-        run: |
-          $f = 'build-win/tests/CTestTestfile.cmake'
-          (Get-Content $f) -replace 'add_test\(workshop_load "([^"]*zengine-workshop-load-tests.exe)" "-d"\)', 'add_test(workshop_load "cmd" "/c" "$1 -d")' | Set-Content $f
-          Select-String -Path $f -Pattern 'add_test\(workshop_load'
-          ctest --test-dir build-win -R '^workshop_load$' --output-on-failure --timeout 150 -V
+          Get-ChildItem C:\mingw64\bin\gdb*.exe | Select-Object Name
+          $c = Start-Process -FilePath 'ctest' -ArgumentList '--test-dir','build-win','-R','^workshop_load$','--timeout','600' -PassThru -NoNewWindow
+          Start-Sleep -Seconds 60
+          $t = Get-Process -Name 'zengine-workshop-load-tests' -ErrorAction SilentlyContinue
+          if ($t) {
+            Write-Host "hung test pid $($t.Id); attaching gdb"
+            & 'C:\mingw64\bin\gdb.exe' -p $t.Id -batch -ex 'info threads' -ex 'thread apply all bt 25' 2>&1 | Select-Object -First 400
+            Stop-Process -Id $t.Id -Force -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "the test process is not running after 60 s"
+          }
+          Stop-Process -Id $c.Id -Force -ErrorAction SilentlyContinue
+          Get-Process -Name 'zengine-workshop-load-tests' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
       # SKIPPED WHILE DIAGNOSING, so the job ends with the diagnostics' logs rather than at
       # its 45-minute timeout; restored before the branch is merged.
