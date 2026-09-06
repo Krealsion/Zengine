@@ -331,6 +331,21 @@ jobs:
           Set-Location build-win/tests
           ./zengine-workshop-load-tests.exe -d
 
+      - name: Diagnose -- standalone, no -d (as ctest runs it), stdout to a file
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+          ./build-win/tests/zengine-workshop-load-tests.exe > diag-plain.txt 2>&1
+          Get-Content diag-plain.txt -Tail 5
+
+      - name: Diagnose -- standalone with -d, stdin from NUL, ctest's two variables set
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+          $env:DASHBOARD_TEST_FROM_CTEST = '4.0'
+          $env:CTEST_INTERACTIVE_DEBUG_MODE = '1'
+          cmd /c "cd build-win\tests && zengine-workshop-load-tests.exe -d < NUL"
+
       - name: Diagnose -- the suite under ctest, bounded
         timeout-minutes: 6
         continue-on-error: true
