@@ -317,6 +317,18 @@ jobs:
         continue-on-error: true
         run: ./build-win/tests/zengine-workshop-load-tests.exe -d
 
+      - name: Diagnose -- a second run over the populated stage, stdout to a file
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          ./build-win/tests/zengine-workshop-load-tests.exe -d > diag-second-run.txt 2>&1
+          Get-Content diag-second-run.txt -Tail 40
+
+      - name: Diagnose -- the suite under ctest, bounded
+        timeout-minutes: 6
+        continue-on-error: true
+        run: ctest --test-dir build-win -R '^workshop_load$' --output-on-failure --timeout 150 -V
+
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
