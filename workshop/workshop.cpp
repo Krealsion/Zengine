@@ -14,6 +14,7 @@
 #include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
+#include "staging.hpp"
 #include "user_paths.hpp"
 #include "weave.hpp"
 
@@ -246,6 +247,16 @@ Arguments parse_arguments(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+    // A HOST THAT OPENS ARTIFACTS SAYS WHAT A BAD ONE MEANS: a refusal in words, never a
+    // modal dialog. Windows raises a hard error -- a message box the process waits on --
+    // when `LoadLibrary` is handed a file that is not a valid image, unless the process
+    // says otherwise; measured (RELOAD-1): a rebuilt product that was not a library hung
+    // the load suite on a CI runner inside `ntdll!ZwRaiseHardError` until the job's
+    // timeout, while the same file on a desktop session was refused with error 193. The
+    // error mode is inherited by children, so the Builder's runner is covered too.
+    ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+#endif
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
@@ -1089,6 +1100,14 @@ int main(int argc, char** argv) {
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
     speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,
                         builder::kBuilderRole);
+    // THE TWO ACTS A RELOAD LEAVES A MAKER (RELOAD-1) -- promote the running image, or
+    // revert to the one before -- are OFFERS to the realization owner, exactly as the
+    // Builder's `OfferArtifact` is: published, heard by the plan booter, decided by the
+    // owner in its own words. `to_any` because the party that decides is a weave this
+    // host mounts by hand and does not name in a grant, and because neither sentence
+    // is a power -- the owner refuses anything that is not a live, reloaded weave.
+    speak.allow_to_any(builder::PromoteArtifact::zen_name, builder::PromoteArtifact::zen_version);
+    speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
@@ -1123,7 +1142,16 @@ int main(int argc, char** argv) {
     // tell it which weave it is.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-    // ----...AND ONE OBSERVATION IT MAY PUBLISH ---------------------------------
+    // ----...AND THE SECOND HALF OF THE SAME GRANT (RELOAD-1) ---------------------
+    //
+    // `zen.ReloadWeave` is the Manager's other lifecycle op, and it is granted on the
+    // same terms: target-scoped to the Manager, held by the booter alone, written here.
+    // A reload in place is the kernel's `reload_from` -- same WeaveId, state carried,
+    // same shapes only -- and a Workshop that can ask for a load and not for a reload
+    // is a Workshop whose maker has to restart to see their own edit. The tripwire in
+    // `test_operator_provider.cpp` reads these two lines and refuses a third.
+    operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    // ----...AND TWO OBSERVATIONS IT MAY PUBLISH ---------------------------------
     //
     // `ArtifactRealized` is realization's own sentence about a maker's BUILD & REALIZE:
     // what the project made of a newly built artifact, in the deepest layer's words,
@@ -1133,6 +1161,10 @@ int main(int argc, char** argv) {
     // interested party is a presentation this host does not name.
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
                          builder::ArtifactRealized::zen_version);
+    // `ArtifactPromoted` is the same kind of sentence about the other act: whether the
+    // file a restart loads now holds the running image, in the OS's words when not.
+    operate.allow_to_any(builder::ArtifactPromoted::zen_name,
+                         builder::ArtifactPromoted::zen_version);
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
@@ -1160,6 +1192,7 @@ int main(int argc, char** argv) {
     // ...AND THE ONE POLICY THAT IS THIS HOST'S AND NOT REALIZATION'S: what a
     // Workshop does about a project that finished, or stopped. See the lambda.
     bool project_refused = false;
+    staging::Host staging_host{host.dir, &current_recipes, &HostContext::so_in, 0};
     load::PlanExecutor executor(
         bus, operators, operator_host, voice, manager, answers,
         [&host](const std::string& stem) { return host.so(stem); },
@@ -1301,6 +1334,20 @@ int main(int argc, char** argv) {
                 return !std::filesystem::exists(std::filesystem::path(host.so(stem)));
             }
             return false;
+        },
+        // ---- THE TWO ACTS ON A DISK REALIZATION CANNOT PERFORM (RELOAD-1) ------
+        //
+        // Put a built product where it will be opened from -- the plan's file for a
+        // first realization, a per-operation path off the loaded file for a reload --
+        // and write a running image into the file a restart loads. Both are the host's
+        // rules (`workshop/staging.hpp`, shared with the build witness so there is one
+        // spelling), wired the way `AwaitingBuild` is: over the catalog in force, read
+        // at the moment of the act, never copied.
+        [&staging_host](const std::string& stem, const std::string& recipe, bool reload) {
+            return staging::stage(staging_host, stem, recipe, reload);
+        },
+        [&staging_host](const std::string& stem, const std::string& image) {
+            return staging::promote(staging_host, stem, image);
         });
 
     // ---- WHAT THE PROJECT IS WAITING ON, ANSWERED ALIVE -----------------------

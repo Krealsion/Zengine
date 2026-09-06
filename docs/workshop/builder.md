@@ -88,7 +88,9 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 |---|---|
 | **`c`** / **`Shift+c`** | move through the recipes this project holds (it wraps) |
 | **`b`** | **build** the recipe you have chosen |
-| **`Shift+b`** | **build and realize** it — build, and if that works, offer the result to the running project |
+| **`Shift+b`** | **load after build** — one action in two states. Before or during a build it is a *toggle*: armed, the next `b` builds **and** loads the result into the running project. When an artifact is built, nothing was asked about loading it and nothing is armed, it is a *button*: press it and the built artifact is loaded now |
+| **`Shift+p`** | **promote** the running image — make it the file a restart loads (after a reload in place; below) |
+| **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
 | **`p`** | remove the pane |
@@ -202,9 +204,18 @@ is. Every one of those is CMake's.
 ## Where the artifact lands, and how success is decided
 
 `artifact` is a **stem** — `zengine-oven`, never `zengine-oven.so` — spelled to a file by the
-host's one rule, exactly as a load plan's stem is. `artifact_dir` is where that file lands, and
-empty means the host's own artifact directory. For a single-source recipe CMake is told to put
-it there; for a CMake-target recipe it is where that project already puts it.
+host's one rule, exactly as a load plan's stem is. `artifact_dir` is where that file lands. For a
+single-source recipe, empty means the recipe's **workspace**, under `out/` — CMake is told to put
+it there, and never on the file the running project has loaded, because that file is mapped by
+the process (Windows refuses a writer on it; Linux lets a writer change code under the program).
+For a CMake-target recipe, empty means the host's own artifact directory: that project puts its
+file where it puts it. An explicit `artifact_dir` is honoured as written for both kinds, and the
+hazard is then yours.
+
+So a plain build no longer changes the file a restart loads. The product reaches that file when
+you **load** it — a first realization copies it into place; a reload in place copies it to a
+per-operation path beside the host and opens that, and **promote** is what writes it into the
+plan's file (below).
 
 A build is a **success** when two things are true, checked in this order:
 
@@ -220,28 +231,53 @@ something true about a process and something false about your project.
 There is **no scanning**. Nothing looks in a directory for something new, or newest, or
 plausible: the recipe says what it produces, and a file it did not name counts for nothing.
 
-## Build & realize
+## Load after build, and reload in place
 
-`Shift+b` asks for the result to be handed to the running project. It is performed only when
-**all** of these hold:
+`Shift+b` armed, then `b` — or the button, after a plain build — asks for the result to be handed
+to the running project. A row that is **waiting** is realized: the product is copied into the
+plan's file and loaded, exactly as it always was. A row that is **already live** is now
+**reloaded in place**:
 
-- you asked for it;
-- the build succeeded and the artifact is there;
-- the project's **load plan already names that artifact** — the participation is the plan's,
-  never the recipe's;
-- the row is **waiting** rather than already part of the running project.
+- the host copies the rebuilt product to a per-operation path beside itself
+  (`<stem>.reloads/<stem>-<n>`), off the file the process has mapped;
+- the realization owner asks the Weave Manager for `zen.ReloadWeave` over that copy, bracketed
+  by the same operator offer a load carries;
+- the Loom swaps the code behind the **same `WeaveId`** and carries the weave's **state** across.
+  Nothing else in the process learns anything: the role, the routing and every other
+  participant are untouched.
+
+The Builder's realize row then says *reloaded in place — weave #N keeps its id and its state*,
+and the same weave answers the same messages, with the new code.
+
+**Two things a reload leaves you.** The file the plan resolves the stem to is exactly what it
+was, so a quit now runs the old code next launch — the row says *NOT DEFAULT* rather than leave
+that to be discovered. **`Shift+p` promotes**: the running image's bytes are written into the
+plan's file (a sibling, then a rename, so a refused write leaves nothing half-written), and the
+row says *default*. **`Shift+r` reverts**: the image before the last reload runs again, through
+the same reload — same id, state kept. A promotion that wrote over the previous image leaves
+nothing honest to revert to, and revert says so.
+
+**Same shapes only.** A reload carries state and keeps routing, so it is refused — before the
+running weave is touched — when the rebuilt weave keeps a different **state** or answers to
+different **messages**. The refusal says *that* the shape changed and *what* changed:
+
+> the rebuilt 'zengine-oven' keeps a different STATE than the running one; a same-shape reload
+> cannot carry the state across, so the running weave was left as it is. Replacing it is a
+> prepared replacement with an authored migration (Loom: state schema version mismatch; reload
+> refused)
+
+The road on from there is the Loom's prepared replacement with a migration you author, which
+Workshop does not host yet. Two more refusals are Workshop's own: an artifact that also
+**supplies operators** to the catalog is not reloaded (its weave would run new code while the
+catalog kept the old image; unmount-and-remount is not built), and a provider-only row has no
+weave to reload.
 
 A row is *waiting* when this run reached it, the artifact was not on disk, and some authored
 recipe can produce it. That is the case a project has on its first run: the plan says how the
 artifact participates, the artifact has not been built yet, and Workshop starts anyway and says
 which rows are waiting. An artifact that is missing and that **nothing here can build** still
-refuses the project by name, exactly as it did before.
-
-An artifact that is **already loaded** is refused, in words:
-
-> artifact 'zengine-oven' is already part of this running project. BLD-1 does not unload,
-> reload or replace a live artifact, so a rebuilt file has NOT changed the image that is
-> running — restart to pick it up.
+refuses the project by name, exactly as it did before. And a plain `b` of a waiting row's recipe
+leaves the row waiting until you load it: nothing is realized because a file appeared.
 
 ## What it deliberately does not do
 
@@ -251,8 +287,9 @@ An artifact that is **already loaded** is refused, in words:
   command" is not a sentence the vocabulary can express.
 - **No multi-source recipe**, no globbed source list, no dependency graph and no solver. One
   source file, or one target in a project that already has a CMakeLists.
-- **No hot reload.** Nothing unloads, reloads, replaces or migrates anything. A rebuilt file
-  has not changed the image that is running.
+- **No replacement and no migration.** A reload in place is for a rebuilt weave whose shapes
+  did not change. Nothing unloads, replaces or migrates a weave, and a changed shape is refused
+  before the running weave is touched.
 - **No automatic build-on-missing.** Nothing starts a build because a file is absent. A maker
   presses a key.
 - **No recipe discovery.** Nothing searches for recipe files, adopts a conventional filename,
@@ -275,7 +312,8 @@ An artifact that is **already loaded** is refused, in words:
   [Files](files.md) pane, see [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
-- A rebuilt artifact that is already live needs a restart to take effect, and the refusal says
-  so rather than pretending otherwise.
+- A rebuilt weave whose **shape** changed does not enter the running project: the refusal
+  names the change, and the road on is a prepared replacement you author. A reloaded image is
+  not the file a restart loads until you promote it, and the row says so.
 
 See [limitations](limitations.md).

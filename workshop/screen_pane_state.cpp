@@ -325,18 +325,51 @@ void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // in the case a maker most needs: a build that WORKED whose realization was REFUSED.
     // The row is present even when nothing was asked, because an absent row reads as an
     // absent question rather than as an unasked one.
-    facts.push_back(
-        Fact{panel_field("realize",
-                         s.realization == builder::realization::kNotAsked
-                             ? std::string("-- (B builds and realizes)")
-                             : std::string(builder::name_of_realization(s.realization)) +
-                                   (s.realized_detail.empty() ? std::string()
-                                                              : " -- " + s.realized_detail)),
-             s.realization == builder::realization::kRefused
-                 ? surface::role::kAlert
-                 : (s.realization == builder::realization::kRealized ? surface::role::kFill
-                                                                     : surface::role::kMuted),
-             4});
+    //
+    // ...AND SINCE RELOAD-1 THE ROW HAS THREE FACES, because `B` is one action in two
+    // states. ARMED: `[x] load after build` -- the maker's standing intent, and the next
+    // `b` asks to build AND load. THE BUTTON: an artifact is built, nothing was asked
+    // about realizing it, and nothing is armed -- `B` loads it now. OTHERWISE the
+    // realization outcome, as before, with one more clause a maker must not miss: a
+    // realized image that is NOT the file a restart loads says so, and names the two
+    // acts that resolve it. The keys named are the developer defaults, exactly as this
+    // row has always named `B`; the hotkey view says the maker's own.
+    const bool button = !pane.awaiting && !pane.arm && !s.recipe.empty() &&
+                        s.outcome == builder::outcome::kSucceeded &&
+                        s.realization == builder::realization::kNotAsked;
+    // THE ARMED FACE SHOWS WHILE NOTHING HAS BEEN ASKED; once an ask with the second
+    // intention is in flight or settled, the OUTCOME is the fact a maker is watching and
+    // it takes the row whole -- the row is one row of a narrow panel, and a mark in
+    // front of a realization sentence pushed the sentence off it (measured). The
+    // standing intent is said by the notice at every toggle, and read by `b`.
+    std::string realize_face;
+    std::int64_t realize_role = surface::role::kMuted;
+    if (pane.arm && s.realization == builder::realization::kNotAsked) {
+        realize_face = "[x] load after build";
+        realize_role = surface::role::kAccent;
+    } else if (button) {
+        realize_face = "-- (B loads " + s.artifact + " now)";
+        realize_role = surface::role::kAccent;
+    } else if (s.realization == builder::realization::kNotAsked) {
+        realize_face = "-- (B arms load after build)";
+    } else {
+        // THE STANDING FACT COMES BEFORE THE SENTENCE, because the row is one row and the
+        // sentence is long: a maker must not have to scroll to learn that the next launch
+        // runs the old code. The whole sentence is the notice's when it is news.
+        realize_face = std::string(builder::name_of_realization(s.realization));
+        if (s.realization == builder::realization::kRealized && !s.default_image) {
+            realize_face += ", NOT DEFAULT (P promotes, R reverts)";
+        }
+        if (!s.realized_detail.empty()) {
+            realize_face += " -- " + s.realized_detail;
+        }
+        realize_role = s.realization == builder::realization::kRefused
+                           ? surface::role::kAlert
+                           : (s.realization == builder::realization::kRealized
+                                  ? surface::role::kFill
+                                  : surface::role::kMuted);
+    }
+    facts.push_back(Fact{panel_field("realize", realize_face), realize_role, 4});
     // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends when
     // something has gone wrong, and one row of a compiler's answer is a row of nothing.
     //

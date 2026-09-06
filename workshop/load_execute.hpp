@@ -37,9 +37,43 @@
 //   WHAT IT IS NOT. Not build-on-missing: nothing here starts, requests or knows about
 //   a build. Not a retry: a waiting row waits forever unless it is asked for. Not a
 //   scheduler: `realize` is refused outright while anything else is in flight. And not
-//   hot reload -- an artifact already resolved is refused in words, because this executor does
-//   not unload, replace or migrate anything and a second load of a live artifact would
-//   be pretending otherwise.
+//   replacement -- an artifact already resolved is RELOADED IN PLACE (RELOAD-1, below),
+//   which is the kernel's own `reload_from` behind the Manager's `zen.ReloadWeave`:
+//   the same WeaveId, the state carried across, and ONLY for a weave whose shapes did
+//   not change. This executor still does not unload, replace or migrate anything; a
+//   changed shape is refused by the kernel before the incumbent is touched, and the
+//   road on from there is a prepared replacement with an authored migration, which is
+//   the maker's own work by the Loom's law and not a line here.
+//
+// ----...AND A LIVE ROW MAY BE RELOADED IN PLACE, BECAUSE A MAKER REBUILT IT (RELOAD-1) --
+//
+// The already-resolved arm of `realize` used to say *restart*. It now opens ONE
+// conversation with the Weave Manager -- `zen.ReloadWeave{name, path}` -- exactly as a
+// load opens one, bracketed by the same operator offer, settled by the same booter on
+// the same correlation-and-sender wall, and answered `zen.Ack` or `zen.Refused`:
+//
+//     realize(stem, recipe) on a resolved weave-only row
+//         -> the HOST stages the rebuilt image OFF THE LOADED PATH (`StageArtifact`)
+//         -> the offer goes up over the staged copy; `zen.ReloadWeave` is sent
+//         -> the row is `reloading`; the owner is `Loading`; RETURN TO THE HOST
+//     zen.Ack        -> the row keeps its WeaveId, its role and its state; `image` moves
+//     zen.Refused    -> the incumbent is untouched, the row stays `resolved`, and the
+//                       kernel's reason is said in a maker's words (`reload_refusal_words`)
+//
+// WHY THE PATH IS THE HOST'S. A rebuilt image must land somewhere that is NOT the file
+// the process has mapped: Windows locks that file, and Linux lets a writer change code
+// under a running program. So the executor never spells a path here -- it asks the host
+// for one (`StageArtifact`, the same seam shape as `AwaitingBuild`), and the host copies
+// the built product to a per-operation path before the reload opens it. The file the
+// plan resolves a stem to is untouched by a reload; making it the running image is a
+// second, explicit act -- `promote` -- and running the previous image again is a third,
+// `revert`, which is a reload through this same arm.
+//
+// WHAT THE ARM REFUSES IN WORDS. A provider+weave row (reloading its weave would leave
+// the catalog on the old image; unmount-and-remount is not built), a provider-only row
+// (there is no weave to reload), a host with no staging rule, a staging the host could
+// not perform, and every refusal the kernel states -- the two shape mismatches first,
+// saying THAT the shape changed and WHAT changed.
 //
 // ----...AND A WAITING ROW IS A BARRIER, NOT A HOLE -------------------------------
 //
@@ -174,9 +208,10 @@
 // order, consult a version, reach a network, cache a resolution, or rewrite the plan
 // it was handed. It does not infer a provider mount from a weave declaration or a
 // weave load from a provider one -- an artifact that exports both surfaces and is
-// asked for one gets one. And it does not unload or reload: the load plan is initial and
-// restart load intent, and the provider/reload interaction the provider phase exposed is still
-// open.
+// asked for one gets one. And it does not unload, replace or migrate: the load plan is
+// initial and restart load intent, a reload in place keeps the plan's row exactly as
+// authored, and the provider/reload interaction the provider phase exposed is still
+// open -- a provider+weave row is refused in words rather than half-reloaded.
 
 #include "load_plan.hpp"
 
@@ -238,6 +273,24 @@ struct ResolvedArtifact {
     bool weave_loaded = false;
     loom::WeaveId weave{};
     std::string role;
+
+    /// THE FILE THE RUNNING CODE WAS OPENED FROM (RELOAD-1). For a row loaded from the
+    /// plan it is the host's own spelling of the stem; after a reload in place it is
+    /// the per-operation copy the host staged, and the plan's file is untouched.
+    std::string image;
+    /// THE IMAGE BEFORE THE LAST RELOAD, or empty: what `revert` reloads. Cleared by a
+    /// promotion that wrote over it, and said so.
+    std::string previous;
+    /// THE PER-OPERATION COPY WHOSE BYTES A PROMOTION WROTE INTO THE PLAN'S FILE, or
+    /// empty: a revert back to it runs the default again, and the owner can say so
+    /// without reading a byte.
+    std::string promoted_from;
+    /// IS `image` THE FILE A RESTART LOADS? True for a row loaded from the plan, after a
+    /// promotion, and after a revert to the promoted copy; false after a reload or a
+    /// revert to any other per-operation copy. A maker who quits while this is false
+    /// runs the old code next launch, and the sentence they read says so rather than
+    /// leaving it to be discovered.
+    bool default_image = false;
 };
 
 /// WHAT EXECUTING A WHOLE PLAN PRODUCED, or precisely where it stopped.
@@ -339,7 +392,66 @@ enum class Realization : std::uint8_t {
 /// owner cannot see, cannot start and cannot be told the end of. `Pending` says the
 /// only thing realization actually knows: this row is not realized and this owner is
 /// not going to do anything about it unless it is asked.
-enum class RowState : std::uint8_t { Authored, Pending, Loading, Resolved, Refused };
+///
+/// `Reloading` IS THE SIXTH, AND IT IS THIS OWNER'S TOO (RELOAD-1): resolved, and a
+/// reload conversation about it is open. It is not `Loading` -- the row IS live and
+/// serving, and a Project pane that said `loading` would be telling a maker a weave
+/// that is answering them is not there -- and it is not a seventh owner state either,
+/// because at the owner's level the fact is the one `Realization::Loading` already
+/// names: one Manager conversation outstanding, nothing else answerable. The row keeps
+/// its resolved fields while it holds this token.
+enum class RowState : std::uint8_t { Authored, Pending, Loading, Resolved, Refused, Reloading };
+
+/// THE KERNEL'S REASON FOR REFUSING A RELOAD, SAID IN A MAKER'S WORDS (RELOAD-1).
+///
+/// Every sentence `Kernel::reload_from` can state has a sentence here that names the
+/// artifact and says what the maker can do about it; the two shape mismatches come
+/// first, because they are the ones a maker meets on the second afternoon -- one added
+/// state field or one added accepted message moves an edit from a reload to a prepared
+/// replacement, and the sentence has to say THAT the shape changed and WHAT changed. A
+/// reason this function does not know is quoted whole, never swallowed: the kernel's
+/// own words are always in the sentence, after the maker's.
+inline std::string reload_refusal_words(const std::string& stem, const std::string& loom_words) {
+    const auto says = [&loom_words](const char* head) {
+        return loom_words.rfind(head, 0) == 0;
+    };
+    std::string said;
+    if (says("state schema version mismatch")) {
+        said = "the rebuilt '" + stem +
+               "' keeps a different STATE than the running one; a same-shape reload cannot "
+               "carry the state across, so the running weave was left as it is. Replacing it "
+               "is a prepared replacement with an authored migration";
+    } else if (says("accepted schema contract mismatch")) {
+        said = "the rebuilt '" + stem +
+               "' answers to different MESSAGES than the running one; the doors it publishes "
+               "would lie about what is loaded, so the running weave was left as it is. "
+               "Replacing it is a prepared replacement, not a reload";
+    } else if (says("not loaded:")) {
+        said = "nothing named '" + stem +
+               "' is loaded in this process: this would be an initial load, not a reload";
+    } else if (says("open failed:")) {
+        said = "the rebuilt '" + stem + "' did not open; the running weave is unchanged";
+    } else if (says("library create() returned null")) {
+        said = "the rebuilt '" + stem + "' produced no weave; the running weave is unchanged";
+    } else if (says("new library refused:")) {
+        said = "the rebuilt '" + stem +
+               "' refused to construct; the running weave is unchanged";
+    } else if (says("snapshot of the live weave failed:")) {
+        said = "the running '" + stem +
+               "' could not be snapshotted, so nothing was replaced";
+    } else if (says("revive after swap was refused")) {
+        said = "the new code of '" + stem +
+               "' could not take the saved state; '" + stem +
+               "' is unavailable until it is reloaded again";
+    } else if (says("the reload ended a prepared replacement")) {
+        said = "'" + stem +
+               "' was a replacement candidate; reloading it ended that replacement and released "
+               "the artifact";
+    } else {
+        said = "the kernel's control door refused the reload of '" + stem + "'";
+    }
+    return said + " (Loom: " + loom_words + ")";
+}
 
 // ---- The weave that asks, and hears the answer --------------------------------
 
@@ -421,13 +533,18 @@ struct BootAnswers {
     /// report on. the book is empty at every call -- an answer closes the
     /// conversation and an expired fuse forgets it -- so what is left to fail is the
     /// respondent, which `loom::AskBook` refuses to record when it is not a valid weave.
-    std::uint64_t ask(loom::WeaveId respondent) {
+    ///
+    /// WHICH SHAPE THE CONVERSATION IS ABOUT is the book's to record (`loom::AskBook::open`
+    /// already takes one), and since RELOAD-1 this adapter opens two kinds: a load, and a
+    /// reload in place. The default is the load, so every caller that opened one before
+    /// still does.
+    std::uint64_t ask(loom::WeaveId respondent, const char* shape = loom::LoadWeave::zen_name,
+                      std::uint32_t version = loom::LoadWeave::zen_version) {
         answered = false;
         refused = false;
         reason.clear();
         weave = 0;
-        const loom::AskOpened opened =
-            book_.open(respondent, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version);
+        const loom::AskOpened opened = book_.open(respondent, shape, version);
         current_ = opened.id;
         return opened.correlation;
     }
@@ -564,11 +681,23 @@ struct BootState {
 /// ITS GRANT GAINS ONE RULE: it may say `ArtifactRealized` to anyone who accepts it.
 /// That is an observation and not a power -- nothing acts on it, the Builder panel
 /// shows it, and the Builder tool folds it into the picture it publishes.
+///
+/// ----...AND A THIRD AND FOURTH EAR, FOR THE TWO ACTS A RELOAD LEAVES A MAKER (RELOAD-1)
+///
+/// `PromoteArtifact` and `RevertArtifact` are offers exactly as `OfferArtifact` is: a
+/// maker's intent, published by a presentation, decided by the owner in its own words.
+/// The booter's grant gains `zen.ReloadWeave -> manager` beside `zen.LoadWeave` -- the
+/// second half of the one dangerous grant, still target-scoped, still the HOST's to
+/// write -- and one more observation, `ArtifactPromoted`.
 class PlanBooter
     : public loom::WeaveBase<PlanBooter, BootState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused,
-                                          zengine::builder::OfferArtifact>,
-                             loom::Emit<loom::LoadWeave, zengine::builder::ArtifactRealized>> {
+                                          zengine::builder::OfferArtifact,
+                                          zengine::builder::PromoteArtifact,
+                                          zengine::builder::RevertArtifact>,
+                             loom::Emit<loom::LoadWeave, loom::ReloadWeave,
+                                        zengine::builder::ArtifactRealized,
+                                        zengine::builder::ArtifactPromoted>> {
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
@@ -577,6 +706,14 @@ public:
     /// Defined out of line at the bottom of this file, because the owner it asks is not
     /// declared yet. Two lines of its own: ask the owner, publish what the owner said.
     void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail);
+
+    /// THE MAKER ASKED FOR THE RUNNING IMAGE TO BECOME THE ONE A RESTART LOADS. Out of
+    /// line for the same reason; ask the owner, publish what it said.
+    void on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail);
+
+    /// THE MAKER ASKED FOR THE IMAGE BEFORE THE LAST RELOAD TO RUN AGAIN. Out of line;
+    /// a refusal is published now, an acceptance is answered later, as a load is.
+    void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail);
 
     /// WHOSE UNFINISHED WORK AN ANSWER TO THIS BOOTER WAKES -- or nobody. Called
     /// exactly twice, both times by `PlanExecutor` (its constructor and its
@@ -736,6 +873,46 @@ public:
     /// what every caller that does not pass one gets and is exactly behaviour.
     using AwaitingBuild = std::function<bool(const std::string& stem)>;
 
+    /// WHAT THE HOST MADE OF STAGING ONE BUILT PRODUCT (RELOAD-1): where the image to
+    /// open now is, or why there is none. `refusal` is the host's own words -- the
+    /// operating system's, where a copy failed -- and it is empty exactly when `ok`.
+    struct Staged {
+        bool ok = false;
+        std::string path;
+        std::string refusal;
+    };
+
+    /// PUT THE PRODUCT OF `recipe` WHERE `stem` CAN BE OPENED FROM -- the second seam by
+    /// which this owner touches a disk it does not own, and the shape is `AwaitingBuild`'s
+    /// exactly: a function the host wires over facts that are the host's (the catalog in
+    /// force, its own artifact directory, the platform's suffix), spent at the moment of
+    /// the act, never a path this file spells.
+    ///
+    /// `reload` FALSE is the initial realization of a waiting row: the host copies the
+    /// built product to the file the plan resolves the stem to, so the row is loaded from
+    /// where a restart would load it. `reload` TRUE is a live row being rebuilt: the host
+    /// copies the product to a PER-OPERATION path off the loaded file, because the
+    /// loaded file is mapped and a writer under a running program is the hazard this
+    /// seam exists to keep out. Empty means the host has no rule: an initial realization
+    /// then opens the plan's file as it always did, and a reload is refused in words.
+    using StageArtifact =
+        std::function<Staged(const std::string& stem, const std::string& recipe, bool reload)>;
+
+    /// WHAT THE HOST MADE OF A PROMOTION (RELOAD-1): the file a restart loads now holds
+    /// the running image, or it does not and `detail` says why in the OS's words.
+    struct Promoted {
+        bool ok = false;
+        std::string detail;
+        std::string kept; ///< where the host kept the bytes it wrote over, or empty
+    };
+
+    /// WRITE THE RUNNING IMAGE'S BYTES INTO THE FILE THE PLAN RESOLVES `stem` TO -- the
+    /// third seam, and the last: a durable write is the host's act, through the host's
+    /// own sibling-then-rename discipline, and nothing here knows a file from a path.
+    /// Empty means the host has no rule, and a promotion is refused in words.
+    using PromoteImage =
+        std::function<Promoted(const std::string& stem, const std::string& image)>;
+
     /// REALIZATION CAME TO REST -- called from inside whatever delivery brought it
     /// there, with what the plan has produced so far.
     ///
@@ -768,10 +945,12 @@ public:
     PlanExecutor(loom::Switchboard& bus, op::Catalog& catalog,
                  const op::OperatorHostSurface& operators, PlanBooter& voice,
                  loom::WeaveId manager, BootAnswers& answers, ArtifactPath path_of,
-                 Settled settled = Settled(), AwaitingBuild awaiting = AwaitingBuild())
+                 Settled settled = Settled(), AwaitingBuild awaiting = AwaitingBuild(),
+                 StageArtifact stage = StageArtifact(), PromoteImage promote = PromoteImage())
         : bus_(&bus), catalog_(&catalog), operators_(&operators), voice_(&voice),
           manager_(manager), answers_(&answers), path_of_(std::move(path_of)),
-          settled_(std::move(settled)), awaiting_(std::move(awaiting)) {
+          settled_(std::move(settled)), awaiting_(std::move(awaiting)),
+          stage_(std::move(stage)), promote_(std::move(promote)) {
         voice_->wakes(this);
     }
 
@@ -859,6 +1038,13 @@ public:
         if (state_ != Realization::Loading) {
             return;
         }
+        // A RELOAD SETTLES ITS OWN WAY (RELOAD-1): no row is judged, no frontier moves,
+        // and the plan does not advance -- the row was resolved before and is resolved
+        // after, and what changed is which image it runs.
+        if (reloading_.has_value()) {
+            settle_reload();
+            return;
+        }
         // THE OFFER'S CUSTODY ENDS AT THE SAME SEMANTIC POINT IT ALWAYS DID:
         // after the load has happened and before anything else does. It used to be the
         // closing brace of `perform`'s inner scope, reached on every path; it is this
@@ -875,6 +1061,10 @@ public:
         }
         current_.weave_loaded = true;
         current_.weave = loom::WeaveId{answers_->weave};
+        // WHERE THE RUNNING CODE CAME FROM, AND THAT IT IS THE FILE A RESTART LOADS:
+        // a row loaded from the plan runs from the plan's own file, by construction.
+        current_.image = path_of_(current_.stem);
+        current_.default_image = true;
         // ONE SETTLING PATH, WHOEVER ASKED. A row a maker asked for is the row
         // the walk stopped at, so it settles the way every other row settles: the
         // frontier moves ON BY ONE and the plan carries on from there. The only thing
@@ -910,11 +1100,11 @@ public:
     ///   this owner is between rows      a realization already in flight is not
     ///                                   interruptible, and queueing one would make
     ///                                   this a scheduler
-    ///   it is not already resolved      ⚠ AND THIS IS WHERE HOT RELOAD IS REFUSED.
-    ///                                   Realization does not unload, reload, replace or
-    ///                                   migrate anything, so an artifact that is
-    ///                                   already live is told so in words rather than
-    ///                                   quietly loaded a second time
+    ///   it is already resolved          ⚠ AND THIS IS THE RELOAD ARM (RELOAD-1): a
+    ///                                   live weave-only row is reloaded IN PLACE from
+    ///                                   its rebuilt product, same WeaveId, state kept;
+    ///                                   every rule of that arm is in `reload` and it
+    ///                                   refuses in words rather than loading twice
     ///   the plan NAMES this artifact    a stem the project never authored cannot be
     ///                                   realized by asking; there is no participation
     ///                                   intent to perform
@@ -935,17 +1125,19 @@ public:
     /// not know that a build happened and does not need to: what it is being asked is
     /// "perform the participation this project already authored for X", and if X is not
     /// on disk the load refuses in the loader's own words exactly as it always would.
-    Asked realize(const std::string& stem) {
+    /// The one thing it passes on is the RECIPE the offer named, to the host's staging
+    /// rule, which is the host's way of finding the built product; this owner never
+    /// reads it.
+    ///
+    /// ⚠ AND SINCE RELOAD-1 THE ALREADY-RESOLVED ARM IS A RELOAD IN PLACE, not a
+    /// refusal -- see `reload` for every rule that arm applies.
+    Asked realize(const std::string& stem, const std::string& recipe = std::string()) {
         if (state_ != Realization::Waiting && state_ != Realization::Complete) {
             return Asked{false, why_not_asked_now()};
         }
-        for (const ResolvedArtifact& done : resolved_) {
-            if (done.stem == stem) {
-                return Asked{false, "artifact '" + stem +
-                                        "' is already part of this running project. BLD-1 "
-                                        "does not unload, reload or replace a live artifact, "
-                                        "so a rebuilt file has NOT changed the image that is "
-                                        "running -- restart to pick it up."};
+        for (std::size_t i = 0; i < resolved_.size(); ++i) {
+            if (resolved_[i].stem == stem) {
+                return reload(i, recipe);
             }
         }
         std::size_t index = plan_.artifacts.size();
@@ -978,6 +1170,18 @@ public:
                                     "' may be BUILT now and participates when the rows in "
                                     "front of it have."};
         }
+        // THE BUILT PRODUCT IS PUT WHERE THE PLAN'S FILE IS, BY THE HOST (RELOAD-1).
+        // A single-source build lands in its own workspace and never on the plan's
+        // file, so a waiting row's first realization is preceded by the host copying
+        // the product into place. Refused in the host's words and NOTHING MOVES: the
+        // row stays `pending`, the frontier stays where it was, and a corrected build
+        // reaches it again.
+        if (stage_ && !recipe.empty()) {
+            const Staged staged = stage_(stem, recipe, /*reload=*/false);
+            if (!staged.ok) {
+                return Asked{false, "artifact '" + stem + "': " + staged.refusal};
+            }
+        }
         on_demand_ = true;
         state_ = Realization::Advancing;
         perform_row(cursor_);
@@ -991,6 +1195,96 @@ public:
         return Asked{true, std::string()};
     }
 
+    // ---- Reloading a LIVE row in place, promoting it, reverting it (RELOAD-1) --------
+
+    /// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN: a reload through the same arm, from
+    /// `previous`. Same shapes by construction (that image was the running one), same
+    /// WeaveId, state kept. Refused in words with no previous image, for a row that is
+    /// not a live weave, and whenever a reload would be.
+    Asked revert(const std::string& stem) {
+        if (state_ != Realization::Waiting && state_ != Realization::Complete) {
+            return Asked{false, why_not_asked_now()};
+        }
+        for (std::size_t i = 0; i < resolved_.size(); ++i) {
+            if (resolved_[i].stem != stem) {
+                continue;
+            }
+            const Asked live = reloadable(resolved_[i]);
+            if (!live.started) {
+                return live;
+            }
+            if (resolved_[i].previous.empty()) {
+                return Asked{false, "artifact '" + stem +
+                                        "' has no previous image to revert to: it has not "
+                                        "been reloaded in this run, or a promotion wrote "
+                                        "over the image before its last reload"};
+            }
+            return open_reload(i, resolved_[i].previous, /*revert=*/true);
+        }
+        return Asked{false, "artifact '" + stem + "' is not part of this running project"};
+    }
+
+    /// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS: the host writes `image`'s bytes
+    /// into the file the plan resolves the stem to. Synchronous -- nothing is sent --
+    /// and refused in words where the row is not a live weave, already runs from that
+    /// file, or the host has no rule or could not write.
+    ///
+    /// ⚠ A PROMOTION WRITES OVER THE PREVIOUS IMAGE when the image before the last reload
+    /// IS the plan's file. The host keeps those bytes aside at a per-operation path and
+    /// says where (`kept`), so `previous` moves there and a revert still runs the code the
+    /// maker had; a host that kept nothing leaves `previous` empty, and `revert` says why.
+    Promoted promote(const std::string& stem) {
+        if (state_ != Realization::Waiting && state_ != Realization::Complete) {
+            return Promoted{false, why_not_asked_now(), std::string()};
+        }
+        for (ResolvedArtifact& done : resolved_) {
+            if (done.stem != stem) {
+                continue;
+            }
+            if (!done.weave_loaded) {
+                return Promoted{false, "artifact '" + stem +
+                                           "' loaded no weave in this run; there is no "
+                                           "running image to promote", std::string()};
+            }
+            if (done.default_image) {
+                return Promoted{false, "artifact '" + stem +
+                                           "' already runs from the file a restart loads; "
+                                           "there is nothing to promote", std::string()};
+            }
+            if (!promote_) {
+                return Promoted{false, "this host has no rule for writing a running image "
+                                       "into the file a restart loads; nothing was promoted", std::string()};
+            }
+            Promoted wrote = promote_(stem, done.image);
+            if (!wrote.ok) {
+                return Promoted{false, "the running '" + stem +
+                                           "' could not be promoted: " + wrote.detail +
+                                           "; the file a restart loads is unchanged", std::string()};
+            }
+            done.default_image = true;
+            done.promoted_from = done.image;
+            if (done.previous == path_of_(stem)) {
+                done.previous = wrote.kept;
+            }
+            return Promoted{true, "promoted: the next launch runs the image weave #" +
+                                      std::to_string(done.weave.value) + " is running now" +
+                                      (wrote.detail.empty() ? std::string() : " -- " + wrote.detail), std::string()};
+        }
+        return Promoted{false, "artifact '" + stem + "' is not part of this running project",
+                        std::string()};
+    }
+
+    /// IS THIS ROW'S RUNNING IMAGE THE FILE A RESTART LOADS? False for a stem this run
+    /// did not resolve -- the answer a refusal about it carries.
+    bool default_image_of(const std::string& stem) const noexcept {
+        for (const ResolvedArtifact& done : resolved_) {
+            if (done.stem == stem) {
+                return done.default_image;
+            }
+        }
+        return false;
+    }
+
     /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, TAKEN AWAY.
     ///
     /// TAKEN RATHER THAN READ, because it is a settled fact with exactly one reader --
@@ -1002,6 +1296,7 @@ public:
         std::string stem;
         bool realized = false;
         std::string detail;
+        bool default_image = false; ///< the image now running is the file a restart loads
     };
 
     Realized take_realization() {
@@ -1062,7 +1357,13 @@ public:
     /// all five states between them, and a second record of the same fact is the
     /// mirror that goes stale.
     RowState state_of(const std::string& stem) const noexcept {
-        // LOADING FIRST, because the row a maker asked for is the row the walk stopped
+        // RELOADING FIRST OF ALL: the row is in the resolved list AND a conversation
+        // about it is open, and what it is right now is both (RELOAD-1).
+        if (reloading_.has_value() && resolved_[*reloading_].stem == stem &&
+            state_ == Realization::Loading) {
+            return RowState::Reloading;
+        }
+        // LOADING NEXT, because the row a maker asked for is the row the walk stopped
         // at -- the cursor is still on it, so the two answers below would both apply --
         // and what it is right now is in flight.
         if (current_.stem == stem && state_ == Realization::Loading) {
@@ -1266,6 +1567,125 @@ private:
         }
     }
 
+    // ---- the reload arm (RELOAD-1) ----------------------------------------------
+
+    /// CAN THIS RESOLVED ROW BE RELOADED IN PLACE AT ALL? The two rules that are about
+    /// the ROW rather than about the image: it loaded a weave, and it mounted no
+    /// provider. `started` true means yes; false carries the words.
+    Asked reloadable(const ResolvedArtifact& done) const {
+        if (!done.weave_loaded) {
+            return Asked{false, "artifact '" + done.stem +
+                                    "' loaded no weave in this run: a provider's contribution "
+                                    "is not reloaded in place (unmount-and-remount is not "
+                                    "built), and there is no weave to reload"};
+        }
+        if (done.provider_mounted) {
+            return Asked{false, "artifact '" + done.stem +
+                                    "' also supplies operators to the catalog; reloading its "
+                                    "weave would leave the catalog on the old image, and "
+                                    "unmount-and-remount is not built. The running weave is "
+                                    "unchanged"};
+        }
+        return Asked{true, std::string()};
+    }
+
+    /// RELOAD A LIVE ROW FROM ITS REBUILT PRODUCT. The host stages the product off the
+    /// loaded path; a refusal there is the host's own sentence and nothing moves.
+    Asked reload(std::size_t index, const std::string& recipe) {
+        const ResolvedArtifact& done = resolved_[index];
+        const Asked live = reloadable(done);
+        if (!live.started) {
+            return live;
+        }
+        if (!stage_) {
+            return Asked{false, "artifact '" + done.stem +
+                                    "' is live, and this host has no rule for staging a "
+                                    "rebuilt image off the loaded path; nothing was reloaded"};
+        }
+        const Staged staged = stage_(done.stem, recipe, /*reload=*/true);
+        if (!staged.ok) {
+            return Asked{false, "the rebuilt '" + done.stem +
+                                    "' could not be staged off the loaded path: " +
+                                    staged.refusal + "; the running image is unchanged"};
+        }
+        return open_reload(index, staged.path, /*revert=*/false);
+    }
+
+    /// OPEN THE ONE RELOAD CONVERSATION over `path`, for the row at `index`.
+    ///
+    /// THE SAME THREE MOVES A LOAD MAKES, in the same order: the offer goes up over the
+    /// image the kernel is about to open (a consumer's first need is inside `create()`,
+    /// and a reload constructs), the book opens a conversation about `zen.ReloadWeave`,
+    /// and the command goes out AS the booter so the answer comes back to it. Then this
+    /// returns to the host; `answered()` finds `reloading_` set and settles it.
+    Asked open_reload(std::size_t index, const std::string& path, bool revert) {
+        const std::string& stem = resolved_[index].stem;
+        offer_.emplace(*operators_, path);
+        if (offer_->outcome() == op::OfferOutcome::VersionMismatch) {
+            const std::string why = "artifact '" + stem +
+                                    "': operator handoff refused: " + offer_->reason();
+            offer_.reset();
+            return Asked{false, why};
+        }
+        const std::uint64_t correlation =
+            answers_->ask(manager_, loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version);
+        if (correlation == 0) {
+            offer_.reset();
+            return Asked{false, "artifact '" + stem +
+                                    "': no reload conversation could be opened with the weave "
+                                    "this host was given as its Weave Manager; nothing was "
+                                    "reloaded"};
+        }
+        const loom::WeaveId booter = voice_->speaker();
+        bus_->send_as(booter, manager_,
+                      loom::Message(loom::to_value(loom::ReloadWeave{stem, path}), booter, booter,
+                                    correlation));
+        reloading_ = index;
+        reload_path_ = path;
+        reverting_ = revert;
+        resume_ = state_;
+        state_ = Realization::Loading;
+        return Asked{true, std::string()};
+    }
+
+    /// THE RELOAD CONVERSATION SETTLED. Either way the frontier is untouched and the
+    /// owner goes back to the state the ask found it in; what differs is the row's image
+    /// and the sentence the maker is owed.
+    void settle_reload() {
+        ResolvedArtifact& row = resolved_[*reloading_];
+        const op::OfferOutcome offer = offer_.has_value() ? offer_->outcome()
+                                                          : op::OfferOutcome::NotAConsumer;
+        offer_.reset();
+        if (answers_->refused) {
+            realized_ = Realized{true, row.stem, false,
+                                 reload_refusal_words(row.stem, answers_->reason),
+                                 row.default_image};
+        } else {
+            row.previous = row.image;
+            row.image = reload_path_;
+            row.offer = offer;
+            row.default_image =
+                row.image == path_of_(row.stem) ||
+                (!row.promoted_from.empty() && row.image == row.promoted_from);
+            const std::string id = std::to_string(row.weave.value);
+            std::string said = reverting_
+                                   ? "reverted: weave #" + id +
+                                         " runs the image before the last reload again, and "
+                                         "keeps its id and its state"
+                                   : "reloaded in place -- weave #" + id +
+                                         " keeps its id and its state";
+            if (!row.default_image) {
+                said += "; not the default yet -- the next launch runs the old code until "
+                        "this image is promoted";
+            }
+            realized_ = Realized{true, row.stem, true, said, row.default_image};
+        }
+        reloading_.reset();
+        reload_path_.clear();
+        reverting_ = false;
+        state_ = resume_;
+    }
+
     /// THE CURRENT ROW PARTICIPATED IN FULL. Kept in authored order, which is what
     /// makes a later reversal walkable backwards.
     ///
@@ -1296,7 +1716,7 @@ private:
                 }
                 said += "weave #" + std::to_string(current_.weave.value) + " as " + current_.role;
             }
-            realized_ = Realized{true, current_.stem, true, said};
+            realized_ = Realized{true, current_.stem, true, said, current_.default_image};
             on_demand_ = false;
         }
         resolved_.push_back(std::move(current_));
@@ -1407,6 +1827,12 @@ private:
     /// THE ONE QUESTION THIS OWNER CANNOT ANSWER FOR ITSELF. Empty in every
     /// caller that does not pass one, which is behaviour exactly.
     AwaitingBuild awaiting_;
+    /// THE TWO ACTS ON A DISK THIS OWNER CANNOT PERFORM FOR ITSELF (RELOAD-1): put a
+    /// built product where it can be opened from, and write a running image into the
+    /// file a restart loads. Empty means the host has no such rule, and the arms that
+    /// need one refuse in words.
+    StageArtifact stage_;
+    PromoteImage promote_;
 
     // ---- what used to be a stack frame -------------------------------------------
 
@@ -1448,6 +1874,20 @@ private:
     bool on_demand_ = false;
     /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, until somebody takes it.
     Realized realized_;
+
+    // ---- what a reload in place holds while its one conversation is open (RELOAD-1) --
+
+    /// WHICH RESOLVED ROW IS BEING RELOADED, or nothing. Set exactly while a
+    /// `zen.ReloadWeave` is outstanding; `state_of` answers `Reloading` for that row and
+    /// `answered()` settles the reload rather than judging a row.
+    std::optional<std::size_t> reloading_;
+    /// THE IMAGE THE OPEN RELOAD IS ABOUT -- what `image` becomes on `Ack`.
+    std::string reload_path_;
+    /// IS THE OPEN RELOAD A REVERT? Decides the sentence, nothing else.
+    bool reverting_ = false;
+    /// WHERE THE OWNER WAS WHEN THE RELOAD WAS ASKED FOR (`Waiting` or `Complete`), and
+    /// where it goes back to: a reload moves no frontier.
+    Realization resume_ = Realization::Complete;
 };
 
 /// DEFINED HERE because the owner it hands the fact to is declared above. One call,
@@ -1464,8 +1904,8 @@ inline void PlanBooter::wake(loom::Mail& mail) {
     // ordinary case takes nothing and publishes nothing.
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{settled.stem, settled.realized,
-                                                              settled.detail});
+        (void)mail.publish(zengine::builder::ArtifactRealized{
+            settled.stem, settled.realized, settled.detail, settled.default_image});
     }
 }
 
@@ -1491,16 +1931,39 @@ inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::M
     if (owner_ == nullptr) {
         return;
     }
-    const PlanExecutor::Asked asked = owner_->realize(offer.artifact);
+    const PlanExecutor::Asked asked = owner_->realize(offer.artifact, offer.recipe);
     if (!asked.started) {
-        (void)mail.publish(
-            zengine::builder::ArtifactRealized{offer.artifact, false, asked.refusal});
+        (void)mail.publish(zengine::builder::ArtifactRealized{
+            offer.artifact, false, asked.refusal, owner_->default_image_of(offer.artifact)});
         return;
     }
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{settled.stem, settled.realized,
-                                                              settled.detail});
+        (void)mail.publish(zengine::builder::ArtifactRealized{
+            settled.stem, settled.realized, settled.detail, settled.default_image});
+    }
+}
+
+/// DEFINED HERE for `wake()`'s reason. Ask the owner, publish what it said: a
+/// promotion is synchronous, so the answer is always in hand.
+inline void PlanBooter::on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail) {
+    if (owner_ == nullptr) {
+        return;
+    }
+    const PlanExecutor::Promoted done = owner_->promote(ask.artifact);
+    (void)mail.publish(zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail});
+}
+
+/// DEFINED HERE for `wake()`'s reason. A revert is a reload, so an accepted one is
+/// answered later from `on(loom::Ack)`'s path; only a refusal is published now.
+inline void PlanBooter::on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail) {
+    if (owner_ == nullptr) {
+        return;
+    }
+    const PlanExecutor::Asked asked = owner_->revert(ask.artifact);
+    if (!asked.started) {
+        (void)mail.publish(zengine::builder::ArtifactRealized{
+            ask.artifact, false, asked.refusal, owner_->default_image_of(ask.artifact)});
     }
 }
 

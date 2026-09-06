@@ -1031,10 +1031,10 @@ surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  39
-operator                          doctest           always  125
+operator                          doctest           always  126
 composer                          doctest           always  35
 maker                             doctest           always  26
-builder                           doctest           always  53
+builder                           doctest           always  54
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that
@@ -1066,12 +1066,12 @@ builder                           doctest           always  53
 #
 workshop_document                 doctest           always  142
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  206
+workshop_panels                   doctest           always  213
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
-workshop_load                     doctest           always  115
+workshop_load                     doctest           always  125
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  89
+workshop_files                    doctest           always  90
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

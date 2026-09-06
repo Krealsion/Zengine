@@ -262,7 +262,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   exists for an EXISTING CMake target, whose product is somebody else's decision and whose
   recipe's claim about it can simply be wrong. Both are witnessed; do not "simplify" the check
   away.
-- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT.** The tool may say `OfferArtifact` — ONLY when
+- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND RELOAD-1 MADE IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
   the maker asked for realization, because the shape carries an INTENT and a standing offer
   nobody made is not one. `PlanBooter` hears it, asks its owner, and publishes the owner's
   answer as `ArtifactRealized`. It is a COMMAND in this vocabulary's own table — an OFFER,
@@ -340,8 +340,12 @@ row N is waiting on the maker
   a healthy run.
 - **`realize(stem)` PERFORMS ONE WAITING ROW, AND EVERY ELIGIBILITY RULE IS THE PLAN'S.**
   Busy, already resolved, not named by the plan, or **not the frontier row** — each refused in
-  words. ⚠ THE ALREADY-RESOLVED ARM IS WHERE HOT RELOAD IS REFUSED, and the refusal says
-  *restart*. ⚠ AN ON-DEMAND REFUSAL MUST NOT SET `Realization::Failed`: that is what the
+  words. ⚠ THE ALREADY-RESOLVED ARM IS THE RELOAD IN PLACE (RELOAD-1): a live weave-only row
+  is reloaded from its rebuilt product through `zen.ReloadWeave` — the host stages the image
+  off the loaded path (`StageArtifact`), the offer brackets it, the booter settles it, the row
+  is `reloading` meanwhile and `resolved` after, and a kernel refusal is said in a maker's words
+  with the incumbent untouched; a provider+weave row is refused in words. ⚠ AN ON-DEMAND
+  REFUSAL MUST NOT SET `Realization::Failed`: that is what the
   host's settle notice reads to end the process with exit 4, and a maker whose hand-asked
   realization was refused has not lost the Workshop they are working in. The row goes back to
   waiting — the frontier returns to exactly where the ask found it, which is what makes a
@@ -413,9 +417,10 @@ feature is one read-only seam plus one gesture over the existing route.
 - A plan row is configuration — it is an **execution-authority decision**: a provider row
   lets a native artifact contribute executable semantic power to the host, and a weave row
   lets it participate under a role. Nothing signs or restricts one.
-- The load plan solves hot reload — it does **not**. It is initial and restart load intent;
-  the provider-vs-`reload_from` interaction is still open, and the executor has no unload,
-  reload or remount path.
+- The load plan solves replacement — it does **not**. It is initial and restart load intent;
+  a reload in place (RELOAD-1) keeps every row as authored and is same shapes only, the
+  provider-vs-`reload_from` interaction is still open (a provider+weave row is refused), and
+  the executor has no unload, replace or remount path.
 - Restart persistence means a clean build recreates the artifacts — it means a fresh PROCESS
   reconstructs the same arrangement from the same file.
 - Builder builds one hard-coded target — it builds an **authored recipe catalog**, and the
@@ -438,4 +443,5 @@ feature is one read-only seam plus one gesture over the existing route.
   the Builder's; the projection publishes what realization did.
 - A successful build loads its artifact — it does **not**. It offers one fact, and only when
   a maker asked; the realization owner decides, bounded by the authored plan, and an
-  already-loaded artifact is refused in words. There is no reload here.
+  already-loaded weave-only artifact is reloaded in place, same shapes only. There is no
+  replacement here.
