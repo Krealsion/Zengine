@@ -124,12 +124,24 @@ struct FilesRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
-    /// The pane's first row: its header, or -- for one beat after something happened -- the
-    /// notice the pane leads with.
+    /// The pane's first row: its header, or -- from the maker's act until their next one --
+    /// the notice the pane leads with.
     std::string first() {
         const std::vector<std::string> rows = shown();
         REQUIRE_FALSE(rows.empty());
         return rows[0];
+    }
+
+    /// The last row with anything on it: the pane fills its room, and a room taller than
+    /// the composition is padded with blanks nobody wrote.
+    std::string last_written() {
+        const std::vector<std::string> rows = shown();
+        for (std::size_t i = rows.size(); i > 0; --i) {
+            if (!rows[i - 1].empty() && rows[i - 1].find_first_not_of(' ') != std::string::npos) {
+                return rows[i - 1];
+            }
+        }
+        return std::string();
     }
 
     /// The row the cursor is on, as a maker sees it: the one the pane marked with `>`.
@@ -471,6 +483,85 @@ TEST_CASE("FILES-WEAVE: the answer the pane asked for does not erase what it jus
     finished.builds = 1;
     f.r.publish(loom::to_value(finished));
     CHECK(any_row(f.shown(), "made-by-the-build.txt"));
+}
+
+TEST_CASE("FILES-WEAVE: a notice stands until the maker's next act") {
+    // ⭐ THE GENERAL RULE THE GATE ABOVE IS ONE INSTANCE OF (`agents/panes.md`). This pane
+    // used to clear its notice inside `say`, and the Builder's migration proved that wrong
+    // one pane over: a gesture makes SEVERAL publications in one drain and Workshop keeps
+    // only the last picture, so a sentence spent by the first `say` is a sentence no maker
+    // ever reads. The narrow repair above gated ONE re-say; this is the lifetime.
+    //
+    // ⚔ MUTATION, MEASURED: `notice_.clear()` back at the end of `say`. The standing check
+    //   goes red -- the sentence is gone one publication later, and the row is the header
+    //   again. The spend check still passes, because a sentence already spent looks exactly
+    //   like a sentence the next act spent; that is why the first half is the one that
+    //   carries this claim.
+    FilesRig f("files-notice-stands");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    f.open();
+
+    f.point_at("recipes.json");
+    f.letter(input::scan::kU, "u");
+    REQUIRE(f.first().rfind("build recipes:", 0) == 0);
+
+    // A PUBLICATION THAT IS NOT THE MAKER'S DOING: a build somebody else ordered settles, so
+    // this pane takes a fresh listing and says its rows again. The sentence the maker has not
+    // read yet survives it, and the new file is there.
+    put_file(f.root / "made-by-the-build.txt", "made by a build");
+    zengine::builder::BuildStatus described;   // the pane's baseline: what the tool IS
+    described.outcome = zengine::builder::outcome::kNeverBuilt;
+    described.builds = 0;
+    f.r.publish(loom::to_value(described));
+    zengine::builder::BuildStatus finished;    // ...and then a build that really happened
+    finished.outcome = zengine::builder::outcome::kSucceeded;
+    finished.builds = 1;
+    f.r.publish(loom::to_value(finished));
+    CHECK(f.first().rfind("build recipes:", 0) == 0);
+    CHECK(any_row(f.shown(), "made-by-the-build.txt"));
+
+    // ...AND THE MAKER'S NEXT ACT SPENDS IT. One press of Down: the pane leads with its own
+    // header again, because the sentence was the answer to an act that is now two acts old.
+    f.r.key(input::scan::kDown);
+    CHECK(f.first().rfind("Files", 0) == 0);
+}
+
+TEST_CASE("FILES-WEAVE: the notice takes its row from the listing, not from the room's end") {
+    // ⭐ A NOTICE THAT STANDS HAS TO HAVE SOMEWHERE TO STAND. `say` puts the sentence in
+    // front of the composition and cuts the whole thing to the room, so a composition that
+    // already filled the room loses its LAST row to the notice -- and the last row of a long
+    // listing is `... N more`, the only thing telling a maker the list goes on. Worse, a
+    // composition that OVERRAN the room (the window fills the body with entries and the two
+    // markers are pushed on top of them) left no room for the notice at all, so the sentence
+    // was not merely cut short -- it never appeared.
+    //
+    // So the listing is asked for the rows that are actually free: the room, less this pane's
+    // header, less the notice, less its own markers.
+    //
+    // ⚔ MUTATIONS, MEASURED. `body_budget()` back to `rows_ - kHeaderRows`: the notice takes
+    //   its row from the end of the list instead, and the last row a maker can read becomes
+    //   `  entry-03.txt` -- a list that goes on and no longer says so. `fitted_window` back to
+    //   `window_of`: the same loss, and it is there BEFORE any notice exists (`  entry-04.txt`),
+    //   which is what the first half of this case is for.
+    FilesRig f("files-notice-room");
+    for (int i = 0; i < 40; ++i) {
+        put_file(f.root / ("entry-" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ".txt"),
+                 "x");
+    }
+    f.open();
+
+    // A LONG LISTING WITH NO NOTICE: the room is full and the marker is the last thing in it.
+    const std::string full = f.last_written();
+    CHECK_MESSAGE(full.find("more") != std::string::npos, "the last row was: ", full);
+
+    // ...AND NOW WITH ONE. `r` re-lists and says so; the sentence leads, the marker survives,
+    // and the room is no fuller than it was.
+    const std::size_t room = f.shown().size();
+    f.letter(input::scan::kR, "r");
+    CHECK(f.first().rfind("listed ", 0) == 0);
+    const std::string with = f.last_written();
+    CHECK_MESSAGE(with.find("more") != std::string::npos, "the last row was: ", with);
+    CHECK(f.shown().size() == room);
 }
 
 TEST_CASE("FILES-WEAVE: a refused catalog leaves the maker exactly where they were") {

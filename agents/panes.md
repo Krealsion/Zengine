@@ -155,6 +155,16 @@ Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
   room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
   The Powers pane declares four (`introspection/vocabulary.hpp`); `loaded`, `arrangement` and the
   Composer declare none — the Composer still matches raw keys, and is the next consumer.
+- **A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT, never until it has been said once.**
+  A built-in wrote its sentence on the band; a pane has only its own room, so the sentence is a
+  row it publishes — and ONE gesture produces SEVERAL publications in one drain (write the
+  notice, say the rows, ask a door whose answer arrives on the same turn and says them again),
+  of which Workshop keeps the LAST. So a notice cleared inside `say` is a notice no maker ever
+  reads. Clear it where the pane ACTS on a gesture, and subtract its row from the composition's
+  budget, or the room's last row is cut after the fact. Measured twice before it was written
+  down: `u` on a catalog produced no visible row (the project browser's whole-loop witness),
+  and the Builder's seam suite caught the same class one pane over. `files/files.cpp` and
+  `builder-pane/pane.cpp` both spell it.
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
