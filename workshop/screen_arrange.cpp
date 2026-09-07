@@ -137,7 +137,7 @@ bool pane_editor_draft_live(const Session& s) {
 }
 
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06 -- agents/workshop/focus.md
-// WL-ATTN-09 -- agents/workshop/attention.md; WL-CTX-06 -- agents/workshop/contextual.md
+// WL-CTX-06 -- agents/workshop/contextual.md
 // WL-PED-07 -- agents/workshop/pane-manager.md
 KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
@@ -154,15 +154,11 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.panels.picker.open) {
         return KeyContext::kPicker;
     }
-    // THE CURRENT-CONDITION VIEW IS A MODE, IN THE PICKER'S OWN PLACE: below the
-    // Terminal and the arrangement scopes, above a focused pane and a live draft. It owns
-    // the keyboard while it is open for the picker's reason -- it is a list with a cursor
-    // and a gesture on the selected row -- and it is deliberately NOT keys-modal like the
-    // hotkey view, because its gestures are real application actions that every help
-    // surface and the maker's own keymap file must be able to see.
-    if (s.attention.open) {
-        return KeyContext::kAttention;
-    }
+    // ⚠ THE CURRENT-CONDITION VIEW WAS A MODE HERE, IN THE PICKER'S OWN PLACE, and it is
+    // gone: it is a PANE now (`Zengine/attention-pane/`), so it takes the keyboard the way
+    // every other pane does -- one branch down, because a maker pressed into it. What it
+    // gives up is displacing a focused pane's keys from anywhere; what it gains is being a
+    // thing on the desk rather than a thing over it.
     if (is_runtime_kind(keyboard_pane(s.panels))) {
         return KeyContext::kPane;
     }

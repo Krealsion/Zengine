@@ -2386,6 +2386,11 @@ struct PaneRig {
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
         // The Editor door's answer, exactly as workshop.cpp grants it.
         speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+        // ...and what is currently true, said to whoever presents it -- the arc's one new
+        // host-to-pane sentence, granted here exactly as workshop.cpp grants it. A rig that
+        // left it out would make the Attention pane look like a pane that never hears
+        // anything, which is a rig defect wearing a product defect's face.
+        speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -2611,6 +2616,9 @@ struct PaneRig {
         }
         if (stem == "zengine-builder-pane") {
             return WORKSHOP_SO_BUILDER_PANE;
+        }
+        if (stem == "zengine-attention-pane") {
+            return WORKSHOP_SO_ATTENTION_PANE;
         }
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }

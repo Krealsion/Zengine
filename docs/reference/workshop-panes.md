@@ -35,6 +35,14 @@ paragraphs below argue with, and because a reader who finds the pane on their sc
 able to find out where it went. The built-in half of the catalog is `Info`, `Editor`, `Layouts`
 and `Pane Manager`.
 
+⚠ **`Attention` is a loaded pane that was never a built-in one.** What is currently true used
+to be an OVERLAY: a global chord opened it, it owned the keyboard while it was up, it was drawn
+into a popup Workshop resolved for itself, and no saved setup could name it. It arrives by a
+plan row naming `zengine-attention-pane` now, and it is in the picker, on the desk and in the
+setup like anything else. What it shows it does not derive: Workshop publishes every current
+condition as a value and the pane presents them — the one host-to-pane sentence this protocol
+has gained since panes began declaring their actions.
+
 `panel == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
 that sentence rather than asserting it: opening it sends no message, asks no office and needs
 no weave mounted anywhere, and it has no per-panel state for a close to destroy. A Workshop

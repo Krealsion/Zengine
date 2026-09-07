@@ -97,44 +97,12 @@ struct HeldConditions {
     bool holds(std::string_view key) const { return find(key) != nullptr; }
 };
 
-/// ONE CONDITION THE MAKER HAS HIDDEN, and the statement they hid.
-// WL-ATTN-08 -- agents/workshop/attention.md
-struct Dismissal {
-    std::string key;
-    std::string stamp;
-};
-
-/// THE CURRENT-CONDITION VIEW, AND WHAT IT HIDES -- presentation state, all of it.
-// WL-ATTN-08 -- agents/workshop/attention.md
-struct AttentionView {
-    bool open = false;
-    std::size_t cursor = 0;
-    std::vector<Dismissal> dismissed;
-
-/// IS THIS EXACT STATEMENT HIDDEN? The key AND the stamp, both.
-    // WL-ATTN-08 -- agents/workshop/attention.md
-    bool hides(const Condition& c) const {
-        for (const Dismissal& d : dismissed) {
-            if (d.key == c.key) {
-                return d.stamp == c.stamp();
-            }
-        }
-        return false;
-    }
-
-    /// Hide this statement. Re-dismissing a condition that has since changed REPLACES the
-    /// old stamp rather than adding a row, so the set stays one entry per key and a maker
-    /// who hides the same condition twice has hidden it once.
-    void dismiss(const Condition& c) {
-        for (Dismissal& d : dismissed) {
-            if (d.key == c.key) {
-                d.stamp = c.stamp();
-                return;
-            }
-        }
-        dismissed.push_back(Dismissal{c.key, c.stamp()});
-    }
-};
+/// ⚠ THE DISMISSAL SET AND THE VIEW LEFT THIS HEADER with the pane that shows them
+/// (`Zengine/attention-pane/`). `Dismissal` and `AttentionView` were presentation -- a mode
+/// flag, a cursor and a set of hidden statements -- and presentation is what migrated. What
+/// stays is what this host actually OWNS: the conditions it holds, the ranking it applies,
+/// and the stamp a dismissal is measured against, which the pane recomposes from the fields
+/// that cross rather than sharing a type with anybody.
 
 } // namespace zengine::workshop
 

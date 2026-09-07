@@ -945,10 +945,6 @@ struct Session {
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
     // WL-ATTN-01 -- agents/workshop/attention.md
     HeldConditions conditions;
-    /// ...and the view a maker reads them in, plus the ones they have hidden this session.
-    /// Presentation only: it holds a mode flag, a cursor and a set of hidden statements,
-    /// and nothing it shows.
-    AttentionView attention;
     /// THE CONTEXTUAL-ACTION SURFACE: open, the captured subject, the open group
     /// and a cursor -- an identity and a cursor, never a snapshot (context.hpp). Opening
     /// it changes no selection and no keyboard candidate; the subject it holds is spent
@@ -1769,13 +1765,16 @@ inline constexpr const char* kFrontierKey = "project.frontier-waiting";
 std::vector<Condition> attention_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
 
-/// ...LESS THE ONES THIS SESSION HAS HIDDEN. The one function every presentation spends, so
-/// the compact indicator, the view, the cursor bound and the dismissal all agree about which
-/// list they are talking about -- the one-geometry rule, applied to a population.
-std::vector<Condition> attention_shown(const Session& s,
-                                              const ProjectFrontier& frontier = {});
-
 /// THE COMPACT LINE, or empty when nothing currently deserves attention.
+///
+/// ⚠ IT SPENDS EVERY CURRENT CONDITION, NOT THE UNDISMISSED ONES, and that is a change the
+/// migration made rather than a simplification. `attention_shown` was the one population the
+/// chip, the view, the cursor and the dismissal all agreed on, and it could be, because one
+/// party held all four. The dismissal set is the Attention PANE's now (`attention-pane/`,
+/// `AttentionPaneState::dismissed`) and this host has no way to learn it that would not be a
+/// second sentence across the seam. So the chip says what is TRUE and the pane says what
+/// this maker has chosen to look at -- which is also the honest reading of WL-ATTN-08's own
+/// sentence, that dismiss is not resolve and changes nothing that is true.
 std::string attention_compact(const std::vector<Condition>& shown);
 
 /// EVERY CURRENT CONDITION AS THE SENTENCE THAT CROSSES THE PANE SEAM.
@@ -1793,17 +1792,6 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
 /// stays silent when there is not.
 bool same_conditions(const std::vector<StandingCondition>& a,
                      const std::vector<StandingCondition>& b);
-
-/// WHERE THE CURRENT-CONDITION VIEW OPENS: the overlay column, for the hotkey view's old
-/// reason.
-// WL-ATTN-09 -- agents/workshop/attention.md; WL-KEY-10 -- agents/workshop/keyboard.md
-inline constexpr FineRect attention_bounds(const Screen& sc) noexcept {
-    return overlay_column(sc);
-}
-
-/// THE VIEW: every currently-true, non-dismissed condition, in the owner's own words.
-void paint_attention(surface::SurfaceLayer& layer, const Session& s, const Screen& sc,
-                            const ProjectFrontier& frontier);
 
 // ---- WHAT CAN I DO WITH THIS, PRESENTED --------------------------------------------------
 
@@ -2755,16 +2743,24 @@ void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 /// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
+/// ⚠ IT NO LONGER TAKES THE FRONTIER. The parameter existed for one caller inside it -- the
+/// current-condition view's painter, which read the frontier to derive one of its rows -- and
+/// that view is a pane now, told what is true rather than working it out. Nothing else in the
+/// composition ever looked at it.
 void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                         const Screen& sc, const ProjectFrontier& frontier = {});
+                         const Screen& sc);
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean
 /// right now.
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
 
 /// The whole screen as one published canvas — an ORDERED LIST OF PLANES.
-surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
-                                    const ProjectFrontier& frontier = {});
+///
+/// ⚠ AND IT NO LONGER TAKES THE FRONTIER EITHER. It was handed one so that it could hand one
+/// to `paint_panels`, which handed it to the current-condition view's painter. That view is a
+/// pane now; the picture is a pure projection of the document, the session and the screen,
+/// and nothing in it derives a fact from the realization owner any more.
+surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s);
 
 } // namespace zengine::workshop
 

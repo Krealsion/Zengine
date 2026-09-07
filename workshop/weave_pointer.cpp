@@ -178,7 +178,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kPicker: open_picker(); break;
     case Act::kArrangeDesk: open_arrange_desk(); break;
     case Act::kTerminalToggle: toggle_terminal(); break;
-    case Act::kAttention: toggle_attention(); break;
     case Act::kHotkeys: toggle_hotkeys(); break;
     case Act::kSaveDocument: save_document(); break;
     case Act::kOpenDocument: load_document(); break;
@@ -808,7 +807,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // would be a second meaning for one motion.
     const bool pointer_is_spent = session_.terminal.open || session_.arrange.open ||
                                   session_.context.open || session_.hotkeys.open ||
-                                  session_.attention.open || session_.text_drag.active ||
+                                  session_.text_drag.active ||
                                   session_.drag.active || session_.pane_drag.active ||
                                   session_.tab_drag.active;
     const Revealed want =

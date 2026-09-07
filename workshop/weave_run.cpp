@@ -50,12 +50,13 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // EMPTY IS THE RETRACTION: a medium clears its presentation of a slot published
     // empty, which is why the disappearance needs no path of its own.
     mail.publish(zengine::surface::SurfaceText{
-        zengine::surface::kSlotScore, attention_compact(attention_shown(session_, frontier))});
+        zengine::surface::kSlotScore,
+        attention_compact(attention_conditions(session_, frontier))});
     // ...AND THE SAME TRUTH IN FULL, TO WHOEVER IS PRESENTING IT. The chip is a glance and
     // this is the reading behind it: one sentence per condition, in the host's own order,
     // said only when it changed.
     say_conditions(frontier, mail);
-    mail.publish(paint(state_, session_, frontier));
+    mail.publish(paint(state_, session_));
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md
@@ -69,9 +70,12 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
     }
     said_conditions_ = now;
     conditions_said_ = true;
-    // `to_any`, NOT ADDRESSED. Which weave presents this is the load plan's business, and a
-    // host that addressed one would be a host with a pane compiled into it again.
-    mail.publish(StandingConditions{std::move(now)});
+    // `to_any`, NOT ADDRESSED, AND SAID AS THE OFFICE. Which weave presents this is the load
+    // plan's business, and a host that addressed one would be a host with a pane compiled
+    // into it again -- but a reader still has to be able to tell this host's reading from
+    // any weave's opinion, so the publication carries the office stamp and the pane refuses
+    // an unstamped one. `as_role` adds provenance, never a capability (MSG-07).
+    (void)mail.as_role(kWorkshopProvider).publish(StandingConditions{std::move(now)});
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md
