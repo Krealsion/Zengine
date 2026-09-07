@@ -81,12 +81,14 @@ a written expectation knows what is *missing*. See
 
 ### What makes it hard today
 
-**An external pane receives no pointer or keyboard input as a first-class participant.** The
-protocol is four shapes and it is deliberately thin: Workshop grants a pane a lattice of prose
-rows and columns, tells it *a maker pressed at this row and column in your room*, and tells it
-*a key went down and you have the keyboard*. Workshop **asks nothing back**. There is no
-disposition, no "I consumed it", no drag lifecycle, no target negotiation and no capture. A pane
-cannot say "I am now the source of a drag", because there is no shape with which to say it.
+**An external pane receives pointer and keyboard input only as sentences about its own room.**
+The protocol is eleven shapes and it is deliberately thin: Workshop grants a pane a lattice of
+prose rows and columns, tells it *a maker pressed at this row and column in your room*, tells it
+*a key went down and you have the keyboard* (or, for an action the pane declared, *a maker asked
+for this action of yours*), and tells it the wheel turned over its body. Workshop **asks nothing
+back**. There is no disposition, no "I consumed it", no drag lifecycle, no target negotiation and
+no capture. A pane cannot say "I am now the source of a drag", because there is no shape with
+which to say it.
 
 **Keyboard possession is a spend, and any press elsewhere takes it away.** That is enough for a
 pane that wants typed input in its own room, and it is not a capture model.
@@ -112,7 +114,7 @@ beside them, one file per subject the header's section banners name
 | keyboard focus | **Workshop's weave**, per mode, plus the inspector's own row focus. A canvas has no focus and never did | [`workshop/weave.hpp`](../../workshop/weave.hpp), [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 | keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | selection of an authored object | **Workshop's document/session state**, and it is *published as a fact* — an identity, not a pointer | [`workshop/document.hpp`](../../workshop/document.hpp) |
-| the external pane protocol | **`workshop/pane_vocabulary.hpp`** — four shapes, read-only prose, a bounded budget, no answers | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
+| the external pane protocol | **`workshop/pane_vocabulary.hpp`** — eleven shapes, prose one way, a bounded budget, input as places, keys and resolved ids, no answers | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | what a pane may draw | **nothing directly.** It publishes rows; Workshop composes them into the canvas | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 
 ### Where a cross-pane drag would cross a boundary
