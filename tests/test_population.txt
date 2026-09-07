@@ -1201,7 +1201,7 @@ builder                           doctest           always  55
 # to write and no built-in row to delete -- what left is a mode, a painter and five keymap
 # rows, and what arrived is a pane a maker can choose, arrange and press into.
 #
-#   workshop_panes  303 -> 313  the GESTURES, through the real seam:
+#   workshop_panes  303 -> 314  the GESTURES, through the real seam:
 #                               `test_workshop_panes_attention.cpp` loads the real
 #                               `zengine-attention-pane` image from a real plan row and
 #                               drives the arrival, the three declared ids, the rows in
@@ -1212,7 +1212,10 @@ builder                           doctest           always  55
 #                               last spoke and is told again. Ten cases, six of them the
 #                               built-in's own claims asked one seam out, four of them
 #                               claims that could not exist before -- including the two the
-#                               publication's silence rule created.
+#                               publication's silence rule created and one the whole-loop
+#                               witness found: a condition whose words carry a byte a canvas
+#                               cannot draw used to refuse this pane's whole publication, and
+#                               the mutation that removes the gate does not terminate.
 #   workshop_panels 185 -> 179  the view's own tiers, gone whole: what it drew, what its
 #                               four gestures did, and what its help surfaces said. Every
 #                               one of them is a claim about a PRESENTATION, and every one
@@ -1221,8 +1224,8 @@ builder                           doctest           always  55
 #                               the ranking, the compact chip and the two cases about the
 #                               sentence it now says across the seam.
 #
-# THE NET IS UP 4 CASES, and the four are new claims rather than moved ones. A floor left at
-# 185 would have hidden six deletions behind ten additions.
+# THE NET IS UP 5 CASES, and the five are new claims rather than moved ones. A floor left at
+# 185 would have hidden six deletions behind eleven additions.
 #
 # THE ATTENTION SEAM raised ONE floor -- workshop_panels 183 -> 185 -- and the two cases are
 # the arc's one new sentence and the silence beside it. The host says every current condition
@@ -1244,7 +1247,7 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  179
-workshop_panes                    doctest           always  313
+workshop_panes                    doctest           always  314
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65
