@@ -81,7 +81,7 @@ LAW — `u` in Project Files resolves a row to a path as activation does, refuse
 
 MEANS
 - same-path is a reload and never a no-op: that is the application's whole live-refresh mechanism;
-- a dirty Editor buffer over that path is neither consumed nor auto-saved; no Builder needed;
+- a dirty Editor buffer is neither consumed nor auto-saved; no Builder pane need be loaded;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
 PROVEN BY — `workshop/files_doors.hpp` `RecipesDoor`; `workshop/files_seam_vocabulary.hpp`
@@ -90,19 +90,23 @@ PROVEN BY — `workshop/files_doors.hpp` `RecipesDoor`; `workshop/files_seam_voc
 `tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a catalog in Files and every
 consumer moves with it"`, case `"PROJ-1: selecting the catalog already in force is a reload, not a
 no-op"`, case `"PROJ-1: recipes come from the saved file, never from an unsaved editor buffer"`,
-case `"PROJ-1: the chooser does not need the Builder panel to be open"`, case `"PROJ-2: an
+case `"PROJ-1: the chooser needs no Builder pane loaded at all"`, case `"PROJ-2: an
 external catalog is chosen live, and the project still owns relative sources"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-07 — Standing Builder intent survives by recipe identity, never by row position
 
-LAW — `on(RecipeCatalog)` follows the chosen recipe by name to its new row, `picked` intact, and releases it when the identity is gone; no fallback to an index, stem or nearest name.
+LAW — The Builder pane holds the chosen recipe as a NAME, so a republished catalog moves the choice with it and an identity that is gone releases it; no fallback to an index, stem or nearest name.
 
-PROVEN BY — `workshop/weave.hpp` `RecipeCatalog`; `workshop/weave_pointer.cpp`
-`on(RecipeCatalog)`; `workshop/panel.hpp` `BuilderPane::picked`; `tests/test_workshop_panels.cpp`
-case `"PROJ-1: a reordered catalog moves the maker's choice to its recipe, not its row"`, case
-`"PROJ-1: a choice whose recipe is gone is cleared, not handed to its neighbour"`, case `"PROJ-1:
-an emptied catalog leaves no selection standing"`.
+MEANS
+- the name is the pane's durable state, so a reload keeps a choice an index would have lost;
+- `picked` stays the pane's own: how a selection was made is not changed by a reordering.
+
+PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder-pane/pane.cpp`
+`named_row`, `cursor_row`; `tests/test_workshop_panes_builder.cpp`
+case `"BLD-WEAVE: PROJ-1 -- the choice follows its RECIPE to a new row, not its index"`, case
+`"BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not inherited"`, case
+`"BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-09 — Which catalog is in force is the owner's answer, and nobody keeps a copy
@@ -111,13 +115,15 @@ LAW — The catalog in force is read back from the owner after every attempt and
 
 MEANS
 - a refused swap answers with the catalog STILL running, which is the half a maker needs;
-- the Builder panel named it while a session projection existed; that projection has left.
+- the Builder pane names it again, from `RecipeCatalog` v2's `source`, on the owner's word;
 
 PROVEN BY — `workshop/workshop.cpp` `use_recipes`; `workshop/weave.hpp` `RecipeSwap`;
-`files/files.hpp` `catalog_taken_words`, `catalog_refused_words`; `tests/test_files.cpp` case
+`files/files.hpp` `catalog_taken_words`, `catalog_refused_words`; `builder/vocabulary.hpp`
+`RecipeCatalog`; `tests/test_files.cpp` case
 `"PROJ-1: a refusal says what went wrong AND what is still running, in that order"`;
 `tests/test_workshop_files.cpp` case `"PROJ-1: a live catalog choice is this session's and is
-written nowhere"`.
+written nowhere"`; `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: P-WORK-20 -- the
+pane names the catalog in force, from RecipeCatalog v2"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-10 — A path is not a sentence
@@ -135,63 +141,67 @@ PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
 all"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
-## WL-PROJ-11 — The Builder panel announces only what it watched
+## WL-PROJ-11 — The Builder pane announces only what it watched
 
-LAW — The panel's `awaiting` latch is set when it asks and released only at an outcome the build will not leave (`still_going`), so an arriving status is news exactly when this panel watched the build begin.
+LAW — The pane's `awaiting` latch is set when it asks and released only at an outcome the build will not leave (`still_going`), so an arriving status is news exactly when this pane watched the build begin.
 
 MEANS
 - `heard` tells "the tool has not answered" from "the tool never built anything";
-- a panel opened while a child is alive is told `running`, shows it, and announces nothing;
-- `awaiting_realization` is the twin latch, held longer; `chosen` is bounded at use, not at write.
+- a pane granted room while a child is alive is told `running`, shows it, and announces nothing;
+- `awaiting_realization` is the twin latch, held longer, and none of them is durable state.
 
-PROVEN BY — `workshop/panel.hpp` `BuilderPane`, `BuilderPane::heard`, `BuilderPane::awaiting`,
-`BuilderPane::awaiting_realization`, `BuilderPane::chosen`; `workshop/weave_pointer.cpp`
-`on(BuildStatus)`; `builder/vocabulary.hpp` `still_going`; `tests/test_workshop_panels.cpp` case
-`"a panel opened mid-build is TOLD it is running, and announces nothing"`, case `"a running build
-is on the panel, with its operation and its output count"`, case `"BLD-1: a build outcome and a
-realization outcome are TWO rows and TWO notices"`.
+PROVEN BY — `builder-pane/pane.cpp` `on(builder::BuildStatus)`, `build_words`, `realize_words`;
+`builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp` `still_going`;
+`tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it"`, case
+`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`, case
+`"BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
-## WL-PROJ-12 — The tool's status is kept only while a panel presents it
+## WL-PROJ-12 — The tool's status is kept only while a pane presents it
 
-LAW — A `BuildStatus` with no Builder panel open is not remembered; closing the panel destroys its copy and reaches no tool, and reopening asks again and is answered with the tool's own running total.
+LAW — The Builder pane's picture of the tool is a member, never durable state; a removed pane is granted no room, and the next room grant asks again and hears the tool's own running total.
 
 MEANS
-- a copy kept against a later panel makes a presentation a second owner of somebody else's facts.
+- a copy kept against a later opening makes a presentation a second owner of somebody's facts;
+- closing reaches no tool: it retracts no offer, sends no unload and changes nothing.
 
-PROVEN BY — `workshop/weave_pointer.cpp` `on(BuildStatus)`; `workshop/panel.hpp` `close_panel`;
-`tests/test_workshop_panels.cpp` case `"closing forgets the panel's copy; the TOOL keeps its own
-count"`.
+PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder-pane/pane.cpp`
+`on(PaneRoom)`, `ask_status`; `tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
 
-LAW — Workshop holds no target, recipe or command: `build_now` names the row under the maker's cursor, refuses in words with no answer or no recipes yet, and says `realize` from the armed toggle.
+LAW — The Builder pane holds no target, recipe or command: `build_now` names the row the maker chose, refuses in words with no answer or no recipes yet, and says `realize` from the armed toggle.
 
 MEANS
-- with no Builder panel open the key is unbound; a panel that has not heard cannot ask;
+- the row is the PANE's and acts only while it holds the keyboard: elsewhere it reaches nobody;
 - everything after the send belongs to the tool, the runner and the realization owner.
 
-PROVEN BY — `workshop/weave_arrange.cpp` `build_now`; `tests/test_workshop_panels.cpp` case
-`"Build asks for the name the TOOL gave, and asks for nothing without one"`, case `"a panel that
-has not heard from its tool cannot ask for a build"`, case `"BLD-1: `b` builds the recipe the
-maker chose, not the one last built"`, case `"BLD-1: armed by `Shift+b`, `b` is BUILD & REALIZE,
-and the second intention crosses the seam"`.
+PROVEN BY — `builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
+`builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: `b` builds only after the maker has pressed into the pane"`, case
+`"BLD-WEAVE: `b` builds the recipe the maker chose, by name"`, case
+`"BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing"`, case
+`"BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
 
-LAW — `f` compares the live frontier artifact with each catalog row's, once, and sends `build_now` with the realize intention; several producers refuse unless the maker's standing pick is one of them.
+LAW — `f` ASKS the host for the frontier, compares that artifact with each catalog row's once, and sends `build_now` with the realize intention; several producers refuse unless a standing pick is one.
 
 MEANS
 - the catalog's order is nobody's intent: the refusal names the candidates; the pick is `c`'s;
-- `picked` tells an explicit pick from `chosen`'s default of 0, an index and not a choice;
+- `picked` tells an explicit pick from the catalog's own first row, which is nobody's choice;
 - there is no second build path, no direct load and no new sentence on the bus.
 
-PROVEN BY — `workshop/weave_arrange.cpp` `build_frontier`; `workshop/panel.hpp`
-`BuilderPane::picked`; `tests/test_workshop_panels.cpp` case `"BLD-2: `f` builds and realizes the
-ONE recipe that produces the frontier"`, case `"BLD-2: several recipes produce the frontier -- `f`
-never chooses for the maker"`.
+PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`;
+`workshop/files_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
+`ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
+`"BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier"`, case
+`"BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable
@@ -226,16 +236,17 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/staging.hpp` `stage`,
 `promote`; `workshop/load_execute.hpp` `PlanExecutor::reload`, `PlanExecutor::promote`,
-`PlanExecutor::revert`, `reload_refusal_words`; `workshop/weave.hpp` `build_realize`,
-`promote_image`, `revert_image`; `workshop/weave_arrange.cpp` `build_realize`, `promote_image`,
-`revert_image`; `workshop/panel.hpp` `BuilderPane::arm`; `tests/test_workshop_files.cpp` case
+`PlanExecutor::revert`, `reload_refusal_words`; `builder-pane/pane.cpp` `build_realize`,
+`promote_image`, `revert_image`; `builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
+`tests/test_workshop_files.cpp` case
 `"RELOAD-1: a single-source recipe's product lands in its workspace, never on the loaded path"`;
 `tests/test_workshop_load.cpp` case `"RELOAD-1: a live weave-only row reloads in place -- same
 WeaveId, state kept, Ack settles it"`, case `"RELOAD-1: promote writes the running image into the
 plan's file, sibling then rename, and revert reloads the image before the last reload"`;
-`tests/test_workshop_panels.cpp` case `"RELOAD-2: `B` before a build is a toggle: armed, `b` asks
-to build AND load"`, case `"RELOAD-2: after a plain build that succeeded and nothing armed, `B` is
-a button that loads the built artifact now"`.
+`tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it"`, case
+`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`, case
+`"BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the built artifact"`.
 WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
 ## Do not assume

@@ -45,6 +45,11 @@
         "artifact": "zengine-files",
         "provider": [],
         "weave": [ { "role": "zengine.files" } ]
+      },
+      {
+        "artifact": "zengine-builder-pane",
+        "provider": [],
+        "weave": [ { "role": "zengine.builder-pane" } ]
       }
     ]
   }

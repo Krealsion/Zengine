@@ -1133,13 +1133,73 @@ builder                           doctest           always  55
 # them). A floor left at 101 would have been a number rather than a walk; a claim that
 # nothing was lost would have been false. What is lost is named here.
 #
-workshop_document                 doctest           always  143
+#
+# THE BUILDER IS A WEAVE moved five floors, and four of them DOWN -- the second migration of
+# the same arc, argued the same way. The Builder PANEL stopped being code in this host: its
+# state (`BuilderPane`), its painter (`paint_builder`), its compile-time kind, its catalog
+# row, its nine command-mode action rows and the whole `KeyContext::kAuthoring` mode left for
+# `Zengine/builder-pane/`. The TOOL did not move: `zengine.builder` is still mounted in the
+# host's `main`, still holds the recipe views, still orders builds through the runner. So the
+# evidence moved with the PRESENTATION, and it moved to one place:
+#
+#   workshop_panes  274 -> 301  the GESTURES, through the real seam:
+#                               `test_workshop_panes_builder.cpp` loads the real
+#                               `zengine-builder-pane` image from a real plan row and drives
+#                               the whole loop against the real tool and the real doors --
+#                               the arrival, the nine declared ids, the catalog and the
+#                               choice held BY NAME, the build, the arm and the button,
+#                               promote and revert, the frontier asked for rather than read,
+#                               the in-pane role line, the Editor door reached by a recipe's
+#                               name, the conversion, the catalog source (P-WORK-20) and the
+#                               pane's own build-graph tripwire. Twenty-six cases that could
+#                               not exist before, because before this there was no seam to
+#                               cross -- including the one VD-22 is about: the same keys
+#                               pressed from anywhere else reach nobody.
+#   workshop_panels  217 -> 183  the built-in's own tiers, gone whole: BLD-1 (the panel ASKS
+#                               its tool, shows what it answers, announces only what it
+#                               watched), PROJ-1 (the choice follows its recipe, not its
+#                               row), BLD-2 (the frontier, joined and actionable), RELOAD-2
+#                               (`B` in two states, `P` and `R`) and LOAD-IT (`o`'s role
+#                               prompt). Every one of them is a claim about a PANE, and every
+#                               one is asked again above, at the seam, of the weave that owns
+#                               it now.
+#   workshop_document 143 -> 141  two painter cases: the Builder's composition priority at
+#                               explicit row budgets, and the nine facts it seats. The
+#                               composition MOVED -- it is `say_builder` in the weave, fact
+#                               for fact and priority for priority -- and what cannot move is
+#                               a case that hands a HOST painter a rectangle, because there
+#                               is no host painter for it to hand one to.
+#   workshop_persistence 184 -> 181  three lifecycle cases that used the Builder panel as the
+#                               built-in which HOLDS a copy of somebody else's facts: a
+#                               restore that opens it asks the tool, one that leaves it open
+#                               asks nothing again, one that closes it forgets the copy. No
+#                               built-in holds such a copy any more, so what is gone is the
+#                               witness and not the property -- the same question about a
+#                               LOADED pane is asked at the seam.
+#   workshop_editor   66 -> 65   two cases about `e` with no Builder panel open, and with one
+#                               that had not heard from its tool. Both are questions only a
+#                               command-mode row acting on another pane's subject has to
+#                               answer, and the row retired (VD-22). One case took their
+#                               place, proving this host declares no such row at all; the
+#                               three refusals they shared a tier with are unchanged and read
+#                               the door's answer now instead of this host's notice line.
+#
+# THE NET IS DOWN 14 CASES, AND THIS IS WHAT THEY WERE. Forty-one Builder-panel cases were
+# deleted and twenty-seven were written at the seam. What did NOT come back: cases that drove
+# the panel through `Session` and read `panels.builder` (that state is inside the weave's
+# image now, and a case out here can only read the rows a maker sees, which is the stronger
+# claim and the smaller one), the painter at a handed rectangle, and the nine command-mode
+# rows' own dispatch -- which VD-22 deliberately RETIRED rather than moved, and whose absence
+# the new suite pins. A floor left at 217 would have been a number rather than a walk; a
+# claim that nothing was lost would have been false. What is lost is named here.
+#
+workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  217
-workshop_panes                    doctest           always  274
-workshop_persistence              doctest           always  184
+workshop_panels                   doctest           always  183
+workshop_panes                    doctest           always  301
+workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
-workshop_editor                   doctest           always  66
+workshop_editor                   doctest           always  65
 workshop_files                    doctest           always  43
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

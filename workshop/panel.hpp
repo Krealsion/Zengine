@@ -22,10 +22,20 @@
 
 namespace zengine::workshop {
 
+/// NO KIND AT ALL -- what a pane this build cannot present answers with, and what a
+/// `kind` field holds before anybody has said which.
+// WL-PANE-12 -- agents/workshop/panes-and-windows.md; WL-FRONT-04 -- agents/workshop/planes.md
+inline constexpr std::int64_t kNoPaneKind = -1;
+
 /// The KINDS of panel this Workshop can present.
 // WL-CAT-01 -- agents/workshop/catalog.md
 namespace panel {
-inline constexpr std::int64_t kBuilder = 0;
+// 0 IS RETIRED. It was the Builder panel's kind until that pane became a weave
+// (`Zengine/builder-pane/`), for 3's reason exactly and with one consequence 3 did not
+// have: this was the value every `kind` field defaulted to, on `Panel`, `PanelKind` and
+// `CatalogRow`, because it happened to be zero. Those defaults are `kNoPaneKind` now, which
+// is what they always meant -- "nobody has said which yet" -- and was only ever spelled as
+// the Builder because the Builder was first in a list.
 inline constexpr std::int64_t kInfo = 1;
 inline constexpr std::int64_t kEditor = 2;
 // 3 IS RETIRED. It was the project browser's kind until that pane became a weave
@@ -82,7 +92,7 @@ inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PanelKind {
-    std::int64_t kind = panel::kBuilder;
+    std::int64_t kind = kNoPaneKind;
     std::int64_t placed_in = placement::kOverlayStack; ///< which of the two places it is in
     const char* provider = kWorkshopProvider; ///< the durable provider/service key
     const char* pane = "";    ///< the durable pane key, in that provider's namespace
@@ -98,7 +108,6 @@ struct PanelKind {
 /// file format both have to say them and a typo in one of three copies is a
 /// setup that loads as unresolved.
 namespace pane_key {
-inline constexpr const char* kBuilder = "builder";
 inline constexpr const char* kInfo = "info";
 inline constexpr const char* kEditor = "editor";
 inline constexpr const char* kLayouts = "layouts";
@@ -111,8 +120,6 @@ inline constexpr const char* kPaneEditor = "pane-editor";
 // WL-PED-01 -- agents/workshop/pane-manager.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr PanelKind kPanelCatalog[] = {
-    {panel::kBuilder, placement::kOverlayStack, kWorkshopProvider, pane_key::kBuilder, "Builder",
-     "build a chosen recipe"},
     {panel::kInfo, placement::kSideRegion, kWorkshopProvider, pane_key::kInfo, "Info",
      "objects and properties"},
     // THE SOURCE EDITOR'S PRESENTATION, AND ONLY ITS PRESENTATION. The document -- the
@@ -179,10 +186,6 @@ inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
-
-/// NO KIND AT ALL -- what a pane this build cannot present answers with.
-// WL-PANE-12 -- agents/workshop/panes-and-windows.md; WL-FRONT-04 -- agents/workshop/planes.md
-inline constexpr std::int64_t kNoPaneKind = -1;
 
 /// THE HANDLE A MAKER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
 /// compile-time built-ins and the session-minted runtime handles.
@@ -315,80 +318,6 @@ struct ProjectFrontier {
     std::size_t blocked = 0;  ///< authored rows behind the frontier, waiting on it
 };
 
-/// THE BUILDER PANEL'S VIEW OF THE BUILDER TOOL — a COPY, and session.
-///
-/// `heard` is the honest distinction between "the tool says it has never built
-/// anything" and "the tool has not answered yet", which a panel must not show as
-/// the same thing: the first is a fact about the target, the second is a fact
-/// about this panel, and only one of them is worth a maker acting on.
-///
-/// `awaiting` is the ONLY fact in this struct that is genuinely the panel's own,
-/// and it exists because the first live run produced a lie without it. Reopening
-/// the panel asks the tool, the tool answers with its last outcome, and the
-/// screen announced `built zengine-snake -- exit 0` about a build that had
-/// finished a minute earlier — because the arrival of a SUCCESS is not the same
-/// event as a build succeeding. A panel may report what it WATCHED happen; what
-/// it merely learned belongs in the panel's rows and not in an announcement. So
-/// this records "I asked and have not been answered", and it is what decides
-/// whether an arriving status is news.
-///
-/// THE ASYNC BUILD MADE IT WORTH MORE, NOT LESS, and widened exactly one thing about it.
-/// A build now has a MIDDLE: `asked` and `running` are both conditions a status
-/// can arrive in and neither is an ending, so this fact is held across every one
-/// of them and released only at a condition the build will not leave —
-/// `builder::still_going` is the one place that list is written down. Without
-/// the widening, the first intermediate status would clear it and the real
-/// ending would arrive as something this panel merely learned. And the case it
-/// now covers is the one the first Builder could never reach at all: a panel OPENED while a
-/// child is alive is told `running`, shows it, and announces nothing — because it
-/// did not watch this build begin.
-///
-/// Nothing is authored from this struct and nothing is asked through it. Opening
-/// the panel sends `builder::StatusRequested` and everything here arrives as the
-/// tool's own published answer.
-/// ----...AND IT ALSO HOLDS A CATALOG AND A CHOICE -------------------------------
-///
-/// `known` is what the tool said it can build, arriving once when this panel opens
-/// (`builder::RecipeCatalog`), and `chosen` is which of those rows this maker is
-/// looking at. THE CHOICE IS GENUINELY THE PANEL'S and is the only other thing here
-/// that is: choosing what to build next is a maker's act on a presentation, and a tool
-/// that held a selection would be a tool whose next build depended on who had opened a
-/// panel last. What the tool holds is what it BUILT; what this holds is what a maker
-/// has picked out.
-///
-/// ⚠ `chosen` IS AN INDEX INTO `known` AND IS BOUNDED AT USE, never at write. The
-/// catalog arrives once and does not change during a run, but a panel that trusted an
-/// index across a re-ask would be one arrival away from reading past the end.
-///
-/// `awaiting_realization` IS `awaiting`'s TWIN AND IT IS HELD LONGER, for the reason
-/// `awaiting` exists at all. A build ENDS -- at which point `awaiting` is released and
-/// the build's outcome is announced -- and the realization of what it produced is still
-/// outstanding at that instant. One latch for both would either release too early (and
-/// turn realization's answer into a fact this panel merely learned) or too late (and
-/// hold the build's own ending back behind it). Two questions, two latches.
-/// ⚠ WHICH CATALOG THIS SESSION IS USING IS DELIBERATELY NOT HERE. This struct is
-/// destroyed and remade every time the panel is removed and reopened (`close_panel`), and
-/// a maker changing recipe catalogs has not changed anything about a PRESENTATION -- so
-/// that fact lives on the `Session`, beside the source document, where removing a pane
-/// cannot lose it. What lives here is what this panel was TOLD.
-// WL-PROJ-11 -- agents/workshop/project.md
-struct BuilderPane {
-    bool heard = false;
-    bool awaiting = false;
-    bool awaiting_realization = false;
-    builder::BuildStatus shown{};
-    builder::RecipeCatalog known{};
-    std::size_t chosen = 0;
-    /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived?
-    // WL-PROJ-07, WL-PROJ-14 -- agents/workshop/project.md
-    bool picked = false;
-    /// LOAD AFTER BUILD IS ARMED (RELOAD-1): the next `b` asks to build AND to load the
-    /// result. The maker's own intent on a presentation, like `chosen`; false when the
-    /// panel opens, flipped only by the one action, and read by nothing but `build_now`.
-    // WL-PROJ-16 -- agents/workshop/project.md
-    bool arm = false;
-};
-
 /// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG: a pane some office
 /// offered this run, admitted under that office's stamped authorship.
 ///
@@ -513,7 +442,7 @@ struct ExternalPane {
 /// several instances exists.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct Panel {
-    std::int64_t kind = panel::kBuilder;
+    std::int64_t kind = kNoPaneKind;
 };
 
 // WL-TAB-01 -- agents/workshop/tab-run.md
@@ -536,7 +465,6 @@ inline std::vector<Panel> default_panels() {
 struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
-    BuilderPane builder;
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones. It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE
@@ -551,7 +479,9 @@ struct Panels {
     /// The per-pane view of each OPEN external panel: its granted room, its copy
     /// of what the provider last said, and whether it is waiting. One entry per
     /// open external kind, created by the open door and destroyed by the close
-    /// door — the `BuilderPane` rule, for a population rather than for one kind.
+    /// door — the rule the retired Builder panel's own per-kind view demonstrated,
+    /// generalized from one kind to a population. It is the only such view left, and
+    /// what it holds is rows a provider SAID rather than facts this host derived.
     std::vector<ExternalPane> external;
     /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
     /// order.
@@ -665,18 +595,16 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
     for (std::size_t i = 0; i < panels.open.size(); ++i) {
         if (panels.open[i].kind == kind) {
             panels.open.erase(panels.open.begin() + static_cast<std::ptrdiff_t>(i));
-            // The per-kind view, forgotten by the same act. One `if` rather than
-            // a virtual `forget()` on a panel base class: one kind exists, and
-            // the shape of the second one is not knowledge this phase has.
-            if (kind == panel::kBuilder) {
-                panels.builder = BuilderPane{};
-            }
-            // AND INFO HAS NOTHING TO FORGET, which is not an omission here but
-            // the whole shape of the second kind: it holds no copy of anything,
-            // because what it presents is the document and the session, and both
-            // of those outlive it and belong to somebody else. A panel with no
-            // state of its own is the case that proves the branch above is one
-            // kind's business rather than a slot in a framework.
+            // ⭐ NO BUILT-IN HAS A PER-KIND VIEW TO FORGET ANY MORE, and the branch
+            // that forgot the last one is gone with it. There used to be exactly one
+            // (`panels.builder`, the Builder panel's copy of the tool's status), written
+            // as one `if` rather than a virtual `forget()` on a panel base class -- and
+            // the pane that needed it is a weave now, which holds its copy in its own
+            // image and drops it when Workshop stops granting it a room.
+            //
+            // INFO HAD NOTHING TO FORGET EITHER, and that was never an omission: it holds
+            // no copy of anything, because what it presents is the document and the
+            // session, and both of those outlive it and belong to somebody else.
             //
             // THE EDITOR HAS NOTHING TO FORGET EITHER, AND THAT ABSENCE IS LOAD-BEARING:
             // the source document -- path, buffer, unsaved edits, caret, viewport --

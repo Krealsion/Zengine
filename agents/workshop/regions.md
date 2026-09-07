@@ -20,12 +20,14 @@ LAW — Each Builder fact carries a distinct priority: the budget keeps the most
 
 MEANS
 - header, recipe, the `project` frontier while one waits, last, exit, ran, realize, `said…`;
-- the realize row has three faces and no second row: armed, the button, or the outcome.
+- the realize row has three faces and no second row: armed, the button, or the outcome;
+- the pane is a WEAVE and composes into rows it is granted, not a region it resolved itself.
 
-PROVEN BY — `workshop/screen_pane_state.cpp` `paint_builder`, `panel_block`;
-`tests/test_workshop_document.cpp` case `"WUX-1/SC-4: the Builder keeps the facts a maker acts on,
-by explicit priority"`, case `"PROJ-1: the Builder panel seats its nine facts, and names no
-catalog"`.
+PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `panel_block`;
+`tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it"`, case
+`"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
+`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-03 — The foot band is the notice, then the legend

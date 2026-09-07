@@ -71,17 +71,20 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Normalize, same-path reveal, dirty refusal, bounded read, `source_in`, trial-seat, install with `doc_epoch++` and a viewport reset, focus and sentence; every referrer arrives through it.
 
 MEANS
-- the Files pane ASKS it, across the seam; `edit_source` (the Builder's `e`) is the other half;
+- both pane weaves ASK it across the seam: by a path, and by a recipe the host resolves;
 - `EditorState` holds no acquisition provenance: the editor owns the document, not the reason.
 
-PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`, `edit_source`; `workshop/weave.hpp`
+PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`, `on(RecipeSourceRequested)`;
+`workshop/weave.hpp`
 `HostContext::recipe_source`, `RecipeSource`; `workshop/editor.hpp` `source_in`,
 `kMaxSourceBytes`, `EditorState`; `workshop/files_seam_vocabulary.hpp` `OpenSourceRequested`,
-`SourceOpened`; `tests/test_workshop_files.cpp` case `"PANE-DOOR: the Editor door is the one door,
+`SourceOpened`; `workshop/builder_seam_vocabulary.hpp` `RecipeSourceRequested`;
+`tests/test_workshop_files.cpp` case `"PANE-DOOR: the Editor door is the one door,
 and its refusal reaches the asker"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE:
 Return on a source opens it in the Editor, through the one door"`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: `e` opens the chosen recipe's source, focuses the
-editor, and says so"`.
+`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: `e` opens the chosen recipe's source,
+resolved by the host"`, case `"BLD-WEAVE: a refusal from the Editor door is said in the pane's
+own row"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object

@@ -20,8 +20,7 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `chooser_choose`, `authoring_commit`; `workshop/files_seam_vocabulary.hpp`
 `RecipeAuthorRequested`, `RecipeOutcome`; `workshop/files_doors.hpp` `RecipesDoor`;
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
-`workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`; `workshop/screen.hpp`
-`paint_authoring`;
+`workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
 `"FILES-WEAVE: `a` opens a chooser inside the pane's own room"`, case `"FILES-WEAVE: a maker
 authors a recipe row in-pane, and the host writes it"`, case `"FILES-WEAVE: the authoring line
@@ -31,7 +30,7 @@ WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
 
-LAW — `o` asks a role for the Builder's chosen artifact; the host appends through the executor first, then writes `<project>/workshop-plan.json`, which is the plan in force when no `--load-plan` is given.
+LAW — `o` asks a role, in a line inside the Builder pane's own room; the host appends through the executor first, then writes `<project>/workshop-plan.json`, the plan in force with no `--load-plan`.
 
 MEANS
 - the row is a stem and a weave with the typed role; an empty role or a named stem refuses first;
@@ -40,22 +39,23 @@ MEANS
 
 DOES NOT MEAN
 - that a plan is edited, reordered or pruned — the one act is one appended row;
-- that `o` builds from nothing or stages — with no product the row is the frontier, for `f`.
+- that `o` builds from nothing or stages, or that the line is a keyboard mode of this HOST.
 
-PROVEN BY — `workshop/keymap.hpp` `builder.load`, `KeyContext::kAuthoring`;
-`workshop/screen.hpp` `AuthoringPrompt`, `Session::authoring`;
-`workshop/screen_pane_state.cpp` `paint_authoring`;
+PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `kActionCancel`;
+`builder-pane/pane.cpp` `begin_load_it`, `open_role`, `commit_role`, `say_role`;
+`workshop/builder_seam_vocabulary.hpp` `PlanNamesRequested`, `PlanNames`, `PlanRowRequested`,
+`PlanRowWritten`; `workshop/files_doors.hpp` `PlanDoor`;
 `workshop/weave.hpp` `HostContext::PlanAppend`, `HostContext::append_plan_row`,
-`HostContext::plan_names`, `load_it`; `workshop/weave_recipes.cpp` `load_it`,
-`authoring_commit`; `workshop/authoring.hpp` `PlanAuthor`, `plan_names`, `append_plan_row`;
+`HostContext::plan_names`; `workshop/authoring.hpp` `PlanAuthor`, `plan_names`, `append_plan_row`;
 `workshop/staging.hpp` `product_of`; `workshop/load_persist.hpp` `kProjectLoadPlanName`,
-`plan_in_force`; `workshop/workshop.cpp` `plan_path`; `tests/test_workshop_panels.cpp` case
-`"LOAD-IT: `o` asks for a role, refuses an empty one in the plan's words, and authors nothing
-until it has one"`, case `"LOAD-IT: `o` on an artifact the plan already names refuses and points
-at `B`"`, case `"`o` on a recipe whose product is already built finishes the load: the button's
-own ask with the second intention aboard, and the row's sentence says so"`, case `"`o` with
-nothing built yet leaves the row pending and asks the Builder nothing, and names the frontier
-key; a row that is not the frontier says only what the project said"`;
+`plan_in_force`; `workshop/workshop.cpp` `plan_path`;
+`tests/test_workshop_panes_builder.cpp` case
+`"BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working"`, case
+`"BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and authors it"`, case
+`"BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is written"`, case
+`"BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused before the line"`, case
+`"BLD-WEAVE: LOAD-IT -- a refused row is said in the owner's own words"`, case
+`"BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the button's act"`;
 `tests/test_workshop_load.cpp` case `"LOAD-IT: the minimum row is written as authored, the plan
 round-trips byte for byte, and a duplicate stem is refused by the plan's own law"`, case `"the
 writer says where the frontier row's product is, through the staging rule: present when the

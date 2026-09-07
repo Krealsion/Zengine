@@ -44,10 +44,18 @@
 // the migration register's own rule about reading, and it is the reason this converter is
 // needed only while yesterday's bytes exist.
 //
-// IT IS NOT A GENERAL MECHANISM. One retired reference, named in full, with no table, no
-// pattern and no registration seam. When a second built-in migrates, this file gains a
-// second named pair and one more line in the loop -- which is the whole cost, and is
-// cheaper than the framework somebody would otherwise be tempted to build for two rows.
+// IT IS NOT A GENERAL MECHANISM. Retired references, named in full, with no table, no
+// pattern and no registration seam. The previous revision of this comment predicted the
+// cost of the second one exactly -- "a second named pair and one more line in the loop" --
+// and the Builder's migration paid it: three constants and one `if`. The prediction is left
+// standing rather than deleted, because a design note that turned out to be right about its
+// own next step is worth more than the sentence that would replace it.
+//
+// ⚠ AND THE THRESHOLD IS NAMED SO NOBODY HAS TO GUESS IT. Two pairs is still cheaper than a
+// table; the case for a table is a THIRD reference plus something a pair cannot say -- a
+// pane key that moved as well as its office, or a reference that resolves to two panes. Two
+// spellings of "the office moved and the key did not" are two lines, and two lines are not a
+// framework.
 
 #include "setup.hpp"
 
@@ -73,36 +81,84 @@ inline constexpr const char* kFilesProvider = "zengine.files";
 /// rename.
 inline constexpr const char* kFilesPane = "project-files";
 
+/// THE OFFICE THE BUILDER PANEL USED TO BE OFFERED FROM -- this host's own, and the same
+/// literal as `kRetiredFilesProvider` for the same reason, spelled a second time rather than
+/// aliased: these are two independent historical facts about two sets of files, and one of
+/// them ceasing to be true must not silently move the other.
+inline constexpr const char* kRetiredBuilderProvider = "zengine.workshop";
+
+/// THE OFFICE IT IS OFFERED FROM NOW. Spelled here rather than taken from
+/// `builder-pane/vocabulary.hpp`, for `kFilesProvider`'s reason: that is the weave's own
+/// header and this host does not link the weave. A case checks the two spellings against
+/// each other, which is the seam where a divergence would actually be caught.
+inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
+
+/// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
+inline constexpr const char* kBuilderPane = "builder";
+
 /// Is this the reference a saved file wrote for the built-in browser?
 inline bool names_the_retired_browser(const PaneRef& ref) {
     return ref.provider == kRetiredFilesProvider && ref.pane == kFilesPane;
 }
 
-/// REWRITE EVERY RETIRED REFERENCE IN ONE SETUP, and say how many. Everything else about
+/// Is this the reference a saved file wrote for the built-in Builder panel?
+inline bool names_the_retired_builder(const PaneRef& ref) {
+    return ref.provider == kRetiredBuilderProvider && ref.pane == kBuilderPane;
+}
+
+/// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted apart, because the sentence a maker
+/// reads names what THEIR file held rather than everything that ever moved.
+struct Converted {
+    std::int64_t files = 0;
+    std::int64_t builder = 0;
+    std::int64_t total() const { return files + builder; }
+};
+
+/// REWRITE EVERY RETIRED REFERENCE IN ONE SETUP, and say which ones. Everything else about
 /// the row -- its place, its two sizes, its front order -- is untouched, because none of it
 /// changed hands.
 ///
-/// ⚠ IT RUNS BEFORE THE SETUP'S OWN LAW. A file that names BOTH spellings holds two rows
-/// for one pane after this, and `check_setup` refuses it by name ("`zengine.files/
-/// project-files` is named twice") -- which is the true sentence about a contradictory
-/// file, and is what a converter that ran afterwards would have hidden.
-inline std::int64_t convert_retired_panes(Setup& s) {
-    std::int64_t converted = 0;
+/// ⚠ IT RUNS BEFORE THE SETUP'S OWN LAW. A file that names BOTH spellings of one pane holds
+/// two rows for it after this, and `check_setup` refuses it by name ("`zengine.files/
+/// project-files` is named twice") -- which is the true sentence about a contradictory file,
+/// and is what a converter that ran afterwards would have hidden.
+inline Converted convert_retired_panes(Setup& s) {
+    Converted converted;
     for (SetupPane& row : s.panes) {
         if (names_the_retired_browser(row.ref)) {
             row.ref.provider = kFilesProvider;
-            ++converted;
+            ++converted.files;
+        } else if (names_the_retired_builder(row.ref)) {
+            row.ref.provider = kBuilderProvider;
+            ++converted.builder;
         }
     }
     return converted;
 }
 
-/// WHAT A MAKER IS TOLD, ONCE, when a file they wrote named the browser this host used to
-/// offer. Said in the pane's own durable names, because those are what they would find in
-/// the file if they went and looked.
-inline std::string converted_note() {
-    return std::string("the Files pane moved to its own office -- ") + kRetiredFilesProvider +
-           "/" + kFilesPane + " is now " + kFilesProvider + "/" + kFilesPane;
+/// WHAT A MAKER IS TOLD, ONCE, when a file they wrote named a pane this host used to offer.
+/// Said in the panes' own durable names, because those are what they would find in the file
+/// if they went and looked.
+///
+/// ⚠ ONE SENTENCE FOR A RUN, NOT ONE PER ROW. The reader says this once from a count
+/// (`setup_persist::setup_in`), so a maker whose desk holds a pane twice over two layouts is
+/// told once -- and not told which of their rows was which.
+///
+/// ⚠ ...AND IT NAMES WHAT ACTUALLY MOVED. `converted` counts rows, not pairs, so the sentence
+/// is composed from what this run's file HELD: a maker who never opened the Builder is not
+/// told about a pane they would not find if they went and looked, which is the whole reason
+/// the note spells durable names in the first place.
+inline std::string converted_note(bool files, bool builder) {
+    std::string said = "panes moved to their own offices";
+    if (files) {
+        said += std::string(" -- ") + kRetiredFilesProvider + "/" + kFilesPane + " is now " +
+                kFilesProvider + "/" + kFilesPane;
+    }
+    if (builder) {
+        said += std::string(files ? ", and " : " -- ") + kRetiredBuilderProvider + "/" +
+                kBuilderPane + " is now " + kBuilderProvider + "/" + kBuilderPane;
+    }
+    return said;
 }
 
 } // namespace zengine::workshop::pane_migration

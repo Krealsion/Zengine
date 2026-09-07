@@ -12,7 +12,8 @@
 
 
 #include "persist.hpp"
-#include "files_seam_vocabulary.hpp" // the doors the Files weave asks; this host answers one
+#include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
+#include "files_seam_vocabulary.hpp"  // the doors the Files weave asks; this host answers one
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -223,21 +224,16 @@ class WorkshopWeave
                                           zengine::surface::SurfaceCloseRequested,
                                           zengine::surface::ClipboardText,
                                           zengine::surface::ClipboardCopy,
-                                          zengine::builder::BuildStatus,
-                                          zengine::builder::RecipeCatalog,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::PaneContent,
-                                          zengine::workshop::OpenSourceRequested>,
+                                          zengine::workshop::OpenSourceRequested,
+                                          zengine::workshop::RecipeSourceRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
                                         zengine::surface::ClipboardTextRequested,
                                         zengine::surface::SurfacePlacementRemembered,
-                                        zengine::builder::StatusRequested,
-                                        zengine::builder::BuildRequested,
-                                        zengine::builder::PromoteArtifact,
-                                        zengine::builder::RevertArtifact,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PanePressed,
@@ -398,25 +394,6 @@ public:
     /// THE WHEEL TURNED.
     void on(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
-    /// THE BUILDER TOOL SAID WHAT IT IS.
-    ///
-    /// A publication from a weave this application does not own, presented by a
-    /// panel this application does. Everything a Builder panel shows arrives
-    /// here and nowhere else -- Workshop computes no build fact, holds no
-    /// target of its own, and cannot ask for a build it was not first told
-    /// about (see `build_now`).
-    ///
-    /// IT IS KEPT ONLY WHILE A PANEL IS PRESENTING IT. With no Builder panel
-    /// open there is nothing to put it on, and keeping a copy against the
-    /// possibility of one being opened later is precisely how a presentation
-    /// quietly becomes a second owner of somebody else's facts. The tool goes on
-    /// saying what it is to whoever else is listening; this application stops
-    /// listening in the only sense it can -- it stops remembering.
-    void on(const zengine::builder::BuildStatus& said, loom::Mail& mail);
-
-    /// THE BUILDER TOOL SAID WHAT THIS PROJECT CAN BUILD.
-    void on(const zengine::builder::RecipeCatalog& said, loom::Mail& mail);
-
     // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says
     //
     // TWO DOORS AND THEY ARE DIFFERENT DOORS. Discovery adds a row a maker may choose;
@@ -464,6 +441,12 @@ public:
     /// travels back as `SourceOpened`; an office is required, as the two host doors require
     /// one (`files_doors.hpp`).
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
+
+    /// THE SAME EDITOR DOOR, REACHED BY A RECIPE'S NAME (`builder_seam_vocabulary.hpp`) --
+    /// what the Builder panel's own `e` did while that panel was compiled into this host. The
+    /// resolution is here because the CATALOG is here: a pane holds a recipe's name and
+    /// never its procedure, so it says the name and this host looks it up.
+    void on(const RecipeSourceRequested& asked, loom::Mail& mail);
 
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
@@ -808,70 +791,6 @@ private:
     /// looked up by its reference, so nothing under the pointer can take the gesture over.
     void arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail);
 
-    /// ASK FOR A BUILD -- by the name the TOOL gave, never by one of Workshop's.
-    ///
-    /// This is the sharpest statement of the split that this file makes. Workshop
-    /// holds no target, no recipe and no command; the only build it can name is
-    /// the one the Builder has already told it about, so a Workshop with a panel
-    /// that has not yet heard from the tool cannot ask for anything at all, and
-    /// says so.
-    ///
-    /// ----...AND IT NAMES ONE OF SEVERAL, AND MAY ASK FOR MORE --------------------
-    ///
-    /// The name comes from the CATALOG the tool published and the maker's cursor in it,
-    /// which is the same sentence one plural out: Workshop still holds no recipe, and
-    /// the only builds it can name are the ones the Builder has already told it about.
-    ///
-    /// `realize` IS THE MAKER'S SECOND INTENTION AND IT TRAVELS WITH THE FIRST. Workshop
-    /// does not load anything, cannot load anything, and gains no rule that would let it
-    /// -- what it does is say, in one sentence to one office, "build this, and if it
-    /// works, offer it to the project". Everything after that belongs to two owners
-    /// neither of which is here.
-    void build_now(loom::Mail& mail, bool realize);
-
-    /// THE ONE ACTION IN TWO STATES (RELOAD-1): the toggle that arms `b` to load what
-    /// it builds, or -- when an artifact is built and ready and nothing is armed -- the
-    /// button that loads it now by re-sending the finished build's own ask.
-    // WL-PROJ-16 -- agents/workshop/project.md
-    void build_realize(loom::Mail& mail);
-
-    /// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS: one offer to the realization
-    /// owner, decided there.
-    // WL-PROJ-16 -- agents/workshop/project.md
-    void promote_image(loom::Mail& mail);
-
-    /// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN: one offer to the realization owner,
-    /// answered as a realization is.
-    // WL-PROJ-16 -- agents/workshop/project.md
-    void revert_image(loom::Mail& mail);
-
-    /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED.
-    void choose_recipe(int by, loom::Mail& mail);
-
-    /// BUILD AND REALIZE THE ROW THE PROJECT IS WAITING ON.
-    ///
-    /// THE JOIN IS PERFORMED HERE, ONCE, AND IT IS ONE STRING COMPARISON: the frontier
-    /// artifact — the realization owner's own answer, read alive this very keystroke —
-    /// against the artifact each catalog row already carries. Workshop still holds no
-    /// recipe, no plan and no realization state; what this gesture adds is that the
-    /// maker no longer performs that comparison in their head across two panes.
-    ///
-    /// IT SPENDS THE EXISTING ROUTE AND NOTHING ELSE. The one send is `build_now` with
-    /// the realize intention — the same `BuildRequested` `Shift+b` says, to the same
-    /// office, under the same grant — and everything after that belongs to the owners
-    /// it always did: the tool refuses or orders, the runner runs, the tool offers, and
-    /// the realization owner decides in its own words. There is no second build path,
-    /// no direct load, and no new sentence on the bus.
-    ///
-    /// ⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THAT IS AUTHORED LAW, NOT AN
-    /// EDGE CASE (`builder::check_recipes` deduplicates identities and deliberately not
-    /// artifacts). When more than one matches, this gesture refuses to choose: the
-    /// catalog's order is nobody's intent, so it names the candidates and leaves the
-    /// pick to `c` — after which the maker's standing pick, if it produces the
-    /// frontier, is spent. `picked` is what tells an explicit pick from `chosen`'s
-    /// default of 0, which is an index and not a choice.
-    void build_frontier(loom::Mail& mail);
-
     // ---- THE SOURCE EDITOR: choose source, edit, save, and never lose a byte ----------
 
     /// The editor's keys: the buffer's own vocabulary first, then the editor's policy.
@@ -886,23 +805,6 @@ private:
     /// THE ONE PLACE THE EDITOR'S VIEWPORT IS RECONCILED -- `refresh_terminal`'s
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor();
-
-    // ---- LOAD IT: a built artifact gains its plan row (LOAD-IT) -- weave_recipes.cpp ---
-
-    /// The authoring prompt's keys: the line's own vocabulary first, then commit or cancel.
-    void authoring_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// THE ROLE COMMITTED: refuse an empty one in the plan's own words, else hand the row
-    /// to the host and say what the running project made of it.
-    void authoring_commit(loom::Mail& mail);
-
-    /// Close the prompt whole, so a later open cannot inherit a stale draft.
-    void close_authoring();
-
-    /// LOAD IT: the chosen recipe's artifact gains the minimum plan row, with a role the
-    /// maker types; refused in words when the plan already names it.
-    // WL-AUTH-02 -- agents/workshop/authoring.md
-    void load_it(loom::Mail& mail);
 
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
@@ -982,10 +884,6 @@ private:
 
     /// A PRESS INSIDE THE PANE EDITOR'S BODY.
     void pane_editor_press(const zengine::input::PointerButton& b, std::int64_t modifiers);
-
-    /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- Builder's half, and only its
-    /// half.
-    void edit_source(loom::Mail& mail);
 
     /// THE ONE DOOR INTO THE EDITOR'S DOCUMENT -- a path in, this session's one open
     /// source out, and every referrer arrives through it.

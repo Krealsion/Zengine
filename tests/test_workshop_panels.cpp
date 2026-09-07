@@ -1076,12 +1076,12 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     // entries rather than over the number two. Measured: with the loop below bounded at two
     // instead of `kPanelKinds`, the old spelling passed and this one names every missing row.
     REQUIRE(kPanelKinds >= 2);
-    CHECK(kPanelCatalog[0].kind == panel::kBuilder);
-    CHECK(std::string(kPanelCatalog[0].name) == "Builder");
-    CHECK(kPanelCatalog[1].kind == panel::kInfo);
-    CHECK(std::string(kPanelCatalog[1].name) == "Info");
+    CHECK(kPanelCatalog[0].kind == panel::kInfo);
+    CHECK(std::string(kPanelCatalog[0].name) == "Info");
+    CHECK(kPanelCatalog[1].kind == panel::kEditor);
+    CHECK(std::string(kPanelCatalog[1].name) == "Editor");
 
-    Session s; // a fresh session: Info open, Builder not
+    Session s; // a fresh session: Info open, the Editor not
     s.panels.picker.open = true;
     surface::SurfaceCanvas c;
     paint_picker(plane(c), s.panels, s.setup.active, screen_of(s), s.keymap);
@@ -1110,37 +1110,40 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
                                          detail::pad(state, kPaneStateCols) + k.summary,
                                      columns)) != std::string::npos);
     }
-    CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(shown.find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
     CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
 }
 
 TEST_CASE("a panel opens from the picker, is removed, and opens again") {
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
-    REQUIRE_FALSE(t.w->session().panels.has(panel::kBuilder));
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kEditor));
 
     t.key(input::scan::kP);
     CHECK(t.w->session().panels.picker.open);
     // The picker is a question, not a panel: opening it opens nothing.
-    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
+    CHECK_FALSE(t.w->session().panels.has(panel::kEditor));
+    t.key(input::scan::kEscape);
 
-    t.key(input::scan::kReturn);
+    open_editor_pane(t);
     CHECK_FALSE(t.w->session().panels.picker.open);
-    CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(stack_text(t.canvases.back()).find("BUILDER") != std::string::npos);
+    CHECK(t.w->session().panels.has(panel::kEditor));
+    CHECK(stack_text(t.canvases.back()).find("Editor") != std::string::npos);
 
     // THE SAME DOOR REMOVES IT (PNL-0). There is no close key; selecting a kind
     // that is open is what takes it away.
-    open_builder(t);
-    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
-    CHECK(stack_text(t.canvases.back()).find("BUILDER") == std::string::npos);
+    open_editor_pane(t);
+    CHECK_FALSE(t.w->session().panels.has(panel::kEditor));
+    CHECK(stack_text(t.canvases.back()).find("Editor") == std::string::npos);
 
-    open_builder(t);
-    CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(stack_text(t.canvases.back()).find("BUILDER") != std::string::npos);
-    // ...and every one of those opens ASKED the tool, which is the half that
-    // makes a reopened panel show a live tool rather than a remembered one.
-    CHECK(tool->described == 2);
+    open_editor_pane(t);
+    CHECK(t.w->session().panels.has(panel::kEditor));
+    CHECK(stack_text(t.canvases.back()).find("Editor") != std::string::npos);
+    // ⭐ ...AND NOT ONE OF THOSE OPENS ASKED THE TOOL ANYTHING. That half used to be the
+    // point -- a reopened Builder panel showed a live tool rather than a remembered one --
+    // and no built-in asks a participant anything when it opens now, because the built-in
+    // that did is a weave and asks in its own image, on its own room grant.
+    CHECK(tool->described == 0);
 }
 
 TEST_CASE("the picker can be dismissed without opening anything, two ways") {
@@ -1153,797 +1156,26 @@ TEST_CASE("the picker can be dismissed without opening anything, two ways") {
         CHECK_FALSE(t.w->session().panels.picker.open);
         // NOTHING WAS OPENED AND NOTHING WAS REMOVED -- the second half matters
         // now that one gesture does both, and Info was open when the picker was.
-        CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
+        CHECK_FALSE(t.w->session().panels.has(panel::kEditor));
         CHECK(t.w->session().panels.has(panel::kInfo));
     }
 }
 
-TEST_CASE("opening a Builder panel ASKS the tool, and shows what the tool answers") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    tool->next.outcome = zengine::builder::outcome::kNeverBuilt;
-    open_builder(t);
-
-    CHECK(tool->described == 1);
-    const std::string shown = stack_text(t.canvases.back());
-    // The target's NAME is the one fact that exists before any build, and it
-    // came from the tool -- Workshop holds no target of its own.
-    CHECK(shown.find("zengine-snake") != std::string::npos);
-    CHECK(shown.find("not built yet") != std::string::npos);
-    CHECK(shown.find("nothing has run yet") != std::string::npos);
-}
-
-TEST_CASE("Build asks for the name the TOOL gave, and asks for nothing without one") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-
-    // WITH NO PANEL OPEN, `b` is the unbound key it has always been.
-    t.key(input::scan::kB);
-    CHECK(tool->asked.empty());
-
-    open_builder(t);
-    tool->answers_builds = false; // a real build answers when the process exits
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "zengine-snake");
-    // And Workshop says what it did, in its own voice, before anything ran --
-    // on the notice line AND on the panel.
-    //
-    // BOTH SENTENCES CHANGED WITH ASYNC-1, and the change is the phase. The
-    // notice used to say the screen would wait until the build was done, and the
-    // panel used to say it was waiting for it to FINISH; both were true of a
-    // runner that built inside its own handler and both are false of one that
-    // holds a child across turns. What the panel is waiting for now is the much
-    // shorter moment before a process exists.
-    CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
-    CHECK(t.w->session().notice.find("stays live") != std::string::npos);
-    CHECK(t.w->session().panels.builder.awaiting);
-    CHECK(stack_text(t.canvases.back()).find("waiting for it to start") != std::string::npos);
-}
-
-TEST_CASE("a running build is on the panel, with its operation and its output count") {
-    // THE PANEL'S HALF OF ASYNC-1. A build now has a middle, and the two numbers
-    // on this row are what make that middle VISIBLE rather than asserted: a
-    // maker who watches `out` climb while moving a rectangle has watched
-    // Workshop stay alive while a real child process ran.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    open_builder(t);
-
-    tool->next.outcome = zengine::builder::outcome::kRunning;
-    tool->next.op = 17;
-    tool->next.chunks = 4;
-    tool->next.recipe = "cmake --build . --target zengine-snake";
-    tool->next.detail = "[ 45%] Building CXX object";
-    t.key(input::scan::kB);
-
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("running -- op #17, 4 out") != std::string::npos);
-    CHECK(shown.find("Building CXX object") != std::string::npos);
-    // NOTHING IS ANNOUNCED FOR A BUILD THAT IS STILL HAPPENING. A notice is for
-    // an event that is over; `running` is a condition, and a maker who is told
-    // it every hundred milliseconds is a maker who cannot read the notice line.
-    CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
-    // ...and the panel is STILL WATCHING, so the ending will be news when it
-    // comes. That is the whole reason `awaiting` survives an intermediate status.
-    CHECK(t.w->session().panels.builder.awaiting);
-
-    // THE CANARY: the ending IS announced, to the panel that watched it begin.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.status = 0;
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice == "built zengine-snake -- exit 0");
-    CHECK_FALSE(t.w->session().panels.builder.awaiting);
-}
-
-TEST_CASE("a panel opened mid-build is TOLD it is running, and announces nothing") {
-    // THE REGRESSION THE FIRST LIVE RUN PRODUCED, ASKED ABOUT THE ONE CONDITION
-    // BLD-0 COULD NOT REACH. Learning that a build is running and watching one
-    // start are different, and only the second is news -- so a panel opened
-    // while a child is alive shows the running build and says nothing about it.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    tool->next.outcome = zengine::builder::outcome::kRunning;
-    tool->next.op = 3;
-    tool->next.chunks = 12;
-    tool->next.builds = 5;
-
-    open_builder(t);
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("running -- op #3, 12 out") != std::string::npos);
-    CHECK(shown.find("asks 5 ever") != std::string::npos);
-    CHECK(t.w->session().notice == "opened Builder -- p removes it");
-    // IT IS NOT WATCHING, because it did not ask -- so the ending it did not
-    // witness will be shown and not announced either.
-    CHECK_FALSE(t.w->session().panels.builder.awaiting);
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice == "opened Builder -- p removes it");
-    CHECK(stack_text(t.canvases.back()).find("succeeded") != std::string::npos);
-}
-
-TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
-    Live t;
-    // NO TOOL AT THE OFFICE. The panel opens, asks, and is never answered -- so
-    // Workshop has no target to name, and names none.
-    open_builder(t);
-    CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(stack_text(t.canvases.back()).find("has not answered yet") != std::string::npos);
-
-    t.key(input::scan::kB);
-    CHECK(t.w->session().notice.find("has not said what it builds") != std::string::npos);
-}
-
-// ============================================================================
-// BLD-1 -- the Builder panel stops meaning ONE hard-coded target
-// ============================================================================
-
-TEST_CASE("BLD-1: the Builder panel shows what CAN be built and which one is chosen") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-    open_builder(t);
-
-    // ONE ASK, TWO ANSWERS. Opening the panel sends `StatusRequested`; the catalog
-    // and the status come back as two publications, because they change at
-    // completely different rates.
-    CHECK(tool->described == 1);
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("snake -> snake") != std::string::npos);
-    CHECK(shown.find("(1/2)") != std::string::npos);
-    // ...AND THE HEADER NAMES THE OFFICE AND CLAIMS NO GESTURE (WUX-5). It used to spell
-    // `b/B build, c pick, f frontier, p removes` -- four ordinary keymap rows the band's
-    // legend and the full hotkey view already say, in the maker's own bindings.
-    CHECK(shown.find(std::string("BUILDER @") + zengine::builder::kBuilderRole) !=
-          std::string::npos);
-    for (const char* gesture : {"b/B build", "c pick", "f frontier", "removes"}) {
-        CHECK(shown.find(gesture) == std::string::npos);
-    }
-}
-
-TEST_CASE("BLD-1: `c` moves the maker's choice, wraps, and asks for nothing") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-    open_builder(t);
-    REQUIRE(t.w->session().panels.builder.chosen == 0);
-
-    t.key(input::scan::kC);
-    CHECK(t.w->session().panels.builder.chosen == 1);
-    CHECK(t.w->session().notice == "build recipe: oven -> zengine-oven");
-    CHECK(stack_text(t.canvases.back()).find("oven -> zengine-oven  (2/2)") != std::string::npos);
-
-    // IT WRAPS, because a list of two a maker is stepping through with one key is a
-    // ring and not a scrollbar.
-    t.key(input::scan::kC);
-    CHECK(t.w->session().panels.builder.chosen == 0);
-    // ...and backwards with the modifier, which is the same gesture family spelled
-    // two ways.
-    t.key(input::scan::kC, input::mod::kShift);
-    CHECK(t.w->session().panels.builder.chosen == 1);
-
-    // NOTHING WAS ASKED OF ANYBODY. Choosing is a presentation move: the tool has
-    // been asked once, when the panel opened, and not since.
-    CHECK(tool->asked.empty());
-    CHECK(tool->described == 1);
-}
-
-namespace {
-
-/// A CATALOG ARRIVING THE WAY A REPLACEMENT MAKES ONE ARRIVE: the tool is asked what it is
-/// and answers with what it now holds, WITHOUT the panel being closed -- which is exactly
-/// the shape the live gesture produces (workshop/weave.hpp sends the same
-/// `StatusRequested` after a successful replacement). `on(RecipeCatalog)` is the ONE place
-/// a new catalog reaches this panel, whichever gesture caused it, so a case driving it
-/// through this door is measuring the law at its owner.
-///
-/// ⚠ REMOVING AND REOPENING THE PANEL WOULD NOT DO. `close_panel` deliberately forgets the
-/// Builder pane whole (panel.hpp), selection included, so a round trip through the picker
-/// would arrange a case in which every answer below is 0 for a reason that has nothing to
-/// do with the law being measured.
-void recatalog(Live& t, ToolSeat* tool, const std::vector<const char*>& recipes) {
-    tool->catalog.recipes.clear();
-    for (const char* id : recipes) {
-        tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{id, id});
-    }
-    (void)t.bus.send_to_role(zengine::builder::kBuilderRole,
-                             loom::Message(loom::to_value(zengine::builder::StatusRequested{})));
-    t.bus.drain_until_idle();
-}
-
-} // namespace
-
-TEST_CASE("PROJ-1: a reordered catalog moves the maker's choice to its recipe, not its row") {
-    // THE ORDINAL TRAP, ARRANGED SO THE WRONG ANSWER IS VISIBLE. Until a catalog could
-    // change under a running Workshop, `chosen` being an index was harmless: the list it
-    // indexed never moved. Now it can, and the same index in a new catalog is a DIFFERENT
-    // RECIPE -- so an implementation that kept the number would silently re-aim `b`, `e`
-    // and `f` at something the maker never picked, with the panel looking exactly as it
-    // did a moment before.
-    //
-    // The new catalog is the SAME LENGTH, so no clamp can save a row-based answer: row 2
-    // still exists and now holds `beta`, while the recipe the maker actually picked has
-    // moved to row 1.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "alpha");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"gamma", "gamma"});
-    open_builder(t);
-
-    t.key(input::scan::kC);
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 2);
-    REQUIRE(t.w->session().panels.builder.picked);
-    REQUIRE(t.w->session().panels.builder.known.recipes[2].recipe == "gamma");
-
-    recatalog(t, tool, {"alpha", "gamma", "beta"});
-
-    // THE CHOICE FOLLOWED ITS RECIPE. Row 1 now, because that is where `gamma` is.
-    CHECK(t.w->session().panels.builder.chosen == 1);
-    CHECK(t.w->session().panels.builder.known.recipes[1].recipe == "gamma");
-    // ...AND THE PICK IS STILL THE MAKER'S. A reordering is not a reason to forget that
-    // they chose; `picked` records HOW a selection was made, and nothing about it moved.
-    CHECK(t.w->session().panels.builder.picked);
-    // THE BEHAVIOURAL HALF, which is the one that would have hurt: `b` asks for the
-    // recipe the maker picked and not for the one now sitting at the old row.
-    tool->asked.clear();
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "gamma");
-    CHECK(stack_text(t.canvases.back()).find("gamma -> gamma  (2/3)") != std::string::npos);
-}
-
-TEST_CASE("PROJ-1: a choice whose recipe is gone is cleared, not handed to its neighbour") {
-    // THE ADJACENT-ROW TRAP. The maker's recipe has been REMOVED and the row number they
-    // were on is still perfectly valid -- it holds somebody else's recipe now. A clamp
-    // cannot catch this, because there is nothing to clamp: the index is in range. A
-    // catalog replacement is allowed to INVALIDATE a standing choice and is not allowed to
-    // REINTERPRET one, and this is the case where the difference is the whole answer.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "alpha");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"gamma", "gamma"});
-    open_builder(t);
-
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 1);
-    REQUIRE(t.w->session().panels.builder.picked);
-    REQUIRE(t.w->session().panels.builder.known.recipes[1].recipe == "beta");
-
-    recatalog(t, tool, {"alpha", "gamma"});
-
-    // HOME, AND NOT THE MAKER'S ANY MORE. Row 1 exists and holds `gamma`; the selection
-    // does not go there, and the pick is released so the frontier action cannot read
-    // `chosen`'s default as an explicit intent (BLD-2's own distinction).
-    CHECK(t.w->session().panels.builder.chosen == 0);
-    CHECK_FALSE(t.w->session().panels.builder.picked);
-    tool->asked.clear();
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "alpha");
-}
-
-TEST_CASE("PROJ-1: a catalog that still holds the chosen recipe loses nothing") {
-    // THE THIRD ARM, and it is the one that keeps the two above from being satisfied by an
-    // implementation that simply forgets everything on every arrival. A re-ask that returns
-    // the SAME catalog -- the ordinary case, and the only one that existed before this
-    // phase -- leaves the row and the pick exactly where the maker left them.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "alpha");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
-    open_builder(t);
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 1);
-    REQUIRE(t.w->session().panels.builder.picked);
-
-    recatalog(t, tool, {"alpha", "beta"});
-
-    CHECK(t.w->session().panels.builder.chosen == 1);
-    CHECK(t.w->session().panels.builder.picked);
-    CHECK(t.w->session().panels.builder.known.recipes[1].recipe == "beta");
-}
-
-TEST_CASE("PROJ-1: an emptied catalog leaves no selection standing") {
-    // THE DEGENERATE END OF THE SAME LAW. A valid catalog may name no recipes at all
-    // (`builder::check_recipes` admits one deliberately), so a replacement can legitimately
-    // leave this panel with nothing to choose between -- and `chosen` must not go on naming
-    // a row that no longer exists in any sense.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "alpha");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
-    open_builder(t);
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 1);
-
-    recatalog(t, tool, {});
-
-    CHECK(t.w->session().panels.builder.chosen == 0);
-    CHECK_FALSE(t.w->session().panels.builder.picked);
-    CHECK(t.w->session().panels.builder.known.recipes.empty());
-    CHECK(stack_text(t.canvases.back()).find("no build recipes") != std::string::npos);
-    tool->asked.clear();
-    t.key(input::scan::kB);
-    CHECK(tool->asked.empty());
-}
-
-TEST_CASE("BLD-1: `b` builds the recipe the maker chose, not the one last built") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-    open_builder(t);
-
-    t.key(input::scan::kC);
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "oven");
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK_FALSE(tool->realize_asked[0]);
-    CHECK(t.w->session().notice.find("asked the Builder for `oven`") != std::string::npos);
-    // A PLAIN BUILD SAYS NOTHING ABOUT REALIZING, and the panel is not waiting for
-    // an answer it never asked for.
-    CHECK(t.w->session().notice.find("realize") == std::string::npos);
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-}
-
-TEST_CASE("BLD-1: armed by `Shift+b`, `b` is BUILD & REALIZE, and the second intention crosses "
-          "the seam") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    // THE STUB ANSWERS EVERY ASK AT ONCE, so a case that wants to watch a build has to
-    // give it a condition a build can be IN -- exactly as the ASYNC-1 cases above do.
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-
-    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "snake");
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-
-    // WORKSHOP GAINED NO POWER FOR IT. It said one sentence to one office; what
-    // happens next belongs to two owners neither of which is here.
-    CHECK(t.w->session().panels.builder.awaiting);
-}
-
-TEST_CASE("BLD-1: a build outcome and a realization outcome are TWO rows and TWO notices") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
-    t.key(input::scan::kB);
-
-    // THE BUILD ENDS FIRST, and it is announced first.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kOffered;
-    tool->next.realized_detail = "offered to the project";
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice == "built snake -- exit 0");
-    CHECK_FALSE(t.w->session().panels.builder.awaiting);
-    // ...and the panel is STILL WATCHING THE SECOND QUESTION, which is why the two
-    // latches are two.
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK(stack_text(t.canvases.back()).find("offered") != std::string::npos);
-
-    // THE PROJECT ANSWERS SEVERAL TURNS LATER, and that is news to a panel that
-    // watched it begin.
-    tool->next.realization = zengine::builder::realization::kRealized;
-    tool->next.realized_detail = "weave #9 as zengine.oven";
-    tool->next.default_image = true; // a first realization runs from the plan's own file
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice == "realized snake -- weave #9 as zengine.oven");
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("realized -- weave #9 as zengine.oven") != std::string::npos);
-    // BOTH OUTCOMES ARE STILL ON THE SCREEN. A maker never has to derive one from
-    // the other.
-    CHECK(shown.find("succeeded") != std::string::npos);
-}
-
-TEST_CASE("BLD-1: a build that WORKED whose realization was REFUSED says both") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
-    t.key(input::scan::kB);
-
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kOffered;
-    t.publish(loom::to_value(tool->next));
-    REQUIRE(t.w->session().notice == "built snake -- exit 0");
-
-    tool->next.realization = zengine::builder::realization::kRefused;
-    tool->next.realized_detail = "artifact 'snake': already part of this running project";
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice.find("NOT REALIZED: snake") != std::string::npos);
-    CHECK(t.w->session().notice.find("already part of") != std::string::npos);
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("succeeded") != std::string::npos);   // the build is untouched
-    CHECK(shown.find("REFUSED") != std::string::npos);     // ...and the project said no
-}
-
-TEST_CASE("BLD-1: when a failed build refuses realization, the CAUSE is the notice") {
-    // ONE NOTICE LINE AND TWO FACTS THAT SETTLED TOGETHER. A maker needs the cause
-    // ("BUILD FAILED") and not the consequence ("nothing was offered"), which the
-    // panel's own rows carry anyway.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift); // arm: load after build (RELOAD-2)
-    t.key(input::scan::kB);
-
-    tool->next.outcome = zengine::builder::outcome::kFailed;
-    tool->next.status = 2;
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kRefused;
-    tool->next.realized_detail = "the build failed, so nothing was offered to the project";
-    t.publish(loom::to_value(tool->next));
-
-    CHECK(t.w->session().notice == "BUILD FAILED: snake -- exit 2");
-    // THE LATCH IS STILL RELEASED, so the derivative refusal is not announced later
-    // as though it were news.
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-    CHECK(stack_text(t.canvases.back()).find("REFUSED") != std::string::npos);
-}
-
-TEST_CASE("BLD-1: a green build with no artifact is announced as neither success nor failure") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB);
-
-    tool->next.outcome = zengine::builder::outcome::kNoArtifact;
-    tool->next.status = 0;
-    tool->next.artifact = "zengine-oven";
-    tool->next.detail = "the build succeeded and `zengine-oven` is not at /tmp/zengine-oven.so";
-    t.publish(loom::to_value(tool->next));
-
-    CHECK(t.w->session().notice.find("produced no `zengine-oven`") != std::string::npos);
-    CHECK(t.w->session().notice.find("built") != 0u);
-    CHECK(stack_text(t.canvases.back()).find("NO ARTIFACT") != std::string::npos);
-}
-
-TEST_CASE("BLD-1: a project with no recipes says so, and `b` asks for nothing") {
-    Live t;
-    auto seat = std::make_unique<ToolSeat>();
-    ToolSeat* tool = seat.get();
-    loom::Grant grant;
-    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
-                       zengine::builder::BuildStatus::zen_version);
-    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
-                       zengine::builder::RecipeCatalog::zen_version);
-    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
-                                                  std::string(zengine::builder::kBuilderRole));
-    tool->zen_set_self(id);
-    open_builder(t);
-
-    CHECK(stack_text(t.canvases.back()).find("no build recipes") != std::string::npos);
-    t.key(input::scan::kB);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().notice.find("no build recipes") != std::string::npos);
-    t.key(input::scan::kC);
-    CHECK(t.w->session().notice.find("no build recipes to choose between") != std::string::npos);
-}
-
-TEST_CASE("BLD-1: `c` with no Builder panel open is an unbound key, exactly as `b` is") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    const std::string before = t.w->session().notice;
-    t.key(input::scan::kC);
-    CHECK(t.w->session().notice == before);
-    CHECK(tool->described == 0);
-    CHECK(tool->asked.empty());
-}
-
-// ---- BLD-2: the frontier is visible, joined, and actionable ------------------------
-//
-// The project's realization frontier reaches the Builder panel as a VALUE the weave
-// derives from the host's live view at every paint and every gesture, and holds for
-// exactly that long. The cases below are the phase's focused falsifiers: a copied or
-// stale frontier, a silently chosen recipe, and a frontier action that bypasses the
-// existing Build & Realize route each turn at least one of them red.
-
-TEST_CASE("BLD-2: the Builder shows the frontier from the LIVING owner, and keeps no copy") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-
-    // THE VIEW IS ALIVE: the fixture's lambda reads this local at every spend, exactly
-    // as the host's reads the realization owner. Nothing is handed over but a function.
-    ProjectFrontier live;
-    t.host.frontier = [&live] { return live; };
-
-    open_builder(t);
-    // NO FRONTIER, NO ROW. The panel is byte-for-byte the ordinary Builder: absence of
-    // a pending frontier is the whole answer, and no "all good" is manufactured.
-    CHECK(stack_text(t.canvases.back()).find("project") == std::string::npos);
-
-    // THE PROJECT STOPS AT A ROW. The next repaint -- an ordinary one, caused by an
-    // ordinary gesture -- shows it, with the recipe join and the blocked count.
-    live.waiting = true;
-    live.artifact = "zengine-oven";
-    live.blocked = 3;
-    t.key(input::scan::kC);
-    CHECK(stack_text(t.canvases.back()).find("waiting zengine-oven (oven, blocks 3)") !=
-          std::string::npos);
-
-    // THE OWNER MOVES; THE PANEL MOVES WITH IT, WITH NOBODY TOLD. A panel that copied
-    // the frontier at the moment it appeared would still say `zengine-oven` here --
-    // which is the exact mutation this case exists to redden.
-    live.artifact = "zengine-later";
-    live.blocked = 0;
-    t.key(input::scan::kC);
-    // The full row is `waiting zengine-later (no recipe, blocks 0)`; at the minimum
-    // extent the panel is 48 cells and `detail::fit` marks the cut, so the assertion
-    // holds the prefix that survives every extent.
-    const std::string moved = stack_text(t.canvases.back());
-    CHECK(moved.find("waiting zengine-later (no recipe") != std::string::npos);
-    CHECK(moved.find("zengine-oven (oven") == std::string::npos);
-
-    // ...AND WHEN THE FRONTIER RESOLVES, THE ROW LEAVES WITH IT. The third `said` row
-    // comes back: the composition below the recipe row is BLD-1a's again.
-    live = ProjectFrontier{};
-    t.key(input::scan::kC);
-    CHECK(stack_text(t.canvases.back()).find("waiting zengine-later") == std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("project") == std::string::npos);
-}
-
-TEST_CASE("BLD-2: `f` builds and realizes the ONE recipe that produces the frontier") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-    ProjectFrontier live;
-    live.waiting = true;
-    live.artifact = "zengine-oven";
-    live.blocked = 2;
-    t.host.frontier = [&live] { return live; };
-    open_builder(t);
-
-    // THE MAKER'S CURSOR IS SOMEWHERE ELSE, deliberately: the join is by artifact stem
-    // against the tool's own catalog, never by whatever row the panel happened to be
-    // on. A frontier action that spent `chosen` here would build `snake` -- the
-    // wrong-recipe mutation, and this is the case that reddens it.
-    REQUIRE(t.w->session().panels.builder.chosen == 0);
-    t.key(input::scan::kF);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "oven");
-    // ...AND IT IS THE EXISTING BUILD & REALIZE ROUTE, whole: the same
-    // `BuildRequested` Shift+b says, with the maker's second intention aboard.
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK(t.w->session().notice.find("asked the Builder for `oven`") != std::string::npos);
-    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
-    // THE SELECTION MOVED WITH THE GESTURE, VISIBLY: the panel's recipe row now names
-    // what was actually asked for, so `b` next does what the screen says.
-    CHECK(t.w->session().panels.builder.chosen == 1);
-    CHECK(stack_text(t.canvases.back()).find("oven -> zengine-oven") != std::string::npos);
-}
-
-TEST_CASE("BLD-2: several recipes produce the frontier -- `f` never chooses for the maker") {
-    Live t;
-    auto seat = std::make_unique<ToolSeat>();
-    ToolSeat* tool = seat.get();
-    loom::Grant grant;
-    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
-                       zengine::builder::BuildStatus::zen_version);
-    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
-                       zengine::builder::RecipeCatalog::zen_version);
-    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
-                                                  std::string(zengine::builder::kBuilderRole));
-    tool->zen_set_self(id);
-    // TWO RECIPES, ONE ARTIFACT -- authored law, not an edge case (`check_recipes`
-    // deduplicates identities and deliberately not artifacts). The FIRST catalog row
-    // matches the frontier, which is what makes this the sharp case: an
-    // implementation that quietly spends the first match, or reads `chosen`'s default
-    // of 0 as a choice, sends an ask here and goes red.
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven-a", "zengine-oven"});
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven-b", "zengine-oven"});
-    tool->next.recipe = "oven-a";
-    tool->next.artifact = "zengine-oven";
-    ProjectFrontier live;
-    live.waiting = true;
-    live.artifact = "zengine-oven";
-    live.blocked = 1;
-    t.host.frontier = [&live] { return live; };
-    open_builder(t);
-
-    // THE PANEL COUNTS THE CHOICES rather than silently showing one of them.
-    CHECK(stack_text(t.canvases.back()).find("(2 recipes") != std::string::npos);
-
-    // NO PICK YET: `chosen == 0` is an index, not a choice. `f` refuses, names the
-    // candidates, and asks nothing of anybody.
-    REQUIRE(t.w->session().panels.builder.chosen == 0);
-    t.key(input::scan::kF);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().notice.find("2 recipes produce `zengine-oven`") != std::string::npos);
-    CHECK(t.w->session().notice.find("`oven-a`, `oven-b`") != std::string::npos);
-    CHECK(t.w->session().notice.find("pick one with c") != std::string::npos);
-
-    // THE MAKER PICKS -- the one gesture that makes a selection theirs -- and `f`
-    // spends exactly that pick.
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 1);
-    t.key(input::scan::kF);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "oven-b");
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-
-    // ...INCLUDING THE FIRST ROW, once it is genuinely picked: the refusal above was
-    // about the default, never about the row.
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 0);
-    t.key(input::scan::kF);
-    REQUIRE(tool->asked.size() == 2);
-    CHECK(tool->asked[1] == "oven-a");
-}
-
-TEST_CASE("BLD-2: `f` refuses in words when nothing is waiting, and when nothing can build "
-          "the frontier") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    open_builder(t);
-
-    // NO VIEW WIRED IS "NOT WAITING": the fixture's default, and any host that wired
-    // no realization owner. Nothing is asked of the tool.
-    t.key(input::scan::kF);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().notice.find("not waiting on any artifact") != std::string::npos);
-
-    // A FRONTIER NOTHING HERE CAN PRODUCE is a different sentence: the join over the
-    // tool's own catalog came back empty, and the gesture says so instead of guessing.
-    ProjectFrontier live;
-    live.waiting = true;
-    live.artifact = "zengine-mystery";
-    t.host.frontier = [&live] { return live; };
-    t.key(input::scan::kF);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().notice.find("no authored recipe produces `zengine-mystery`") !=
-          std::string::npos);
-}
-
-TEST_CASE("BLD-2: `f` with no Builder panel open is an unbound key, exactly as `b` is") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    ProjectFrontier live;
-    live.waiting = true;
-    live.artifact = "snake";
-    t.host.frontier = [&live] { return live; };
-    const std::string before = t.w->session().notice;
-    t.key(input::scan::kF);
-    CHECK(t.w->session().notice == before);
-    CHECK(tool->described == 0);
-    CHECK(tool->asked.empty());
-}
-
-TEST_CASE("success and failure are both on the screen, and both true") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    open_builder(t);
-
-    SUBCASE("a build that succeeded") {
-        tool->next.outcome = zengine::builder::outcome::kSucceeded;
-        tool->next.status = 0;
-        tool->next.recipe = "cmake --build . --target zengine-snake";
-        tool->next.detail = "Built target zengine-snake";
-        tool->next.builds = 1;
-        t.key(input::scan::kB);
-
-        const std::string shown = stack_text(t.canvases.back());
-        CHECK(shown.find("succeeded") != std::string::npos);
-        CHECK(shown.find("Built target zengine-snake") != std::string::npos);
-        CHECK(t.w->session().notice == "built zengine-snake -- exit 0");
-        CHECK_FALSE(t.w->session().notice_is_bad);
-    }
-
-    SUBCASE("a build that failed") {
-        tool->next.outcome = zengine::builder::outcome::kFailed;
-        tool->next.status = 2;
-        tool->next.recipe = "cmake --build . --target zengine-snake";
-        tool->next.detail = "gmake: *** [all] Error 2";
-        tool->next.builds = 1;
-        t.key(input::scan::kB);
-
-        const std::string shown = stack_text(t.canvases.back());
-        CHECK(shown.find("FAILED") != std::string::npos);
-        CHECK(shown.find("Error 2") != std::string::npos);
-        CHECK(t.w->session().notice.find("BUILD FAILED") != std::string::npos);
-        CHECK(t.w->session().notice_is_bad);
-    }
-
-    SUBCASE("a build that never started says so, and shows no exit status") {
-        tool->next.outcome = zengine::builder::outcome::kNotStarted;
-        tool->next.status = 0;
-        tool->next.detail = "could not run it (not found, or not executable)";
-        t.key(input::scan::kB);
-
-        const std::string shown = stack_text(t.canvases.back());
-        CHECK(shown.find("did not start") != std::string::npos);
-        // A `0` in the exit column after a build that never began would read as
-        // success at the exact moment a maker most needs the right answer.
-        CHECK(shown.find("exit     --") != std::string::npos);
-        CHECK(t.w->session().notice_is_bad);
-    }
-}
-
-TEST_CASE("a status this panel did not ask for is SHOWN, and never ANNOUNCED") {
-    // THE REGRESSION THE FIRST LIVE RUN PRODUCED. Reopening the panel asks the
-    // tool, the tool answers with the outcome of a build that finished minutes
-    // ago, and the notice line announced `built zengine-snake -- exit 0` as
-    // though it had just happened. Learning a fact and witnessing an event are
-    // different, and only the second is news.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.detail = "Built target zengine-snake";
-    tool->next.builds = 7;
-
-    open_builder(t);
-    // The panel SHOWS the tool's history...
-    const std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("succeeded") != std::string::npos);
-    CHECK(shown.find("asks 7 ever") != std::string::npos);
-    // ...and says nothing about a build happening, because none did.
-    CHECK(t.w->session().notice == "opened Builder -- p removes it");
-
-    // THE CANARY: the same arriving status, for a build this panel DID ask for,
-    // is announced. Without it the case above would be satisfied by a Workshop
-    // that had simply stopped announcing outcomes at all.
-    t.key(input::scan::kB);
-    CHECK(t.w->session().notice.find("built zengine-snake") != std::string::npos);
-}
-
-TEST_CASE("closing forgets the panel's copy; the TOOL keeps its own count") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "zengine-snake");
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.builds = 3;
-    open_builder(t);
-    REQUIRE(t.w->session().panels.builder.heard);
-
-    open_builder(t); // the picker's second selection: remove
-    // The panel's view went with the panel. Nothing here reached the tool.
-    CHECK_FALSE(t.w->session().panels.builder.heard);
-    CHECK(t.w->session().panels.builder.shown.builds == 0);
-
-    // WHILE IT IS CLOSED, THE TOOL GOES ON. A publication with nothing
-    // presenting it is not remembered -- keeping a copy against the possibility
-    // of a panel being opened later is how a presentation becomes a second owner.
-    tool->next.builds = 9;
-    t.publish(loom::to_value(tool->next));
-    CHECK_FALSE(t.w->session().panels.builder.heard);
-
-    // And reopening asks, and is answered with the TOOL's running total -- which
-    // a panel that owned the state could not produce.
-    open_builder(t);
-    CHECK(t.w->session().panels.builder.shown.builds == 9);
-    CHECK(stack_text(t.canvases.back()).find("asks 9 ever") != std::string::npos);
-}
-
 TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
-    // BLD-0 refused this selection (`Builder is already open -- x closes it`)
+    // BLD-0 refused this selection (`Editor is already open -- x closes it`)
     // because `x` was the removal and the picker had nothing to add. PNL-0 gave
     // the picker both directions, so the refusal became the removal and `x` went
     // back to being unbound. Both kinds, because the whole point is that the
     // gesture does not know which kind it is operating on.
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
-    open_builder(t);
-    REQUIRE(t.w->session().panels.has(panel::kBuilder));
+    open_editor_pane(t);
+    REQUIRE(t.w->session().panels.has(panel::kEditor));
 
-    open_builder(t);
-    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
+    open_editor_pane(t);
+    CHECK_FALSE(t.w->session().panels.has(panel::kEditor));
     CHECK(t.w->session().notice ==
-          "removed Builder -- p brings it back; nothing behind it was touched");
+          "removed Editor -- p brings it back; nothing behind it was touched");
     CHECK_FALSE(t.w->session().notice_is_bad); // a removal a maker asked for is not a refusal
 
     // ...AND THE THING BEHIND IT REALLY WAS NOT TOUCHED. The tool never heard
@@ -1967,7 +1199,7 @@ TEST_CASE("a stacked panel covers the workspace and never reaches the side regio
     const surface::SurfaceCanvas bare = t.canvases.back();
     CHECK(stack_text(bare).empty());
 
-    open_builder(t);
+    open_editor_pane(t);
     const surface::SurfaceCanvas with = t.canvases.back();
     const Screen sc = screen_of(t.session());
     // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those
@@ -1975,7 +1207,7 @@ TEST_CASE("a stacked panel covers the workspace and never reaches the side regio
     // since WUX-1, so they are read through the cell projection every character medium
     // draws with.
     const ui::Rect stack =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect);
+cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc).rect);
     const ui::Rect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(with)) {
@@ -2007,7 +1239,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
 TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     // THE INTENT IS AUTHORED IN THE CATALOG. It is a fact about the kind, known
     // before anything is open and readable without a screen anywhere near it.
-    CHECK(placement_of(panel::kBuilder) == placement::kOverlayStack);
+    CHECK(placement_of(panel::kEditor) == placement::kOverlayStack);
     CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
     CHECK(kinds_placed_in(placement::kSideRegion) == 1); // asserted at compile time too
     // AND THE TWO PLACES PARTITION THE BUILT-IN CATALOG (WG-0). This used to read
@@ -2058,12 +1290,12 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
 TEST_CASE("each panel is painted where the placement path says it is") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
-    open_builder(t);
+    open_editor_pane(t);
     const Screen sc = screen_of(t.session());
     const surface::SurfaceCanvas c = t.canvases.back();
 
     const PanelBounds info = bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc);
-    const PanelBounds builder = bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
+    const PanelBounds builder = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
     REQUIRE(info.open);
     REQUIRE(builder.open);
     CHECK(info.placed_in == placement::kSideRegion);
@@ -2079,7 +1311,7 @@ TEST_CASE("each panel is painted where the placement path says it is") {
     CHECK(inspector_row(c, info_cells.x, info_cells.y) == "OBJECTS");
     CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
     // BUILDER'S REGION COMES FROM THE PATH, at the first slot of the stack.
-    CHECK(label_at(c, builder_cells.x, builder_cells.y).find("BUILDER") == 0);
+    CHECK(label_at(c, builder_cells.x, builder_cells.y).find("Editor") > 0);
     CHECK(builder.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
 
     // AND NEITHER PANEL PAINTS OUTSIDE ITS OWN BOUNDS. Every label in a panel's
@@ -2111,7 +1343,7 @@ TEST_CASE("a closed panel is not anywhere") {
     // this panel WOULD have had.
     Live t;
     const Screen sc = screen_of(t.session());
-    const PanelBounds absent = bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
+    const PanelBounds absent = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
     CHECK_FALSE(absent.open);
     CHECK(absent.rect == FineRect{});
     CHECK_FALSE(cells_covered(absent.rect).contains(0, 1));
@@ -2129,13 +1361,13 @@ TEST_CASE("a slot is earned by being in the stack, not by being early in the lis
     // maker happened to open two unalike panels in.
     const Screen sc = kMinScreen;
     Panels info_first;
-    info_first.open = {Panel{panel::kInfo}, Panel{panel::kBuilder}};
+    info_first.open = {Panel{panel::kInfo}, Panel{panel::kEditor}};
     Panels builder_first;
-    builder_first.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    builder_first.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
 
     const ui::Rect first_slot = placement_bounds(placement::kOverlayStack, 0, sc);
-    CHECK(bounds_of(info_first, setup_for(info_first), panel::kBuilder, sc).rect == fine_of_cells(first_slot));
-    CHECK(bounds_of(builder_first, setup_for(builder_first), panel::kBuilder, sc).rect == fine_of_cells(first_slot));
+    CHECK(bounds_of(info_first, setup_for(info_first), panel::kEditor, sc).rect == fine_of_cells(first_slot));
+    CHECK(bounds_of(builder_first, setup_for(builder_first), panel::kEditor, sc).rect == fine_of_cells(first_slot));
     // And Info is in the same column either way: the side region has no slots.
     CHECK(bounds_of(info_first, setup_for(info_first), panel::kInfo, sc).rect ==
           bounds_of(builder_first, setup_for(builder_first), panel::kInfo, sc).rect);
@@ -2185,27 +1417,12 @@ TEST_CASE("a painter goes where its bounds say, not where a constant says") {
         CHECK(l.y < moved_body.y + moved_body.h);
     }
 
-    BuilderPane pane;
-    pane.heard = true;
-    pane.shown.recipe = "zengine-snake";
-    const ui::Rect moved_stack{4, 6, 30, kStackRows};
-    const ui::Rect moved_stack_body = pane_body_cells(moved_stack);
-    surface::SurfaceCanvas bc;
-    paint_builder(plane(bc), pane, fine_of_cells(moved_stack), kMinScreen);
-    CHECK(label_at(bc, moved_stack_body.x, moved_stack_body.y).find("BUILDER") == 0);
-    REQUIRE(all_rects(bc).size() == 1);
-    CHECK(all_rects(bc)[0].x == moved_stack.x);
-    CHECK(all_rects(bc)[0].y == moved_stack.y);
-    CHECK(all_rects(bc)[0].w == moved_stack.w);
-    CHECK(all_rects(bc)[0].h == moved_stack.h);
-    for (const surface::SurfaceLabel& l : cell_text_of(bc)) {
-        CHECK(l.x == moved_stack_body.x);
-        CHECK(l.y >= moved_stack_body.y);
-        CHECK(l.y < moved_stack_body.y + moved_stack_body.h);
-        // Fitted and padded to the INTERIOR of the bounds it was handed and not to the
-        // stack's own width, so a narrower panel erases exactly what it covers.
-        CHECK(l.text.size() == static_cast<std::size_t>(moved_stack_body.w));
-    }
+    // ⭐ THE STACK'S HALF OF THIS CLAIM MOVED WITH ITS SUBJECT. It used to paint the
+    // Builder panel into a moved rectangle and read the same three properties back; the
+    // Builder is a weave now and there is no built-in painter for the overlay stack left to
+    // hand a rectangle to. The property is unchanged and is proved where the stack's panes
+    // now live -- an external pane's rows go through `paint_external`, over a rectangle the
+    // same placement path resolved, in `test_workshop_panes_window.cpp`.
 }
 
 TEST_CASE("the stack has a second slot, and the minimum screen has no room for it") {
@@ -2367,23 +1584,29 @@ TEST_CASE("the terminal overlay still outranks everything, panels included") {
     (void)t.mount_skin_seat();
     (void)t.mount_terminal();
     ToolSeat* tool = mount_tool(t, "zengine-snake");
-    open_builder(t);
-    REQUIRE(t.w->session().panels.has(panel::kBuilder));
+    open_editor_pane(t);
+    REQUIRE(t.w->session().panels.has(panel::kEditor));
 
     t.toggle_terminal();
     REQUIRE(t.w->session().terminal.open);
-    // `b` and `p` are Workshop's command-mode keys; while the pane is open the
-    // pane has the input, so neither reaches the panels.
+    // `p` is Workshop's command-mode key; while the pane is open the pane has the input,
+    // so it does not reach the panels. (`b` is spent too, and reaches nobody either way
+    // since the Builder pane took its row -- which is the line below the toggle.)
     t.key(input::scan::kB);
     t.key(input::scan::kP);
     CHECK(tool->asked.empty());
     CHECK_FALSE(t.w->session().panels.picker.open);
-    CHECK(t.w->session().panels.has(panel::kBuilder));
+    CHECK(t.w->session().panels.has(panel::kEditor));
 
     t.toggle_terminal();
     CHECK_FALSE(t.w->session().terminal.open);
+    // ⭐ `b` RESTORES TO NOTHING, and that is the migration rather than a weaker claim: it
+    // is the Builder PANE'S row now, so command mode has no `b` for the overlay to be
+    // hiding. What closing the Terminal restores is the picker, which is still this host's.
     t.key(input::scan::kB);
-    CHECK(tool->asked.size() == 1); // and closing it restores them exactly
+    CHECK(tool->asked.empty());
+    t.key(input::scan::kP);
+    CHECK(t.w->session().panels.picker.open); // and closing it restores that exactly
 }
 
 // ============================================================================
@@ -2421,7 +1644,7 @@ TEST_CASE("Info is open at boot, and it is a panel rather than furniture") {
     CHECK(panels.open[0].kind == panel::kInfo);
     CHECK(panels.open[1].kind == panel::kLayouts);
     CHECK(panels.has(panel::kInfo));
-    CHECK_FALSE(panels.has(panel::kBuilder));
+    CHECK_FALSE(panels.has(panel::kEditor));
 
     // ...and the screen a maker boots into is the screen they have always booted
     // into: the two column headings, in the column they have always been in.
@@ -2533,51 +1756,51 @@ TEST_CASE("removing Info changes nothing about the document, not even its pictur
     CHECK(found);
 }
 
-TEST_CASE("Builder and Info are present independently -- all four states") {
+TEST_CASE("The Editor and Info are present independently -- all four states") {
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
     const Screen sc = screen_of(t.session());
     const auto shows_info = [&t, &sc]() { return !info_text(t.canvases.back(), sc).empty(); };
-    const auto shows_builder = [&t]() {
-        return stack_text(t.canvases.back()).find("BUILDER") != std::string::npos;
+    const auto shows_editor = [&t]() {
+        return stack_text(t.canvases.back()).find("Editor") != std::string::npos;
     };
 
     // Info alone -- how Workshop boots.
     t.key(input::scan::kEscape);
     CHECK(shows_info());
-    CHECK_FALSE(shows_builder());
+    CHECK_FALSE(shows_editor());
 
-    // Both. The Builder is over the workspace, Info is in its column, and
+    // Both. The Editor is over the workspace, Info is in its column, and
     // neither knows the other exists.
-    open_builder(t);
+    open_editor_pane(t);
     CHECK(shows_info());
-    CHECK(shows_builder());
+    CHECK(shows_editor());
 
-    // Builder alone. Removing Info leaves the Builder exactly where it was --
-    // a slot is earned by being PLACED in the stack, so an Info ahead of it in
-    // the open list never pushed it down and removing one never pulls it up.
+    // The Editor alone. Removing Info leaves it exactly where it was -- a slot is earned by
+    // being PLACED in the stack, so an Info ahead of it in the open list never pushed it
+    // down and removing one never pulls it up.
     pick(t, panel::kInfo);
     CHECK_FALSE(shows_info());
-    CHECK(shows_builder());
-    CHECK(first_slot_shows_builder(t));
+    CHECK(shows_editor());
+    CHECK(first_slot_shows_editor(t));
 
     // Neither. An empty screen around a live document is a legitimate state, and
     // the document is still all there.
-    open_builder(t);
+    open_editor_pane(t);
     CHECK_FALSE(shows_info());
-    CHECK_FALSE(shows_builder());
+    CHECK_FALSE(shows_editor());
     CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
           "workspace 48x16 cells");
 
     // And back to both, in the other order.
     pick(t, panel::kInfo);
-    open_builder(t);
+    open_editor_pane(t);
     CHECK(shows_info());
-    CHECK(shows_builder());
-    CHECK(first_slot_shows_builder(t));
-    // Every Builder OPEN asked the tool; neither removal did, and neither did
-    // anything Info was part of.
-    CHECK(tool->described == 2);
+    CHECK(shows_editor());
+    CHECK(first_slot_shows_editor(t));
+    // ⭐ AND NOTHING HERE ASKED THE TOOL ANYTHING. Opening the Builder panel used to, twice;
+    // no built-in speaks to a participant on open now.
+    CHECK(tool->described == 0);
 }
 
 TEST_CASE("Info needs no weave to be a panel") {
@@ -2691,12 +1914,12 @@ TEST_CASE("x is an unbound key again") {
     // three available outcomes.
     Live t;
     (void)mount_tool(t, "zengine-snake");
-    open_builder(t);
-    REQUIRE(t.w->session().panels.has(panel::kBuilder));
+    open_editor_pane(t);
+    REQUIRE(t.w->session().panels.has(panel::kEditor));
     const std::string notice = t.w->session().notice;
 
     t.key(input::scan::kX);
-    CHECK(t.w->session().panels.has(panel::kBuilder));
+    CHECK(t.w->session().panels.has(panel::kEditor));
     CHECK(t.w->session().panels.has(panel::kInfo));
     CHECK(t.w->session().notice == notice); // it said nothing, because it means nothing
 }
@@ -2706,14 +1929,14 @@ TEST_CASE("the picker's state column follows the panels, not a memory of them") 
     (void)mount_tool(t, "zengine-snake");
 
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
     CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
     t.key(input::scan::kEscape);
 
-    open_builder(t);
+    open_editor_pane(t);
     pick(t, panel::kInfo);
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Editor", kPickerNameCols) + "open") != std::string::npos);
     CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "closed") != std::string::npos);
     t.key(input::scan::kEscape);
 }
@@ -2734,8 +1957,8 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
     tool->next.outcome = zengine::builder::outcome::kNeverBuilt;
-    open_builder(t);
-    REQUIRE(stack_text(t.canvases.back()).find("recipe") != std::string::npos);
+    open_editor_pane(t);
+    REQUIRE(stack_text(t.canvases.back()).find("Editor") != std::string::npos);
 
     t.key(input::scan::kP);
     const surface::SurfaceCanvas& c = t.canvases.back();
@@ -2755,17 +1978,16 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
         visible += '\n';
     }
     CHECK(visible.find("+ PANEL") != std::string::npos);
-    CHECK(visible.find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
-    // Not one row of the panel underneath survives. (`asks` and not `recipe`: since
-    // KEY-0 the picker's own Builder row says `build a chosen recipe`, so that word
-    // stopped being panel-unique; `asks N ever` is the exit row's and only the panel's.)
-    CHECK(visible.find("asks") == std::string::npos);
-    CHECK(visible.find("BUILDER") == std::string::npos);
-    CHECK(visible.find("Build ]") == std::string::npos);
+    CHECK(visible.find(detail::pad("Editor", kPickerNameCols) + "open") != std::string::npos);
+    // Not one row of the panel underneath survives. The word is chosen to be PANEL-UNIQUE:
+    // the picker's own row says `Editor` too, and `edit a source file` shares most of its
+    // words with the pane's header -- `no source open` is the pane's sentence and nothing
+    // else on this screen says it.
+    CHECK(visible.find("no source open") == std::string::npos);
 
     // AND THE CANARY: dismissing the picker gives the panel back whole.
     t.key(input::scan::kEscape);
-    CHECK(stack_text(t.canvases.back()).find("recipe") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("no source open") != std::string::npos);
 }
 
 // ============================================================================
@@ -5068,9 +4290,9 @@ TEST_CASE("WUX-4: a derived condition enters and leaves attention with its subje
     // own state IS the condition, and NOTHING in this case calls a retraction.
     Session s;
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
     const Screen sc = screen_of(s);
-    const PaneRef builder = ref_of(panel::kBuilder);
+    const PaneRef builder = ref_of(panel::kEditor);
     REQUIRE(attention_conditions(s).empty());
 
     // A PANE THE MAKER AUTHORED, WITH NO CELL OF IT ON THE SCREEN.
@@ -5100,13 +4322,13 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     // authored, resolvable, and nothing of it to look at.
     Session s;
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
     const Screen sc = screen_of(s);
-    const PaneRef builder = ref_of(panel::kBuilder);
+    const PaneRef builder = ref_of(panel::kEditor);
 
     // OPEN: nothing is wrong.
     REQUIRE(pane_state_of(s.panels, s.setup.active, sc,
-                          CatalogRow{panel::kBuilder, builder, "Builder", ""}) ==
+                          CatalogRow{panel::kEditor, builder, "Editor", ""}) ==
             pane_state::kOpen);
     CHECK(attention_conditions(s).empty());
 
@@ -5121,7 +4343,7 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     closed.setup.active = setup_of("Info only", {panel::kInfo});
     closed.panels.open = {Panel{panel::kInfo}};
     REQUIRE(pane_state_of(closed.panels, closed.setup.active, screen_of(closed),
-                          CatalogRow{panel::kBuilder, builder, "Builder", ""}) ==
+                          CatalogRow{panel::kEditor, builder, "Editor", ""}) ==
             pane_state::kClosed);
     CHECK(attention_conditions(closed).empty());
 }
@@ -5357,9 +4579,9 @@ TEST_CASE("WUX-4: a condition names an action and cannot execute one") {
     Keyed t(path);
     Session& s = const_cast<Session&>(t.session());
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
     const Screen sc = screen_of(s);
-    REQUIRE(author_pane_place(s.setup.active, ref_of(panel::kBuilder), subs(sc.w + 40),
+    REQUIRE(author_pane_place(s.setup.active, ref_of(panel::kEditor), subs(sc.w + 40),
                               subs(sc.h + 40))
                 .accepted);
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -5587,15 +4809,15 @@ TEST_CASE("CTX-0: a right press captures a subject and selects nothing") {
     REQUIRE_FALSE(t.session().arrange.addressed());
 
     SUBCASE("on a pane: the durable reference, and no selection of any kind") {
-        open_pane(t, ref_of(panel::kBuilder));
+        open_pane(t, ref_of(panel::kEditor));
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+            bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
         CHECK(t.menu().open);
         CHECK(t.menu().subject == context_subject::kPane);
-        CHECK(t.menu().pane == ref_of(panel::kBuilder));
+        CHECK(t.menu().pane == ref_of(panel::kEditor));
         CHECK(t.session().selected == selected_before);
         CHECK_FALSE(t.session().arrange.open);
         CHECK_FALSE(t.session().arrange.addressed());
@@ -5679,7 +4901,7 @@ TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id"
 
 TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selection") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const std::int64_t doc_selected = t.session().selected;
     // Info, the Layouts pane, and the Builder this case just opened -- the identity
     // permutation `add_pane` assigns, in list order.
@@ -5687,12 +4909,12 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
 
     // Point at the BUILDER and send it to the back through the Order group.
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
     REQUIRE(t.menu().subject == context_subject::kPane);
-    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    REQUIRE(t.menu().pane == ref_of(panel::kEditor));
     t.key(input::scan::kDown);
     t.key(input::scan::kReturn); // descend into Order
     REQUIRE(t.menu().group == "Order");
@@ -5707,12 +4929,12 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
     CHECK_FALSE(t.session().arrange.addressed());
     CHECK(t.session().selected == doc_selected);
     CHECK(t.notice().find("back-most") != std::string::npos);
-    CHECK(t.notice().find(ref_text(ref_of(panel::kBuilder))) != std::string::npos);
+    CHECK(t.notice().find(ref_text(ref_of(panel::kEditor))) != std::string::npos);
 }
 
 TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
 
     SUBCASE("a refused entry establishes nothing") {
         // Info sits in the reserved side column -- the screen owns its place, and the
@@ -5734,7 +4956,7 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
     SUBCASE("an accepted entry binds exactly the pointed pane, and one state carries "
             "both manipulations") {
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+            bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -5742,15 +4964,15 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
         CHECK_FALSE(t.menu().open);
         CHECK(t.session().arrange.open);
         CHECK_FALSE(t.session().arrange.desk); // the ONE-PANE scope, not the old selector
-        CHECK(t.session().arrange.pane == ref_of(panel::kBuilder));
+        CHECK(t.session().arrange.pane == ref_of(panel::kEditor));
         // MOVING AND RESIZING THE SAME PANE NEED NO STATE CHANGE IN BETWEEN (ARR-0):
         // an arrow places it and a shifted arrow resizes it, in the state already open.
         t.key(input::scan::kRight);
-        const SetupPane* placed = pane_of(t.session().setup.active, ref_of(panel::kBuilder));
+        const SetupPane* placed = pane_of(t.session().setup.active, ref_of(panel::kEditor));
         REQUIRE(placed != nullptr);
         CHECK(placed->place.mode == pane_unit::kSubcells);
         t.key(input::scan::kRight, input::mod::kShift);
-        const SetupPane* sized = pane_of(t.session().setup.active, ref_of(panel::kBuilder));
+        const SetupPane* sized = pane_of(t.session().setup.active, ref_of(panel::kEditor));
         CHECK(sized->width.mode == pane_unit::kSubcells);
         CHECK(t.session().arrange.open); // still the one state, nothing was left or entered
         CHECK_FALSE(t.session().arrange.desk);
@@ -5759,16 +4981,16 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
 
 TEST_CASE("CTX-0: a captured pane that left the setup is refused truthfully") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
-    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    REQUIRE(t.menu().pane == ref_of(panel::kEditor));
     // The reference leaves the setup UNDER the open surface -- the clearing that keeps
     // the mode's own selection fresh does not know this subject exists.
-    REQUIRE(remove_pane(live(t).setup.active, ref_of(panel::kBuilder)));
+    REQUIRE(remove_pane(live(t).setup.active, ref_of(panel::kEditor)));
 
     SUBCASE("Arrange refuses with absence, not with an unrelated geometry sentence") {
         t.key(input::scan::kReturn); // Arrange
@@ -5791,16 +5013,16 @@ TEST_CASE("CTX-0: a captured pane that left the setup is refused truthfully") {
 
 TEST_CASE("CTX-0: manage.remove removes the addressed pane by its own key") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     enter_arrange_desk(t);
-    select_pane(t, ref_of(panel::kBuilder));
+    select_pane(t, ref_of(panel::kEditor));
     t.key(input::scan::kD);
-    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kEditor)));
     // The presentation followed the intent through the one door, and the removed
     // reference cleared the keyboard's address on membership -- the DESK stays open,
     // because its subject is the desk and the desk is still there (ARR-0).
     for (const Panel& p : t.session().panels.open) {
-        CHECK(p.kind != panel::kBuilder);
+        CHECK(p.kind != panel::kEditor);
     }
     CHECK(t.session().arrange.open);
     CHECK(t.session().arrange.desk);
@@ -5811,10 +5033,10 @@ TEST_CASE("CTX-0: manage.remove removes the addressed pane by its own key") {
 
 TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const std::int64_t selected_before = t.session().selected;
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -5824,9 +5046,9 @@ TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
     t.key(input::scan::kDown); // remove, the last top-level row
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.menu().open);
-    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kEditor)));
     for (const Panel& p : t.session().panels.open) {
-        CHECK(p.kind != panel::kBuilder);
+        CHECK(p.kind != panel::kEditor);
     }
     CHECK(t.session().selected == selected_before);
     CHECK(t.notice().find("removed") != std::string::npos);
@@ -5834,9 +5056,9 @@ TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
 
 TEST_CASE("CTX-0: navigation backtracks cleanly and every way out closes") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
 
@@ -5936,7 +5158,7 @@ TEST_CASE("CTX-0/ARR-0: a mode that owns the pointer answers a right press its o
         CHECK(t.session().terminal.open);
     }
     SUBCASE("an arrangement scope: the press LEAVES it, consumed whole (SC-6)") {
-        open_pane(t, ref_of(panel::kBuilder));
+        open_pane(t, ref_of(panel::kEditor));
         enter_arrange_desk(t);
         t.right_press(7, 11);
         // The state-local first refusal: leaving is what this interaction truthfully
@@ -5958,9 +5180,9 @@ TEST_CASE("CTX-0/ARR-0: a mode that owns the pointer answers a right press its o
 
 TEST_CASE("ARR-0/SC-7: one right press exits Arrange; only the NEXT one opens context") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
 
@@ -5988,12 +5210,12 @@ TEST_CASE("ARR-0/SC-7: one right press exits Arrange; only the NEXT one opens co
     t.right_press_canvas(slot.x + 1, slot.y + 1);
     CHECK(t.menu().open);
     CHECK(t.menu().subject == context_subject::kPane);
-    CHECK(t.menu().pane == ref_of(panel::kBuilder));
+    CHECK(t.menu().pane == ref_of(panel::kEditor));
 }
 
 TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps its own") {
     Live t;
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
 
     SUBCASE("the desk") {
         enter_arrange_desk(t);
@@ -6003,7 +5225,7 @@ TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps 
     }
     SUBCASE("the reset prompt leaves the whole interaction") {
         enter_arrange_desk(t);
-        select_pane(t, ref_of(panel::kBuilder));
+        select_pane(t, ref_of(panel::kEditor));
         t.key(input::scan::k0);
         REQUIRE(t.session().arrange.resetting);
         t.right_press(40, 0);
@@ -6016,7 +5238,7 @@ TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps 
         REQUIRE(t.menu().open);
         REQUIRE(t.menu().subject == context_subject::kRoot);
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+            bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -6198,11 +5420,11 @@ TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and not
         // ⚔ MUTATION: resolving the hover from the panel's own bounds without asking the
         // occupancy walk first -- a maker pointing at the Builder would scroll a row
         // underneath it that they cannot even see.
-        open_pane(t, ref_of(panel::kBuilder));
+        open_pane(t, ref_of(panel::kEditor));
         const Screen sc = screen_of(t.session());
         const ui::Rect side = cells_covered(
             bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kEditor),
                                   surface::subs_of_cells(side.x),
                                   surface::subs_of_cells(side.y))
                     .accepted);
@@ -6214,7 +5436,7 @@ TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and not
         const std::int64_t cy = covered.region_y + kInfoHeadingRows + row;
         REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
                             cx, cy)
-                    .kind == panel::kBuilder);
+                    .kind == panel::kEditor);
         t.motion_canvas(cx, cy);
         CHECK(t.session().reveal.place != reveal_place::kInfoObject);
     }
@@ -6323,11 +5545,11 @@ TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as 
 
     press_gesture(t, k.make);
     // LAYOUT TWO: a different membership, a different place, a different front order.
-    open_builder(t);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+    open_editor_pane(t);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kEditor),
                               surface::subs_of_cells(9), surface::subs_of_cells(2))
                 .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kBuilder)));
+    REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kEditor)));
     const Setup second = t.session().setup.active;
     REQUIRE(first != second);
 
@@ -6337,13 +5559,13 @@ TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as 
         press_gesture(t, k.previous);
         CHECK(t.session().setup.active == first);
         CHECK(t.session().panels.has(panel::kInfo));
-        CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+        CHECK_FALSE(t.session().panels.has(panel::kEditor));
         press_gesture(t, k.next);
         CHECK(t.session().setup.active == second);
-        CHECK(t.session().panels.has(panel::kBuilder));
+        CHECK(t.session().panels.has(panel::kEditor));
         // ...AND THE AUTHORED FRONT ORDER WITH IT: the Builder was put BEHIND Info in
         // this layout, so it is the first thing painted and the last thing pressed.
-        CHECK(painted_order(t.session()).front() == panel::kBuilder);
+        CHECK(painted_order(t.session()).front() == panel::kEditor);
     }
 
     // THE PRESENTATIONS ARE RECONCILED THROUGH THE ONE DOOR, so the panels a switch left
@@ -6354,14 +5576,14 @@ TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as 
 TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     Live t;
     const LayoutKeys k = layout_keys(t);
-    open_builder(t);
+    open_editor_pane(t);
     // A SELECTION AND A KEYBOARD CANDIDATE, made by a press exactly as a maker makes them.
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(t.session().panels.selected == panel::kEditor);
     const std::int64_t selected = t.session().panels.selected;
     const std::int64_t keyboard = t.session().panels.keyboard;
     const WorkshopDoc document = t.doc();
@@ -6373,7 +5595,7 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     // one door membership changes through.
     press_gesture(t, k.make);
     live(t).setup.active.name = "Inspect";
-    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+    REQUIRE_FALSE(t.session().panels.has(panel::kEditor));
 
     // THE SELECTION IS NOT DESTROYED BY THE SWITCH -- it simply resolves to nothing while
     // its pane is absent, which is `selected_pane`'s own discipline (WUX-5).
@@ -6383,7 +5605,7 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     CHECK(keyboard_pane(t.session().panels) == kNoPaneKind);
     // ...AND IT LIFTS NOTHING: no ghost foreground for a pane that is not on this desk.
     for (const std::int64_t kind : painted_order(t.session())) {
-        CHECK(kind != panel::kBuilder);
+        CHECK(kind != panel::kEditor);
     }
     // THE DOCUMENT AND THE SOURCE EDITOR ARE ONE TRUTH EACH, AND A SWITCH IS NOT A DOOR
     // TO EITHER.
@@ -6394,8 +5616,8 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     // AND COMING BACK MAKES THE RETAINED SELECTION MEAN SOMETHING AGAIN.
     press_gesture(t, k.previous);
     CHECK(t.session().panels.selected == selected);
-    CHECK(selected_pane(t.session().panels) == panel::kBuilder);
-    CHECK(painted_order(t.session()).back() == panel::kBuilder);
+    CHECK(selected_pane(t.session().panels) == panel::kEditor);
+    CHECK(painted_order(t.session()).back() == panel::kEditor);
 }
 
 TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not") {
@@ -6456,13 +5678,13 @@ TEST_CASE("WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and sti
     Live t;
     t.host.setup_path = "workshop-setup.json";
     const LayoutKeys k = layout_keys(t);
-    open_builder(t);
+    open_editor_pane(t);
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(t.session().panels.selected == panel::kEditor);
 
     press_gesture(t, k.make);
     live(t).setup.active.name = "Other";
@@ -6515,7 +5737,7 @@ TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
 TEST_CASE("WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global state") {
     Live t;
     const LayoutKeys k = layout_keys(t);
-    open_builder(t);
+    open_editor_pane(t);
     const std::size_t runtime_before = t.session().panels.runtime.entries.size();
     const std::size_t external_before = t.session().panels.external.size();
     const WorkshopDoc document = t.doc();
@@ -6526,7 +5748,7 @@ TEST_CASE("WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global 
     // it names no Builder, so `apply_setup` withdraws that presentation exactly as any
     // other whole-desk replacement does.
     CHECK(t.session().setup.active == default_setup());
-    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    CHECK_FALSE(t.session().panels.has(panel::kEditor));
     CHECK(live_status(t.session().setup) == setup_link::kNone);
     // ...AND NOTHING WORKSHOP-GLOBAL WAS COPIED, CLEARED OR REVALIDATED. The catalog, the
     // external instances and the document are one truth each, and a desk is not a door to
@@ -6537,7 +5759,7 @@ TEST_CASE("WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global 
     // AND THE LAYOUT IT WAS MADE FROM IS UNTOUCHED, waiting where it was.
     CHECK(layout_at(t.session().setup, 0) == was);
     press_gesture(t, k.previous);
-    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().panels.has(panel::kEditor));
 }
 
 // ---- WUX-11: the gestures a maker actually makes on a tab ------------------------------
@@ -7208,18 +6430,18 @@ TEST_CASE("WUX-13/SC-6: a typed place reseats the stack through `apply_setup`") 
     Live t;
     open_editor(t);
     REQUIRE(t.session().panels.has(panel::kPaneEditor));
-    const PaneRef builder = ref_of(panel::kBuilder);
+    const PaneRef builder = ref_of(panel::kEditor);
     REQUIRE(add_pane(live(t).setup.active, builder));
     t.publish(loom::to_value(surface::SurfaceExtent{80, 22, 0, 0})); // a reconcile
     REQUIRE(has_pane(t.session().setup.active, builder));
-    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder)); // authored, and waiting
+    REQUIRE_FALSE(t.session().panels.has(panel::kEditor)); // authored, and waiting
     press_into_editor(t);
     choose_by_keys(t, ref_of(panel::kPaneEditor));
     type_value(t, "X", "2");
     CHECK_FALSE(t.session().notice_is_bad);
     // THE EDITOR LEFT THE REACTIVE STACK, AND THE WAITING PANE WAS SEATED IN THE SLOT IT
     // VACATED -- which only a reconcile does.
-    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().panels.has(panel::kEditor));
     CHECK(pane_of(t.session().setup.active, ref_of(panel::kPaneEditor))->place.mode ==
           pane_unit::kSubcells);
 }
@@ -7324,8 +6546,8 @@ TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with ho
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     open_editor(t);
-    const PaneRef closed = ref_of(panel::kBuilder);
-    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+    const PaneRef closed = ref_of(panel::kEditor);
+    REQUIRE_FALSE(t.session().panels.has(panel::kEditor));
     choose_by_keys(t, closed);
     CHECK(editor_value(t, "State") == "closed -- open it from the picker");
     CHECK(editor_value(t, "Open") == "no -- o opens it");
@@ -7339,16 +6561,16 @@ TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with ho
     // OPEN IT THROUGH THE EDITOR -- the picker's own door, the editor's own gesture word.
     t.key(input::scan::kO);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.notice() == "opened Builder -- o removes it");
-    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.notice() == "opened Editor -- o removes it");
+    CHECK(t.session().panels.has(panel::kEditor));
     CHECK(t.session().pane_editor.subject == closed);
     CHECK(editor_value(t, "State") == "open");
     CHECK(editor_value(t, "Open") == "yes -- o removes it");
     CHECK(editor_value(t, "X") == "-");
     // ...AND REMOVE IT AGAIN: the subject STANDS, the row is still in the list.
     t.key(input::scan::kO);
-    CHECK(t.notice().find("removed Builder -- o brings it back") == 0);
-    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    CHECK(t.notice().find("removed Editor -- o brings it back") == 0);
+    CHECK_FALSE(t.session().panels.has(panel::kEditor));
     CHECK(t.session().pane_editor.subject == closed);
     CHECK(editor_value(t, "State") == "closed -- open it from the picker");
     CHECK(inventory_index(t, closed) < 99);
@@ -7629,13 +6851,13 @@ TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the P
 
     // THE PROMPT'S OWN CASE: the subject is Layouts, the ordinary selection is another pane.
     t.press(90, 35); // the workspace: the picker is command mode's
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(t.session().panels.selected == panel::kEditor);
     REQUIRE(keyboard_context(t.session()) == KeyContext::kCommand); // the Builder takes no keys
     const std::vector<std::int64_t> order_before = presentation_order(t.session().setup.active, t.session().panels);
     const Setup setup_before = t.session().setup.active;
@@ -7645,12 +6867,12 @@ TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the P
     CHECK(t.session().panels.selected == kNoPaneKind);
     CHECK(t.session().panels.keyboard == kNoPaneKind);
     CHECK(t.session().pane_editor.subject == layouts); // SC-3: the subject is a different fact
-    CHECK(t.notice().find("unselected Builder") != std::string::npos);
+    CHECK(t.notice().find("unselected Editor") != std::string::npos);
     // NOTHING ELSE MOVED (SC-10): no pane closed, no rank, no geometry, no file.
     CHECK(t.session().panels.open.size() == panes_before);
     CHECK(presentation_order(t.session().setup.active, t.session().panels) == order_before);
     CHECK(t.session().setup.active == setup_before);
-    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().panels.has(panel::kEditor));
     CHECK(t.session().panels.has(panel::kPaneEditor));
 
     // THE SAME WITH THE EDITOR ITSELF SELECTED AND HOLDING THE KEYS: its context binds
@@ -7720,15 +6942,15 @@ TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = 
     // blank pixel to press; Escape is the way down.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kEditor));
     const Screen sc = screen_of(t.session());
     // The Builder over the whole room, the side column included -- an authored window is
     // canvas-absolute (WUX-2), and the room is what a pane may cover.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kEditor),
                               surface::subs_of_cells(0), surface::subs_of_cells(kTopRows))
                 .accepted);
     const Written sized =
-        author_pane_size(live(t).setup.active, ref_of(panel::kBuilder),
+        author_pane_size(live(t).setup.active, ref_of(panel::kEditor),
                          PaneSize{pane_unit::kSubcells, surface::subs_of_cells(sc.w)},
                          PaneSize{pane_unit::kSubcells,
                                   surface::subs_of_cells(sc.h - kTopRows - kBottomRows)});
@@ -7747,24 +6969,25 @@ TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = 
     REQUIRE(unoccupied == 0); // the desk is covered: top band's Layouts pane, then the Builder
 
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, now).rect);
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, now).rect);
     t.press_canvas(builder.x + 3, builder.y + 3);
-    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(t.session().panels.selected == panel::kEditor);
     t.key(input::scan::kEscape);
     CHECK(t.session().panels.selected == kNoPaneKind);
     CHECK(t.session().panels.keyboard == kNoPaneKind);
-    CHECK(t.session().panels.has(panel::kBuilder)); // still there, still that big
+    CHECK(t.session().panels.has(panel::kEditor)); // still there, still that big
 }
 
 TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past their windows") {
     // MUTATION (F5): dropping the Pane Editor's wheel arm while the `... N more` row stays
     // -- the hidden name below never appears.
     Live t;
-    // A SIXTH INVENTORY ENTRY, WHICH IS WHAT WINDOWS THE PANES LIST (WUX-13). It used to be
-    // the sixth BUILT-IN; the project browser is a loaded weave now, so the entry comes from
-    // an office that offered one -- which is the same fact the list is about and is a
+    // THE INVENTORY ENTRIES THAT WINDOW THE PANES LIST (WUX-13). They used to be BUILT-INS;
+    // the project browser and the Builder panel are loaded weaves now, so the entries come
+    // from offices that offered them -- which is the same fact the list is about and is a
     // stronger fixture, because the window has nothing to do with where a pane came from.
     REQUIRE(live_offer_pane(t, "zengine.test.seated", "seated", "Seated") != kNoPaneKind);
+    REQUIRE(live_offer_pane(t, "zengine.test.second", "second", "Second") != kNoPaneKind);
     open_editor(t);
     const std::vector<CatalogRow> inventory =
         inventory_rows(t.session().setup.active, t.session().panels);
@@ -7836,444 +7059,4 @@ TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past
     t.wheel_canvas(+1.0, b.x + 2, b.y);
     CHECK(t.session().pane_editor.row_cursor == at);
     CHECK(t.session().pane_editor.cursor == panes_cursor);
-}
-
-namespace {
-
-/// EARS FOR THE TWO OFFERS `P` AND `R` PUBLISH (RELOAD-2), so a case can say what was
-/// SAID rather than infer it from a notice. Plain ears: no grant, no answer.
-struct OfferEarsState {
-    std::int64_t heard = 0;
-    ZEN_SHAPE(OfferEarsState, 1, ZEN_FIELD(heard));
-};
-
-class OfferEars
-    : public loom::WeaveBase<OfferEars, OfferEarsState,
-                             loom::Accept<zengine::builder::PromoteArtifact,
-                                          zengine::builder::RevertArtifact>,
-                             loom::Emit<>> {
-public:
-    void on(const zengine::builder::PromoteArtifact& said, loom::Mail&) {
-        ++state_.heard;
-        promotes.push_back(said.artifact);
-    }
-    void on(const zengine::builder::RevertArtifact& said, loom::Mail&) {
-        ++state_.heard;
-        reverts.push_back(said.artifact);
-    }
-    std::vector<std::string> promotes;
-    std::vector<std::string> reverts;
-};
-
-OfferEars* mount_offer_ears(Live& t) {
-    auto held = std::make_unique<OfferEars>();
-    OfferEars* raw = held.get();
-    const loom::WeaveId id = t.bus.register_weave(std::move(held), loom::Grant{});
-    raw->zen_set_self(id);
-    return raw;
-}
-
-} // namespace
-
-// ============================================================================
-// RELOAD-2 -- `B` IS ONE ACTION IN TWO STATES, and the realize row has three faces.
-//
-// `builder.build-realize` keeps its identity and its default gesture. Before or during
-// a build it is a TOGGLE: pressed, the panel is armed and the next `b` asks to build AND
-// to load; when an artifact is built and ready to load and nothing is armed, it is a
-// BUTTON that loads the built artifact now by re-sending the finished build's own ask.
-// Every case drives the real weave through the real keymap and reads the real canvas.
-
-TEST_CASE("RELOAD-2: `B` before a build is a toggle: armed, `b` asks to build AND load") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    REQUIRE_FALSE(t.w->session().panels.builder.arm);
-
-    // THE TOGGLE: nothing is sent, the panel is armed, and the row says so.
-    t.key(input::scan::kB, input::mod::kShift);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().panels.builder.arm);
-    CHECK(t.w->session().notice.find("load after build: on") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
-
-    // ...AND `b` READS IT: one ask, with the second intention aboard.
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "oven");
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
-}
-
-TEST_CASE("RELOAD-2: `B` toggles back off, and `b` is a plain build again") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB, input::mod::kShift);
-    REQUIRE(t.w->session().panels.builder.arm);
-    t.key(input::scan::kB, input::mod::kShift);
-    CHECK_FALSE(t.w->session().panels.builder.arm);
-    CHECK(t.w->session().notice.find("load after build: off") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("[x] load after build") == std::string::npos);
-    CHECK(tool->asked.empty());
-
-    t.key(input::scan::kB);
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK_FALSE(tool->realize_asked[0]);
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-}
-
-TEST_CASE("RELOAD-2: after a plain build that succeeded and nothing armed, `B` is a button "
-          "that loads the built artifact now") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"snake", "zengine-snake"});
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    // THE BUILD ENDS, PLAIN: succeeded, nothing asked about realizing it.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.recipe = "oven";
-    tool->next.artifact = "zengine-oven";
-    tool->next.realization = zengine::builder::realization::kNotAsked;
-    t.publish(loom::to_value(tool->next));
-    CHECK_FALSE(t.w->session().panels.builder.awaiting);
-    CHECK(stack_text(t.canvases.back()).find("B loads zengine-oven now") != std::string::npos);
-
-    // THE MAKER MOVES THE CURSOR TO ANOTHER RECIPE FIRST, deliberately: the button sends
-    // the FINISHED build's recipe, never the cursor's row.
-    t.key(input::scan::kC);
-    REQUIRE(t.w->session().panels.builder.chosen == 1);
-    // THE STUB ANSWERS AT ONCE, so give the load-now ask a condition a build can be IN.
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kAsked;
-    t.key(input::scan::kB, input::mod::kShift);
-    REQUIRE(tool->asked.size() == 2);
-    CHECK(tool->asked[1] == "oven");
-    REQUIRE(tool->realize_asked.size() == 2);
-    CHECK(tool->realize_asked[1]);
-    CHECK_FALSE(t.w->session().panels.builder.arm);
-    CHECK(t.w->session().panels.builder.awaiting);
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK(t.w->session().notice.find("loading the built `zengine-oven` now") !=
-          std::string::npos);
-}
-
-TEST_CASE("RELOAD-2: while a build is running `B` is the toggle, and the running build "
-          "keeps the intention it started with") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    t.key(input::scan::kB);
-    REQUIRE(tool->asked.size() == 1);
-    CHECK_FALSE(tool->realize_asked[0]);
-    // THE BUILD IS RUNNING. `B` arms the NEXT ask and sends nothing; the tool was never
-    // told anything about this one.
-    tool->next.outcome = zengine::builder::outcome::kRunning;
-    tool->next.op = 3;
-    t.publish(loom::to_value(tool->next));
-    t.key(input::scan::kB, input::mod::kShift);
-    CHECK(tool->asked.size() == 1);
-    CHECK(t.w->session().panels.builder.arm);
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-    // ...AND WHEN IT ENDS AS A PLAIN BUILD, THAT IS WHAT IT WAS: no realization is
-    // announced, and the button does not appear because the arm is set.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.recipe = "oven";
-    tool->next.artifact = "zengine-oven";
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice == "built zengine-oven -- exit 0");
-    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("loads the built") == std::string::npos);
-}
-
-TEST_CASE("RELOAD-2: the realize row shows the toggle, the button, or the outcome -- one "
-          "row, three faces") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    open_builder(t);
-    // FACE ZERO: nothing built, nothing armed -- the row says what `B` does.
-    CHECK(stack_text(t.canvases.back()).find("B arms load after build") != std::string::npos);
-    // THE TOGGLE'S FACE.
-    t.key(input::scan::kB, input::mod::kShift);
-    CHECK(stack_text(t.canvases.back()).find("[x] load after build") != std::string::npos);
-    t.key(input::scan::kB, input::mod::kShift);
-    // THE BUTTON'S FACE: a plain build that succeeded.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.recipe = "oven";
-    tool->next.artifact = "zengine-oven";
-    t.publish(loom::to_value(tool->next));
-    CHECK(stack_text(t.canvases.back()).find("B loads zengine-oven now") != std::string::npos);
-    // THE OUTCOME'S FACE: realized, and NOT the default -- the two acts named.
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kRealized;
-    tool->next.realized_detail = "reloaded in place -- weave #9 keeps its id and its state";
-    tool->next.default_image = false;
-    t.publish(loom::to_value(tool->next));
-    std::string shown = stack_text(t.canvases.back());
-    CHECK(shown.find("realized, NOT DEFAULT (P") != std::string::npos);
-    CHECK(shown.find("loads the built") == std::string::npos);
-    // ...AND AFTER A PROMOTION, THE CLAUSE IS GONE: the image is the default.
-    tool->next.default_image = true;
-    tool->next.realized_detail = "promoted: the next launch runs the image weave #9 is running now";
-    t.publish(loom::to_value(tool->next));
-    shown = stack_text(t.canvases.back());
-    CHECK(shown.find("realized -- promoted") != std::string::npos);
-    CHECK(shown.find("NOT DEFAULT") == std::string::npos);
-    // ARMED OVER A SETTLED OUTCOME, THE OUTCOME KEEPS THE ROW: it is what the maker is
-    // watching, and the row is one row of a narrow panel. The arm is on the pane and in
-    // the notice, and `b` reads it.
-    t.key(input::scan::kB, input::mod::kShift);
-    shown = stack_text(t.canvases.back());
-    CHECK(t.w->session().panels.builder.arm);
-    CHECK(t.w->session().notice.find("load after build: on") != std::string::npos);
-    CHECK(shown.find("realized -- promoted") != std::string::npos);
-    CHECK(shown.find("[x] load after build") == std::string::npos);
-}
-
-TEST_CASE("RELOAD-2: `f` builds and realizes the frontier whatever the toggle says") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "snake");
-    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
-    ProjectFrontier live;
-    live.waiting = true;
-    live.artifact = "zengine-oven";
-    live.blocked = 1;
-    t.host.frontier = [&live] { return live; };
-    tool->next.outcome = zengine::builder::outcome::kAsked;
-    open_builder(t);
-    REQUIRE_FALSE(t.w->session().panels.builder.arm);
-    t.key(input::scan::kF);
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-    CHECK(tool->asked[0] == "oven");
-    CHECK_FALSE(t.w->session().panels.builder.arm);
-}
-
-TEST_CASE("RELOAD-2: `P` and `R` are one offer each, sent about the built artifact, and "
-          "refused in words with nothing built") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    OfferEars* ears = mount_offer_ears(t);
-    open_builder(t);
-    // NOTHING BUILT YET: both refuse in words and say nothing on the bus.
-    t.key(input::scan::kP, input::mod::kShift);
-    CHECK(t.w->session().notice.find("nothing to promote") != std::string::npos);
-    t.key(input::scan::kR, input::mod::kShift);
-    CHECK(t.w->session().notice.find("nothing to revert") != std::string::npos);
-    CHECK(ears->promotes.empty());
-    CHECK(ears->reverts.empty());
-    // A REALIZED ARTIFACT: each key is one sentence naming it, and the panel watches
-    // for the answer on the realization latch.
-    tool->next.outcome = zengine::builder::outcome::kSucceeded;
-    tool->next.recipe = "oven";
-    tool->next.artifact = "zengine-oven";
-    tool->next.realize = true;
-    tool->next.realization = zengine::builder::realization::kRealized;
-    tool->next.realized_detail = "reloaded in place -- weave #9 keeps its id and its state";
-    t.publish(loom::to_value(tool->next));
-    t.key(input::scan::kP, input::mod::kShift);
-    REQUIRE(ears->promotes.size() == 1);
-    CHECK(ears->promotes[0] == "zengine-oven");
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK(t.w->session().notice.find("asked to promote `zengine-oven`") != std::string::npos);
-    t.key(input::scan::kR, input::mod::kShift);
-    REQUIRE(ears->reverts.size() == 1);
-    CHECK(ears->reverts[0] == "zengine-oven");
-    CHECK(t.w->session().notice.find("asked to revert `zengine-oven`") != std::string::npos);
-    // THE ANSWER IS NEWS, because the panel asked: the row and the notice both carry it.
-    tool->next.realized_detail = "promoted: the next launch runs the image weave #9 is running now";
-    tool->next.default_image = true;
-    t.publish(loom::to_value(tool->next));
-    CHECK(t.w->session().notice.find("realized zengine-oven -- promoted") != std::string::npos);
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-}
-
-// ============================================================================
-// LOAD-IT -- the chosen recipe's artifact gains the minimum plan row, with a role the maker
-// types. The weave asks the host whether the plan names it, asks the maker for a role on
-// the authoring prompt, and hands both to the host's writer; everything after that is the
-// plan law's, the executor's and the file's.
-
-namespace {
-
-struct LoadItCalls {
-    std::vector<std::pair<std::string, std::string>> rows;
-    std::vector<std::string> recipes; ///< the recipe named beside each row, in order
-    bool names = false;
-    HostContext::PlanAppend answer;
-};
-
-inline void wire_load_it(Live& t, LoadItCalls& calls) {
-    t.host.plan_names = [&calls](const std::string&) { return calls.names; };
-    t.host.append_plan_row = [&calls](const std::string& stem, const std::string& role,
-                                      const std::string& recipe) {
-        calls.rows.emplace_back(stem, role);
-        calls.recipes.push_back(recipe);
-        return calls.answer;
-    };
-}
-
-} // namespace
-
-TEST_CASE("LOAD-IT: `o` asks for a role, refuses an empty one in the plan's words, and authors "
-          "nothing until it has one") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.artifact = "zengine-oven";
-    tool->catalog.recipes[0].artifact = "zengine-oven";
-    LoadItCalls calls;
-    calls.answer.accepted = true;
-    calls.answer.detail = "loading";
-    calls.answer.path = "/project/workshop-plan.json";
-    wire_load_it(t, calls);
-    open_builder(t);
-    // THE GESTURE OPENS THE PROMPT, and its own character is swallowed.
-    t.key(input::scan::kO);
-    t.text("o");
-    REQUIRE(t.w->session().authoring.open);
-    CHECK(t.w->session().authoring.stem == "zengine-oven");
-    CHECK(t.w->session().authoring.line.text().empty());
-    CHECK(keyboard_context(t.w->session()) == KeyContext::kAuthoring);
-    CHECK(stack_text(t.canvases.back()).find("role for zengine-oven>") != std::string::npos);
-    // AN EMPTY ROLE IS REFUSED IN THE PLAN'S WORDS, and nothing reached the host.
-    t.key(input::scan::kReturn);
-    CHECK(t.w->session().notice.find("a weave declaration needs a role") != std::string::npos);
-    CHECK(t.w->session().authoring.open);
-    CHECK(calls.rows.empty());
-    // THE ROLE, TYPED: one call to the host, the stem and the role as typed, and the
-    // host's own sentence on the notice.
-    t.text("zengine.oven");
-    t.key(input::scan::kReturn);
-    REQUIRE(calls.rows.size() == 1);
-    CHECK(calls.rows[0].first == "zengine-oven");
-    CHECK(calls.rows[0].second == "zengine.oven");
-    CHECK_FALSE(t.w->session().authoring.open);
-    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- loading") !=
-          std::string::npos);
-    CHECK(t.w->session().notice.find("written to /project/workshop-plan.json") !=
-          std::string::npos);
-    // ESCAPE ON THE PROMPT LOADS NOTHING.
-    t.key(input::scan::kO);
-    t.text("o");
-    REQUIRE(t.w->session().authoring.open);
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.w->session().authoring.open);
-    CHECK(calls.rows.size() == 1);
-    CHECK(t.w->session().notice.find("nothing was loaded") != std::string::npos);
-}
-
-TEST_CASE("LOAD-IT: `o` on an artifact the plan already names refuses and points at `B`") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->catalog.recipes[0].artifact = "zengine-oven";
-    LoadItCalls calls;
-    calls.names = true;
-    wire_load_it(t, calls);
-    open_builder(t);
-    t.key(input::scan::kO);
-    t.text("o");
-    CHECK_FALSE(t.w->session().authoring.open);
-    CHECK(t.w->session().notice.find("`zengine-oven` is already in this project's plan") !=
-          std::string::npos);
-    CHECK(t.w->session().notice.find("builds and loads it") != std::string::npos);
-    CHECK(calls.rows.empty());
-    // ...AND WITH NO BUILDER PANEL THE KEY IS UNBOUND, exactly as `b` is.
-    Live bare;
-    LoadItCalls none;
-    wire_load_it(bare, none);
-    bare.key(input::scan::kO);
-    CHECK_FALSE(bare.w->session().authoring.open);
-    CHECK(none.rows.empty());
-}
-
-TEST_CASE("`o` on a recipe whose product is already built finishes the load: the button's own "
-          "ask with the second intention aboard, and the row's sentence says so") {
-    // THE HOST SAID WHERE THE PRODUCT IS (the row is the frontier and the file exists), so
-    // `load it` ends loaded: the same `BuildRequested` the `B` button sends, for the chosen
-    // recipe, realize aboard -- and no second key.
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.artifact = "zengine-oven";
-    tool->catalog.recipes[0].artifact = "zengine-oven";
-    LoadItCalls calls;
-    calls.answer.accepted = true;
-    calls.answer.detail = "pending -- the project is waiting on it";
-    calls.answer.path = "/project/workshop-plan.json";
-    calls.answer.frontier = true;
-    calls.answer.product = "/host/build-workspace/oven/out/zengine-oven.so";
-    wire_load_it(t, calls);
-    open_builder(t);
-    t.key(input::scan::kO);
-    t.text("o");
-    REQUIRE(t.w->session().authoring.open);
-    CHECK(t.w->session().authoring.recipe == "oven");
-    CHECK(tool->asked.empty());
-    t.text("zengine.oven");
-    t.key(input::scan::kReturn);
-    // THE HOST HEARD THE RECIPE BESIDE THE ROW...
-    REQUIRE(calls.rows.size() == 1);
-    REQUIRE(calls.recipes.size() == 1);
-    CHECK(calls.recipes[0] == "oven");
-    // ...AND THE BUTTON'S ACT WAS PERFORMED: one ask, the chosen recipe, realize aboard.
-    REQUIRE(tool->asked.size() == 1);
-    CHECK(tool->asked[0] == "oven");
-    REQUIRE(tool->realize_asked.size() == 1);
-    CHECK(tool->realize_asked[0]);
-    CHECK(t.w->session().panels.builder.awaiting_realization);
-    CHECK_FALSE(t.w->session().authoring.open);
-    const std::string& notice = t.w->session().notice;
-    CHECK(notice.find("loaded `zengine-oven` as zengine.oven -- pending") != std::string::npos);
-    CHECK(notice.find("its product is built, loading it now") != std::string::npos);
-    CHECK(notice.find("written to /project/workshop-plan.json") != std::string::npos);
-}
-
-TEST_CASE("`o` with nothing built yet leaves the row pending and asks the Builder nothing, and "
-          "names the frontier key; a row that is not the frontier says only what the project "
-          "said") {
-    Live t;
-    ToolSeat* tool = mount_tool(t, "oven");
-    tool->next.artifact = "zengine-oven";
-    tool->catalog.recipes[0].artifact = "zengine-oven";
-    LoadItCalls calls;
-    calls.answer.accepted = true;
-    calls.answer.detail = "pending -- the project is waiting on it";
-    calls.answer.path = "/project/workshop-plan.json";
-    calls.answer.frontier = true;
-    wire_load_it(t, calls);
-    open_builder(t);
-    // THE FRONTIER, NOTHING BUILT: no ask leaves the weave, the arm covers "load when
-    // built", and the sentence names the key that builds and loads the frontier.
-    t.key(input::scan::kO);
-    t.text("o");
-    t.text("zengine.oven");
-    t.key(input::scan::kReturn);
-    REQUIRE(calls.rows.size() == 1);
-    CHECK(tool->asked.empty());
-    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
-    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- pending") !=
-          std::string::npos);
-    CHECK(t.w->session().notice.find("nothing is built yet -- ") != std::string::npos);
-    CHECK(t.w->session().notice.find("builds and loads it") != std::string::npos);
-    // NOT THE FRONTIER (resolved on the spot, or authored behind another): the project's
-    // own sentence, nothing sent, nothing added.
-    calls.answer.detail = "resolved";
-    calls.answer.frontier = false;
-    t.key(input::scan::kO);
-    t.text("o");
-    t.text("zengine.oven");
-    t.key(input::scan::kReturn);
-    REQUIRE(calls.rows.size() == 2);
-    CHECK(tool->asked.empty());
-    CHECK(t.w->session().notice.find("loaded `zengine-oven` as zengine.oven -- resolved") !=
-          std::string::npos);
-    CHECK(t.w->session().notice.find("nothing is built yet") == std::string::npos);
-    CHECK(t.w->session().notice.find("loading it now") == std::string::npos);
 }

@@ -588,7 +588,7 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// is a presentation with no kind.
 ///
 /// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason exactly: a panel kind is
-/// non-negative by construction (`panel::kBuilder` is 0 and `kFirstRuntimeKind` is 1024), so
+/// non-negative by construction (every `panel::k*` is, and `kFirstRuntimeKind` is 1024), so
 /// the sentinel cannot collide with a kind a later catalog might mean, and a consumer that
 /// forgot to test it would fall outside every lookup rather than into the first one.
 inline constexpr std::int64_t kNoKind = -1;
@@ -797,23 +797,6 @@ struct PaneNaming {
     component::TextBox line;
 };
 
-/// WHAT THE MAKER IS BEING ASKED TO TYPE (LOAD-IT): the role a new plan row needs. A mode
-/// beside `pane_naming`, for the same reason -- a hand halfway through a word: one prompt,
-/// one line, Return loads it, Escape cancels. Nothing is written anywhere until it commits.
-///
-/// IT HAD A SECOND ASKER AND HAS ONE NOW. The Files pane typed a chosen candidate's recipe
-/// fields through this same prompt until the browser became a weave; a pane with a room of
-/// its own types into a line inside it, so the fields, the step and the chosen candidate
-/// left with it and what remains is the one thing command mode still asks for.
-// WL-AUTH-02 -- agents/workshop/authoring.md
-struct AuthoringPrompt {
-    bool open = false;
-    std::string prompt;        ///< the words before the line
-    component::TextBox line;
-    std::string stem;          ///< the artifact the role is for
-    std::string recipe;        ///< the chosen recipe, whose product `o` may load
-};
-
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
 // WL-ARR-01 -- agents/workshop/arrangement.md
 struct PaneGesture {
@@ -993,11 +976,6 @@ struct Session {
     /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
     /// layout-name editor's for the same reason: a maker's hand halfway through a word.
     PaneNaming pane_naming;
-    /// THE AUTHORING PROMPT (LOAD-IT): a mode, session and not pane state, for
-    /// `pane_naming`'s reason exactly. Its other asker -- the Files pane's recipe fields --
-    /// left with the browser, which types into a line inside its own room now.
-    // WL-AUTH-02 -- agents/workshop/authoring.md
-    AuthoringPrompt authoring;
     /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
     /// buffer with its caret/selection/history, the saved copy the dirty answer derives
     /// from, and the viewport. Session and not pane state, emphatically: the Editor PANE
@@ -1604,21 +1582,6 @@ PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc);
 /// bounds decomposed onto the wire's cells-plus-remainder spelling.
 surface::SurfaceTextRegion panel_prose_region(const PanelProsePlace& place);
 
-/// A panel's own field: a fixed-width label and its value, so the values line up down the
-/// panel and a maker reads a column rather than a paragraph.
-std::string panel_field(const char* label, const std::string& value);
-
-/// A field whose value is longer than a row: wrapped across a fixed row budget, and MARKED
-/// when the budget ran out before the sentence did.
-std::vector<std::string> panel_block(const char* label, const std::string& value,
-                                            std::size_t rows, std::int64_t width);
-
-/// THE BUILDER PANEL — Workshop's presentation of a weave it does not own.
-void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const FineRect& b, const Screen& sc,
-                          const ProjectFrontier& frontier = {},
-                          std::int64_t chrome = kPaneChrome);
-
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
 
@@ -1666,11 +1629,6 @@ std::string picker_entry_text(const std::string& name, const char* state,
 /// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
 /// ALREADY OPEN, in a fixed column so the list reads down; it asks for the stack's first
 /// slot through `picker_bounds` rather than knowing where that is.
-/// THE AUTHORING PROMPT'S BOX, over the first slot as the picker's is, and the
-/// prompt's line as its heading while a field is being typed (PICK-1).
-// WL-AUTH-01 -- agents/workshop/authoring.md
-void paint_authoring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
-
 void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
                          const Screen& sc, const Keymap& keymap);
 
