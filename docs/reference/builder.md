@@ -30,16 +30,18 @@ for.
 - **Neither of them owns the catalog.** The host that composed the process holds one completed
   recipe catalog for as long as it runs -- and can replace what it holds, which is how Workshop
   lets a maker choose another catalog file without restarting -- and both weaves read it: the
-  runner the whole recipe, the tool the reduced view. Neither keeps a copy that could go on
-  answering for a catalog the host has moved past, which is what makes "the recipe this build
-  runs is the recipe this Workshop means" a property of the arrangement rather than of two
-  parties agreeing. A build already in flight is the one thing a replacement does not reach:
+  runner the whole recipe, the tool the reduced view -- and, since `RecipeCatalog` v2, the tool
+  also reads the FILE those rows came from and publishes it beside them, so a presentation can
+  name the catalog in force and can never show one catalog's rows under another's name. Neither
+  weave keeps a copy that could go on answering for a catalog the host has moved past, which is
+  what makes "the recipe this build runs is the recipe this Workshop means" a property of the
+  arrangement rather than of two parties agreeing. A build already in flight is the one thing a replacement does not reach:
   the tool resolved the file that operation is about when the ask was accepted, and reports the
   ending against that.
 - **The wire cannot spell a command.** `BuildRequested` and `RunBuild` carry a recipe *name*;
   there is no shape here whose field is a program, an argument list, a directory or a shell
   line — and no recipe *input* travels either, so the widest thing anything on this bus can say
-  is "build the recipe called X". "The panel sent a command" is not a sentence this vocabulary
+  is "build the recipe called X". "The pane sent a command" is not a sentence this vocabulary
   can express, which is a property of the types rather than of a check.
 - **`run.hpp` is not a shell.** It takes a program and an argument vector and runs them —
   `fork`/`exec` with a pipe on POSIX, `CreateProcess` with a pipe on Windows. `popen()` would
@@ -195,7 +197,7 @@ still runs inside an ordinary handler, on the ordinary Loom execution thread, wi
   throw away exactly the lines that say what went wrong.
 - **The runner owns the unfinished work**, because it is the participant that possesses the
   process capability and therefore the only one that can honestly say it saw a child exit. Not
-  Workshop, not the panel, not the Kernel, not an ambient registry.
+  Workshop, not the pane, not the Kernel, not an ambient registry.
 - **It polls its own handles on an ordinary beat, and polling stops there.** The runner is a
   `TimedWeave`: it asks the Timer for a repeating beat when it takes custody of something and
   cancels the beat when it has nothing left to watch, so an idle Workshop carries no Builder

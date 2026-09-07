@@ -20,13 +20,20 @@ picker over the catalog of panel kinds Workshop knows how to present (`panel.hpp
 that is not in the catalog cannot be opened by any gesture at all — and the catalog
 has **two halves**: a compile-time constant array of Workshop's own, and a bounded
 **session-local runtime catalog** of panes some office actually offered this run (see
-*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The first two built-ins
-were chosen to be unalike:
+*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The first two built-ins were
+chosen to be unalike:
 
 | kind | presents | behind it |
 |---|---|---|
 | `Builder` | one known build target, and how its build is going | a weave holding `zengine.builder` |
 | `Info` | the `OBJECTS` list and the `PROPERTIES` inspector | nothing — the document and the session |
+
+⚠ **`Builder` is a LOADED pane now**, and the row above is history rather than this build's
+catalog: it arrives by a plan row naming `zengine-builder-pane`, exactly as `Files` does, and
+Workshop compiles nothing for it. It is left in the table because the pair is what the two
+paragraphs below argue with, and because a reader who finds the pane on their screen should be
+able to find out where it went. The built-in half of the catalog is `Info`, `Editor`, `Layouts`
+and `Pane Manager`.
 
 `panel == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
 that sentence rather than asserting it: opening it sends no message, asks no office and needs
@@ -50,15 +57,16 @@ has declined, so presence moved wholly to the picker and `x` is an unbound key a
 drew them unconditionally, and the only way to not have them was to edit `paint`. What the
 migration moved is where they are painted from; what a maker sees at boot is byte-identical.
 
-- **The panel is not the tool.** The Builder panel holds a *copy* of the last `BuildStatus` the
-  Builder tool published, and closing the panel destroys the copy and nothing else. Reopening
+- **The pane is not the tool.** The Builder pane holds a *copy* of the last `BuildStatus` the
+  Builder tool published, and removing the pane destroys the copy and nothing else. Reopening
   it sends `builder::StatusRequested` and shows the tool's own answer — including `asks N
   ever`, the tool's running count, which comes back as 3 rather than as 1 and is the number a
-  panel that owned the state could not produce.
-- **Workshop gained two sentences and no powers.** Its grant adds `StatusRequested` and
-  `BuildRequested`, both scoped *to the Builder office*. It cannot reach the runner, and the
-  only build it can ask for is the one the tool has already named — a panel that has not heard
-  from its tool cannot ask for anything, and says so.
+  pane that owned the state could not produce.
+- **Workshop gained two sentences and later gave them back.** Its grant used to add
+  `StatusRequested` and `BuildRequested`, both scoped *to the Builder office*; the pane is a
+  loaded weave now and says them in its own image, so this host holds neither. The only build
+  anything here can ask for is still the one the tool has already named — a pane that has not
+  heard from its tool cannot ask for anything, and says so.
 - **There are two places, they are named, and there is no layout policy**. A kind
   DECLARES its place in the catalog — `placement::kOverlayStack` or `placement::kSideRegion` —
   and one function turns a place plus a screen into the rectangle that panel occupies:
@@ -129,8 +137,10 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 - **No focus framework.** Twenty contexts for the keyboard (`KeyContext`, `workshop/keymap.hpp`)
   plus one per external pane holding the keys, keyed by its runtime handle, resolved fresh at
   every keystroke by one routing chain: the terminal overlay, the arrangement scopes, the
-  contextual surface, the modes, a focused pane, then command mode. `p` and `b` were unbound keys and
-  `b` still does nothing with no Builder panel open. The inspector's own keys (`up`, `down`,
+  contextual surface, the modes, a focused pane, then command mode. `p` was an unbound key and
+  `b` was one until the Builder panel took it, and it is an unbound key here again — because
+  the Builder is a pane weave and `b` is one of ITS rows, active only while a maker's typing is
+  pointed at it. The inspector's own keys (`up`, `down`,
   Return) belong to `Info`: with it removed they say so instead of driving rows nobody can see,
   which would otherwise open a draft that no screen shows and that `^s` would then refuse to
   save over. The pointer's rule is the three lines above it and is still one `if` per line —
@@ -200,10 +210,11 @@ Setup
   with. Two `static_assert`s over the catalog say every row has a reference and no two rows share
   one — both failures are otherwise silent.
 - **Resolution is fallible, and internal lookup stayed total.** `panel_kind(unknown)` still
-  answers with the Builder, which is correct for its callers (they derive a kind from a picker
-  cursor or an open panel). `resolve_pane(ref, runtime)` is a **second, narrower door** that
-  answers with *nothing*: an unknown provider or an unknown pane key resolves to no kind, and **an
-  unknown reference never becomes the Builder**. Nothing that meets a file goes through the total
+  answers with the catalog's FIRST ROW, which is correct for its callers (they derive a kind
+  from a picker cursor or an open panel) and is an accident of order rather than a choice — it
+  was the Builder until that pane became a weave. `resolve_pane(ref, runtime)` is a **second,
+  narrower door** that answers with *nothing*: an unknown provider or an unknown pane key
+  resolves to no kind, and **an unknown reference never becomes a built-in**. Nothing that meets a file goes through the total
   one. It consults the built-in catalog **and** this session's runtime catalog, and the
   runtime half is a **required argument** rather than a default or a second overload —
   `resolve_builtin_pane` is the narrow question under its own name, so neither can be reached by

@@ -79,8 +79,10 @@ what is loaded.
 The choice lasts for the session. Nothing is remembered: the next launch picks its catalog from
 `--recipes` or the default exactly as this one did.
 
-Once you have changed catalogs, the Builder pane carries a `catalog` row naming the one in
-force, so the banner's answer being out of date is not something you have to keep in your head.
+The Builder pane's header names the catalog in force beside the office it presents, so the
+banner's answer being out of date is not something you have to keep in your head. That name is
+the recipe owner's own -- it rides the same answer the pane's recipe rows come from, so the
+pane can never show one catalog's recipes under another catalog's name.
 
 ## Authoring a recipe from Files
 
@@ -126,8 +128,10 @@ removing a row is still a text editor's job.
 
 The reload story [below](#load-after-build-and-reload-in-place) needs the project to already
 name the artifact. When it does not — a recipe you just authored, say — press **`o`** (*load it*)
-on the chosen recipe. Workshop asks for one thing, the **role** the weave should occupy, and
-refuses an empty one in the plan's own words. Then:
+on the chosen recipe. The pane asks for one thing, on a line inside its own room -- the **role**
+the weave should occupy -- and refuses an empty one in the plan's own words. `Return` commits it
+and `Escape` abandons the whole thing; while the line is open every other key is an ordinary
+character for it. Then:
 
 1. the row `{ artifact, weave: { role } }` is handed to the running project **first**, and the
    project walks to it exactly as it walks a startup row: an artifact whose file is where the
@@ -150,7 +154,9 @@ and points at `B`, which is the gesture that builds *and* loads a named artifact
 
 ## Using it
 
-Open the pane with **`p`** → `Builder` → `Enter`. Then:
+Open the pane with **`p`** → `Builder` → `Enter`, then **press into it**. The Builder is a pane
+like any other and its keys are its own: they act while your typing is pointed at it, and from
+anywhere else they do nothing. Nothing builds by default from across the desk.
 
 | key | does |
 |---|---|
@@ -162,9 +168,10 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
-| **`p`** | remove the pane |
+| **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 
-The pane shows the chosen recipe and what it makes, where the last build got to (with its
+The pane shows the office it presents and the catalog in force, the chosen recipe and what it
+makes, where the last build got to (with its
 operation number and how many times the runner has been heard about it), the exit status, what
 was actually run, **the realization outcome on its own row**, and the last lines the build
 said (three rows ordinarily, two while the project-frontier row below is present).

@@ -32,13 +32,10 @@ enum class KeyContext : std::uint8_t {
     // WL-MAKER-11 -- agents/workshop/maker-pane.md
     kPaneNaming,
     kPicker,
-    /// THE AUTHORING PROMPT: one line a maker types a plan row's role into (LOAD-IT).
-    ///
-    /// IT USED TO SERVE TWO ASKERS. The Files pane's recipe fields were typed here too,
-    /// until the browser became a weave and took its own prompt inside its own room; what
-    /// is left is `builder.load`'s role, which is command mode's and stays here.
-    // WL-AUTH-02 -- agents/workshop/authoring.md
-    kAuthoring,
+    // THE AUTHORING PROMPT'S CONTEXT IS GONE. It held one line a maker typed a plan row's
+    // role into, for two askers in turn -- the Files pane's recipe fields, then
+    // `builder.load`'s role -- and both of those panes are weaves now, each with its own
+    // line inside its own room. A context with no asker is a mode nothing can enter.
     kAttention,
     kContext,
     kPane,
@@ -60,7 +57,7 @@ enum class KeyContext : std::uint8_t {
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
     return c == KeyContext::kTerminal || c == KeyContext::kNaming ||
            c == KeyContext::kPaneNaming || c == KeyContext::kPane || c == KeyContext::kDraft ||
-           c == KeyContext::kEditor || c == KeyContext::kAuthoring;
+           c == KeyContext::kEditor;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -151,14 +148,6 @@ enum class Act : std::uint8_t {
     kWorkspaceNarrower,
     kWorkspaceWider,
     kPicker,
-    kBuild,
-    kBuildRealize,
-    kPromote,
-    kRevert,
-    kLoadIt,
-    kRecipeNext,
-    kRecipeBack,
-    kBuildFrontier,
     kSetupSave,
     kSetupRestore,
     kLayoutNext,
@@ -171,7 +160,6 @@ enum class Act : std::uint8_t {
     kLayoutMoveRight,
     kArrangeDesk,
     kPaneTitles,
-    kEditSource,
     // -- the source editor's controls --------------------------------------------------
     kEditorSave,
     kEditorNewline,
@@ -205,8 +193,6 @@ enum class Act : std::uint8_t {
     kPickerChoose,
     kPickerClose,
     // -- the authoring prompt (LOAD-IT) ------------------------------------------------
-    kAuthoringCommit,
-    kAuthoringCancel,
     // -- the current-condition view -----------------------------------------------------
     kAttentionUp,
     kAttentionDown,
@@ -338,30 +324,15 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kWorkspaceWider, "workspace.wider", "widen workspace", KeyContext::kCommand,
      {scan::kRightBracket, mod::kNone}},
     {Act::kPicker, "workshop.picker", "+ panel", KeyContext::kCommand, {scan::kP, mod::kNone}},
-    {Act::kBuild, "builder.build", "build", KeyContext::kCommand, {scan::kB, mod::kNone}},
-    // ONE ACTION IN TWO STATES (RELOAD-1): before or during a build it is a toggle --
-    // pressed, the next `b` builds AND loads; when an artifact is built and ready to
-    // load and nothing is armed, it is the button that loads it now. The identity is
-    // the row it always was (WL-KEY-06), so a maker's authored override keeps working;
-    // what moved is the label, which says what the row means now.
-    {Act::kBuildRealize, "builder.build-realize", "load after build", KeyContext::kCommand,
-     {scan::kB, mod::kShift}},
-    // THE TWO ACTS A RELOAD LEAVES A MAKER: make the running image the one a restart
-    // loads, or run the image before the last reload again. Ordinary rows, movable.
-    {Act::kPromote, "builder.promote", "promote image", KeyContext::kCommand,
-     {scan::kP, mod::kShift}},
-    {Act::kRevert, "builder.revert", "revert image", KeyContext::kCommand,
-     {scan::kR, mod::kShift}},
-    // LOAD IT (LOAD-IT): the chosen recipe's artifact gains the minimum plan row, with a
-    // role the maker types. `o` is a bare letter free in command mode (`l` is `object.right`),
-    // and it is a command-mode row because its subject is the Builder's chosen recipe.
-    {Act::kLoadIt, "builder.load", "load it", KeyContext::kCommand, {scan::kO, mod::kNone}},
-    {Act::kRecipeNext, "builder.recipe", "recipe", KeyContext::kCommand,
-     {scan::kC, mod::kNone}},
-    {Act::kRecipeBack, "builder.recipe-back", "recipe back", KeyContext::kCommand,
-     {scan::kC, mod::kShift}},
-    {Act::kBuildFrontier, "builder.frontier", "frontier", KeyContext::kCommand,
-     {scan::kF, mod::kNone}},
+    // ⭐ THE NINE BUILD ROWS LEFT WITH THE BUILDER PANEL (VD-22). `b`, `B`, `P`, `R`, `o`,
+    // `c`, `C`, `f` and `e` were command-mode rows: they acted on the Builder panel from
+    // anywhere in Workshop, as long as one happened to be open. The Builder is a weave now
+    // (`Zengine/builder-pane/`) and it declares those same nine ids as its OWN rows, so a
+    // maker presses into the pane and then builds -- and a maker's authored override for
+    // `builder.build` is applied to the pane's row wherever they moved it (WL-KEY-15).
+    // Nothing does something by default from anywhere; a button, hover-to-focus, or
+    // Workshop mapping a key straight to a weave's action are later UX with many options,
+    // and none of them is a default now.
     // SAVING A SETUP STOPPED NAMING A LAYOUT, and the IDENTITY is deliberately the
     // old `setup.name` -- a maker's authored override for it keeps working, exactly as
     // `workshop.manage` kept working when arrangement changed what it opens. What moved is the
@@ -457,13 +428,6 @@ inline constexpr ActionRow kActionCatalog[] = {
     // all chords, kNoText holds only `^c`, and no other kCommand row spends it.
     {Act::kPaneTitles, "workshop.pane-titles", "titles", KeyContext::kCommand,
      {scan::kT, mod::kNone}},
-    // EDIT THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- the Builder-owned door into
-    // the source editor. `e` bare: portable, free in every context that intersects
-    // kCommand, and the recipe it opens is exactly the row `builder.build` would build,
-    // so the two gestures cannot come to mean different recipes. With no Builder panel
-    // open it does nothing, exactly as `b` does.
-    {Act::kEditSource, "builder.edit-source", "edit source", KeyContext::kCommand,
-     {scan::kE, mod::kNone}},
     // -- the source editor's controls --------------------------------------------------
     //
     // THE EDITOR'S POLICY KEYS, beside its component-shaped mechanics (which live in
@@ -552,15 +516,11 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kPickerClose, "picker.close", "cancel", KeyContext::kPicker,
      {scan::kEscape, mod::kNone}},
-    // -- the authoring prompt's own two keys (LOAD-IT) ----------------------------------
-    //
-    // ONE ASKER NOW. The prompt served the Files pane's recipe fields as well until the
-    // browser became a weave and took its own line inside its own room; what is left is the
-    // role `builder.load` asks for, so the commit label says what committing does.
-    {Act::kAuthoringCommit, "authoring.commit", "load it", KeyContext::kAuthoring,
-     {scan::kReturn, mod::kNone}},
-    {Act::kAuthoringCancel, "authoring.cancel", "cancel", KeyContext::kAuthoring,
-     {scan::kEscape, mod::kNone}},
+    // THE AUTHORING PROMPT'S TWO KEYS LEFT WITH ITS CONTEXT (LOAD-IT). It was a modal of
+    // this host's -- one line a maker typed a plan row's role into, in a keyboard context
+    // of Workshop's own -- and it served the Files pane too until that browser took its own
+    // line inside its own room. The Builder pane did the same, so the last asker is gone and
+    // the context with it.
     // -- the current-condition view's own keys ------------------------------------------
     //
     // The picker's four, one purpose over. `d` rather than Return for the one gesture that

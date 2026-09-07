@@ -450,11 +450,14 @@ TEST_CASE("EDIT-1: the editor opens the file that recipe's build would compile")
         }
         return out;
     };
+    // ⭐ THE GESTURE CROSSES AS A SENTENCE NOW. `builder.edit-source` is the Builder PANE'S
+    // row, so what reaches this host is `RecipeSourceRequested{recipe}` at `zengine.workshop`
+    // -- a recipe NAME, never a path -- and the host resolves it against the catalog it owns
+    // and opens the result through the one Editor door.
     ToolSeat* tool = mount_tool(r.t, "one");
     (void)tool;
-    open_builder(r.t);
-    r.t.key(input::scan::kE);
-    r.t.text("e");
+    DoorAsker* asker = mount_door_asker(r.t);
+    CHECK(edit_source_through_door(r.t, asker, "one").accepted);
     REQUIRE(r.session().editor.open_document());
     CHECK(r.session().editor.path ==
           (r.root / "src" / "example.cpp").lexically_normal().generic_string());
@@ -662,11 +665,14 @@ TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names"
     owner.hold("/project/recipes.json", std::move(all), &HostContext::so_in);
     r.t.host.recipe_source = host_recipe_source(owner);
 
+    // ⭐ THE GESTURE CROSSES AS A SENTENCE NOW. `builder.edit-source` is the Builder PANE'S
+    // row, so what reaches this host is `RecipeSourceRequested{recipe}` at `zengine.workshop`
+    // -- a recipe NAME, never a path -- and the host resolves it against the catalog it owns
+    // and opens the result through the one Editor door.
     ToolSeat* tool = mount_tool(r.t, "one");
     (void)tool;
-    open_builder(r.t);
-    r.t.key(input::scan::kE);
-    r.t.text("e");
+    DoorAsker* asker = mount_door_asker(r.t);
+    CHECK(edit_source_through_door(r.t, asker, "one").accepted);
     REQUIRE(r.session().editor.open_document());
     CHECK(r.session().editor.path ==
           (r.root / "src" / "example.cpp").lexically_normal().generic_string());
@@ -1083,14 +1089,13 @@ TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves w
     r.t.host.use_recipes = host_use_recipes(owner, install, r.t.host.project_dir);
     REQUIRE(r.t.host.use_recipes((r.root / "a-recipes.json").generic_string()).accepted);
 
+    // ⭐ THE TOOL IS THE CONSUMER THIS CASE CAN SEE, and since the Builder panel became a
+    // weave it is the only one in this process: what a PANE makes of the change is asserted
+    // in the pane's own suite, against the real seam. What the host owes is that the owner,
+    // the tool and the answer all move together.
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
-    open_builder(r.t);
-    REQUIRE(r.session().panels.builder.known.recipes.size() == 1);
-    REQUIRE(r.session().panels.builder.known.recipes[0].recipe == "alpha");
-    REQUIRE(r.shown().find("alpha -> alpha  (1/1)") != std::string::npos);
-    // NOTHING NAMES A CATALOG YET: the session has not moved, and the host's banner said
-    // the launch catalog correctly.
-    REQUIRE(r.shown().find("catalog") == std::string::npos);
+    REQUIRE(tool->recipes().size() == 1);
+    REQUIRE(tool->recipes()[0].id == "alpha");
 
     const HostContext::RecipeSwap moved =
         choose_catalog(r.t, (r.root / "b-recipes.json").generic_string());
@@ -1108,32 +1113,12 @@ TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves w
     // list it kept. It was never destroyed, never recreated, and never told a recipe.
     REQUIRE(tool->recipes().size() == 2);
     CHECK(tool->recipes()[1].id == "gamma");
-    // ...AND THE PANEL SHOWS IT, republished through the same `StatusRequested` an opening
-    // panel has always sent. No observer, no subscription, no second recipe event.
-    REQUIRE(r.session().panels.builder.known.recipes.size() == 2);
-    CHECK(r.session().panels.builder.known.recipes[0].recipe == "beta");
-    CHECK(r.shown().find("beta -> beta  (1/2)") != std::string::npos);
     // THE MAKER IS TOLD WHAT HAPPENED AND WHAT IS NOW CURRENT -- by the PANE, out of the
     // answer this door gave it, so the sentence is asserted where the pane is
     // (`test_files.cpp`). What the host owes is the answer itself, and it is both halves.
-    // ⚠ AND THE PANEL'S OWN `catalog` ROW YIELDS AT THIS SIZE (WUX-5).
-    // The Builder's composition priority puts the catalog row LAST on purpose, so a budget that cannot seat every
-    // fact drops this one first -- which the shipped face already did at five rows and
-    // the character medium now does too, its interior being two rows shorter than the
-    // slot. What the panel still carries at this size, and what it carries when it has
-    // the room, are both pinned: the composition itself is the document suite's
-    // "PROJ-1: the catalog row costs one 'said' row" case, at explicit budgets.
-    const std::string panel = r.shown();
-    CHECK(panel.find("catalog  ") == std::string::npos);
-    // ...AND EVERY FACT A MAKER ACTS ON IS STILL ON THE PANEL, in the same order.
-    for (const char* kept : {"BUILDER @", "recipe   ", "last     ", "realize  ", "exit     ",
-                             "ran      ", "said     "}) {
-        CHECK_MESSAGE(panel.find(kept) != std::string::npos, "the catalog row displaced `",
-                      kept, "`");
-    }
 }
 
-TEST_CASE("PROJ-1: the chooser does not need the Builder panel to be open") {
+TEST_CASE("PROJ-1: the chooser needs no Builder pane loaded at all") {
     // THE ORDERING CLAIM, MADE EXPLICITLY. Choosing what this project can build is not an
     // act on the Builder's presentation, so requiring that presentation to exist first
     // would be a gesture that depended on which panes a maker happened to have open.
@@ -1145,19 +1130,17 @@ TEST_CASE("PROJ-1: the chooser does not need the Builder panel to be open") {
                                             r.t.host.project_dir);
     REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
-    REQUIRE_FALSE(r.session().panels.has(panel::kBuilder));
 
     REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
 
     CHECK(owner.source() == (r.root / "b.json").generic_string());
     REQUIRE(tool->recipes().size() == 1);
     CHECK(tool->recipes()[0].id == "beta");
-    // ...AND A PANEL OPENED AFTERWARDS IS TOLD THE TRUTH BY THE ORDINARY ASK. The keys
-    // are in the browser, so they are handed back first -- the picker is command mode's.
-    r.to_command();
-    open_builder(r.t);
-    REQUIRE(r.session().panels.builder.known.recipes.size() == 1);
-    CHECK(r.session().panels.builder.known.recipes[0].recipe == "beta");
+    // ⭐ ...AND THE CLAIM IS STRONGER SINCE THE BUILDER BECAME A WEAVE, not weaker: there is
+    // no Builder presentation in this process AT ALL, so the ordering this case names --
+    // choosing what a project builds is not an act on the Builder's presentation -- is now a
+    // property of the arrangement rather than of what a maker happened to have open. A pane
+    // that loads later is told by the ordinary ask, and that is the pane's own case.
 }
 
 TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") {
@@ -1174,17 +1157,13 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
                                             r.t.host.project_dir);
     REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
-    open_builder(r.t);
     const Held before = held_by(owner);
-    const std::size_t catalogs_before = r.session().panels.builder.known.recipes.size();
 
     const HostContext::RecipeSwap refused =
         choose_catalog(r.t, (r.root / "notes.txt").generic_string());
     REQUIRE_FALSE(refused.accepted);
 
     CHECK(held_by(owner) == before);
-    CHECK(r.session().panels.builder.known.recipes.size() == catalogs_before);
-    CHECK(r.session().panels.builder.known.recipes[0].recipe == "alpha");
     REQUIRE(tool->recipes().size() == 1);
     CHECK(tool->recipes()[0].id == "alpha");
     // ⭐ BOTH HALVES OF WHAT A MAKER IS OWED ARE IN THE ANSWER, which is the part the host
@@ -1197,16 +1176,13 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
     CHECK_FALSE(refused.refusal.empty());
     CHECK(refused.path == (r.root / "a.json").generic_string());
     CHECK(refused.recipes == 1);
-    // ...AND NO CATALOG ROW APPEARED, because this session has not moved.
-    CHECK(r.shown().find("catalog  ") == std::string::npos);
-
     // A DIRECTORY NEVER REACHES THE OWNER AT ALL: the pane refuses it in its own words
     // before it asks, which is why there is nothing here to assert but the arrangement --
     // the case for it is the pane's (`test_files.cpp`).
     CHECK(held_by(owner) == before);
 
     // AND WORKSHOP IS STILL WORKSHOP: a refusal cost the maker the answer and nothing else.
-    CHECK(r.session().panels.has(panel::kBuilder));
+    CHECK(r.session().panels.has(panel::kInfo));
 }
 
 TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved editor buffer") {
@@ -1216,7 +1192,7 @@ TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved edito
     // or saving it first -- would make an unsaved draft into build procedure.
     CurrentRecipes owner;
     ProjectRig r("dirtycat");
-    DoorAsker* asker = asker_for(r);
+    DoorAsker* asker = mount_door_asker(r.t);
     put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
     r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
@@ -1265,17 +1241,18 @@ TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved edito
     CHECK(held_by(owner) == before);
 }
 
-TEST_CASE("PROJ-1: the republish is the ask the panel already sends, once") {
-    // ⭐ THE ROUTE, COUNTED. `Panels::builder.known` is a derived presentation copy and the
-    // one live catalog projection that still needs a push -- so a replacement has to push
-    // it, and the only honest question is WHAT it pushes with. The answer is the message an
-    // opening panel has always sent: one `StatusRequested`, to the office that already
-    // answers it, publishing the two shapes it already publishes.
+TEST_CASE("PROJ-1: the republish is the ask a presentation already sends, once") {
+    // ⭐ THE ROUTE, COUNTED. A live catalog projection needs a push when the catalog moves --
+    // so a replacement has to push it, and the only honest question is WHAT it pushes with.
+    // The answer is the message a presentation has always sent: one `StatusRequested`, to the
+    // office that already answers it, publishing the two shapes it already publishes. The
+    // pushER is the host here (it holds the catalog owner); every CONSUMER is a weave now.
     //
     // The stand-in is used here rather than the real tool precisely because it COUNTS: it
     // records how many times it was asked, which is the fact this case is about. An
     // observer graph, a subscription, a second recipe event or a repeated poll would all
-    // show up as a different number.
+    // show up as a different number -- and the baseline is ZERO now, because no built-in
+    // asks it anything when a panel opens.
     CurrentRecipes owner;
     ProjectRig r("republish");
     put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
@@ -1283,13 +1260,11 @@ TEST_CASE("PROJ-1: the republish is the ask the panel already sends, once") {
     r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
     ToolSeat* tool = mount_tool(r.t, "alpha");
-    open_builder(r.t);
-    REQUIRE(tool->described == 1); // the panel opening
-    REQUIRE(tool->described == 1); // ...and nothing since
+    REQUIRE(tool->described == 0); // nothing has asked it anything
 
     REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
 
-    CHECK(tool->described == 2);
+    CHECK(tool->described == 1);
     // NOTHING ELSE WAS SAID. No build was ordered, and the tool heard exactly one more
     // sentence than it had heard before.
     CHECK(tool->asked.empty());
@@ -1297,11 +1272,11 @@ TEST_CASE("PROJ-1: the republish is the ask the panel already sends, once") {
     // A SECOND CHOICE IS A SECOND ASK AND NOT A SECOND MECHANISM -- including the
     // same-file reload, which is a real replacement and says so on the wire.
     REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
-    CHECK(tool->described == 3);
+    CHECK(tool->described == 2);
 
-    // ...AND A REFUSAL PUSHES NOTHING, because nothing changed for a panel to be told about.
+    // ...AND A REFUSAL PUSHES NOTHING, because nothing changed for a pane to be told about.
     REQUIRE_FALSE(choose_catalog(r.t, (r.root / "notes.txt").generic_string()).accepted);
-    CHECK(tool->described == 3);
+    CHECK(tool->described == 2);
 }
 
 TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowhere") {

@@ -174,10 +174,10 @@ inline std::string to_text(const Setup& s) {
 struct LoadedSetup {
     Written outcome;
     Setup setup;
-    std::int64_t converted = 0;
+    pane_migration::Converted converted;
 
     static LoadedSetup no(std::string why) {
-        return LoadedSetup{Written::no(std::move(why)), {}, 0};
+        return LoadedSetup{Written::no(std::move(why)), {}, {}};
     }
 };
 
@@ -313,7 +313,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
 /// version 2's own format claim and word vocabulary, landing on the fine lattice.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
-                           std::int64_t* converted = nullptr) {
+                           pane_migration::Converted* converted = nullptr) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
     }
@@ -342,9 +342,10 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
     // the same candidate, before the same law. A version-2 setup can name the built-in
     // browser as easily as a version-3 one, and it is older, so if either road were to skip
     // this it would be the wrong one.
-    const std::int64_t moved = pane_migration::convert_retired_panes(candidate);
+    const pane_migration::Converted moved = pane_migration::convert_retired_panes(candidate);
     if (converted != nullptr) {
-        *converted += moved;
+        converted->files += moved.files;
+        converted->builder += moved.builder;
     }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {
@@ -360,7 +361,7 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written setup_in(const WorkshopSetup& file, Setup& out,
-                        std::int64_t* converted = nullptr) {
+                        pane_migration::Converted* converted = nullptr) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
     }
@@ -401,9 +402,10 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
     // layout's link. The rewrite is not a loosening: the converted candidate then meets the
     // setup's whole law below, so a file that named BOTH spellings is refused for naming one
     // pane twice rather than quietly holding two rows for it.
-    const std::int64_t moved = pane_migration::convert_retired_panes(candidate);
+    const pane_migration::Converted moved = pane_migration::convert_retired_panes(candidate);
     if (converted != nullptr) {
-        *converted += moved;
+        converted->files += moved.files;
+        converted->builder += moved.builder;
     }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {
@@ -448,7 +450,7 @@ inline LoadedSetup from_text(std::string_view bytes) {
             return LoadedSetup::no(old.first_error().message());
         }
         Setup candidate;
-        std::int64_t converted = 0;
+        pane_migration::Converted converted;
         const Written understood = setup_in_v2(
             loom::from_value<v2::WorkshopSetup>(old.value()), candidate, &converted);
         if (!understood.accepted) {
@@ -474,7 +476,7 @@ inline LoadedSetup from_text(std::string_view bytes) {
     // leaves Workshop halfway restored" stays structural: `setup_in` fills this and nothing
     // else, and only a setup that passed every layer is ever returned.
     Setup candidate;
-    std::int64_t converted = 0;
+    pane_migration::Converted converted;
     const Written understood =
         setup_in(loom::from_value<WorkshopSetup>(admitted.value()), candidate, &converted);
     if (!understood.accepted) {
@@ -503,7 +505,7 @@ inline Written save_file(const std::string& path, const Setup& s) {
 inline LoadedSetup load_file(const std::string& path) {
     const persist::FileText read = persist::read_file(path, kMaxSetupBytes, "a Workshop setup");
     if (!read.outcome.accepted) {
-        return LoadedSetup{read.outcome, {}};
+        return LoadedSetup{read.outcome, {}, {}};
     }
     return from_text(read.text);
 }

@@ -1798,6 +1798,66 @@ TEST_CASE("INTR-1: the browser this host used to compile is named by no presenta
     }
 }
 
+TEST_CASE("INTR-1: the Builder panel this host used to compile is named by no presentation source") {
+    // ⭐ THE SAME CLAIM, THE SECOND TIME, AND THE HARDER OF THE TWO. The project browser was
+    // one subject leaving whole; the Builder PANEL left its TOOL behind -- `zengine.builder`
+    // is still mounted in this host's `main` -- so the failure mode is not a coupling somebody
+    // restores wholesale but one row, one branch or one copy creeping back beside a tool the
+    // host legitimately still holds.
+    //
+    // THE FORBIDDEN FORMS ARE IDENTIFIERS AND QUOTED LITERALS. `panel::kBuilder` and
+    // `pane_key::kBuilder` were the compile-time handle and its durable name; the nine `Act::`
+    // values were its command-mode rows and `KeyContext::kAuthoring` the mode its role prompt
+    // took the keyboard in; `BuilderPane`, `paint_builder` and `paint_authoring` were its
+    // state and its two painters. Every one of them is gone, and a presentation that could
+    // spell one is a presentation that has started to own a pane again.
+    //
+    // ⚠ `builder::` IS NOT FORBIDDEN AND MUST NOT BE. The host still mounts the TOOL, writes
+    // its grant and holds the recipe catalog it reads -- a tripwire that could not tell the
+    // tool from its presentation would forbid this host from having a Builder at all.
+    //
+    // ⚠ AND ONE FILE IS EXEMPT, BY NAME, for `pane_migration.hpp`'s own reason one pane over:
+    // it exists precisely so that exactly one file spells the retired reference, for saved
+    // files that still hold it (`presentation_sources`, workshop_support.hpp).
+    std::vector<std::string> sources = presentation_sources();
+    sources.push_back(WORKSHOP_HOST_CPP);
+    for (const std::string& path : sources) {
+        const std::string source = file_source(path.c_str());
+        for (const char* forbidden :
+             {"panel::kBuilder", "pane_key::kBuilder", "BuilderPane", "paint_builder",
+              "paint_authoring", "AuthoringPrompt", "KeyContext::kAuthoring", "Act::kBuild",
+              "Act::kPromote", "Act::kRevert", "Act::kLoadIt", "Act::kRecipeNext",
+              "Act::kRecipeBack", "Act::kEditSource", "Act::kAuthoringCommit",
+              "Act::kAuthoringCancel", "build_now", "build_frontier", "build_realize",
+              "promote_image", "revert_image", "choose_recipe", "load_it", "edit_source"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
+                          forbidden, "'");
+        }
+    }
+    // ...AND NO KIND WAS LEFT BEHIND IN THE CATALOG EITHER. The panel had a compile-time kind;
+    // the catalog is walked rather than counted, so a row that survived under any name would
+    // be caught by what it OFFERS rather than by what it is called.
+    for (const PanelKind& kind : kPanelCatalog) {
+        CHECK_MESSAGE(std::string(kind.pane) != "builder", "the panel catalog still offers the "
+                                                          "built-in Builder");
+        CHECK_MESSAGE(std::string(kind.name) != "Builder", "the panel catalog still offers a "
+                                                          "built-in `Builder`");
+    }
+    // ...AND ITS NINE ROWS LEFT THE KEYMAP WITH IT, so a maker's authored override for one is
+    // resolved by the WEAVE's declaration (WL-KEY-15) and not by a host row that outlived the
+    // pane. The ids are the ones a maker's file already holds.
+    for (const char* id : {"builder.build", "builder.build-realize", "builder.promote",
+                           "builder.revert", "builder.load", "builder.recipe",
+                           "builder.recipe-back", "builder.frontier", "builder.edit-source",
+                           "authoring.commit", "authoring.cancel"}) {
+        CHECK_MESSAGE(row_of_id(id) == nullptr, "the host still declares an action row for `",
+                      id, "`");
+    }
+    // ...AND THE TOOL IS STILL THIS HOST'S, which is the other half of the claim: the office,
+    // its grant and the catalog it reads are `workshop.cpp`'s, and nothing above forbids them.
+    CHECK(file_source(WORKSHOP_HOST_CPP).find("builder::kBuilderRole") != std::string::npos);
+}
+
 TEST_CASE("BLD-2: the presentation holds no realization or build-runner reach") {
     // THE FRONTIER MADE THE PRESENTATION AWARE OF REALIZATION, and this is the wire
     // that keeps "aware" from quietly becoming "in charge". What the weave holds is

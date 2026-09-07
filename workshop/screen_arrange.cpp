@@ -151,9 +151,6 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.pane_naming.open) {
         return KeyContext::kPaneNaming;
     }
-    if (s.authoring.open) {
-        return KeyContext::kAuthoring;
-    }
     if (s.panels.picker.open) {
         return KeyContext::kPicker;
     }

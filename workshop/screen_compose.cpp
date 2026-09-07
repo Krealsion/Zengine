@@ -27,9 +27,7 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
         }
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, sc, frontier, chrome);
-            } else if (p.kind == panel::kInfo) {
+            if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc, chrome);
             } else if (p.kind == panel::kEditor) {
                 paint_editor(layer, s, b, sc, chrome);
@@ -72,9 +70,6 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_picker(layer, panels, s.setup.active, sc, s.keymap);
-    });
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_authoring(layer, s, sc);
     });
     // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
     // covers, under the screen's own chrome. The band keeps speaking while it is open --

@@ -4,15 +4,27 @@
 #ifndef ZENGINE_WORKSHOP_FILES_DOORS_HPP
 #define ZENGINE_WORKSHOP_FILES_DOORS_HPP
 
-// THE TWO DOORS THE FILES WEAVE ASKS, HELD BY THE HOST -- one that reads and one that acts.
+// THE HOST'S SIDE OF THE PANE SEAM -- the doors a pane weave asks, one that reads and two
+// that act.
 //
-//     ProjectDoor   zengine.project   ProjectRootRequested -> ProjectRoot
-//     RecipesDoor   zengine.recipes   RecipeUseRequested    -> RecipeOutcome
-//                                     RecipeAuthorRequested -> RecipeOutcome
+//     ProjectDoor   zengine.project   ProjectRootRequested     -> ProjectRoot
+//                                     ProjectFrontierRequested -> ProjectFrontierSaid
+//                                     PlanNamesRequested       -> PlanNames
+//     RecipesDoor   zengine.recipes   RecipeUseRequested       -> RecipeOutcome
+//                                     RecipeAuthorRequested    -> RecipeOutcome
+//     PlanDoor      zengine.plan      PlanRowRequested         -> PlanRowWritten
 //
-// The third door -- one source opened in the Editor -- is not here: Workshop's own weave
-// holds the Editor, so `OpenSourceRequested` is answered where `open_source` lives
-// (`weave_pane_editor.cpp`), at the office Workshop already holds.
+// The remaining doors -- one source opened in the Editor, by path or by recipe name -- are
+// not here: Workshop's own weave holds the Editor, so `OpenSourceRequested` and
+// `RecipeSourceRequested` are answered where `open_source` lives (`weave_pane_editor.cpp`),
+// at the office Workshop already holds.
+//
+// ⚠ THE FILE IS NAMED FOR THE FIRST PANE THAT ASKED, AND THE OFFICES ARE NOT ITS. The
+// project browser's migration cut this seam and these two doors carry its name; the Builder
+// pane's migration is the second tenant, and it added a shape to the read-only office and
+// one office of its own rather than a second address for a question already answered here.
+// `zengine.project` is THE read-only project office, not Files' -- which is exactly why a
+// second reader could arrive without editing what the first one asks.
 //
 // ---- THEY DERIVE AND CALL; THEY DO NOT REMEMBER --------------------------------
 //
@@ -39,6 +51,7 @@
 // mounts nothing, loads nothing, starts no process, and holds no `Session`. Neither
 // publishes: every answer goes to the one weave that asked.
 
+#include "builder_seam_vocabulary.hpp"
 #include "files_seam_vocabulary.hpp"
 #include "weave.hpp"
 
@@ -53,21 +66,40 @@ namespace zengine::workshop {
 
 /// WHAT THE PROJECT DOOR HAS DONE, and it is all counters -- `ArrangementDoorState`'s own
 /// shape and its own reason: an answer kept between asks would be the mirror these doors
-/// exist not to build.
+/// exist not to build. The three questions are counted apart because they are three
+/// questions, and "how many times was this host asked what it is waiting on" is a different
+/// number from "how many times was it asked where it began".
 struct ProjectDoorState {
-    std::int64_t answers = 0;
-    std::int64_t refused = 0; ///< asks that were not authored as any office
+    std::int64_t answers = 0;   ///< where this run began, and where its marks live
+    std::int64_t frontiers = 0; ///< what realization is waiting on
+    std::int64_t lookups = 0;   ///< whether the plan in force names an artifact
+    std::int64_t refused = 0;   ///< asks that were not authored as any office
     ZEN_EXPOSE();
-    ZEN_SHAPE(ProjectDoorState, 1, ZEN_FIELD(answers), ZEN_FIELD(refused));
+    ZEN_SHAPE(ProjectDoorState, 1, ZEN_FIELD(answers), ZEN_FIELD(frontiers),
+              ZEN_FIELD(lookups), ZEN_FIELD(refused));
 };
 
-/// WHERE THIS RUN BEGAN AND WHERE ITS MARKS LIVE, ANSWERED TO WHOEVER ASKS.
-class ProjectDoor : public loom::WeaveBase<ProjectDoor, ProjectDoorState,
-                                           loom::Accept<ProjectRootRequested>,
-                                           loom::Emit<ProjectRoot>> {
+/// THE READ-ONLY PROJECT OFFICE: where this run began, what its realization is waiting on,
+/// and whether its plan already names an artifact -- answered to whoever asks.
+///
+/// ⚠ THREE QUESTIONS, ONE OFFICE, AND NOT ONE OF THEM RUNS ANYBODY'S CODE. That is the
+/// whole membership rule: an answer that changed the project would belong at an ACTING
+/// office (`RecipesDoor`, `PlanDoor`), so "which office can write a maker's files" keeps a
+/// one-word answer. The first is two strings the host captured once; the second and third
+/// are closures the host already wired over owners it holds, spent at the moment of the ask.
+class ProjectDoor
+    : public loom::WeaveBase<
+          ProjectDoor, ProjectDoorState,
+          loom::Accept<ProjectRootRequested, ProjectFrontierRequested, PlanNamesRequested>,
+          loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames>> {
 public:
-    ProjectDoor(const std::string& project_dir, const std::string& marks_path)
-        : project_dir_(&project_dir), marks_path_(&marks_path) {}
+    using Frontier = std::function<ProjectFrontier()>;
+    using Names = std::function<bool(const std::string&)>;
+
+    ProjectDoor(const std::string& project_dir, const std::string& marks_path,
+                Frontier frontier = {}, Names names = {})
+        : project_dir_(&project_dir), marks_path_(&marks_path), frontier_(std::move(frontier)),
+          names_(std::move(names)) {}
 
     void on(const ProjectRootRequested&, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
@@ -81,9 +113,42 @@ public:
         (void)mail.answer(ProjectRoot{*project_dir_, *marks_path_});
     }
 
+    /// WHAT REALIZATION IS STOPPED ON, DERIVED AT THE ASK. The reading is the host's
+    /// (`HostContext::frontier`, itself derived from the realization owner's own cursor at
+    /// every spend), so no copy is taken anywhere on the path and the answer is the owner's
+    /// frontier at this instant rather than at the instant somebody last refreshed one.
+    ///
+    /// A HOST THAT WIRED NONE ANSWERS THE DESIGNED ABSENCE. `waiting` false with an empty
+    /// artifact is exactly what a project that is complete, still loading, or was never
+    /// begun answers, so a host with no realization at all needs no second grammar.
+    void on(const ProjectFrontierRequested&, loom::Mail& mail) {
+        if (mail.authored_role().empty()) {
+            ++state_.refused;
+            return;
+        }
+        ++state_.frontiers;
+        const ProjectFrontier now = frontier_ ? frontier_() : ProjectFrontier{};
+        (void)mail.answer(ProjectFrontierSaid{now.waiting, now.artifact,
+                                              static_cast<std::int64_t>(now.blocked)});
+    }
+
+    /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? `HostContext::plan_names`, spent
+    /// at the ask. The stem rides back on the answer so the asker reads it against the row
+    /// it asked about rather than against wherever its cursor has since moved.
+    void on(const PlanNamesRequested& asked, loom::Mail& mail) {
+        if (mail.authored_role().empty()) {
+            ++state_.refused;
+            return;
+        }
+        ++state_.lookups;
+        (void)mail.answer(PlanNames{asked.stem, names_ ? names_(asked.stem) : false});
+    }
+
 private:
     const std::string* project_dir_;
     const std::string* marks_path_;
+    Frontier frontier_;
+    Names names_;
 };
 
 /// WHAT THE RECIPES DOOR HAS DONE. Counters, and the two acts told apart, because "a maker
@@ -169,6 +234,64 @@ private:
 
     Use use_;
     Author author_;
+};
+
+/// WHAT THE PLAN DOOR HAS DONE. Counters, and the owner's refusals told from the asks: "a
+/// maker asked to load an artifact" and "the running project would not take it" are two
+/// facts, and a door that counted them as one would answer neither.
+struct PlanDoorState {
+    std::int64_t authored = 0;
+    std::int64_t refusals = 0; ///< rows the owner refused, in its own words
+    std::int64_t refused = 0;  ///< asks that were not authored as any office
+    ZEN_EXPOSE();
+    ZEN_SHAPE(PlanDoorState, 1, ZEN_FIELD(authored), ZEN_FIELD(refusals), ZEN_FIELD(refused));
+};
+
+/// WHICH ARTIFACTS THIS PROJECT LOADS -- the one office that may change them (LOAD-IT).
+///
+/// ⚠ IT IS NOT `RecipesDoor`, AND THE TWO FILES ARE THE REASON. A recipe catalog says how an
+/// artifact is produced; a load plan says which artifacts this project runs. Both are files a
+/// maker authored and both are written through `workshop/authoring.hpp`'s writers, and one
+/// office that could write either would be an office whose one act is two acts -- which is
+/// the property the read/act split was drawn to keep.
+///
+/// IT HOLDS THE CLOSURE THE HOST ALREADY WIRED and spends it at the moment of the ask,
+/// `RecipesDoor`'s shape exactly: the plan's law, the row's composition, the running
+/// project's own answer, the project plan seeded from the plan read at launch, and the
+/// atomic save are all `authoring::append_plan_row`'s, unchanged, behind one sentence. This
+/// door mounts nothing, loads nothing, starts no process, holds no `Session`, and does not
+/// publish: every answer goes to the one weave that asked.
+class PlanDoor : public loom::WeaveBase<PlanDoor, PlanDoorState,
+                                        loom::Accept<PlanRowRequested>,
+                                        loom::Emit<PlanRowWritten>> {
+public:
+    using Append = std::function<HostContext::PlanAppend(
+        const std::string&, const std::string&, const std::string&)>;
+
+    explicit PlanDoor(Append append) : append_(std::move(append)) {}
+
+    void on(const PlanRowRequested& asked, loom::Mail& mail) {
+        if (mail.authored_role().empty()) {
+            ++state_.refused;
+            return; // personal speech, or a root: nobody to be answerable to
+        }
+        ++state_.authored;
+        if (!append_) {
+            (void)mail.answer(PlanRowWritten{false, "this host cannot author plan rows",
+                                             std::string(), false, std::string(),
+                                             std::string()});
+            return;
+        }
+        const HostContext::PlanAppend done = append_(asked.stem, asked.role, asked.recipe);
+        if (!done.accepted) {
+            ++state_.refusals;
+        }
+        (void)mail.answer(PlanRowWritten{done.accepted, done.refusal, done.detail, done.frontier,
+                                         done.product, done.path});
+    }
+
+private:
+    Append append_;
 };
 
 } // namespace zengine::workshop

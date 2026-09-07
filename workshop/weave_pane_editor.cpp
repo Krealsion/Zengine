@@ -473,49 +473,6 @@ void WorkshopWeave::pane_editor_press(const zengine::input::PointerButton& b, st
     }
 }
 
-// WL-EDIT-05 -- agents/workshop/editor.md
-void WorkshopWeave::edit_source(loom::Mail& mail) {
-    if (!session_.panels.has(panel::kBuilder)) {
-        return; // an unbound key with no Builder panel open, exactly as `b` is
-    }
-    const BuilderPane& pane = session_.panels.builder;
-    if (!pane.heard) {
-        say("the Builder has not said what it builds yet -- nothing was opened", true);
-        return;
-    }
-    if (pane.known.recipes.empty()) {
-        say("this project has no build recipes -- nothing was opened", true);
-        return;
-    }
-    const std::size_t at =
-        pane.chosen < pane.known.recipes.size() ? pane.chosen : std::size_t{0};
-    const std::string chosen = pane.known.recipes[at].recipe;
-    if (!host_->recipe_source) {
-        say("this host resolves no recipe sources -- nothing was opened", true);
-        return;
-    }
-    const HostContext::RecipeSource named = host_->recipe_source(chosen);
-    if (!named.known) {
-        say("the Builder's catalog and this project's recipes disagree about `" +
-                chosen + "` -- nothing was opened",
-            true);
-        return;
-    }
-    if (named.source.empty()) {
-        // THE RECIPE OWNER'S OWN VOCABULARY: the kind word is the recipe file's, so
-        // the refusal reads in the terms the maker authored.
-        say("`" + chosen + "` is a " + named.kind +
-                " recipe -- it names no single source file to edit",
-            true);
-        return;
-    }
-    // THE DOOR ANSWERS WITH ITS OUTCOME NOW, so this referrer says the refusal where its
-    // own gesture is read -- the notice line -- exactly as the door used to say it itself.
-    const Written done = open_source(named.source, mail);
-    if (!done.accepted) {
-        say(done.refusal, true);
-    }
-}
 
 // WL-EDIT-03, WL-EDIT-05, WL-EDIT-06, WL-EDIT-11, WL-EDIT-13 -- agents/workshop/editor.md
 // WL-FRONT-04 -- agents/workshop/planes.md
@@ -581,7 +538,8 @@ Written WorkshopWeave::open_source(const std::string& requested, loom::Mail& mai
 
 /// THE ONE EDITOR DOOR, ANSWERED ACROSS THE SEAM (`files_seam_vocabulary.hpp`).
 ///
-/// It is the SAME door `edit_source` spends and the browser used to spend directly -- the
+/// It is the SAME door the recipe-name ask below spends, and the one the browser used to spend
+/// directly before it became a weave -- the
 /// path goes through `open_source`, which normalizes it, refuses a dirty buffer, reads and
 /// judges the file and installs it, exactly as it always has (WL-EDIT-05). What is new is
 /// only that a refusal now travels back to whoever asked, as a value, so a pane that is no
@@ -594,6 +552,48 @@ void WorkshopWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         return;
     }
     const Written done = open_source(asked.path, mail);
+    (void)mail.answer(SourceOpened{done.accepted, done.refusal});
+    repaint(mail);
+}
+
+/// THE SAME DOOR, REACHED BY A RECIPE'S NAME (`builder_seam_vocabulary.hpp`) -- what
+/// the Builder panel's own `e` did before that panel became a weave (WL-EDIT-05).
+///
+/// ⚠ THE ASKER NAMES A RECIPE AND NEVER A PATH, and the resolution is HERE because the
+/// catalog is here. `builder::RecipeSummary` is `{recipe, artifact}` on purpose: a
+/// presentation does not receive source paths, build trees, package prefixes or link lists,
+/// so a pane that could spell the path would already have been handed the build procedure.
+/// It says the one thing it holds, and this host looks the recipe up in the catalog IT owns
+/// and spends the same `open_source` every other opener spends.
+///
+/// EVERY REFUSAL IS SOMEBODY'S OWN WORDS. The catalog's, when the id names no authored
+/// recipe of this project; the recipe file's, when the kind names no single source (the
+/// `kind` word is the file's, so the sentence reads in the terms the maker authored); and
+/// the Editor door's, for a missing file or a dirty buffer. All three go back as the
+/// answer, and the pane says them in its own row.
+void WorkshopWeave::on(const RecipeSourceRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    if (!host_->recipe_source) {
+        (void)mail.answer(
+            SourceOpened{false, "this host resolves no recipe sources -- nothing was opened"});
+        return;
+    }
+    const HostContext::RecipeSource named = host_->recipe_source(asked.recipe);
+    if (!named.known) {
+        (void)mail.answer(SourceOpened{
+            false, "this project's recipes do not hold `" + asked.recipe +
+                       "` -- nothing was opened"});
+        return;
+    }
+    if (named.source.empty()) {
+        (void)mail.answer(SourceOpened{false, "`" + asked.recipe + "` is a " + named.kind +
+                                                  " recipe -- it names no single source file "
+                                                  "to edit"});
+        return;
+    }
+    const Written done = open_source(named.source, mail);
     (void)mail.answer(SourceOpened{done.accepted, done.refusal});
     repaint(mail);
 }

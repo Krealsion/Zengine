@@ -20,8 +20,8 @@ deliberately outside it, and each is a real limit rather than an oversight:
   without it would ship images that cannot load. A consumer who wants a window today builds
   Zengine from source.
 - **Workshop is not installed.** Its executable compiles the path of the build tree that
-  produced it into itself for the Builder panel, so an installed copy would carry a stranger's
-  directory layout. Workshop is launched from a build tree.
+  produced it into itself, for the Builder tool it mounts, so an installed copy would carry a
+  stranger's directory layout. Workshop is launched from a build tree.
 - **The external-pane vocabularies are not exported**, for the reason below: there is no way
   for an externally-built pane to arrive in a Workshop run.
 - **The Timer's own service headers are not installed** (`timer/normalize.hpp`,
