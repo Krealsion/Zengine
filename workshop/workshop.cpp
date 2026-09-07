@@ -1008,7 +1008,8 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
-        bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views());
+        bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
+        current_recipes.source());
 
     // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
     // for the same reason: what a button in this program will actually run is a

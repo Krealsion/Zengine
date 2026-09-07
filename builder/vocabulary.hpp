@@ -577,9 +577,35 @@ struct RecipeSummary {
 /// IT IS THE TOOL'S OWN VIEW COMING BACK. The host read a file, the host gave the
 /// tool the view, and this is the tool saying what it was given -- so a presentation
 /// showing three recipes is showing three recipes the tool will actually accept.
+///
+/// ---- v2 CARRIES WHERE THE CATALOG CAME FROM (P-WORK-20) -------------------------
+///
+/// ⚠ `source` IS PROVENANCE, NOT CONTENT, and it is here because nothing else could
+/// carry it. While the project browser was compiled into Workshop, the Builder panel
+/// read the catalog's path off a session projection the browser wrote
+/// (`Session::recipes_moved_to`); the browser became a weave, that projection left
+/// with it, and the row that told a maker WHICH recipes were in force was retired
+/// with the loss written down (WL-PROJ-09). A presentation that can name three
+/// recipes and not the file they came from cannot answer the question a maker asks
+/// when the three are the wrong three.
+///
+/// SO IT RIDES THE SHAPE THAT ALREADY ANSWERS "what can be built here", because the
+/// two facts move together and for exactly one reason: `install_recipes` is the one
+/// seam that turns a file into this answer (WL-PROJ-04), and it sets the path and the
+/// rows in one call on one owner. A second shape would be a second thing to keep in
+/// step with the first, which is the state `CurrentRecipes` exists to make unspellable.
+///
+/// EMPTY IS THE OWNER'S OWN DESIGNED ABSENCE, carried verbatim: a project with no
+/// catalog in force is an ordinary project, and a presentation that invented a
+/// plausible path would be worse than one that says nothing.
+///
+/// AND IT IS STILL NOT THE PROCEDURE. A path is not a recipe: the source files, the
+/// build trees, the package prefixes and the link lists stay unexposed, which is
+/// `RecipeSummary`'s own subtraction one field further out.
 struct RecipeCatalog {
     std::vector<RecipeSummary> recipes;
-    ZEN_SHAPE(RecipeCatalog, 1, ZEN_FIELD(recipes));
+    std::string source; ///< the authored file in force, or empty; provenance only
+    ZEN_SHAPE(RecipeCatalog, 2, ZEN_FIELD(recipes), ZEN_FIELD(source));
 };
 
 /// TAKE THIS ARTIFACT, IF THE PROJECT WANTS IT -- a maker's intent, carrying the
