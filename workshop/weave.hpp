@@ -13,7 +13,7 @@
 
 #include "persist.hpp"
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
-#include "files_seam_vocabulary.hpp"  // the doors the Files weave asks; this host answers one
+#include "pane_seam_vocabulary.hpp"  // the doors the Files weave asks; this host answers one
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -439,7 +439,7 @@ public:
     /// (WL-EDIT-05) answered across the seam, so a pane that is no longer inside this
     /// process can spend it. The path goes through `open_source` unchanged and the outcome
     /// travels back as `SourceOpened`; an office is required, as the two host doors require
-    /// one (`files_doors.hpp`).
+    /// one (`pane_doors.hpp`).
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
 
     /// THE SAME EDITOR DOOR, REACHED BY A RECIPE'S NAME (`builder_seam_vocabulary.hpp`) --

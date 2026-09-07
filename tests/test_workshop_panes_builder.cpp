@@ -38,7 +38,7 @@
 #include "builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
-#include "workshop/files_doors.hpp"
+#include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
 
 #include <fstream>

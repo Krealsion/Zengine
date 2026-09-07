@@ -384,7 +384,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # capability here -- it LOST one, and the list is where that shows: Workshop no longer
 # compiles a browser, mints no kind for it and learns its row from a live offer, exactly as
 # it learns the Compose pane's. The three things the browser used to read off `HostContext`
-# it now ASKS for, through offices this host holds doors in (`workshop/files_doors.hpp`).
+# it now ASKS for, through offices this host holds doors in (`workshop/pane_doors.hpp`).
 #
 # `zengine-builder-pane` is the ninth, and it is the second entry that was once this host's
 # own code -- the Builder panel, its nine command-mode rows and its painter. What makes it
