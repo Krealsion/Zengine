@@ -15,7 +15,6 @@
 #include "document.hpp"
 #include "editor.hpp" // the source editor's buffer, byte law and tab geometry
 #include "keymap.hpp"
-#include "marks.hpp" // the places a maker may want to come back to
 #include "panel.hpp"
 #include "property.hpp"
 #include "setup.hpp"
@@ -798,25 +797,21 @@ struct PaneNaming {
     component::TextBox line;
 };
 
-/// WHAT THE MAKER IS BEING ASKED TO TYPE (PICK-1, LOAD-IT): one field of the recipe a
-/// chosen candidate still needs, or the role a new plan row needs. A mode beside
-/// `pane_naming`, for the same reason -- a hand halfway through a word -- and the SAME
-/// shape for both askers: one prompt, one line, Return commits, Escape cancels the whole
-/// authoring. Nothing here is written anywhere until the last field commits.
-// WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
+/// WHAT THE MAKER IS BEING ASKED TO TYPE (LOAD-IT): the role a new plan row needs. A mode
+/// beside `pane_naming`, for the same reason -- a hand halfway through a word: one prompt,
+/// one line, Return loads it, Escape cancels. Nothing is written anywhere until it commits.
+///
+/// IT HAD A SECOND ASKER AND HAS ONE NOW. The Files pane typed a chosen candidate's recipe
+/// fields through this same prompt until the browser became a weave; a pane with a room of
+/// its own types into a line inside it, so the fields, the step and the chosen candidate
+/// left with it and what remains is the one thing command mode still asks for.
+// WL-AUTH-02 -- agents/workshop/authoring.md
 struct AuthoringPrompt {
     bool open = false;
-    bool for_role = false;     ///< LOAD-IT's role prompt; otherwise a recipe field
     std::string prompt;        ///< the words before the line
     component::TextBox line;
-    // ---- a recipe being authored --------------------------------------------------
-    BuildCandidate chosen;
-    std::string dir;
-    std::size_t step = 0;               ///< which field is being asked
-    std::vector<std::string> answers;   ///< the fields committed so far, in order
-    // ---- a plan row being authored ---------------------------------------------------
-    std::string stem;                   ///< the artifact the role is for
-    std::string recipe;                 ///< the chosen recipe, whose product `o` may load
+    std::string stem;          ///< the artifact the role is for
+    std::string recipe;        ///< the chosen recipe, whose product `o` may load
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
@@ -899,10 +894,8 @@ ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
 // WL-PTR-08 -- agents/workshop/pointer.md
 namespace reveal_place {
 inline constexpr std::int64_t kNone = 0;
-inline constexpr std::int64_t kFilesLocation = 1; ///< the project browser's header row
-inline constexpr std::int64_t kFilesRow = 2;      ///< one listed name in it
-inline constexpr std::int64_t kInfoObject = 3;    ///< one row of the Info panel's OBJECTS
-inline constexpr std::int64_t kInfoProperty = 4;  ///< ...and one of its PROPERTIES
+inline constexpr std::int64_t kInfoObject = 1;   ///< one row of the Info panel's OBJECTS
+inline constexpr std::int64_t kInfoProperty = 2; ///< ...and one of its PROPERTIES
 } // namespace reveal_place
 
 /// WHAT THE POINTER IS CURRENTLY REVEALING, or nothing.
@@ -1000,10 +993,10 @@ struct Session {
     /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
     /// layout-name editor's for the same reason: a maker's hand halfway through a word.
     PaneNaming pane_naming;
-    /// THE RECIPE CHOOSER AND THE AUTHORING PROMPT (PICK-1, LOAD-IT): two modes, session
-    /// and not pane state, for `pane_naming`'s reason exactly.
-    // WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
-    RecipeChooser recipe_chooser;
+    /// THE AUTHORING PROMPT (LOAD-IT): a mode, session and not pane state, for
+    /// `pane_naming`'s reason exactly. Its other asker -- the Files pane's recipe fields --
+    /// left with the browser, which types into a line inside its own room now.
+    // WL-AUTH-02 -- agents/workshop/authoring.md
     AuthoringPrompt authoring;
     /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
     /// buffer with its caret/selection/history, the saved copy the dirty answer derives
@@ -1037,14 +1030,6 @@ struct Session {
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS -- a presentation preference.
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool pane_titles = true;
-    /// THE AUTHORED RECIPE CATALOG THIS SESSION HAS MOVED TO -- empty until a
-    /// maker replaces one, and the emptiness is the whole of the fact.
-    // WL-PROJ-09 -- agents/workshop/project.md
-    std::string recipes_moved_to;
-
-    /// THE PLACES THIS RUN KNOWS ARE WORTH RETURNING TO (`marks.hpp`).
-    // WL-FILES-05 -- agents/workshop/files.md
-    LocationMarks marks;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1055,9 +1040,6 @@ inline constexpr Screen screen_of(const Session& s) noexcept {
 
 /// DOES THE SOURCE EDITOR HAVE THE KEYBOARD RIGHT NOW?
 bool editor_has_keyboard(const Session& s);
-
-/// DOES THE PROJECT BROWSER HAVE THE KEYBOARD RIGHT NOW?
-bool files_has_keyboard(const Session& s);
 
 /// IS THE PANE EDITOR THE PANE A MAKER LAST PRESSED INTO, WITH SOMETHING TO SHOW?
 bool pane_editor_has_keyboard(const Session& s);
@@ -1635,7 +1617,6 @@ std::vector<std::string> panel_block(const char* label, const std::string& value
 void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                           const FineRect& b, const Screen& sc,
                           const ProjectFrontier& frontier = {},
-                          const std::string& catalog_moved_to = std::string(),
                           std::int64_t chrome = kPaneChrome);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
@@ -1685,10 +1666,10 @@ std::string picker_entry_text(const std::string& name, const char* state,
 /// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
 /// ALREADY OPEN, in a fixed column so the list reads down; it asks for the stack's first
 /// slot through `picker_bounds` rather than knowing where that is.
-/// THE RECIPE CHOOSER'S BOX, over the first slot as the picker's is, and the authoring
+/// THE AUTHORING PROMPT'S BOX, over the first slot as the picker's is, and the
 /// prompt's line as its heading while a field is being typed (PICK-1).
 // WL-AUTH-01 -- agents/workshop/authoring.md
-void paint_recipe_chooser(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_authoring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
 void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
                          const Screen& sc, const Keymap& keymap);
@@ -1810,8 +1791,6 @@ void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen&
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
-inline constexpr const char* kMarksWallKey = "workshop.marks-refused";
-inline constexpr const char* kMarksSkippedKey = "workshop.marks-skipped";
 /// A SESSION FILE THIS RUN COULD NOT READ, and therefore will not write over.
 /// The refusal itself is said once on the notice row, where it belongs -- it is about
 /// this launch. What STANDS all run, and has a maker action, is the consequence: this
@@ -2323,66 +2302,16 @@ bool over_editor_body(const Session& s, const Screen& sc, std::int64_t space,
 void paint_editor(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                          const Screen& sc, std::int64_t chrome = kPaneChrome);
 
-// ---- THE PROJECT BROWSER, PRESENTED -----------------------------------------------------
-
-inline constexpr std::int64_t kFilesHeaderRows = 1;
+// ---- A cursor-windowed list's wheel ------------------------------------------------------
 
 /// How many rows the wheel is worth in a cursor-windowed list -- the editor's number, for
-/// its reason.
+/// its reason. Spent by the Editor, the Pane Manager and the picker; the browser that
+/// introduced it takes its own copy across the seam now.
 // WL-EDIT-10 -- agents/workshop/editor.md
 inline constexpr std::int64_t kListWheelRows = 3;
-inline constexpr std::int64_t kFilesWheelRows = kListWheelRows;
 
 /// TURN NOTCHES INTO WHOLE ROWS, CARRYING THE FRACTION.
 std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch);
-
-/// The browser body's resolved place on this screen: the pane's rectangle less its header.
-/// Absent whenever the pane is closed, off-room, or too small for one row.
-ExternalBodyPlace files_body(const Session& s, const Screen& sc);
-
-/// THE HEADER: where the maker is, whether this place is one they might have meant, and
-/// how far into the listing -- in the order the facts must survive the cut, which is the
-std::string files_header_prefix(const FilesPane& pane, const std::string& why,
-                                       bool typing);
-
-/// WHERE THE BROWSER IS, AS A LOCATION -- absolute, or the one word for the absence.
-std::string files_location(const FilesPane& pane);
-
-/// THE HEADER WITH NOTHING TAKEN OFF: everything the painter is holding for this row.
-std::string files_header_full(const FilesPane& pane, const std::string& why,
-                                     bool typing);
-
-std::string files_header(const FilesPane& pane, const std::string& why, bool typing,
-                                std::int64_t columns);
-
-/// ONE ROW'S TEXT: the name, a directory marked as one, and a name this application cannot
-/// carry marked as that. The two marks are deliberately different words, because they are
-std::string files_row_text(const FileRow& row);
-
-/// THE WHOLE ROW, CURSOR MARK INCLUDED -- what the browser is holding for one listed
-/// name before the body's width has any say in it.
-std::string files_row_full(const FileRow& row, bool here);
-
-/// WHERE A PRESS LANDED IN THE BROWSER'S BODY -- `editor_press_at`'s shape, answering a
-/// row of the WINDOW rather than a position in a document. The header is subtracted here
-/// because the resolution reserved it there.
-struct FilesPressAt {
-    bool named = false;
-    std::int64_t row = 0; ///< a prose row of the BODY: 0 is the row under the header
-};
-
-FilesPressAt files_press_at(const Session& s, const Screen& sc, std::int64_t space,
-                                   std::int64_t x, std::int64_t y);
-
-/// IS THIS POSITION OVER THE BROWSER'S BODY -- the wheel's one question, `over_editor_body`
-/// exactly: the header row is not the body, and the column is not asked.
-bool over_files_body(const Session& s, const Screen& sc, std::int64_t space,
-                            std::int64_t x, std::int64_t y);
-
-/// WHICH LISTING ROW A BODY ROW SHOWS, for the press inverse -- the SAME window the painter
-/// walks, resolved from the same three numbers. It is a function rather than a remembered
-bool files_row_of_body_row(const FilesPane& pane, std::int64_t body_rows,
-                                  std::int64_t body_row, std::size_t& out);
 
 // ---- Which revealable row the pointer is on ----------------------------------------------
 // WL-PTR-05, WL-PTR-08 -- agents/workshop/pointer.md
@@ -2401,9 +2330,6 @@ struct RevealAt {
     /// measurer all answer it the same way without this having to know which cut it.
     bool clipped() const noexcept { return present && rest != text; }
 };
-
-RevealAt files_reveal_at(const Session& s, const Screen& sc, std::int64_t space,
-                                std::int64_t x, std::int64_t y);
 
 RevealAt info_reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
                                std::int64_t x, std::int64_t y);
@@ -2424,11 +2350,6 @@ Revealed reveal_for(const WorkshopDoc& d, const Session& s, std::int64_t space,
 /// THE PROJECT BROWSER, PAINTED: the frame, the header, and one directory's rows through
 /// the shared list window. Every branch here says something -- an absent project, a
 /// directory that would not open, and an empty directory are three different facts and a
-/// pane that showed blankness for all three would be hiding two of them.
-void paint_files(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
-                        const Screen& sc, const Keymap& k,
-                        std::int64_t chrome = kPaneChrome);
-
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
 void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
                                    const Screen& sc);

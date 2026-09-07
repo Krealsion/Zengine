@@ -28,14 +28,11 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, sc, frontier, s.recipes_moved_to,
-                              chrome);
+                paint_builder(layer, panels.builder, b, sc, frontier, chrome);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc, chrome);
             } else if (p.kind == panel::kEditor) {
                 paint_editor(layer, s, b, sc, chrome);
-            } else if (p.kind == panel::kProjectFiles) {
-                paint_files(layer, s, b, sc, s.keymap, chrome);
             } else if (p.kind == panel::kLayouts) {
                 // THE LAYOUT RUN, THE SETUP ASSOCIATION AND THE WORKSPACE FACT --
                 // one more arm, in the one walk, and that is the whole of what the
@@ -77,7 +74,7 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
         paint_picker(layer, panels, s.setup.active, sc, s.keymap);
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_recipe_chooser(layer, s, sc);
+        paint_authoring(layer, s, sc);
     });
     // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
     // covers, under the screen's own chrome. The band keeps speaking while it is open --
@@ -142,13 +139,6 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         } else if (ctx == KeyContext::kEditor &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to the source editor -- press elsewhere for Workshop's keys";
-        } else if (ctx == KeyContext::kFiles &&
-                   s.keymap.resolved_legend() == legend_mode::kFull) {
-            // THE BROWSER TAKES KEYS WITHOUT TAKING TEXT, so the sentence says KEYS. The
-            // row exists for the same measured reason the two above it do: a maker whose
-            // arrows have stopped meaning what they mean in command mode is entitled to
-            // read why on the screen rather than infer it from a gesture that did nothing.
-            said = "keys go to Project Files -- press elsewhere for Workshop's keys";
         } else if (ctx == KeyContext::kPaneEditor &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "keys go to the Pane Manager -- press elsewhere for Workshop's keys";

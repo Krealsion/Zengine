@@ -8588,11 +8588,11 @@ TEST_CASE("WUX-5: no ordinary pane spends a row teaching a key the keymap alread
     // the contextual surface are modes rather than panes.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 0, 0}));
-    for (const PaneRef& ref : {ref_of(panel::kEditor), ref_of(panel::kProjectFiles)}) {
+    for (const PaneRef& ref : {ref_of(panel::kEditor), ref_of(panel::kPaneEditor)}) {
         open_pane(t, ref);
     }
     for (const std::int64_t kind :
-         {panel::kBuilder, panel::kEditor, panel::kProjectFiles, panel::kInfo}) {
+         {panel::kBuilder, panel::kEditor, panel::kPaneEditor, panel::kInfo}) {
         CAPTURE(kind);
         const ui::Rect body =
             pane_body_cells(bounds_of(t.session().panels, t.session().setup.active, kind,
@@ -9186,7 +9186,7 @@ TEST_CASE("WUX-7: four things must agree before a row is scrolled at all") {
 
     CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 4, full, rest, 20) ==
           detail::revealed_row(full, 20, 9));
-    CHECK(detail::reveal_shown(on, reveal_place::kFilesRow, 4, full, rest, 20) == rest);
+    CHECK(detail::reveal_shown(on, reveal_place::kInfoProperty, 4, full, rest, 20) == rest);
     CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 5, full, rest, 20) == rest);
     CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 4, full + "!",
                                detail::fit(full + "!", 20), 20) == detail::fit(full + "!", 20));
@@ -9198,7 +9198,7 @@ TEST_CASE("WUX-7: four things must agree before a row is scrolled at all") {
     // `rest` IS THE CALLER'S, not a second decision: a path-fitted row keeps its root cue
     // while nobody is pointing at it, which `fit` alone would have thrown away.
     const std::string path = "/home/maker/projects/zengine/workshop/screen.hpp";
-    CHECK(detail::reveal_shown(Revealed{}, reveal_place::kFilesLocation, 0, path,
+    CHECK(detail::reveal_shown(Revealed{}, reveal_place::kInfoProperty, 0, path,
                                detail::fit_path(path, 20), 20) == detail::fit_path(path, 20));
     CHECK(detail::fit_path(path, 20) != detail::fit(path, 20));
 
@@ -9341,17 +9341,17 @@ TEST_CASE("WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in 
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     open_pane(t, ref_of(panel::kBuilder));
-    open_pane(t, ref_of(panel::kProjectFiles));
-    // THE BUILDER LEAVES THE STACK FIRST, and only then is the browser's rectangle read:
+    open_pane(t, ref_of(panel::kEditor));
+    // THE BUILDER LEAVES THE STACK FIRST, and only then is the other pane's rectangle read:
     // a pane taken out of the composition lets the ones under it move up, so a rectangle
     // read before that is a rectangle about a desk that no longer exists.
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
                               surface::subs_of_cells(1), surface::subs_of_cells(30))
                 .accepted);
-    const PanelBounds files_at = bounds_of(t.session().panels, t.session().setup.active,
-                                           panel::kProjectFiles, screen_of(t.session()));
-    REQUIRE(files_at.open);
-    const ui::Rect files = cells_covered(files_at.rect);
+    const PanelBounds second_at = bounds_of(t.session().panels, t.session().setup.active,
+                                            panel::kEditor, screen_of(t.session()));
+    REQUIRE(second_at.open);
+    const ui::Rect files = cells_covered(second_at.rect);
     REQUIRE(files.w > 4);
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
                               surface::subs_of_cells(files.x + 2),
@@ -9359,12 +9359,12 @@ TEST_CASE("WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in 
                 .accepted);
     REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kBuilder)));
 
-    // AUTHORED: the browser owns the overlap.
+    // AUTHORED: the second pane owns the overlap.
     const std::int64_t ox = files.x + 3;
     const std::int64_t oy = files.y + 3;
     REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
                         ox, oy)
-                .kind == panel::kProjectFiles);
+                .kind == panel::kEditor);
 
     // SELECTED: a press on a strip only the Builder covers lifts it, and the lift reaches
     // the overlap -- which is the state every other arrangement case is missing.

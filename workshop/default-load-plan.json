@@ -40,6 +40,11 @@
         "artifact": "zengine-composer",
         "provider": [],
         "weave": [ { "role": "zengine.composer" } ]
+      },
+      {
+        "artifact": "zengine-files",
+        "provider": [],
+        "weave": [ { "role": "zengine.files" } ]
       }
     ]
   }

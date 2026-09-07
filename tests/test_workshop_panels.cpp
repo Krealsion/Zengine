@@ -6365,7 +6365,6 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     const std::int64_t selected = t.session().panels.selected;
     const std::int64_t keyboard = t.session().panels.keyboard;
     const WorkshopDoc document = t.doc();
-    const std::string location = t.session().panels.files.current_dir;
     const std::uint64_t doc_epoch = t.session().editor.doc_epoch;
     const std::string source = t.session().editor.path;
 
@@ -6386,10 +6385,9 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     for (const std::int64_t kind : painted_order(t.session())) {
         CHECK(kind != panel::kBuilder);
     }
-    // THE DOCUMENT, THE SOURCE EDITOR AND THE BROWSER'S PLACE ARE ONE TRUTH EACH, AND
-    // A SWITCH IS NOT A DOOR TO ANY OF THEM.
+    // THE DOCUMENT AND THE SOURCE EDITOR ARE ONE TRUTH EACH, AND A SWITCH IS NOT A DOOR
+    // TO EITHER.
     CHECK(t.doc() == document);
-    CHECK(t.session().panels.files.current_dir == location);
     CHECK(t.session().editor.doc_epoch == doc_epoch);
     CHECK(t.session().editor.path == source);
 
@@ -7326,9 +7324,9 @@ TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with ho
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     open_editor(t);
-    const PaneRef files = ref_of(panel::kProjectFiles);
-    REQUIRE_FALSE(t.session().panels.has(panel::kProjectFiles));
-    choose_by_keys(t, files);
+    const PaneRef closed = ref_of(panel::kBuilder);
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+    choose_by_keys(t, closed);
     CHECK(editor_value(t, "State") == "closed -- open it from the picker");
     CHECK(editor_value(t, "Open") == "no -- o opens it");
     CHECK(editor_value(t, "X") == "--");
@@ -7341,19 +7339,19 @@ TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with ho
     // OPEN IT THROUGH THE EDITOR -- the picker's own door, the editor's own gesture word.
     t.key(input::scan::kO);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.notice() == "opened Files -- o removes it");
-    CHECK(t.session().panels.has(panel::kProjectFiles));
-    CHECK(t.session().pane_editor.subject == files);
+    CHECK(t.notice() == "opened Builder -- o removes it");
+    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().pane_editor.subject == closed);
     CHECK(editor_value(t, "State") == "open");
     CHECK(editor_value(t, "Open") == "yes -- o removes it");
     CHECK(editor_value(t, "X") == "-");
     // ...AND REMOVE IT AGAIN: the subject STANDS, the row is still in the list.
     t.key(input::scan::kO);
-    CHECK(t.notice().find("removed Files -- o brings it back") == 0);
-    CHECK_FALSE(t.session().panels.has(panel::kProjectFiles));
-    CHECK(t.session().pane_editor.subject == files);
+    CHECK(t.notice().find("removed Builder -- o brings it back") == 0);
+    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().pane_editor.subject == closed);
     CHECK(editor_value(t, "State") == "closed -- open it from the picker");
-    CHECK(inventory_index(t, files) < 99);
+    CHECK(inventory_index(t, closed) < 99);
 
     // AN AUTHORED REFERENCE NO OFFICE RESOLVES keeps its identity and its geometry.
     REQUIRE(add_pane(live(t).setup.active, stranger()));
@@ -7761,7 +7759,12 @@ TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = 
 TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past their windows") {
     // MUTATION (F5): dropping the Pane Editor's wheel arm while the `... N more` row stays
     // -- the hidden name below never appears.
-    Live t; // the minimum screen: the sixth built-in makes the PANES list window (WUX-13)
+    Live t;
+    // A SIXTH INVENTORY ENTRY, WHICH IS WHAT WINDOWS THE PANES LIST (WUX-13). It used to be
+    // the sixth BUILT-IN; the project browser is a loaded weave now, so the entry comes from
+    // an office that offered one -- which is the same fact the list is about and is a
+    // stronger fixture, because the window has nothing to do with where a pane came from.
+    REQUIRE(live_offer_pane(t, "zengine.test.seated", "seated", "Seated") != kNoPaneKind);
     open_editor(t);
     const std::vector<CatalogRow> inventory =
         inventory_rows(t.session().setup.active, t.session().panels);
@@ -8136,7 +8139,6 @@ TEST_CASE("LOAD-IT: `o` asks for a role, refuses an empty one in the plan's word
     t.key(input::scan::kO);
     t.text("o");
     REQUIRE(t.w->session().authoring.open);
-    CHECK(t.w->session().authoring.for_role);
     CHECK(t.w->session().authoring.stem == "zengine-oven");
     CHECK(t.w->session().authoring.line.text().empty());
     CHECK(keyboard_context(t.w->session()) == KeyContext::kAuthoring);

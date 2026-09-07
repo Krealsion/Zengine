@@ -133,7 +133,7 @@ MEANS
 - `arrange_status()` carries the pane's state word, so an invisible pane is recoverable by ear.
 
 PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_status`;
-`workshop/screen_browser.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `pane_edge_name`;
+`workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `pane_edge_name`;
 `workshop/screen_arrange.cpp` `pane_edge_cell`; `tests/test_workshop_screen.cpp` case `"ARR-0: the
 arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7: contextual Arrange
 lifts the pane it addressed, not the one in front"`; `tests/test_workshop_panes_window.cpp` case

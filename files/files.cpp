@@ -19,10 +19,10 @@
 
 #include "files/vocabulary.hpp"
 
-#include "workshop/files.hpp"
-#include "workshop/filesystem_roots.hpp"
+#include "files/files.hpp"
+#include "files/filesystem_roots.hpp"
 #include "workshop/files_seam_vocabulary.hpp"
-#include "workshop/marks_persist.hpp"
+#include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/path_admission.hpp"
 #include "workshop/persist.hpp"
@@ -364,9 +364,11 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
             return;
         }
-        // A MODE OWNS ITS OWN TWO ACTIONS FIRST. In the chooser or the authoring prompt,
-        // `files.choose` commits and `files.cancel` backs out; the browser's own verbs mean
-        // nothing until the mode closes.
+        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
+        // (`files.open`) commits a chooser row or an authoring field; Escape
+        // (`files.cancel`) backs out whole; the browser's other verbs mean nothing until the
+        // mode closes. One gesture map for the pane, because a pane is one keyboard context
+        // -- see `vocabulary.hpp` for why there is no second commit id.
         if (chooser_.open) {
             if (asked.id == files::kActionUp) {
                 if (chooser_.cursor > 0) {
@@ -376,11 +378,12 @@ public:
                 if (chooser_.cursor + 1 < chooser_.candidates.size()) {
                     ++chooser_.cursor;
                 }
-            } else if (asked.id == files::kActionChoose) {
+            } else if (asked.id == files::kActionOpen) {
                 chooser_choose(mail);
                 return;
             } else if (asked.id == files::kActionCancel) {
                 chooser_ = Chooser{};
+                declare(mail);
                 notice_ = "no recipe was authored";
             } else {
                 return;
@@ -389,12 +392,13 @@ public:
             return;
         }
         if (authoring_.open) {
-            if (asked.id == files::kActionChoose) {
+            if (asked.id == files::kActionOpen) {
                 authoring_commit(mail);
                 return;
             }
             if (asked.id == files::kActionCancel) {
                 authoring_ = Authoring{};
+                declare(mail);
                 notice_ = "no recipe was written";
                 say(mail);
             }
@@ -438,19 +442,27 @@ public:
             return;
         }
         recipes_.awaiting = false;
+        // BOTH HALVES, IN ONE SENTENCE, AND IN THE ORDER THAT SURVIVES THE CUT. What went
+        // wrong and what is STILL RUNNING are both owed here -- a refusal that named only
+        // the first would leave a maker guessing whether they had just lost the catalog
+        // they were using. The notice row is cut at the band's width, so the two SHORT
+        // fixed statements go first and the two long variable ones -- the owner's own
+        // sentence, then the path -- take the tail in that order. MEASURED by the live
+        // witness before the migration: with the reason first, the reassuring half was
+        // exactly the half that elided. The composition is the built-in's, unchanged; only
+        // the party that owns it moved, and `said.path` is the office's own answer about
+        // what is in force AFTER the attempt rather than an echo of what was asked for.
         if (!said.accepted) {
-            notice_ = (recipes_.was_author ? "no recipe was written: " : "not a recipe catalog: ") +
-                      said.refusal;
+            notice_ = recipes_.was_author
+                          ? ws::authoring_refused_words(said.refusal, said.path)
+                          : ws::catalog_refused_words(said.refusal, said.path);
             say(mail);
             return;
         }
-        if (recipes_.was_author) {
-            notice_ = "authored recipe in " + said.path + " (" + std::to_string(said.recipes) +
-                      (said.recipes == 1 ? " recipe)" : " recipes)");
-        } else {
-            notice_ = "build recipes: " + said.path + " (" + std::to_string(said.recipes) +
-                      (said.recipes == 1 ? " recipe)" : " recipes)");
-        }
+        notice_ = recipes_.was_author
+                      ? ws::authored_words(recipes_.id, recipes_.artifact, said.path,
+                                           said.recipes)
+                      : ws::catalog_taken_words(said.path, said.recipes);
         // THE BUILDER IS ASKED TO SAY WHAT IT IS, through the message the built-in sent: the
         // tool re-reads the catalog in force and republishes it, and the Builder pane hears
         // the new rows. No `recipes_moved_to` projection any more (retired with the built-in).
@@ -476,9 +488,26 @@ public:
     /// have changed: take a fresh listing and put the cursor back where it was. The
     /// built-in's `files_build_settled`, one image over -- gated on the outcome being one a
     /// build will not leave, so a mid-build status does not re-walk the directory.
+    ///
+    /// ⚠ AND GATED ON A BUILD HAVING ACTUALLY HAPPENED, which the built-in got for free and
+    /// this pane has to ask for. `BuildStatus` is published for two different reasons: a
+    /// build settling, and somebody merely ASKING what the state is -- and this pane asks,
+    /// itself, right after an accepted catalog choice. Without this gate that answer looked
+    /// like a finished build, the pane re-listed and re-said, and the sentence it had just
+    /// written about the catalog was gone before a maker could read it. MEASURED on a real
+    /// terminal (the whole-loop witness): `u` on a catalog produced no visible row at all.
+    /// `builds` is the tool's own count of how many builds it has been asked for, ever, so
+    /// an answer that carries the same count is a description of the same world.
     void on(const zengine::builder::BuildStatus& said, loom::Mail& mail) {
+        const std::int64_t built_before = builds_seen_;
+        const bool first = !saw_status_;
+        saw_status_ = true;
+        builds_seen_ = said.builds;
         if (!settled_ || !granted_ || zengine::builder::still_going(said.outcome)) {
             return;
+        }
+        if (first || said.builds == built_before) {
+            return; // a description, not news: nothing on disk changed because of this
         }
         const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
         const std::string was = row != nullptr ? row->name : std::string();
@@ -525,15 +554,55 @@ private:
             .send_to_role(kWorkshopRole,
                           PaneOffered{files::kProjectFilesPane, files::kProjectFilesName,
                                       files::kProjectFilesSummary});
+        declare(mail);
+    }
+
+    /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
+    ///
+    /// ⭐ A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE. The built-in had
+    /// three contexts (`kFiles`, `kRecipeChooser`, `kAuthoring`) and could bind Return and
+    /// Backspace differently in each; a pane's rows are joined into ONE map under its
+    /// runtime handle, and the collision law refuses a second row on a gesture already
+    /// taken. Two ways out existed, and only one of them keeps the maker's keys:
+    ///
+    ///   - move the defaults apart, so `files.parent` stops being Backspace -- which is
+    ///     exactly the promise this migration was made to keep, and
+    ///   - DECLARE WHAT IS TRUE NOW, which is what this does.
+    ///
+    /// So while a maker is typing into the authoring line, this pane declares two rows and
+    /// no more, and every other key reaches it as an ordinary `PaneKey` for the line to
+    /// consume -- Backspace deletes a character, exactly as it always did, because in that
+    /// mode nothing has claimed it. `PaneActions` is a REPLACEMENT (WL-KEY-15): the host
+    /// re-joins the map, so what leaves the declaration also leaves the keymap.
+    ///
+    /// AND THE IDS NEVER MOVE. `files.parent` is `files.parent` in every mode that declares
+    /// it, so a maker's authored override for it is applied wherever it is in force.
+    void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = files::kProjectFilesPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
                                     std::int64_t mods = input::mod::kNone) {
             actions.rows.push_back(PaneActionRow{id, label, sc, mods});
         };
-        // THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME DEFAULTS the built-in
-        // shipped (workshop/keymap.hpp `kFiles`), so every maker's authored keymap keeps
-        // working across the migration.
+        // ---- The authoring line owns the keyboard, except for two rows -----------------
+        if (authoring_.open) {
+            row(files::kActionOpen, "commit this field", input::scan::kReturn);
+            row(files::kActionCancel, "abandon", input::scan::kEscape);
+            (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
+            return;
+        }
+        // ---- The chooser is a list: it needs the two arrows and the two mode rows ------
+        if (chooser_.open) {
+            row(files::kActionUp, "row up", input::scan::kUp);
+            row(files::kActionDown, "row down", input::scan::kDown);
+            row(files::kActionOpen, "choose this", input::scan::kReturn);
+            row(files::kActionCancel, "cancel", input::scan::kEscape);
+            (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
+            return;
+        }
+        // ---- Browsing: THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME
+        // DEFAULTS the built-in shipped (workshop/keymap.hpp `kFiles`), so every maker's
+        // authored keymap keeps working across the migration.
         row(files::kActionUp, "row up", input::scan::kUp);
         row(files::kActionDown, "row down", input::scan::kDown);
         row(files::kActionOpen, "enter or edit", input::scan::kReturn);
@@ -544,11 +613,6 @@ private:
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
-        // THE TWO MODE ACTIONS. `files.choose` (Return) commits a chooser row or an
-        // authoring field; `files.cancel` (Escape) backs out of a mode whole. They answer to
-        // no key outside a mode -- the pane simply spends nothing for them there.
-        row(files::kActionChoose, "choose / next field", input::scan::kReturn);
-        row(files::kActionCancel, "cancel", input::scan::kEscape);
         (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
     }
 
@@ -747,10 +811,8 @@ private:
     void use_recipes(loom::Mail& mail) {
         const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
         if (row == nullptr || !row->openable || row->directory || state_.current_dir.empty()) {
-            notice_ = row == nullptr        ? "no row is selected -- the recipes in force are unchanged"
-                      : row->directory      ? "`" + ws::shown_name(row->name) + "` is a directory"
-                      : !row->openable      ? "`" + ws::shown_name(row->name) + "` cannot be carried in a path"
-                                            : "this run began nowhere";
+            // THE BUILT-IN'S OWN FOUR SENTENCES, composed where they are witnessed.
+            notice_ = ws::catalog_row_refusal(row, !state_.current_dir.empty());
             say(mail);
             return;
         }
@@ -794,6 +856,7 @@ private:
         }
         chooser.open = true;
         chooser_ = std::move(chooser);
+        declare(mail); // this mode answers to four rows, and to no others
         notice_ = "pick something buildable -- Return authors a recipe, Escape cancels";
         say(mail);
     }
@@ -801,6 +864,7 @@ private:
     void chooser_choose(loom::Mail& mail) {
         if (chooser_.cursor >= chooser_.candidates.size()) {
             chooser_ = Chooser{};
+            declare(mail);
             say(mail);
             return;
         }
@@ -813,6 +877,8 @@ private:
         a.line.set(suggested, suggested.size());
         authoring_ = std::move(a);
         chooser_ = Chooser{};
+        // THE LINE TAKES THE KEYBOARD: two rows declared, everything else an ordinary key.
+        declare(mail);
         notice_ = std::string(authoring_.chosen.tree ? "a configured tree: " : "a source file: ") +
                   authoring_.chosen.name + " -- Return commits a field, Escape cancels";
         say(mail);
@@ -859,9 +925,12 @@ private:
             draft.artifact_dir = a.answers[3];
         }
         authoring_ = Authoring{};
+        declare(mail); // the browser's rows are in force again
         recipes_.pending = ++asked_;
         recipes_.awaiting = true;
         recipes_.was_author = true;
+        recipes_.id = draft.id;
+        recipes_.artifact = draft.artifact;
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(ws::kRecipesRole, draft, recipes_.pending);
     }
@@ -1064,6 +1133,10 @@ private:
     static constexpr std::int64_t kHeaderRows = 1;
 
     bool settled_ = false;
+    /// HOW MANY BUILDS THE TOOL HAD BEEN ASKED FOR when this pane last heard from it, and
+    /// whether it has heard at all -- the two facts that tell a finished build from an answer.
+    std::int64_t builds_seen_ = 0;
+    bool saw_status_ = false;
     std::string marks_path_;
     bool marks_refused_ = false;
     LocationMarks marks_;
@@ -1075,6 +1148,8 @@ private:
     Ask open_;
     struct Recipes : Ask {
         bool was_author = false;
+        std::string id;       ///< what the maker called the row, for the accepted sentence
+        std::string artifact; ///< and the stem it produces
     } recipes_;
 
     struct Chooser {

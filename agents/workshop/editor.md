@@ -71,16 +71,17 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Normalize, same-path reveal, dirty refusal, bounded read, `source_in`, trial-seat, install with `doc_epoch++` and a viewport reset, focus and sentence; every referrer arrives through it.
 
 MEANS
-- Files hands it a row's path; `edit_source` (the Builder's `e`) keeps only the recipe half;
+- the Files pane ASKS it, across the seam; `edit_source` (the Builder's `e`) is the other half;
 - `EditorState` holds no acquisition provenance: the editor owns the document, not the reason.
 
 PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`, `edit_source`; `workshop/weave.hpp`
 `HostContext::recipe_source`, `RecipeSource`; `workshop/editor.hpp` `source_in`,
-`kMaxSourceBytes`, `EditorState`; `tests/test_workshop_files.cpp` case `"EDIT-1: opening a row
-hands the path to the ONE editor door"`, case `"EDIT-1: Builder and the browser open ONE document,
-however the path is spelled"`, case `"EDIT-1: the door normalizes what a referrer hands it, not
-what a browser happened to build"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: `e` opens the
-chosen recipe's source, focuses the editor, and says so"`.
+`kMaxSourceBytes`, `EditorState`; `workshop/files_seam_vocabulary.hpp` `OpenSourceRequested`,
+`SourceOpened`; `tests/test_workshop_files.cpp` case `"PANE-DOOR: the Editor door is the one door,
+and its refusal reaches the asker"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE:
+Return on a source opens it in the Editor, through the one door"`;
+`tests/test_workshop_editor.cpp` case `"EDIT-0: `e` opens the chosen recipe's source, focuses the
+editor, and says so"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
@@ -92,7 +93,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`; `workshop/persist.hpp`
 `resolved_against`; `workshop/editor.hpp` `EditorState::path`; `tests/test_workshop_files.cpp`
-case `"EDIT-1: equivalent spellings of one file are one document"`;
+case `"EDIT-1: the editor opens the file that recipe's build would compile"`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: re-requesting the open source reveals it and
 destroys nothing"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
@@ -155,13 +156,14 @@ DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
 PROVEN BY — `workshop/weave_pane_editor.cpp` `pane_editor_wheel`; `workshop/weave_panels.cpp`
-`picker_wheel`; `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_editor.cpp`
-`files_wheel`; `workshop/screen.hpp` `kListWheelRows`; `workshop/screen_gestures.cpp`
-`list_window`; `workshop/screen_browser.cpp` `spend_wheel`; `tests/test_workshop_editor.cpp` case
+`picker_wheel`; `workshop/weave_pointer.cpp` `on(PointerWheel)`;
+`workshop/screen.hpp` `kListWheelRows`; `workshop/screen_gestures.cpp`
+`list_window`; `workshop/screen_reveal.cpp` `spend_wheel`; `tests/test_workshop_editor.cpp` case
 `"EDIT-0: the wheel scrolls the editor's body, moves no caret, and is consumed there"`, case
 `"EDIT-0: the wheel elsewhere scrolls nothing, and a covered editor is not reached"`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: the wheel moves the browser's cursor and leaves the
-editor's alone"`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-5: the Pane Editor's two lists
+`tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the wheel moves the cursor, and a header
+press names no entry"`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-5: the Pane
+Editor's two lists
 are reached by the wheel past their windows"`; `tests/test_workshop_panes_seam.cpp` case
 `"QR-18/SC-5: the picker's windowed inventory is reached by the wheel"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`

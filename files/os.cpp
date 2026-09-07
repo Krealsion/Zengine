@@ -23,8 +23,8 @@
 #include <windows.h>
 #endif
 
-#include "workshop/files.hpp"
-#include "workshop/filesystem_roots.hpp"
+#include "files/files.hpp"
+#include "files/filesystem_roots.hpp"
 
 namespace zengine::workshop {
 

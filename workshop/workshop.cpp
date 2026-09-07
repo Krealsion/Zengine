@@ -7,11 +7,11 @@
 
 #include "arrangement.hpp"
 #include "authoring.hpp"
+#include "files_doors.hpp"
 #include "host_sources.hpp"
 #include "sample_door.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
-#include "marks_persist.hpp"
 #include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
@@ -346,8 +346,12 @@ int main(int argc, char** argv) {
     // machine this person sits at; a mark is an ABSOLUTE PATH, so it describes these disks
     // and nothing else -- the same argument the viewport and the desktop placement already
     // make for riding the session's root instead of the keymap's.
-    host.marks_path = user_paths::resolve_durable_path(
-        args.marks, args.isolated, state_root, marks_persist::kDefaultMarksFileName);
+    // THE PLACES FILE IS THE FILES TOOL'S OWN DURABLE ARTIFACT, and the host's part in it is
+    // exactly this line: resolving where it lives. It is a LOCAL because the pane that owns
+    // it is a weave now -- it learns the path by asking `zengine.project` (`ProjectDoor`,
+    // files_doors.hpp), not by reading a host field.
+    const std::string marks_path = user_paths::resolve_durable_path(
+        args.marks, args.isolated, state_root, kDefaultMarksFileName);
 
     // ---- ...AND THE ONE-TIME LEGACY TRANSITION, FOR EXACTLY THE DEFAULTED ONES ----
     //
@@ -447,7 +451,7 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - prefs: %s\n", path_or_absence(host.prefs_path).c_str());
     // THE PLACES, SAID ON THE SAME TERMS AS THE OTHER FIVE. A maker who wonders why `n`
     // takes them nowhere reads here that this run keeps no marks, rather than deducing it.
-    std::printf("zengine-workshop - marks: %s\n", path_or_absence(host.marks_path).c_str());
+    std::printf("zengine-workshop - marks: %s\n", path_or_absence(marks_path).c_str());
     if (!transition.empty()) {
         std::printf("zengine-workshop - %s\n", transition.c_str());
     }
@@ -1145,6 +1149,10 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+    // ...AND THE ONE ANSWER THIS HOST OWES ACROSS THE SEAM: what opening a source came to.
+    // `to_any` for `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the
+    // weave that asked, and no rule written here at boot could name it.
+    speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------
@@ -1495,6 +1503,33 @@ int main(int argc, char** argv) {
     loom::Grant say_sampled;
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
+
+    // ---- ...AND THE TWO DOORS THE FILES TOOL ASKS (workshop/files_doors.hpp) ---
+    //
+    // The browser is a loaded weave now, so the four facts it used to read off
+    // `HostContext` cross as values through offices instead. They are TWO doors and
+    // not one for the reason the observation door and the sample door are two:
+    // answering `zengine.project` reads two strings this host captured once, and
+    // answering `zengine.recipes` WRITES a maker's recipe file -- so "which office can
+    // change what this project builds" keeps a one-word answer.
+    //
+    // `RecipesDoor` HOLDS THE CLOSURES THIS HOST ALREADY WIRED and adds no second
+    // policy: `use_recipes` is the one install seam (WL-PROJ-04) and `author_recipe` is
+    // the one authoring writer (WL-AUTH-01), both spent at the moment of the ask. The
+    // door composes no recipe, judges no bytes and re-words no refusal.
+    //
+    // The third door is not here: Workshop's own weave holds the Editor, so
+    // `OpenSourceRequested` is answered where `open_source` lives, at this host's own
+    // office.
+    loom::Grant say_project;
+    say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+    mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
+                                 marks_path);
+
+    loom::Grant say_recipes;
+    say_recipes.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+    mount_in_office<RecipesDoor>(bus, std::move(say_recipes), kRecipesRole, host.use_recipes,
+                                 host.author_recipe);
 
     // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST -----------------------------
     //

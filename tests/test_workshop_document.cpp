@@ -5092,18 +5092,23 @@ TEST_CASE("WUX-1/SC-4: the Builder keeps the facts a maker acts on, by explicit 
     CHECK(two[1].rfind("last", 0) == 0);
 }
 
-TEST_CASE("PROJ-1: the catalog row costs one `said` row, and only where it is present") {
-    // ⭐ THE MEASUREMENT THAT DECIDED THE PRESENTATION. This panel seats NINE facts in the
-    // nine rows a character medium answers -- exactly full -- so a tenth UNCONDITIONAL row
-    // would spend the third `said` row of every session that ever opens this panel, to
-    // restate a fact the host's own banner already said correctly at launch. The row
-    // therefore exists exactly while the fact has MOVED, which is the `project` row's own
-    // rule and the same one-`said`-row trade.
+TEST_CASE("PROJ-1: the Builder panel seats its nine facts, and names no catalog") {
+    // ⭐ THE MEASUREMENT THAT DECIDED THIS PRESENTATION, AND THE ROW THAT LEFT IT. This
+    // panel seats NINE facts in the nine rows a character medium answers -- exactly full --
+    // so every row it carries is a row taken from the tail of `said`.
     //
-    // ⚠ WHAT IS ASSERTED HERE IS THE COST, NOT THE STRING. Before any replacement the
-    // composition must be byte-for-byte the one WUX-1 pinned above -- at the nine-row cell
-    // budget AND at the shipped face's five -- and after one it must have taken one row
-    // and no more, from the end of the `said` block and from nowhere else.
+    // IT USED TO CARRY A TENTH, CONDITIONALLY: "catalog <path>", while the recipes in force
+    // had MOVED from the ones this run launched with. The fact was a projection the project
+    // browser wrote onto the session as it made the swap (`Session::recipes_moved_to`), and
+    // the browser is a loaded weave now: it says the same sentence in its OWN row at the
+    // moment of the change, out of the answer the recipes door gave it, and there is
+    // nothing left in this process that could keep the projection honest. `RecipeCatalog`
+    // -- the message this panel's `known` really does come from -- carries the recipes and
+    // not the file they came from, so the panel cannot derive it either.
+    //
+    // ⚠ SO THE ROW IS GONE AND THIS CASE SAYS SO. What a maker reads instead is the pane's
+    // own sentence when the catalog moves, and the host's launch banner when it does not.
+    // A panel that showed a stale path would be worse than one that shows none.
     BuilderPane pane;
     pane.heard = true;
     pane.known.recipes.push_back(
@@ -5115,11 +5120,11 @@ TEST_CASE("PROJ-1: the catalog row costs one `said` row, and only where it is pr
     pane.shown.realization = zengine::builder::realization::kNotAsked;
     const ui::Rect slot{0, 1, 48 + 2 * kChromeCells, 9 + 2 * kChromeCells}; // interior 48x9
 
-    const auto rows_at = [&](std::int64_t line, const std::string& catalog) {
+    const auto rows_at = [&](std::int64_t line) {
         surface::SurfaceCanvas c;
         paint_builder(plane(c), pane, fine_of_cells(slot),
                       screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line),
-                      ProjectFrontier{}, catalog);
+                      ProjectFrontier{});
         std::vector<std::string> out;
         for (const surface::SurfaceTextRegion& r : all_texts(c)) {
             for (const surface::SurfaceTextRow& row : r.rows) {
@@ -5129,45 +5134,35 @@ TEST_CASE("PROJ-1: the catalog row costs one `said` row, and only where it is pr
         return out;
     };
 
-    // NOTHING MOVED: the panel this repository has painted since BLD-2, unchanged.
-    const std::vector<std::string> before = rows_at(0, std::string());
-    REQUIRE(before.size() == 9);
-    CHECK(before[6].rfind("said", 0) == 0);
-    for (const std::string& row : before) {
+    // THE NINE FACTS, IN DISPLAY ORDER, AND THE `said` BLOCK TAKING WHAT IS LEFT.
+    const std::vector<std::string> rows = rows_at(0);
+    REQUIRE(rows.size() == 9);
+    CHECK(rows[0].rfind("BUILDER @", 0) == 0);
+    CHECK(rows[1].rfind("recipe", 0) == 0);
+    CHECK(rows[2].rfind("last", 0) == 0);
+    CHECK(rows[3].rfind("exit", 0) == 0);
+    CHECK(rows[4].rfind("ran", 0) == 0);
+    CHECK(rows[5].rfind("realize", 0) == 0);
+    CHECK(rows[6].rfind("said", 0) == 0);
+    // `panel_block` labels only the FIRST row of the said block and indents its wraps, so
+    // the block is "everything from the `said` row to the end": three rows.
+    CHECK(rows.size() - 6 == 3);
+    // ...AND THE THIRD ROW IS THE ONE THE CATALOG ROW USED TO COST. The same compiler
+    // sentence that was elided while the tenth fact was seated now finishes inside the
+    // block, which is the cost being given back rather than a different sentence.
+    CHECK(rows.back().find(detail::kElided) == std::string::npos);
+
+    // NO ROW NAMES A CATALOG, AT EITHER BUDGET -- the shipped face's five included, where
+    // the row was the first thing to yield even while it existed.
+    for (const std::string& row : rows) {
         CHECK(row.rfind("catalog", 0) != 0);
     }
-    // ...and the shipped face's five, likewise untouched.
-    const std::vector<std::string> face_before = rows_at(18, std::string());
-    REQUIRE(face_before.size() == 5);
-    CHECK(face_before[4].rfind("said", 0) == 0);
-
-    // A SESSION THAT HAS MOVED: nine rows still, the catalog row in DISPLAY order right
-    // after the recipe it is about, and the cost taken from the tail of `said`.
-    const std::vector<std::string> after = rows_at(0, "catalogs/other-recipes.json");
-    REQUIRE(after.size() == 9);
-    CHECK(after[0].rfind("BUILDER @", 0) == 0);
-    CHECK(after[1].rfind("recipe", 0) == 0);
-    CHECK(after[2].rfind("catalog", 0) == 0);
-    CHECK(after[2].find("catalogs/other-recipes.json") != std::string::npos);
-    CHECK(after[3].rfind("last", 0) == 0);
-    CHECK(after[4].rfind("exit", 0) == 0);
-    CHECK(after[5].rfind("ran", 0) == 0);
-    CHECK(after[6].rfind("realize", 0) == 0);
-    CHECK(after[7].rfind("said", 0) == 0);
-    // THE COST, AS ARITHMETIC. `panel_block` labels only the FIRST row of the said block
-    // and indents its wraps, so the block is "everything from the `said` row to the end":
-    // three rows before, two after, and the row it lost is the LAST one.
-    CHECK(before.size() - 6 == 3);
-    CHECK(after.size() - 7 == 2);
-    // ...and the elision mark moves with it, so what a maker reads is honest about THIS
-    // budget rather than about the one the panel had a moment ago.
-    CHECK(after.back().find(detail::kElided) != std::string::npos);
-
-    // ⭐ AND THE SHIPPED FACE PAYS NOTHING AT ALL. Its five rows are the five it always
-    // had: the catalog row's priority puts it last, so a budget that could not seat ten
-    // facts before cannot be made to drop one for this.
-    const std::vector<std::string> face_after = rows_at(18, "catalogs/other-recipes.json");
-    CHECK(face_after == face_before);
+    const std::vector<std::string> face = rows_at(18);
+    REQUIRE(face.size() == 5);
+    CHECK(face[4].rfind("said", 0) == 0);
+    for (const std::string& row : face) {
+        CHECK(row.rfind("catalog", 0) != 0);
+    }
 }
 
 TEST_CASE("WUX-1/SC-5: pane titles are one action, one binding truth, one dispatch") {

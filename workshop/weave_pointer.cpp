@@ -353,7 +353,6 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     case KeyContext::kArrangeDesk:
     case KeyContext::kArrangeReset:
     case KeyContext::kPicker:
-    case KeyContext::kRecipeChooser:
         return;
     case KeyContext::kPane:
         external_text(keyboard_pane(), t, mail);
@@ -635,12 +634,6 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // clears the candidate, and this is still not a focus framework -- one
         // declaration moved, nothing registered.
         //
-        // ⚠ THE PRIOR ANSWER IS READ BEFORE IT IS OVERWRITTEN, because one arm below
-        // needs it: Project Files activates a row only when the pane ALREADY had the
-        // keys, and this line is what makes that untrue a moment later. Reading it
-        // afterwards would make every first press look like a press in a pane the
-        // maker was already working in.
-        const bool files_had_keyboard = files_has_keyboard(session_);
         // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS.
         // Selection is the wider of the two and the keyboard candidate is DERIVED
         // from it through the declared candidacy, rather than the occupancy being
@@ -706,11 +699,6 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             // header or past the body's rows moves nothing and is consumed exactly
             // as an external pane's header press is.
             editor_press(b);
-        } else if (here.occupied && here.kind == panel::kProjectFiles) {
-            // AND A PRESS INTO THE PROJECT BROWSER SELECTS A ROW -- the editor's arm,
-            // over a list. A press on the header or past the last row moves nothing
-            // and is consumed exactly as the editor's is.
-            files_press(b, files_had_keyboard, mail);
         } else if (here.occupied && here.kind == panel::kPaneEditor) {
             // AND A PRESS INTO THE PANE EDITOR -- Files' arm, one pane over:
             // a pane row chooses the SUBJECT, a field row moves the row cursor, the
@@ -757,7 +745,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                    layouts_press(b, mail)) {
             // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
             // second press and the reorder drag, asked ONLY once the ordinary walk has
-            // said this point is that pane's. It is `files_press`' position exactly.
+            // said this point is that pane's -- the Editor's own press position.
             // The inverse itself is still specialised to Layouts and still rule
             // end to end (the spans come from `band_status`' own composition); what is
             // gone is the coordinate exception that used to ask it first, above every
@@ -1004,10 +992,6 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         external_wheel(here.kind, w, mail);
         return;
     }
-    if (here.kind == panel::kProjectFiles) {
-        files_wheel(w, sc, mail);
-        return;
-    }
     if (here.kind == panel::kPaneEditor) {
         pane_editor_wheel(w, mail);
         return;
@@ -1109,18 +1093,6 @@ void WorkshopWeave::on(const zengine::builder::BuildStatus& said, loom::Mail& ma
         repaint(mail);
         return;
     }
-    // A FINISHED BUILD IS THE ONE THING THIS APPLICATION ALREADY KNOWS ABOUT THAT
-    // CHANGES THE PROJECT ON DISK, so it is the one message that earns the browser a
-    // fresh listing -- which is how Project Files stays truthful with no watcher, no
-    // poll and no timer, and without one byte added to any protocol.
-    //
-    // IT IS GATED ON `build_news` AND NOT ON THE ARRIVAL. The tool republishes its
-    // whole picture on every transition and again whenever a panel opens, so
-    // "a status arrived" is not "a build finished": scanning on arrival would walk
-    // the directory for a build that ended before this pane existed. `build_news` is
-    // the fact this weave already derives for exactly that distinction -- a build
-    // this session watched, which has now reached an outcome it will not leave.
-    files_build_settled();
     switch (said.outcome) {
     case zengine::builder::outcome::kSucceeded:
         // TWO OUTCOMES, TWO SENTENCES, AND THE SECOND IS NOT SUPPRESSED BY THE
