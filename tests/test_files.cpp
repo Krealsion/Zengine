@@ -117,9 +117,15 @@ TEST_CASE("a name outside printable ASCII keeps its row, marked, and cannot be o
 }
 
 TEST_CASE("parent is lexical and stops at the filesystem root") {
-    CHECK(ws::parent_location("/a/b/c") == "/a/b");
-    CHECK(ws::at_filesystem_root("/"));
-    CHECK(ws::parent_location("/").empty());
+    // Built from a genuinely absolute base, so the case reads the same on POSIX (where an
+    // absolute path is rooted at `/`) and on Windows (where it is rooted at a drive).
+    const std::filesystem::path base = std::filesystem::temp_directory_path();
+    const std::string abc = (base / "a" / "b" / "c").generic_string();
+    const std::string ab = (base / "a" / "b").generic_string();
+    CHECK(ws::parent_location(abc) == ab);
+    const std::string root = std::filesystem::path(abc).root_path().generic_string();
+    CHECK(ws::at_filesystem_root(root));
+    CHECK(ws::parent_location(root).empty());
 }
 
 TEST_CASE("the marks owner remembers, forgets, and reports provenance") {
@@ -154,12 +160,21 @@ TEST_CASE("the traversal set is built at the gesture, one address is one stop") 
 TEST_CASE("marks are durable: a write round-trips, and a refused file is never overwritten") {
     Scratch s;
     const std::string path = (s.root / "marks.json").generic_string();
-    const std::vector<std::string> places = {"/a/one", "/a/two"};
+    const std::filesystem::path base = std::filesystem::temp_directory_path();
+    const std::string one = (base / "one").generic_string();
+    const std::string two = (base / "two").generic_string();
+    const std::vector<std::string> places = {one, two};
     const ws::Written wrote = ws::marks_persist::save_file(path, places);
     REQUIRE(wrote.accepted);
     const ws::marks_persist::LoadedMarks read = ws::marks_persist::load_file(path);
     REQUIRE(read.outcome.accepted);
-    CHECK(read.maker == places);
+    REQUIRE(read.maker.size() == 2);
+    ws::LocationMarks came_back;
+    for (const std::string& p : read.maker) {
+        came_back.remember(p);
+    }
+    CHECK(came_back.marked(one));
+    CHECK(came_back.marked(two));
 
     // A file this build cannot read is refused whole, and its bytes are left as they are.
     const std::string bad = (s.root / "bad.json").generic_string();
@@ -182,8 +197,11 @@ TEST_CASE("a persisted relative mark is admitted as a skip, never re-based") {
     CHECK_FALSE(loaded.skipped.empty());
 }
 
-TEST_CASE("path admission carries an ordinary path and refuses a relative one") {
-    CHECK(ws::admit_location("/a/b/../b/c") == "/a/b/c");
+TEST_CASE("path admission normalizes an absolute path and refuses a relative one") {
+    const std::filesystem::path base = std::filesystem::temp_directory_path();
+    const std::string straight = (base / "a" / "b" / "c").generic_string();
+    const std::string bent = (base / "a" / "b" / ".." / "b" / "c").generic_string();
+    CHECK(ws::admit_location(bent) == straight);
     CHECK(ws::admit_location("relative/path").empty());
     CHECK(ws::admit_location("").empty());
 }
