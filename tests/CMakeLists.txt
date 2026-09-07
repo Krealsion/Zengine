@@ -720,6 +720,21 @@ target_include_directories(zengine-composer-tests PRIVATE
 
 zengine_doctest_test(composer zengine-composer-tests)
 
+# ---- The Files suite: the pure half, proved in the package that now owns it (files-weave) --
+#
+# The browser's listing, the maker's marks and their durable file are the same files the
+# built-in spent; this suite links them against `zengine-files-os` -- the two platform
+# bodies -- and NOT against `zengine-workshop-logic`, so a green is the structural proof that
+# the pure half is portable to the office it moved to. The weave's INTERACTION over the pane
+# protocol is proved through the real seam in `workshop_panes` once the plan loads it.
+add_executable(zengine-files-tests test_files.cpp doctest_main.cpp)
+target_link_libraries(zengine-files-tests
+    PRIVATE zengine-files-os zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-files-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(files_weave zengine-files-tests)
+
 # ---- The Maker suite: a weave from a maker's definition (High-water) ---------------------
 #
 # What it asks: whether one Loom weave can be registered from DATA -- the state schema, the

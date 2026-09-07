@@ -1033,6 +1033,7 @@ ui                                doctest           always  22
 component                         doctest           always  39
 operator                          doctest           always  126
 composer                          doctest           always  35
+files_weave                       doctest           always  13
 maker                             doctest           always  26
 # THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
 # case is the journal's: what the project made of an artifact it was offered is a durable fact
