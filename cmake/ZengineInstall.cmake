@@ -279,7 +279,12 @@ install(FILES
 #     transitively; Zengine's do not, and copying the decision would have been ceremony.)
 #
 # zengine-workshop, zengine-snake
-#     Executables. Workshop in particular compiles ZENGINE_BUILDER_BUILD_DIR -- an absolute
-#     path into the build tree that produced it -- into the binary for its Builder panel, so
-#     installing it today would ship a developer machine's directory layout inside a public
-#     artifact. That is a Workshop repair, not a packaging one.
+#     Executables. Workshop in particular compiles ZENGINE_BUILDER_CMAKE -- the ABSOLUTE PATH
+#     of the cmake that configured the tree it was built in -- into the binary, so installing
+#     it today would ship a developer machine's directory layout inside a public artifact.
+#     That is a Workshop repair, not a packaging one.
+#
+#     (The reason used to name ZENGINE_BUILDER_BUILD_DIR, one of the three definitions BLD-0
+#     baked in. BLD-1 removed that one and the target name with it -- what can be built is an
+#     authored file now -- and left exactly one, for the one thing a text file must never be
+#     able to name. The conclusion did not change; the symbol it rested on had.)
