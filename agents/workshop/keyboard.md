@@ -12,7 +12,7 @@ MEANS
 - there is no callback, `std::function`, command bus or registry object in the keymap.
 
 DOES NOT MEAN
-- that a provider contributes declarations — the pane seam has no shape for wanted keys.
+- that execution moves into the keymap: a pane row's dispatch site is the pane (WL-KEY-15).
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `Act`, `Keymap`, `ActionRow`;
 `workshop/weave_terminal.cpp` `command`; `tests/test_workshop_document.cpp` case `"KEY-0: an
@@ -42,7 +42,8 @@ LAW — The routing chain is spelled once — the terminal, the arrangement scop
 
 MEANS
 - `context_takes_text(ctx)` replaced the old hand-kept mirror;
-- it is resolved fresh and stored nowhere: no context stack, no registration, no focus framework.
+- it is resolved fresh and stored nowhere: no context stack, no registration, no focus framework;
+- a pane's rows are keyed by its runtime handle, the value `kPane` stands for (WL-KEY-15).
 
 PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context`, `keyboard_context_beneath_menu`;
 `workshop/keymap.hpp` `context_takes_text`, `KeyContext`; `workshop/weave_seam.cpp`
@@ -71,6 +72,9 @@ MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
 - `workshop.quit` (`^c`) and `workshop.attention` (`^a`) are `kNoText`;
 - `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
+
+DOES NOT MEAN
+- that a pane's row is a fourth class: it meets the global and no-editor rows only (WL-KEY-15).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
 `KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`, `workshop.attention`,
@@ -168,7 +172,7 @@ LAW — It lists the context beneath it, shows the component's vocabulary from `
 
 MEANS
 - its toggle and bare Escape close it, and Escape is not a keymap action;
-- a focused pane is described only as ownership — Workshop is never told a provider's bindings.
+- a focused pane's declared rows are listed from the map; the rest is described as ownership.
 
 PROVEN BY — `workshop/screen_hotkeys.cpp` `paint_hotkeys`, `hotkeys_rows`,
 `keyboard_context_name`; `workshop/screen.hpp` `HotkeysView`; `component/text_box.hpp`
@@ -221,6 +225,37 @@ words in one order out, any order in, and never twice"`, case `"KEY-0: a known b
 accepted and said, never silently rewritten"`, case `"KEY-0: a shift+letter binding swallows the
 capital its keystroke produced"`.
 WHY — `agents/decisions/one-binding-truth.md`
+
+## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
+
+LAW — A pane declares rows of the one catalog beside its offer; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
+
+MEANS
+- a pane's context is its runtime handle: active while it holds the keys, never another pane's;
+- a refused shape keeps the previous rows; the file's load re-joins every pane, and the file wins;
+- a matching keystroke crosses as `PaneActionRequested`, swallowed; every other as `PaneKey`.
+
+DOES NOT MEAN
+- that a pane says it wants keys: a declaration points no keyboard at it and holds none;
+- that the contextual surface lists a pane's rows: it declares over `kActionCatalog` ids.
+
+PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
+`PaneActionRequested`; `workshop/keymap.hpp` `PaneRow`, `PaneRows`, `kMaxPaneActionRows`,
+`collision_sentence`, `Keymap::panes`, `Keymap::pane_action_for`, `check_pane_action_text`,
+`join_pane_rows`, `drop_pane_rows`; `workshop/panel.hpp` `RuntimePane::actions`;
+`workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
+`rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
+`workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
+`workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `hotkeys_rows`;
+`tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order,
+and a refusal writes nothing"`, case `"a row colliding with a chord answered above every mode
+refuses the whole shape and keeps the previous rows"`, case `"a declared gesture arrives as the
+resolved id and an undeclared one as the key; typing still crosses raw"`, case `"an override
+authored before the pane arrives is applied when it does, and one loaded after the pane
+declared is applied at the load"`, case `"the keymap file wins: a pane whose rows its bindings
+collide with is refused in words, in both orders"`, case `"a maker's override moves a Powers
+action, and the key it left no longer acts"`.
+WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## Do not assume
 

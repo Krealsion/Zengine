@@ -1080,10 +1080,20 @@ builder                           doctest           always  55
 # row for the reason every phase since TYPE-0 has given: the metric is an ARGUMENT, so the
 # window's pixels are proved by handing `Session` the shipped face's numbers.
 #
+# A PANE DECLARES ITS ACTIONS (WL-KEY-15) raised ONE floor -- workshop_panes 233 -> 255 -- and
+# the twenty-two are one new source, `test_workshop_panes_actions.cpp`, under the same one
+# entry: the three shapes, the join over a value (bounds, ids, labels, gestures, the collision
+# law over what is active while a pane holds the keys, an override through the file's own
+# grammar), admission through the real seam in both load orders, the legend and the hotkey
+# view, the resolved id crossing instead of the key, and the real Powers pane acting on the
+# id with a maker's override moving it. No other floor moved: the two cases this changed
+# elsewhere (the SEL-0 vocabulary audit hears one more shape; three aggregate initializers)
+# are the same population.
+#
 workshop_document                 doctest           always  142
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  217
-workshop_panes                    doctest           always  233
+workshop_panes                    doctest           always  255
 workshop_persistence              doctest           always  172
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  66

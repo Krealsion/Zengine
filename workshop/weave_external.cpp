@@ -81,10 +81,20 @@ std::int64_t WorkshopWeave::keyboard_pane() const {
     return zengine::workshop::keyboard_pane(session_.panels);
 }
 
+// WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                                  loom::Mail& mail) {
     const RuntimePane* row = session_.panels.runtime.of_kind(kind);
     if (row == nullptr) {
+        return;
+    }
+    // THE PANE'S OWN ROWS FIRST, against the EFFECTIVE map -- the maker's override where
+    // one is authored, the pane's default otherwise. A match crosses as the id and NOT as
+    // the key: one keystroke, one sentence, and the pane acts on a name.
+    if (const PaneRow* action =
+            session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneActionRequested{row->pane, action->id});
         return;
     }
     (void)mail.as_role(kWorkshopProvider)

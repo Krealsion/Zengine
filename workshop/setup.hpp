@@ -639,6 +639,43 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     return out;
 }
 
+/// WHICH ADMITTED PANE A `PaneActions` IS ABOUT, UNDER THE OFFICE LOOM STAMPED ON IT --
+/// the shape's half of admission, before a row is judged.
+///
+/// `stamped_office` is `mail.authored_role()` and nothing else, `admit_pane_offer`'s
+/// argument for `admit_pane_offer`'s reason: the shape carries no provider field. An
+/// empty office is personal speech and is refused; an office that never offered this
+/// pane key is refused BY NAME -- the pair is spelled only after both halves have passed
+/// `check_pane_key`, so no unjudged byte reaches the notice line. Nothing is written
+/// here: the rows are `join_pane_rows`' to judge (keymap.hpp), and the caller commits
+/// both halves together or neither.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
+                                    std::string_view stamped_office,
+                                    const PaneActions& actions) {
+    Admission out;
+    const Written office = check_pane_key(stamped_office, "provider");
+    if (!office.accepted) {
+        out.written = office;
+        return out;
+    }
+    const Written key = check_pane_key(actions.pane, "pane key");
+    if (!key.accepted) {
+        out.written = key;
+        return out;
+    }
+    const RuntimePane* row = runtime.find(stamped_office, actions.pane);
+    if (row == nullptr) {
+        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office), actions.pane}) +
+                                  "` is not a pane that office has offered -- its actions "
+                                  "were not taken");
+        return out;
+    }
+    out.refreshed = !row->actions.empty();
+    out.kind = row->kind;
+    return out;
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
 /// same pane, and whether the ranks are a permutation.
