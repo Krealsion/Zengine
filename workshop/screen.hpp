@@ -1095,8 +1095,11 @@ std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down);
 
 /// The `gesture label` pairs requestable in this context, one string each, in the order
 /// the band should spend room on them: the context's own rows first, then what is
-/// answered above the mode chain.
-std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx);
+/// answered above the mode chain. For `kPane` the context's own rows are the keyboard
+/// pane's declared ones (`pane`, its runtime handle; `kNoPaneKind` names no pane).
+// WL-KEY-15 -- agents/workshop/keyboard.md
+std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx,
+                                    std::int64_t pane = kNoPaneKind);
 
 // The band's legend rows are packed from `help_pairs` by `help_rows` below `detail` --
 // against however many rows the band's budget composition granted the legend, which is
@@ -1219,9 +1222,11 @@ std::int64_t minus(std::int64_t a, std::int64_t b) noexcept;
 
 } // namespace detail
 
-/// The band's legend rows, as the legend projects them, budget-composed.
+/// The band's legend rows, as the legend projects them, budget-composed. `pane` is the
+/// keyboard pane's handle when `ctx` is `kPane`, so its declared rows are packed too.
 std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
-                                          std::int64_t width, std::size_t rows);
+                                          std::int64_t width, std::size_t rows,
+                                          std::int64_t pane = kNoPaneKind);
 
 /// A PANE WINDOW PROPOSAL, IN SUB-UNITS: what one resize gesture asks the whole
 /// window to become.

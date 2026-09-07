@@ -944,11 +944,16 @@ Two consequences worth designing for:
 
 ### What is deliberately absent
 
-Still no focus, capture, hover, release, double-press, drag or hotkey forwarding of any kind, and
-no reply, disposition or acknowledgement. (Keys and text do cross, as `PaneKey` and
-`PaneTextInput`, once a maker has pressed into your pane; and the wheel crosses as `PaneWheel`
+Still no focus, capture, hover, release, double-press or drag forwarding of any kind, and no
+reply, disposition or acknowledgement. (Keys and text do cross, as `PaneKey` and
+`PaneTextInput`, once a maker has pressed into your pane; the wheel crosses as `PaneWheel`
 `{pane, dx, dy}` — the notches over your body, unchanged, whether or not you hold the keys.
-Accept it and spend it as your own Up/Down step; a pane that does not accept it is unchanged.)
+Accept it and spend it as your own Up/Down step; a pane that does not accept it is unchanged.
+And the actions you declare beside your offer — `PaneActions{pane, rows}`, each row an id in
+your namespace, a label and a default gesture as `PaneKey`'s two numbers — come back as
+`PaneActionRequested{pane, id}` in place of the key whenever a maker presses the binding that
+requests one, after their own keymap has moved it; act on the id, never on the key, and keep
+matching raw keys only for what a component of yours owns, such as a text field's editing.)
 `PanePressed` carries no
 button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
 arrival *is* that gesture.

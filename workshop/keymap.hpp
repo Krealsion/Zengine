@@ -7,11 +7,13 @@
 // ONE EXECUTABLE BINDING TRUTH.
 // Workshop law: agents/workshop/keyboard.md (+13 registers; agents/workshop.md routes)
 
-#include "property.hpp" // Written -- the one refusal-with-reason shape this package has
+#include "pane_vocabulary.hpp" // PaneActionRow -- the rows a pane weave declares
+#include "property.hpp"        // Written -- the one refusal-with-reason shape this package has
 
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -1040,6 +1042,14 @@ inline const char* posix_gap(const Gesture& g) noexcept {
     if ((g.modifiers & mod::kAlt) != 0 && !is_posix_editing_scan(g.scancode)) {
         return "alt arrives only on the editing keys from a POSIX terminal";
     }
+    // THE BRANCH THIS FILE'S PROSE STATED FIVE TIMES BEFORE THE CODE DID (BL-DEF-03): the
+    // POSIX wire carries ctrl+letter as one control byte, and Shift leaves no mark on it,
+    // so ctrl+shift+<letter> arrives as plain ctrl+<letter> -- the same byte, and an
+    // authored binding a terminal maker could never tell from the unshifted one.
+    if ((g.modifiers & mod::kCtrl) != 0 && (g.modifiers & mod::kShift) != 0 &&
+        is_letter_scan(g.scancode)) {
+        return "ctrl+shift+letter collapses to plain ctrl+letter on a POSIX terminal";
+    }
     if ((g.modifiers & mod::kCtrl) != 0 &&
         (g.scancode == scan::kH || g.scancode == scan::kI || g.scancode == scan::kJ ||
          g.scancode == scan::kM)) {
@@ -1117,6 +1127,55 @@ struct AuthoredOverride {
     std::string gesture;
 };
 
+// ---- A pane's rows, joined ---------------------------------------------------------------
+
+/// ONE ROW A PANE DECLARED, AS IT IS IN FORCE: the id the pane will be asked for, the
+/// label a legend prints, and the gesture that requests it now -- the maker's authored
+/// override when the file names the id, the pane's declared default otherwise.
+///
+/// IT HAS NO `Act` AND NO `KeyContext`, and that is the whole difference from `ActionRow`.
+/// A pane row has no dispatch site in the host -- execution is the pane's, reached by
+/// `PaneActionRequested` carrying `id` -- and its context is the pane's own runtime
+/// handle: the row is active exactly while `keyboard_pane` resolves to that handle, which
+/// is a value the routing chain already spells as `KeyContext::kPane` (screen_arrange.cpp).
+// WL-KEY-15 -- agents/workshop/keyboard.md
+struct PaneRow {
+    std::string id;
+    std::string label;
+    Gesture gesture;
+};
+
+/// THE ROWS OF ONE PANE, keyed by the runtime handle Workshop minted for it -- the
+/// integer that stands where a built-in row's `KeyContext` stands, so two panes declaring
+/// one bare key are two contexts that never meet, and no enum value is minted per pane.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+struct PaneRows {
+    std::int64_t pane = -1; ///< the pane's runtime handle (`is_runtime_kind`, panel.hpp)
+    std::vector<PaneRow> rows;
+};
+
+/// HOW MANY ROWS ONE PANE MAY DECLARE. The picker's catalog bound, one shape over
+/// (`kMaxPaneCatalogEntries`, panel.hpp): a runtime-catalog policy, deliberately its own
+/// constant, bounding what a chatty provider can make this session retain and a legend
+/// try to print.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline constexpr std::size_t kMaxPaneActionRows = 32;
+
+/// THE BOUNDS ON ONE ROW'S TWO STRINGS, in BYTES -- an id is spelled in the keymap file
+/// and a label on the band, and neither is a place for a paragraph.
+inline constexpr std::size_t kMaxPaneActionIdLen = 64;
+inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
+
+/// THE ONE SENTENCE THE COLLISION LAW SAYS, wherever it runs -- at the keymap file's
+/// admission over the built-in rows, and at a pane's admission over the built-in rows and
+/// its own. Two moments, one wording, so a maker reads the same refusal whichever party
+/// arrived second.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline std::string collision_sentence(const Gesture& g, std::string_view a, std::string_view b) {
+    return "`" + gesture_word(g) + "` is authored for both `" + std::string(a) + "` and `" +
+           std::string(b) + "`, which can be active together -- one of them must move";
+}
+
 // ---- The keymap value --------------------------------------------------------------------
 
 /// THE EFFECTIVE BINDING TRUTH: the declaration defaults plus the maker's applied
@@ -1134,6 +1193,43 @@ struct Keymap {
     /// Accepted-with-a-caveat: the honest note about authored gestures with a known
     /// backend gap (see `posix_gap`), spoken once at load and kept nowhere else.
     std::string note;
+    /// THE ROWS EVERY PANE WEAVE DECLARED, AS THEY ARE IN FORCE -- joined by
+    /// `join_pane_rows` from what a pane's catalog row retains and from `authored`, and
+    /// re-joined whenever either side changes. DERIVED, like `overrides`: a save writes
+    /// none of it back, and a file read replaces none of it -- the loader re-joins.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    std::vector<PaneRows> panes;
+
+    /// The rows one pane holds in force, or nullptr for a pane that declared none.
+    const PaneRows* pane_rows(std::int64_t pane) const noexcept {
+        for (const PaneRows& p : panes) {
+            if (p.pane == pane) {
+                return &p;
+            }
+        }
+        return nullptr;
+    }
+
+    /// WHICH OF THIS PANE'S ROWS THIS GESTURE REQUESTS, or nullptr -- `action_for` one
+    /// context over, with the same guard: a key this build cannot name requests nothing.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    const PaneRow* pane_action_for(std::int64_t pane, std::int64_t scancode,
+                                   std::int64_t modifiers) const noexcept {
+        const Gesture pressed{scancode, modifiers};
+        if (!is_bound(pressed)) {
+            return nullptr;
+        }
+        const PaneRows* rows = pane_rows(pane);
+        if (rows == nullptr) {
+            return nullptr;
+        }
+        for (const PaneRow& row : rows->rows) {
+            if (row.gesture == pressed) {
+                return &row;
+            }
+        }
+        return nullptr;
+    }
 
     const Gesture* override_for(Act a) const noexcept {
         for (const std::pair<Act, Gesture>& o : overrides) {
@@ -1321,15 +1417,171 @@ inline Written apply_overrides(
                 continue;
             }
             if (candidate.row_gesture(a) == candidate.row_gesture(b)) {
-                return Written::no(
-                    "`" + gesture_word(candidate.row_gesture(a)) + "` is authored for both `" +
-                    a.id + "` and `" + b.id +
-                    "`, which can be active together -- one of them must move");
+                return Written::no(collision_sentence(candidate.row_gesture(a), a.id, b.id));
             }
         }
     }
     out = std::move(candidate);
     return Written::ok();
+}
+
+// ---- A pane's declared rows, joined under the same law ------------------------------------
+
+/// A DECLARED ROW'S TWO STRINGS, judged the way a descriptor's are (`check_pane_text`,
+/// setup.hpp): in bytes, before anything is kept, naming the field. An id is what a
+/// keymap file spells and a legend never prints, so it may hold no space; a label is what
+/// a legend prints, so a space is fine and a control byte is not.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline Written check_pane_action_text(const std::string& text, const char* which,
+                                      std::size_t limit, bool spaces_allowed) {
+    if (text.empty()) {
+        return Written::no(std::string("a pane action's ") + which + " cannot be empty");
+    }
+    if (text.size() > limit) {
+        return Written::no(std::string("a pane action's ") + which + " is at most " +
+                           std::to_string(limit) + " bytes");
+    }
+    bool anything = false;
+    for (const char c : text) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (byte < 0x20u || byte >= 0x7Fu) {
+            return Written::no(std::string("a pane action's ") + which +
+                               " must be printable ASCII");
+        }
+        if (byte == ' ' && !spaces_allowed) {
+            return Written::no(std::string("a pane action's ") + which +
+                               " cannot contain a space");
+        }
+        if (byte != ' ') {
+            anything = true;
+        }
+    }
+    if (!anything) {
+        return Written::no(std::string("a pane action's ") + which +
+                           " needs more than spaces in it");
+    }
+    return Written::ok();
+}
+
+/// JOIN ONE PANE'S DECLARED ROWS INTO A KEYMAP, or say why not -- the pane's half of
+/// admission, over a VALUE, so a suite can ask it with no bus.
+///
+/// THE LAW, IN ORDER: the row count; each row's id and label; each default gesture (an
+/// unbound row carries `kUnknown` and no modifiers; any other scancode is one the file's
+/// grammar can name, and the modifiers are the four this application knows); no id
+/// twice, and no id that is one of Workshop's own -- the file would then name two things
+/// with one row. Then the maker's authored overrides, by id, through the file's own
+/// `parse_gesture`; an id authored twice or a gesture outside the grammar is refused in
+/// `apply_overrides`' own words. Then THE COLLISION LAW over the effective map: every
+/// built-in row that can be active while a pane holds the keys (`contexts_intersect` with
+/// `kPane`: the globals and the no-editor rows -- never the no-text rows, which a
+/// text-taking pane already outranks, and never another mode's), and every other row of
+/// this same pane. Another pane's rows are another context and never meet these.
+///
+/// ATOMIC: a refusal writes nothing, so the pane's previous rows stand; acceptance
+/// replaces them whole.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<PaneActionRow>& declared) {
+    if (declared.size() > kMaxPaneActionRows) {
+        return Written::no("a pane declares at most " + std::to_string(kMaxPaneActionRows) +
+                           " actions -- this one declared " + std::to_string(declared.size()));
+    }
+    constexpr std::int64_t kKnownModifiers = mod::kCtrl | mod::kShift | mod::kAlt | mod::kSuper;
+    std::vector<PaneRow> rows;
+    rows.reserve(declared.size());
+    for (const PaneActionRow& d : declared) {
+        const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
+        if (!id.accepted) {
+            return id;
+        }
+        const Written label =
+            check_pane_action_text(d.label, "label", kMaxPaneActionLabelLen, true);
+        if (!label.accepted) {
+            return Written::no("`" + d.id + "`: " + label.refusal);
+        }
+        if (row_of_id(d.id) != nullptr) {
+            return Written::no("`" + d.id +
+                               "` is Workshop's own action id -- a pane's ids live in its "
+                               "own namespace");
+        }
+        for (const PaneRow& earlier : rows) {
+            if (earlier.id == d.id) {
+                return Written::no("`" + d.id + "` is declared twice -- one row per action");
+            }
+        }
+        if ((d.modifiers & ~kKnownModifiers) != 0) {
+            return Written::no("`" + d.id + "`: modifier bits this keymap does not know");
+        }
+        if (d.scancode == scan::kUnknown) {
+            if (d.modifiers != mod::kNone) {
+                return Written::no("`" + d.id +
+                                   "`: a row with no default key cannot carry modifiers");
+            }
+        } else if (key_name_of(d.scancode) == nullptr) {
+            return Written::no("`" + d.id + "`: scancode " + std::to_string(d.scancode) +
+                               " is not a key this keymap can name");
+        }
+        rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}});
+    }
+    // THE MAKER'S OWN FILE, applied to the ids it names -- rows that were preserved as
+    // unknown when the file loaded, because nobody had declared them yet (WL-KEY-06).
+    for (PaneRow& row : rows) {
+        bool moved = false;
+        for (const AuthoredOverride& o : k.authored) {
+            if (o.action != row.id) {
+                continue;
+            }
+            if (moved) {
+                return Written::no("`" + row.id + "` is authored twice -- one gesture per action");
+            }
+            const ParsedGesture parsed = parse_gesture(o.gesture);
+            if (!parsed.accepted) {
+                return Written::no("`" + row.id + "`: " + parsed.refusal);
+            }
+            row.gesture = parsed.gesture;
+            moved = true;
+        }
+    }
+    // THE COLLISION LAW, over the effective map: the built-in rows active in a pane's
+    // context, and this pane's own rows against each other. Same words as the file's.
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (!is_bound(rows[i].gesture)) {
+            continue;
+        }
+        for (const ActionRow& host : kActionCatalog) {
+            if (!contexts_intersect(host.context, KeyContext::kPane)) {
+                continue;
+            }
+            if (k.row_gesture(host) == rows[i].gesture) {
+                return Written::no(collision_sentence(rows[i].gesture, host.id, rows[i].id));
+            }
+        }
+        for (std::size_t j = i + 1; j < rows.size(); ++j) {
+            if (rows[j].gesture == rows[i].gesture) {
+                return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
+            }
+        }
+    }
+    for (PaneRows& p : k.panes) {
+        if (p.pane == pane) {
+            p.rows = std::move(rows);
+            return Written::ok();
+        }
+    }
+    k.panes.push_back(PaneRows{pane, std::move(rows)});
+    return Written::ok();
+}
+
+/// FORGET ONE PANE'S ROWS -- what a re-join under a new keymap file does with a pane
+/// whose rows the file's own bindings now collide with.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline void drop_pane_rows(Keymap& k, std::int64_t pane) {
+    for (std::size_t i = 0; i < k.panes.size(); ++i) {
+        if (k.panes[i].pane == pane) {
+            k.panes.erase(k.panes.begin() + static_cast<std::ptrdiff_t>(i));
+            return;
+        }
+    }
 }
 
 } // namespace zengine::workshop

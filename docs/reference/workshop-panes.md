@@ -126,8 +126,10 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   panel's presence must not be visible in the picture of the document. That rule is what settles
   the drag question above too: a panel may cover what a maker authored, and may not change what
   they are able to author.
-- **No focus framework.** Four modes for the keyboard, in priority: the terminal overlay, the
-  panel picker, an open inspector draft, then command mode. `p` and `b` were unbound keys and
+- **No focus framework.** Twenty contexts for the keyboard (`KeyContext`, `workshop/keymap.hpp`)
+  plus one per external pane holding the keys, keyed by its runtime handle, resolved fresh at
+  every keystroke by one routing chain: the terminal overlay, the arrangement scopes, the
+  contextual surface, the modes, a focused pane, then command mode. `p` and `b` were unbound keys and
   `b` still does nothing with no Builder panel open. The inspector's own keys (`up`, `down`,
   Return) belong to `Info`: with it removed they say so instead of driving rows nobody can see,
   which would otherwise open a draft that no screen shows and that `^s` would then refuse to
@@ -475,14 +477,15 @@ PanePressed            Workshop  ->  provider   "a maker pressed here, in that r
   exists to exercise.
 
 Deliberately absent, and each one is a decision: no focus, capture, hover, release, double-press
-or drag forwarding (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput`, and the wheel
-since QR-18 as `PaneWheel` — the notches, forwarded, following the pointer as a press does), and
-no reply, disposition or acknowledgement to any of them; no
+or drag forwarding (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput`, the wheel
+since QR-18 as `PaneWheel` — the notches, forwarded, following the pointer as a press does — and
+an action a pane declared beside its offer as `PaneActionRequested`, the resolved id in place of
+the key), and no reply, disposition or acknowledgement to any of them; no
 multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
 resize handles; no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
 any kind inside the protocol** — a provider that wants to know something asks its owner with its
-own grant, exactly as any weave would, and the five shapes carry no `QueryRole`, no `ListLoaded`,
+own grant, exactly as any weave would, and the eleven shapes carry no `QueryRole`, no `ListLoaded`,
 no Senses and no service registry; no package identity, signature, marketplace or cross-restart
 author claim; no out-of-process provider support; no provider scan directory, autoload list or
 plugin SDK. **No Loom change of any kind.**

@@ -1074,6 +1074,13 @@ int main(int argc, char** argv) {
     //                         wheel, resolved at the moment of the notch out of the same
     //                         runtime catalog row. It carries the notches and nothing else.
     //
+    // A PANE'S DECLARED ACTIONS ADDED A SEVENTH, `to_any` FOR `PaneKey`'S REASON EXACTLY:
+    //
+    //   PaneActionRequested   the destination is the office that offered the pane holding
+    //                         the keys, resolved at the keystroke out of the same runtime
+    //                         catalog row. It carries an id that pane itself declared, and
+    //                         it is sent INSTEAD of `PaneKey` for that one keystroke.
+    //
     // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
     // carries a row and a column of a room Workshop itself granted -- or, a key
     // a maker pressed while looking at that room; it commands nothing, asks nothing and
@@ -1137,6 +1144,7 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
+    speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------

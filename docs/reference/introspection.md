@@ -220,6 +220,11 @@ on either word in the chrome row.
 | a press on `[ ] Composite` | show only powers whose active contribution is composite |
 | `Return`, or a press on `[ Sample ]` | sample the selected **Source** |
 
+- **`Tab`, `Up`, `Down` and `Return` are the pane's declared actions** — `powers.view`,
+  `powers.up`, `powers.down` and `powers.sample`, declared beside its offer. Workshop lists them
+  in the band's legend and the hotkey view while the pane holds the keys, a keymap file moves
+  them by id exactly as it moves Workshop's own rows, and the pane is sent the resolved id, never
+  the key. Typing is not among them: the query field's editing is the component's own.
 - **Search is a case-insensitive ASCII substring over the power identity.** An empty query matches
   everything, bytes at or above `0x80` compare exactly, and it **filters without reordering** — the
   catalog's order is the catalog's. There is no fuzzy matching, no provider or schema search, and no

@@ -64,11 +64,21 @@ std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
                              surface::role::kAccent});
     group(keyboard_context_name(s, ctx));
     if (ctx == KeyContext::kPane) {
-        // THE HONEST WHOLE OF A PANE'S KEY STORY. Workshop forwards every ordinary key
-        // and every character uninterpreted and is deliberately never told what they
-        // mean (the seam's own doctrine), so the one truthful sentence is ownership --
-        // pretending to know a provider's bindings would be a claim made out of silence.
-        rows.push_back(HotkeyRow{"  every ordinary key and character goes to the pane;",
+        // THE HONEST WHOLE OF A PANE'S KEY STORY (WL-KEY-15). What the pane DECLARED is
+        // listed from the effective map, exactly as a built-in context's rows are -- an
+        // override a maker authored for the pane's id is what is spelled. Every other
+        // ordinary key and character still crosses uninterpreted, and what it means there
+        // is the provider's own; that sentence is ownership, not a binding list, and it is
+        // the whole story for a pane that declared nothing.
+        const PaneRows* declared = k.pane_rows(keyboard_pane(s.panels));
+        const bool any = declared != nullptr && !declared->rows.empty();
+        if (any) {
+            for (const PaneRow& row : declared->rows) {
+                entry(gesture_text(row.gesture), row.label);
+            }
+        }
+        rows.push_back(HotkeyRow{any ? "  every other ordinary key and character goes to the pane;"
+                                     : "  every ordinary key and character goes to the pane;",
                                  surface::role::kFill});
         rows.push_back(HotkeyRow{"  what each one means there is the provider's own.",
                                  surface::role::kFill});

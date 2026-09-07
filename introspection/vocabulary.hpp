@@ -103,6 +103,17 @@ inline constexpr const char* kArrangementPaneSummary =
 inline constexpr const char* kPowersPaneName = "Powers";
 inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
 
+/// THE FOUR ACTIONS THE POWERS PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp)
+/// -- the ids a maker's keymap file names to move them, so they are durable the way the
+/// pane key above is and live here for the same reason. What each one DOES is the pane's
+/// (introspection.cpp); what KEY requests it is Workshop's effective keymap, and the pane
+/// is told the id, never the key. The query's typing and editing are not among them: a
+/// component's gestures are the component's, not the pane's commands.
+inline constexpr const char* kPowersActionView = "powers.view";
+inline constexpr const char* kPowersActionUp = "powers.up";
+inline constexpr const char* kPowersActionDown = "powers.down";
+inline constexpr const char* kPowersActionSample = "powers.sample";
+
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.

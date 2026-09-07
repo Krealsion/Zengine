@@ -30,9 +30,23 @@ std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down) 
            "/" + hotkey_text(k, down);
 }
 
-// WL-KEY-09 -- agents/workshop/keyboard.md
-std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
+// WL-KEY-09, WL-KEY-15 -- agents/workshop/keyboard.md
+std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_t pane) {
     std::vector<std::string> out;
+    // A FOCUSED PANE'S OWN ROWS COME FIRST, as a built-in context's own rows do: what the
+    // pane declared, spelled through the same effective map dispatch reads, so an override
+    // a maker authored for a pane's id is what the band teaches. A row with no gesture
+    // teaches no key, for the reason `take` gives below.
+    if (ctx == KeyContext::kPane) {
+        if (const PaneRows* rows = k.pane_rows(pane)) {
+            for (const PaneRow& row : rows->rows) {
+                if (!is_bound(row.gesture)) {
+                    continue;
+                }
+                out.push_back(gesture_text(row.gesture) + " " + row.label);
+            }
+        }
+    }
     // A fold: the run of actions it covers (in catalog order, keyed on the first), the
     // gestures that make it true, and the folded pair it becomes.
     struct Fold {

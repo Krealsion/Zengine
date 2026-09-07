@@ -81,12 +81,27 @@
 // showing, one `component::TextBox` query, one composite-only filter, one selected
 // IDENTITY per view, the last reading those derive from, and one retained sample --
 // and it answers presses, keys, typed text and the clipboard conversation with the
-// pane protocol's EXISTING shapes. Nothing widened: `PaneKey`, `PaneTextInput` and
-// the two clipboard sentences were all already there, and this weave simply began
-// accepting them.
+// pane protocol's shapes. When SOURCE-1 landed nothing widened: `PaneKey`,
+// `PaneTextInput` and the two clipboard sentences were all already there, and this
+// weave simply began accepting them.
 //
 //     Sources      what can answer with nothing supplied by me?
 //     Operators    what can transform information I supply?
+//
+// ---- AND IT DECLARES ITS FOUR ACTIONS, WHICH IS THE PROTOCOL'S FIRST WIDENING FOR A
+// PANE'S SAKE (WL-KEY-15) -----------------------------------------------------------
+//
+// Switching the view, stepping the cursor and sampling were four raw scancodes this
+// file matched against numbers, so they sat in no legend and no maker's keymap could
+// move them. They are now four rows this office DECLARES beside its offer
+// (`PaneActions{powers, ...}`, ids in `vocabulary.hpp`), and Workshop joins them into
+// its one keymap under its collision law, spells them on the band and in the hotkey
+// view, applies the maker's authored overrides to them, and sends back the RESOLVED
+// id (`PaneActionRequested`) when the keystroke that requests one arrives. This file
+// acts on the id and never on the key: the raw `PaneKey` arm below keeps only the
+// query's own editing vocabulary, because a component's gestures are the component's
+// and not the pane's commands. `loaded` and `arrangement` declare nothing -- they act
+// on no key today, and a declaration of what a pane does not do would be a lie.
 //
 // THE MEMBERSHIP IS DERIVED FROM THE CATALOG'S OWN TRUTH and is never authored
 // twice: `PowerContribution::source` is `op::is_source` read off the definition the
@@ -105,7 +120,7 @@
 //
 // It writes no file, starts no process, opens no socket, holds no timer, reads no
 // Sense, publishes no canvas, and commands no lifecycle. Its whole outbound
-// vocabulary is NINE shapes: two sentences of the pane protocol, the one question
+// vocabulary is TEN shapes: three sentences of the pane protocol, the one question
 // `zen.ListLoaded` -- which is the enumeration half of the control vocabulary and
 // NOT the load capability -- its own `LoadedSelected`, INTR-1's two questions
 // `ArrangementRequested` and `PowersRequested`, SOURCE-1's one `SampleRequested`,
@@ -177,6 +192,10 @@ using zengine::introspection::kIntrospectionRole;
 using zengine::introspection::kLoadedPane;
 using zengine::introspection::kLoadedPaneName;
 using zengine::introspection::kLoadedPaneSummary;
+using zengine::introspection::kPowersActionDown;
+using zengine::introspection::kPowersActionSample;
+using zengine::introspection::kPowersActionUp;
+using zengine::introspection::kPowersActionView;
 using zengine::introspection::kPowersPane;
 using zengine::introspection::kPowersPaneName;
 using zengine::introspection::kPowersPaneSummary;
@@ -186,6 +205,9 @@ using zengine::introspection::LoadedWeave;
 using zengine::workshop::ArrangementRequested;
 using zengine::workshop::kArrangementRole;
 using zengine::workshop::kSampleRole;
+using zengine::workshop::PaneActionRequested;
+using zengine::workshop::PaneActionRow;
+using zengine::workshop::PaneActions;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneKey;
@@ -250,10 +272,10 @@ class IntrospectionWeave
     : public loom::WeaveBase<
           IntrospectionWeave, IntrospectionState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, PaneWheel, loom::Result, loom::Refused,
-                       ResolvedArrangement, ResolvedPowers, SourceSampled,
+                       PaneTextInput, PaneWheel, PaneActionRequested, loom::Result,
+                       loom::Refused, ResolvedArrangement, ResolvedPowers, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneContent, LoadedSelected, loom::ListLoaded,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, PowersRequested, SampleRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
@@ -525,13 +547,14 @@ public:
     /// meant for `loaded` or `arrangement` must not edit the Powers query. It cannot:
     /// every arm below is behind the one `kPowersPane` test.
     ///
-    /// THE FIELD'S OWN VOCABULARY FIRST, the Composer's shipped ordering (TEXT-0):
+    /// THE FIELD'S OWN VOCABULARY, AND ONLY THAT (TEXT-0's ordering, WL-KEY-15's cut):
     /// `TextBox::consume` answers the six editing gestures plus selection, word
     /// movement, undo and the clipboard, and returns false for everything it has no
-    /// word for -- which is what leaves `Tab`, `Up`, `Down` and `Return` to mean what
-    /// this pane says they mean. A copy the field took is said to the process once;
-    /// a paste it REQUESTED is asked for through the Skin (QR-11), because the value
-    /// a paste means is the clipboard's CURRENT one and only an owner can obtain it.
+    /// word for -- and a key it has no word for changes nothing here, because what
+    /// this pane COMMANDS arrives as a resolved id (`on(PaneActionRequested)`) and never
+    /// as a number to match. A copy the field took is said to the process once; a paste
+    /// it REQUESTED is asked for through the Skin (QR-11), because the value a paste
+    /// means is the clipboard's CURRENT one and only an owner can obtain it.
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -542,37 +565,50 @@ public:
         }
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
-        if (powers_ui_.query.consume(key.scancode, key.modifiers, clip_)) {
-            if (clip_.writes != copied_before) {
-                mail.publish(surface::ClipboardCopy{clip_.text});
-            }
-            if (clip_.paste_requests != pastes_before) {
-                begin_clipboard_paste(mail);
-            }
-            say_powers(mail);
+        if (!powers_ui_.query.consume(key.scancode, key.modifiers, clip_)) {
+            return; // a key this pane's field has no word for changes nothing, says nothing
+        }
+        if (clip_.writes != copied_before) {
+            mail.publish(surface::ClipboardCopy{clip_.text});
+        }
+        if (clip_.paste_requests != pastes_before) {
+            begin_clipboard_paste(mail);
+        }
+        say_powers(mail);
+    }
+
+    /// ONE OF THIS PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop
+    /// resolved the keystroke against the effective keymap -- the maker's override where
+    /// one is authored, this office's declared default otherwise -- so what arrives is the
+    /// id and never the key, and nothing here knows or needs to know which key it was.
+    ///
+    /// GUARDED BY PANE BEFORE ANY STATE MOVES, exactly as a key is: this office offers
+    /// three panes and declares rows for one.
+    void on(const PaneActionRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            ++state_.refused;
             return;
         }
-        switch (key.scancode) {
-        case input::scan::kTab:
+        if (asked.pane != kPowersPane) {
+            return;
+        }
+        if (asked.id == kPowersActionView) {
             powers_ui_.view = powers_ui_.view == intro::powers_view::kSources
                                   ? intro::powers_view::kOperators
                                   : intro::powers_view::kSources;
-            break;
-        case input::scan::kUp:
+        } else if (asked.id == kPowersActionUp) {
             intro::move_cursor(powers_ui_, -1);
-            break;
-        case input::scan::kDown:
+        } else if (asked.id == kPowersActionDown) {
             intro::move_cursor(powers_ui_, +1);
-            break;
-        case input::scan::kReturn:
+        } else if (asked.id == kPowersActionSample) {
             // THE ONE EVALUATION GESTURE, AND IN THE OPERATORS VIEW IT IS BOUND TO
             // NOTHING. `sampleable` answers empty for anything that is not a selected
             // Source, so there is no operator-invocation path here to grow one from
             // -- and the picture does not change until an answer arrives.
             ask_sample(mail);
             return;
-        default:
-            return; // a key this pane has no word for changes nothing and says nothing
+        } else {
+            return; // an id this pane never declared: Workshop sends none, and none acts
         }
         say_powers(mail);
     }
@@ -776,6 +812,21 @@ private:
         offer(mail, PaneOffered{kArrangementPane, kArrangementPaneName,
                                 kArrangementPaneSummary});
         offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary});
+        // ...AND WHAT THE ONE INTERACTIVE PANE CAN DO, beside its offer (WL-KEY-15): the
+        // four rows this file acts on, with the default each shipped under. The numbers
+        // are `input::scan`'s and `input::mod`'s, the same two `PaneKey` carries; what a
+        // maker's keymap moves them to is Workshop's to know, and this file is told the id.
+        PaneActions rows;
+        rows.pane = kPowersPane;
+        rows.rows.push_back(
+            PaneActionRow{kPowersActionView, "switch view", input::scan::kTab, input::mod::kNone});
+        rows.rows.push_back(
+            PaneActionRow{kPowersActionUp, "row up", input::scan::kUp, input::mod::kNone});
+        rows.rows.push_back(
+            PaneActionRow{kPowersActionDown, "row down", input::scan::kDown, input::mod::kNone});
+        rows.rows.push_back(PaneActionRow{kPowersActionSample, "sample", input::scan::kReturn,
+                                          input::mod::kNone});
+        (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, rows);
     }
 
     void offer(loom::Mail& mail, const PaneOffered& said) {
