@@ -20,13 +20,12 @@ LAW — Each Builder fact carries a distinct priority: the budget keeps the most
 
 MEANS
 - header, recipe, the `project` frontier while one waits, last, exit, ran, realize, `said…`;
-- the catalog row costs one `said` row, and only where it is present;
 - the realize row has three faces and no second row: armed, the button, or the outcome.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `paint_builder`, `panel_block`;
 `tests/test_workshop_document.cpp` case `"WUX-1/SC-4: the Builder keeps the facts a maker acts on,
-by explicit priority"`, case `"PROJ-1: the catalog row costs one `said` row, and only where it is
-present"`.
+by explicit priority"`, case `"PROJ-1: the Builder panel seats its nine facts, and names no
+catalog"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-03 — The foot band is the notice, then the legend

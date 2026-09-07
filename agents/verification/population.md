@@ -113,10 +113,10 @@ that made it"`; `tests/workshop_support.hpp` `ZENGINE_WORKSHOP_SUITE`.
 
 ## VM-POP-15 — A sweep removes a link by name without entering it
 
-METHOD — A sweep asks `leaves_the_tree` of every entry and removes a link by name without entering it, because libstdc++ on Windows walks a directory junction as a directory.
+METHOD — A sweep asks `sweep_leaves_the_tree` of every entry and removes a link by name without entering it, because libstdc++ on Windows walks a directory junction as a directory.
 BECAUSE — the target emptied through the junction and the dangling junction left behind cost
 every second local MinGW run its junction witness.
-SEEN — `tests/workshop_support.hpp` `remove_tree`, `leaves_the_tree`.
+SEEN — `tests/workshop_support.hpp` `remove_tree`, `sweep_leaves_the_tree`.
 
 ## VM-POP-16 — When a suite splits, re-baseline every floor
 

@@ -6,7 +6,7 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`, `Files`,
+- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`,
   `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
   screen, which is a pane like the rest of them: pick it, move it, cover it, remove it) and
   `Pane Manager` ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places
@@ -69,7 +69,7 @@ those down, press a pane that takes no typing — `Layouts` is always there — 
 then `Esc`.
 
 **The wheel reaches what a list could not show.** Any list here that says `... N more` — the
-Pane Manager's two lists, the picker, the Files listing, a Powers or Compose pane — moves its
+Pane Manager's two lists, the picker, a Files, Powers or Compose pane — moves its
 cursor under the wheel, and the rows follow. The wheel goes to the pane under the pointer,
 front-most first, so a pane in front never scrolls the one it covers; it does not select the
 pane and does not move the keys. The source editor scrolls its text instead, leaving the
@@ -181,7 +181,7 @@ reading bytes Workshop already had in its hand. A line that fits does not move a
 line whose provider had already shortened it cannot be recovered: Workshop can only show what
 it was given.
 
-Today this works on the Info panel's object and property rows and on the Files pane's location
+Today this works on the Info panel's object and property rows and on the location
 and names, and only in the graphical window — a terminal is not asked to report a pointer that
 is not pressing anything ([limitations](limitations.md#pointing-without-pressing-is-a-window-only-gesture)).
 
@@ -516,5 +516,9 @@ the key, so a maker's keymap moves a pane's keys exactly as it moves Workshop's.
 more to say than it can hold must say *how much it left out* — a count a reader can trust is a
 count that names what it read.
 
-There is no plugin discovery and no installation story: a pane arrives because an artifact was
+There is no plugin discovery and no installation story in the sense of a registry or a store —
+but a pane does arrive, and the way it arrives is a line you can edit. `Files` is the first pane
+that used to be compiled in and is now loaded exactly like the rest: a row in the load plan
+naming `zengine-files`. Removing the row removes the pane; replacing it replaces the pane. What
+there is no story for is DISCOVERING one you did not ask for: a pane arrives because an artifact was
 in the [load plan](load-plans.md) and the weave offered one.

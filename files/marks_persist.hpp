@@ -6,11 +6,11 @@
 
 // THE PLACES A MAKER SAID THEY WANT BACK -- an eighth durable artifact, and the third file
 // of the maker's-own-facts kind.
-// Workshop law: agents/workshop/files.md
+// Files law: agents/files.md
 
-#include "marks.hpp"
-#include "path_admission.hpp"
-#include "persist.hpp"
+#include "files/marks.hpp"
+#include "workshop/path_admission.hpp"
+#include "workshop/persist.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -37,9 +37,6 @@ inline constexpr std::int64_t kFormatVersion = 1;
 /// materialisation law -- a hostile file does not get to choose the cost of refusing it --
 /// and 64 KiB is the same order of magnitude every other file in this family reasons from.
 inline constexpr std::uintmax_t kMaxMarksBytes = 1u << 16;
-
-/// The file's suggested name, beside the family's other defaults.
-inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
 
 // ---- The file's own shapes ---------------------------------------------------------------
 

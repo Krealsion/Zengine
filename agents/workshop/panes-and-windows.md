@@ -15,7 +15,7 @@ MEANS
 
 PROVEN BY — `workshop/panel.hpp` `place_is_authorable`, `kSideRegion`, `kOverlayStack`,
 `kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`, `placement_of`;
-`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_browser.cpp`
+`workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_reveal.cpp`
 `paint_pane_affordances`; `workshop/weave_arrange.cpp` `take_pane_hold`;
 `tests/test_workshop_panels.cpp` case `"a panel kind declares its place, and the place resolves to
 bounds"`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts

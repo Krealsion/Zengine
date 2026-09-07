@@ -1747,6 +1747,57 @@ TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception
     }
 }
 
+TEST_CASE("INTR-1: the browser this host used to compile is named by no presentation source") {
+    // ⭐ INTR-0 IN REVERSE, AND THE HARDEST DIRECTION TO KEEP. The two panes above were
+    // never this host's; the project browser WAS -- its rows, its keys, its context, its
+    // painter and its kind were all compiled in here. So "Workshop knows no pane" is a
+    // claim this host had to be made true of, and the failure mode is not a new coupling
+    // but an old one somebody restores because a helper was convenient.
+    //
+    // THE FORBIDDEN FORMS ARE IDENTIFIERS AND QUOTED LITERALS. `panel::kProjectFiles` and
+    // `pane_key::kProjectFiles` were the compile-time handle and its durable name; the
+    // `Act::kFiles*` values and `KeyContext::kFiles` were its rows and its keyboard mode;
+    // `FilesPane`, `paint_files` and `files_has_keyboard` were its state and its painter.
+    // Every one of them is gone, and a presentation that could spell one is a presentation
+    // that has started to own a pane again.
+    //
+    // ⚠ ONE FILE IS EXEMPT, AND IT IS EXEMPT BY NAME (`presentation_sources`,
+    // workshop_support.hpp): `pane_migration.hpp` exists precisely so that exactly one
+    // file spells the retired reference, for saved files that still hold it. Naming a
+    // durable reference is not knowing a pane -- nothing there can present one, and the
+    // rewrite it performs makes the old name stop existing at the moment a file is read.
+    std::vector<std::string> sources = presentation_sources();
+    sources.push_back(WORKSHOP_HOST_CPP);
+    for (const std::string& path : sources) {
+        const std::string source = file_source(path.c_str());
+        for (const char* forbidden : {"kProjectFiles", "\"project-files\"", "KeyContext::kFiles",
+                                      "Act::kFilesUp", "Act::kFilesOpen", "Act::kFilesMark",
+                                      "Act::kFilesUseRecipes", "Act::kFilesPickBuildable",
+                                      "kRecipeChooser", "FilesPane", "paint_files",
+                                      "files_has_keyboard", "RecipeChooser"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
+                          forbidden, "'");
+        }
+    }
+    // ...AND NO KIND WAS LEFT BEHIND IN THE CATALOG EITHER. The browser had a compile-time
+    // kind; the catalog is walked rather than counted, so a row that survived under any
+    // name would be caught by what it OFFERS rather than by what it is called.
+    for (const PanelKind& kind : kPanelCatalog) {
+        CHECK_MESSAGE(std::string(kind.pane) != "project-files", "the panel catalog still "
+                                                                "offers the built-in browser");
+        CHECK_MESSAGE(std::string(kind.name) != "Files", "the panel catalog still offers a "
+                                                         "built-in `Files`");
+    }
+    // ...AND ITS ROWS LEFT THE KEYMAP WITH IT, so a maker's authored override for one is
+    // resolved by the WEAVE's declaration (WL-KEY-15) and not by a host row that outlived
+    // the pane. The ids are the ones a maker's file already holds.
+    for (const char* id : {"files.up", "files.open", "files.mark", "files.use-recipes",
+                           "files.pick-buildable", "files.cancel"}) {
+        CHECK_MESSAGE(row_of_id(id) == nullptr, "the host still declares an action row for `",
+                      id, "`");
+    }
+}
+
 TEST_CASE("BLD-2: the presentation holds no realization or build-runner reach") {
     // THE FRONTIER MADE THE PRESENTATION AWARE OF REALIZATION, and this is the wire
     // that keeps "aware" from quietly becoming "in charge". What the weave holds is

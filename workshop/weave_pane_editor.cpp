@@ -509,36 +509,40 @@ void WorkshopWeave::edit_source(loom::Mail& mail) {
             true);
         return;
     }
-    open_source(named.source, mail);
+    // THE DOOR ANSWERS WITH ITS OUTCOME NOW, so this referrer says the refusal where its
+    // own gesture is read -- the notice line -- exactly as the door used to say it itself.
+    const Written done = open_source(named.source, mail);
+    if (!done.accepted) {
+        say(done.refusal, true);
+    }
 }
 
 // WL-EDIT-03, WL-EDIT-05, WL-EDIT-06, WL-EDIT-11, WL-EDIT-13 -- agents/workshop/editor.md
 // WL-FRONT-04 -- agents/workshop/planes.md
-void WorkshopWeave::open_source(const std::string& requested, loom::Mail& mail) {
+Written WorkshopWeave::open_source(const std::string& requested, loom::Mail& mail) {
     const std::string path = persist::resolved_against(host_->project_dir, requested);
     EditorState& e = session_.editor;
     if (e.open_document() && e.path == path) {
         // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
         // its caret, its selection, its history and its viewport all stand; what
         // moves is presence (a removed pane comes back) and the keyboard.
-        if (!ensure_editor_pane(mail)) {
-            return;
+        const Written room = ensure_editor_pane(mail);
+        if (!room.accepted) {
+            return room;
         }
         session_.panels.selected = panel::kEditor;
         session_.panels.keyboard = panel::kEditor;
         e.follow_caret = true;
         say("editing " + e.path + (e.dirty() ? " -- UNSAVED edits stand" : ""), false);
-        return;
+        return Written::ok();
     }
     if (e.dirty()) {
         // THE UNSAVED-LOSS FLOOR: a different source must not silently replace a
         // dirty buffer. The two ways out are the editor's own save and its one
         // deliberate discard door, both named with their effective gestures.
-        say(e.path + " has unsaved changes -- " + hotkey(Act::kEditorSave) +
-                " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
-                " discards them; nothing was opened",
-            true);
-        return;
+        return Written::no(e.path + " has unsaved changes -- " + hotkey(Act::kEditorSave) +
+                           " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
+                           " discards them; nothing was opened");
     }
     // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the maker the
     // notice and nothing else -- the pane, the setup, the current document (if any)
@@ -546,16 +550,15 @@ void WorkshopWeave::open_source(const std::string& requested, loom::Mail& mail) 
     const persist::FileText read =
         persist::read_file(path, kMaxSourceBytes, "a source file");
     if (!read.outcome.accepted) {
-        say(read.outcome.refusal, true);
-        return;
+        return read.outcome;
     }
     SourceIn admitted = source_in(read.text);
     if (!admitted.outcome.accepted) {
-        say(path + ": " + admitted.outcome.refusal, true);
-        return;
+        return Written::no(path + ": " + admitted.outcome.refusal);
     }
-    if (!ensure_editor_pane(mail)) {
-        return;
+    const Written room = ensure_editor_pane(mail);
+    if (!room.accepted) {
+        return room;
     }
     e.path = path;
     e.saved_lines = admitted.lines;
@@ -573,9 +576,29 @@ void WorkshopWeave::open_source(const std::string& requested, loom::Mail& mail) 
     session_.panels.selected = panel::kEditor;
     session_.panels.keyboard = panel::kEditor;
     say("editing " + e.path, false);
+    return Written::ok();
 }
 
-bool WorkshopWeave::ensure_editor_pane(loom::Mail& mail) {
+/// THE ONE EDITOR DOOR, ANSWERED ACROSS THE SEAM (`files_seam_vocabulary.hpp`).
+///
+/// It is the SAME door `edit_source` spends and the browser used to spend directly -- the
+/// path goes through `open_source`, which normalizes it, refuses a dirty buffer, reads and
+/// judges the file and installs it, exactly as it always has (WL-EDIT-05). What is new is
+/// only that a refusal now travels back to whoever asked, as a value, so a pane that is no
+/// longer inside this process can say it in its own row.
+///
+/// AN OFFICE, AND ONLY AN OFFICE, the two host doors' rule: opening a maker's source for
+/// anonymous speech would be this host acting on a sentence with no author.
+void WorkshopWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    const Written done = open_source(asked.path, mail);
+    (void)mail.answer(SourceOpened{done.accepted, done.refusal});
+    repaint(mail);
+}
+
+Written WorkshopWeave::ensure_editor_pane(loom::Mail& mail) {
     const PaneRef ref = pane_ref_of(panel::kEditor);
     Setup candidate = session_.setup.active;
     const bool added = add_pane(candidate, ref);
@@ -583,17 +606,15 @@ bool WorkshopWeave::ensure_editor_pane(loom::Mail& mail) {
                                      stack_capacity(screen_of(session_)));
     for (const std::int64_t k : trial.waiting) {
         if (k == panel::kEditor) {
-            say("no room for the Editor on this screen -- make the window taller, "
-                "then try again",
-                true);
-            return false;
+            return Written::no("no room for the Editor on this screen -- make the window "
+                               "taller, then try again");
         }
     }
     if (added) {
         session_.setup.active = std::move(candidate);
     }
     apply_setup(mail);
-    return true;
+    return Written::ok();
 }
 
 // WL-EDIT-01 -- agents/workshop/editor.md

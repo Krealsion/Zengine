@@ -41,6 +41,23 @@ Files is an ordinary pane. Press **`p`**, choose **Files**, press Return — and
 gesture removes it again. It moves, resizes, stacks and rides a saved setup exactly like every
 other pane (see [Panes](panes.md)).
 
+**It is not compiled into Workshop.** Files is a separate artifact, `zengine-files`, loaded at
+startup because a row in the load plan says so — the same way the Timer, the Compose pane and
+the introspection panes arrive (see [Load plans](load-plans.md)). Take the row out and you get
+a Workshop with no Files pane and no error; put your own artifact in its place and you get a
+different one. Nothing about that is visible while you are using it, which is the point.
+
+One consequence you may see once: a desk you saved with an older Workshop names this pane the
+way that Workshop offered it, and the reference is brought forward when the desk is read. You
+are told, once, on the run that does it:
+
+```text
+reopened your last desk "Morning" -- 132x41 cells; the Files pane moved to its own office --
+zengine.workshop/project-files is now zengine.files/project-files
+```
+
+Nothing is rewritten on disk until you next save that desk in the ordinary way.
+
 Where you had browsed to is **not** saved: a new Workshop starts where it was launched. What
 is saved is that the pane is on your desk, where it sits, and the places you deliberately
 marked. Half-finished browsing is not a preference; a place you asked to keep is.
@@ -64,6 +81,12 @@ The mouse works the way the keys do, with one deliberate extra step: **the first
 row selects it, and pressing the row that is already selected opens it.** So the press that
 points your keys at the pane can never also open a file — which matters most when you have
 unsaved edits, because opening a different file is exactly what would be refused.
+
+While you are typing a recipe field, only Return and Escape mean what the table above says;
+every other key goes into the line you are editing, so Backspace deletes a character rather
+than walking up a directory. If you have moved any of these keys in your own keymap file, your
+spelling is what is in force — the names (`files.up`, `files.open`, `files.use-recipes` and the
+rest) did not change.
 
 The wheel moves the cursor through the listing.
 
@@ -168,9 +191,16 @@ page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
 directory that holds a configured CMake tree — and, when you choose one, asks the few things
 nothing can detect and appends one recipe row, as you typed it, to the catalog in force (or to a
 `build-recipes.json` it creates in your project — the catalog in force from then on, the next
-launch from there included). The pane's part ends at the handover: it gives
-the chooser a place and the names in it, and the row it writes never comes back to a listing. The
-whole of it is on [the Builder's page](builder.md#authoring-a-recipe-from-files).
+launch from there included).
+
+**Both steps happen inside the pane.** The list of candidates replaces the listing in the pane's
+own space, `↑`/`↓` move through it, Return chooses, Escape backs out; then each field is a line
+in the same space, Return commits it and moves on, and Escape abandons the whole thing without
+writing anything. There is no popup and nothing covers your desk.
+
+Workshop itself composes no recipe: what you typed is handed over, and the same rule that reads
+a catalog file checks it, appends it as written and installs it. The whole of it is on [the
+Builder's page](builder.md#authoring-a-recipe-from-files).
 
 ## What it is not
 
