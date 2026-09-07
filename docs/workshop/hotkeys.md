@@ -53,9 +53,11 @@ The list is grouped by the layer that owns each row:
 The view describes the context **beneath** it — open it over the terminal line and you read
 the terminal line's keys — and it is modal while open: `Esc` or `Ctrl`+`k` puts it away, and
 any other key is swallowed rather than executed, so reading a binding never performs one. For
-a focused external pane it tells the honest whole of the story: every ordinary key goes to
-the pane, and what each one means there is the provider's own. Workshop is deliberately never
-told a provider's bindings and will not guess them.
+a focused external pane it lists the actions the pane declared — `switch view`, `row up`, and
+so on, spelled from the same effective keymap, so an override you authored for the pane's id
+is what you read — and then tells the honest whole of the rest: every other ordinary key goes
+to the pane, and what each one means there is the provider's own. Workshop is told a pane's
+declared rows and nothing more, and will not guess the rest.
 
 ## The band legend
 
@@ -144,8 +146,11 @@ nothing is stored anywhere else.
 
 ## What this is not
 
-Provider panes keep their own keyboards: a focused pane receives every ordinary key and
-character uninterpreted, and its bindings are the provider's to define and to document. The
-editing component's keys are shared by every text field and are not per-application. And
+Provider panes keep their own keyboards for everything they did not declare: a focused pane
+receives every ordinary key and character uninterpreted, and what those mean is the provider's
+to define and to document. What a pane *declares* — its own action ids, such as `powers.view`
+— joins this keymap under the same collision law, appears in the legend and the hotkey view,
+and moves in the same file, by id, exactly as Workshop's own rows do. The editing component's
+keys are shared by every text field and are not per-application. And
 there is no command palette, no macro recorder and no key-sequence grammar — a binding is one
 named key with the modifiers that were held.

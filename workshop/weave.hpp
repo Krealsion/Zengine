@@ -231,6 +231,7 @@ class WorkshopWeave
                                           zengine::builder::BuildStatus,
                                           zengine::builder::RecipeCatalog,
                                           zengine::workshop::PaneOffered,
+                                          zengine::workshop::PaneActions,
                                           zengine::workshop::PaneContent>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -246,7 +247,8 @@ class WorkshopWeave
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
-                                        zengine::workshop::PaneWheel>> {
+                                        zengine::workshop::PaneWheel,
+                                        zengine::workshop::PaneActionRequested>> {
 public:
     explicit WorkshopWeave(HostContext& host);
 
@@ -442,6 +444,22 @@ public:
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
+
+    /// AN OFFICE DECLARES WHAT ONE OF ITS PANES CAN DO -- the rows of the one action
+    /// catalog, for a pane this office has offered. Judged whole under the same stamp the
+    /// offer was: the shape's half in `admit_pane_actions` (setup.hpp), the rows' half and
+    /// the collision law in `join_pane_rows` (keymap.hpp), and only when both have passed
+    /// are the declaration retained on the catalog row and the joined rows put in force.
+    /// A refusal is said on the notice line in the keymap's own words and changes nothing.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    void on(const PaneActions& actions, loom::Mail& mail);
+
+    /// RE-JOIN EVERY PANE'S RETAINED DECLARATION INTO THE KEYMAP NOW IN FORCE -- what the
+    /// keymap file's load does, because the file may arrive after a pane did and its
+    /// overrides are owed to that pane's rows too. A pane whose rows the file's bindings
+    /// now collide with keeps no rows, and the refusal is said once with the load's word.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    void rejoin_pane_rows(std::string& refusals);
 
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
@@ -1198,6 +1216,11 @@ private:
     ///
     /// AND NOTHING IS REPAINTED HERE, for `external_press`'s reason: Workshop's picture did
     /// not change, and a provider that answers repaints through its own `PaneContent`.
+    ///
+    /// A GESTURE THIS PANE DECLARED A ROW FOR CROSSES AS THE RESOLVED ID (WL-KEY-15):
+    /// `PaneActionRequested{pane, id}` instead of the key, so the maker's override reaches
+    /// the pane and the pane never re-derives a binding it cannot see. Every other key
+    /// crosses as `PaneKey` exactly as before.
     void external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                       loom::Mail& mail);
 

@@ -119,6 +119,46 @@ and every older one is byte-identical.
   it would retarget the Composer by looking. Its `... N more` therefore still counts what no
   gesture reaches; what it would need is a list origin of its own — a recorded seam.
 
+## A pane declares its actions, and the host dispatches the resolved id
+
+`PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
+provider → Workshop, sent beside the offer; `PaneActionRequested v1` `{pane, id}`, Workshop →
+provider. They ADDED to the protocol and revised nothing: eleven shapes, and every older one is
+byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
+Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
+
+- **A row is the host's own catalog row minus `Act` and minus `KeyContext`.** The id is in the
+  pane's namespace and is what a maker's keymap file names, so it is durable the way a pane key
+  is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,
+  `input::scan` and `input::mod`, and never a key name — a name is a spelling the host's grammar
+  owns. `scan::kUnknown` declares a row with no default, one a maker may bind.
+- **Judged whole under the office stamp, exactly as the offer is.** An empty office retains
+  nothing; a pane this office never offered is refused by name; the rows meet a bound
+  (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
+  Workshop's own) and the collision law over the effective map — the globals and the no-editor
+  rows, which are what is active while a text-taking pane holds the keys, and the pane's own
+  rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
+  one replaces them. Two panes declaring one bare key are two contexts, keyed by handle, and
+  never meet.
+- **The maker's file reaches the pane.** An override for an id nobody has declared is preserved
+  as unknown when the file loads and applied the moment a pane declares it; a pane that declared
+  before the file loaded is re-joined under the file at the load. The file always wins: in
+  either order a pane whose rows the file's bindings collide with is the party refused, in the
+  file's own words.
+- **The resolved id crosses INSTEAD of the key, for one keystroke.** While the keyboard pane
+  holds the keys, a gesture matching one of its effective bindings crosses as
+  `PaneActionRequested` and the character it produced is swallowed; anything else crosses as
+  `PaneKey`/`PaneTextInput` unchanged, so a `p` typed into a field is still a `p`. A provider
+  acts on the name and never re-derives a binding it cannot see; a provider that keeps matching
+  raw scancodes has made its declaration decorative, and its maker's override reaches nothing.
+- **Declaring is not wanting.** Rows point no keyboard at a pane and hold none: a press into its
+  room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
+  The Powers pane declares four (`introspection/vocabulary.hpp`); `loaded`, `arrangement` and the
+  Composer declare none — the Composer still matches raw keys, and is the next consumer.
+- **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
+  compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
+  row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
+
 ## The Loaded pane: the first stranger tool (INTR-0)
 
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave, and it is the

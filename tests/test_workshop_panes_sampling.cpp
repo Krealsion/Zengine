@@ -15,8 +15,8 @@
 // shared because a Workshop with a real external pane in it is what the geometry, the
 // persistence and the interaction suites need too.
 //
-// FOUR SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; since QR-13 its cases live in five translation
+// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
+// one CTest entry running one binary; its cases live in six translation
 // units, cut along the headings this material already had:
 //
 //   _seam.cpp           the protocol and the provider -- what an office may offer, who
@@ -29,6 +29,7 @@
 //                       and the keyboard that reaches a pane
 //   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
 //   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
+//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
 //
 // A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
 // first and an object-format bound second: one MinGW Debug object could no longer name

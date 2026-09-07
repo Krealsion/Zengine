@@ -349,7 +349,9 @@ nothing in it can be made to send, sample, bind or load.
 
 You cannot drag a semantic object from one pane into another. There is no drag-and-drop between
 panes, no shared selection across panes, and no protocol by which one pane could hand an object
-to another. An external pane is read-only prose and receives no input at all.
+to another. An external pane publishes prose and receives a press as a place, keys, text, the
+wheel, and the resolved id of an action it declared — eleven shapes — and nothing that would
+let it reach another pane or be reached by one.
 
 The ownership map a future cross-pane gesture would have to cross is recorded in
 [the architecture notes](../architecture/README.md#cross-pane-interaction).

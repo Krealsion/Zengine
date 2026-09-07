@@ -1025,6 +1025,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_input.cpp
             test_workshop_panes_introspection.cpp
             test_workshop_panes_sampling.cpp
+            test_workshop_panes_actions.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

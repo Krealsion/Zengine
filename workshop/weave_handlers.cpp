@@ -50,6 +50,14 @@ void WorkshopWeave::load_keymap() {
         return;
     }
     session_.keymap = loaded.keymap;
+    // AND EVERY PANE THAT DECLARED ROWS BEFORE THE FILE LOADED IS JOINED AGAIN, under the
+    // file: a pane loaded before the first surface existed declared against the defaults,
+    // and the maker's override for its id is owed to it now. The file's own law already
+    // ran over the built-in rows and passed; a pane whose rows the file's bindings now
+    // collide with is the party judged, so both load orders end the same way -- the file
+    // in force, that pane's rows refused in words (WL-KEY-15).
+    std::string refused;
+    rejoin_pane_rows(refused);
     if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
         keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +
                        std::to_string(session_.keymap.authored.size()) + " override" +
@@ -57,6 +65,12 @@ void WorkshopWeave::load_keymap() {
         if (!session_.keymap.note.empty()) {
             keymap_word_ += "; " + session_.keymap.note;
         }
+    }
+    if (!refused.empty()) {
+        if (!keymap_word_.empty()) {
+            keymap_word_ += "; ";
+        }
+        keymap_word_ += refused;
     }
 }
 
@@ -242,6 +256,13 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // expectation eats nothing).
     swallow_text_.clear();
     if (session_.keymap.action_for(ctx, k.scancode, k.modifiers) != Act::kNone) {
+        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+    } else if (ctx == KeyContext::kPane &&
+               session_.keymap.pane_action_for(keyboard_pane(), k.scancode, k.modifiers) !=
+                   nullptr) {
+        // A PANE'S OWN ROW IS A BINDING TOO (WL-KEY-15): the keystroke crosses as the
+        // resolved id, and the character it produced belongs to the trigger, not to the
+        // pane's field.
         swallow_text_ = expected_text_of(k.scancode, k.modifiers);
     }
     // ONLY THE ROWS DECLARED ABOVE THE MODES ARE ANSWERED HERE. `workshop.quit`'s

@@ -5729,7 +5729,10 @@ TEST_CASE("INTR-0: adding this tool widens nothing -- it says three shapes and n
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"PaneContent", "PaneOffered", "zen.ListLoaded"};
+    // FOUR SINCE WL-KEY-15: the Powers pane's declared actions ride beside its offer, and
+    // they are a declaration of what a pane DOES, not a reach into anything.
+    const std::vector<std::string> allowed{"PaneActions", "PaneContent", "PaneOffered",
+                                           "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY TOO, because the interesting half of an authority audit is the
     // shapes that are ABSENT. Asking what is loaded is not being able to load anything:
@@ -5903,7 +5906,7 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     for (std::int64_t i = 0; i < crowd_want - static_cast<std::int64_t>(kPanelKinds); ++i) {
         crowded.runtime.entries.push_back(
             RuntimePane{kFirstRuntimeKind + i, "zengine.probe",
-                        "p" + std::to_string(i), "Probe" + std::to_string(i), "a summary"});
+                        "p" + std::to_string(i), "Probe" + std::to_string(i), "a summary", {}});
     }
     const std::vector<CatalogRow> crowd = inventory_rows(setup_for(crowded), crowded);
     REQUIRE(crowd.size() == static_cast<std::size_t>(crowd_want));
@@ -5972,7 +5975,7 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     Panels offered = panels;
     offered.runtime.entries.push_back(
         RuntimePane{kFirstRuntimeKind, "zengine.introspection", "loaded", "Loaded",
-                    "what the kernel has loaded, and each one's role"});
+                    "what the kernel has loaded, and each one's role", {}});
     // THE MEASURED ROW IS THE SELECTED ONE, because the graphical budget no longer holds
     // the whole catalog: `list_window` keeps the selection in the window (its rule 2), so
     // selecting the offered pane is what makes "the same row, read by two media" a
@@ -6172,7 +6175,7 @@ TEST_CASE("TYPE-0: a pane with room for the header and nothing else still says w
     // the header is written, or a maker gets a rectangle that says nothing at all.
     Panels panels;
     panels.runtime.entries.push_back(RuntimePane{kFirstRuntimeKind, "zengine.probe", "p",
-                                                 "Probe", "a summary"});
+                                                 "Probe", "a summary", {}});
     ExternalPane live;
     live.kind = kFirstRuntimeKind;
     live.heard = true;

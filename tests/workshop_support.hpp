@@ -1878,10 +1878,19 @@ struct SeatState {
 class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                                          PaneTextInput, PaneWheel, SeatDo>,
-                             loom::Emit<PaneOffered, PaneContent, PanePressed>> {
+                                          PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
+
+    /// A RESOLVED ACTION THIS SEAT WAS ASKED FOR (WL-KEY-15), recorded and never
+    /// interpreted, for the key's reason exactly: a case asserts what WORKSHOP resolved.
+    void on(const PaneActionRequested& a, loom::Mail& mail) {
+        ++state_.said;
+        ++said;
+        actions.push_back(a);
+        action_authors.push_back(std::string(mail.authored_role()));
+    }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
         ++state_.said;
@@ -1949,6 +1958,14 @@ public:
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
     }
+    /// Declare a pane's actions, deliberately AS this office -- and personally, from the
+    /// very weave that holds it, which Workshop must drop for the offer's reason.
+    void declare(loom::Mail& mail, const PaneActions& a) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+    }
+    void declare_personally(loom::Mail& mail, const PaneActions& a) {
+        (void)mail.send_to_role(kWorkshopProvider, a);
+    }
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE (SEL-0) -- deliberately authored, and
     /// deliberately by an office that is not `zengine.workshop`. This is the sentence
     /// a provider must refuse: a stranger telling it a maker clicked one of its rows.
@@ -1971,6 +1988,8 @@ public:
     std::vector<std::string> text_authors;
     std::vector<PaneWheel> wheels;
     std::vector<std::string> wheel_authors;
+    std::vector<PaneActionRequested> actions;
+    std::vector<std::string> action_authors;
     std::function<void(ProviderSeat&, loom::Mail&)> next;
 
 private:
@@ -2163,6 +2182,7 @@ struct PaneRig {
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
+        speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -2182,6 +2202,7 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
         // claim under test is that a PROVIDER refuses a press it did not get from
         // Workshop -- a refusal the bus made unreachable would prove nothing.

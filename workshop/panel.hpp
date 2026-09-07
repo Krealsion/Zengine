@@ -10,6 +10,7 @@
 
 #include "files.hpp"
 #include "pane_definition.hpp"
+#include "pane_vocabulary.hpp" // PaneActionRow -- what an offered pane declared it can do
 
 #include "builder/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -438,6 +439,12 @@ struct RuntimePane {
     std::string pane;                      ///< the pane key, in that office's namespace
     std::string name;                      ///< what the picker lists
     std::string summary;                   ///< one line, beside the name
+    /// THE ACTIONS THIS PANE DECLARED, as admitted -- retained here, beside the descriptor
+    /// they arrived with, so the maker's keymap file can be applied to them whenever it
+    /// loads. What is IN FORCE is `Keymap::panes`, derived from this; a refused
+    /// declaration leaves this exactly as it was.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    std::vector<PaneActionRow> actions;
 };
 
 /// HOW MANY CATALOG ROWS THIS SESSION WILL HOLD IN TOTAL -- built-ins included.

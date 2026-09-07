@@ -157,19 +157,22 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
             if (legend_rows == 1) {
                 const std::int64_t rest =
                     columns - static_cast<std::int64_t>(said.size()) - 3;
-                const std::vector<std::string> pairs = help_rows(s.keymap, ctx, rest, 1);
+                const std::vector<std::string> pairs =
+                    help_rows(s.keymap, ctx, rest, 1, typing);
                 legend.push_back(detail::fit(
                     pairs.empty() ? said : said + " | " + pairs.front(), columns));
             } else {
                 legend.push_back(detail::fit(said, columns));
+                // THE PANE'S OWN DECLARED ROWS COME FIRST IN WHAT FOLLOWS (WL-KEY-15),
+                // then the chorded survivors: `help_pairs` orders them so.
                 const std::vector<std::string> pairs =
-                    help_rows(s.keymap, ctx, columns, legend_rows - 1);
+                    help_rows(s.keymap, ctx, columns, legend_rows - 1, typing);
                 for (const std::string& row : pairs) {
                     legend.push_back(row);
                 }
             }
         } else {
-            legend = help_rows(s.keymap, ctx, columns, legend_rows);
+            legend = help_rows(s.keymap, ctx, columns, legend_rows, typing);
         }
     }
 
@@ -188,7 +191,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         push(notice, notice_role);
     } else {
         const std::vector<std::string> pairs =
-            help_rows(s.keymap, keyboard_context(s), columns, 1);
+            help_rows(s.keymap, keyboard_context(s), columns, 1, keyboard_pane(s.panels));
         if (!pairs.empty()) {
             push(pairs.front(), surface::role::kMuted);
         }

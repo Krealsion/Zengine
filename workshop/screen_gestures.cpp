@@ -130,7 +130,7 @@ std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 
 // WL-KEY-09 -- agents/workshop/keyboard.md; WL-RGN-03 -- agents/workshop/regions.md
 std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
-                                   std::int64_t width, std::size_t rows) {
+                                   std::int64_t width, std::size_t rows, std::int64_t pane) {
     std::vector<std::string> out;
     if (rows == 0) {
         return out;
@@ -143,7 +143,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
         out.push_back(detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width));
         return out;
     }
-    const std::vector<std::string> pairs = help_pairs(k, ctx);
+    const std::vector<std::string> pairs = help_pairs(k, ctx, pane);
     std::string row;
     std::size_t taken = 0;
     for (const std::string& pair : pairs) {
