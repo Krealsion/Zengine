@@ -1042,6 +1042,14 @@ inline const char* posix_gap(const Gesture& g) noexcept {
     if ((g.modifiers & mod::kAlt) != 0 && !is_posix_editing_scan(g.scancode)) {
         return "alt arrives only on the editing keys from a POSIX terminal";
     }
+    // THE BRANCH THIS FILE'S PROSE STATED FIVE TIMES BEFORE THE CODE DID (BL-DEF-03): the
+    // POSIX wire carries ctrl+letter as one control byte, and Shift leaves no mark on it,
+    // so ctrl+shift+<letter> arrives as plain ctrl+<letter> -- the same byte, and an
+    // authored binding a terminal maker could never tell from the unshifted one.
+    if ((g.modifiers & mod::kCtrl) != 0 && (g.modifiers & mod::kShift) != 0 &&
+        is_letter_scan(g.scancode)) {
+        return "ctrl+shift+letter collapses to plain ctrl+letter on a POSIX terminal";
+    }
     if ((g.modifiers & mod::kCtrl) != 0 &&
         (g.scancode == scan::kH || g.scancode == scan::kI || g.scancode == scan::kJ ||
          g.scancode == scan::kM)) {
