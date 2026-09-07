@@ -9,7 +9,7 @@
       {
         "recipe": "skin-tui-block",
         "artifact": "zengine-skin-tui-block",
-        "artifact_dir": "@ZENGINE_RECIPE_SURFACE_DIR@",
+        "artifact_dir": "@ZENGINE_RECIPE_ARTIFACT_DIR@",
         "cmake_target": [
           {
             "build_dir": "@CMAKE_BINARY_DIR@",
