@@ -10,6 +10,7 @@
 // Workshop law: agents/workshop/geometry.md (+24 registers; agents/workshop.md routes)
 
 #include "attention.hpp" // what is true right now, held and dismissed
+#include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "document.hpp"
@@ -1776,6 +1777,22 @@ std::vector<Condition> attention_shown(const Session& s,
 
 /// THE COMPACT LINE, or empty when nothing currently deserves attention.
 std::string attention_compact(const std::vector<Condition>& shown);
+
+/// EVERY CURRENT CONDITION AS THE SENTENCE THAT CROSSES THE PANE SEAM.
+///
+/// The four content fields are the condition's own; the fifth is the ACTION, resolved here
+/// into the words a maker reads, because resolving it needs the effective keymap and the
+/// keymap is this host's. A condition that names no action carries an empty suggestion, and
+/// one that names an action nothing in the catalog answers to carries one too -- the same
+/// silence the built-in's painter kept for the same case.
+std::vector<StandingCondition> standing_conditions(const Session& s,
+                                                   const ProjectFrontier& frontier = {});
+
+/// ARE THESE THE SAME SENTENCES? Field by field, in order, because the order is part of
+/// what is being said (WL-ATTN-07). What this answers is "is there news", and the caller
+/// stays silent when there is not.
+bool same_conditions(const std::vector<StandingCondition>& a,
+                     const std::vector<StandingCondition>& b);
 
 /// WHERE THE CURRENT-CONDITION VIEW OPENS: the overlay column, for the hotkey view's old
 /// reason.

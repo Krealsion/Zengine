@@ -101,6 +101,51 @@ std::string attention_compact(const std::vector<Condition>& shown) {
     return line;
 }
 
+// WL-ATTN-12 -- agents/workshop/attention.md
+std::vector<StandingCondition> standing_conditions(const Session& s,
+                                                   const ProjectFrontier& frontier) {
+    std::vector<StandingCondition> out;
+    for (const Condition& c : attention_conditions(s, frontier)) {
+        StandingCondition said;
+        said.key = c.key;
+        said.compact = c.compact;
+        said.detail = c.detail;
+        said.role = c.role;
+        // AN ACTION IS A NAME AND ITS GESTURE IS THE KEYMAP'S, resolved HERE -- the one
+        // sentence the built-in's painter composed at every paint, composed once at the
+        // seam instead. The pane is handed the words and cannot press them, which keeps the
+        // holds-no-power law exactly as strong as it was: what crosses is prose and not an
+        // id, and an id is the only thing that could be mistaken for a handle on it.
+        if (!c.action.empty()) {
+            for (const ActionRow& row : kActionCatalog) {
+                if (c.action == row.id) {
+                    said.suggestion =
+                        "try: " + gesture_text(s.keymap.row_gesture(row)) + " " + row.label;
+                    break;
+                }
+            }
+        }
+        out.push_back(std::move(said));
+    }
+    return out;
+}
+
+// WL-ATTN-12 -- agents/workshop/attention.md
+bool same_conditions(const std::vector<StandingCondition>& a,
+                     const std::vector<StandingCondition>& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i].key != b[i].key || a[i].compact != b[i].compact ||
+            a[i].detail != b[i].detail || a[i].role != b[i].role ||
+            a[i].suggestion != b[i].suggestion) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // WL-ATTN-09 -- agents/workshop/attention.md
 void paint_attention(surface::SurfaceLayer& layer, const Session& s, const Screen& sc,
                      const ProjectFrontier& frontier) {

@@ -47,4 +47,5 @@ the component owning that chord inside a text field.
 [WL-ATTN-04](../workshop/attention.md), [WL-ATTN-05](../workshop/attention.md),
 [WL-ATTN-06](../workshop/attention.md), [WL-ATTN-07](../workshop/attention.md),
 [WL-ATTN-08](../workshop/attention.md), [WL-ATTN-09](../workshop/attention.md),
-[WL-ATTN-10](../workshop/attention.md), [WL-ATTN-11](../workshop/attention.md).
+[WL-ATTN-10](../workshop/attention.md), [WL-ATTN-11](../workshop/attention.md),
+[WL-ATTN-12](../workshop/attention.md).

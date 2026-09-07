@@ -4557,15 +4557,25 @@ TEST_CASE("WUX-4: showing a condition writes no history") {
     CHECK(journal.counters().diagnostics == 0);
     CHECK(journal.counters().appended == 0);
 
-    // AND NO SHAPE OF ITS OWN. A condition is a value on the session; it has no wire
-    // form, so it cannot be observed, recorded, selected, or retained -- and the
-    // recorder's per-shape tally is where that would show up if it ever gained one.
+    // AND EXACTLY ONE SHAPE, WHICH IS THE SEAM'S (WL-ATTN-11, WL-ATTN-12). The internal
+    // `Condition` is still a value on the session with no wire form; what a Recorder in this
+    // process can see is the SENTENCE the host says about what is true, and it can see it
+    // because saying it is the whole point. This half of the case used to assert that
+    // nothing condition-shaped reached the bus at all, and the Attention pane's migration
+    // made that false rather than weaker: the claim is now that the seam's shape is the ONLY
+    // one, so nothing has quietly gained a second wire form beside it.
+    std::size_t said = 0;
     for (const loom::ShapeTally& tally : history.tallies()) {
+        if (tally.shape == StandingConditions::zen_name) {
+            ++said;
+            continue;
+        }
         CHECK_MESSAGE(tally.shape.find("ondition") == std::string::npos,
                       "a condition reached the bus as shape ", tally.shape);
         CHECK_MESSAGE(tally.shape.find("ttention") == std::string::npos,
                       "attention reached the bus as shape ", tally.shape);
     }
+    CHECK(said == 1); // the seam's own, and nothing else wearing the word
 }
 
 TEST_CASE("WUX-4: a condition names an action and cannot execute one") {
@@ -4626,6 +4636,81 @@ TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is n
     CHECK(attention_rank(surface::role::kAlert) < attention_rank(surface::role::kAccent));
     CHECK(attention_rank(surface::role::kAccent) < attention_rank(surface::role::kFill));
     CHECK(attention_rank(surface::role::kFill) < attention_rank(9999));
+}
+
+TEST_CASE("WUX-4: what is true is said across the seam, in the host's own order and words") {
+    // ⭐ THE ARC'S ONE NEW HOST-TO-PANE SENTENCE (WL-ATTN-12). The pane that shows these
+    // rows derives none of them and could not: they are this host's reading of this host's
+    // own state. So the host says them -- ranked, `to_any`, with the action already resolved
+    // into the words a maker reads, because resolving it needs the effective keymap and a
+    // loaded image cannot see one.
+    //
+    // ⚔ MUTATION: drop the `say_conditions` call from `repaint`. Nothing is ever said and
+    //   every check below goes red on an empty publication list.
+    Live t;
+    Session& s = const_cast<Session&>(t.session());
+    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
+                                     surface::role::kAccent, std::string()});
+    s.conditions.establish(Condition{"z.loud", "a loud thing", "why it is loud",
+                                     surface::role::kAlert, "workshop.manage"});
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.said_conditions.empty());
+    const StandingConditions& said = t.said_conditions.back();
+    REQUIRE(said.rows.size() == 2);
+
+    // THE ORDER IS THE HOST'S AND IT CROSSES ALREADY APPLIED (WL-ATTN-07): loudest first,
+    // then the key. A pane that had to rank would be a second place this application decides
+    // what is urgent.
+    CHECK(said.rows[0].key == "z.loud");
+    CHECK(said.rows[1].key == "b.quiet");
+    CHECK(said.rows[0].compact == "a loud thing");
+    CHECK(said.rows[0].detail == "why it is loud");
+    CHECK(said.rows[0].role == surface::role::kAlert);
+
+    // ...AND THE ACTION CROSSES AS PROSE, NOT AS A NAME. What the pane is handed is the
+    // sentence the built-in's painter composed, resolved through the keymap in force -- so
+    // an id never reaches the far side and nothing over there could press one if it did.
+    CHECK(said.rows[0].suggestion.rfind("try: ", 0) == 0);
+    CHECK(said.rows[0].suggestion.find("workshop.manage") == std::string::npos);
+    CHECK(said.rows[1].suggestion.empty()); // a condition that names no action suggests none
+}
+
+TEST_CASE("WUX-4: nothing new is nothing said, which is what stops the seam looping") {
+    // ⭐ THE SILENCE IS LOAD-BEARING, and it is measured rather than assumed. A pane that
+    // hears a publication says its rows; `on(PaneContent)` ends in a repaint; a repaint that
+    // published unconditionally would say it again, and this process would have no quiet
+    // state. So the host compares what it is about to say against its own last utterance.
+    //
+    // ⚔ MUTATION: drop the `same_conditions` arm from `say_conditions`. The count below
+    //   climbs with every repaint instead of standing still.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const std::size_t after_first = t.said_conditions.size();
+    REQUIRE(after_first >= 1); // even "nothing is wrong" is said once, and it is an answer
+
+    // REPAINTS WITH NO NEWS IN THEM, and there are several: a keystroke that moves a cursor
+    // repaints, and nothing about what is TRUE changed.
+    t.key(input::scan::kDown);
+    t.key(input::scan::kUp);
+    t.key(input::scan::kDown);
+    CHECK(t.said_conditions.size() == after_first);
+
+    // ...AND NEWS IS SAID THE ONCE. One condition arrives, one publication follows it.
+    Session& s = const_cast<Session&>(t.session());
+    s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
+                                     surface::role::kAlert, std::string()});
+    t.key(input::scan::kDown);
+    REQUIRE(t.said_conditions.size() == after_first + 1);
+    CHECK(t.said_conditions.back().rows.size() == 1);
+    t.key(input::scan::kUp);
+    CHECK(t.said_conditions.size() == after_first + 1);
+
+    // AND SO IS ITS RESOLUTION: the last condition retracting is one publication with no
+    // rows in it, which is the retraction the compact chip makes with an empty string.
+    s.conditions.retract("test.wall");
+    t.key(input::scan::kDown);
+    REQUIRE(t.said_conditions.size() == after_first + 2);
+    CHECK(t.said_conditions.back().rows.empty());
 }
 
 TEST_CASE("WUX-4: the view shows every current condition in its owner's own words") {

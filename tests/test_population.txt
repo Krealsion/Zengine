@@ -1193,6 +1193,14 @@ builder                           doctest           always  55
 # the new suite pins. A floor left at 217 would have been a number rather than a walk; a
 # claim that nothing was lost would have been false. What is lost is named here.
 #
+# THE ATTENTION SEAM raised ONE floor -- workshop_panels 183 -> 185 -- and the two cases are
+# the arc's one new sentence and the silence beside it. The host says every current condition
+# as a value, ranked, with the action resolved into the words a maker reads; and it says
+# nothing when nothing changed, which is not an optimisation but the only thing that gives
+# this seam a quiet state (a pane's content ends in a repaint). Both cases name the mutation
+# that reddens them. Nothing was deleted; the built-in's own tiers are still here and leave
+# with it in the commit that retires it.
+#
 # A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT raised ONE floor -- workshop_panes
 # 301 -> 303 -- and the two cases are the LIFETIME the Builder's migration found and the ROOM
 # that lifetime needs. The project browser cleared its notice inside `say`, which is a
@@ -1204,7 +1212,7 @@ builder                           doctest           always  55
 #
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  183
+workshop_panels                   doctest           always  185
 workshop_panes                    doctest           always  303
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130

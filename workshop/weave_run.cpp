@@ -51,7 +51,27 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // empty, which is why the disappearance needs no path of its own.
     mail.publish(zengine::surface::SurfaceText{
         zengine::surface::kSlotScore, attention_compact(attention_shown(session_, frontier))});
+    // ...AND THE SAME TRUTH IN FULL, TO WHOEVER IS PRESENTING IT. The chip is a glance and
+    // this is the reading behind it: one sentence per condition, in the host's own order,
+    // said only when it changed.
+    say_conditions(frontier, mail);
     mail.publish(paint(state_, session_, frontier));
+}
+
+// WL-ATTN-12 -- agents/workshop/attention.md
+void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& mail) {
+    std::vector<StandingCondition> now = standing_conditions(session_, frontier);
+    if (conditions_said_ && same_conditions(now, said_conditions_)) {
+        // NO NEWS IS SILENCE, and silence is what makes this seam terminate. A pane that
+        // hears a publication says its rows; content ending in a repaint would publish
+        // again; the loop has no quiet state unless this arm exists.
+        return;
+    }
+    said_conditions_ = now;
+    conditions_said_ = true;
+    // `to_any`, NOT ADDRESSED. Which weave presents this is the load plan's business, and a
+    // host that addressed one would be a host with a pane compiled into it again.
+    mail.publish(StandingConditions{std::move(now)});
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md

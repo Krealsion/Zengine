@@ -653,22 +653,32 @@ struct SeenState {
 };
 
 /// An ordinary Skin's ears: whatever Workshop published, kept as values.
+///
+/// IT HEARS THE CONDITIONS TOO, and that is not a Skin's business -- it is this rig's. The
+/// publication is `to_any` and the party that presents it is named by a load plan, so the
+/// only way a host-side case can ask "did Workshop say anything, and what" is to have
+/// somebody on the bus who was listening. Every utterance is kept in order, because the
+/// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
-                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText>,
+                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
+                                                    StandingConditions>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
-            std::vector<surface::SurfaceText>& notes)
-        : canvases_(&canvases), notes_(&notes) {}
+            std::vector<surface::SurfaceText>& notes,
+            std::vector<StandingConditions>& conditions)
+        : canvases_(&canvases), notes_(&notes), conditions_(&conditions) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
     }
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
+    void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
+    std::vector<StandingConditions>* conditions_;
 };
 
 
@@ -809,6 +819,9 @@ struct Live {
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
+    /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
+    /// MANY times it spoke and not only what it last said.
+    std::vector<StandingConditions> said_conditions;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -829,7 +842,7 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        (void)loom::mount<Painter>(bus, canvases, notes);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -2317,6 +2330,9 @@ struct PaneRig {
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
+    /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
+    /// MANY times it spoke and not only what it last said.
+    std::vector<StandingConditions> said_conditions;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     std::vector<std::string> loaded;
@@ -2324,7 +2340,7 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
     }
 
 
@@ -3461,7 +3477,7 @@ inline std::string file_source(const char* path) {
 /// their place and are excluded by name below. A floor that had been left at 62 would have
 /// been a green bought by a number rather than by a walk -- so it is stated here with what
 /// moved, which is the only honest way a floor goes down.
-inline constexpr std::size_t kPresentationSourceFloor = 61;
+inline constexpr std::size_t kPresentationSourceFloor = 62;
 
 inline std::vector<std::string> presentation_sources() {
     // `staging.hpp` IS HOST-SIDE (RELOAD-1): the two rules the host wires into the
