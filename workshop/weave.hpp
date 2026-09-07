@@ -334,13 +334,6 @@ public:
     /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed.
     void hotkeys_key(const zengine::input::KeyPressed& k);
 
-    /// Open or close the current-condition view -- `toggle_hotkeys`' own shape,
-    /// one surface over.
-    void toggle_attention();
-
-    /// THE VIEW'S OWN KEYS: move the cursor, hide the condition it is on, close.
-    void attention_key(const zengine::input::KeyPressed& k);
-
     // ---- What can I do with this? The contextual-action surface ---------------
 
     /// OPEN ON WHAT IS POINTED AT.

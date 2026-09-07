@@ -208,7 +208,8 @@ remembers that layout for you either way.
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
-| other | `b` / `Shift`+`b` / `c` / `f` build ([builder](builder.md)) · `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `Ctrl`+`a` what needs attention ([attention](attention.md)) · `q` / `Ctrl`+`c` quit |
+| other | `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
+| in a pane | its own rows, while it holds the keyboard — press into it first: the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d` |
 
 These are the defaults; every application binding can be remapped through the keymap file,
 and the on-screen hints and the hotkey view always spell the effective one
@@ -231,7 +232,8 @@ Neither is a degraded version of the other, and the same published intent produc
 
 ## Next
 
-- [Attention](attention.md) — what is true right now, and why hiding one is not fixing it.
+- [Attention](attention.md) — what is true right now, the pane that lists it, and why hiding
+  one is not fixing it.
 - [Panes](panes.md) — the picker, arranging, how to get a bigger one, the Pane Manager
   that describes and places any pane by typing, and the Pane Creator that makes one of your
   own out of data.

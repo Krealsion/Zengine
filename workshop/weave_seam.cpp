@@ -53,6 +53,14 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
             pane->granted = false;
         }
     }
+    // ⚠ AND A PARTY THAT HAS JUST ARRIVED HAS HEARD NOTHING, so what is currently true is
+    // said again on the next repaint. `say_conditions` is silent when the reading has not
+    // changed (WL-ATTN-12) -- which is what stops the seam looping and would otherwise mean
+    // that a pane loaded after this host last spoke never hears a word, and shows a
+    // permanent "waiting" over a screen where everything is known. An OFFER is the one
+    // moment a new listener certainly exists, and it is cheap: it costs one publication of
+    // a reading this host derives anyway.
+    conditions_said_ = false;
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without

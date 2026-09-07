@@ -1001,9 +1001,11 @@ TEST_CASE("EDIT-0: ^c in the editor copies -- it does not quit -- and quit stays
     r.t.key(input::scan::kRight);
     r.t.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(r.t.host.quit);
-    // ^a selects all here (the component's own chord), rather than opening attention.
+    // ^a selects all here (the component's own chord). It used to have to be told apart
+    // from the global that opened the attention overlay; that global retired with the
+    // overlay, so the chord means one thing everywhere now and this line is what is left
+    // of the question.
     r.t.key(input::scan::kA, input::mod::kCtrl);
-    CHECK_FALSE(r.session().attention.open);
     CHECK(r.buf().has_selection());
     CHECK(r.buf().selected_text() == "one\ntwo\nthree\n");
 }

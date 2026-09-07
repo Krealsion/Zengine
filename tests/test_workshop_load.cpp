@@ -1102,7 +1102,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 9);
+    REQUIRE(p.artifacts.size() == 10);
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1129,6 +1129,16 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[8].weave.has_value());
     CHECK(p.artifacts[8].weave->role == "zengine.builder-pane");
     CHECK_FALSE(p.artifacts[8].provider.has_value());
+    // ⭐ ...AND THE ATTENTION PANE, the third, and the first that was never a built-in PANE
+    // at all. What is currently true was CHROME -- an overlay a global chord opened, drawn
+    // into a popup this host resolved for itself, nameable by no file. It is a row here now,
+    // which means a maker can remove it: a Workshop with no Attention pane still knows every
+    // condition and still says the loudest one on the compact indicator, and there is simply
+    // nothing on the desk that lists them.
+    CHECK(p.artifacts[9].stem == "zengine-attention-pane");
+    REQUIRE(p.artifacts[9].weave.has_value());
+    CHECK(p.artifacts[9].weave->role == "zengine.attention");
+    CHECK_FALSE(p.artifacts[9].provider.has_value());
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row
