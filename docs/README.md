@@ -21,7 +21,7 @@ Every page below has one reader purpose, named.
 |---|---|
 | [guides/timers.md](guides/timers.md) | ordering a timer: the shapes, the receipts, the `TimerReady` rule |
 | [guides/timed-weaves.md](guides/timed-weaves.md) | a weave whose rhythm is part of what it is, and where that layer's boundary lies |
-| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | adding a Workshop tool, sorted into its two authoring paths: a **compiled-in panel** (identity, granted room, publishing rows, one pointer-and-hotkey operation, where each kind of state belongs) or an **office-authored external pane** (four shapes, a prose budget, no input, no installation story yet) |
+| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | adding a Workshop tool, sorted into its two authoring paths: a **compiled-in panel** (identity, granted room, publishing rows, one pointer-and-hotkey operation, where each kind of state belongs) or an **office-authored external pane** (eleven shapes, a prose budget, a press as a place, keys, text, the wheel and declared actions, no installation story yet) |
 
 ## Workshop — the product
 

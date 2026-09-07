@@ -495,8 +495,8 @@ Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a pro
 If you want to *add* a pane that does something, that is [Making a Workshop
 tool](../guides/make-a-workshop-tool.md), which sorts the work into the two paths it can take:
 a compiled-in panel (source-contributor work) or an office-authored external pane (the bounded
-read-only provider protocol — four shapes, a prose budget, no input, and no installation
-story yet).
+provider protocol — eleven shapes, a prose budget, a press as a place, keys, text, the wheel
+and declared actions, and no installation story yet).
 
 The exact wire shapes are
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp). The smallest complete
@@ -508,10 +508,13 @@ fixture, not a product plugin. The shipped one is
 
 ## What a pane may not do
 
-An external pane is **read-only prose within a bounded budget**. It publishes rows; it does
-not receive keyboard input, cannot draw arbitrary geometry, and cannot exceed the room it was
-granted. A pane that has more to say than it can hold must say *how much it left out* — a
-count a reader can trust is a count that names what it read.
+An external pane is **prose within a bounded budget**. It publishes rows; it cannot draw
+arbitrary geometry, and cannot exceed the room it was granted. What it receives is a press as a
+place in that room, the keys and text while a maker has pressed into it, the wheel over its
+body, and — for the actions it declared beside its offer — the resolved action id rather than
+the key, so a maker's keymap moves a pane's keys exactly as it moves Workshop's. A pane that has
+more to say than it can hold must say *how much it left out* — a count a reader can trust is a
+count that names what it read.
 
 There is no plugin discovery and no installation story: a pane arrives because an artifact was
 in the [load plan](load-plans.md) and the weave offered one.
