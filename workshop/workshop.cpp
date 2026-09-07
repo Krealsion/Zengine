@@ -1023,10 +1023,16 @@ int main(int argc, char** argv) {
     // recipe becomes a command inside the runner, at the moment it is carried out --
     // which is what stopped Builder meaning one target baked in at configure time. What
     // this can still print, and does, is every recipe this project holds and the
-    // artifact each is expected to produce; what actually ran reaches the panel the way
+    // artifact each is expected to produce; what actually ran reaches the pane the way
     // it has from the participant that ran it, as it starts.
+    //
+    // ⚠ `p` OPENS THE PICKER, NOT THE PANEL, and this line said otherwise until now.
+    // The Builder panel was a built-in of this host and `p` put it on the screen; since
+    // the Builder became a weave (`Zengine/builder-pane/`) `p` opens the pane PICKER and
+    // the maker chooses the Builder from it, like every other pane. The first sentence a
+    // newcomer reads is not the place to be one migration out of date.
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
-                "panel)\n",
+                "pane picker)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
     std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                 std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
