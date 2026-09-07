@@ -117,11 +117,17 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 LAW — The pane with the keys wears the `> ` mark in its header, and the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`, its chords from the keymap.
 
+MEANS
+- the legend rows after it spell the pane's declared rows first, then the chords (WL-KEY-15).
+
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
 `workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the
 screen says which pane the keys are going to, in two places"`; `tests/test_workshop_editor.cpp`
-case `"EDIT-0: the band and the header both say where typing goes"`.
+case `"EDIT-0: the band and the header both say where typing goes"`;
+`tests/test_workshop_panes_actions.cpp` case `"the band's legend and the hotkey view print the
+pane's rows while it holds the keys"`, case `"a pane that declared nothing is described as
+ownership only, exactly as before"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key

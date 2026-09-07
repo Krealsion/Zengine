@@ -61,6 +61,62 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     repaint(mail);
 }
 
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
+    }
+    // THE SHAPE'S HALF FIRST: whose pane, and is it one this office offered. Then the
+    // rows' half and the collision law, into a COPY of the effective keymap -- so a
+    // refusal anywhere leaves the keymap in force, and the pane's retained declaration,
+    // exactly what they were.
+    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, actions);
+    if (!admitted.written.accepted) {
+        say(admitted.written.refusal, true);
+        repaint(mail);
+        return;
+    }
+    Keymap candidate = session_.keymap;
+    const Written joined = join_pane_rows(candidate, admitted.kind, actions.rows);
+    if (!joined.accepted) {
+        const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
+        say((row != nullptr ? row->name + " @" + row->provider + ": " : std::string()) +
+                joined.refusal,
+            true);
+        repaint(mail);
+        return;
+    }
+    // BOTH HALVES PASSED; ONLY NOW IS ANYTHING WRITTEN. The row is looked up again by
+    // handle, because nothing holds a pointer into `entries` (panel.hpp).
+    for (RuntimePane& row : session_.panels.runtime.entries) {
+        if (row.kind == admitted.kind) {
+            row.actions = actions.rows;
+        }
+    }
+    session_.keymap = std::move(candidate);
+    repaint(mail); // the legend and the hotkey view read the map at every paint
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
+    session_.keymap.panes.clear();
+    for (const RuntimePane& row : session_.panels.runtime.entries) {
+        if (row.actions.empty()) {
+            continue;
+        }
+        const Written joined = join_pane_rows(session_.keymap, row.kind, row.actions);
+        if (joined.accepted) {
+            continue;
+        }
+        drop_pane_rows(session_.keymap, row.kind);
+        if (!refusals.empty()) {
+            refusals += "; ";
+        }
+        refusals += row.name + " @" + row.provider + ": " + joined.refusal;
+    }
+}
+
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {

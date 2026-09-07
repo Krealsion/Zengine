@@ -5,16 +5,31 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// three times since. Eight shapes, and there is not a ninth.
+// four times since. Eleven shapes.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
+//     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
 //     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 //     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
 //     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
 //     PaneWheel              Workshop  ->  provider   "the wheel turned over that room."
+//     PaneActionRequested    Workshop  ->  provider   "a maker asked for this action of yours."
+//
+// THE NINTH, TENTH AND ELEVENTH ARE ONE ACTION TRUTH REACHING ACROSS THE SEAM. Inside
+// the host an action is a stable id, a label and a default gesture in one catalog; a
+// binding is the gesture a maker's keymap file moved it to; execution stays with the
+// dispatch site (workshop/keymap.hpp). A pane weave had none of that: its keys were in no
+// legend and no maker's file could move them. `PaneActions` is the pane's rows of that
+// same catalog -- id, label, default gesture -- sent beside its offer, judged whole under
+// the office stamp exactly as the offer is, joined into the effective keymap under the
+// same collision law the file meets, with the maker's authored overrides applied to
+// them. `PaneActionRequested` is the dispatch site's half: when the keyboard pane holds
+// the keys and the pressed gesture is one of ITS rows' effective bindings, the RESOLVED
+// id crosses instead of the raw key, so an override reaches the pane and the pane never
+// re-derives a binding it cannot see. Every other key still crosses as `PaneKey`.
 //
 // THE FIFTH IS THE FOURTH'S BUDGET READ BACKWARDS, which is what made it the one
 // worth adding. `PaneRoom` grants a lattice of prose rows and columns; `PanePressed`
@@ -96,15 +111,14 @@
 //
 // ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
 //
-// No key RELEASE, no focus-changed notification, no capture, no hotkey
-// registration, no hover and no drag shape of any kind; no `consumed`, reply or
-// disposition for any of the four inbound gestures; no `PaneClosed`,
-// `PaneUnavailable` or unload notification (Loom gives Workshop no
-// participant-visible provider-unload event, and manufacturing one out of silence
-// is the exact dishonesty a research pass was corrected for); no `PaneInstance`, because one
-// `PaneRef` is one presentation; no `PaneConfig`, because no consumer has asked;
-// no generic request/response envelope, because eight named shapes are eight
-// readable sentences and an envelope is a framework.
+// No key RELEASE, no focus-changed notification, no capture, no hover and no drag
+// shape of any kind; no `consumed`, reply or disposition for any of the five inbound
+// gestures; no `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives
+// Workshop no participant-visible provider-unload event, and manufacturing one out of
+// silence is the exact dishonesty a research pass was corrected for); no
+// `PaneInstance`, because one `PaneRef` is one presentation; no `PaneConfig`, because
+// no consumer has asked; no generic request/response envelope, because eleven named
+// shapes are eleven readable sentences and an envelope is a framework.
 //
 // AND NO SHAPE IN WHICH A PROVIDER SAYS IT WANTS KEYS. Workshop does not ask and
 // is not told: a press into a pane's room points the keyboard at it, and a
@@ -113,6 +127,11 @@
 // it never declared. That is not an oversight -- it is the seam declining to grow
 // a private copy of `zen.DescribeAccepted`, which is the door that already
 // answers "does this target accept this shape" for every weave in the system.
+// `PaneActions` IS NOT THAT SHAPE, and the sentence survives it: declaring an
+// action is not declaring a want. A pane that declared rows holds the keys on the
+// same terms as one that declared none -- by being pressed into, and never by
+// asking -- and what its declaration changes is only which of the keystrokes it
+// was going to receive anyway arrive as a resolved id rather than as a number.
 
 #include "surface/vocabulary.hpp"
 
@@ -309,6 +328,73 @@ struct PaneWheel {
     double dx = 0.0; ///< horizontal notches, +1.0 per notch to the right
     double dy = 0.0; ///< vertical notches, +1.0 per notch away from the maker
     ZEN_SHAPE(PaneWheel, 1, ZEN_FIELD(pane), ZEN_FIELD(dx), ZEN_FIELD(dy));
+};
+
+/// ONE ACTION A PANE CAN PERFORM, AS THE PANE DECLARES IT: a stable id in the pane's
+/// own namespace, the label a legend prints beside its key, and the default gesture as
+/// the SAME TWO NUMBERS `PaneKey` carries -- `zengine::input::scan`'s scancode and
+/// `input::mod`'s bitmask, so a provider that declares rows and one that reads keys
+/// name the same thing the same way.
+///
+/// `id` IS THE SPELLING A MAKER'S KEYMAP FILE NAMES (`files.up`), which makes it
+/// durable in the way a pane key is: a pane that renames one has broken every authored
+/// override that moved it. Workshop judges it at admission by its own law -- present,
+/// bounded, printable ASCII with no space, unique within the shape, and never one of
+/// Workshop's own action ids, which would let one authored row name two things -- and
+/// never interprets it. A dotted `pane.verb` spelling is the convention, not a rule.
+///
+/// `scancode == input::scan::kUnknown` DECLARES A ROW WITH NO DEFAULT GESTURE, one a
+/// maker may bind and nothing reaches by key until they do; `modifiers` is then `kNone`.
+/// Any other scancode must be one the keymap file's grammar can name (`key_name_of`),
+/// because an override is written in that grammar and admission refuses a default the
+/// file could not spell back.
+///
+/// NO KEY NAME CROSSES, in either direction: a name is a spelling the host owns, and a
+/// provider switching on one would be switching on the host's grammar.
+struct PaneActionRow {
+    std::string id;             ///< the durable action id, in the PANE's own namespace
+    std::string label;          ///< what a legend prints beside the key
+    std::int64_t scancode = 0;  ///< `zengine::input::scan`'s space; `kUnknown` = no default
+    std::int64_t modifiers = 0; ///< `zengine::input::mod`'s bitmask
+    ZEN_SHAPE(PaneActionRow, 1, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers));
+};
+
+/// THE ACTIONS ONE PANE DECLARES -- sent by the provider beside its offer, and JUDGED
+/// WHOLE under the office Loom stamped on it, exactly as the offer is.
+///
+/// ATOMIC BOTH WAYS. A shape that fails any law -- an empty office, a pane this office
+/// never offered, a bad row, more than `kMaxPaneActionRows`, or a default that collides
+/// with a binding active while a pane holds the keys -- joins nothing and leaves the
+/// pane's previously admitted rows exactly as they were; a shape that passes REPLACES
+/// them. What a pane declared is retained on its catalog row for as long as the row is,
+/// so the maker's keymap file arriving later is applied to it then.
+///
+/// ROWS, NOT WANTS. Declaring rows does not point the keyboard at a pane, does not hold
+/// it, and does not change which keys it receives; it changes how the keystrokes it was
+/// going to receive are spelled. An empty `rows` is a legal declaration of nothing.
+struct PaneActions {
+    std::string pane;                ///< the pane key, in the AUTHORING office's namespace
+    std::vector<PaneActionRow> rows; ///< at most `kMaxPaneActionRows` (workshop/keymap.hpp)
+    ZEN_SHAPE(PaneActions, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
+};
+
+/// A MAKER PRESSED THE GESTURE ONE OF THIS PANE'S ROWS ANSWERS TO, while the pane held
+/// the keyboard -- and this is the RESOLVED id, after the maker's own keymap moved the
+/// row wherever they authored, so the pane acts on a name and never re-derives a binding
+/// it cannot see.
+///
+/// SENT INSTEAD OF `PaneKey` FOR THAT KEYSTROKE, never beside it, and the character the
+/// keystroke produced is swallowed exactly as Workshop's own printable triggers are, so
+/// a pane's `r` row does not also type an `r` into its field. A keystroke matching no
+/// row of the keyboard pane crosses as `PaneKey` and `PaneTextInput` unchanged: a `p`
+/// typed into a field is still a `p`.
+///
+/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PaneKey`'s reason exactly.
+struct PaneActionRequested {
+    std::string pane;
+    std::string id; ///< one of the ids this pane declared, as it declared it
+    ZEN_SHAPE(PaneActionRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(id));
 };
 
 } // namespace zengine::workshop

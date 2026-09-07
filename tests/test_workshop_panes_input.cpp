@@ -15,8 +15,8 @@
 // shared because a Workshop with a real external pane in it is what the geometry, the
 // persistence and the interaction suites need too.
 //
-// FOUR SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; since QR-13 its cases live in five translation
+// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
+// one CTest entry running one binary; its cases live in six translation
 // units, cut along the headings this material already had:
 //
 //   _seam.cpp           the protocol and the provider -- what an office may offer, who
@@ -29,6 +29,7 @@
 //                       and the keyboard that reaches a pane
 //   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
 //   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
+//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
 //
 // A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
 // first and an object-format bound second: one MinGW Debug object could no longer name
@@ -819,12 +820,13 @@ TEST_CASE("SEL-0: interpreting a press asks the Weave Manager nothing") {
     r.bus.remove_observer(tap);
     CHECK(std::count(said.begin(), said.end(), std::string("zen.ListLoaded")) == asks_before);
 
-    // AND THE WHOLE OUTBOUND VOCABULARY IS FOUR SHAPES, one more than INTR-0's three.
+    // AND THE WHOLE OUTBOUND VOCABULARY IS FIVE SHAPES: INTR-0's three, SEL-0's one, and
+    // the Powers pane's declared actions, spoken beside its offer (WL-KEY-15).
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"LoadedSelected", "PaneContent", "PaneOffered",
-                                           "zen.ListLoaded"};
+    const std::vector<std::string> allowed{"LoadedSelected", "PaneActions", "PaneContent",
+                                           "PaneOffered", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
     // ABSENT. Being able to say which weave a maker pointed at is not being able to
