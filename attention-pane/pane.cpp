@@ -148,6 +148,31 @@ std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }
 
+/// WHAT A CANVAS CAN DRAW, AT THIS PANE'S OWN DOOR.
+///
+/// ⚠ A CONDITION'S WORDS ARE ITS OWNER'S, AND NOTHING HAS EVER REQUIRED THEM TO BE PRINTABLE
+/// ASCII. A loader's refusal may carry a newline; a pane's own sentence about why an update
+/// did not fit may carry a tab. The built-in drew them into a region and let each medium make
+/// of them what it could -- but a PANE's publication is judged (`judge_content`), and one
+/// undrawable byte anywhere in it refuses the whole thing: Workshop clears the rows, raises a
+/// condition about the refusal, and this pane cannot show that one either. Measured on a real
+/// terminal, with a real malformed keymap file, which is the only place it could have been
+/// found.
+///
+/// SO THE BYTE STANDS IN FOR ITSELF rather than being deleted. A maker reads the sentence and
+/// can see where it was folded, which is what a control character in a refusal MEANS. This is
+/// the discipline `files.cpp` keeps for typed and pasted text, pointed the other way: that
+/// pane gates what comes IN from a maker, this one gates what goes OUT to a canvas.
+std::string drawable(std::string text) {
+    for (char& c : text) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (byte < 0x20u || byte >= 0x7Fu) {
+            c = ' ';
+        }
+    }
+    return text;
+}
+
 /// WHAT A WINDOW OVER A LIST LOOKS LIKE -- `screen.hpp`'s `ListWindow`, carried.
 struct ListWindow {
     std::size_t first = 0;
@@ -406,7 +431,7 @@ private:
         }
         std::vector<surface::SurfaceTextRow> out;
         const auto push = [&out, this](const std::string& text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{fit(text, columns_), role});
+            out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns_)), role});
         };
         say_view(push);
         // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
@@ -416,8 +441,8 @@ private:
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
-            out.insert(out.begin(),
-                       surface::SurfaceTextRow{fit(notice_, columns_), surface::role::kAccent});
+            out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns_)),
+                                                            surface::role::kAccent});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));

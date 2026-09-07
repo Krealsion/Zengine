@@ -345,6 +345,46 @@ TEST_CASE("ATTN-WEAVE: the action a condition names arrives as words and not as 
     CHECK(f.text().find("workshop.manage") == std::string::npos);
 }
 
+TEST_CASE("ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still shown") {
+    // ⭐ THE DEFECT THE WHOLE-LOOP WITNESS FOUND, pinned. A condition's words are its
+    // OWNER's -- a file loader's refusal, a pane's own sentence about why an update did not
+    // fit -- and nothing has ever required them to be printable ASCII. The built-in drew
+    // them into a region and let each medium make of them what it could; the seam JUDGES a
+    // publication instead and refuses a row carrying a byte a canvas cannot draw
+    // (`judge_content`). So one control byte inside a loader's refusal took the WHOLE pane
+    // down: Workshop refused the content, cleared the rows, and raised a condition about
+    // the refusal -- which this pane then could not show either.
+    //
+    // The pane gates its own rows at its own door, which is the discipline `files.cpp`
+    // already keeps for typed and pasted text one pane over.
+    //
+    // ⚔ MUTATION, MEASURED: drop `drawable` from `push`. The case does not merely fail -- it
+    //   does not TERMINATE (SIGTERM at a 120s wall). A refused publication makes Workshop
+    //   clear the pane's rows and raise a condition ABOUT the refusal, which is news, which
+    //   is published, which this pane answers with another refused publication. This pane is
+    //   the one pane for which its own refusal is an input, and that is the sharpest possible
+    //   statement of why its rows must be admissible by construction rather than by luck.
+    AttentionRig f;
+    f.open();
+    f.establish(Condition{"test.wall", "a wall",
+                          std::string("line one") + "\n" + "line two" +
+                              "\t" + "and back",
+                          surface::role::kAlert, std::string()});
+
+    // THE PANE'S CONTENT WAS ACCEPTED, which is the whole claim: no refusal, no cleared
+    // rows, and no condition about a condition.
+    const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    CHECK(seat->refusal.empty());
+    CHECK_FALSE(seat->awaiting);
+    CHECK(f.text().find("a wall") != std::string::npos);
+    // ...AND THE WORDS SURVIVED, with each undrawable byte standing in for itself rather
+    // than being deleted: a maker reads the sentence and can see where it was folded.
+    CHECK(f.text().find("line one") != std::string::npos);
+    CHECK(f.text().find("line two") != std::string::npos);
+    CHECK(f.text().find("and back") != std::string::npos);
+}
+
 TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was granted") {
     // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH
     // media -- so a composition that over-spends its budget loses whatever it wrote last,
