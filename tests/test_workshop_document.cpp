@@ -4477,6 +4477,33 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     CHECK_FALSE(t.pane().open);
 }
 
+TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSIX wire is said") {
+    // BL-DEF-03. The POSIX terminal sends ctrl+letter as one control byte and Shift leaves
+    // no mark on it, so `ctrl+shift+g` and `ctrl+g` are one byte there -- a fact this file's
+    // prose stated in five places while `posix_gap` said nothing. Over the value first:
+    CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}) != nullptr);
+    CHECK(std::string(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}))
+              .find("collapses to plain ctrl+letter") != std::string::npos);
+    CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl}) == nullptr);
+    CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kShift}) == nullptr); // a capital
+    // AND ON A DIGIT THE OLDER RULE STILL ANSWERS: shift on a non-letter is not observable.
+    CHECK(std::string(posix_gap(Gesture{input::scan::k1, input::mod::kCtrl | input::mod::kShift}))
+              .find("shift is not observable") != std::string::npos);
+
+    // Then through the file, `shift+space`'s own road: accepted, working where the wire can
+    // carry it, and the gap said once at the load. Nothing in the file is rewritten.
+    TempDir dir("keymap-ctrl-shift-gap");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "ctrl+shift+g"}}));
+    Keyed t(path);
+    CHECK(t.notice().find("collapses to plain ctrl+letter") != std::string::npos);
+    const std::size_t before = t.doc().elements.size();
+    t.key(input::scan::kG, input::mod::kCtrl | input::mod::kShift);
+    CHECK(t.doc().elements.size() == before + 1);
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before + 1); // the default it replaced no longer fires
+}
+
 TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says so") {
     // ⭐ THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
     // for a key this build has no name for, so it is the one scancode that can never be a
