@@ -27,12 +27,12 @@ void WorkshopWeave::apply_setup(loom::Mail& mail) {
     forget_removed_selection();
     const Reconciled done = reconcile(session_.panels, session_.setup.active,
                                       stack_capacity(screen_of(session_)));
-    for (const std::int64_t kind : done.opened) {
-        if (kind == panel::kBuilder) {
-            (void)mail.send_to_role(zengine::builder::kBuilderRole,
-                                    zengine::builder::StatusRequested{});
-        }
-    }
+    // ⭐ NO BUILT-IN ASKS A TOOL ANYTHING WHEN IT OPENS ANY MORE, and the loop that did is
+    // gone with the last one. Opening the Builder panel used to send `StatusRequested` from
+    // here, because the panel could not send for itself. A pane weave asks on its own room
+    // grant, in its own image, addressed to the office it presents -- so `reconcile`'s
+    // answer is once again nothing but which panels opened.
+    (void)mail;
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md
@@ -174,8 +174,10 @@ void WorkshopWeave::restore_setup(loom::Mail& mail) {
     // ago is the maker most likely to go and look at the file afterwards.
     say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
             unresolved_note(loaded.setup) +
-            (loaded.converted > 0 ? "; " + pane_migration::converted_note()
-                                  : std::string()),
+            (loaded.converted.total() > 0
+                 ? "; " + pane_migration::converted_note(loaded.converted.files > 0,
+                                                         loaded.converted.builder > 0)
+                 : std::string()),
         false);
 }
 
@@ -450,8 +452,9 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // count is the whole run's, so a maker with eight desks that all held the browser is
     // told once that it moved -- which is the fact -- rather than eight times, which is
     // an implementation detail of where the reference was written.
-    if (last.converted > 0) {
-        said += "; " + pane_migration::converted_note();
+    if (last.converted.total() > 0) {
+        said += "; " + pane_migration::converted_note(last.converted.files > 0,
+                                                     last.converted.builder > 0);
     }
     say(said, !last.declined.empty());
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see

@@ -337,7 +337,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kNaming: naming_key(k, mail); break;
     case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
     case KeyContext::kPicker: picker_key(k, mail); break;
-    case KeyContext::kAuthoring: authoring_key(k, mail); break;
     case KeyContext::kAttention: attention_key(k); break;
     case KeyContext::kContext: context_key(k, mail); break;
     case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;

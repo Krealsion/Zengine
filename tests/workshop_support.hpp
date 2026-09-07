@@ -1478,18 +1478,19 @@ inline void pick(Live& t, std::int64_t kind) {
     t.key(input::scan::kReturn);
 }
 
-/// Open the Builder panel the way a maker does.
-inline void open_builder(Live& t) { pick(t, panel::kBuilder); }
+/// Open the Editor pane the way a maker does -- the stack's ordinary stand-in since the
+/// Builder panel became a weave and stopped being a built-in this rig can pick.
+inline void open_editor_pane(Live& t) { pick(t, panel::kEditor); }
 
-/// THE BUILDER IS IN THE STACK'S FIRST SLOT, asked through the placement path
-/// and read off the canvas at the answer -- so the case cannot agree with the
-/// screen by both of them holding the same constant.
-inline bool first_slot_shows_builder(Live& t) {
+/// THE EDITOR IS IN THE STACK'S FIRST SLOT, asked through the placement path and read off
+/// the canvas at the answer -- so the case cannot agree with the screen by both of them
+/// holding the same constant.
+inline bool first_slot_shows_editor(Live& t) {
     const Screen sc = screen_of(t.session());
-    const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
+    const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
     const ui::Rect cells = pane_body_cells(at.rect);
     return at.open && at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)) &&
-           label_at(t.canvases.back(), cells.x, cells.y).find("BUILDER") == 0;
+           label_at(t.canvases.back(), cells.x, cells.y).find("Editor") != std::string::npos;
 }
 
 /// Everything the Info panel is showing, top to bottom -- through the same path,
@@ -1907,9 +1908,12 @@ struct DoorAskerState {
 
 class DoorAsker
     : public loom::WeaveBase<DoorAsker, DoorAskerState,
-                             loom::Accept<ProjectRoot, RecipeOutcome, SourceOpened, SeatDo>,
-                             loom::Emit<ProjectRootRequested, RecipeUseRequested,
-                                        RecipeAuthorRequested, OpenSourceRequested>> {
+                             loom::Accept<ProjectRoot, ProjectFrontierSaid, PlanNames,
+                                          RecipeOutcome, PlanRowWritten, SourceOpened, SeatDo>,
+                             loom::Emit<ProjectRootRequested, ProjectFrontierRequested,
+                                        PlanNamesRequested, RecipeUseRequested,
+                                        RecipeAuthorRequested, PlanRowRequested,
+                                        OpenSourceRequested, RecipeSourceRequested>> {
 public:
     explicit DoorAsker(std::string office) : office_(std::move(office)) {}
 
@@ -1919,7 +1923,10 @@ public:
 
     /// The answers, as they arrived.
     std::vector<ProjectRoot> roots;
+    std::vector<ProjectFrontierSaid> frontiers;
+    std::vector<PlanNames> names;
     std::vector<RecipeOutcome> outcomes;
+    std::vector<PlanRowWritten> rows;
     std::vector<SourceOpened> opens;
     /// Whether the last ask was authored as an office at all -- the canary lever for the
     /// rule every door keeps.
@@ -1938,9 +1945,21 @@ public:
         ++state_.answers;
         roots.push_back(said);
     }
+    void on(const ProjectFrontierSaid& said, loom::Mail&) {
+        ++state_.answers;
+        frontiers.push_back(said);
+    }
+    void on(const PlanNames& said, loom::Mail&) {
+        ++state_.answers;
+        names.push_back(said);
+    }
     void on(const RecipeOutcome& said, loom::Mail&) {
         ++state_.answers;
         outcomes.push_back(said);
+    }
+    void on(const PlanRowWritten& said, loom::Mail&) {
+        ++state_.answers;
+        rows.push_back(said);
     }
     void on(const SourceOpened& said, loom::Mail&) {
         ++state_.answers;
@@ -1966,7 +1985,7 @@ private:
 /// spelling is the case's to choose and the door's answer must not depend on it.
 inline constexpr const char* kDoorAskerOffice = "zengine.test.door-asker";
 
-/// Seat an asker on this bus, granted exactly the four asks and nothing else. It hears the
+/// Seat an asker on this bus, granted exactly the eight asks and nothing else. It hears the
 /// three answers the way any weave does -- through Loom's own answer route -- so nothing
 /// here has to be granted for it to be told.
 inline DoorAsker* mount_door_asker(Live& t, const char* office = kDoorAskerOffice) {
@@ -1977,6 +1996,11 @@ inline DoorAsker* mount_door_asker(Live& t, const char* office = kDoorAskerOffic
     grant.allow_to_any(RecipeUseRequested::zen_name, RecipeUseRequested::zen_version);
     grant.allow_to_any(RecipeAuthorRequested::zen_name, RecipeAuthorRequested::zen_version);
     grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
+    grant.allow_to_any(ProjectFrontierRequested::zen_name,
+                       ProjectFrontierRequested::zen_version);
+    grant.allow_to_any(PlanNamesRequested::zen_name, PlanNamesRequested::zen_version);
+    grant.allow_to_any(PlanRowRequested::zen_name, PlanRowRequested::zen_version);
+    grant.allow_to_any(RecipeSourceRequested::zen_name, RecipeSourceRequested::zen_version);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(asker), std::move(grant), std::string(office));
     raw->zen_set_self(id);
@@ -2002,6 +2026,20 @@ inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::stri
     const std::size_t before = asker->opens.size();
     asker_do(t, asker, [path](DoorAsker& a, loom::Mail& mail) {
         a.ask(mail, kWorkshopProvider, OpenSourceRequested{path});
+    });
+    REQUIRE(asker->opens.size() == before + 1);
+    return asker->opens.back();
+}
+
+/// ASK THE SAME DOOR BY A RECIPE'S NAME, and hand back what it answered. This is what the
+/// Builder pane's `builder.edit-source` crosses as: the pane holds a recipe name and never a
+/// path, so the host resolves it against the catalog IT owns and opens the result through
+/// the one Editor door.
+inline SourceOpened edit_source_through_door(Live& t, DoorAsker* asker,
+                                            const std::string& recipe) {
+    const std::size_t before = asker->opens.size();
+    asker_do(t, asker, [recipe](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kWorkshopProvider, RecipeSourceRequested{recipe});
     });
     REQUIRE(asker->opens.size() == before + 1);
     return asker->opens.back();
@@ -2555,6 +2593,9 @@ struct PaneRig {
         if (stem == "zengine-files") {
             return WORKSHOP_SO_FILES;
         }
+        if (stem == "zengine-builder-pane") {
+            return WORKSHOP_SO_BUILDER_PANE;
+        }
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 
@@ -2737,7 +2778,7 @@ inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
 inline Setup two_overlays() {
     Setup s;
     s.name = "Arranged";
-    REQUIRE(add_pane(s, ref_of(panel::kBuilder)));
+    REQUIRE(add_pane(s, ref_of(panel::kEditor)));
     REQUIRE(add_pane(s, ref_of(panel::kInfo)));
     return s;
 }

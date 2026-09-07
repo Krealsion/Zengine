@@ -34,13 +34,19 @@
 // exactly because the host's rows left in the same commit, and `join_pane_rows` would refuse
 // them for as long as both existed (WL-KEY-06, WL-KEY-08).
 //
-// ⚠ WHAT DID NOT SURVIVE, AND IT IS ONE THING. `authoring.commit` and `authoring.cancel`
-// were rows of a WORKSHOP KEYBOARD CONTEXT (`KeyContext::kAuthoring`) that this pane's role
-// line replaces, and a context is not a pane: a maker who bound one was binding a mode of the
-// host. They retire with it, and `builder.commit`/`builder.cancel` are new ids in this pane's
-// own namespace rather than a rename of them. The keymap file keeps such a binding as a
-// preserved unknown row and says so once (WL-KEY-08), which is how a maker learns rather than
-// finding a dead key. Files reached the same answer about `recipe.*` and `authoring.*` first.
+// ⚠ AND THE ROLE LINE KEEPS `authoring.commit` / `authoring.cancel` -- ids in a namespace this
+// pane does not own, deliberately. They were rows of a WORKSHOP KEYBOARD CONTEXT
+// (`KeyContext::kAuthoring`) whose one asker was the built-in Builder's role prompt; the prompt
+// moved inside this pane's own room, and it is the same one line, the same commit and the same
+// cancel. So a maker who authored `authoring.commit` keeps the key they moved, which is the
+// whole promise this migration was made to keep -- and the alternative, minting `builder.commit`,
+// would have left their row preserved-but-dead for no gain.
+//
+// IT IS LEGAL BECAUSE THE HOST DECLARES NEITHER ANY MORE. The id law refuses a pane a row in
+// WORKSHOP's namespace (`join_pane_rows`), and what that means is the ids Workshop currently
+// declares -- these left `kActionCatalog` in the same commit that made this pane. Files could
+// not do this with `recipe.*`: those were TWO contexts collapsing into one pane, and Return
+// was already taken by a browsing row.
 
 #include <zen/weave/shape.hpp>
 
@@ -95,16 +101,16 @@ inline constexpr const char* kActionEditSource = "builder.edit-source";
 // room and no context of Workshop's, so it becomes a line INSIDE the pane's own room (the
 // Files pattern), and its two gestures become two of this pane's declared rows.
 //
-// ⚠ RETURN IS FREE HERE, WHICH IS WHY THERE IS A SEPARATE COMMIT ID. Files could not add
-// one: `files.open` already answered Return while browsing, a pane's rows join into ONE map
-// under its runtime handle, and the collision law refuses a second row on a gesture already
-// taken (`join_pane_rows`). This pane's nine browsing rows spend `b B P R o c C f e` and
-// nothing else, so Return and Escape are unclaimed and the mode can have rows of its own --
-// declared only while the line is open, so that nothing is bound to a gesture that means
-// nothing (WL-FILES-16's rule, one pane over).
+// ⚠ RETURN IS FREE HERE, WHICH IS WHY THE MODE CAN HAVE ROWS AT ALL. Files could not add one:
+// `files.open` already answered Return while browsing, a pane's rows join into ONE map under
+// its runtime handle, and the collision law refuses a second row on a gesture already taken
+// (`join_pane_rows`). This pane's nine browsing rows spend `b B P R o c C f e` and nothing
+// else, so Return and Escape are unclaimed -- and the two rows are declared only WHILE the line
+// is open, so nothing is bound to a gesture that means nothing (WL-FILES-16's rule, one pane
+// over). See the header note above for why they keep the ids they had.
 
-inline constexpr const char* kActionCommit = "builder.commit"; ///< write the role line's row
-inline constexpr const char* kActionCancel = "builder.cancel"; ///< abandon the role line
+inline constexpr const char* kActionCommit = "authoring.commit"; ///< write the role line's row
+inline constexpr const char* kActionCancel = "authoring.cancel"; ///< abandon the role line
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///

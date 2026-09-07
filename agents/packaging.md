@@ -39,8 +39,9 @@ page does not spell them.
 
 **What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin and
 SDL input reader, because a fetched SDL is a build-tree library this install does not own;
-Workshop, because its executable compiles its own build directory into itself for Builder;
-the Workshop/Builder/introspection/composer vocabularies, because there is no way for an
+Workshop, because its executable compiles its own build directory into itself for the Builder
+tool it mounts; the Workshop/Builder/introspection/composer vocabularies and the pane weaves
+that spend them (`zengine-files`, `zengine-builder-pane`), because there is no way for an
 externally-built pane to arrive in a run; the Timer's service headers, because using the
 Timer is supported and *being* one has not been measured.
 

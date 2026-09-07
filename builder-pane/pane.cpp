@@ -8,9 +8,9 @@
 // `screen_pane_state.cpp`'s `paint_builder`, and nine `kActionCatalog` rows dispatched out
 // of `weave_arrange.cpp`, `weave_recipes.cpp` and `weave_pane_editor.cpp`). Now it is a
 // weave beside the Skin, the Timer and the Files browser, and everything it once read
-// straight off `HostContext` -- what realization is waiting on, whether the plan already
-// names an artifact, the file a recipe was authored from -- it ASKS for, through the doors
-// `workshop/builder_seam_vocabulary.hpp` spells. What crosses the seam is values.
+// straight off the host's own context -- what realization is waiting on, whether the plan
+// already names an artifact, the file a recipe was authored from -- it ASKS for, through the
+// doors `workshop/builder_seam_vocabulary.hpp` spells. What crosses the seam is values.
 //
 // ⚠ AND ITS KEYS ARE ITS OWN NOW (VD-22). `b` was a command-mode row: it built from
 // anywhere in Workshop, as long as a Builder panel happened to be open. A pane's rows are
@@ -269,6 +269,7 @@ public:
         if (!role_.open) {
             return;
         }
+        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!role_.line.consume(key.scancode, key.modifiers, clip_)) {
@@ -290,6 +291,7 @@ public:
         if (!role_.open || typed.text.empty() || !admissible(typed.text)) {
             return;
         }
+        notice_.clear();
         role_.line.type(typed.text);
         say(mail);
     }
@@ -301,6 +303,8 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
             return;
         }
+        notice_.clear(); // the maker has acted; the last act's answer is spent
+
         // THE MODE OWNS THE PANE'S ACTIONS FIRST. While the role line has the keyboard the
         // pane declares two rows and no more, so nothing else can arrive here -- but the
         // declaration and the keystroke race across two messages, and a stale id must mean
@@ -391,12 +395,26 @@ public:
 
     // ---- What the host answers ------------------------------------------------------
 
+    /// ⚠ THE ANSWER THIS PANE ASKED FOR MUST NOT ERASE WHAT IT JUST SAID. Every gesture here
+    /// writes a notice, says its rows, and asks the frontier again -- and the answer arrives
+    /// on the same drain, so an unconditional re-say would publish a second, notice-less
+    /// picture over the first and a maker would see no sentence at all. That is exactly the
+    /// defect the project browser's whole-loop witness found one pane over (`u` on a catalog
+    /// produced no visible row), and it is gated the same way: on the answer being NEWS.
+    ///
+    /// A PAINT ANSWER IS NEWS WHEN THE FRONTIER MOVED, and nothing else about this pane can
+    /// have changed while it was in flight -- so an answer that says what the pane already
+    /// shows is a description and is dropped. The BUILD answer is never a description: it is
+    /// the gesture's own decision, and it is made whether or not the picture moved.
     void on(const ProjectFrontierSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !frontier_.awaiting ||
             mail.correlation() != frontier_.pending) {
             return;
         }
         frontier_.awaiting = false;
+        const bool moved = !frontier_known_ || waiting_ != said.waiting ||
+                           frontier_artifact_ != said.artifact ||
+                           frontier_blocked_ != said.blocked;
         frontier_known_ = true;
         waiting_ = said.waiting;
         frontier_artifact_ = said.artifact;
@@ -405,7 +423,9 @@ public:
             finish_frontier_build(mail);
             return;
         }
-        say(mail);
+        if (moved) {
+            say(mail);
+        }
     }
 
     void on(const PlanNames& said, loom::Mail& mail) {
@@ -438,9 +458,9 @@ public:
             // with the second intention aboard, to the same office, under the same grant.
             // No new route: the tool confirms the build, offers, and the owner decides.
             send_build(mail, row_.recipe, /*realize=*/true);
-            notice_ = "loaded `" + row_.stem + "` as " + row_.role + " -- " + said.detail +
-                      "; its product is built, loading it now -- Workshop stays live while "
-                      "the incremental build confirms it" + written;
+            notice_ = "loading `" + row_.stem + "` now -- loaded as " + row_.role + ", " +
+                      said.detail + "; Workshop stays live while the incremental build "
+                      "confirms it" + written;
         } else {
             notice_ = "loaded `" + row_.stem + "` as " + row_.role + " -- " + said.detail +
                       (said.frontier ? "; nothing is built yet -- the frontier action builds "
@@ -892,12 +912,21 @@ private:
             say_builder(out);
         }
         // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
-        // only its own room, so its first row carries it and it is cleared once said.
+        // only its own room, so its first row carries it.
+        //
+        // ⚠ IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
+        // correction the seam forced. One gesture here produces SEVERAL publications in one
+        // drain -- it writes a notice, says its rows, and asks a door whose answer arrives on
+        // the same turn and says them again -- and Workshop keeps only the last picture. A
+        // notice cleared by the first `say` would therefore be a notice no maker ever reads,
+        // which is the defect the project browser's whole-loop witness found one pane over
+        // (`u` on a catalog produced no visible row at all). So the sentence stands until the
+        // maker does something else, which is also the honest reading of it: it is the answer
+        // to their last act.
         if (!notice_.empty() && static_cast<std::int64_t>(out.size()) < rows_) {
             out.insert(out.begin(),
                        surface::SurfaceTextRow{fit(notice_, columns_), surface::role::kAccent});
         }
-        notice_.clear();
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }

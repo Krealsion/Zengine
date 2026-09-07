@@ -436,23 +436,12 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kWorkspaceNarrower: resize_workspace(-4); break;
     case Act::kWorkspaceWider: resize_workspace(+4); break;
     case Act::kPicker: open_picker(); break;
-    // BUILDING AND REALIZING stay two deliberate halves: realizing an
-    // artifact is the one Builder gesture that changes what is running, and its
-    // default is the chorded sibling of the plain build's.
-    // `b` READS THE ARM (RELOAD-1): a plain build, or a build that loads when it works,
-    // by what the maker toggled; `B` is the toggle, or the button that loads the built
-    // artifact now -- one action, two states, decided in `build_realize`.
-    case Act::kBuild: build_now(mail, session_.panels.builder.arm); break;
-    case Act::kBuildRealize: build_realize(mail); break;
-    case Act::kPromote: promote_image(mail); break;
-    case Act::kRevert: revert_image(mail); break;
-    case Act::kLoadIt: load_it(mail); break;
-    case Act::kRecipeNext: choose_recipe(+1, mail); break;
-    case Act::kRecipeBack: choose_recipe(-1, mail); break;
-    case Act::kBuildFrontier: build_frontier(mail); break;
-    // EDIT THE SOURCE the chosen recipe names -- the Builder-owned door into the
-    // source editor, unbound without a Builder panel exactly as `b` is.
-    case Act::kEditSource: edit_source(mail); break;
+    // ⭐ THE NINE BUILDER ARMS ARE GONE FROM COMMAND MODE (VD-22). `b`, `B`, `P`, `R`, `o`,
+    // `c`, `C`, `f` and `e` were dispatched from here, each of them opening with "with no
+    // Builder panel open this is an unbound key" -- which is what a command-mode row acting
+    // on one pane's subject always has to say. The Builder is a weave now and hears its own
+    // ids while it holds the keyboard, so the answer to "what does `b` do from here" is that
+    // there is no `b` here to ask about.
     // The editor's deliberate discard, reachable from command mode too so the quit
     // refusal names a gesture that works where the maker is standing.
     case Act::kEditorDiscard: discard_source_edits(); break;
