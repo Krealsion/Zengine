@@ -169,6 +169,7 @@ Each is independently linkable; most are header-only vocabularies plus one loada
 | `maker/` | a weave built from a maker's definition — state, triggers and emits as data, edited live | not exported | [maker weave](docs/reference/maker-weave.md) |
 | `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
 | `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
+| `files/` | the Files pane, as a loadable weave rather than code inside Workshop | not exported | [Files](docs/workshop/files.md) |
 | `workshop/` | the maker environment | not exported | [Workshop docs](docs/workshop/getting-started.md) |
 | `snake/` | a worked example: a game whose parts are separate weaves | not exported | [snake](docs/reference/snake.md) |
 

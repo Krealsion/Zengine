@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_FILES_HPP
 
 // BROWSING A FILESYSTEM, FROM WHEREVER THIS WORKSHOP BEGAN.
-// Workshop law: agents/workshop/files.md
+// Files law: agents/files.md
 
 
 
@@ -22,12 +22,12 @@
 // WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser is one of two places that turn
 // something the OS reported into a Workshop path string, and both of them used to be able
 // to end the process by asking.
-#include "path_admission.hpp"
+#include "workshop/path_admission.hpp"
 
 // ...AND WHERE A LOCATION MAY BE SEEDED FROM, AND WHAT ITS PARENT IS. The browser is the
 // first consumer of the marks, not their owner -- `parent_location` is a lexical fact about
 // a path and lives beside the places that path may be one of.
-#include "marks.hpp"
+#include "files/marks.hpp"
 
 namespace zengine::workshop {
 
@@ -38,14 +38,13 @@ inline constexpr std::size_t kMaxListedEntries = 2000;
 /// ONE ROW: a name and a kind, and deliberately nothing else.
 struct FileRow {
     /// The filename bytes, UTF-8, as the filesystem gave them.
-    // WL-FILES-10 -- agents/workshop/files.md
     std::string name;
     bool directory = false;
     /// A DIRECTORY THAT LEAVES THE TREE.
     // WL-FILES-04 -- agents/workshop/files.md
     bool linked = false;
     /// Can this name be carried through Workshop's narrow path custody at all?
-    // WL-FILES-10, WL-FILES-11 -- agents/workshop/files.md
+    // WL-FILES-10 -- agents/workshop/files.md
     bool openable = true;
 };
 
@@ -173,17 +172,12 @@ inline Listing enumerate_directory(const std::string& dir) {
     return out;
 }
 
-/// WHAT THE MAKER IS CURRENTLY BROWSING -- session state, work in progress rather than desk.
-// WL-FILES-01, WL-FILES-02 -- agents/workshop/files.md
-struct FilesPane {
-    /// THE ONE ABSOLUTE LOCATION THIS BROWSER IS SHOWING. Lexically normal, forward
-    /// separators, and empty exactly while this run has nowhere to begin.
-    // WL-FILES-01, WL-FILES-02, WL-FILES-09 -- agents/workshop/files.md
-    std::string current_dir;
-    Listing listing;
-    std::size_t cursor = 0;    ///< which row the maker is on; bounded at use, never at write
-    double wheel_accum = 0.0;  ///< fractional wheel notches not yet worth a row
-};
+// WHAT THE MAKER IS CURRENTLY BROWSING USED TO BE A STRUCT HERE -- `FilesPane`, a field on the
+// host's `Panels`. The browser is a loaded weave now and its state is its own: two durable
+// fields in a `ZEN_SHAPE` (`files/vocabulary.hpp` `FilesState`, what a same-shape reload keeps)
+// and the rest -- the listing, the granted room, the wheel remainder -- private members of the
+// weave that never leave its image. So there is no pane object here to hand around, which is
+// the point: nothing outside the weave can read or write where a maker is looking.
 
 /// The row the cursor is on, or null when the listing is empty or the cursor outlived it.
 /// Bounded AT USE, never at write: rows are replaced wholesale by every refresh, and a
@@ -194,6 +188,75 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
         return nullptr;
     }
     return &l.rows[cursor];
+}
+
+// ---- WHAT THE MAKER IS TOLD, AS PURE FUNCTIONS -------------------------------------
+//
+// THE SENTENCES ARE THE BUILT-IN'S, AND THEY ARE HERE SO THEY STAY MEASURED. Every one of
+// them was carried out of `workshop/weave_editor.cpp` and `workshop/weave_recipes.cpp`
+// unchanged, and every one was witnessed by a case that read the notice row off a live
+// Workshop's canvas. That rig went with the built-in: the pane is a loaded image now and
+// only the whole-loop witness can read its rows. So the COMPOSITION is a value here, asked
+// of it directly, and the pane spends nothing else -- which keeps the evidence the
+// migration would otherwise have quietly dropped.
+//
+// ⚠ THE ORDER INSIDE A REFUSAL IS THE CLAIM, not the wording. The notice row is cut at the
+// band's width, so the two SHORT fixed statements go first and the two long variable ones --
+// the owner's own sentence, then the path in force -- take the tail. MEASURED (the live
+// witness, before the migration): with the reason first, the reassuring half was exactly
+// the half that elided.
+
+/// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
+/// Every arm says what is wrong AND that nothing moved, because the second half is the one
+/// a maker needs most and the one a bare reason leaves them guessing about.
+inline std::string catalog_row_refusal(const FileRow* row, bool run_began_somewhere) {
+    if (row == nullptr) {
+        return "no row is selected -- the recipes in force are unchanged";
+    }
+    if (!row->openable) {
+        return "`" + shown_name(row->name) +
+               "` has bytes this Workshop cannot carry in a path -- the recipes in force "
+               "are unchanged";
+    }
+    if (row->directory) {
+        return "`" + shown_name(row->name) + "` is a directory -- a recipe catalog is one "
+                                             "authored file";
+    }
+    if (!run_began_somewhere) {
+        return "this run began nowhere -- the recipes in force are unchanged";
+    }
+    return std::string();
+}
+
+/// THE PATH THE ANSWER SAYS IS IN FORCE, said in words when there is none.
+inline std::string catalog_in_force(const std::string& path) {
+    return path.empty() ? std::string("no catalog") : path;
+}
+
+/// A CHOSEN CATALOG THE OWNER REFUSED. `in_force` is what the owner answered AFTER the
+/// attempt, so this sentence can never name the file that was just refused.
+inline std::string catalog_refused_words(const std::string& reason, const std::string& in_force) {
+    return "not a recipe catalog -- the recipes in force are unchanged: " + reason +
+           "; still using " + catalog_in_force(in_force);
+}
+
+/// AN AUTHORED ROW THE OWNER REFUSED. Nothing was written, and what is running is unchanged.
+inline std::string authoring_refused_words(const std::string& reason,
+                                           const std::string& in_force) {
+    return "no recipe was written: " + reason + "; still using " + catalog_in_force(in_force);
+}
+
+/// A CHOSEN CATALOG THE OWNER TOOK -- which file, and how much it holds.
+inline std::string catalog_taken_words(const std::string& path, std::int64_t recipes) {
+    return "build recipes: " + path + " (" + std::to_string(recipes) +
+           (recipes == 1 ? " recipe)" : " recipes)");
+}
+
+/// A ROW THE OWNER WROTE: what the maker called it, what it produces, and where it landed.
+inline std::string authored_words(const std::string& id, const std::string& artifact,
+                                  const std::string& path, std::int64_t recipes) {
+    return "authored recipe `" + id + "` -> " + artifact + " in " + path + " (" +
+           std::to_string(recipes) + " recipes)";
 }
 
 } // namespace zengine::workshop

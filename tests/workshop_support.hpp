@@ -50,11 +50,22 @@
 #include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
-// ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree
-// (`leaves_the_tree`, the browser's own predicate). On Windows this is also where the lean
-// `<windows.h>` the process id is read through comes from.
-#include "workshop/files.hpp"
-#if !defined(_WIN32)
+// ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree.
+// It used to borrow the browser's own `leaves_the_tree`; the browser is a weave in another
+// package now (`Zengine/files/`), and a cleanup sweep in eight Workshop suites must not
+// depend on it, so the rig carries the predicate it actually needs.
+#if defined(_WIN32)
+// THE PROCESS ID AND THE SWEEP'S ONE ATTRIBUTE, named here rather than inherited. Both used
+// to arrive through `workshop/files.hpp`; that header moved to the Files package with the
+// browser, so the rig includes what it actually calls.
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <unistd.h> // getpid
 #endif
 
@@ -1200,10 +1211,27 @@ inline std::filesystem::path workshop_temp_root() {
 /// itself, live or dangling, on both Windows libraries (measured the same day) and unlinks
 /// a symbolic link on POSIX. Only what is really a directory recurses. Failures are
 /// swallowed as `remove_all`'s were: a destructor has nowhere to report to.
+/// DOES THIS ENTRY LEAVE THE TREE? The rig's own copy of the browser's predicate, for the
+/// sweep alone: the host's reparse attribute on Windows, `symlink_status` elsewhere. A
+/// failure marks the row, which is what makes a dangling junction removable BY NAME.
+inline bool sweep_leaves_the_tree(const std::filesystem::directory_entry& entry) {
+#if defined(_WIN32)
+    const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        return true;
+    }
+    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+    std::error_code link_ec;
+    const std::filesystem::file_status own = entry.symlink_status(link_ec);
+    return link_ec ? true : !std::filesystem::is_directory(own);
+#endif
+}
+
 inline void remove_tree(const std::filesystem::path& p) {
     std::error_code ec;
     const std::filesystem::directory_entry entry(p, ec);
-    bool enter = !zengine::workshop::leaves_the_tree(entry);
+    bool enter = !sweep_leaves_the_tree(entry);
     if (enter) {
         std::error_code kind_ec;
         enter = entry.is_directory(kind_ec) && !kind_ec;
@@ -1860,6 +1888,125 @@ struct SeatDo {
     ZEN_SHAPE(SeatDo, 1);
 };
 
+/// A TOOL THAT ASKS THIS HOST'S DOORS, in an office of its own.
+///
+/// It is what the Files weave is, reduced to the sentences a case needs: it asks
+/// `zengine.project` where this run began, asks `zengine.recipes` to install or author a
+/// catalog, and asks `zengine.workshop` to open one source in the Editor -- and it records
+/// every answer. Wherever a case is about the HOST's half of a door, this stands in for the
+/// loaded pane, which is exactly the party the door was built for.
+///
+/// IT AUTHORS AS AN OFFICE, because all three doors refuse anonymous speech; a rig that
+/// asked personally would be proving the refusal rather than the answer.
+struct DoorAskerState {
+    std::int64_t asks = 0;
+    std::int64_t answers = 0;
+    ZEN_EXPOSE();
+    ZEN_SHAPE(DoorAskerState, 1, ZEN_FIELD(asks), ZEN_FIELD(answers));
+};
+
+class DoorAsker
+    : public loom::WeaveBase<DoorAsker, DoorAskerState,
+                             loom::Accept<ProjectRoot, RecipeOutcome, SourceOpened, SeatDo>,
+                             loom::Emit<ProjectRootRequested, RecipeUseRequested,
+                                        RecipeAuthorRequested, OpenSourceRequested>> {
+public:
+    explicit DoorAsker(std::string office) : office_(std::move(office)) {}
+
+    /// What this asker should say next, run INSIDE its own delivery so `as_role` has a real
+    /// authorship moment for Loom to verify.
+    std::function<void(DoorAsker&, loom::Mail&)> next;
+
+    /// The answers, as they arrived.
+    std::vector<ProjectRoot> roots;
+    std::vector<RecipeOutcome> outcomes;
+    std::vector<SourceOpened> opens;
+    /// Whether the last ask was authored as an office at all -- the canary lever for the
+    /// rule every door keeps.
+    bool personally = false;
+    /// This asker's own id on the bus, so a case can nudge it the way `drive` nudges a seat.
+    loom::WeaveId id{};
+
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            auto what = next;
+            next = nullptr;
+            what(*this, mail);
+        }
+    }
+    void on(const ProjectRoot& said, loom::Mail&) {
+        ++state_.answers;
+        roots.push_back(said);
+    }
+    void on(const RecipeOutcome& said, loom::Mail&) {
+        ++state_.answers;
+        outcomes.push_back(said);
+    }
+    void on(const SourceOpened& said, loom::Mail&) {
+        ++state_.answers;
+        opens.push_back(said);
+    }
+
+    template <class Shape>
+    void ask(loom::Mail& mail, const char* office, const Shape& shape) {
+        ++state_.asks;
+        if (personally) {
+            (void)mail.send_to_role(office, shape);
+            return;
+        }
+        (void)mail.as_role(office_).send_to_role(office, shape);
+    }
+
+private:
+    std::string office_;
+};
+
+/// The office an asker holds unless a case says otherwise. It is a TEST office and nothing
+/// in the host names it: what the doors require is that an asker holds SOME office, so the
+/// spelling is the case's to choose and the door's answer must not depend on it.
+inline constexpr const char* kDoorAskerOffice = "zengine.test.door-asker";
+
+/// Seat an asker on this bus, granted exactly the four asks and nothing else. It hears the
+/// three answers the way any weave does -- through Loom's own answer route -- so nothing
+/// here has to be granted for it to be told.
+inline DoorAsker* mount_door_asker(Live& t, const char* office = kDoorAskerOffice) {
+    auto asker = std::make_unique<DoorAsker>(std::string(office));
+    DoorAsker* raw = asker.get();
+    loom::Grant grant;
+    grant.allow_to_any(ProjectRootRequested::zen_name, ProjectRootRequested::zen_version);
+    grant.allow_to_any(RecipeUseRequested::zen_name, RecipeUseRequested::zen_version);
+    grant.allow_to_any(RecipeAuthorRequested::zen_name, RecipeAuthorRequested::zen_version);
+    grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
+    const loom::WeaveId id =
+        t.bus.register_weave(std::move(asker), std::move(grant), std::string(office));
+    raw->zen_set_self(id);
+    raw->id = id;
+    return raw;
+}
+
+/// Make an asker say one sentence INSIDE ITS OWN DELIVERY -- `drive`'s reason exactly, and
+/// the only way `mail.as_role(...)` has an authorship moment Loom can verify.
+inline void asker_do(Live& t, DoorAsker* asker,
+                     std::function<void(DoorAsker&, loom::Mail&)> what) {
+    asker->next = std::move(what);
+    (void)t.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                             loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+}
+
+/// ASK THE EDITOR DOOR TO OPEN ONE PATH, and hand back what it answered. This is the whole
+/// of what a Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half),
+/// so a host case that needs a file open in the editor makes it happen the way the product
+/// does rather than reaching into the session.
+inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::string& path) {
+    const std::size_t before = asker->opens.size();
+    asker_do(t, asker, [path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kWorkshopProvider, OpenSourceRequested{path});
+    });
+    REQUIRE(asker->opens.size() == before + 1);
+    return asker->opens.back();
+}
+
 struct SeatState {
     std::int64_t said = 0;
     ZEN_SHAPE(SeatState, 1, ZEN_FIELD(said));
@@ -2183,6 +2330,8 @@ struct PaneRig {
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+        // The Editor door's answer, exactly as workshop.cpp grants it.
+        speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -2402,6 +2551,9 @@ struct PaneRig {
         }
         if (stem == zengine::introspection::kIntrospectionStem) {
             return WORKSHOP_SO_INTROSPECTION;
+        }
+        if (stem == "zengine-files") {
+            return WORKSHOP_SO_FILES;
         }
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
@@ -2897,6 +3049,38 @@ inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 /// Open an external pane belonging to a seat in `office`, and answer with its kind.
 /// The seat offers, Workshop admits, the picker opens it, and the room is granted --
 /// four beats a case would otherwise spell every time.
+/// SEAT A RECORDING PROVIDER ON A `Live` RIG, and make it offer one pane.
+///
+/// `PaneRig` owns this for the pane seam's own cases; `Live` needs it for a different
+/// reason and gained it when the project browser left. Six built-in kinds used to make the
+/// Pane Manager's inventory longer than its window all by themselves; five do not, and the
+/// case about that WINDOW is not a case about how many panes this host compiles. So the
+/// sixth entry comes from where every pane comes from now -- an office that offered one.
+inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pane,
+                                    const char* name) {
+    auto seat = std::make_unique<ProviderSeat>(std::string(office));
+    ProviderSeat* raw = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
+    const loom::WeaveId id =
+        t.bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+    raw->zen_set_self(id);
+    raw->next = [pane, name](ProviderSeat& p, loom::Mail& m) {
+        p.offer(m, PaneOffered{pane, name, "a seated provider"});
+    };
+    (void)t.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                       loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    for (const RuntimePane& row : t.w->session().panels.runtime.entries) {
+        if (row.provider == std::string(office) && row.pane == std::string(pane)) {
+            return row.kind;
+        }
+    }
+    return kNoPaneKind;
+}
+
 inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* office,
                                    const char* pane) {
     r.drive(seat, [pane](ProviderSeat& s, loom::Mail& m) {
@@ -3229,16 +3413,35 @@ inline std::string file_source(const char* path) {
 /// the moment it exists. The floor is the count the walk found when the logic was split
 /// out of the headers (workshop/CMakeLists.txt); a walk that finds fewer is a red, never a
 /// smaller claim.
-inline constexpr std::size_t kPresentationSourceFloor = 62;
+///
+/// ⚠ IT WENT DOWN ONCE, DELIBERATELY, AND THIS IS THE RECORD: 62 -> 61, when the project
+/// browser stopped being this host's code. `files.cpp`, `filesystem_roots.cpp` and the four
+/// headers they served left for `Zengine/files/`, and three host-side files arrived in
+/// their place and are excluded by name below. A floor that had been left at 62 would have
+/// been a green bought by a number rather than by a walk -- so it is stated here with what
+/// moved, which is the only honest way a floor goes down.
+inline constexpr std::size_t kPresentationSourceFloor = 61;
 
 inline std::vector<std::string> presentation_sources() {
     // `staging.hpp` IS HOST-SIDE (RELOAD-1): the two rules the host wires into the
     // realization owner -- where a built product is opened from, and how a running image
     // becomes the file a restart loads -- shared with the build witness so there is one
     // spelling. No presentation includes it, and it names the owner it serves.
+    // `files_doors.hpp` and `files_seam_vocabulary.hpp` join the list for
+    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the two
+    // doors the Files weave asks and the shapes they answer in -- and a tripwire that read
+    // them would forbid a door from naming what it opens.
+    // `pane_migration.hpp` is here for a DIFFERENT reason from the rest, and it is the only
+    // one: its whole subject is a durable name that no longer means anything -- the
+    // reference saved files wrote for the browser this host used to offer. It exists so that
+    // exactly one file in this repository spells that name, and the tripwire that forbids
+    // every other file from spelling it would otherwise forbid the one file whose job it is.
+    // Naming a retired reference is not knowing a pane: nothing here can present one.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
-                                                "staging.hpp", "authoring.hpp"};
+                                                "staging.hpp", "authoring.hpp", "files_doors.hpp",
+                                                "files_seam_vocabulary.hpp",
+                                                "pane_migration.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :
          std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {

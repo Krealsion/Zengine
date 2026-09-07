@@ -6393,3 +6393,269 @@ TEST_CASE("WUX-12: a full desk refuses the conversion rather than losing either 
     CHECK(no.outcome.refusal.find(std::to_string(kMaxSetupPanes)) != std::string::npos);
     CHECK(no.outcome.refusal.find("layout surface") != std::string::npos);
 }
+
+// ============================================================================
+// PANE-MIG — a pane that changed hands, and the one rewrite that says so
+// ============================================================================
+//
+// THE BROWSER LEFT THIS HOST. Every setup a maker ever saved and every session this
+// Workshop ever wrote spelled it `zengine.workshop/project-files`, because that is who was
+// offering it; it is a loaded weave in an office of its own now and the same pane is
+// `zengine.files/project-files`. What these cases are about is that a maker who arranged
+// their desk last month opens this build and finds it where they left it.
+//
+// ⚠ AND THAT THIS IS NOT A FORMAT MOVE. The rewrite runs INSIDE `setup_in`, which is the
+// one function that turns written rows into a live `Setup` -- so it reaches the setup file,
+// every desk inside a session and every remembered value on a layout's link, over every
+// version this reader admits, present and legacy. A version gate would have converted
+// version-3 files and refused version-2 ones outright, and the browser is older than both.
+
+namespace {
+
+/// The reference a saved file wrote for the built-in browser, and the one it means now.
+/// Spelled as literals on purpose: these are claims about BYTES ALREADY ON DISK, and a
+/// fixture that asked the current build what the name is could not fail when the name moved.
+inline PaneRef old_files_ref() { return PaneRef{"zengine.workshop", "project-files"}; }
+inline PaneRef new_files_ref() { return PaneRef{"zengine.files", "project-files"}; }
+
+/// A setup naming one built-in and the browser, in that order, with authored geometry on
+/// the browser's row -- because "the row survived" has to mean the whole row.
+inline Setup desk_with_the_browser() {
+    Setup s;
+    s.name = "Yesterday";
+    REQUIRE(add_pane(s, ref_of(panel::kInfo)));
+    REQUIRE(add_pane(s, old_files_ref()));
+    const std::size_t row = pane_row(s, old_files_ref());
+    REQUIRE(row != kNoPaneRow);
+    s.panes[row].place = PanePlace{pane_unit::kSubcells, 96, 32};
+    s.panes[row].width = PaneSize{pane_unit::kSubcells, 320};
+    s.panes[row].height = PaneSize{pane_unit::kPixels, 240};
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("PANE-MIG: a saved setup naming the built-in browser opens as the loaded pane") {
+    // ⭐ THE WHOLE CLAIM, AND IT IS ABOUT ONE ROW. The office moved; the pane key, the
+    // place, both sizes and the front order did not, because none of them changed hands.
+    //
+    // ⚔ MUTATION: dropping the rewrite from `setup_in`. The reference comes back naming
+    // `zengine.workshop`, and this build's pane catalog answers nothing for it -- the
+    // maker's Files pane is a row that resolves to nothing, silently.
+    const Setup wrote = desk_with_the_browser();
+    const setup_persist::LoadedSetup read =
+        setup_persist::from_text(setup_persist::to_text(wrote));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.converted == 1);
+
+    REQUIRE(read.setup.panes.size() == 2);
+    CHECK(read.setup.panes[0].ref == ref_of(panel::kInfo));
+    CHECK(read.setup.panes[1].ref == new_files_ref());
+    // THE REST OF THE ROW IS THE MAKER'S, UNTOUCHED.
+    CHECK(read.setup.panes[1].place.mode == pane_unit::kSubcells);
+    CHECK(read.setup.panes[1].place.x == 96);
+    CHECK(read.setup.panes[1].place.y == 32);
+    CHECK(read.setup.panes[1].width.amount == 320);
+    CHECK(read.setup.panes[1].height.mode == pane_unit::kPixels);
+    CHECK(read.setup.panes[1].height.amount == 240);
+    CHECK(read.setup.panes[1].front == wrote.panes[1].front);
+    // ...AND THE NAME AND THE ORDER OF THE OTHER ROW ARE TOO.
+    CHECK(read.setup.name == "Yesterday");
+
+    // AND THE NEXT SAVE WRITES THE NEW SPELLING, which is what makes the conversion
+    // something spent once on the bytes rather than at every launch (WL-MIG-10's rule,
+    // reading never rewrites: the FILE changes at the maker's next ordinary save).
+    const std::string again = setup_persist::to_text(read.setup);
+    CHECK(again.find("\"provider\":\"zengine.files\"") != std::string::npos);
+    CHECK(again.find("\"provider\":\"zengine.workshop\",\"pane\":\"project-files\"") ==
+          std::string::npos);
+    const setup_persist::LoadedSetup back = setup_persist::from_text(again);
+    REQUIRE(back.outcome.accepted);
+    CHECK(back.converted == 0);
+    CHECK(back.setup == read.setup);
+}
+
+TEST_CASE("PANE-MIG: a setup that names no retired pane is not touched, and says so") {
+    // THE OTHER HALF OF A MEASUREMENT. A converter that reported work it did not do would
+    // make the transition note appear for every maker in the world, forever.
+    const Setup ordinary = setup_of("Ordinary", {panel::kInfo, panel::kBuilder});
+    const std::string wrote = setup_persist::to_text(ordinary);
+    const setup_persist::LoadedSetup read = setup_persist::from_text(wrote);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.converted == 0);
+    CHECK(read.setup == ordinary);
+    CHECK(setup_persist::to_text(read.setup) == wrote);
+
+    // ...AND NEITHER IS A THIRD PARTY'S PANE THAT MERELY SHARES ONE HALF OF THE NAME.
+    // The rewrite is one named pair and not a pattern: an office match alone is not it,
+    // and a key match alone is not it either.
+    // ⚠ NOT `near`, which is a Win32 macro: `<windows.h>` defines it, and a case named for
+    // what it is about would not compile on one of the two supported toolchains.
+    Setup almost;
+    almost.name = "Near misses";
+    REQUIRE(add_pane(almost, PaneRef{"zengine.workshop", "project-files-2"}));
+    REQUIRE(add_pane(almost, PaneRef{"third.party.tools", "project-files"}));
+    REQUIRE(add_pane(almost, PaneRef{"zengine.files", "project-files"}));
+    const setup_persist::LoadedSetup untouched =
+        setup_persist::from_text(setup_persist::to_text(almost));
+    REQUIRE(untouched.outcome.accepted);
+    CHECK(untouched.converted == 0);
+    CHECK(untouched.setup == almost);
+}
+
+TEST_CASE("PANE-MIG: the legacy road converts too, because the browser is older than it") {
+    // ⭐ THE ARM A FORMAT VERSION WOULD HAVE LOST. This reader carries exactly one legacy
+    // rung, so a conversion gated on a version bump would have brought version-3 files
+    // forward and refused version-2 ones -- and a version-2 setup can name the browser as
+    // easily as a version-3 one, because the pane predates both numbers.
+    setup_persist::v2::WorkshopSetup old;
+    old.format = setup_persist::kFormat;
+    old.format_version = setup_persist::kLegacyFormatVersion;
+    old.name = "Whole cells";
+    setup_persist::v2::WorkshopSetupPane files;
+    files.provider = "zengine.workshop";
+    files.pane = "project-files";
+    files.place = setup_persist::v2::WorkshopPanePlace{"cells", 3, 2};
+    files.width = setup_persist::v2::WorkshopPaneSize{"cells", 28};
+    files.height = setup_persist::v2::WorkshopPaneSize{"default", 0};
+    files.front = 0;
+    old.panes.push_back(files);
+
+    const setup_persist::LoadedSetup read =
+        setup_persist::from_text(loom::compat::serialize(loom::to_value(old)));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.converted == 1);
+    REQUIRE(read.setup.panes.size() == 1);
+    CHECK(read.setup.panes[0].ref == new_files_ref());
+    // ...AND THE UNIT TRANSLATION THAT ROAD EXISTS FOR STILL HAPPENED. The two conversions
+    // are independent and both are owed.
+    CHECK(read.setup.panes[0].place.mode == pane_unit::kSubcells);
+    CHECK(read.setup.panes[0].width.amount == surface::subs_of_cells(28));
+}
+
+TEST_CASE("PANE-MIG: a file naming BOTH spellings is refused for naming one pane twice") {
+    // THE ORDER IS THE CLAIM. The rewrite runs BEFORE the setup's own law, so a
+    // contradictory file meets `check_setup` as what it actually is -- two rows for one
+    // pane -- rather than being quietly installed as a desk holding the same pane twice.
+    Setup both;
+    both.name = "Contradiction";
+    REQUIRE(add_pane(both, old_files_ref()));
+    REQUIRE(add_pane(both, new_files_ref()));
+    const setup_persist::LoadedSetup read =
+        setup_persist::from_text(setup_persist::to_text(both));
+    REQUIRE_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("zengine.files/project-files") != std::string::npos);
+    CHECK(read.outcome.refusal.find("named twice") != std::string::npos);
+    // AND NOTHING WAS HALF-INSTALLED: the whole candidate is a local of the reader.
+    CHECK(read.setup.panes.empty());
+}
+
+TEST_CASE("PANE-MIG: every desk in a session is converted, and the run counts once") {
+    // ⭐ A MAKER WITH EIGHT DESKS IS TOLD ONCE. The count is the run's, because "the Files
+    // pane moved" is one fact about this build and not one fact per desk -- and it is a
+    // COUNT rather than a flag so a case can tell "every desk converted" from "one did".
+    std::vector<Layout> run;
+    for (int i = 0; i < 3; ++i) {
+        Setup desk = desk_with_the_browser();
+        desk.name = "Desk " + std::to_string(i + 1);
+        run.push_back(Layout{desk, SetupLink{}});
+    }
+    // ...AND THE REMEMBERED VALUE ON AN ASSOCIATION IS A DESK TOO, so it converts with the
+    // rest: a maker whose layout is associated with a Setup file wrote the browser in two
+    // places and is owed both.
+    run[1].link = SetupLink{"/somewhere/morning.json", desk_with_the_browser()};
+
+    session_persist::WorkshopSession file;
+    file.format = session_persist::kFormat;
+    file.format_version = session_persist::kFormatVersion;
+    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.active = 1;
+    file.placement = session_history::absent_placement();
+    for (const Layout& l : run) {
+        session_persist::WorkshopLayout out;
+        out.desk = setup_persist::to_setup(l.desk);
+        out.link.path = l.link.path;
+        out.link.known = setup_persist::to_setup(l.link.known);
+        file.layouts.push_back(out);
+    }
+    const session_persist::LoadedSession read =
+        session_persist::from_text(loom::compat::serialize(loom::to_value(file)));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    // THREE DESKS AND ONE REMEMBERED VALUE, each holding one browser row.
+    CHECK(read.converted == 4);
+    REQUIRE(read.layouts.size() == 3);
+    for (const Layout& l : read.layouts) {
+        CHECK(pane_row(l.desk, new_files_ref()) != kNoPaneRow);
+        CHECK(pane_row(l.desk, old_files_ref()) == kNoPaneRow);
+    }
+    CHECK(pane_row(read.layouts[1].link.known, new_files_ref()) != kNoPaneRow);
+}
+
+TEST_CASE("PANE-MIG: the maker is told once, in the pane's own durable names") {
+    // ⭐ THE TRANSITION NOTE, THROUGH THE REAL RESTORE. A maker whose session held the
+    // browser on every desk reads ONE sentence about it, beside the ordinary reopening
+    // sentence -- and a maker whose session held none reads nothing at all, which is what
+    // keeps the note a piece of news rather than a permanent decoration.
+    TempDir dir("pane-mig-note");
+    const std::string path = dir.file("session.json");
+
+    session_persist::WorkshopSession file;
+    file.format = session_persist::kFormat;
+    file.format_version = session_persist::kFormatVersion;
+    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.active = 0;
+    file.placement = session_history::absent_placement();
+    for (int i = 0; i < 2; ++i) {
+        Setup desk = desk_with_the_browser();
+        desk.name = "Desk " + std::to_string(i + 1);
+        session_persist::WorkshopLayout out;
+        out.desk = setup_persist::to_setup(desk);
+        file.layouts.push_back(out);
+    }
+    spillout(path, loom::compat::serialize(loom::to_value(file)));
+
+    Live t;
+    t.host.session_path = path;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 41}));
+    REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
+
+    const std::string said = t.notice();
+    CHECK(said.find("reopened your last desk") != std::string::npos);
+    CHECK(said.find("zengine.workshop/project-files") != std::string::npos);
+    CHECK(said.find("zengine.files/project-files") != std::string::npos);
+    // ONCE, over two desks that both held it.
+    std::size_t times = 0;
+    for (std::size_t at = said.find("is now"); at != std::string::npos;
+         at = said.find("is now", at + 1)) {
+        ++times;
+    }
+    CHECK(times == 1u);
+    // ...AND THE DESKS THEMSELVES CAME BACK NAMING THE NEW OFFICE.
+    REQUIRE(layout_count(t.session().setup) == 2);
+    CHECK(pane_row(t.session().setup.active, new_files_ref()) != kNoPaneRow);
+}
+
+TEST_CASE("PANE-MIG: a session with nothing to convert says nothing about it") {
+    TempDir dir("pane-mig-quiet");
+    const std::string path = dir.file("session.json");
+    session_persist::WorkshopSession file;
+    file.format = session_persist::kFormat;
+    file.format_version = session_persist::kFormatVersion;
+    file.viewport = session_persist::WorkshopViewport{132, 41};
+    file.active = 0;
+    file.placement = session_history::absent_placement();
+    session_persist::WorkshopLayout out;
+    out.desk = setup_persist::to_setup(setup_of("Ordinary", {panel::kInfo}));
+    file.layouts.push_back(out);
+    spillout(path, loom::compat::serialize(loom::to_value(file)));
+
+    Live t;
+    t.host.session_path = path;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 41}));
+    REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
+    CHECK(t.notice().find("reopened your last desk") != std::string::npos);
+    CHECK(t.notice().find("project-files") == std::string::npos);
+}
+

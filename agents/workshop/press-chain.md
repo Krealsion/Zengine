@@ -39,7 +39,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_info.cpp` `info_body_at`, `property_row_hit`, `action_press_at`,
 `object_press_at`; `workshop/screen.hpp` `terminal_input_hit`, `InfoBodyAt`,
-`InfoBodyAt::present`; `workshop/screen_browser.cpp` `files_row_of_body_row`;
+`InfoBodyAt::present`;
 `tests/test_workshop_document.cpp` case `"QR-2: the body's resolve-and-locate is ONE answer, and
 it is the painter's"`, case `"QR-2: no press inside the Info body begins a workspace gesture, on
 any row"`.

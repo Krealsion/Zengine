@@ -81,7 +81,14 @@ inline constexpr const char* kActionPickBuildable = "files.pick-buildable";
 // contexts a maker's keymap could name and this pane's modes are not: a maker who bound
 // `recipe.choose` was binding a Workshop context that no longer exists.
 
-inline constexpr const char* kActionChoose = "files.choose";  ///< commit a chooser row / an authoring field
+// ⚠ THERE IS NO SEPARATE `files.choose`. The built-in spelled the chooser's commit and the
+// authoring line's commit as rows in their OWN keyboard contexts (`kRecipeChooser`,
+// `kAuthoring`), all three answering to Return; a PANE has ONE context -- its own runtime
+// handle -- so two of its rows cannot answer to one gesture and the collision law refuses
+// the declaration whole (`join_pane_rows`). So Return is `files.open`, and what it means is
+// the pane's business: enter or edit while browsing, commit while a mode is open. A maker's
+// keymap moves the gesture once and it moves in every mode, which is the honest reading of
+// "one pane, one key map" and is what a maker sees anyway.  ///< commit a chooser row / an authoring field
 inline constexpr const char* kActionCancel = "files.cancel";  ///< back out of a mode whole
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1). What a maker is browsing survives a

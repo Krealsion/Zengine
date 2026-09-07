@@ -18,7 +18,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
 `HostContext::document_path`, `HostContext::setup_path`, `HostContext::session_path`,
-`HostContext::marks_path`, `HostContext::pane_path`, `HostContext::keymap_path`,
+`HostContext::pane_path`, `HostContext::keymap_path`,
 `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
 `tests/test_workshop_persistence.cpp` case `"WUX-3: the two Windows roots are the platform's own
 conventions"`, case `"WUX-3: the two XDG roots, and their home fallbacks"`, case `"WUX-3: the host

@@ -1033,7 +1033,7 @@ ui                                doctest           always  22
 component                         doctest           always  39
 operator                          doctest           always  126
 composer                          doctest           always  35
-files_weave                       doctest           always  13
+files_weave                       doctest           always  19
 maker                             doctest           always  26
 # THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
 # case is the journal's: what the project made of an artifact it was offered is a durable fact
@@ -1095,14 +1095,52 @@ builder                           doctest           always  55
 # prose stated five times -- ctrl+shift+letter collapses to plain ctrl+letter on the POSIX
 # wire -- and one case pins it over the value and through a keymap file.
 #
+# FILES IS A WEAVE moved four floors, and one of them DOWN -- which is the only kind of
+# floor move that has to be argued rather than recorded. The project browser stopped being
+# code in this host: its listing, its marks, its two platform bodies and its four headers
+# left for `Zengine/files/`, and what a maker does with it now crosses the external pane
+# seam. So its evidence moved with it, and it moved to three places rather than one:
+#
+#   workshop_files  101 -> 43   what STAYS is the host's half of the subject -- where a
+#                               relative source points, who owns the completed catalog, how
+#                               a catalog file becomes that answer, the launch rules, this
+#                               host's two Sources, and (new, 5 cases) the three doors the
+#                               pane asks, from the answering side.
+#   files_weave      13 -> 19   the PURE half, in the package that owns it: the listing, the
+#                               marks and their file, path admission -- plus the sentences a
+#                               maker reads, which are values here for the first time, and
+#                               the build-graph tripwire.
+#   workshop_panes  255 -> 273  the GESTURES, through the real seam: `test_workshop_panes_files.cpp`
+#                               loads the real `zengine-files` image from a real plan row and
+#                               drives browsing, activation, the wheel, the catalog choice,
+#                               the marks and the whole in-pane authoring loop against the
+#                               real doors. Eighteen cases that could not exist before,
+#                               because before this there was no seam to cross -- one of them
+#                               pinning a defect the whole-loop terminal witness found, where
+#                               the answer the pane asked for erased the sentence it had just
+#                               written.
+#   workshop_persistence 172 -> 184  the CONVERSION: a saved reference that named the
+#                               built-in resolves to the weave, over every version this
+#                               reader admits, said once.
+#
+# THE NET IS DOWN 22 CASES, AND THIS IS WHAT THEY WERE. Fifty-one browser cases were
+# deleted; twelve moved to `files_weave` verbatim and seventeen were rewritten at the seam.
+# The rest asserted things that stopped existing rather than moving: the built-in's painter
+# and its graphical body-row hit test (a pane draws rows now and Workshop lays them out),
+# its hover reveal (WL-PTR-09 -- not carried, and `docs/workshop/limitations.md` says so),
+# its popup surfaces (the chooser and the prompt are rows in the pane's own room), its
+# panel-catalog row and compile-time kind (retired, and a tripwire says no source names
+# them). A floor left at 101 would have been a number rather than a walk; a claim that
+# nothing was lost would have been false. What is lost is named here.
+#
 workshop_document                 doctest           always  143
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  217
-workshop_panes                    doctest           always  255
-workshop_persistence              doctest           always  172
+workshop_panes                    doctest           always  274
+workshop_persistence              doctest           always  184
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  101
+workshop_files                    doctest           always  43
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

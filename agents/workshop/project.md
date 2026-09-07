@@ -75,7 +75,7 @@ case `"PROJ-1: a candidate that cannot be read installs nothing at all"`, case `
 EMPTY catalog is a replacement, not a failure"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
-## WL-PROJ-05 — The first live chooser is `files.use-recipes`, and the authoring one spends it
+## WL-PROJ-05 — A live catalog choice is one door, and the authoring one spends it
 
 LAW — `u` in Project Files resolves a row to a path as activation does, refuses a directory and an uncarriable name, and hands it to `use_recipes`; every judgement about the bytes is the recipe owner's.
 
@@ -84,8 +84,9 @@ MEANS
 - a dirty Editor buffer over that path is neither consumed nor auto-saved; no Builder needed;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
-PROVEN BY — `workshop/keymap.hpp` `files.use-recipes`; `workshop/weave_editor.cpp`
-`files_use_recipes`; `workshop/weave.hpp` `HostContext::use_recipes`, `RecipeSwap`;
+PROVEN BY — `workshop/files_doors.hpp` `RecipesDoor`; `workshop/files_seam_vocabulary.hpp`
+`RecipeUseRequested`, `RecipeOutcome`; `workshop/weave.hpp` `HostContext::use_recipes`,
+`RecipeSwap`;
 `tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a catalog in Files and every
 consumer moves with it"`, case `"PROJ-1: selecting the catalog already in force is a reload, not a
 no-op"`, case `"PROJ-1: recipes come from the saved file, never from an unsaved editor buffer"`,
@@ -104,29 +105,31 @@ case `"PROJ-1: a reordered catalog moves the maker's choice to its recipe, not i
 an emptied catalog leaves no selection standing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
-## WL-PROJ-09 — `Session::recipes_moved_to` is a projection, not an owner
+## WL-PROJ-09 — Which catalog is in force is the owner's answer, and nobody keeps a copy
 
-LAW — Empty until a maker replaces a catalog, it is spent by the Builder on a row that exists exactly while the fact has moved, and holds the owner's own path read back, never recomposed.
+LAW — The catalog in force is read back from the owner after every attempt and never recomposed from a candidate; the party that made the swap says so once, and no projection of it stands.
 
 MEANS
-- it is on the `Session` and not on the Builder pane because `close_panel` forgets the pane whole.
+- a refused swap answers with the catalog STILL running, which is the half a maker needs;
+- the Builder panel named it while a session projection existed; that projection has left.
 
-PROVEN BY — `workshop/screen.hpp` `Session::recipes_moved_to`; `workshop/weave.hpp`
-`RecipeSwap`; `tests/test_workshop_document.cpp` case `"PROJ-1: the catalog row costs one `said`
-row, and only where it is present"`; `tests/test_workshop_files.cpp` case `"PROJ-1: a live catalog
-choice is this session's and is written nowhere"`.
+PROVEN BY — `workshop/workshop.cpp` `use_recipes`; `workshop/weave.hpp` `RecipeSwap`;
+`files/files.hpp` `catalog_taken_words`, `catalog_refused_words`; `tests/test_files.cpp` case
+`"PROJ-1: a refusal says what went wrong AND what is still running, in that order"`;
+`tests/test_workshop_files.cpp` case `"PROJ-1: a live catalog choice is this session's and is
+written nowhere"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-10 — A path is not a sentence
 
-LAW — `detail::fit_path` measures the browser's location header and the Builder's catalog row: a root cue (`path_root_cue`, lexical), a mark where the middle went, the tail cut at a component boundary.
+LAW — `detail::fit_path` measures a path a maker has to recognize: a root cue (`path_root_cue`, lexical), a mark where the middle went, the tail cut at a component boundary.
 
 MEANS
 - a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
 - it changes no stored identity, and no pane widens to avoid a cut.
 
 PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
-`workshop/screen_browser.cpp` `files_header_prefix`; `tests/test_workshop_files.cpp` case
+`workshop/screen_layouts.cpp` `fit_path`; `tests/test_workshop_files.cpp` case
 `"PROJ-2: fitting a path keeps the end that says which file it is"`;
 `tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is scrolled at
 all"`.

@@ -47,6 +47,11 @@
 
 namespace zengine::workshop {
 
+/// THE PLACES FILE'S SUGGESTED NAME. The host resolves WHERE it lives (its durable-path
+/// rule, beside the keymap's and the session's) and answers it through `ProjectRoot`; the
+/// pane OWNS the file. The name is here because both sides spell it.
+inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
+
 /// THE OFFICE THAT ANSWERS WHERE THIS RUN BEGAN AND WHICH PLACES FILE IT OWNS. A ROLE, for
 /// `kArrangementRole`'s reason: it survives its holder being replaced, and a loaded
 /// artifact names it without ever learning a `WeaveId`. A host that mounts no such door

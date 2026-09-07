@@ -142,11 +142,13 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-17 — A restore returns the desks and the room, not what a maker was doing
 
-LAW — Selection, keyboard focus, the document, the browser's location and every other Workshop-global fact are this run's; a restored layout paints identically except for which pane wears the focus ink.
+LAW — Selection, keyboard focus, the document and every other Workshop-global fact are this run's; a restored layout paints identically except for which pane wears the focus ink.
+
+MEANS
+- a loaded pane's own state is its own: this file remembers the reference, never the pane.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
 `tests/test_workshop_persistence.cpp` case `"WUX-0: a session file holds the desk and the room,
 and nothing runtime"`, case `"WUX-10/SC-13: the position that comes back is the one the maker
-stood on"`; `tests/test_workshop_files.cpp` case `"PROJ-2: marks survive a restart, and the
-browsing location deliberately does not"`.
+stood on"`, case `"PANE-MIG: the maker is told once, in the pane's own durable names"`.
 WHY — `agents/decisions/three-ownership-domains.md`

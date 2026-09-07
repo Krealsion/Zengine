@@ -43,7 +43,7 @@ inline AdmittedPath admit_path(const std::filesystem::path& p) noexcept {
 }
 
 /// A PATH SPELLING THIS APPLICATION WROTE DOWN EARLIER, COMING BACK IN.
-// WL-FILES-09, WL-FILES-11 -- agents/workshop/files.md
+// WL-FILES-09 -- agents/workshop/files.md
 inline std::string admit_location(const std::string& spelling) noexcept {
     if (spelling.empty()) {
         return std::string();

@@ -8,7 +8,6 @@
 // currently open, and each open panel's own view of the thing it presents.
 // Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
 
-#include "files.hpp"
 #include "pane_definition.hpp"
 #include "pane_vocabulary.hpp" // PaneActionRow -- what an offered pane declared it can do
 
@@ -29,7 +28,10 @@ namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
 inline constexpr std::int64_t kEditor = 2;
-inline constexpr std::int64_t kProjectFiles = 3;
+// 3 IS RETIRED. It was the project browser's kind until that pane became a weave
+// (`Zengine/files/`); the number is left unused rather than reassigned, because a kind is a
+// session-local handle and renumbering the two below would buy nothing and move two values
+// every case and every catalog walk already agrees on.
 /// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE.
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kLayouts = 4;
@@ -99,7 +101,6 @@ namespace pane_key {
 inline constexpr const char* kBuilder = "builder";
 inline constexpr const char* kInfo = "info";
 inline constexpr const char* kEditor = "editor";
-inline constexpr const char* kProjectFiles = "project-files";
 inline constexpr const char* kLayouts = "layouts";
 inline constexpr const char* kPaneEditor = "pane-editor";
 } // namespace pane_key
@@ -122,17 +123,6 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // instead of holding nothing.
     {panel::kEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kEditor, "Editor",
      "edit a source file", true},
-    // THE PROJECT ON DISK, AS A PLACE A MAKER CAN LEAVE OPEN. An ordinary catalog row and
-    // nothing more: it opens and closes through the picker, arranges, stacks, hides and
-    // rides a saved setup exactly as the three above do, because it is a pane and not a
-    // dialog. Deliberately NOT a modal picker -- a browser a maker must reopen every time
-    // they want to look at their project is a browser they stop using -- and deliberately
-    // not a provider pane, since nothing external offers it.
-    //
-    // ITS STATE IS `Panels::files`, and none of it is durable. What persists is that the
-    // PANE is on the desk, which is the setup's business and arrives for free.
-    {panel::kProjectFiles, placement::kOverlayStack, kWorkshopProvider, pane_key::kProjectFiles,
-     "Files", "browse and open files", true},
     // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW. Until this row existed
     // the layout run, the Setup association and the workspace fact were painted by `paint`
     // into a rectangle nothing could name: not in the picker, not in a setup file, not in
@@ -315,28 +305,6 @@ struct PanelPicker {
 /// catalog row; it is the one presentation that names itself.
 // WL-PANE-14 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kPickerName = "+ panel";
-
-/// ONE THING THE RECIPE CHOOSER FOUND BUILDABLE (PICK-1): a name in the browser's
-/// location, and which of the two recipe kinds it can at least be TRIED as -- a source
-/// file, or a configured CMake tree. Nothing more rides here: the row is a place, and
-/// what the recipe needs beyond the place is typed by the maker.
-// WL-AUTH-01 -- agents/workshop/authoring.md
-struct BuildCandidate {
-    std::string name;
-    bool tree = false; ///< a directory holding `CMakeCache.txt` (`cmake_target`); else a `.cpp`
-};
-
-/// THE RECIPE CHOOSER: a MODE over the browser's location, like the `+ panel` picker,
-/// whose candidates were enumerated ONCE, at the gesture, and are never re-walked on the
-/// paint path. `dir` is the location the gesture was made in, kept so a later browse
-/// cannot move what a choice authors.
-// WL-AUTH-01 -- agents/workshop/authoring.md
-struct RecipeChooser {
-    bool open = false;
-    std::size_t cursor = 0;
-    std::string dir;
-    std::vector<BuildCandidate> candidates;
-};
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
 /// spend and held by nobody.
@@ -569,9 +537,6 @@ struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
     BuilderPane builder;
-    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING.
-    // WL-FILES-01 -- agents/workshop/files.md
-    FilesPane files;
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones. It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE
@@ -694,7 +659,7 @@ inline bool open_panel(Panels& panels, std::int64_t kind) {
 }
 
 /// Close the panel of this kind, and forget what it was showing.
-// WL-FILES-05 -- agents/workshop/files.md; WL-LAYOUT-07 -- agents/workshop/layouts.md
+// WL-LAYOUT-07 -- agents/workshop/layouts.md
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool close_panel(Panels& panels, std::int64_t kind) {
     for (std::size_t i = 0; i < panels.open.size(); ++i) {

@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_FILESYSTEM_ROOTS_HPP
 
 // THE ONE PLACE THIS REPOSITORY ASKS AN OPERATING SYSTEM WHICH FILESYSTEM ROOTS IT HAS.
-// Workshop law: agents/workshop/files.md
+// Files law: agents/files.md
 
 #include <string>
 #include <vector>

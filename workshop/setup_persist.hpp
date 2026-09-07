@@ -8,6 +8,7 @@
 // separate on purpose.
 // Workshop law: agents/workshop/setup-file.md (+2 registers; agents/workshop.md routes)
 
+#include "pane_migration.hpp"
 #include "persist.hpp"
 #include "setup.hpp"
 
@@ -164,13 +165,19 @@ inline std::string to_text(const Setup& s) {
 
 // ---- Reading -------------------------------------------------------------------
 
-/// What reading produced: whether it worked, and the setup if it did.
+/// What reading produced: whether it worked, the setup if it did, and how many of its
+/// references named a pane that has since changed hands (`pane_migration.hpp`).
+///
+/// THE COUNT IS HOW THE NOTE GETS SAID ONCE. The conversion happens inside `setup_in`, over
+/// every version this reader admits; what a maker is told about it is a presentation act,
+/// and a presentation cannot say a thing it was not told happened.
 struct LoadedSetup {
     Written outcome;
     Setup setup;
+    std::int64_t converted = 0;
 
     static LoadedSetup no(std::string why) {
-        return LoadedSetup{Written::no(std::move(why)), {}};
+        return LoadedSetup{Written::no(std::move(why)), {}, 0};
     }
 };
 
@@ -305,7 +312,8 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
 /// A VERSION-2 SETUP AS A LIVE ONE — the same four layers `setup_in` below walks, against
 /// version 2's own format claim and word vocabulary, landing on the fine lattice.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
-inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
+inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
+                           std::int64_t* converted = nullptr) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
     }
@@ -330,6 +338,14 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
         }
         candidate.panes.push_back(std::move(row));
     }
+    // A REFERENCE THAT CHANGED HANDS, REWRITTEN -- the same step the current road takes, on
+    // the same candidate, before the same law. A version-2 setup can name the built-in
+    // browser as easily as a version-3 one, and it is older, so if either road were to skip
+    // this it would be the wrong one.
+    const std::int64_t moved = pane_migration::convert_retired_panes(candidate);
+    if (converted != nullptr) {
+        *converted += moved;
+    }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {
         return legal;
@@ -343,7 +359,8 @@ inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
 /// larger file meets the same layers; it writes through a reference and cannot half-restore.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-06 -- agents/workshop/session-restore.md
-inline Written setup_in(const WorkshopSetup& file, Setup& out) {
+inline Written setup_in(const WorkshopSetup& file, Setup& out,
+                        std::int64_t* converted = nullptr) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
     }
@@ -377,6 +394,16 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out) {
             return Written::no(unknown_unit(p.height.mode, "height", kSizeWords));
         }
         candidate.panes.push_back(std::move(row));
+    }
+    // ⭐ A PANE THAT CHANGED HANDS IS REWRITTEN HERE, and here is the one place, because
+    // this is the one function that turns written rows into a live `Setup` -- the setup file
+    // reaches it, and so does every desk inside a session and every remembered value on a
+    // layout's link. The rewrite is not a loosening: the converted candidate then meets the
+    // setup's whole law below, so a file that named BOTH spellings is refused for naming one
+    // pane twice rather than quietly holding two rows for it.
+    const std::int64_t moved = pane_migration::convert_retired_panes(candidate);
+    if (converted != nullptr) {
+        *converted += moved;
     }
     const Written legal = check_setup(candidate);
     if (!legal.accepted) {
@@ -421,14 +448,16 @@ inline LoadedSetup from_text(std::string_view bytes) {
             return LoadedSetup::no(old.first_error().message());
         }
         Setup candidate;
-        const Written understood =
-            setup_in_v2(loom::from_value<v2::WorkshopSetup>(old.value()), candidate);
+        std::int64_t converted = 0;
+        const Written understood = setup_in_v2(
+            loom::from_value<v2::WorkshopSetup>(old.value()), candidate, &converted);
         if (!understood.accepted) {
             return LoadedSetup::no(understood.refusal);
         }
         LoadedSetup loaded;
         loaded.outcome = Written::ok();
         loaded.setup = std::move(candidate);
+        loaded.converted = converted;
         return loaded;
     }
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
@@ -445,8 +474,9 @@ inline LoadedSetup from_text(std::string_view bytes) {
     // leaves Workshop halfway restored" stays structural: `setup_in` fills this and nothing
     // else, and only a setup that passed every layer is ever returned.
     Setup candidate;
+    std::int64_t converted = 0;
     const Written understood =
-        setup_in(loom::from_value<WorkshopSetup>(admitted.value()), candidate);
+        setup_in(loom::from_value<WorkshopSetup>(admitted.value()), candidate, &converted);
     if (!understood.accepted) {
         return LoadedSetup::no(understood.refusal);
     }
@@ -454,6 +484,7 @@ inline LoadedSetup from_text(std::string_view bytes) {
     LoadedSetup loaded;
     loaded.outcome = Written::ok();
     loaded.setup = std::move(candidate);
+    loaded.converted = converted;
     return loaded;
 }
 

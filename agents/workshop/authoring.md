@@ -5,7 +5,7 @@ per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-AUTH-01 — The chooser authors one recipe row, as authored, through the one seam
 
-LAW — `a` in Files enumerates once at the gesture and asks what nothing can detect; the host appends ONE row as authored to the catalog's rows as written, saves atomically and installs it by `use_recipes`.
+LAW — `a` in Files enumerates once and asks what nothing can detect; the host appends ONE row as authored to the catalog's rows, saves atomically and installs it by `use_recipes`.
 
 MEANS
 - a `.cpp` and a directory holding `CMakeCache.txt` are candidates; a source tree is not;
@@ -16,25 +16,17 @@ DOES NOT MEAN
 - that Workshop edits or removes a row, or reads a `CMakeLists.txt` — a text editor does;
 - that the shipped catalog is written into — it is installation truth and stays so.
 
-PROVEN BY — `workshop/keymap.hpp` `files.pick-buildable`, `KeyContext::kRecipeChooser`,
-`KeyContext::kAuthoring`; `workshop/panel.hpp` `BuildCandidate`, `RecipeChooser`;
-`workshop/screen.hpp` `AuthoringPrompt`, `Session::recipe_chooser`, `Session::authoring`,
-`paint_recipe_chooser`; `workshop/screen_pane_state.cpp` `paint_recipe_chooser`;
-`workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`,
-`files_pick_buildable`; `workshop/weave_recipes.cpp` `files_pick_buildable`, `recipe_choose`,
-`authoring_commit`; `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
-`workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_files.cpp` case
-`"PICK-1: the gesture is an ordinary row on the one binding truth, and Files hands over a place,
-never a recipe"`, case `"PICK-1: the chooser enumerates once, at the gesture: a .cpp and a
-configured tree are candidates, a source tree is not"`, case `"PICK-1: painting the chooser walks
-nothing"`, case `"PICK-1: the chooser is a mode: it opens over the first slot, choosing closes
-it, and Escape authors nothing"`, case `"PICK-1: the typed fields are asked in order, a blank
-required field refuses in the recipe law's words, and Escape writes nothing"`, case `"PICK-1:
-choosing authors ONE row, appended to the file's rows as written, through the atomic save and the
-one seam"`, case `"PICK-1: a row that fails the recipe law is refused whole, and the file is
-untouched"`, case `"PICK-1: when the catalog in force is the shipped default, the chooser authors
-a PROJECT catalog and installs it"`, case `"PICK-1: with no catalog in force, the project catalog
-is created from the new row alone"`.
+PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
+`chooser_choose`, `authoring_commit`; `workshop/files_seam_vocabulary.hpp`
+`RecipeAuthorRequested`, `RecipeOutcome`; `workshop/files_doors.hpp` `RecipesDoor`;
+`workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
+`workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`; `workshop/screen.hpp`
+`paint_authoring`;
+`workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
+`"FILES-WEAVE: `a` opens a chooser inside the pane's own room"`, case `"FILES-WEAVE: a maker
+authors a recipe row in-pane, and the host writes it"`, case `"FILES-WEAVE: the authoring line
+takes raw keys, and Escape abandons it whole"`; `tests/test_workshop_files.cpp` case `"PANE-DOOR:
+the recipes door spends this host's one writer and re-words nothing"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
@@ -51,7 +43,8 @@ DOES NOT MEAN
 - that `o` builds from nothing or stages — with no product the row is the frontier, for `f`.
 
 PROVEN BY — `workshop/keymap.hpp` `builder.load`, `KeyContext::kAuthoring`;
-`workshop/screen.hpp` `AuthoringPrompt`, `Session::recipe_chooser`, `Session::authoring`;
+`workshop/screen.hpp` `AuthoringPrompt`, `Session::authoring`;
+`workshop/screen_pane_state.cpp` `paint_authoring`;
 `workshop/weave.hpp` `HostContext::PlanAppend`, `HostContext::append_plan_row`,
 `HostContext::plan_names`, `load_it`; `workshop/weave_recipes.cpp` `load_it`,
 `authoring_commit`; `workshop/authoring.hpp` `PlanAuthor`, `plan_names`, `append_plan_row`;

@@ -230,6 +230,11 @@ struct LoadedSession {
     std::string declined;   ///< why not, when it is not -- empty otherwise
     Placement placement;    ///< the remembered desktop placement; `known == false` = none
                             ///< was ever reported (and every legacy version reads as that)
+    /// HOW MANY REFERENCES IN THIS SESSION NAMED A PANE THAT HAS SINCE CHANGED HANDS
+    /// (`workshop/pane_migration.hpp`), over every desk and every remembered Setup value.
+    /// The number is here so the restore can say it ONCE, however many desks carried it:
+    /// a maker is told that a pane moved, not told it eight times.
+    std::int64_t converted = 0;
 
     static LoadedSession no(std::string why) {
         LoadedSession bad;
@@ -295,9 +300,14 @@ inline std::string half_a_link(std::size_t at) {
 
 /// A LAYOUT'S ASSOCIATION, AS THE LIVE VALUE IT NAMES -- or why it is not one.
 // WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
-inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink& out) {
+inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink& out,
+                       std::int64_t* converted = nullptr) {
     if (file.path.empty()) {
         Setup nothing;
+        // ⚠ NOTHING IS COUNTED ON THIS ROAD. The question here is whether a link with no
+        // path carries a value anyway, and the answer is thrown away -- so a conversion
+        // performed inside it happened to a `Setup` nobody keeps, and telling a maker about
+        // it would be telling them about a desk they do not have.
         if (setup_persist::setup_in(file.known, nothing).accepted) {
             return Written::no(half_a_link(at));
         }
@@ -305,7 +315,7 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
         return Written::ok();
     }
     Setup known;
-    const Written understood = setup_persist::setup_in(file.known, known);
+    const Written understood = setup_persist::setup_in(file.known, known, converted);
     if (!understood.accepted) {
         return Written::no(in_layout(at, "its remembered Setup value is not one this "
                                          "Workshop can read -- " +
@@ -318,7 +328,7 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
 /// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
 // WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
-                          std::size_t& active) {
+                          std::size_t& active, std::int64_t* converted = nullptr) {
     if (file.layouts.empty()) {
         return Written::no(no_layouts());
     }
@@ -336,12 +346,13 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
         // that admits one; a session holding several of them holds several desks, not a
         // different kind of thing.
         Setup desk;
-        const Written understood = setup_persist::setup_in(file.layouts[at].desk, desk);
+        const Written understood =
+            setup_persist::setup_in(file.layouts[at].desk, desk, converted);
         if (!understood.accepted) {
             return Written::no(in_layout(at, understood.refusal));
         }
         SetupLink link;
-        const Written related = link_in(file.layouts[at].link, at, link);
+        const Written related = link_in(file.layouts[at].link, at, link, converted);
         if (!related.accepted) {
             return Written::no(related.refusal);
         }
@@ -390,12 +401,13 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
 /// against this file's own band, into a loaded session.
 inline LoadedSession loaded_from(std::vector<Layout> run, std::size_t active,
                                  std::int64_t viewport_w, std::int64_t viewport_h,
-                                 const Placement& place) {
+                                 const Placement& place, std::int64_t converted = 0) {
     LoadedSession loaded;
     loaded.outcome = Written::ok();
     loaded.present = true;
     loaded.layouts = std::move(run);
     loaded.active = active;
+    loaded.converted = converted;
     loaded.placement = place;
     if (viewport_honoured(viewport_w, viewport_h)) {
         loaded.viewport_w = viewport_w;
@@ -431,7 +443,10 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     // for a conversion; only a historical CLAIM does that, in `from_text`.
     std::vector<Layout> run;
     std::size_t active = 0;
-    const Written understood = layouts_in(file, run, active);
+    // A PANE THAT CHANGED HANDS IS CONVERTED INSIDE EVERY DESK (`setup_in`), and the count
+    // comes back out so the restore can say it once for the whole run.
+    std::int64_t converted = 0;
+    const Written understood = layouts_in(file, run, active, &converted);
     if (!understood.accepted) {
         return LoadedSession::no(understood.refusal);
     }
@@ -448,7 +463,7 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     // whose size this build will not open at is still a session, and the desks in it are
     // still the maker's.
     return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
-                       place);
+                       place, converted);
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
