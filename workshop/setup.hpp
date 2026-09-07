@@ -200,7 +200,7 @@ inline bool resolvable(const PaneRef& ref, const Panels& panels) {
 /// pointer all read one list.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 struct CatalogRow {
-    std::int64_t kind = panel::kBuilder;
+    std::int64_t kind = kNoPaneKind;
     PaneRef ref;
     std::string name;
     std::string summary;

@@ -262,11 +262,15 @@ install(FILES
 #     It joins the package on the day a pane can arrive through one.
 #
 # zengine-builder-vocabulary
-#     The Builder package ships no artifact of its own and its one consumer is the Workshop
-#     host that compiles it in. Nothing outside can spend it without also being Workshop.
+#     The Builder package ships no artifact of its own; its consumers are the Workshop host,
+#     which mounts the tool and the runner, and `zengine-builder-pane`, which is the pane that
+#     presents them and is staged beside that host. Both are inside this tree, and nothing
+#     outside can spend the vocabulary without also being one of them.
 #
 # zengine-introspection-view, zengine-composer-vocabulary, zengine-composer-draft
-#     The header halves of two Workshop panes, and they follow their weaves.
+#     The header halves of two Workshop panes, and they follow their weaves. `zengine-files`
+#     and `zengine-builder-pane` are the same case one migration on: pane weaves staged beside
+#     the host that loads them, exported by nobody.
 #
 # zengine-warnings, zengine-sanitize
 #     This repository's build discipline, not a capability. They are PRIVATE on every target

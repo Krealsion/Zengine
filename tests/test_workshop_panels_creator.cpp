@@ -1074,7 +1074,7 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
     CHECK(capture.find(fine_rect_text(place.inside, 0)) != std::string::npos);
     CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
     // A CLOSED PANE: not presented, and said so.
-    choose_by_keys(t, ref_of(panel::kBuilder));
+    choose_by_keys(t, ref_of(panel::kEditor));
     CHECK(region_value(t, "Interior") == "code-backed -- not presented; no authored interior");
     // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
     REQUIRE(add_pane(live(t).setup.active, stranger()));

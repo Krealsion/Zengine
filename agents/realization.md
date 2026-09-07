@@ -371,39 +371,49 @@ row N is waiting on the maker
 
 ## The frontier is visible and actionable, and gained no authority (BLD-2)
 
-The Builder panel shows the waiting frontier and `f` builds-and-realizes it, and the whole
+The Builder pane shows the waiting frontier and `f` builds-and-realizes it, and the whole
 feature is one read-only seam plus one gesture over the existing route.
+
+⚠ THE PANE IS A LOADED WEAVE NOW (`Zengine/builder-pane/`), so the seam below crosses one more
+boundary than it did when this was written, and nothing else about it moved. What was a host
+function the presentation called at every repaint is an ASK to the read-only project office
+(`ProjectFrontierRequested` -> `ProjectFrontierSaid`, `workshop/builder_seam_vocabulary.hpp`),
+answered by `ProjectDoor` out of the same `HostContext::frontier` reading. The pane asks on the
+beats where the answer can have moved -- its room grant, a settled `BuildStatus`, and the answer
+to a plan row it wrote -- and holds a picture nothing can mistake for authority.
 
 - **THE OWNER PROJECTS ITS OWN FRONTIER.** `PlanExecutor::behind()` joined `waiting_on()` —
   how many authored rows are behind the waiting row, derived from the same cursor, 0 in every
   non-waiting state. The host wires both into `HostContext::frontier`, a function returning a
-  by-value `ProjectFrontier{waiting, artifact, blocked}` (panel.hpp); the weave derives it
-  fresh at every repaint and every gesture and stores it NOWHERE. ⚠ No copy exists on the
-  path — a `ProjectFrontier` member, session field, or answer cached between paints is the
-  mirror this seam exists to refuse, and the live-mutation witness in
-  `tests/test_workshop_panels.cpp` reddens one.
+  by-value `ProjectFrontier{waiting, artifact, blocked}` (panel.hpp), derived fresh at every
+  ask and stored NOWHERE on this side. ⚠ No copy exists on the host's path — a
+  `ProjectFrontier` member, session field, or answer cached between asks is the mirror this
+  seam exists to refuse. The PANE holds what it was last told, which is the honest shape of a
+  picture across a seam: it re-asks rather than remembering, and it drops the answer that says
+  what it already shows so a door's reply cannot erase the sentence a gesture just wrote.
 - **THE JOIN IS THE STEM, PERFORMED AT PRESENTATION.** Which recipes produce the frontier is
   answered by comparing the frontier artifact against the `RecipeCatalog` the tool itself
-  published — the panel's existing copy. No plan→recipe edge was added anywhere, and the
+  published — the pane's existing copy. No plan→recipe edge was added anywhere, and the
   frontier view carries no recipe.
-- **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the panel's `chosen` to the producing
-  recipe — visibly, so the recipe row and the ask agree — and calls the same `build_now`
+- **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the pane's chosen recipe to the producing
+  one — visibly, so the recipe row and the ask agree — and calls the same `build_now`
   path `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same
   grant; everything downstream is the tool's, the runner's, and the owner's, unchanged. There
   is no second build path and no direct load, and a source tripwire beside INTR-1's pins it:
-  no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp` and the
-  subject `.cpp` files beside them, walked by `presentation_sources` rather than listed —
-  spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or `kBuildRunnerRole`.
+  no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp`, the seam
+  vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`
+  rather than listed — spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or
+  `kBuildRunnerRole`, and a second tripwire reads the pane's own image under the same names.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
   cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately
   not artifacts, and a case pins the acceptance). With several matches `f` refuses and names
-  them; what it may spend is the maker's own standing pick — `BuilderPane::picked`, written
-  ONLY by `c`, reset when a catalog arrival clamps `chosen` — because `chosen == 0` is an
-  index and not a choice. The falsifier stages the FIRST catalog row as a match: "use entry
-  zero" and "read the default as a pick" both send an ask the case forbids.
+  them; what it may spend is the maker's own standing pick — `picked`, written ONLY by `c` and
+  released when a catalog arrival no longer holds the chosen recipe — because the catalog's own
+  first row is nobody's choice. The falsifier stages the FIRST catalog row as a match: "use
+  entry zero" and "read the default as a pick" both send an ask the case forbids.
 - **THE `project` ROW EXISTS EXACTLY WHILE THE FRONTIER DOES.** `waiting <stem> (<recipe |
   N recipes | no recipe>, blocks <n>)`, taking the third `said` row only while waiting; with
-  no frontier the panel is byte-for-byte BLD-1a's, because absence of a pending frontier is
+  no frontier the pane is byte-for-byte BLD-1a's, because absence of a pending frontier is
   the whole answer and no `project ready` is manufactured. `blocks <n>` is `behind()` — the
   authored rows after the pending one, pinned against the owner where it is derived.
 - **NO AUTOMATIC ANYTHING, STILL.** The view is a reading, not a power: encountering a

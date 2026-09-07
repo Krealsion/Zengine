@@ -1008,7 +1008,8 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
-        bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views());
+        bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
+        current_recipes.source());
 
     // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
     // for the same reason: what a button in this program will actually run is a
@@ -1130,18 +1131,13 @@ int main(int argc, char** argv) {
     // makes it safe to say at all.
     speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
                         surface::SurfacePlacementRemembered::zen_version, surface::kSkinRole);
-    speak.allow_to_role(builder::StatusRequested::zen_name,
-                        builder::StatusRequested::zen_version, builder::kBuilderRole);
-    speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,
-                        builder::kBuilderRole);
-    // THE TWO ACTS A RELOAD LEAVES A MAKER (RELOAD-1) -- promote the running image, or
-    // revert to the one before -- are OFFERS to the realization owner, exactly as the
-    // Builder's `OfferArtifact` is: published, heard by the plan booter, decided by the
-    // owner in its own words. `to_any` because the party that decides is a weave this
-    // host mounts by hand and does not name in a grant, and because neither sentence
-    // is a power -- the owner refuses anything that is not a live, reloaded weave.
-    speak.allow_to_any(builder::PromoteArtifact::zen_name, builder::PromoteArtifact::zen_version);
-    speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
+    // ⭐ WORKSHOP MAY NOT SAY ONE WORD TO THE BUILDER ANY MORE, and the four rows that let
+    // it are gone (VD-22). `StatusRequested`, `BuildRequested` and the two reload offers
+    // were this host's because the Builder PANEL was this host's; the pane is a weave now
+    // and carries its own grant, so the only party in this process that can ask for a build
+    // is the one a maker is looking at. Nothing was widened to replace them: what a pane may
+    // say is bounded by the plan row that loaded it, which is P-WORK-18's subject and not
+    // this migration's.
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
@@ -1504,32 +1500,47 @@ int main(int argc, char** argv) {
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
-    // ---- ...AND THE TWO DOORS THE FILES TOOL ASKS (workshop/files_doors.hpp) ---
+    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/files_doors.hpp) ---
     //
-    // The browser is a loaded weave now, so the four facts it used to read off
-    // `HostContext` cross as values through offices instead. They are TWO doors and
+    // The browser and the Builder are loaded weaves now, so the facts they used to read
+    // off `HostContext` cross as values through offices instead. They are THREE doors and
     // not one for the reason the observation door and the sample door are two:
-    // answering `zengine.project` reads two strings this host captured once, and
-    // answering `zengine.recipes` WRITES a maker's recipe file -- so "which office can
-    // change what this project builds" keeps a one-word answer.
+    // answering `zengine.project` READS -- two strings this host captured once, what its
+    // realization is waiting on, whether its plan names an artifact -- while answering
+    // `zengine.recipes` writes a maker's recipe file and answering `zengine.plan` writes
+    // its load plan. So "which office can change what this project builds, and which can
+    // change what it runs" keeps two one-word answers, and neither of them is the reader.
     //
-    // `RecipesDoor` HOLDS THE CLOSURES THIS HOST ALREADY WIRED and adds no second
-    // policy: `use_recipes` is the one install seam (WL-PROJ-04) and `author_recipe` is
-    // the one authoring writer (WL-AUTH-01), both spent at the moment of the ask. The
-    // door composes no recipe, judges no bytes and re-words no refusal.
+    // EACH ACTING DOOR HOLDS THE CLOSURES THIS HOST ALREADY WIRED and adds no second
+    // policy: `use_recipes` is the one install seam (WL-PROJ-04), `author_recipe` is the
+    // one recipe writer and `append_plan_row` the one plan writer (WL-AUTH-01, WL-AUTH-02),
+    // each spent at the moment of the ask. No door composes a row, judges bytes or re-words
+    // a refusal.
     //
-    // The third door is not here: Workshop's own weave holds the Editor, so
-    // `OpenSourceRequested` is answered where `open_source` lives, at this host's own
-    // office.
+    // ⚠ THE READ-ONLY DOOR IS MOUNTED HERE, AFTER `host.frontier` AND `host.plan_names` ARE
+    // WIRED, and the order is the correctness: it captures those two closures by value, so a
+    // door mounted before them would hold empty ones and answer "not waiting" to a project
+    // that was. Both are wired a few hundred lines above, over the realization owner and the
+    // plan author this host holds for the run.
+    //
+    // The last doors are not here: Workshop's own weave holds the Editor, so
+    // `OpenSourceRequested` and `RecipeSourceRequested` are answered where `open_source`
+    // lives, at this host's own office.
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+    say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
+    say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
     mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path);
+                                 marks_path, host.frontier, host.plan_names);
 
     loom::Grant say_recipes;
     say_recipes.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
     mount_in_office<RecipesDoor>(bus, std::move(say_recipes), kRecipesRole, host.use_recipes,
                                  host.author_recipe);
+
+    loom::Grant say_plan;
+    say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
+    mount_in_office<PlanDoor>(bus, std::move(say_plan), kPlanRole, host.append_plan_row);
 
     // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST -----------------------------
     //

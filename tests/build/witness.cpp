@@ -384,7 +384,8 @@ int main(int argc, char** argv) {
     (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),
-                                                 current_recipes.views());
+                                                 current_recipes.views(),
+                                                 current_recipes.source());
 
     // ---- The realization owner, its voice, and the one dangerous grant ----------
     loom::Grant operate;

@@ -234,7 +234,7 @@ struct LoadedSession {
     /// (`workshop/pane_migration.hpp`), over every desk and every remembered Setup value.
     /// The number is here so the restore can say it ONCE, however many desks carried it:
     /// a maker is told that a pane moved, not told it eight times.
-    std::int64_t converted = 0;
+    pane_migration::Converted converted;
 
     static LoadedSession no(std::string why) {
         LoadedSession bad;
@@ -301,7 +301,7 @@ inline std::string half_a_link(std::size_t at) {
 /// A LAYOUT'S ASSOCIATION, AS THE LIVE VALUE IT NAMES -- or why it is not one.
 // WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink& out,
-                       std::int64_t* converted = nullptr) {
+                       pane_migration::Converted* converted = nullptr) {
     if (file.path.empty()) {
         Setup nothing;
         // ⚠ NOTHING IS COUNTED ON THIS ROAD. The question here is whether a link with no
@@ -328,7 +328,7 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
 /// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
 // WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
-                          std::size_t& active, std::int64_t* converted = nullptr) {
+                          std::size_t& active, pane_migration::Converted* converted = nullptr) {
     if (file.layouts.empty()) {
         return Written::no(no_layouts());
     }
@@ -401,7 +401,8 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
 /// against this file's own band, into a loaded session.
 inline LoadedSession loaded_from(std::vector<Layout> run, std::size_t active,
                                  std::int64_t viewport_w, std::int64_t viewport_h,
-                                 const Placement& place, std::int64_t converted = 0) {
+                                 const Placement& place,
+                                 pane_migration::Converted converted = {}) {
     LoadedSession loaded;
     loaded.outcome = Written::ok();
     loaded.present = true;
@@ -445,7 +446,7 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     std::size_t active = 0;
     // A PANE THAT CHANGED HANDS IS CONVERTED INSIDE EVERY DESK (`setup_in`), and the count
     // comes back out so the restore can say it once for the whole run.
-    std::int64_t converted = 0;
+    pane_migration::Converted converted;
     const Written understood = layouts_in(file, run, active, &converted);
     if (!understood.accepted) {
         return LoadedSession::no(understood.refusal);

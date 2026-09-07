@@ -5,8 +5,9 @@ on. The exact contracts are [Workshop panes](../reference/workshop-panes.md); a 
 the same ground is [panes](../workshop/panes.md).
 
 Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it, an
-Info panel beside them, a Builder panel, and a Terminal overlay. A **tool** is something a maker
-can open from the `+ panel` picker.
+Info panel beside them, a source editor, and a Terminal overlay -- plus the panes its load plan
+brings, which since the pane-weave arc include the project browser and the Builder. A **tool**
+is something a maker can open from the `+ panel` picker.
 
 There are **two ways** to put one there, and current source deliberately does not merge them.
 Pick yours before you read any mechanics.

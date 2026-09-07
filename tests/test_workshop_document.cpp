@@ -4818,14 +4818,14 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 
 TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as real type") {
     // THE PHASE'S TARGET LAW, as one sweep: at the shipped metric, a full screen --
-    // Info open, Builder open, an object selected -- publishes its prose as regions the
+    // Info open, the Editor open, an object selected -- publishes its prose as regions the
     // graphical medium sets in type, and the only `SurfaceLabel`s left are the ones whose
     // CELL is the meaning (the size handle; management's edge glyphs when arranging).
     WorkshopDoc d = two_panels();
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     s.selected = d.elements[0].id;
     refocus(d, s);
-    (void)open_panel(s.panels, panel::kBuilder);
+    (void)open_panel(s.panels, panel::kEditor);
     const surface::SurfaceCanvas c = paint(d, s);
 
     for (const surface::SurfaceLabel& l : all_labels(c)) {
@@ -5002,167 +5002,6 @@ TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the mo
     CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too
-}
-
-TEST_CASE("WUX-1/SC-4: the Builder keeps the facts a maker acts on, by explicit priority") {
-    BuilderPane pane;
-    pane.heard = true;
-    pane.known.recipes.push_back(
-        zengine::builder::RecipeSummary{"zengine-snake", "libzengine-snake"});
-    pane.shown.outcome = zengine::builder::outcome::kSucceeded;
-    pane.shown.status = 0;
-    pane.shown.command = "cmake --build build";
-    pane.shown.detail = "a compiler sentence long enough to wrap across several rows of "
-                        "the panel so the tail is genuinely elided at every budget";
-    pane.shown.realization = zengine::builder::realization::kNotAsked;
-    // THE RECTANGLE IS SIZED SO THE INTERIOR IS THE 48x9 THIS CASE IS ABOUT (WUX-5). Every
-    // budget below is a fact about the Builder's composition PRIORITY, not about how much
-    // room a stack slot happens to leave once its visible boundary is subtracted -- so the
-    // chrome is added to the ask here and the pinned compositions are untouched.
-    const ui::Rect slot{0, 1, 48 + 2 * kChromeCells, 9 + 2 * kChromeCells};
-    ProjectFrontier waiting;
-    waiting.waiting = true;
-    waiting.artifact = "libzengine-snake";
-    waiting.blocked = 3;
-
-    const auto rows_at = [&](std::int64_t line, const ProjectFrontier& f) {
-        surface::SurfaceCanvas c;
-        paint_builder(plane(c), pane, fine_of_cells(slot),
-                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line),
-                      f);
-        std::vector<std::string> out;
-        for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-            for (const surface::SurfaceTextRow& row : r.rows) {
-                out.push_back(row.text);
-            }
-        }
-        return out;
-    };
-
-    // A CELL MEDIUM'S NINE ROWS ARE THE COMPOSITION EVERY PRIOR PHASE PINNED, in the
-    // display order that never changes: header, recipe, [project], last, exit, ran,
-    // realize, said...
-    const std::vector<std::string> nine = rows_at(0, ProjectFrontier{});
-    REQUIRE(nine.size() == 9);
-    CHECK(nine[0].rfind("BUILDER @", 0) == 0);
-    CHECK(nine[1].rfind("recipe", 0) == 0);
-    CHECK(nine[2].rfind("last", 0) == 0);
-    CHECK(nine[3].rfind("exit", 0) == 0);
-    CHECK(nine[4].rfind("ran", 0) == 0);
-    CHECK(nine[5].rfind("realize", 0) == 0);
-    CHECK(nine[6].rfind("said", 0) == 0);
-
-    // THE SHIPPED FACE'S FIVE keep the header, what `b` does next, the live result, the
-    // second outcome, and the first row of the compiler's own words -- the static
-    // metadata (exit, ran) yields, WHOLE, with nothing substituted in its place.
-    const std::vector<std::string> five = rows_at(18, ProjectFrontier{});
-    REQUIRE(five.size() == 5);
-    CHECK(five[0].rfind("BUILDER @", 0) == 0);
-    CHECK(five[1].rfind("recipe", 0) == 0);
-    CHECK(five[2].rfind("last", 0) == 0);
-    CHECK(five[3].rfind("realize", 0) == 0);
-    CHECK(five[4].rfind("said", 0) == 0);
-    CHECK(five[4].find(detail::kElided) != std::string::npos); // the cut is THIS budget's
-    for (const std::string& row : five) {
-        CHECK(row.rfind("exit", 0) != 0);
-        CHECK(row.rfind("ran", 0) != 0);
-    }
-
-    // ...AND THE FRONTIER STAYS LEGIBLE WHEN PRESENT, at five rows and at three.
-    const std::vector<std::string> five_waiting = rows_at(18, waiting);
-    REQUIRE(five_waiting.size() == 5);
-    CHECK(five_waiting[0].rfind("BUILDER @", 0) == 0);
-    CHECK(five_waiting[1].rfind("recipe", 0) == 0);
-    CHECK(five_waiting[2].rfind("project", 0) == 0);
-    CHECK(five_waiting[2].find("blocks 3") != std::string::npos);
-    CHECK(five_waiting[3].rfind("last", 0) == 0);
-    CHECK(five_waiting[4].rfind("realize", 0) == 0);
-
-    const std::vector<std::string> three_waiting = rows_at(28, waiting); // (104)/28 = 3
-    REQUIRE(three_waiting.size() == 3);
-    CHECK(three_waiting[0].rfind("BUILDER @", 0) == 0);
-    CHECK(three_waiting[1].rfind("project", 0) == 0);
-    CHECK(three_waiting[2].rfind("last", 0) == 0);
-
-    // TWO ROWS: the office's identity and the live result -- the two facts that survive
-    // longest, still in display order.
-    const std::vector<std::string> two = rows_at(40, ProjectFrontier{}); // (104)/40 = 2
-    REQUIRE(two.size() == 2);
-    CHECK(two[0].rfind("BUILDER @", 0) == 0);
-    CHECK(two[1].rfind("last", 0) == 0);
-}
-
-TEST_CASE("PROJ-1: the Builder panel seats its nine facts, and names no catalog") {
-    // ⭐ THE MEASUREMENT THAT DECIDED THIS PRESENTATION, AND THE ROW THAT LEFT IT. This
-    // panel seats NINE facts in the nine rows a character medium answers -- exactly full --
-    // so every row it carries is a row taken from the tail of `said`.
-    //
-    // IT USED TO CARRY A TENTH, CONDITIONALLY: "catalog <path>", while the recipes in force
-    // had MOVED from the ones this run launched with. The fact was a projection the project
-    // browser wrote onto the session as it made the swap (`Session::recipes_moved_to`), and
-    // the browser is a loaded weave now: it says the same sentence in its OWN row at the
-    // moment of the change, out of the answer the recipes door gave it, and there is
-    // nothing left in this process that could keep the projection honest. `RecipeCatalog`
-    // -- the message this panel's `known` really does come from -- carries the recipes and
-    // not the file they came from, so the panel cannot derive it either.
-    //
-    // ⚠ SO THE ROW IS GONE AND THIS CASE SAYS SO. What a maker reads instead is the pane's
-    // own sentence when the catalog moves, and the host's launch banner when it does not.
-    // A panel that showed a stale path would be worse than one that shows none.
-    BuilderPane pane;
-    pane.heard = true;
-    pane.known.recipes.push_back(
-        zengine::builder::RecipeSummary{"zengine-snake", "libzengine-snake"});
-    pane.shown.outcome = zengine::builder::outcome::kSucceeded;
-    pane.shown.command = "cmake --build build";
-    pane.shown.detail = "a compiler sentence long enough to wrap across several rows of "
-                        "the panel so the tail is genuinely elided at every budget";
-    pane.shown.realization = zengine::builder::realization::kNotAsked;
-    const ui::Rect slot{0, 1, 48 + 2 * kChromeCells, 9 + 2 * kChromeCells}; // interior 48x9
-
-    const auto rows_at = [&](std::int64_t line) {
-        surface::SurfaceCanvas c;
-        paint_builder(plane(c), pane, fine_of_cells(slot),
-                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line),
-                      ProjectFrontier{});
-        std::vector<std::string> out;
-        for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-            for (const surface::SurfaceTextRow& row : r.rows) {
-                out.push_back(row.text);
-            }
-        }
-        return out;
-    };
-
-    // THE NINE FACTS, IN DISPLAY ORDER, AND THE `said` BLOCK TAKING WHAT IS LEFT.
-    const std::vector<std::string> rows = rows_at(0);
-    REQUIRE(rows.size() == 9);
-    CHECK(rows[0].rfind("BUILDER @", 0) == 0);
-    CHECK(rows[1].rfind("recipe", 0) == 0);
-    CHECK(rows[2].rfind("last", 0) == 0);
-    CHECK(rows[3].rfind("exit", 0) == 0);
-    CHECK(rows[4].rfind("ran", 0) == 0);
-    CHECK(rows[5].rfind("realize", 0) == 0);
-    CHECK(rows[6].rfind("said", 0) == 0);
-    // `panel_block` labels only the FIRST row of the said block and indents its wraps, so
-    // the block is "everything from the `said` row to the end": three rows.
-    CHECK(rows.size() - 6 == 3);
-    // ...AND THE THIRD ROW IS THE ONE THE CATALOG ROW USED TO COST. The same compiler
-    // sentence that was elided while the tenth fact was seated now finishes inside the
-    // block, which is the cost being given back rather than a different sentence.
-    CHECK(rows.back().find(detail::kElided) == std::string::npos);
-
-    // NO ROW NAMES A CATALOG, AT EITHER BUDGET -- the shipped face's five included, where
-    // the row was the first thing to yield even while it existed.
-    for (const std::string& row : rows) {
-        CHECK(row.rfind("catalog", 0) != 0);
-    }
-    const std::vector<std::string> face = rows_at(18);
-    REQUIRE(face.size() == 5);
-    CHECK(face[4].rfind("said", 0) == 0);
-    for (const std::string& row : face) {
-        CHECK(row.rfind("catalog", 0) != 0);
-    }
 }
 
 TEST_CASE("WUX-1/SC-5: pane titles are one action, one binding truth, one dispatch") {

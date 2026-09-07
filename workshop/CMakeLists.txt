@@ -181,7 +181,6 @@ add_library(zengine-workshop-logic STATIC
     weave_save.cpp
     weave_seam.cpp
     weave_session.cpp
-    weave_recipes.cpp
     weave_terminal.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
@@ -373,8 +372,18 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # compiles a browser, mints no kind for it and learns its row from a live offer, exactly as
 # it learns the Compose pane's. The three things the browser used to read off `HostContext`
 # it now ASKS for, through offices this host holds doors in (`workshop/files_doors.hpp`).
+#
+# `zengine-builder-pane` is the ninth, and it is the second entry that was once this host's
+# own code -- the Builder panel, its nine command-mode rows and its painter. What makes it
+# worth a line beside the eighth rather than folded into it is which HALF of a package left:
+# the browser took a whole subject with it, while the Builder pane left the TOOL exactly
+# where it was. `zengine.builder` is still mounted in this host's `main`, still holds the
+# recipe views, still orders builds through the runner; what became a weave is the seat a
+# maker sits in to spend it. A host that stages one and not the other has a build tool
+# nobody can reach.
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
+                               zengine-builder-pane
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)

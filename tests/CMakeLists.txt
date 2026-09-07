@@ -915,6 +915,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # (workshop_support.hpp) is what resolves a plan row's stem to a file, and that
     # function is compiled into every suite that includes the rig.
     "WORKSHOP_SO_FILES=\"$<TARGET_FILE:zengine-files>\""
+    # ...AND THE BUILDER PANE, for the same reason and on the same terms: it is a loaded
+    # artifact, and the stem in a plan row is resolved to a file by a function compiled into
+    # every suite that includes the rig.
+    "WORKSHOP_SO_BUILDER_PANE=\"$<TARGET_FILE:zengine-builder-pane>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -934,7 +938,7 @@ set(ZENGINE_WORKSHOP_DEFS
     # the provider ABI.
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
-    zengine-workshop-hello zengine-introspection zengine-files
+    zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -1054,6 +1058,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_sampling.cpp
             test_workshop_panes_actions.cpp
             test_workshop_panes_files.cpp
+            test_workshop_panes_builder.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -1066,7 +1071,13 @@ zengine_workshop_suite(panes
                 "INTROSPECTION_CPP=\"${CMAKE_SOURCE_DIR}/introspection/introspection.cpp\""
                 "INTROSPECTION_POWERS_HPP=\"${CMAKE_SOURCE_DIR}/introspection/powers.hpp\""
                 "WORKSHOP_SAMPLE_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/sample_door.hpp\""
-                "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\"")
+                "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\""
+                # The Builder pane's own two files, read as text for the same reason: what
+                # the build graph says about a loaded image, and the five names a
+                # presentation may not spell, are claims a source read can keep and a
+                # runtime case cannot.
+                "BUILDER_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/builder-pane/CMakeLists.txt\""
+                "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder-pane/pane.cpp\"")
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

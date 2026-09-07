@@ -1102,7 +1102,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 8);
+    REQUIRE(p.artifacts.size() == 9);
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1120,6 +1120,15 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[7].weave.has_value());
     CHECK(p.artifacts[7].weave->role == "zengine.files");
     CHECK_FALSE(p.artifacts[7].provider.has_value());
+    // ⭐ ...AND SO DOES THE BUILDER PANE, which is the second built-in to arrive this way.
+    // The TOOL is still mounted in this host's `main` and is not in this file at all; what
+    // this row loads is the SEAT a maker sits in to spend it. Remove the line and Workshop
+    // still builds -- there is simply nothing on the screen that can ask it to, which is
+    // exactly what "a pane arrives by a plan row" means.
+    CHECK(p.artifacts[8].stem == "zengine-builder-pane");
+    REQUIRE(p.artifacts[8].weave.has_value());
+    CHECK(p.artifacts[8].weave->role == "zengine.builder-pane");
+    CHECK_FALSE(p.artifacts[8].provider.has_value());
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row

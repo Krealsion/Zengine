@@ -579,6 +579,10 @@ struct Bench {
 struct Live {
     std::vector<Recipe> catalog;
     std::vector<RecipeView> views;
+    /// THE FILE THE CATALOG CAME FROM (RecipeCatalog v2). The rig's own, beside the two
+    /// halves above and for the same reason: a case that moves it moves what the tool
+    /// answers, without the tool holding a second copy of it.
+    std::string source = "/project/recipes.json";
     loom::Switchboard bus;
     BuilderWeave* tool = nullptr;
     BuildRunnerWeave* runner = nullptr;
@@ -606,7 +610,8 @@ struct Live {
         }
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
                                                    catalog, std::string(kCMake));
-        tool_id = mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool, views);
+        tool_id =
+            mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool, views, source);
         mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
         mount_plain<Listener>(bus, loom::Grant{}, &ears);
         bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
@@ -1180,6 +1185,12 @@ TEST_CASE("a fresh tool says what can be built here and that nothing has been") 
     REQUIRE(live.ears->catalogs[0].recipes.size() == 1);
     CHECK(live.ears->catalogs[0].recipes[0].recipe == "greet");
     CHECK(live.ears->catalogs[0].recipes[0].artifact == "fixture-quick");
+    // ...AND WHERE THEY CAME FROM (RecipeCatalog v2, P-WORK-20). A presentation that can
+    // name three recipes and not the file they came from cannot answer the question a maker
+    // asks when the three are the wrong three -- and while the project browser was compiled
+    // into Workshop, the panel read that path off a session projection the browser wrote.
+    // The projection left with the browser; the fact rides the catalog now.
+    CHECK(live.ears->catalogs[0].source == "/project/recipes.json");
     // IT HOLDS NO COMMAND, and this is where that is visible: the tool can say
     // what it is before anything has run, and it cannot say what would be run,
     // because it does not know.
@@ -2243,6 +2254,17 @@ TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
     REQUIRE(live.ears->catalogs[0].recipes.size() == 2);
     CHECK(live.ears->catalogs[0].recipes[1].recipe == "late");
     CHECK(live.ears->catalogs[0].recipes[1].artifact == "zengine-fixture-late");
+    // ⭐ AND THE PATH MOVES WITH THE ROWS, BECAUSE IT IS READ FROM THE SAME OWNER AT THE
+    // SAME ASK. "the path moved and the recipes did not" is the state `CurrentRecipes`
+    // exists to make unspellable, and a tool handed the rows and TOLD the path once would
+    // be the place it became spellable again -- so the rig moves the file underneath the
+    // tool exactly as it moved the rows, and the tool's next answer carries the new one.
+    live.source = "/project/other-recipes.json";
+    live.ears->catalogs.clear();
+    live.tell_tool(StatusRequested{});
+    REQUIRE(live.ears->catalogs.size() == 1);
+    CHECK(live.ears->catalogs[0].source == "/project/other-recipes.json");
+    CHECK(live.ears->catalogs[0].recipes.size() == 2);
 
     // ...AND SO DOES THE RUNNER, WHICH IS THE HALF A PUBLISHED PICTURE CANNOT PROVE.
     // The ask goes the whole way now: the tool no longer refuses the name, the order
@@ -2270,10 +2292,15 @@ TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catal
                   "the runner must read a catalog it does not own");
     static_assert(!std::is_constructible_v<BuildRunnerWeave, std::vector<Recipe>&&, std::string>,
                   "a runner over a temporary catalog is a dangling runner");
-    static_assert(std::is_constructible_v<BuilderWeave, const std::vector<RecipeView>&>,
-                  "the tool must read views it does not own");
-    static_assert(!std::is_constructible_v<BuilderWeave, std::vector<RecipeView>&&>,
-                  "a tool over temporary views is a dangling tool");
+    static_assert(
+        std::is_constructible_v<BuilderWeave, const std::vector<RecipeView>&, const std::string&>,
+        "the tool must read views and a catalog path it does not own");
+    static_assert(
+        !std::is_constructible_v<BuilderWeave, std::vector<RecipeView>&&, const std::string&>,
+        "a tool over temporary views is a dangling tool");
+    static_assert(
+        !std::is_constructible_v<BuilderWeave, const std::vector<RecipeView>&, std::string&&>,
+        "a tool over a temporary catalog path is a dangling tool");
     // doctest wants a runtime assertion in every case, and this is the honest one: the
     // four claims above are already decided by the time this line runs.
     CHECK(true);
@@ -2486,7 +2513,10 @@ TEST_CASE("PROJ-0: the two build participants declare no catalog storage of thei
     // lifetime claim the case two above asserts.
     CHECK(runner.find("BuildRunnerWeave(std::vector<Recipe>&&, std::string) = delete;") !=
           std::string::npos);
-    CHECK(tool.find("BuilderWeave(std::vector<RecipeView>&&) = delete;") != std::string::npos);
+    CHECK(tool.find("BuilderWeave(std::vector<RecipeView>&&, const std::string&) = delete;") !=
+          std::string::npos);
+    CHECK(tool.find("BuilderWeave(const std::vector<RecipeView>&, std::string&&) = delete;") !=
+          std::string::npos);
 }
 
 TEST_CASE("RELOAD-1: a realized artifact is answered about again -- a promotion lands on the "

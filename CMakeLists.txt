@@ -539,6 +539,10 @@ add_subdirectory(composer)
 # staged beside the host and named in the boot plan, so it must be a TARGET by the time
 # workshop/CMakeLists.txt is read, exactly as introspection and composer are.
 add_subdirectory(files)
+# ...and the Builder pane for the same reason, in the same place: it links
+# zengine-workshop-vocabulary and zengine-builder-vocabulary, it is staged beside the host,
+# and the boot plan names its artifact -- so it must be a TARGET before workshop/ is read.
+add_subdirectory(builder-pane)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

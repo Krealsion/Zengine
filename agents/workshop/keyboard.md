@@ -87,17 +87,19 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
 
-LAW — An action's identity is kept across migrations, however its rows move; a retired id's authored row is preserved byte-for-byte as unknown.
+LAW — An action's identity is kept across migrations, however its rows move; a retired id's authored row is preserved byte-for-byte as unknown, and is applied when something declares it.
 
 MEANS
 - `manage.arrange` was added; `manage.move`, `manage.size` and `manage.edge` are retired;
+- a row that left this host for a PANE keeps its id, so the maker's override moves with it;
 - reusing one gesture across mutually exclusive contexts is legal.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.next`,
 `manage.previous`, `workshop.manage`, `AuthoredOverride`, `contexts_intersect`;
 `tests/test_workshop_document.cpp` case `"KEY-0: an override for an unknown action survives with
 its intent whole"`, case `"KEY-0: reusing one gesture across mutually exclusive contexts is
-legal"`.
+legal"`; `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a maker's authored override
+for a retired Workshop id keeps working"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences

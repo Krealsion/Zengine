@@ -35,19 +35,28 @@ inline std::string raw_read(const std::string& path) {
     return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
 
-/// A LIVE WORKSHOP WITH A BUILDER THAT NAMES REAL SOURCES: a mounted stand-in tool whose
-/// catalog holds a single-source recipe (`hello`), a source-less one (`block`), and a
-/// second single-source one (`world`); a host seam resolving each exactly as the real
-/// host does (the authored string, verbatim); and a screen tall enough that the overlay
-/// stack seats the Builder AND the Editor -- the minimum screen holds one slot, which is
-/// itself a case below.
+/// A LIVE WORKSHOP WHOSE HOST NAMES REAL RECIPE SOURCES: a host seam resolving a
+/// single-source recipe (`hello`), a source-less one (`block`) and a second single-source
+/// one (`world`) exactly as the real host does (the authored string, verbatim); a stand-in
+/// tool holding the same three; a door asker standing in for the Builder PANE; and a screen
+/// tall enough that the overlay stack seats two -- the minimum screen holds one slot, which
+/// is itself a case below.
+///
+/// ⚠ `e` IS NOT A KEY ANY MORE (VD-22). The Builder panel became a weave, so
+/// `builder.edit-source` is one of ITS declared rows and what reaches this host is
+/// `RecipeSourceRequested{recipe}` at `zengine.workshop` -- the pane holds a recipe NAME and
+/// never a path. So this rig asks the door and reads the answer, which is what the product
+/// does; the refusals below are the same three sentences, said to whoever asked instead of
+/// written on this host's notice line.
 struct EditorRig {
     Live t;
     ToolSeat* tool = nullptr;
+    DoorAsker* asker = nullptr;
     TempDir dir;
     std::string src;
     std::string second;
-
+    /// What the last ask came to -- the refusal a maker reads in the pane's own row.
+    SourceOpened last{};
     explicit EditorRig(const char* tag = "editor",
                        const std::string& bytes = "one\ntwo\nthree\n")
         : dir(tag) {
@@ -80,8 +89,14 @@ struct EditorRig {
             }
             return out;
         };
+        asker = mount_door_asker(t);
         resize_screen(40);
-        open_builder(t);
+        // ⚠ NOTHING ELSE IS OPENED HERE, AND THE RIG USED TO OPEN THE BUILDER PANEL. What
+        // that bought was a pane in the stack's first slot that did NOT take the keyboard,
+        // so `to_command()` could hand the keys back by pressing it. Every overlay-stack
+        // built-in left after the Builder became a weave takes the keyboard, so the gesture
+        // moved to Info instead -- which is in the side region, is open by default, and is
+        // the pane that still answers the question the old press answered.
     }
 
     void resize_screen(std::int64_t h) {
@@ -92,31 +107,43 @@ struct EditorRig {
     const EditorBuffer& buf() const { return ed().buffer; }
     std::string notice() const { return session().notice; }
 
-    /// `e` and the character its own keystroke produced, in the order the backends
-    /// report them -- the trigger's `e` is owed to the gesture and must not land in
-    /// the source, which a case below pins. COMMAND MODE'S GESTURE: a rig about to
-    /// spend it while the editor holds the keys goes through `to_command()` first,
-    /// exactly as a maker's hand would.
-    void press_e() {
-        t.key(input::scan::kE);
-        t.text("e");
-    }
-    /// Hand the keyboard back to command mode by the maker's own gesture: a press on
-    /// the empty workspace.
+    /// THE THREE RECIPES THIS RIG'S HOST KNOWS, in the order the pane's own choice steps
+    /// through them -- the catalog's order, which is what `builder.recipe` walks.
+    static constexpr const char* kRecipes[3] = {"hello", "block", "world"};
+    std::size_t recipe_at = 0;
+
+    /// ASK THE EDITOR DOOR FOR THE CHOSEN RECIPE'S SOURCE -- what `builder.edit-source`
+    /// crosses as. The answer is kept whole, because the refusal is now a value the asker
+    /// reads rather than a sentence on this host's band.
+    void press_e() { last = edit_source_through_door(t, asker, kRecipes[recipe_at]); }
+
+    /// What the door said about the last ask.
+    std::string refusal() const { return last.refusal; }
+    /// Hand the keyboard back to command mode by the maker's own gesture: a press on a pane
+    /// that does not take the keyboard.
+    ///
+    /// ⚠ IT PRESSES INFO, AND IT USED TO PRESS THE STACK'S FIRST SLOT. That slot held the
+    /// Builder panel, which took no keyboard, so a press there cleared the candidate; the
+    /// Editor holds it now and DOES take the keyboard, so the same press would point the keys
+    /// back at the very pane this is trying to leave. Info is the pane that still answers the
+    /// question the old gesture answered.
     void to_command() {
-        t.press(0, 0);
-        t.release(0, 0);
+        const Session& s = session();
+        const ui::Rect info =
+            pane_body_cells(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
+        REQUIRE(info.w > 0);
+        t.press(info.x, info.y);
+        t.release(info.x, info.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);
     }
     void open_hello() {
         press_e();
         REQUIRE(ed().open_document());
     }
-    /// Step the Builder's recipe choice, discharging each trigger's own character.
+    /// Step the choice the way `builder.recipe` steps it -- through the catalog, wrapping.
     void choose(int steps) {
         for (int i = 0; i < steps; ++i) {
-            t.key(input::scan::kC);
-            t.text("c");
+            recipe_at = (recipe_at + 1) % 3;
         }
     }
 
@@ -667,35 +694,27 @@ TEST_CASE("EDIT-0: `e` opens the chosen recipe's source, focuses the editor, and
     CHECK(body.find("three") != std::string::npos);
 }
 
-TEST_CASE("EDIT-0: `e` with no Builder panel is an unbound key, exactly as `b` is") {
+TEST_CASE("EDIT-0: `e` is not this host's key any more, and no context answers it") {
+    // ⭐ THE TWO CASES THAT USED TO BE HERE ASKED WHAT `e` DOES WITH NO BUILDER PANEL OPEN,
+    // and with one open that had not heard from the tool. Both questions belonged to a
+    // command-mode row acting on another pane's subject, which is the shape VD-22 retired:
+    // the row is the Builder pane weave's own now, and a maker presses into that pane before
+    // any of its nine verbs mean anything. What is left to prove here is that this host
+    // declares no such row at all -- the pane's id is the pane's, and nothing in the
+    // effective keymap resolves it.
     EditorRig r("nodoor");
-    pick(r.t, panel::kBuilder); // remove the panel the rig opened
-    REQUIRE_FALSE(r.session().panels.has(panel::kBuilder));
-    const std::string before = r.notice();
-    r.press_e();
-    CHECK(r.notice() == before);
+    CHECK(row_of_id("builder.edit-source") == nullptr);
+    r.t.key(input::scan::kE);
+    r.t.text("e");
     CHECK_FALSE(r.ed().open_document());
-}
-
-TEST_CASE("EDIT-0: a Builder that has not answered yet refuses the door in its own words") {
-    Live t;
-    TempDir dir("silent");
-    (void)dir;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 40, 0, 0}));
-    pick(t, panel::kBuilder); // no tool mounted: StatusRequested reaches nobody
-    REQUIRE(t.w->session().panels.has(panel::kBuilder));
-    t.key(input::scan::kE);
-    t.text("e");
-    CHECK(t.w->session().notice.find("has not said what it builds yet") != std::string::npos);
-    CHECK_FALSE(t.w->session().editor.open_document());
 }
 
 TEST_CASE("EDIT-0: a source-less recipe kind refuses in the recipe owner's vocabulary") {
     EditorRig r("cmake");
     r.choose(1); // hello -> block
     r.press_e();
-    CHECK(r.notice().find("`block` is a cmake_target recipe") != std::string::npos);
-    CHECK(r.notice().find("names no single source") != std::string::npos);
+    CHECK(r.refusal().find("`block` is a cmake_target recipe") != std::string::npos);
+    CHECK(r.refusal().find("names no single source") != std::string::npos);
     CHECK_FALSE(r.ed().open_document());
 }
 
@@ -703,7 +722,7 @@ TEST_CASE("EDIT-0: a host with no recipe-source seam refuses rather than guessin
     EditorRig r("unwired");
     r.t.host.recipe_source = {};
     r.press_e();
-    CHECK(r.notice().find("resolves no recipe sources") != std::string::npos);
+    CHECK(r.refusal().find("resolves no recipe sources") != std::string::npos);
     CHECK_FALSE(r.ed().open_document());
 }
 
@@ -713,7 +732,10 @@ TEST_CASE("EDIT-0: a catalog/recipes disagreement is named, and nothing opens") 
         return HostContext::RecipeSource{};
     };
     r.press_e();
-    CHECK(r.notice().find("disagree about `hello`") != std::string::npos);
+    // THE HOST'S OWN WORDS: the catalog it holds does not name this recipe, so the sentence
+    // is about the project's recipes rather than about a disagreement between two lists --
+    // the pane holds no catalog to disagree with.
+    CHECK(r.refusal().find("do not hold `hello`") != std::string::npos);
     CHECK_FALSE(r.ed().open_document());
 }
 
@@ -721,7 +743,7 @@ TEST_CASE("EDIT-0: a file the byte law refuses costs the notice and nothing else
     EditorRig r("badbytes");
     raw_write(r.src, "one\r\ntwo\n"); // mixed endings
     r.press_e();
-    CHECK(r.notice().find("mixes CRLF and LF") != std::string::npos);
+    CHECK(r.refusal().find("mixes CRLF and LF") != std::string::npos);
     CHECK_FALSE(r.ed().open_document());
     CHECK_FALSE(r.session().panels.has(panel::kEditor)); // no pane was authored either
     CHECK(raw_read(r.src) == "one\r\ntwo\n");             // and the file is untouched
@@ -729,9 +751,13 @@ TEST_CASE("EDIT-0: a file the byte law refuses costs the notice and nothing else
 
 TEST_CASE("EDIT-0: at the minimum screen there is no room, and the refusal names the remedy") {
     EditorRig r("noroom");
-    r.resize_screen(22); // back to the minimum: the stack holds one slot, Builder has it
+    // THE STACK HOLDS ONE SLOT AT THE MINIMUM SCREEN, and this takes it. The rig's own
+    // second pane is Info, which is in the side region and costs the stack nothing, so the
+    // slot has to be occupied deliberately here.
+    pick(r.t, panel::kPaneEditor);
+    r.resize_screen(22);
     r.press_e();
-    CHECK(r.notice().find("no room for the Editor") != std::string::npos);
+    CHECK(r.refusal().find("no room for the Editor") != std::string::npos);
     CHECK_FALSE(r.ed().open_document());
     CHECK_FALSE(has_pane(r.session().setup.active, pane_ref_of(panel::kEditor)));
     // Growing the window is the named remedy, and then the same gesture works.
@@ -768,7 +794,7 @@ TEST_CASE("EDIT-0: a dirty buffer refuses a different source, and save or discar
     r.to_command();
     r.choose(2); // hello -> block -> world
     r.press_e();
-    CHECK(r.notice().find("has unsaved changes") != std::string::npos);
+    CHECK(r.refusal().find("has unsaved changes") != std::string::npos);
     CHECK(r.ed().path == r.src); // still the first document
     CHECK(r.buf().line(0) == "xone");
     // Discard deliberately, then the replacement proceeds.
@@ -795,9 +821,7 @@ TEST_CASE("EDIT-0: ^s in the editor saves the SOURCE; elsewhere it keeps the doc
     CHECK(raw_read(r.src) == "// note\none\ntwo\nthree\n");
     // Point the keyboard elsewhere: the same physical chord is the document's again --
     // and this fixture chose no document file, so the document's own sentence answers.
-    r.t.press(0, 0);
-    r.t.release(0, 0);
-    REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
+    r.to_command();
     r.t.key(input::scan::kS, input::mod::kCtrl);
     CHECK(r.notice().find("no document file") != std::string::npos);
     CHECK(raw_read(r.src) == "// note\none\ntwo\nthree\n"); // the source was not re-written
@@ -958,9 +982,8 @@ TEST_CASE("EDIT-0: printable text edits the source, and command letters stop bei
     r.t.text("n");
     CHECK(r.t.w->document().elements.size() == objects);
     CHECK(r.buf().line(0) == "none");
-    // Pressing into the workspace hands command mode back.
-    r.t.press(0, 0);
-    r.t.release(0, 0);
+    // Pressing a pane that does not take the keyboard hands command mode back.
+    r.to_command();
     r.t.key(input::scan::kN);
     r.t.text("n");
     CHECK(r.t.w->document().elements.size() == objects + 1);
@@ -1010,8 +1033,7 @@ TEST_CASE("EDIT-0: the band and the header both say where typing goes") {
               .rfind("typing goes to the source editor", 0) == 0);
     CHECK(r.shown().find("> Editor") != std::string::npos);
     // Hand the keys back: both statements retract on their own.
-    r.t.press(0, 0);
-    r.t.release(0, 0);
+    r.to_command();
     CHECK(label_at(r.t.canvases.back(), 0, sc.help_y)
               .rfind("typing goes to", 0) != 0);
     CHECK(r.shown().find("> Editor") == std::string::npos);
@@ -1098,8 +1120,7 @@ TEST_CASE("EDIT-0: a press on the editor's header focuses without moving the car
     r.open_hello();
     r.press_body(1, 2);
     REQUIRE(r.buf().caret_row() == 1);
-    r.t.press(0, 0); // keys away...
-    r.t.release(0, 0);
+    r.to_command(); // keys away...
     REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
     const ui::Rect c = r.editor_cells();
     r.t.press_canvas(c.x + 3, c.y); // ...and back, via the header row
@@ -1171,11 +1192,11 @@ TEST_CASE("EDIT-0: the wheel elsewhere scrolls nothing, and a covered editor is 
     // Over the workspace: nothing.
     r.t.wheel_canvas(-1.0, 60, 20);
     CHECK(r.ed().first_row == 0);
-    // Over the Builder pane (a different pane's cells): nothing.
+    // Over Info (a different pane's cells): nothing.
     const Session& s = r.session();
-    const ui::Rect builder = cells_covered(
-        bounds_of(s.panels, s.setup.active, panel::kBuilder, screen_of(s)).rect);
-    r.t.wheel_canvas(-1.0, builder.x + 2, builder.y + 2);
+    const ui::Rect other = cells_covered(
+        bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
+    r.t.wheel_canvas(-1.0, other.x + 2, other.y + 2);
     CHECK(r.ed().first_row == 0);
     // Over the editor's HEADER row: the body's own boundary holds.
     const ui::Rect c = r.editor_cells();
@@ -1330,26 +1351,23 @@ TEST_CASE("EDIT-0: arranging the editor pane moves its window and not one byte o
     CHECK(r.ed().dirty());
 }
 
-TEST_CASE("EDIT-0: build and realize stay the Builder's, reached from the editor by one press") {
+TEST_CASE("EDIT-0: the edit-save loop ends at the editor, and no key here asks for a build") {
+    // ⭐ THIS CASE USED TO PRESS `b` FROM COMMAND MODE and watch the Builder take the ask.
+    // It cannot any more, and that is the migration: `builder.build` is the Builder PANE'S
+    // row, active while that pane holds the keyboard, so a maker who has just saved a source
+    // presses into the Builder and builds there. What this host can still be held to is the
+    // half that is its own -- the document survives the round trip -- and that NOTHING in
+    // command mode reaches the tool, which is the property VD-22 bought.
     EditorRig r("loop");
     r.open_hello();
     r.t.text("// changed");
     r.t.key(input::scan::kReturn);
     r.t.key(input::scan::kS, input::mod::kCtrl);
     REQUIRE_FALSE(r.ed().dirty());
-    // Back to command mode, ask for the build -- the same `b` route as ever.
-    r.t.press(0, 0);
-    r.t.release(0, 0);
+    r.to_command();
     r.t.key(input::scan::kB);
-    REQUIRE(r.tool->asked.size() == 1);
-    CHECK(r.tool->asked[0] == "hello");
-    CHECK(r.tool->realize_asked[0] == false);
-    // ...and, armed by `Shift+b` (one action in two states since RELOAD-2), the same `b`
-    // asks to build AND load.
     r.t.key(input::scan::kB, input::mod::kShift);
-    r.t.key(input::scan::kB);
-    REQUIRE(r.tool->asked.size() == 2);
-    CHECK(r.tool->realize_asked[1] == true);
+    CHECK(r.tool->asked.empty()); // no route from here to the tool, armed or not
     // ...and the editor still holds the document, caret coherent, for the next edit.
     CHECK(r.ed().path == r.src);
     CHECK(r.buf().line(0) == "// changed");
