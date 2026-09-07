@@ -77,7 +77,7 @@ MEANS
 PROVEN BY — `workshop/weave_pane_editor.cpp` `open_source`, `on(RecipeSourceRequested)`;
 `workshop/weave.hpp`
 `HostContext::recipe_source`, `RecipeSource`; `workshop/editor.hpp` `source_in`,
-`kMaxSourceBytes`, `EditorState`; `workshop/files_seam_vocabulary.hpp` `OpenSourceRequested`,
+`kMaxSourceBytes`, `EditorState`; `workshop/pane_seam_vocabulary.hpp` `OpenSourceRequested`,
 `SourceOpened`; `workshop/builder_seam_vocabulary.hpp` `RecipeSourceRequested`;
 `tests/test_workshop_files.cpp` case `"PANE-DOOR: the Editor door is the one door,
 and its refusal reaches the asker"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE:

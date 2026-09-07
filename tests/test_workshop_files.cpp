@@ -44,10 +44,10 @@
 #include "workshop/path_admission.hpp"
 
 // THE THREE DOORS THE FILES WEAVE ASKS. Two of them are this host's own weaves
-// (`workshop/files_doors.hpp`); the third is Workshop's, answered where `open_source` lives.
+// (`workshop/pane_doors.hpp`); the third is Workshop's, answered where `open_source` lives.
 // The pane is a loaded image now, so what this suite owes is the HOST's half of each seam:
 // who may ask, who is answered, and whose words the answer is in.
-#include "workshop/files_doors.hpp"
+#include "workshop/pane_doors.hpp"
 
 // ...AND WHICH OF THOSE TWO OWNED FACTS THIS HOST MAKES ROUTABLE (SOURCE-0). The project
 // anchor and the current recipe catalog are this suite's two subjects already; the Sources

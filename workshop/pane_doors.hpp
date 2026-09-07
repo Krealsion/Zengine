@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_FILES_DOORS_HPP
-#define ZENGINE_WORKSHOP_FILES_DOORS_HPP
+#ifndef ZENGINE_WORKSHOP_PANE_DOORS_HPP
+#define ZENGINE_WORKSHOP_PANE_DOORS_HPP
 
 // THE HOST'S SIDE OF THE PANE SEAM -- the doors a pane weave asks, one that reads and two
 // that act.
@@ -19,12 +19,13 @@
 // `RecipeSourceRequested` are answered where `open_source` lives (`weave_pane_editor.cpp`),
 // at the office Workshop already holds.
 //
-// ⚠ THE FILE IS NAMED FOR THE FIRST PANE THAT ASKED, AND THE OFFICES ARE NOT ITS. The
-// project browser's migration cut this seam and these two doors carry its name; the Builder
-// pane's migration is the second tenant, and it added a shape to the read-only office and
-// one office of its own rather than a second address for a question already answered here.
-// `zengine.project` is THE read-only project office, not Files' -- which is exactly why a
-// second reader could arrive without editing what the first one asks.
+// ⚠ THE FILE WAS NAMED FOR THE FIRST PANE THAT ASKED, AND THE OFFICES NEVER WERE. The
+// project browser's migration cut this seam and these doors carried its name through two
+// migrations; the Builder was the second tenant, and added a shape to the read-only office
+// and one office of its own rather than a second address for a question already answered
+// here. `zengine.project` is THE read-only project office and was never Files' -- which is
+// exactly why a second reader could arrive without editing what the first one asks, and why
+// the file is called what it is now. Nothing about the doors changed with the rename.
 //
 // ---- THEY DERIVE AND CALL; THEY DO NOT REMEMBER --------------------------------
 //
@@ -52,7 +53,7 @@
 // publishes: every answer goes to the one weave that asked.
 
 #include "builder_seam_vocabulary.hpp"
-#include "files_seam_vocabulary.hpp"
+#include "pane_seam_vocabulary.hpp"
 #include "weave.hpp"
 
 #include <zen/weave.hpp>
@@ -296,4 +297,4 @@ private:
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_FILES_DOORS_HPP
+#endif // ZENGINE_WORKSHOP_PANE_DOORS_HPP

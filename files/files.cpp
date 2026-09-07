@@ -8,7 +8,7 @@
 // `weave_editor.cpp` and `weave_recipes.cpp`). Now it is a weave beside the Skin and the
 // Timer, and everything it once read straight off `HostContext` -- where this run began,
 // the file its marks live in, whether a file is a recipe catalog, one path to open in the
-// Editor -- it ASKS for, through the four doors `workshop/files_seam_vocabulary.hpp`
+// Editor -- it ASKS for, through the four doors `workshop/pane_seam_vocabulary.hpp`
 // spells. What crosses the seam is values; the browser owns its listing, its marks and its
 // two modes, and holds no reference to anything in the host.
 //
@@ -21,7 +21,7 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
-#include "workshop/files_seam_vocabulary.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/path_admission.hpp"

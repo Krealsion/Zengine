@@ -17,8 +17,8 @@ DOES NOT MEAN
 - that the shipped catalog is written into — it is installation truth and stays so.
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
-`chooser_choose`, `authoring_commit`; `workshop/files_seam_vocabulary.hpp`
-`RecipeAuthorRequested`, `RecipeOutcome`; `workshop/files_doors.hpp` `RecipesDoor`;
+`chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
+`RecipeAuthorRequested`, `RecipeOutcome`; `workshop/pane_doors.hpp` `RecipesDoor`;
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
@@ -44,7 +44,7 @@ DOES NOT MEAN
 PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `kActionCancel`;
 `builder-pane/pane.cpp` `begin_load_it`, `open_role`, `commit_role`, `say_role`;
 `workshop/builder_seam_vocabulary.hpp` `PlanNamesRequested`, `PlanNames`, `PlanRowRequested`,
-`PlanRowWritten`; `workshop/files_doors.hpp` `PlanDoor`;
+`PlanRowWritten`; `workshop/pane_doors.hpp` `PlanDoor`;
 `workshop/weave.hpp` `HostContext::PlanAppend`, `HostContext::append_plan_row`,
 `HostContext::plan_names`; `workshop/authoring.hpp` `PlanAuthor`, `plan_names`, `append_plan_row`;
 `workshop/staging.hpp` `product_of`; `workshop/load_persist.hpp` `kProjectLoadPlanName`,

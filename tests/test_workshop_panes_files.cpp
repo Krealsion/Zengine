@@ -32,7 +32,7 @@
 
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
-#include "workshop/files_doors.hpp"
+#include "workshop/pane_doors.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 

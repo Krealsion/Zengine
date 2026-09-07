@@ -7,7 +7,7 @@
 
 #include "arrangement.hpp"
 #include "authoring.hpp"
-#include "files_doors.hpp"
+#include "pane_doors.hpp"
 #include "host_sources.hpp"
 #include "sample_door.hpp"
 #include "load_execute.hpp"
@@ -349,7 +349,7 @@ int main(int argc, char** argv) {
     // THE PLACES FILE IS THE FILES TOOL'S OWN DURABLE ARTIFACT, and the host's part in it is
     // exactly this line: resolving where it lives. It is a LOCAL because the pane that owns
     // it is a weave now -- it learns the path by asking `zengine.project` (`ProjectDoor`,
-    // files_doors.hpp), not by reading a host field.
+    // pane_doors.hpp), not by reading a host field.
     const std::string marks_path = user_paths::resolve_durable_path(
         args.marks, args.isolated, state_root, kDefaultMarksFileName);
 
@@ -1506,7 +1506,7 @@ int main(int argc, char** argv) {
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
-    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/files_doors.hpp) ---
+    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/pane_doors.hpp) ---
     //
     // The browser and the Builder are loaded weaves now, so the facts they used to read
     // off `HostContext` cross as values through offices instead. They are THREE doors and

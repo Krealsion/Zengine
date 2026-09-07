@@ -1,15 +1,29 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_FILES_SEAM_VOCABULARY_HPP
-#define ZENGINE_WORKSHOP_FILES_SEAM_VOCABULARY_HPP
+#ifndef ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP
+#define ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP
 
-// WHAT THE FILES WEAVE ASKS THE HOST, AND WHAT IT HEARS BACK. The Files pane became a
-// loadable weave (Zengine/files/), and the four facts it used to read straight off
-// `HostContext` -- where this run began, which places file it owns, whether a file it
-// points at is a recipe catalog, and one path to open in the Editor -- cannot cross into
-// a loaded image as anything but a value. So each becomes an ask to an OFFICE and an
-// answer back, the seam `zengine.arrangement` and `zengine.sources` already spend.
+// WHAT A PANE WEAVE ASKS THE HOST, AND WHAT IT HEARS BACK -- the shared half of the pane
+// seam, and the shapes the FIRST tenant needed.
+//
+// ⚠ THE NAME IS THE THIRD TENANT'S DOING. This was `files_seam_vocabulary.hpp` through two
+// migrations, because the project browser cut the seam and nobody else was standing in it.
+// The Builder arrived and shared two of these names; the Attention pane is the third, and a
+// file whose name says `files` while three panes read it is a name that has stopped being
+// true. Nothing else about this file changed with the rename: every declaration below is
+// where it was, saying what it said. What is genuinely SHARED -- `kProjectRole`, the
+// read-only project office, and `SourceOpened`, what opening a source came to -- is what
+// makes the file worth a name of its own; what is Files' alone (`kDefaultMarksFileName`,
+// `zengine.recipes` and the three recipe shapes) stays here rather than moving, because
+// splitting it is a second change and this was one.
+//
+// The project browser became a loadable weave (Zengine/files/), and the four facts it used
+// to read straight off `HostContext` -- where this run began, which places file it owns,
+// whether a file it points at is a recipe catalog, and one path to open in the Editor --
+// cannot cross into a loaded image as anything but a value. So each becomes an ask to an
+// OFFICE and an answer back, the seam `zengine.arrangement` and `zengine.sources` already
+// spend.
 //
 // ---- THREE OFFICES, SPLIT BY WHETHER ANSWERING ACTS ---------------------------
 //
@@ -151,4 +165,4 @@ struct SourceOpened {
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_FILES_SEAM_VOCABULARY_HPP
+#endif // ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP

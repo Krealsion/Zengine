@@ -536,7 +536,7 @@ Written WorkshopWeave::open_source(const std::string& requested, loom::Mail& mai
     return Written::ok();
 }
 
-/// THE ONE EDITOR DOOR, ANSWERED ACROSS THE SEAM (`files_seam_vocabulary.hpp`).
+/// THE ONE EDITOR DOOR, ANSWERED ACROSS THE SEAM (`pane_seam_vocabulary.hpp`).
 ///
 /// It is the SAME door the recipe-name ask below spends, and the one the browser used to spend
 /// directly before it became a weave -- the

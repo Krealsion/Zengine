@@ -3468,10 +3468,10 @@ inline std::vector<std::string> presentation_sources() {
     // realization owner -- where a built product is opened from, and how a running image
     // becomes the file a restart loads -- shared with the build witness so there is one
     // spelling. No presentation includes it, and it names the owner it serves.
-    // `files_doors.hpp` and `files_seam_vocabulary.hpp` join the list for
-    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the two
-    // doors the Files weave asks and the shapes they answer in -- and a tripwire that read
-    // them would forbid a door from naming what it opens.
+    // `pane_doors.hpp` and `pane_seam_vocabulary.hpp` join the list for
+    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the doors a
+    // pane weave asks and the shapes they answer in -- and a tripwire that read them would
+    // forbid a door from naming what it opens.
     // `pane_migration.hpp` is here for a DIFFERENT reason from the rest, and it is the only
     // one: its whole subject is a durable name that no longer means anything -- the
     // reference saved files wrote for the browser this host used to offer. It exists so that
@@ -3480,8 +3480,8 @@ inline std::vector<std::string> presentation_sources() {
     // Naming a retired reference is not knowing a pane: nothing here can present one.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
-                                                "staging.hpp", "authoring.hpp", "files_doors.hpp",
-                                                "files_seam_vocabulary.hpp",
+                                                "staging.hpp", "authoring.hpp", "pane_doors.hpp",
+                                                "pane_seam_vocabulary.hpp",
                                                 "pane_migration.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :
