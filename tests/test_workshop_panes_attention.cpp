@@ -219,8 +219,9 @@ TEST_CASE("ATTN-WEAVE: a pane that arrives after the host has spoken is told aga
     // OFFER is the one moment a new listener certainly exists, so an offer makes the next
     // reading news again.
     //
-    // ⚔ MUTATION: drop `conditions_said_ = false` from `on(PaneOffered)`. The pane opens
-    //   into `ATTENTION (waiting)` and stays there until something about the world changes.
+    // ⚔ MUTATION, MEASURED: drop `conditions_said_ = false` from `on(PaneOffered)`. All three
+    //   checks go red together -- the pane opens into `ATTENTION (waiting)` and stays there
+    //   until something about the world happens to change.
     AttentionRig f;
     // THE HOST SAYS ITS PIECE FIRST, with nobody listening for it.
     f.r.mount_workshop();
@@ -298,8 +299,9 @@ TEST_CASE("ATTN-WEAVE: a dismissal does not outlive the condition it was about")
     // own state and crosses a reload, so an entry that outlived its subject would be a
     // decision about a fact that no longer exists, re-applied silently if it ever returned.
     //
-    // ⚔ MUTATION: drop `forget_resolved`. The last check goes red -- the condition comes
-    //   back and is invisible, hidden by a decision made about a different moment.
+    // ⚔ MUTATION, MEASURED: drop `forget_resolved`. The last check goes red on its own -- the
+    //   condition comes back and is invisible, hidden by a decision made about a moment that
+    //   is over.
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));

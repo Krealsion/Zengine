@@ -4551,8 +4551,9 @@ TEST_CASE("WUX-4: what is true is said across the seam, in the host's own order 
     // into the words a maker reads, because resolving it needs the effective keymap and a
     // loaded image cannot see one.
     //
-    // ⚔ MUTATION: drop the `say_conditions` call from `repaint`. Nothing is ever said and
-    //   every check below goes red on an empty publication list.
+    // ⚔ MUTATION, MEASURED: drop the `say_conditions` call from `repaint`. Nothing is ever
+    //   said, so the case stops at its first line -- `REQUIRE_FALSE(said_conditions.empty())`
+    //   is fatal and the rest never runs, which is the honest shape of "the seam is silent".
     Live t;
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
@@ -4587,8 +4588,9 @@ TEST_CASE("WUX-4: nothing new is nothing said, which is what stops the seam loop
     // published unconditionally would say it again, and this process would have no quiet
     // state. So the host compares what it is about to say against its own last utterance.
     //
-    // ⚔ MUTATION: drop the `same_conditions` arm from `say_conditions`. The count below
-    //   climbs with every repaint instead of standing still.
+    // ⚔ MUTATION, MEASURED: drop the `same_conditions` arm from `say_conditions`. Two
+    //   assertions go red -- the count climbs across three repaints with no news in them, and
+    //   the one that follows real news is then off by the difference.
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     const std::size_t after_first = t.said_conditions.size();
