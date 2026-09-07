@@ -230,7 +230,7 @@ cmake --build <build tree> --target <target>
 ```json
 { "recipe": "skin-tui-block",
   "artifact": "zengine-skin-tui-block",
-  "artifact_dir": "/path/to/build/surface",
+  "artifact_dir": "/path/to/build/snake",
   "cmake_target": [ { "build_dir": "/path/to/build",
                       "target": "zengine-skin-tui-block",
                       "config": "" } ],
@@ -243,6 +243,12 @@ re-configured somebody else's tree would be deciding a policy that is not its to
 `config` is for a multi-config generator (Visual Studio's) and is empty — and right — under a
 single-config one such as Ninja. Under a multi-config generator it must be authored, and `a`
 does not ask for it: a row `a` wrote for such a tree is finished in a text editor.
+
+`artifact_dir` is where that target's file **actually lands**, which is not always the directory
+of the package that declares it: in Zengine's own tree this skin is aimed at the snake host's
+runtime directory, because that host resolves the weaves it loads from beside its own binary —
+so the shipped recipe is generated from the target rather than from a guess about the layout. If
+a build of yours succeeds and the Builder answers `NO ARTIFACT`, this is the field to check.
 
 ### One source file
 

@@ -213,6 +213,28 @@ Window window_of(std::size_t total, std::size_t at, std::size_t rows) {
     return w;
 }
 
+/// THE WINDOW AND ITS OWN MARKERS TOGETHER, INSIDE THE BUDGET.
+///
+/// `window_of` fills the rows it is given with ENTRIES; the `... N earlier` and `... N more`
+/// rows are pushed on top of that, so a window that filled its budget composed one or two
+/// rows MORE than the room had. `say` then cut the overrun off the end -- which took the
+/// `... N more` marker with it and left a maker looking at a list with no sign that it went
+/// on, and left no room at all for the notice `say` puts in front. Ask for fewer entries
+/// instead. At most two markers, so at most two rounds, and one entry is always seated.
+Window fitted_window(std::size_t total, std::size_t at, std::int64_t budget) {
+    if (budget <= 0) {
+        return Window{};
+    }
+    std::size_t seats = static_cast<std::size_t>(budget);
+    Window w = window_of(total, at, seats);
+    while (seats > 1 && static_cast<std::int64_t>(w.count) + (w.before > 0 ? 1 : 0) +
+                                (w.after > 0 ? 1 : 0) >
+                            budget) {
+        w = window_of(total, at, --seats);
+    }
+    return w;
+}
+
 // =============================================================================
 // The weave
 // =============================================================================
@@ -292,6 +314,7 @@ public:
         if (!row_of_body_row(press.row, which)) {
             return; // the header, a marker row, or blank space names no entry
         }
+        notice_.clear(); // the maker has acted; the last act's answer is spent
         if (had_keyboard_ && which == static_cast<std::size_t>(state_.cursor)) {
             open(mail); // a press on the already-selected row activates it (WL-FOCUS-04)
             return;
@@ -312,6 +335,7 @@ public:
         if (!authoring_.open) {
             return;
         }
+        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!authoring_.line.consume(key.scancode, key.modifiers, clip_)) {
@@ -333,6 +357,7 @@ public:
         if (!authoring_.open || typed.text.empty() || !admissible(typed.text)) {
             return;
         }
+        notice_.clear();
         authoring_.line.type(typed.text);
         say(mail);
     }
@@ -353,6 +378,7 @@ public:
         const std::int64_t was = state_.cursor;
         move(-step);
         if (state_.cursor != was) {
+            notice_.clear();
             say(mail);
         }
     }
@@ -364,6 +390,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
             return;
         }
+        notice_.clear(); // the maker has acted; the last act's answer is spent
         // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
         // (`files.open`) commits a chooser row or an authoring field; Escape
         // (`files.cancel`) backs out whole; the browser's other verbs mean nothing until the
@@ -1022,16 +1049,43 @@ private:
             say_browser(push);
         }
         // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
-        // only its own room, so its first row carries it and it is cleared once said.
-        if (!notice_.empty() && static_cast<std::int64_t>(out.size()) < rows_) {
+        // only its own room, so its first row carries it.
+        //
+        // IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID (`agents/panes.md`, the
+        // pane-weave rules). This pane cleared it inside `say` until the Builder's migration
+        // proved that wrong one pane over: one gesture produces SEVERAL publications in one
+        // drain -- a notice is written, the rows are said, a door is asked and its answer
+        // arrives on the same turn and says them again -- and Workshop keeps only the last
+        // picture. Cleared by the first `say`, the sentence is one no maker ever reads. The
+        // gate on `BuildStatus` below was this pane's narrow repair for the one instance of
+        // it the whole-loop witness caught (`u` on a catalog produced no visible row); this
+        // is the general rule, and the gate stays because it is also about a stale listing.
+        if (!notice_.empty() && rows_ > 1) {
+            // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT. `body_budget` already asked
+            // the composition for one fewer row, so this cut is a backstop and not the
+            // mechanism: it fires only where the room cannot seat even one entry and its two
+            // markers, and what it drops is the tail of the list rather than the answer to
+            // the maker's act. A one-row room keeps its header, which is the pane's identity
+            // and where it is standing; there is nothing useful to say in one row twice.
+            if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
+                out.resize(static_cast<std::size_t>(rows_ - 1));
+            }
             out.insert(out.begin(), surface::SurfaceTextRow{fit(notice_, columns_), surface::role::kAccent});
         }
-        notice_.clear();
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(out)});
+    }
+
+    /// HOW MANY ROWS THE LISTING MAY SPEND: the room, less this pane's own header, less the
+    /// notice row `say` puts in front of it. A pane has no band to write a notice on, and the
+    /// whole content is cut to the room afterwards -- so the composition is asked for one
+    /// fewer row rather than having its last row silently dropped after the fact. The
+    /// Builder's `publish` spends the same subtraction for the same reason.
+    std::int64_t body_budget() const {
+        return rows_ - kHeaderRows - (notice_.empty() ? 0 : 1);
     }
 
     template <class Push>
@@ -1058,7 +1112,7 @@ private:
         }
         header += "  " + where();
         push(header, surface::role::kAccent);
-        const std::int64_t body_rows = rows_ - kHeaderRows;
+        const std::int64_t body_rows = body_budget();
         if (body_rows <= 0) {
             return;
         }
@@ -1071,8 +1125,8 @@ private:
             push("this directory is empty", surface::role::kMuted);
             return;
         }
-        const Window win = window_of(total, static_cast<std::size_t>(state_.cursor),
-                                     static_cast<std::size_t>(body_rows));
+        const Window win =
+            fitted_window(total, static_cast<std::size_t>(state_.cursor), body_rows);
         if (win.before > 0) {
             push("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
         }
@@ -1093,12 +1147,11 @@ private:
         push("pick something buildable -- " + std::to_string(chooser_.candidates.size()) +
                  (chooser_.candidates.size() == 1 ? " candidate" : " candidates"),
              surface::role::kAccent);
-        const std::int64_t body_rows = rows_ - kHeaderRows;
+        const std::int64_t body_rows = body_budget();
         if (body_rows <= 0) {
             return;
         }
-        const Window win = window_of(chooser_.candidates.size(), chooser_.cursor,
-                                     static_cast<std::size_t>(body_rows));
+        const Window win = fitted_window(chooser_.candidates.size(), chooser_.cursor, body_rows);
         for (std::size_t i = win.first; i < win.first + win.count; ++i) {
             const bool here = i == chooser_.cursor;
             const BuildCandidate& c = chooser_.candidates[i];

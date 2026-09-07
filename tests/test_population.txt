@@ -1193,10 +1193,19 @@ builder                           doctest           always  55
 # the new suite pins. A floor left at 217 would have been a number rather than a walk; a
 # claim that nothing was lost would have been false. What is lost is named here.
 #
+# A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT raised ONE floor -- workshop_panes
+# 301 -> 303 -- and the two cases are the LIFETIME the Builder's migration found and the ROOM
+# that lifetime needs. The project browser cleared its notice inside `say`, which is a
+# sentence spent by the first of the several publications one gesture makes; and the listing
+# composed as though the notice's row and its own `... N more` marker cost nothing, so a full
+# room lost the marker after the fact and left the notice nowhere to stand at all. Both cases
+# name the mutation that reddens them and what it printed. Nothing was deleted and no floor
+# went down.
+#
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  183
-workshop_panes                    doctest           always  301
+workshop_panes                    doctest           always  303
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65

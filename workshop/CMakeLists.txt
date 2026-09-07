@@ -302,23 +302,36 @@ target_compile_definitions(zengine-workshop PRIVATE
 # hazard aimed at the host binary; BLD-1 does not reload a live artifact and says so
 # (`load_execute.hpp::realize`), so that wish stays out of scope deliberately.
 #
-# ITS `artifact_dir` IS THE SURFACE PACKAGE'S BUILD DIRECTORY, because that is where that
-# target's own project puts its output -- which is exactly the case §6 of this phase calls
-# "the CMake target output already lands somewhere; prove it". A recipe that left the
-# directory blank would inherit the host's artifact directory and then truthfully report
-# that no artifact appeared there, which is the `kNoArtifact` outcome working as designed
-# and is not what this recipe means.
-# TWO STEPS, BECAUSE ONE OF THE TWO SUBSTITUTIONS IS NOT KNOWN AT CONFIGURE TIME.
-# `configure_file` fills in `@CMAKE_BINARY_DIR@`; only `file(GENERATE)` can expand
-# `$<CONFIG>`, which is what a multi-config generator appends to an output directory and
-# what a configure-time write would leave in the file as four literal characters. The
-# generated file lands BESIDE THE HOST directly, so it needs no staging rule of its own --
-# which is also why this sits after `zengine_workshop_dir` is decided, below.
-if(CMAKE_CONFIGURATION_TYPES)
-    set(ZENGINE_RECIPE_SURFACE_DIR "${CMAKE_BINARY_DIR}/surface/$<CONFIG>")
-else()
-    set(ZENGINE_RECIPE_SURFACE_DIR "${CMAKE_BINARY_DIR}/surface")
-endif()
+# ITS `artifact_dir` IS ASKED OF THE TARGET, and that is a correction rather than a
+# refinement. This line used to read `${CMAKE_BINARY_DIR}/surface` under the sentence "that
+# is where that target's own project puts its output" -- a GUESS about a build tree's
+# layout, phrased as a fact about the target, and false in this very tree:
+# `snake/CMakeLists.txt` lists `zengine-skin-tui-block` in `zengine_snake_runtime` and
+# points that target's `LIBRARY_OUTPUT_DIRECTORY` at snake's own runtime directory, because
+# snake's host resolves the skins it loads from beside its own binary. So the shipped recipe
+# named `<build>/surface`, the file landed in `<build>/snake`, and a newcomer's first build
+# of the shipped recipe ended in `NO ARTIFACT` -- a green build with no product, which is
+# precisely the outcome `builder/weave.hpp` reserves for a recipe whose `artifact_dir` does
+# not describe what its target actually produces. The recipe was reporting the defect
+# correctly; the defect was in the recipe.
+#
+# `$<TARGET_FILE_DIR:...>` CANNOT DRIFT: it is the same answer CMake gives the build system,
+# so whatever any package in this tree decides about that target's output directory, the
+# shipped recipe says where the file is. This is true by construction and therefore pinned by
+# nothing -- there are no longer two facts to disagree.
+#
+# (A recipe that left the directory blank would inherit the HOST's artifact directory and
+# then truthfully report that no artifact appeared there: the same `kNoArtifact` working as
+# designed, and not what this recipe means.)
+#
+# TWO STEPS, BECAUSE THE SUBSTITUTION IS NOT KNOWN AT CONFIGURE TIME. `configure_file` copies
+# the generator expression through as text; only `file(GENERATE)` can expand one. The two
+# steps carried `$<CONFIG>` before, for the per-config directory a multi-config generator
+# appends -- `TARGET_FILE_DIR` already ends in that directory where there is one, so the
+# `if(CMAKE_CONFIGURATION_TYPES)` branch that spelled it by hand is gone with the guess it
+# served. The generated file lands BESIDE THE HOST directly, so it needs no staging rule of
+# its own -- which is also why this sits after `zengine_workshop_dir` is decided, below.
+set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:zengine-skin-tui-block>")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
                ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
