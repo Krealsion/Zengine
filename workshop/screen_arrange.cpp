@@ -117,21 +117,6 @@ bool editor_has_keyboard(const Session& s) {
     return where.w > 0 && where.h > 0;
 }
 
-// WL-FOCUS-01, WL-FOCUS-02, WL-FOCUS-04 -- agents/workshop/focus.md
-// WL-FILES-07 -- agents/workshop/files.md
-bool files_has_keyboard(const Session& s) {
-    if (s.panels.keyboard != panel::kProjectFiles || !s.panels.has(panel::kProjectFiles)) {
-        return false;
-    }
-    const FilesPane& pane = s.panels.files;
-    if (!pane.listing.known && pane.current_dir.empty() && !s.marks.somewhere_to_go()) {
-        return false;
-    }
-    const FineRect where =
-        bounds_of(s.panels, s.setup.active, panel::kProjectFiles, screen_of(s)).rect;
-    return where.w > 0 && where.h > 0;
-}
-
 // WL-FOCUS-01 -- agents/workshop/focus.md; WL-PED-07 -- agents/workshop/pane-manager.md
 bool pane_editor_has_keyboard(const Session& s) {
     if (s.panels.keyboard != panel::kPaneEditor || !s.panels.has(panel::kPaneEditor)) {
@@ -169,9 +154,6 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.authoring.open) {
         return KeyContext::kAuthoring;
     }
-    if (s.recipe_chooser.open) {
-        return KeyContext::kRecipeChooser;
-    }
     if (s.panels.picker.open) {
         return KeyContext::kPicker;
     }
@@ -194,15 +176,7 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (editor_has_keyboard(s)) {
         return KeyContext::kEditor;
     }
-    // AND THE PROJECT BROWSER IS THE THIRD MEMBER OF THAT FAMILY, on the same terms. The
-    // three share one candidate field, so at most one of them can be the answer and the
-    // order between these two branches decides nothing -- it is written down anyway,
-    // because an ordering that rests on a mutual-exclusion proof is one refactor from
-    // being silently wrong.
-    if (files_has_keyboard(s)) {
-        return KeyContext::kFiles;
-    }
-    // AND THE PANE EDITOR IS THE FOURTH MEMBER, on the same candidate field and
+    // AND THE PANE EDITOR IS THE THIRD MEMBER, on the same candidate field and
     // the same terms. A draft open on one of ITS rows takes the keys as text exactly as the
     // Info panel's draft does one branch down -- `kDraft` is one context whichever inspector
     // the row belongs to, and `editing_key` asks which by asking this chain.
@@ -243,7 +217,7 @@ KeyContext keyboard_context(const Session& s) {
 
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
 bool escape_may_shed_selection(KeyContext c) {
-    return c == KeyContext::kFiles || c == KeyContext::kPaneEditor || c == KeyContext::kCommand;
+    return c == KeyContext::kPaneEditor || c == KeyContext::kCommand;
 }
 
 } // namespace zengine::workshop

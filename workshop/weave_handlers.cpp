@@ -147,11 +147,6 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
     // The prefs beside it, BEFORE the first paint: the first band and the
     // first pane headers a maker reads are already wearing their own preference.
     load_prefs();
-    //...and the maker's own places, so a marks file this run cannot read is a
-    // condition the FIRST picture already carries rather than one discovered whenever
-    // the browser happens to open. It has its own once-guard, so a run that reaches the
-    // browser before any surface exists reads them there instead, exactly once.
-    load_marks();
     //...AND THE MAKER'S OWN PANE, BEFORE THE SESSION IS TAKEN BACK -- the
     // ordering is the whole of the relaunch story. The session's desks name a
     // maker-made pane by its durable reference, and `apply_setup` seats a reference
@@ -342,13 +337,11 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kNaming: naming_key(k, mail); break;
     case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
     case KeyContext::kPicker: picker_key(k, mail); break;
-    case KeyContext::kRecipeChooser: recipe_chooser_key(k, mail); break;
     case KeyContext::kAuthoring: authoring_key(k, mail); break;
     case KeyContext::kAttention: attention_key(k); break;
     case KeyContext::kContext: context_key(k, mail); break;
     case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
     case KeyContext::kEditor: editor_key(k); break;
-    case KeyContext::kFiles: files_key(k, mail); break;
     case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
     case KeyContext::kDraft: editing_key(k, mail); break;
     default: command(k, mail); break;

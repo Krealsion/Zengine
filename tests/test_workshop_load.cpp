@@ -1102,7 +1102,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 7);
+    REQUIRE(p.artifacts.size() == 8);
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1111,6 +1111,15 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[4].stem == "zengine-timer");
     CHECK(p.artifacts[5].stem == "zengine-introspection");
     CHECK(p.artifacts[6].stem == "zengine-composer");
+    // ⭐ THE PROJECT BROWSER ARRIVES BY A PLAN ROW, like everything else. It was a built-in
+    // pane compiled into the host; it is a loaded weave in an office of its own now, and
+    // the ONLY thing that makes it present in a run is this line in an editable file. A
+    // maker who removes it gets a Workshop with no Files pane and no error, which is what
+    // "a pane arrives by a plan row" has always meant for every other tool.
+    CHECK(p.artifacts[7].stem == "zengine-files");
+    REQUIRE(p.artifacts[7].weave.has_value());
+    CHECK(p.artifacts[7].weave->role == "zengine.files");
+    CHECK_FALSE(p.artifacts[7].provider.has_value());
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row

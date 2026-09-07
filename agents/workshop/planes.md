@@ -13,7 +13,7 @@ MEANS
 - the Terminal overlay outranks panels for the pointer too, and by a wider rule.
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panels`, `band_region`;
-`workshop/screen_browser.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
+`workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
 `workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case `"WIND-2a: an
 overlapping pane is painted where it is hit, in both front orders"`, case `"the terminal overlay
 outranks panels for the pointer too, and by a wider rule"`; `tests/test_workshop_panes_seam.cpp`

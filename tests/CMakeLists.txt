@@ -720,6 +720,28 @@ target_include_directories(zengine-composer-tests PRIVATE
 
 zengine_doctest_test(composer zengine-composer-tests)
 
+# ---- The Files suite: the pure half, proved in the package that now owns it (files-weave) --
+#
+# The browser's listing, the maker's marks and their durable file are the same files the
+# built-in spent; this suite links them against `zengine-files-os` -- the two platform
+# bodies -- and NOT against `zengine-workshop-logic`, so a green is the structural proof that
+# the pure half is portable to the office it moved to. The weave's INTERACTION over the pane
+# protocol is proved through the real seam in `workshop_panes` once the plan loads it.
+add_executable(zengine-files-tests test_files.cpp doctest_main.cpp)
+target_link_libraries(zengine-files-tests
+    PRIVATE zengine-files-os zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-files-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+# ...AND TWO BUILD FILES, READ AS TEXT. "This image links no host target" is a claim about
+# the build graph, and the build graph is what these two files say -- so the suite reads
+# them rather than asserting a consequence that would still hold for a while after the
+# edge was added.
+target_compile_definitions(zengine-files-tests PRIVATE
+    "FILES_CMAKE=\"${CMAKE_SOURCE_DIR}/files/CMakeLists.txt\""
+    "WORKSHOP_CMAKE=\"${CMAKE_SOURCE_DIR}/workshop/CMakeLists.txt\"")
+
+zengine_doctest_test(files_weave zengine-files-tests)
+
 # ---- The Maker suite: a weave from a maker's definition (High-water) ---------------------
 #
 # What it asks: whether one Loom weave can be registered from DATA -- the state schema, the
@@ -888,6 +910,11 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/workshop\""
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
+    # ...AND THE PROJECT BROWSER, which is a loaded artifact now. It is in the SHARED
+    # definitions rather than one suite's because `PaneRig::artifact_path`
+    # (workshop_support.hpp) is what resolves a plan row's stem to a file, and that
+    # function is compiled into every suite that includes the rig.
+    "WORKSHOP_SO_FILES=\"$<TARGET_FILE:zengine-files>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -907,7 +934,7 @@ set(ZENGINE_WORKSHOP_DEFS
     # the provider ABI.
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
-    zengine-workshop-hello zengine-introspection
+    zengine-workshop-hello zengine-introspection zengine-files
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -1026,6 +1053,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_introspection.cpp
             test_workshop_panes_sampling.cpp
             test_workshop_panes_actions.cpp
+            test_workshop_panes_files.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

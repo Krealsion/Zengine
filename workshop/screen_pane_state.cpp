@@ -73,7 +73,6 @@ std::vector<std::string> panel_block(const char* label, const std::string& value
 void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                    const FineRect& b, const Screen& sc,
                    const ProjectFrontier& frontier,
-                   const std::string& catalog_moved_to,
                    std::int64_t chrome) {
     paint_panel_frame(layer, b, chrome);
     // THE PANEL IS ONE REGION AND ITS ROWS ARE COMPOSED AGAINST THE BUDGET. The
@@ -193,32 +192,6 @@ void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                                            std::to_string(held) + ")"),
                  surface::role::kFill, 3});
     }
-    // ---- WHICH AUTHORED CATALOG THIS SESSION MOVED TO, WHILE IT HAS -------------------
-    //
-    // THE ROW EXISTS EXACTLY WHILE THE FACT HAS MOVED, which is the `project` row's rule
-    // and is taken for the same reason: this panel is exactly full. Nine facts and nine
-    // rows of a character medium, measured -- so a tenth UNCONDITIONAL row would spend the
-    // third `said` row of every session, including every session that never changes a
-    // catalog, to restate what the host's own banner already said correctly at launch.
-    // What a replacement changes is that the banner STOPS being true, and that is the
-    // moment this row appears. It costs one `said` row while it holds (`shift`, below),
-    // and its priority puts it last, so a face whose budget seats five keeps the same five
-    // rows it seated before this phase.
-    //
-    // THE PATH IS ABSOLUTE, AND IT IS CUT BY THE MEASURER THAT KEEPS ITS TAIL. An earlier phase put
-    // a project-relative spelling here because the browser could not reach outside the
-    // project and an ordinary fit removes a path's filename -- the half that says which
-    // catalog this is. Free navigation removed the first half of that premise, so a based spelling
-    // with no stated base became a wrong-looking name for the right file, and the answer is
-    // the absolute path plus `detail::fit_path`: root cue, a mark where the middle was
-    // removed, and the tail intact. Nothing here reformats a path, shortens it to a
-    // basename, or widens the panel to hold one.
-    const bool moved_catalog = !catalog_moved_to.empty();
-    if (moved_catalog) {
-        facts.push_back(Fact{panel_field("catalog",
-                                         detail::fit_path(catalog_moved_to, columns - 9)),
-                             surface::role::kMuted, 10});
-    }
     // ---- WHAT THE PROJECT IS WAITING ON, WHILE IT IS ----------------------------------
     //
     // THE ROW EXISTS EXACTLY WHILE THE FRONTIER DOES, and it costs the third `said` row,
@@ -238,7 +211,7 @@ void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // the one edge the catalog allows. One producing recipe is named; several are counted
     // (`f` names them, and `c` shows each beside the artifact it makes); none is said
     // plainly, because a frontier this project cannot produce is a different problem.
-    const std::size_t shift = (frontier.waiting ? 1u : 0u) + (moved_catalog ? 1u : 0u);
+    const std::size_t shift = frontier.waiting ? 1u : 0u;
     if (frontier.waiting) {
         std::size_t makers = 0;
         const builder::RecipeSummary* maker = nullptr;
@@ -603,16 +576,15 @@ void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setu
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
 
-// WL-AUTH-01 -- agents/workshop/authoring.md
-void paint_recipe_chooser(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
-    const RecipeChooser& chooser = s.recipe_chooser;
+// WL-AUTH-02 -- agents/workshop/authoring.md
+void paint_authoring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
     const AuthoringPrompt& a = s.authoring;
-    if (!chooser.open && !a.open) {
+    if (!a.open) {
         return;
     }
-    // THE PICKER'S OWN BOX AND THE PICKER'S OWN PROSE PLACE: one mode's rectangle, spent
-    // by the mode that is open, and never both at once (the chooser closes before the
-    // prompt opens).
+    // THE PICKER'S OWN BOX AND PROSE PLACE: one mode's rectangle. It used to serve the
+    // recipe chooser too, until the browser became a weave and took its list and its line
+    // inside its own room; what is left is the role `builder.load` asks for.
     const FineRect b = picker_bounds(sc);
     paint_panel_frame(layer, b, kTransientChrome);
     const PanelProsePlace place = panel_prose_place(b, sc);
@@ -624,57 +596,25 @@ void paint_recipe_chooser(surface::SurfaceLayer& layer, const Session& s, const 
         region.rows.push_back(
             surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
-    if (a.open) {
-        // THE PROMPT IS THE HEADING, the pane creator's name prompt's shape: the words,
-        // then the line with its caret and selection where the face can show them.
-        const std::int64_t prompt = static_cast<std::int64_t>(a.prompt.size());
-        const std::int64_t cols = place.columns > prompt + 1 ? place.columns - prompt - 1 : 1;
-        const std::string shown = a.line.visible(cols);
-        const component::TextBox::VisibleSpan vis = a.line.visible_selection(cols);
-        const std::int64_t at = static_cast<std::int64_t>(a.line.caret_column());
-        region.caret_row = 0;
-        region.caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
-                                         ? at
-                                         : static_cast<std::int64_t>(shown.size()));
-        if (vis.present()) {
-            region.sel_begin_row = 0;
-            region.sel_begin_col = prompt + vis.begin;
-            region.sel_end_row = 0;
-            region.sel_end_col = prompt + vis.end;
-        }
-        say(a.prompt + shown, surface::role::kAccent);
-        if (a.for_role) {
-            say("  load " + a.stem + " -- the plan's row, written as authored",
-                surface::role::kMuted);
-        } else {
-            say(std::string("  ") + (a.chosen.tree ? "configured tree " : "source ") +
-                    a.chosen.name + " in " + a.dir,
-                surface::role::kMuted);
-            for (std::size_t i = 0; i < a.answers.size(); ++i) {
-                say("  " + std::to_string(i + 1) + ". " +
-                        (a.answers[i].empty() ? std::string("(none)") : a.answers[i]),
-                    surface::role::kFill);
-            }
-        }
-        layer.texts.push_back(std::move(region));
-        return;
+    // THE PROMPT IS THE HEADING, the pane creator's name prompt's shape: the words, then
+    // the line with its caret and selection where the face can show them.
+    const std::int64_t prompt = static_cast<std::int64_t>(a.prompt.size());
+    const std::int64_t cols = place.columns > prompt + 1 ? place.columns - prompt - 1 : 1;
+    const std::string shown = a.line.visible(cols);
+    const component::TextBox::VisibleSpan vis = a.line.visible_selection(cols);
+    const std::int64_t at = static_cast<std::int64_t>(a.line.caret_column());
+    region.caret_row = 0;
+    region.caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
+                                     ? at
+                                     : static_cast<std::int64_t>(shown.size()));
+    if (vis.present()) {
+        region.sel_begin_row = 0;
+        region.sel_begin_col = prompt + vis.begin;
+        region.sel_end_row = 0;
+        region.sel_end_col = prompt + vis.end;
     }
-    say("PICK BUILDABLE in " + chooser.dir, surface::role::kAccent);
-    const std::size_t budget = place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
-    const ListWindow win = list_window(chooser.candidates.size(), chooser.cursor, budget);
-    if (win.before > 0) {
-        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
-    }
-    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
-        const bool here = i == chooser.cursor;
-        const BuildCandidate& c = chooser.candidates[i];
-        say(std::string(here ? "> " : "  ") + c.name +
-                (c.tree ? "   configured CMake tree" : "   source file"),
-            here ? surface::role::kAccent : surface::role::kFill);
-    }
-    if (win.after > 0) {
-        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
-    }
+    say(a.prompt + shown, surface::role::kAccent);
+    say("  load " + a.stem + " -- the plan's row, written as authored", surface::role::kMuted);
     layer.texts.push_back(std::move(region));
 }
 

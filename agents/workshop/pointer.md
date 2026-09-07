@@ -67,11 +67,11 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 LAW — A reveal is bound to the item, not the row it is painted on, and eligibility is `rest != full`: a value that fits never moves, and a provider's shortened text is not recovered.
 
-PROVEN BY — `workshop/screen_browser.cpp` `reveal_at`, `reveal_for`;
+PROVEN BY — `workshop/screen_reveal.cpp` `reveal_at`, `reveal_for`;
 `workshop/screen_gestures.cpp` `detail::reveal_shown`; `workshop/screen.hpp` `RevealAt`,
 `Revealed::item`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row
-reads past its ellipsis, and nothing else"`; `tests/test_workshop_files.cpp` case `"WUX-7: a
-SCROLLED listing reveals the row it is showing, not the row it is at"`.
+reads past its ellipsis, and nothing else"`; `tests/test_workshop_screen.cpp` case `"WUX-7: a
+revealed row is a window over the same string, never a wider row"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-06 — The pointer's column is the offset
@@ -87,20 +87,22 @@ monotonically and totally"`, subcase `"the head is marked, and the furthest offs
 tail"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
-## WL-PTR-08 — The first consumer set is four rows
+## WL-PTR-08 — The consumer set is the Info panel's two rows, and no pane's
 
-LAW — The Files pane's location header and listed names, and the Info panel's object rows and resting property rows, reveal; a fifth is one `reveal_shown` call and one resolver arm.
+LAW — The Info panel's object rows and its resting property rows reveal; a third is one `reveal_shown` call and one resolver arm, and a LOADED pane has none of them.
+
+MEANS
+- it was four: the browser's location header and listed names revealed too, and left with it;
+- a pane's rows are values it sent, so nothing here laid them out and nothing can read past them.
 
 DOES NOT MEAN
 - that a live draft reveals — it is windowed against its own caret and is excluded;
 - that this is a registry — it must not become one.
 
 PROVEN BY — `workshop/screen.hpp` `reveal_place`, `RevealAt`; `workshop/screen_gestures.cpp`
-`detail::reveal_shown`; `workshop/screen_browser.cpp` `reveal_for`;
-`tests/test_workshop_files.cpp` case `"WUX-7: hovering the browser's location reads the path it
-could not show"`, case `"WUX-7: hovering a listed name reads the rest of it, and only that row"`;
-`tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row reads past its
-ellipsis, and nothing else"`.
+`detail::reveal_shown`; `workshop/screen_reveal.cpp` `reveal_for`;
+`docs/workshop/limitations.md` `reveal`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering
+a clipped object row reads past its ellipsis, and nothing else"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover

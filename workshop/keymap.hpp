@@ -32,20 +32,18 @@ enum class KeyContext : std::uint8_t {
     // WL-MAKER-11 -- agents/workshop/maker-pane.md
     kPaneNaming,
     kPicker,
-    /// THE RECIPE CHOOSER: a list with a cursor over what the browser's location can
-    /// build, the picker's shape one gesture over (PICK-1).
-    // WL-AUTH-01 -- agents/workshop/authoring.md
-    kRecipeChooser,
-    /// THE AUTHORING PROMPT: one line a maker types a recipe's field or a plan row's
-    /// role into (PICK-1, LOAD-IT).
-    // WL-AUTH-01, WL-AUTH-02 -- agents/workshop/authoring.md
+    /// THE AUTHORING PROMPT: one line a maker types a plan row's role into (LOAD-IT).
+    ///
+    /// IT USED TO SERVE TWO ASKERS. The Files pane's recipe fields were typed here too,
+    /// until the browser became a weave and took its own prompt inside its own room; what
+    /// is left is `builder.load`'s role, which is command mode's and stays here.
+    // WL-AUTH-02 -- agents/workshop/authoring.md
     kAuthoring,
     kAttention,
     kContext,
     kPane,
     kDraft,
     kEditor,
-    kFiles,
     kPaneEditor,
     kArrangePane,
     kArrangeDesk,
@@ -179,17 +177,6 @@ enum class Act : std::uint8_t {
     kEditorNewline,
     kEditorTab,
     kEditorDiscard,
-    // -- the project browser's controls ------------------------------------------------
-    kFilesUp,
-    kFilesDown,
-    kFilesOpen,
-    kFilesParent,
-    kFilesRefresh,
-    kFilesUseRecipes,
-    kFilesMark,
-    kFilesNextMark,
-    kFilesPreviousMark,
-    kFilesPickBuildable,
     // -- the Pane Editor's keys -------------------------------------------------------
     kPaneEditorUp,
     kPaneEditorDown,
@@ -217,11 +204,7 @@ enum class Act : std::uint8_t {
     kPickerDown,
     kPickerChoose,
     kPickerClose,
-    // -- the recipe chooser and the authoring prompt (PICK-1, LOAD-IT) ------------------
-    kRecipeUp,
-    kRecipeDown,
-    kRecipeChoose,
-    kRecipeClose,
+    // -- the authoring prompt (LOAD-IT) ------------------------------------------------
     kAuthoringCommit,
     kAuthoringCancel,
     // -- the current-condition view -----------------------------------------------------
@@ -504,65 +487,6 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kD, mod::kCtrl}},
     {Act::kEditorDiscard, "editor.discard", "discard source edits", KeyContext::kCommand,
      {scan::kD, mod::kCtrl}},
-    // -- the project browser's controls ------------------------------------------------
-    //
-    // NINE VERBS, ALL SAYABLE ON EVERY BACKEND THIS APPLICATION SHIPS. Up, Down, Return
-    // and Backspace are plain named keys the POSIX terminal wire carries as themselves,
-    // and `r` is a bare letter, which is legal here for the arrangement scopes' reason:
-    // nothing in this context takes text, so a letter cannot be swallowed by a buffer.
-    // There is deliberately no ctrl+shift+letter anywhere -- the POSIX wire cannot say
-    // one at all (measured), so binding one would ship a door a terminal maker
-    // could not open.
-    //
-    // BACKSPACE MEANS PARENT, AND THERE IS NO `..` ROW FOR IT TO PRESS. Going up is the
-    // lexical parent of where the browser is standing; at a filesystem root a path has no
-    // parent and the gesture says so. That is the only boundary left here, and it is the
-    // filesystem's rather than the project's.
-    //
-    // SIX AND THE SIXTH IS THE FIRST THING THIS BROWSER DOES THAT IS NOT
-    // ABOUT LOOKING. `u` is a bare letter for `r`'s reason exactly -- nothing in this
-    // context takes text -- and it is free in EVERY context this build declares, so no
-    // remap was needed to make room for it. It is a Files row rather than a contextual
-    // menu row because the contextual surface names three subject kinds (a pane, a
-    // document object, the room) and a browser ROW is none of them: minting a fourth
-    // subject to carry one action would widen a declaration protocol for a gesture the
-    // keymap already knows how to say.
-    {Act::kFilesUp, "files.up", "row up", KeyContext::kFiles, {scan::kUp, mod::kNone}},
-    {Act::kFilesDown, "files.down", "row down", KeyContext::kFiles, {scan::kDown, mod::kNone}},
-    {Act::kFilesOpen, "files.open", "enter or edit", KeyContext::kFiles,
-     {scan::kReturn, mod::kNone}},
-    {Act::kFilesParent, "files.parent", "up a directory", KeyContext::kFiles,
-     {scan::kBackspace, mod::kNone}},
-    {Act::kFilesRefresh, "files.refresh", "look again", KeyContext::kFiles,
-     {scan::kR, mod::kNone}},
-    {Act::kFilesUseRecipes, "files.use-recipes", "use as recipes", KeyContext::kFiles,
-     {scan::kU, mod::kNone}},
-    //...AND THREE MORE WHICH ARE ABOUT PLACES RATHER THAN ABOUT ROWS. Once
-    // the browser can leave the directory Workshop was launched in, "get me back there" and
-    // "get me back to the other one" are gestures a maker needs and had no way to ask for.
-    //
-    // `m` / `n` / `shift+n` ARE BARE LETTERS FOR `r`'s REASON EXACTLY: nothing in this
-    // context takes text, so a letter cannot be swallowed by a buffer, and all three are
-    // free in every context that intersects `kFiles` (the globals are chords, `kNoText`
-    // holds `^c`/`^a`, `kNoEditor` holds `^s`, and no other `kFiles` row spends them).
-    // The next/previous PAIR is `builder.recipe`/`builder.recipe-back`'s shape one context
-    // over -- a letter and its shifted self -- and shift on a LETTER is the one shifted form
-    // the POSIX wire carries (`posix_gap`), so neither ships inside a gap.
-    //
-    // THEY COME LAST because the band packs these in declaration order: the four navigation
-    // verbs are what a maker reaches for constantly, and a gesture used a few times a
-    // session must not displace one used a few times a minute.
-    {Act::kFilesMark, "files.mark", "mark this place", KeyContext::kFiles,
-     {scan::kM, mod::kNone}},
-    {Act::kFilesNextMark, "files.next-mark", "next mark", KeyContext::kFiles,
-     {scan::kN, mod::kNone}},
-    {Act::kFilesPreviousMark, "files.previous-mark", "previous mark", KeyContext::kFiles,
-     {scan::kN, mod::kShift}},
-    // PICK SOMETHING BUILDABLE (PICK-1): the browser hands over its location and its
-    // listing, the chooser enumerates once, and a choice authors ONE recipe row. `a` is a
-    // bare letter for `u`'s reason and free in every context that intersects `kFiles`.
-    {Act::kFilesPickBuildable, "files.pick-buildable", "pick buildable", KeyContext::kFiles,
-     {scan::kA, mod::kNone}},
     // -- the Terminal line's controls --------------------------------------------------
     // THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it
     // is on, in the Files pane's own shape. `up`/`down` step whichever list the keys are
@@ -628,17 +552,12 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kPickerClose, "picker.close", "cancel", KeyContext::kPicker,
      {scan::kEscape, mod::kNone}},
-    // -- the recipe chooser, the picker's four keys one context over (PICK-1) -----------
-    {Act::kRecipeUp, "recipe.up", "row up", KeyContext::kRecipeChooser,
-     {scan::kUp, mod::kNone}},
-    {Act::kRecipeDown, "recipe.down", "row down", KeyContext::kRecipeChooser,
-     {scan::kDown, mod::kNone}},
-    {Act::kRecipeChoose, "recipe.choose", "author a recipe for it", KeyContext::kRecipeChooser,
-     {scan::kReturn, mod::kNone}},
-    {Act::kRecipeClose, "recipe.close", "cancel", KeyContext::kRecipeChooser,
-     {scan::kEscape, mod::kNone}},
-    // -- the authoring prompt's own two keys (PICK-1, LOAD-IT) --------------------------
-    {Act::kAuthoringCommit, "authoring.commit", "next field", KeyContext::kAuthoring,
+    // -- the authoring prompt's own two keys (LOAD-IT) ----------------------------------
+    //
+    // ONE ASKER NOW. The prompt served the Files pane's recipe fields as well until the
+    // browser became a weave and took its own line inside its own room; what is left is the
+    // role `builder.load` asks for, so the commit label says what committing does.
+    {Act::kAuthoringCommit, "authoring.commit", "load it", KeyContext::kAuthoring,
      {scan::kReturn, mod::kNone}},
     {Act::kAuthoringCancel, "authoring.cancel", "cancel", KeyContext::kAuthoring,
      {scan::kEscape, mod::kNone}},

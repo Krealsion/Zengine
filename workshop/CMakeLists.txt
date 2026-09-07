@@ -24,9 +24,10 @@
 # templates their bodies reach were the rest, which is why partitioning the headers would
 # have changed nothing. So the bodies live in `workshop/screen_<subject>.cpp` and
 # `workshop/weave_<subject>.cpp`, grouped by the subject their section banners name, and
-# the two Win32 halves in files.cpp and filesystem_roots.cpp (so <windows.h> is in no
-# header under workshop/); the declarations stay where they were. A declaration costs a
-# translation unit nothing; a body costs it the body's closure.
+# the declarations stay where they were. A declaration costs a translation unit nothing; a
+# body costs it the body's closure. (Two Win32 halves used to be here as well, for the
+# project browser -- they left with it, and are compiled in `Zengine/files/os.cpp` now. No
+# header under workshop/ includes <windows.h>, which is what they were separated for.)
 #
 # It consumes two package vocabularies and the split between them is the W-1
 # result: `ui` owns what a maker AUTHORS and what a viewport MAKES of it;
@@ -153,12 +154,9 @@ target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabular
 # rerun of the applier, not an edit here. It sits outside the kernel gate below because it
 # is as portable as the vocabulary it compiles.
 add_library(zengine-workshop-logic STATIC
-    files.cpp
-    filesystem_roots.cpp
     screen_arrange.cpp
     screen_attention.cpp
     screen_bindings.cpp
-    screen_browser.cpp
     screen_chrome.cpp
     screen_compose.cpp
     screen_editor.cpp
@@ -169,6 +167,7 @@ add_library(zengine-workshop-logic STATIC
     screen_layouts.cpp
     screen_pane_editor.cpp
     screen_pane_state.cpp
+    screen_reveal.cpp
     screen_terminal.cpp
     weave_arrange.cpp
     weave_document.cpp
@@ -365,8 +364,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # for something during startup, by the session reader, about a file the maker wrote months
 # ago. It is staged beside the binary by the same rule as the rest, because "where do I find
 # the file" is a deployment question and does not care what the file turns out to be.
+#
+# `zengine-files` is the eighth, and it is the first entry here that was ONCE THIS HOST'S
+# OWN CODE. The project browser was a built-in pane compiled into `zengine-workshop`; it is
+# a loaded weave now, in an office of its own, and it arrives by the same plan row every
+# other tool arrives by. What makes it worth a line is that the host did not gain a
+# capability here -- it LOST one, and the list is where that shows: Workshop no longer
+# compiles a browser, mints no kind for it and learns its row from a live offer, exactly as
+# it learns the Compose pane's. The three things the browser used to read off `HostContext`
+# it now ASKS for, through offices this host holds doors in (`workshop/files_doors.hpp`).
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
-                               zengine-introspection zengine-composer
+                               zengine-introspection zengine-composer zengine-files
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)

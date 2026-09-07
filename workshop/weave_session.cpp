@@ -6,6 +6,7 @@
 // declarations, the constants and the constexpr functions stay in the header.
 // Workshop law: agents/workshop/layouts.md (+8 registers; agents/workshop.md routes)
 
+#include "pane_migration.hpp"
 #include "weave.hpp"
 
 namespace zengine::workshop {
@@ -30,13 +31,6 @@ void WorkshopWeave::apply_setup(loom::Mail& mail) {
         if (kind == panel::kBuilder) {
             (void)mail.send_to_role(zengine::builder::kBuilderRole,
                                     zengine::builder::StatusRequested{});
-        } else if (kind == panel::kProjectFiles) {
-            // A BROWSER THAT HAS JUST BECOME PRESENT LOOKS. This is the Builder's own
-            // arm one kind over -- a pane that opens asks its subject what is true now
-            // -- and it is where "the listing is a snapshot" becomes usable: reopening
-            // the pane is a maker's way of asking for a fresh one, and it costs the
-            // same walk as pressing refresh.
-            files_refresh();
         }
     }
 }
@@ -175,8 +169,13 @@ void WorkshopWeave::restore_setup(loom::Mail& mail) {
     session_.setup.active_link.path = path;
     adopt_known_setup(session_.setup, path, loaded.setup);
     apply_setup(mail);
+    // AND IF THIS FILE NAMED A PANE THAT CHANGED HANDS, IT SAYS SO -- here as well as on
+    // the session road, because a maker who explicitly restored a setup they wrote months
+    // ago is the maker most likely to go and look at the file afterwards.
     say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
-            unresolved_note(loaded.setup),
+            unresolved_note(loaded.setup) +
+            (loaded.converted > 0 ? "; " + pane_migration::converted_note()
+                                  : std::string()),
         false);
 }
 
@@ -446,6 +445,13 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
         // window did not; a maker is told which, with the value that was declined.
         said += "; " + last.declined;
+    }
+    // ...AND ONCE, IF A PANE IN IT CHANGED HANDS (`workshop/pane_migration.hpp`). The
+    // count is the whole run's, so a maker with eight desks that all held the browser is
+    // told once that it moved -- which is the fact -- rather than eight times, which is
+    // an implementation detail of where the reference was written.
+    if (last.converted > 0) {
+        said += "; " + pane_migration::converted_note();
     }
     say(said, !last.declined.empty());
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see

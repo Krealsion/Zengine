@@ -5,9 +5,9 @@
 #define ZENGINE_WORKSHOP_MARKS_HPP
 
 // PLACES A MAKER MAY WANT TO COME BACK TO.
-// Workshop law: agents/workshop/files.md
+// Files law: agents/files.md
 
-#include "path_admission.hpp"
+#include "workshop/path_admission.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -73,7 +73,7 @@ struct LocationMarks {
     std::vector<std::string> maker;
 
     /// DOES THIS RUN KNOW ANYWHERE AT ALL, without asking a platform?
-    // WL-FILES-06, WL-FILES-07 -- agents/workshop/files.md
+    // WL-FILES-06 -- agents/workshop/files.md
     bool somewhere_to_go() const { return !origin.empty() || !maker.empty(); }
 
     /// Is this exact location one of the maker's own marks?

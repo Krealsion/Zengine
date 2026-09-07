@@ -9,11 +9,11 @@ seam is the protocol's law, in [`../panes.md`](../panes.md).
 LAW — `Panels::keyboard` is the keyboard-taking pane the maker last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
-- `editor_has_keyboard`, `files_has_keyboard`, `pane_editor_has_keyboard` are the built-ins';
+- `editor_has_keyboard` and `pane_editor_has_keyboard` are the built-ins';
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;
-`workshop/screen_arrange.cpp` `editor_has_keyboard`, `files_has_keyboard`,
+`workshop/screen_arrange.cpp` `editor_has_keyboard`,
 `pane_editor_has_keyboard`; `workshop/weave_external.cpp` `keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external pane's room points
 the keyboard at it"`, case `"MSG-0: a press into a second external pane moves the keyboard to
@@ -25,14 +25,14 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — `PanelKind::takes_keyboard` is a fact about a kind on its catalog row; whether that pane can take keys at this instant is live state its own resolver answers, stored nowhere.
 
 MEANS
-- the Editor needs a document open and Project Files needs a listing;
-- Editor, Files and the Pane Manager carry the flag; nothing registered, no focus framework.
+- the Editor needs a document open; a loaded pane answers for itself and is always a candidate;
+- the Editor and the Pane Manager carry the flag; nothing registered, no focus framework.
 
 PROVEN BY — `workshop/panel.hpp` `PanelKind::takes_keyboard`, `kind_takes_keyboard`,
-`kPanelCatalog`; `workshop/screen_arrange.cpp` `editor_has_keyboard`, `files_has_keyboard`;
+`kPanelCatalog`; `workshop/screen_arrange.cpp` `editor_has_keyboard`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: an empty editor pane takes no keys and says how to
-fill itself"`; `tests/test_workshop_files.cpp` case `"EDIT-1: with no origin the pane refuses in
-words and guesses nothing"`.
+fill itself"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the pane lists the place
+this run began, asked of the host"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-03 — One reading decides both
@@ -40,24 +40,27 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — The pressed branch reads `selected = occupied ? kind : none`, then `keyboard = kind_takes_keyboard(selected) ? selected : none`; other built-ins clear the candidate and keep the selection.
 
 MEANS
-- the prior answer is read one line above, because Project Files' press rule needs it;
+- the prior answer is read one line above, because a pane's own press rule needs it;
 - putting the line in the routing arms would be four decisions about one fact.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `kind_takes_keyboard`, `on(PointerButton)`;
 `workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_info.cpp` `info_body_at`;
 `workshop/panel.hpp` `Panels::keyboard`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a
-press anywhere else takes the keyboard away again"`; `tests/test_workshop_files.cpp` case
-`"EDIT-1: the first press into a cold pane selects and never activates"`.
+press anywhere else takes the keyboard away again"`; `tests/test_workshop_panes_files.cpp` case
+`"FILES-WEAVE: a press selects, and a second press on the same row activates"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-04 — The press that points the keys is not an act in the pane
 
-LAW — Project Files activates a row on a press only when the pane already held the keyboard, so two presses from cold is the price of "no single press replaces what is open".
+LAW — A pane activates a row on a press only when it already held the keyboard, so two presses from cold is the price of "no single press replaces what is open".
 
-PROVEN BY — `workshop/weave_editor.cpp` `files_open`, `files_press`;
-`workshop/screen_arrange.cpp` `files_has_keyboard`; `tests/test_workshop_files.cpp` case `"EDIT-1:
-the first press into a cold pane selects and never activates"`, case `"EDIT-1: a press selects the
-row the paint put under the pointer"`.
+MEANS
+- the rule is the PANE's now: Workshop reports the press and the pane decides what it meant.
+
+PROVEN BY — `files/files.cpp` `open`, `had_keyboard_`;
+`tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: a press selects, and a second press on
+the same row activates"`, case `"FILES-WEAVE: the wheel moves the cursor, and a header press names
+no entry"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-05 — The candidate is never cleared and the target is never stored

@@ -533,6 +533,12 @@ add_subdirectory(builder)
 # READ. Only the second kind constrains the order.
 add_subdirectory(introspection)
 add_subdirectory(composer)
+# files before workshop for the composer's own reason: the Files weave links
+# zengine-workshop-vocabulary, which workshop/ defines further down, and a link to a
+# target defined later in the same project is resolved at GENERATE time. Its artifact is
+# staged beside the host and named in the boot plan, so it must be a TARGET by the time
+# workshop/CMakeLists.txt is read, exactly as introspection and composer are.
+add_subdirectory(files)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

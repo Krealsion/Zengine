@@ -12,10 +12,9 @@
 
 
 #include "persist.hpp"
-#include "filesystem_roots.hpp" // which roots this system reports, asked at the gesture
+#include "files_seam_vocabulary.hpp" // the doors the Files weave asks; this host answers one
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
-#include "marks_persist.hpp"    // the places a maker said they want back
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
 #include "prefs_persist.hpp"
 #include "screen.hpp"
@@ -153,10 +152,6 @@ struct HostContext {
     // WL-SESSION-01, WL-SESSION-04, WL-SESSION-13 -- agents/workshop/session.md
     std::string session_path;
 
-    /// The one file this Workshop's LOCATION MARKS live in.
-    // WL-FILES-08 -- agents/workshop/files.md; WL-SESSION-01 -- agents/workshop/session.md
-    std::string marks_path;
-
     /// The one file this Workshop's open PANE DEFINITION is read from and written to.
     // WL-MAKER-08 -- agents/workshop/maker-pane.md
     // WL-SESSION-01 -- agents/workshop/session.md
@@ -232,7 +227,8 @@ class WorkshopWeave
                                           zengine::builder::RecipeCatalog,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneActions,
-                                          zengine::workshop::PaneContent>,
+                                          zengine::workshop::PaneContent,
+                                          zengine::workshop::OpenSourceRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
@@ -248,7 +244,8 @@ class WorkshopWeave
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
                                         zengine::workshop::PaneWheel,
-                                        zengine::workshop::PaneActionRequested>> {
+                                        zengine::workshop::PaneActionRequested,
+                                        zengine::workshop::SourceOpened>> {
 public:
     explicit WorkshopWeave(HostContext& host);
 
@@ -460,6 +457,13 @@ public:
     /// now collide with keeps no rows, and the refusal is said once with the load's word.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void rejoin_pane_rows(std::string& refusals);
+
+    /// SOMEBODY ASKS THIS HOST TO OPEN A SOURCE IN THE EDITOR -- the one Editor door
+    /// (WL-EDIT-05) answered across the seam, so a pane that is no longer inside this
+    /// process can spend it. The path goes through `open_source` unchanged and the outcome
+    /// travels back as `SourceOpened`; an office is required, as the two host doors require
+    /// one (`files_doors.hpp`).
+    void on(const OpenSourceRequested& asked, loom::Mail& mail);
 
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
@@ -883,83 +887,13 @@ private:
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor();
 
-    // ---- The filesystem browser ----------------------------------------------
-
-    /// The directory the browser is showing. A FIELD READ: after the seed below, nothing
-    /// here derives a location from the project anchor, which is what makes browsing
-    /// structurally unable to move it.
-    std::string files_dir() const;
-
-    /// GENERATE THIS RUN'S ORIGIN AND READ ITS DURABLE MARKS -- once, at the moment
-    /// navigation first needs either.
-    void ensure_marks();
-
-    /// READ THE MAKER'S OWN PLACES, OR STAND ON NONE.
-    void load_marks();
-
-    /// WRITE THE MAKER'S PLACES BACK. Empty path = no persistence, silently, exactly as it
-    /// is for every other durable fact this weave holds.
-    void save_marks();
-
-    /// TAKE A FRESH LISTING OF WHERE THE MAKER IS STANDING.
-    void files_refresh();
-
-    /// A BUILD THIS SESSION WATCHED HAS FINISHED, so what is on disk may have changed --
-    /// take a fresh listing if the browser is open, and put the maker back where they
-    /// were.
-    void files_build_settled();
-
-    /// Put the cursor on a named row if this listing has one -- the ONE place a refresh
-    /// does not send it home, because going UP has an answer to the question "which row
-    /// did I come from" and landing at the top of a long directory would throw it away.
-    void files_point_at(const std::string& name);
-
-    /// MOVE THE CURSOR BY `by` ROWS, bounded at both ends. Bounded at USE, because the
-    /// listing under it is replaced wholesale by every refresh.
-    void files_move(std::int64_t by);
-
-    /// GO UP ONE LEXICAL DIRECTORY.
-    void files_parent();
-
-    /// Where the maker is, for a notice: the absolute location, which is the
-    /// only unambiguous answer -- a relative spelling would need a base, and the base a
-    /// browser used to have (the project) is exactly the thing it may now be nowhere near.
-    std::string files_where() const;
-
-    /// SAY WHERE THE MAKER NOW IS, and why this place is one they might have meant.
-    void files_say_where();
-
-    /// ACT ON THE ROW THE CURSOR IS ON -- enter a directory, or hand a file to the one
-    /// editor door.
-    void files_open(loom::Mail& mail);
-
-    /// MARK, OR UNMARK, THE LOCATION THE BROWSER IS SHOWING.
-    void files_mark();
-
-    /// GO TO THE NEXT (or previous) PLACE WORTH RETURNING TO.
-    void files_jump_mark(std::int64_t by);
-
-    /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG.
-    void files_use_recipes(loom::Mail& mail);
-
-    // ---- PICK SOMETHING BUILDABLE, AND LOAD IT (PICK-1, LOAD-IT) -- weave_recipes.cpp ---
-
-    /// THE GESTURE: enumerate what the browser's location can build, ONCE, and open the
-    /// chooser over it. Files hands over a place and its listing and judges nothing.
-    // WL-AUTH-01 -- agents/workshop/authoring.md; WL-FILES-15 -- agents/workshop/files.md
-    void files_pick_buildable(loom::Mail& mail);
-
-    /// The chooser's keys: up, down, choose, close.
-    void recipe_chooser_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// A CANDIDATE WAS CHOSEN: close the chooser and ask for the first typed field.
-    void recipe_choose(loom::Mail& mail);
+    // ---- LOAD IT: a built artifact gains its plan row (LOAD-IT) -- weave_recipes.cpp ---
 
     /// The authoring prompt's keys: the line's own vocabulary first, then commit or cancel.
     void authoring_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
-    /// ONE FIELD COMMITTED: refuse in the law's words and re-ask, ask the next, or -- on
-    /// the last -- hand the draft to the host and say what came of it.
+    /// THE ROLE COMMITTED: refuse an empty one in the plan's own words, else hand the row
+    /// to the host and say what the running project made of it.
     void authoring_commit(loom::Mail& mail);
 
     /// Close the prompt whole, so a later open cannot inherit a stale draft.
@@ -970,23 +904,9 @@ private:
     // WL-AUTH-02 -- agents/workshop/authoring.md
     void load_it(loom::Mail& mail);
 
-    /// THE BROWSER'S KEYS -- nine verbs, every one of them a keymap row, so a maker who
-    /// remapped them gets their own bindings here and on every help surface.
-    void files_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// THE WHEEL OVER THE BROWSER'S BODY MOVES THE CURSOR, and the window follows it.
-    void files_wheel(const zengine::input::PointerWheel& w, const Screen& sc,
-                     loom::Mail& mail);
-
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
     bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail);
-
-    /// A PRESS IN THE BROWSER'S BODY: the first press on a row SELECTS it, and a press on the
-    /// row that is already selected ACTIVATES it -- only in a pane that already held the keys,
-    /// so no single press can replace what is open. Double-click is not what this is.
-    void files_press(const zengine::input::PointerButton& b, bool had_keyboard,
-                     loom::Mail& mail);
 
     // ---- THE PANE EDITOR: a pane as a subject ------------------------------------------------
 
@@ -1069,12 +989,15 @@ private:
 
     /// THE ONE DOOR INTO THE EDITOR'S DOCUMENT -- a path in, this session's one open
     /// source out, and every referrer arrives through it.
-    void open_source(const std::string& requested, loom::Mail& mail);
+    /// Answers what opening came to, so the Editor's one door can be spent by a referrer
+    /// inside this process (which says the refusal on the notice line) and by one across
+    /// the seam (which hears it as `SourceOpened` and says it in its own row).
+    Written open_source(const std::string& requested, loom::Mail& mail);
 
     /// MAKE THE EDITOR PANE PRESENT AND SEATABLE, or refuse with the room named -- the
     /// picker's own trial-seat shape, so the edit-source door cannot author a pane the
     /// screen has no room to show and then pour a document into the invisible result.
-    bool ensure_editor_pane(loom::Mail& mail);
+    Written ensure_editor_pane(loom::Mail& mail);
 
     /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority.
     void save_source();
@@ -1313,16 +1236,11 @@ private:
     /// difference. A file that could not be admitted says nothing HERE -- that
     /// is a standing wall and it is a condition (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
-    bool marks_loaded_ = false;
     /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE, and whether
     /// that file was REFUSED.
     // WL-MAKER-09 -- agents/workshop/maker-pane.md
     bool pane_loaded_ = false;
     bool pane_refused_ = false;
-    /// A MARKS FILE THIS RUN COULD NOT UNDERSTAND, remembered so a later toggle cannot
-    /// write over it.
-    // WL-FILES-08 -- agents/workshop/files.md
-    bool marks_refused_ = false;
     std::string keymap_word_;
     bool keymap_bad_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
