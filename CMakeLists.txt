@@ -543,6 +543,10 @@ add_subdirectory(files)
 # zengine-workshop-vocabulary and zengine-builder-vocabulary, it is staged beside the host,
 # and the boot plan names its artifact -- so it must be a TARGET before workshop/ is read.
 add_subdirectory(builder-pane)
+# ...and the Attention pane, third and thinnest: it links zengine-workshop-vocabulary alone
+# among the package vocabularies, it is staged beside the host, and the boot plan names its
+# artifact -- so the same ordering rule puts it here.
+add_subdirectory(attention-pane)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

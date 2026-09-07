@@ -359,8 +359,15 @@ TEST_CASE("SEL-0: a pane with no room granted yet is told about no press") {
 TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's rows mean") {
     // THE AUTHORITY AUDIT, FROM THE BUS (INTR-0's discipline). What Workshop says across
     // a whole life -- discovery, a room, several presses on several different rows, a
-    // resize -- is exactly five shapes, and the one that carries a provider's material
+    // resize -- is exactly six shapes, and the one that carries a provider's material
     // travels in one direction only: Workshop never speaks a `PaneContent`.
+    //
+    // ⚠ THE SIXTH IS `StandingConditions`, AND ITS ARRIVAL IS WHAT THIS CASE IS FOR. The
+    // Attention pane's migration is the first thing since PR #15 to widen what this host
+    // says, and the widening is deliberate: what is currently true is a reading the pane
+    // that shows it cannot make (WL-ATTN-12). A case that had to be edited to admit it is
+    // the point of writing the list down -- the next sentence somebody adds by accident
+    // fails here too.
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};
@@ -388,7 +395,7 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
     const std::vector<std::string> allowed{"PaneCatalogRequested", "PanePressed", "PaneRoom",
-                                           "SurfaceCanvas", "SurfaceText"};
+                                           "StandingConditions", "SurfaceCanvas", "SurfaceText"};
     CHECK(distinct == allowed);
 
     // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three

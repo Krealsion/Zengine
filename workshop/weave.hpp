@@ -12,8 +12,9 @@
 
 
 #include "persist.hpp"
+#include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
-#include "pane_seam_vocabulary.hpp"  // the doors the Files weave asks; this host answers one
+#include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -241,6 +242,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneTextInput,
                                         zengine::workshop::PaneWheel,
                                         zengine::workshop::PaneActionRequested,
+                                        zengine::workshop::StandingConditions,
                                         zengine::workshop::SourceOpened>> {
 public:
     explicit WorkshopWeave(HostContext& host);
@@ -258,6 +260,20 @@ public:
 
     /// TAKE THE CONDITIONS THE HOST ALREADY KNEW.
     void take_host_conditions();
+
+    /// SAY WHAT IS TRUE RIGHT NOW, TO ANYONE PRESENTING IT -- but only when it CHANGED.
+    ///
+    /// ⚠ THE GATE IS WHAT MAKES THIS SEAM TERMINATE, and it is measured rather than
+    /// cautious: a pane that hears a publication says its rows, `on(PaneContent)` ends in a
+    /// repaint, and a repaint that published unconditionally would say it again. So the
+    /// comparison against the last utterance is not an optimisation -- without it there is
+    /// no quiet state in this process at all.
+    ///
+    /// WHAT IT REMEMBERS IS ITS OWN SPEECH, NOT THE TRUTH. Every condition is still derived
+    /// per repaint and held nowhere (WL-ATTN-03, WL-ATTN-04); `said_conditions_` is a record
+    /// of what this weave last said, which is the same thing `builder::BuildStatus`'s
+    /// publisher keeps for the same reason.
+    void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
@@ -1147,6 +1163,18 @@ private:
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool prefs_loaded_ = false;
     bool prefs_bad_ = false;
+
+    /// WHAT THIS WEAVE LAST SAID ABOUT WHAT IS TRUE, and whether it has said anything at
+    /// all. Not a cache of the conditions: it is this publisher's record of its own last
+    /// utterance, which is what makes the publication silent when nothing changed and is
+    /// what stops the pane seam looping (`say_conditions`).
+    // WL-ATTN-12 -- agents/workshop/attention.md
+    /// THE WIRE SHAPE AND NOT `Condition`, deliberately: what is compared has to be what
+    /// is SAID, and the sentence carries a resolved suggestion where the condition carries
+    /// an action id. Comparing the internal form would be comparing something this weave
+    /// never published.
+    std::vector<StandingCondition> said_conditions_;
+    bool conditions_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md

@@ -120,11 +120,35 @@ PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/weave_hand
 opens nothing"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-11 — The condition path touches neither the Recorder nor the Logger
+## WL-ATTN-11 — The condition path holds no timer, no callback and no history
 
-LAW — `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, so a condition has no wire form and cannot be observed, recorded, selected or persisted; displaying one implies no history.
+LAW — `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`; nothing in the path schedules, calls back, records or persists, and displaying a condition implies no history.
+
+MEANS
+- the wire form is the SEAM's; the internal type still crosses nothing;
+- an observer can see what the host says, and that grants nobody observation authority.
 
 PROVEN BY — `workshop/attention.hpp` `HeldConditions`; `tests/test_workshop_panels.cpp` case
 `"WUX-4: the condition path carries no timer, no callback and no history"`, case `"WUX-4:
 showing a condition writes no history"`.
+WHY — `agents/decisions/a-condition-has-a-lifetime.md`
+
+## WL-ATTN-12 — What is true right now crosses as a publication, and only when it changes
+
+LAW — The host says every current condition as `StandingConditions`, `to_any`, ranked, with the action resolved into words; it compares against its own last utterance and stays silent when they are equal.
+
+MEANS
+- silence is what makes it terminate: content ends in a repaint, so saying it always would loop;
+- what the host remembers is its own last utterance, never a second copy of the truth.
+
+DOES NOT MEAN
+- that a condition is addressed to anybody: which weave presents it is a load plan's answer.
+
+PROVEN BY — `workshop/attention_seam_vocabulary.hpp` `StandingCondition`,
+`StandingCondition::suggestion`, `StandingConditions`; `workshop/screen_attention.cpp`
+`standing_conditions`, `same_conditions`; `workshop/weave_run.cpp`
+`WorkshopWeave::say_conditions`; `workshop/weave.hpp` `WorkshopWeave::said_conditions_`,
+`WorkshopWeave::conditions_said_`; `tests/test_workshop_panels.cpp` case `"WUX-4: what is
+true is said across the seam, in the host's own order and words"`, case `"WUX-4: nothing new
+is nothing said, which is what stops the seam looping"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`

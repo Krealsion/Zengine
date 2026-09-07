@@ -1155,6 +1155,12 @@ int main(int argc, char** argv) {
     // `to_any` for `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the
     // weave that asked, and no rule written here at boot could name it.
     speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    // ...AND THE ONE THING THIS HOST NOW SAYS WITHOUT BEING ASKED: what is currently true
+    // and worth a maker's attention. `to_any` because the party that presents it is named by
+    // the load plan and not by this line -- a host that addressed the Attention pane's
+    // office would be a host with that pane compiled into it again. It carries prose a maker
+    // can already read off their own screen and commands nothing.
+    speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------
