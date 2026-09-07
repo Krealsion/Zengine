@@ -239,11 +239,21 @@ public:
     ///
     /// ⚠ THE OWNER MUST OUTLIVE THIS WEAVE, and an rvalue is refused below rather than
     /// left to a reader's care.
-    explicit BuilderWeave(const std::vector<RecipeView>& recipes) : recipes_(recipes) {}
+    /// ⚠ AND THE SECOND REFERENCE IS THE SAME OWNER'S OTHER HALF (RecipeCatalog v2).
+    /// `CurrentRecipes` holds the completed rows and the file they came from together
+    /// for one reason -- "the path moved and the recipes did not" is a state that owner
+    /// exists to make unspellable -- so this tool reads both from it and never keeps
+    /// either. A tool handed the rows and told the path once could answer with a stale
+    /// pairing after the host installed another catalog; reading both at the ask cannot.
+    BuilderWeave(const std::vector<RecipeView>& recipes, const std::string& source)
+        : recipes_(recipes), source_(&source) {}
 
     /// THE WALL UNDER THE SENTENCE ABOVE: a temporary catalog of views is a dangling
-    /// one, and the compiler is the only party that can say so in time.
-    explicit BuilderWeave(std::vector<RecipeView>&&) = delete;
+    /// one, and the compiler is the only party that can say so in time. Both halves
+    /// take it, because either one temporary is the same defect.
+    BuilderWeave(std::vector<RecipeView>&&, const std::string&) = delete;
+    BuilderWeave(const std::vector<RecipeView>&, std::string&&) = delete;
+    BuilderWeave(std::vector<RecipeView>&&, std::string&&) = delete;
 
     /// SAY WHAT YOU ARE. The message a presentation sends when it opens, so a
     /// fresh panel shows a LIVE tool rather than an empty one -- including what
@@ -267,6 +277,10 @@ public:
         for (const RecipeView& r : recipes_) {
             said.recipes.push_back(RecipeSummary{r.id, r.artifact});
         }
+        // WHERE THEY CAME FROM, READ AT THE ASK from the same owner the rows are read
+        // from, so a presentation can never be shown one catalog's rows under another
+        // catalog's name.
+        said.source = *source_;
         (void)mail.publish(std::move(said));
         say(mail);
     }
@@ -588,6 +602,12 @@ private:
     /// vector the host holds for the session, so replacing its CONTENTS replaces what
     /// this tool will answer for. Never state; see the constructor.
     const std::vector<RecipeView>& recipes_;
+
+    /// The authored file those views came from, from the same owner and on the same
+    /// terms -- read at the ask, never copied, never state. A pointer rather than a
+    /// reference only so the deleted rvalue constructors above can exist beside the
+    /// one that binds it.
+    const std::string* source_;
 
     /// The current operation's output so far, bounded.
     ///

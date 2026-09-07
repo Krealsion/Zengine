@@ -849,7 +849,8 @@ host_use_recipes(CurrentRecipes& owner, std::string host_dir, std::string projec
 /// the participant a live replacement has to reach, and it holds no catalog of its own --
 /// which is the whole reason a replacement can reach it at all.
 inline zengine::builder::BuilderWeave* mount_live_tool(Live& t, const CurrentRecipes& owner) {
-    auto seat = std::make_unique<zengine::builder::BuilderWeave>(owner.views());
+    auto seat =
+        std::make_unique<zengine::builder::BuilderWeave>(owner.views(), owner.source());
     zengine::builder::BuilderWeave* raw = seat.get();
     loom::Grant grant;
     grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
