@@ -4478,9 +4478,10 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
 }
 
 TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSIX wire is said") {
-    // BL-DEF-03. The POSIX terminal sends ctrl+letter as one control byte and Shift leaves
-    // no mark on it, so `ctrl+shift+g` and `ctrl+g` are one byte there -- a fact this file's
-    // prose stated in five places while `posix_gap` said nothing. Over the value first:
+    // THE GAP THE BACKLOG NAMED (its entry BL-DEF-03). The POSIX terminal sends ctrl+letter
+    // as one control byte and Shift leaves no mark on it, so `ctrl+shift+g` and `ctrl+g` are
+    // one byte there -- a fact the keymap's prose stated in five places while `posix_gap`
+    // said nothing. Over the value first:
     CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}) != nullptr);
     CHECK(std::string(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}))
               .find("collapses to plain ctrl+letter") != std::string::npos);
