@@ -70,14 +70,14 @@ LAW — Three declaration-only classes: global rows above every mode, no-text ro
 
 MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
-- `workshop.quit` (`^c`) and `workshop.attention` (`^a`) are `kNoText`;
+- `workshop.quit` (`^c`) is `kNoText`; it is the only row of that class left;
 - `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
 
 DOES NOT MEAN
 - that a pane's row is a fourth class: it meets the global and no-editor rows only (WL-KEY-15).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`, `workshop.attention`,
+`KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`,
 `document.save`, `editor.save`; `workshop/weave_handlers.cpp` `on(KeyPressed)`;
 `tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save or
 the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
@@ -158,11 +158,11 @@ MEANS
 - a list taller than the band keeps the band's height while the painter says what it cut.
 
 DOES NOT MEAN
-- that `attention_bounds` follows the selection — a condition is about the application.
+- that a popup's own bounds follow the selection wherever one is open — this one's do.
 
 PROVEN BY — `workshop/screen_hotkeys.cpp` `hotkeys_bounds`, `hotkeys_rows`, `paint_hotkeys`;
 `workshop/screen_pane_state.cpp` `popup_bounds_at`; `workshop/screen.hpp` `overlay_column`,
-`HotkeysView`, `attention_bounds`; `tests/test_workshop_screen.cpp` case `"WUX-5: contextual help
+`HotkeysView`; `tests/test_workshop_screen.cpp` case `"WUX-5: contextual help
 opens at the selected pane, and follows it"`, case `"QR-17/SC-1..3: the hotkey view is as tall as
 its rows and as wide as its longest"`, case `"QR-17/SC-4: a list the room cannot hold keeps the
 room and counts the cut"`.

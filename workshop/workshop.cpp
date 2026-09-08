@@ -7,7 +7,7 @@
 
 #include "arrangement.hpp"
 #include "authoring.hpp"
-#include "files_doors.hpp"
+#include "pane_doors.hpp"
 #include "host_sources.hpp"
 #include "sample_door.hpp"
 #include "load_execute.hpp"
@@ -349,7 +349,7 @@ int main(int argc, char** argv) {
     // THE PLACES FILE IS THE FILES TOOL'S OWN DURABLE ARTIFACT, and the host's part in it is
     // exactly this line: resolving where it lives. It is a LOCAL because the pane that owns
     // it is a weave now -- it learns the path by asking `zengine.project` (`ProjectDoor`,
-    // files_doors.hpp), not by reading a host field.
+    // pane_doors.hpp), not by reading a host field.
     const std::string marks_path = user_paths::resolve_durable_path(
         args.marks, args.isolated, state_root, kDefaultMarksFileName);
 
@@ -1023,10 +1023,16 @@ int main(int argc, char** argv) {
     // recipe becomes a command inside the runner, at the moment it is carried out --
     // which is what stopped Builder meaning one target baked in at configure time. What
     // this can still print, and does, is every recipe this project holds and the
-    // artifact each is expected to produce; what actually ran reaches the panel the way
+    // artifact each is expected to produce; what actually ran reaches the pane the way
     // it has from the participant that ran it, as it starts.
+    //
+    // ⚠ `p` OPENS THE PICKER, NOT THE PANEL, and this line said otherwise until now.
+    // The Builder panel was a built-in of this host and `p` put it on the screen; since
+    // the Builder became a weave (`Zengine/builder-pane/`) `p` opens the pane PICKER and
+    // the maker chooses the Builder from it, like every other pane. The first sentence a
+    // newcomer reads is not the place to be one migration out of date.
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
-                "panel)\n",
+                "pane picker)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
     std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                 std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
@@ -1149,6 +1155,12 @@ int main(int argc, char** argv) {
     // `to_any` for `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the
     // weave that asked, and no rule written here at boot could name it.
     speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    // ...AND THE ONE THING THIS HOST NOW SAYS WITHOUT BEING ASKED: what is currently true
+    // and worth a maker's attention. `to_any` because the party that presents it is named by
+    // the load plan and not by this line -- a host that addressed the Attention pane's
+    // office would be a host with that pane compiled into it again. It carries prose a maker
+    // can already read off their own screen and commands nothing.
+    speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------
@@ -1500,7 +1512,7 @@ int main(int argc, char** argv) {
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
-    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/files_doors.hpp) ---
+    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/pane_doors.hpp) ---
     //
     // The browser and the Builder are loaded weaves now, so the facts they used to read
     // off `HostContext` cross as values through offices instead. They are THREE doors and

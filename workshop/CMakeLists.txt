@@ -384,7 +384,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # capability here -- it LOST one, and the list is where that shows: Workshop no longer
 # compiles a browser, mints no kind for it and learns its row from a live offer, exactly as
 # it learns the Compose pane's. The three things the browser used to read off `HostContext`
-# it now ASKS for, through offices this host holds doors in (`workshop/files_doors.hpp`).
+# it now ASKS for, through offices this host holds doors in (`workshop/pane_doors.hpp`).
 #
 # `zengine-builder-pane` is the ninth, and it is the second entry that was once this host's
 # own code -- the Builder panel, its nine command-mode rows and its painter. What makes it
@@ -394,9 +394,18 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # recipe views, still orders builds through the runner; what became a weave is the seat a
 # maker sits in to spend it. A host that stages one and not the other has a build tool
 # nobody can reach.
+#
+# `zengine-attention-pane` is the tenth, and it is the third that was once this host's own
+# code -- and the first that was never a PANE at all. The current-condition view was CHROME:
+# an overlay opened by a global chord, in a keyboard context of Workshop's own, drawn into a
+# popup this host resolved for itself. What the migration found is that chrome and a pane
+# differ in where they are drawn and in nothing else that mattered here: every row of it was
+# already a value this host had worked out, and the one thing it needed was a way to be told
+# them. That is the one new sentence in the whole arc
+# (`workshop/attention_seam_vocabulary.hpp`), and it is why this line exists.
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
-                               zengine-builder-pane
+                               zengine-builder-pane zengine-attention-pane
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)

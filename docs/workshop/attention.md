@@ -32,29 +32,43 @@ which one arrived last, so the line does not re-shuffle itself when something un
 changes. When nothing deserves attention the line is **empty**, and the box is not drawn at
 all.
 
-## The view — `Ctrl`+`a`
+## The Attention pane
 
-`Ctrl`+`a` opens the full list: every condition that is currently true, in the words of
+The full list is a **pane**: open it from the picker (`p`), put it where you want it on the
+desk, and it stays there. It shows every condition that is currently true, in the words of
 whatever owns it, with the cursor on one of them.
 
 | key | does |
 |---|---|
 | `↑` `↓` | move the cursor |
 | `d` | hide the condition the cursor is on |
-| `Esc` or `Ctrl`+`a` | close |
+
+Its keys work **while the pane holds the keyboard** — press into it first, exactly as with
+every other pane. They are ordinary rows and you can move them in your
+[keymap file](hotkeys.md) under the names `attention.up`, `attention.down` and
+`attention.dismiss`.
 
 The row under the cursor also shows its owner's own explanation — the loader's refusal
 sentence, the reason a pane update did not fit, what the project is waiting on — and, where
 there is something you could do about it, the gesture that does it, spelled from your
-effective keymap. Reading a condition never performs anything: the view lists a gesture and
-you press it somewhere else.
+effective keymap. Reading a condition never performs anything: the pane shows you a gesture
+and you press it somewhere else.
 
-`Ctrl`+`a` works wherever nothing on screen is taking text, which is the same rule
-`Ctrl`+`c` follows. Inside the terminal line, a property draft, a setup name or a focused
-pane, `Ctrl`+`a` is the text field's own **select all** and stays that way.
+Putting the pane on your desk is always **your** gesture. Nothing Workshop discovers —
+however serious — opens a pane, steals the keyboard or interrupts what you were doing.
 
-Opening the view is always **your** gesture. Nothing Workshop discovers — however serious —
-opens a window, steals the keyboard or interrupts what you were doing.
+> **It used to be `Ctrl`+`a`.** The list was an overlay a chord opened from anywhere, and the
+> chord is gone: it is a pane now, chosen from the picker like the Files browser and the
+> Builder, arranged where you want it and readable at the same time as everything else. If
+> your keymap file moves `attention.close` or `workshop.attention`, those two rows no longer
+> name anything — the other three moved with the pane and still work. `Ctrl`+`a` is now the
+> **select all** of whatever text field has your keys, everywhere, with no exception to
+> remember.
+
+The compact indicator does not depend on the pane at all: it is there whether or not the pane
+is open, and it says what is **true** — so a condition you have hidden in the pane is still
+counted on the indicator. Hiding is a decision about what you are reading, not about what is
+the case.
 
 ## Hiding is not fixing
 
@@ -70,7 +84,8 @@ what is true:
   next thing you have not.
 
 Hiding lasts as long as the run. Nothing about it is written to a file, and a fresh Workshop
-starts by showing you everything that is true.
+starts by showing you everything that is true. A hidden condition that then stops being true
+takes your decision with it: if the same thing becomes true again later, you see it again.
 
 ## What makes a condition go away
 

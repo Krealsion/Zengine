@@ -84,7 +84,7 @@ MEANS
 - a dirty Editor buffer is neither consumed nor auto-saved; no Builder pane need be loaded;
 - a foreign catalog's relative `single_source` still names a file under the active project.
 
-PROVEN BY — `workshop/files_doors.hpp` `RecipesDoor`; `workshop/files_seam_vocabulary.hpp`
+PROVEN BY — `workshop/pane_doors.hpp` `RecipesDoor`; `workshop/pane_seam_vocabulary.hpp`
 `RecipeUseRequested`, `RecipeOutcome`; `workshop/weave.hpp` `HostContext::use_recipes`,
 `RecipeSwap`;
 `tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a catalog in Files and every
@@ -197,7 +197,7 @@ MEANS
 - there is no second build path, no direct load and no new sentence on the bus.
 
 PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`;
-`workshop/files_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
+`workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
 `ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
 `"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
 `"BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier"`, case

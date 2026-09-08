@@ -16,7 +16,7 @@ namespace zengine::workshop {
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
 void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                  const Screen& sc, const ProjectFrontier& frontier) {
+                  const Screen& sc) {
     const Panels& panels = s.panels;
     const std::int64_t lifted = selected_pane(panels);
     for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
@@ -71,15 +71,12 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_picker(layer, panels, s.setup.active, sc, s.keymap);
     });
-    // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
-    // covers, under the screen's own chrome. The band keeps speaking while it is open --
-    // what a maker is READING is what is currently true, and what the band SAYS is what
-    // just happened, and those are two different sentences that must not cover each other.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_attention(layer, s, sc, frontier);
-    });
-    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND: over the picker and the
-    // attention view, because it is the band's later, more deliberate gesture -- and it
+    // ⚠ THE CURRENT-CONDITION VIEW USED TO BE A PLANE HERE, in the picker's own place, over
+    // the panes it covered. It is a PANE now and is drawn where its setup row puts it, by
+    // the same walk that draws every other pane -- so what covers what is a maker's own
+    // arrangement rather than a decision this function makes for them.
+    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND: over the picker, because it is the
+    // band's later, more deliberate gesture -- and it
     // takes the band's keys first for the same reason (`keyboard_context`), so what is
     // frontmost and what answers agree.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
@@ -188,8 +185,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
 // WL-ATTN-04 -- agents/workshop/attention.md
 // WL-DOC-18 -- agents/workshop/document.md
 // WL-RGN-05 -- agents/workshop/regions.md
-surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
-                             const ProjectFrontier& frontier) {
+surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
     c.width = sc.w;
@@ -361,7 +357,7 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // furniture painted unconditionally here is now a panel like any other: present because a
     // fresh session opens it, absent the moment a maker removes it, and painted by whoever
     // owns that kind rather than by `paint`.
-    paint_panels(c, d, s, sc, frontier);
+    paint_panels(c, d, s, sc);
 
     // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which is a
     // budget-composed region rather than one label per cell row, and is ONE of

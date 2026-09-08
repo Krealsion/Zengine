@@ -140,7 +140,7 @@ aimed at that thing:
   (place / width / height), `remove`;
 - **a document object** — `delete`;
 - **the empty room** — Workshop's own doors: a new object, the picker, arrange desk, the
-  terminal, attention, the hotkey view, save / open, the setup gestures, reset order.
+  terminal, the hotkey view, save / open, the setup gestures, reset order.
 
 The menu is sized by what it has to say, and near a screen edge it shifts just enough to
 stay whole. Where a row's action has a working shortcut in the place you are returning to,
