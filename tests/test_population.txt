@@ -1193,6 +1193,48 @@ builder                           doctest           always  55
 # the new suite pins. A floor left at 217 would have been a number rather than a walk; a
 # claim that nothing was lost would have been false. What is lost is named here.
 #
+# ATTENTION AS A WEAVE moved TWO floors, and it is the first migration in this arc whose
+# subject was never a pane at all. The current-condition view was CHROME: an overlay a global
+# chord opened, in a keyboard context of Workshop's own, drawn into a popup in the picker's
+# plane. Nothing about it was in `kPanelCatalog`, no saved setup could name it, and its whole
+# state was a mode flag, a cursor and a set of hidden statements. So there was no conversion
+# to write and no built-in row to delete -- what left is a mode, a painter and five keymap
+# rows, and what arrived is a pane a maker can choose, arrange and press into.
+#
+#   workshop_panes  303 -> 314  the GESTURES, through the real seam:
+#                               `test_workshop_panes_attention.cpp` loads the real
+#                               `zengine-attention-pane` image from a real plan row and
+#                               drives the arrival, the three declared ids, the rows in
+#                               their owner's own words, the cursor, the dismissal and its
+#                               re-arming, the dismissal that does not outlive its subject,
+#                               VD-22's press-first rule, the action arriving as words, the
+#                               room's own bound, and the pane that arrives AFTER the host
+#                               last spoke and is told again. Ten cases, six of them the
+#                               built-in's own claims asked one seam out, four of them
+#                               claims that could not exist before -- including the two the
+#                               publication's silence rule created and one the whole-loop
+#                               witness found: a condition whose words carry a byte a canvas
+#                               cannot draw used to refuse this pane's whole publication, and
+#                               the mutation that removes the gate does not terminate.
+#   workshop_panels 185 -> 179  the view's own tiers, gone whole: what it drew, what its
+#                               four gestures did, and what its help surfaces said. Every
+#                               one of them is a claim about a PRESENTATION, and every one
+#                               is asked again above, at the seam. What STAYED is what this
+#                               host still owns -- the conditions it holds, the derivations,
+#                               the ranking, the compact chip and the two cases about the
+#                               sentence it now says across the seam.
+#
+# THE NET IS UP 5 CASES, and the five are new claims rather than moved ones. A floor left at
+# 185 would have hidden six deletions behind eleven additions.
+#
+# THE ATTENTION SEAM raised ONE floor -- workshop_panels 183 -> 185 -- and the two cases are
+# the arc's one new sentence and the silence beside it. The host says every current condition
+# as a value, ranked, with the action resolved into the words a maker reads; and it says
+# nothing when nothing changed, which is not an optimisation but the only thing that gives
+# this seam a quiet state (a pane's content ends in a repaint). Both cases name the mutation
+# that reddens them. Nothing was deleted; the built-in's own tiers are still here and leave
+# with it in the commit that retires it.
+#
 # A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT raised ONE floor -- workshop_panes
 # 301 -> 303 -- and the two cases are the LIFETIME the Builder's migration found and the ROOM
 # that lifetime needs. The project browser cleared its notice inside `say`, which is a
@@ -1204,8 +1246,8 @@ builder                           doctest           always  55
 #
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  183
-workshop_panes                    doctest           always  303
+workshop_panels                   doctest           always  179
+workshop_panes                    doctest           always  314
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65

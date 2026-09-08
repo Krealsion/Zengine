@@ -7858,7 +7858,7 @@ TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings"
     CHECK(context_annotation(t.session(), entry_of("workshop.picker")) == "p");
     CHECK(context_annotation(t.session(), entry_of("workshop.manage")) == "w");
     CHECK(context_annotation(t.session(), entry_of("workshop.terminal")) == "^t");
-    CHECK(context_annotation(t.session(), entry_of("workshop.attention")) == "^a");
+    CHECK(context_annotation(t.session(), entry_of("workshop.hotkeys")) == "^k");
     CHECK(context_annotation(t.session(), entry_of("manage.reset-order")).empty());
 
     // ...AND THE PAINTED ROW CARRIES THE GESTURE AT THE LEVEL'S ANNOTATION COLUMN,
@@ -8257,8 +8257,10 @@ TEST_CASE("WUX-5: contextual help opens at the selected pane, and follows it") {
     CHECK(clamped.w == global.w);
     CHECK(clamped.h == global.h);
 
-    // THE ATTENTION VIEW DID NOT FOLLOW IT. Its subject is the application, not a pane.
-    CHECK(attention_bounds(screen_of(t.session())) == overlay_column(screen_of(t.session())));
+    // (THE ATTENTION VIEW USED TO BE MEASURED HERE TOO, because it was an overlay in this
+    // same column and the question "did it follow the anchor" was a real one. It is a pane
+    // now and is placed by the setup like any other, so there is no second box left in this
+    // family to compare against.)
 }
 
 // ============================================================================
@@ -8347,25 +8349,30 @@ TEST_CASE("QR-17/SC-1..3: the hotkey view is as tall as its rows and as wide as 
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().hotkeys.open);
 
-    // A SMALLER POPULATION IS A SMALLER VIEW, in both dimensions: the attention view's own
-    // keys are a fraction of command mode's, and the view over it is measured the same way.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kAttention);
+    // A SMALLER POPULATION IS A SMALLER VIEW, in both dimensions: the picker's own keys
+    // are a fraction of command mode's, and the view over it is measured the same way.
+    //
+    // (⚠ THIS USED TO MEASURE THE ATTENTION VIEW'S CONTEXT, which had four rows and was the
+    // smallest mode in the application. That context retired with the overlay -- the view
+    // is a pane, and a pane's rows are the PANE's context -- so the claim is asked of the
+    // picker, which is the smallest host context left and is measured the same way.)
+    t.key(input::scan::kP);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPicker);
     t.key(input::scan::kK, input::mod::kCtrl);
-    const ui::Rect attention = measured("what needs attention");
-    CHECK(attention.h < command.h);
-    CHECK(attention.w < command.w);
+    const ui::Rect picker = measured("the + panel picker");
+    CHECK(picker.h < command.h);
+    CHECK(picker.w < command.w);
     // ...AND NEITHER IS THE PREDECESSOR'S BOX: narrower than the column and shorter than
     // the room, both of them.
     const ui::Rect column = cells_covered(overlay_column(screen_of(t.session())));
     CHECK(command.w < column.w);
     CHECK(command.h < column.h);
-    CHECK(attention.w < column.w);
-    CHECK(attention.h < column.h);
+    CHECK(picker.w < column.w);
+    CHECK(picker.h < column.h);
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().hotkeys.open);
     t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.session().attention.open);
+    REQUIRE_FALSE(t.session().panels.picker.open);
 
     // ON THE SHIPPED FACE THE SAME ROWS RESOLVE THROUGH THE SAME MEASURER, in type. The
     // rectangle is whole cells on every face (`chrome_outer_of` reserves the coarsest

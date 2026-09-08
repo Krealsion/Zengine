@@ -36,7 +36,10 @@ enum class KeyContext : std::uint8_t {
     // role into, for two askers in turn -- the Files pane's recipe fields, then
     // `builder.load`'s role -- and both of those panes are weaves now, each with its own
     // line inside its own room. A context with no asker is a mode nothing can enter.
-    kAttention,
+    //
+    // AND SO IS THE CURRENT-CONDITION VIEW'S. It sat here, in the picker's own place, and
+    // owned the keyboard while it was open; the view is a PANE now and takes the keys the
+    // way every pane does, under `kPane`, because a maker pressed into it.
     kContext,
     kPane,
     kDraft,
@@ -129,7 +132,11 @@ enum class Act : std::uint8_t {
     kOpenDocument,
     kTerminalToggle,
     kHotkeys,
-    kAttention,
+    // ⚠ `kAttention` WAS HERE, ABOVE EVERY MODE -- the chord that opened the
+    // current-condition view from anywhere. The view is a pane and is opened from the
+    // picker; a global that put one particular pane on the screen is exactly the
+    // host-mapped route VD-22 refuses, so it retired with the overlay rather than being
+    // re-pointed at a weave.
     // -- command mode ------------------------------------------------------------------
     kObjectNew,
     kObjectDelete,
@@ -193,11 +200,10 @@ enum class Act : std::uint8_t {
     kPickerChoose,
     kPickerClose,
     // -- the authoring prompt (LOAD-IT) ------------------------------------------------
-    // -- the current-condition view -----------------------------------------------------
-    kAttentionUp,
-    kAttentionDown,
-    kAttentionDismiss,
-    kAttentionClose,
+    // THE CURRENT-CONDITION VIEW'S FOUR ARE GONE. Three of them are the Attention pane's
+    // own declared rows now, under the same ids (`attention-pane/vocabulary.hpp`), so a
+    // maker's authored override still finds them; the fourth closed the overlay and a pane
+    // has nothing to close.
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
     kNamingCancel,
@@ -294,8 +300,6 @@ inline constexpr ActionRow kActionCatalog[] = {
     // maker is reading their own words rather than the tool's.
     //
     // `0x01` on every supported backend (input/translate.hpp), and no `posix_gap`.
-    {Act::kAttention, "workshop.attention", "attention", KeyContext::kNoText,
-     {scan::kA, mod::kCtrl}},
     // -- command mode ------------------------------------------------------------------
     {Act::kObjectNew, "object.new", "new", KeyContext::kCommand, {scan::kN, mod::kNone}},
     {Act::kObjectDelete, "object.delete", "delete", KeyContext::kCommand,
@@ -521,21 +525,12 @@ inline constexpr ActionRow kActionCatalog[] = {
     // of Workshop's own -- and it served the Files pane too until that browser took its own
     // line inside its own room. The Builder pane did the same, so the last asker is gone and
     // the context with it.
-    // -- the current-condition view's own keys ------------------------------------------
-    //
-    // The picker's four, one purpose over. `d` rather than Return for the one gesture that
-    // ACTS on a row, because Return in every other list here opens or commits and this one
-    // does neither: it HIDES a presentation and changes nothing about what is true. A bare
-    // letter is legal in a mode nothing in which takes text, exactly as the arrangement
-    // scopes' are.
-    {Act::kAttentionUp, "attention.up", "row up", KeyContext::kAttention,
-     {scan::kUp, mod::kNone}},
-    {Act::kAttentionDown, "attention.down", "row down", KeyContext::kAttention,
-     {scan::kDown, mod::kNone}},
-    {Act::kAttentionDismiss, "attention.dismiss", "hide this one", KeyContext::kAttention,
-     {scan::kD, mod::kNone}},
-    {Act::kAttentionClose, "attention.close", "close", KeyContext::kAttention,
-     {scan::kEscape, mod::kNone}},
+    // THE CURRENT-CONDITION VIEW'S FOUR KEYS LEFT WITH ITS CONTEXT. Three are declared by
+    // the Attention pane under the ids and the defaults they had here -- Up, Down and `d`,
+    // spelled `attention.up`, `attention.down`, `attention.dismiss` -- so a maker who moved
+    // one keeps it moved. `attention.close` and the `ctrl+a` that opened the overlay retired
+    // rather than moving: a pane is removed from the desk through the picker, and nothing
+    // opens one particular pane from anywhere (VD-22).
     // -- the layout-name editor's controls ---------------------------------------------
     //
     // THE IDENTITIES ARE THE OLD ONES AND THE MEANING NARROWED: this editor

@@ -10,7 +10,7 @@
 // already names an artifact, and the source file a recipe was authored from -- plus the one
 // act it used to perform through a host closure -- appending a plan row -- cannot cross into
 // a loaded image as anything but values. So each becomes an ask to an OFFICE and an answer
-// back, `files_seam_vocabulary.hpp`'s seam with a second tenant.
+// back, `pane_seam_vocabulary.hpp`'s seam with a second tenant.
 //
 // ---- THREE OFFICES, THE SAME SPLIT --------------------------------------------
 //
@@ -20,7 +20,7 @@
 //     zengine.workshop   ACTS         RecipeSourceRequested    -> SourceOpened
 //
 // ⚠ THE TWO PLAN QUESTIONS ARE AT TWO OFFICES ON PURPOSE, and the line is
-// `files_seam_vocabulary.hpp`'s own: a question whose answer runs nobody's code lives apart
+// `pane_seam_vocabulary.hpp`'s own: a question whose answer runs nobody's code lives apart
 // from one whose whole purpose is to change the project on disk. "Does the plan already name
 // `zengine-snake`?" reads a vector the host already holds; "append this row" composes a plan
 // row, hands it to the running project, and saves a file. Putting them at one address would
@@ -58,7 +58,7 @@
 // door, and a second answer shape for the same act would make "did it open" a question with
 // two grammars. So this header includes that one and adds what is new, which is what makes
 // the two seams one seam with two tenants rather than two seams that happen to agree.
-#include "files_seam_vocabulary.hpp"
+#include "pane_seam_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 

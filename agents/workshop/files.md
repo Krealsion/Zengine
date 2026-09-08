@@ -113,7 +113,7 @@ MEANS
 - WHERE the file lives is the host's answer; the file is the pane's.
 
 PROVEN BY — `files/marks_persist.hpp` `kFormatVersion`, `from_text`, `WorkshopMark`;
-`workshop/files_seam_vocabulary.hpp` `kDefaultMarksFileName`; `files/files.cpp` `load_marks`,
+`workshop/pane_seam_vocabulary.hpp` `kDefaultMarksFileName`; `files/files.cpp` `load_marks`,
 `save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"PROJ-2: a persisted mark is
 admitted, never re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
 case `"FILES-WEAVE: a marked place is the pane's own file, written by the pane"`.
@@ -202,7 +202,7 @@ MEANS
 - what a maker types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
-`chooser_choose`, `authoring_commit`; `workshop/files_seam_vocabulary.hpp`
+`chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
 `RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: a maker
 authors a recipe row in-pane, and the host writes it"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
@@ -231,9 +231,9 @@ MEANS
 - a door answers an OFFICE, refuses speech with no author, and answers the asker alone;
 - knowledge is not authority: hearing where the project is permits reading nothing under it.
 
-PROVEN BY — `workshop/files_seam_vocabulary.hpp` `ProjectRootRequested`, `ProjectRoot`,
+PROVEN BY — `workshop/pane_seam_vocabulary.hpp` `ProjectRootRequested`, `ProjectRoot`,
 `RecipeUseRequested`, `RecipeAuthorRequested`, `RecipeOutcome`, `OpenSourceRequested`,
-`SourceOpened`; `workshop/files_doors.hpp` `ProjectDoor`, `RecipesDoor`;
+`SourceOpened`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
 `workshop/weave_pane_editor.cpp` `open_source`; `tests/test_workshop_files.cpp` case
 `"PANE-DOOR: the project door answers the weave that asked, and nobody else"`, case `"PANE-DOOR:
 a door answers an office, and refuses speech with no author"`, case `"PANE-DOOR: the recipes

@@ -919,6 +919,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # artifact, and the stem in a plan row is resolved to a file by a function compiled into
     # every suite that includes the rig.
     "WORKSHOP_SO_BUILDER_PANE=\"$<TARGET_FILE:zengine-builder-pane>\""
+    # ...AND THE ATTENTION PANE, the third on the same terms. It is the first of the three
+    # that was never a built-in PANE -- it was chrome -- but a loaded artifact is a loaded
+    # artifact and the rig resolves every stem the same way.
+    "WORKSHOP_SO_ATTENTION_PANE=\"$<TARGET_FILE:zengine-attention-pane>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -939,6 +943,7 @@ set(ZENGINE_WORKSHOP_DEFS
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
+    zengine-attention-pane
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -1059,6 +1064,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_actions.cpp
             test_workshop_panes_files.cpp
             test_workshop_panes_builder.cpp
+            test_workshop_panes_attention.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

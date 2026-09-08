@@ -4246,15 +4246,13 @@ TEST_CASE("WUX-4: a healthy Workshop says nothing on the attention slot at all")
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.conditions().empty());
     CHECK(t.attention_note().empty()); // EMPTY IS THE RETRACTION, and it is also the floor
-    // ...and the view is still reachable, because "is anything wrong?" is a question a
-    // maker is entitled to ask when the answer is no.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(t.session().attention.open);
-    CHECK(stack_text(t.canvases.back()).find("nothing needs your attention") !=
-          std::string::npos);
-    CHECK(keyboard_context(t.session()) == KeyContext::kAttention);
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().attention.open);
+    // ...AND THE ANSWER IS STILL SAID OUT LOUD. "Is anything wrong?" is a question a maker
+    // is entitled to ask when the answer is no, and the empty chip is not an answer -- so
+    // the seam carries one publication with no rows in it, which is what the pane turns
+    // into `nothing needs your attention right now`. The view that used to say it here is
+    // a weave now (`tests/test_workshop_panes_attention.cpp`).
+    REQUIRE_FALSE(t.said_conditions.empty());
+    CHECK(t.said_conditions.back().rows.empty());
 }
 
 TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
@@ -4267,7 +4265,7 @@ TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
                                      surface::role::kAlert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
-    CHECK(attention_compact(attention_shown(s)) == "a wall");
+    CHECK(attention_compact(attention_conditions(s)) == "a wall");
 
     // AN UPDATE UNDER THE SAME KEY IS ONE CONDITION, not a second row.
     s.conditions.establish(Condition{"test.wall", "the same wall", "a better reason",
@@ -4278,7 +4276,7 @@ TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
     // AND IT GOES BECAUSE ITS OWNER SAID SO, by name.
     s.conditions.retract("test.wall");
     CHECK(attention_conditions(s).empty());
-    CHECK(attention_compact(attention_shown(s)).empty());
+    CHECK(attention_compact(attention_conditions(s)).empty());
     // Retracting what was never established is silence rather than an error.
     s.conditions.retract("test.wall");
     CHECK(attention_conditions(s).empty());
@@ -4378,103 +4376,6 @@ TEST_CASE("WUX-4: the project frontier is a condition while it waits and nothing
     CHECK(t.attention_note().empty());
 }
 
-TEST_CASE("WUX-4: dismissal hides a presentation and changes nothing that is true") {
-    // FALSIFIER 2 -- a dismissal that mutates truth. The condition is a standing wall
-    // whose owner is a file on disk, so "did anything change" has an answer outside this
-    // process: the file is still refused and is still not overwritten.
-    TempDir dir("wux4-dismiss");
-    const std::string prefs = dir.file("workshop-prefs.json");
-    spillout(prefs, "{ not a prefs file");
-    Live t;
-    t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    REQUIRE(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
-    REQUIRE_FALSE(t.attention_note().empty());
-
-    // OPEN, AND HIDE THE ONE THE CURSOR IS ON.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(t.session().attention.open);
-    t.key(input::scan::kD);
-    CHECK(t.session().attention.dismissed.size() == 1);
-
-    // THE PRESENTATION IS GONE...
-    CHECK(attention_shown(t.session()).empty());
-    CHECK(t.attention_note().empty());
-    // ...AND THE TRUTH IS NOT. The condition is still returned by the projection, its
-    // owner still holds it, and the wall it describes is still standing: a toggle changes
-    // the live preference and still writes nothing.
-    CHECK(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
-    CHECK(t.session().conditions.holds(kPrefsWallKey));
-    t.key(input::scan::kEscape);
-    t.key(input::scan::kT);
-    t.text("t");
-    CHECK_FALSE(t.session().pane_titles);
-    CHECK(t.notice().find("will not be overwritten") != std::string::npos);
-    CHECK(slurp(prefs) == "{ not a prefs file");
-}
-
-TEST_CASE("WUX-4: a dismissed condition comes back when it materially changes") {
-    // FALSIFIER 3 -- a dismissal that never re-arms. The dismissal is scoped to the
-    // STATEMENT and not to the key alone, which is the Terminal completion's
-    // `dismissed_at` rule one layer out.
-    Session s;
-    s.conditions.establish(Condition{"test.wall", "a wall", "the first reason",
-                                     surface::role::kAlert, std::string()});
-    const std::vector<Condition> before = attention_conditions(s);
-    REQUIRE(before.size() == 1);
-    s.attention.dismiss(before.front());
-    CHECK(attention_shown(s).empty());
-
-    // THE SAME STATEMENT, SAID AGAIN, IS STILL HIDDEN -- a dismissal a repaint undid
-    // would be a gesture with no effect.
-    s.conditions.establish(Condition{"test.wall", "a wall", "the first reason",
-                                     surface::role::kAlert, std::string()});
-    CHECK(attention_shown(s).empty());
-
-    // A MATERIALLY DIFFERENT STATEMENT UNDER THE SAME KEY IS VISIBLE AGAIN, with nobody
-    // clearing anything, and each field of the statement is enough on its own.
-    const Condition moved[] = {
-        Condition{"test.wall", "a WIDER wall", "the first reason", surface::role::kAlert,
-                  std::string()},
-        Condition{"test.wall", "a wall", "a WORSE reason", surface::role::kAlert,
-                  std::string()},
-        Condition{"test.wall", "a wall", "the first reason", surface::role::kAccent,
-                  std::string()},
-        Condition{"test.wall", "a wall", "the first reason", surface::role::kAlert,
-                  "workshop.manage"}};
-    for (const Condition& changed : moved) {
-        Session moved_session = s;
-        moved_session.conditions.establish(changed);
-        CHECK(attention_shown(moved_session).size() == 1);
-    }
-}
-
-TEST_CASE("WUX-4: dismiss is not resolve, resolve is not dismiss") {
-    // The two halves pinned SEPARATELY, because they are two different mistakes.
-    Session s;
-    s.conditions.establish(Condition{"test.wall", "a wall", "why", surface::role::kAlert,
-                                     std::string()});
-
-    // DISMISS != RESOLVE: hiding leaves the condition true and its owner untouched.
-    s.attention.dismiss(attention_conditions(s).front());
-    CHECK(attention_shown(s).empty());
-    CHECK(attention_conditions(s).size() == 1);
-    CHECK(s.conditions.holds("test.wall"));
-
-    // RESOLVE != DISMISS: retracting removes the condition itself, and the dismissal
-    // that outlived it is simply irrelevant -- there is nothing for it to hide.
-    s.conditions.retract("test.wall");
-    CHECK(attention_conditions(s).empty());
-    CHECK(attention_shown(s).empty());
-    CHECK_FALSE(s.attention.dismissed.empty()); // held, and about nothing
-
-    // ...and a condition that becomes true again under the same key with the same
-    // statement is still hidden, which is the honest reading of what the maker said.
-    s.conditions.establish(Condition{"test.wall", "a wall", "why", surface::role::kAlert,
-                                     std::string()});
-    CHECK(attention_shown(s).empty());
-}
-
 TEST_CASE("WUX-4: event sentences stay events, and a condition needs no sentence") {
     // FALSIFIER 5 -- event/condition conflation, in both directions.
     TempDir dir("wux4-events");
@@ -4519,7 +4420,6 @@ TEST_CASE("WUX-4: an alert condition opens nothing") {
     for (int beat = 0; beat < 4; ++beat) {
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.key(input::scan::kTab);
-        CHECK_FALSE(t.session().attention.open);
         CHECK_FALSE(t.session().hotkeys.open);
         CHECK_FALSE(t.session().panels.picker.open);
         CHECK_FALSE(t.session().terminal.open);
@@ -4557,46 +4457,62 @@ TEST_CASE("WUX-4: showing a condition writes no history") {
     CHECK(journal.counters().diagnostics == 0);
     CHECK(journal.counters().appended == 0);
 
-    // AND NO SHAPE OF ITS OWN. A condition is a value on the session; it has no wire
-    // form, so it cannot be observed, recorded, selected, or retained -- and the
-    // recorder's per-shape tally is where that would show up if it ever gained one.
+    // AND EXACTLY ONE SHAPE, WHICH IS THE SEAM'S (WL-ATTN-11, WL-ATTN-12). The internal
+    // `Condition` is still a value on the session with no wire form; what a Recorder in this
+    // process can see is the SENTENCE the host says about what is true, and it can see it
+    // because saying it is the whole point. This half of the case used to assert that
+    // nothing condition-shaped reached the bus at all, and the Attention pane's migration
+    // made that false rather than weaker: the claim is now that the seam's shape is the ONLY
+    // one, so nothing has quietly gained a second wire form beside it.
+    std::size_t said = 0;
     for (const loom::ShapeTally& tally : history.tallies()) {
+        if (tally.shape == StandingConditions::zen_name) {
+            ++said;
+            continue;
+        }
         CHECK_MESSAGE(tally.shape.find("ondition") == std::string::npos,
                       "a condition reached the bus as shape ", tally.shape);
         CHECK_MESSAGE(tally.shape.find("ttention") == std::string::npos,
                       "attention reached the bus as shape ", tally.shape);
     }
+    CHECK(said == 1); // the seam's own, and nothing else wearing the word
 }
 
-TEST_CASE("WUX-4: a condition names an action and cannot execute one") {
+TEST_CASE("WUX-4: a condition names an action and what crosses is the maker's own gesture") {
     // FALSIFIER 8 -- a displayed action gaining authority. The condition holds an
-    // `ActionRow::id` and nothing else; what the view paints is that action's CURRENT
-    // gesture, looked up in the effective keymap at the moment it paints, and the view's
-    // own vocabulary is four gestures that do not include it.
+    // `ActionRow::id` and nothing else; what CROSSES is that action's current gesture,
+    // resolved against the effective keymap at the moment the host says it -- so an id
+    // never leaves this process and there is nothing on the far side to execute.
+    //
+    // ⚠ THE RESOLUTION MOVED, AND THAT IS THE WHOLE CHANGE. The built-in's painter looked
+    // the gesture up per paint, inside the host, and drew it. The pane cannot: a keymap is
+    // the host's and a maker may have moved the key. So the host resolves it once at the
+    // seam and sends prose -- which makes this claim STRONGER than it was, because before,
+    // the id was one lookup away from the thing that drew it, and now it never crosses.
     TempDir dir("wux4-action");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"workshop.manage", "y"}}));
     Keyed t(path);
     Session& s = const_cast<Session&>(t.session());
-    s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
-    const Screen sc = screen_of(s);
-    REQUIRE(author_pane_place(s.setup.active, ref_of(panel::kEditor), subs(sc.w + 40),
-                              subs(sc.h + 40))
-                .accepted);
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(t.session().attention.open);
+    s.conditions.establish(Condition{"test.thing", "a thing", "why it is a thing",
+                                     surface::role::kAlert, "workshop.manage"});
+    t.publish(loom::to_value(surface::SurfaceReady{}));
 
-    // THE PAINTED GESTURE IS THE MAKER'S, not the default: one truth, projected.
-    const std::string view = stack_text(t.canvases.back());
-    CHECK(view.find("try: y arrange desk") != std::string::npos);
-    CHECK(view.find("try: w arrange desk") == std::string::npos);
+    // THE SENTENCE THAT CROSSES CARRIES THE MAKER'S GESTURE, not the default: one truth,
+    // projected once.
+    REQUIRE_FALSE(t.said_conditions.empty());
+    REQUIRE(t.said_conditions.back().rows.size() == 1);
+    const StandingCondition& said = t.said_conditions.back().rows[0];
+    CHECK(said.suggestion == "try: y arrange desk");
+    CHECK(said.suggestion.find("try: w") == std::string::npos);
+    CHECK(said.suggestion.find("workshop.manage") == std::string::npos);
 
-    // AND PRESSING IT HERE DOES NOTHING. The action's own context is command mode; the
-    // view is a mode of its own, and a condition is not an execution path.
-    t.key(input::scan::kY);
+    // AND PRESSING IT SOMEWHERE ELSE IS AN ORDINARY PRESS OF AN ORDINARY ROW, which is what
+    // the condition said it would be. Nothing about the condition made it happen and
+    // nothing about it could have.
     CHECK_FALSE(t.session().arrange.open);
-    CHECK(t.session().attention.open); // still reading, still not executing
+    t.key(input::scan::kY);
+    CHECK(t.session().arrange.open);
 }
 
 TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is not saying") {
@@ -4609,7 +4525,7 @@ TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is n
                                      surface::role::kAccent, std::string()});
     s.conditions.establish(Condition{"z.loud", "a loud thing", "why", surface::role::kAlert,
                                      std::string()});
-    const std::vector<Condition> shown = attention_shown(s);
+    const std::vector<Condition> shown = attention_conditions(s);
     REQUIRE(shown.size() == 3);
     CHECK(shown[0].key == "z.loud");  // loudest first, whatever its key
     CHECK(shown[1].key == "a.quiet"); // then the key, so the order cannot wobble
@@ -4620,7 +4536,7 @@ TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is n
     // nothing to bound is noise.
     s.conditions.retract("a.quiet");
     s.conditions.retract("b.quiet");
-    CHECK(attention_compact(attention_shown(s)) == "a loud thing");
+    CHECK(attention_compact(attention_conditions(s)) == "a loud thing");
 
     // AND RANKING IS TOTAL OVER A ROLE THIS VOCABULARY DOES NOT HAVE YET.
     CHECK(attention_rank(surface::role::kAlert) < attention_rank(surface::role::kAccent));
@@ -4628,109 +4544,81 @@ TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is n
     CHECK(attention_rank(surface::role::kFill) < attention_rank(9999));
 }
 
-TEST_CASE("WUX-4: the view shows every current condition in its owner's own words") {
+TEST_CASE("WUX-4: what is true is said across the seam, in the host's own order and words") {
+    // ⭐ THE ARC'S ONE NEW HOST-TO-PANE SENTENCE (WL-ATTN-12). The pane that shows these
+    // rows derives none of them and could not: they are this host's reading of this host's
+    // own state. So the host says them -- ranked, `to_any`, with the action already resolved
+    // into the words a maker reads, because resolving it needs the effective keymap and a
+    // loaded image cannot see one.
+    //
+    // ⚔ MUTATION, MEASURED: drop the `say_conditions` call from `repaint`. Nothing is ever
+    //   said, so the case stops at its first line -- `REQUIRE_FALSE(said_conditions.empty())`
+    //   is fatal and the rest never runs, which is the honest shape of "the seam is silent".
     Live t;
     Session& s = const_cast<Session&>(t.session());
-    s.conditions.establish(Condition{"a.one", "the first thing",
-                                     "a sentence its owner already had", surface::role::kAlert,
-                                     std::string()});
-    s.conditions.establish(Condition{"b.two", "the second thing", "and one for the second",
+    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
                                      surface::role::kAccent, std::string()});
-    t.key(input::scan::kA, input::mod::kCtrl);
-    const std::string view = stack_text(t.canvases.back());
+    s.conditions.establish(Condition{"z.loud", "a loud thing", "why it is loud",
+                                     surface::role::kAlert, "workshop.manage"});
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.said_conditions.empty());
+    const StandingConditions& said = t.said_conditions.back();
+    REQUIRE(said.rows.size() == 2);
 
-    // ALL OF THEM, not only the compact winner.
-    CHECK(view.find("ATTENTION -- 2 conditions") != std::string::npos);
-    CHECK(view.find("the first thing") != std::string::npos);
-    CHECK(view.find("the second thing") != std::string::npos);
-    // ...and the owner's own explanation for the one being read.
-    CHECK(view.find("a sentence its owner already had") != std::string::npos);
+    // THE ORDER IS THE HOST'S AND IT CROSSES ALREADY APPLIED (WL-ATTN-07): loudest first,
+    // then the key. A pane that had to rank would be a second place this application decides
+    // what is urgent.
+    CHECK(said.rows[0].key == "z.loud");
+    CHECK(said.rows[1].key == "b.quiet");
+    CHECK(said.rows[0].compact == "a loud thing");
+    CHECK(said.rows[0].detail == "why it is loud");
+    CHECK(said.rows[0].role == surface::role::kAlert);
 
-    // MOVING THE CURSOR MOVES WHICH EXPLANATION IS SPENT, and changes nothing else.
+    // ...AND THE ACTION CROSSES AS PROSE, NOT AS A NAME. What the pane is handed is the
+    // sentence the built-in's painter composed, resolved through the keymap in force -- so
+    // an id never reaches the far side and nothing over there could press one if it did.
+    CHECK(said.rows[0].suggestion.rfind("try: ", 0) == 0);
+    CHECK(said.rows[0].suggestion.find("workshop.manage") == std::string::npos);
+    CHECK(said.rows[1].suggestion.empty()); // a condition that names no action suggests none
+}
+
+TEST_CASE("WUX-4: nothing new is nothing said, which is what stops the seam looping") {
+    // ⭐ THE SILENCE IS LOAD-BEARING, and it is measured rather than assumed. A pane that
+    // hears a publication says its rows; `on(PaneContent)` ends in a repaint; a repaint that
+    // published unconditionally would say it again, and this process would have no quiet
+    // state. So the host compares what it is about to say against its own last utterance.
+    //
+    // ⚔ MUTATION, MEASURED: drop the `same_conditions` arm from `say_conditions`. Two
+    //   assertions go red -- the count climbs across three repaints with no news in them, and
+    //   the one that follows real news is then off by the difference.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const std::size_t after_first = t.said_conditions.size();
+    REQUIRE(after_first >= 1); // even "nothing is wrong" is said once, and it is an answer
+
+    // REPAINTS WITH NO NEWS IN THEM, and there are several: a keystroke that moves a cursor
+    // repaints, and nothing about what is TRUE changed.
     t.key(input::scan::kDown);
-    const std::string second = stack_text(t.canvases.back());
-    CHECK(second.find("and one for the second") != std::string::npos);
-    CHECK(t.conditions().size() == 2);
+    t.key(input::scan::kUp);
+    t.key(input::scan::kDown);
+    CHECK(t.said_conditions.size() == after_first);
 
-    // CLOSING CHANGES NO CONDITION.
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().attention.open);
-    CHECK(t.conditions().size() == 2);
-    CHECK(t.session().attention.dismissed.empty());
-}
-
-TEST_CASE("WUX-4: the view's gestures are the keymap's, and every help surface says so") {
-    Live t;
+    // ...AND NEWS IS SAID THE ONCE. One condition arrives, one publication follows it.
     Session& s = const_cast<Session&>(t.session());
-    s.conditions.establish(Condition{"a.one", "a thing", "why", surface::role::kAlert,
-                                     std::string()});
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kAttention);
+    s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
+                                     surface::role::kAlert, std::string()});
+    t.key(input::scan::kDown);
+    REQUIRE(t.said_conditions.size() == after_first + 1);
+    CHECK(t.said_conditions.back().rows.size() == 1);
+    t.key(input::scan::kUp);
+    CHECK(t.said_conditions.size() == after_first + 1);
 
-    // THE FULL HOTKEY VIEW DESCRIBES THE SURFACE BENEATH IT, this one included -- the
-    // view's four gestures are ordinary catalog rows, not a parallel vocabulary.
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const std::string hotkeys = stack_text(t.canvases.back());
-    CHECK(hotkeys.find("what needs attention") != std::string::npos);
-    CHECK(hotkeys.find("hide this one") != std::string::npos);
-    CHECK(hotkeys.find("row up") != std::string::npos);
-    t.key(input::scan::kK, input::mod::kCtrl);
-
-    // ...AND THE OPENER IS ADVERTISED WHEREVER THE ABOVE-MODE CHORDS ARE.
-    const std::vector<std::string> pairs = help_pairs(t.session().keymap, KeyContext::kCommand);
-    bool advertised = false;
-    for (const std::string& pair : pairs) {
-        advertised = advertised || pair == "^a attention";
-    }
-    CHECK(advertised);
-
-    // THE OPENER CLOSES IT, wherever a maker moved it -- and it is a gesture every
-    // supported backend can actually produce.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    CHECK_FALSE(t.session().attention.open);
-    CHECK(posix_gap(t.session().keymap.gesture_of(Act::kAttention)) == nullptr);
-}
-
-TEST_CASE("WUX-4: the view never publishes more rows than its region can show") {
-    // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH
-    // media -- so a painter that over-spends its budget loses whatever it wrote last, which
-    // here is the omission marker: the one row that exists to say something was dropped. A
-    // bound that grows when it is exceeded is not a bound, so this sweeps the population
-    // against the room and asserts the published row count against the room's own answer.
-    Live t;
-    Session& s = const_cast<Session&>(t.session());
-    for (int i = 0; i < 12; ++i) {
-        // Long explanations on purpose: the cursor's block is what makes the naive window
-        // arithmetic wrong, and a one-line detail would never reach the defect.
-        s.conditions.establish(Condition{
-            "k." + std::to_string(i), "condition number " + std::to_string(i),
-            std::string("a long explanation that will certainly have to be wrapped across "
-                        "several rows of any column this view is ever given, ") +
-                std::to_string(i),
-            i % 2 == 0 ? surface::role::kAlert : surface::role::kAccent, "workshop.manage"});
-    }
-    t.key(input::scan::kA, input::mod::kCtrl);
-    REQUIRE(t.session().attention.open);
-
-    // EVERY EXTENT THIS COMPOSITION IS HONEST AT, and every cursor position in it.
-    for (const std::int64_t height : {kScreenMinH, kScreenMinH + 7, kScreenMinH + 20}) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(
-            surface::TerminalSize{static_cast<int>(kScreenMinW), static_cast<int>(height)})));
-        const Screen sc = screen_of(t.session());
-        const PanelProsePlace place = panel_prose_place(attention_bounds(sc), sc);
-        REQUIRE(place.present);
-        for (std::size_t at = 0; at < 12; ++at) {
-            const_cast<Session&>(t.session()).attention.cursor = at;
-            t.key(input::scan::kUp); // any key at all repaints; the cursor is set above
-            const_cast<Session&>(t.session()).attention.cursor = at;
-            surface::SurfaceLayer layer;
-            paint_attention(layer, t.session(), sc, ProjectFrontier{});
-            REQUIRE(layer.texts.size() == 1);
-            CAPTURE(height);
-            CAPTURE(at);
-            CHECK(static_cast<std::int64_t>(layer.texts[0].rows.size()) <= place.rows);
-        }
-    }
+    // AND SO IS ITS RESOLUTION: the last condition retracting is one publication with no
+    // rows in it, which is the retraction the compact chip makes with an empty string.
+    s.conditions.retract("test.wall");
+    t.key(input::scan::kDown);
+    REQUIRE(t.said_conditions.size() == after_first + 2);
+    CHECK(t.said_conditions.back().rows.empty());
 }
 
 TEST_CASE("WUX-4: the condition path carries no timer, no callback and no history") {
@@ -4883,14 +4771,17 @@ TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id"
     REQUIRE(object.size() == 1);
     CHECK(object[0].row->act == Act::kObjectDelete);
 
-    // The room: eleven zero-target doors, no groups.
+    // The room: TEN zero-target doors, no groups. It was eleven until the
+    // current-condition view became a pane -- `workshop.attention` opened one particular
+    // overlay from the empty room, and what is left in its place is `workshop.picker`,
+    // which was already on this list and opens the choice rather than the pane (VD-22).
     const std::vector<ContextEntry> root = context_population(context_subject::kRoot, "");
-    REQUIRE(root.size() == 11);
+    REQUIRE(root.size() == 10);
     for (const ContextEntry& e : root) {
         CHECK_FALSE(e.is_group);
     }
     CHECK(root[0].row->act == Act::kObjectNew);
-    CHECK(root[10].row->act == Act::kManageResetOrder);
+    CHECK(root[9].row->act == Act::kManageResetOrder);
 
     // EVERY DECLARATION RESOLVES AND OWNS NO POWER: an id `row_of_id` answers and three
     // plain fields -- the compile-time cross-check, restated where a reader looks.

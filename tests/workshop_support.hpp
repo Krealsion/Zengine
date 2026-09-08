@@ -653,22 +653,32 @@ struct SeenState {
 };
 
 /// An ordinary Skin's ears: whatever Workshop published, kept as values.
+///
+/// IT HEARS THE CONDITIONS TOO, and that is not a Skin's business -- it is this rig's. The
+/// publication is `to_any` and the party that presents it is named by a load plan, so the
+/// only way a host-side case can ask "did Workshop say anything, and what" is to have
+/// somebody on the bus who was listening. Every utterance is kept in order, because the
+/// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
-                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText>,
+                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
+                                                    StandingConditions>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
-            std::vector<surface::SurfaceText>& notes)
-        : canvases_(&canvases), notes_(&notes) {}
+            std::vector<surface::SurfaceText>& notes,
+            std::vector<StandingConditions>& conditions)
+        : canvases_(&canvases), notes_(&notes), conditions_(&conditions) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
     }
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
+    void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
+    std::vector<StandingConditions>* conditions_;
 };
 
 
@@ -809,6 +819,9 @@ struct Live {
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
+    /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
+    /// MANY times it spoke and not only what it last said.
+    std::vector<StandingConditions> said_conditions;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -829,7 +842,7 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        (void)loom::mount<Painter>(bus, canvases, notes);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -2317,6 +2330,9 @@ struct PaneRig {
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
+    /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
+    /// MANY times it spoke and not only what it last said.
+    std::vector<StandingConditions> said_conditions;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     std::vector<std::string> loaded;
@@ -2324,7 +2340,7 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
     }
 
 
@@ -2370,6 +2386,11 @@ struct PaneRig {
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
         // The Editor door's answer, exactly as workshop.cpp grants it.
         speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+        // ...and what is currently true, said to whoever presents it -- the arc's one new
+        // host-to-pane sentence, granted here exactly as workshop.cpp grants it. A rig that
+        // left it out would make the Attention pane look like a pane that never hears
+        // anything, which is a rig defect wearing a product defect's face.
+        speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -2595,6 +2616,9 @@ struct PaneRig {
         }
         if (stem == "zengine-builder-pane") {
             return WORKSHOP_SO_BUILDER_PANE;
+        }
+        if (stem == "zengine-attention-pane") {
+            return WORKSHOP_SO_ATTENTION_PANE;
         }
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
@@ -3461,17 +3485,17 @@ inline std::string file_source(const char* path) {
 /// their place and are excluded by name below. A floor that had been left at 62 would have
 /// been a green bought by a number rather than by a walk -- so it is stated here with what
 /// moved, which is the only honest way a floor goes down.
-inline constexpr std::size_t kPresentationSourceFloor = 61;
+inline constexpr std::size_t kPresentationSourceFloor = 62;
 
 inline std::vector<std::string> presentation_sources() {
     // `staging.hpp` IS HOST-SIDE (RELOAD-1): the two rules the host wires into the
     // realization owner -- where a built product is opened from, and how a running image
     // becomes the file a restart loads -- shared with the build witness so there is one
     // spelling. No presentation includes it, and it names the owner it serves.
-    // `files_doors.hpp` and `files_seam_vocabulary.hpp` join the list for
-    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the two
-    // doors the Files weave asks and the shapes they answer in -- and a tripwire that read
-    // them would forbid a door from naming what it opens.
+    // `pane_doors.hpp` and `pane_seam_vocabulary.hpp` join the list for
+    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the doors a
+    // pane weave asks and the shapes they answer in -- and a tripwire that read them would
+    // forbid a door from naming what it opens.
     // `pane_migration.hpp` is here for a DIFFERENT reason from the rest, and it is the only
     // one: its whole subject is a durable name that no longer means anything -- the
     // reference saved files wrote for the browser this host used to offer. It exists so that
@@ -3480,8 +3504,8 @@ inline std::vector<std::string> presentation_sources() {
     // Naming a retired reference is not knowing a pane: nothing here can present one.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
-                                                "staging.hpp", "authoring.hpp", "files_doors.hpp",
-                                                "files_seam_vocabulary.hpp",
+                                                "staging.hpp", "authoring.hpp", "pane_doors.hpp",
+                                                "pane_seam_vocabulary.hpp",
                                                 "pane_migration.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :

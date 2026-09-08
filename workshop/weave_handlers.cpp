@@ -288,10 +288,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         toggle_hotkeys();
         repaint(mail);
         return;
-    case Act::kAttention:
-        toggle_attention();
-        repaint(mail);
-        return;
     default: break;
     }
     // THE HOTKEY VIEW IS KEYS-MODAL WHILE IT IS OPEN: the five arms above still
@@ -337,7 +333,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kNaming: naming_key(k, mail); break;
     case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
     case KeyContext::kPicker: picker_key(k, mail); break;
-    case KeyContext::kAttention: attention_key(k); break;
     case KeyContext::kContext: context_key(k, mail); break;
     case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
     case KeyContext::kEditor: editor_key(k); break;
@@ -348,7 +343,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // ESCAPE'S FINAL MEANING IS TO PUT THE SELECTED PANE DOWN. It is asked
     // LAST, after the resolved context has had the key: every mode, overlay and draft
     // answers Escape with a row of its own (`picker.close`, `draft.cancel`,
-    // `manage.close`, `context.back`, `attention.close`, `naming.cancel`,
+    // `manage.close`, `naming.cancel`,
     // `terminal.back`), the hotkey view took it further up -- and a bare Escape that
     // arrives here in a context where the keys are held by a LIST or by NOTHING, with
     // no binding claiming it, is an Escape nothing more specific owned. Then, if a pane
@@ -395,51 +390,9 @@ void WorkshopWeave::hotkeys_key(const zengine::input::KeyPressed& k) {
     }
 }
 
-// WL-ATTN-09, WL-ATTN-10 -- agents/workshop/attention.md
-void WorkshopWeave::toggle_attention() {
-    session_.attention.open = !session_.attention.open;
-    session_.attention.cursor = 0;
-}
-
-// WL-ATTN-08, WL-ATTN-09 -- agents/workshop/attention.md
-void WorkshopWeave::attention_key(const zengine::input::KeyPressed& k) {
-    AttentionView& view = session_.attention;
-    std::vector<Condition> shown = attention_shown(session_, frontier_now());
-    if (view.cursor >= shown.size()) {
-        view.cursor = shown.empty() ? 0 : shown.size() - 1;
-    }
-    switch (session_.keymap.action_for(KeyContext::kAttention, k.scancode, k.modifiers)) {
-    case Act::kAttentionUp:
-        if (view.cursor > 0) {
-            --view.cursor;
-        }
-        break;
-    case Act::kAttentionDown:
-        if (view.cursor + 1 < shown.size()) {
-            ++view.cursor;
-        }
-        break;
-    case Act::kAttentionDismiss:
-        if (view.cursor < shown.size()) {
-            const std::string hidden = shown[view.cursor].compact;
-            view.dismiss(shown[view.cursor]);
-            // AN EVENT, SAID AS ONE. What just happened is that a maker hid a
-            // presentation; what remains true is the condition, which is why the
-            // sentence is about the gesture and not about the subject.
-            say("hidden -- " + hidden + " is still true", false);
-        }
-        break;
-    case Act::kAttentionClose: view.open = false; break;
-    default:
-        // THE KEY THAT OPENED IT CLOSES IT -- the picker's and the terminal overlay's
-        // shared rule, following the OPENER'S effective binding wherever a maker moved
-        // it. The toggle is a global, so it is answered above this switch and never
-        // reaches here; this arm is what makes a remapped opener still close.
-        if (session_.keymap.matches(Act::kAttention, k.scancode, k.modifiers)) {
-            view.open = false;
-        }
-        break;
-    }
-}
+// ⚠ `toggle_attention` AND `attention_key` LEFT WITH THE VIEW. The first was a global's
+// arm and the second a whole keyboard context's dispatch; the pane declares three rows and
+// hears the resolved id, so both of them are the weave's now
+// (`Zengine/attention-pane/pane.cpp`).
 
 } // namespace zengine::workshop

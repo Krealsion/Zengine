@@ -32,11 +32,15 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-03 — `attention_conditions` is a pure projection
 
-LAW — `attention_conditions` reads the held set and the derived owners, ranks, and owns nothing; `attention_shown` is that list less this session's dismissals, the one population every consumer spends.
+LAW — `attention_conditions` reads the held set and the derived owners, ranks, and owns nothing; it is the one population every consumer on this side of the seam spends.
 
-PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`, `attention_shown`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: the view shows every current condition in its
-owner's own words"`, case `"WUX-4: the view never publishes more rows than its region can show"`.
+MEANS
+- what a maker has hidden is subtracted on the PANE's side and nowhere here;
+- so the compact chip says what is true, and the pane says what this maker is looking at.
+
+PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: a held condition stands until its owner retracts
+it"`, case `"WUX-4: the compact line is ranked by truth, and says how many it is not saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-04 — A derived condition stays derived
@@ -64,7 +68,11 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-06 — The compact channel is the `kSlotScore` slot, and empty is the retraction
 
-LAW — The loudest condition plus an honest `(+N more)` is published as `SurfaceText` on every repaint before the canvas, because the SDL medium composes it into the picture; no band row was taken.
+LAW — The loudest CURRENT condition plus an honest `(+N more)` is published as `SurfaceText` on every repaint before the canvas, because the SDL medium composes it into the picture; no band row was taken.
+
+MEANS
+- it is the medium's own furniture and Workshop cannot be pointed at it in either medium;
+- a maker who hides a row in the pane still sees it here, because it is still true.
 
 PROVEN BY — `workshop/weave_run.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
 `SurfaceText`; `workshop/screen_attention.cpp` `attention_compact`;
@@ -83,48 +91,74 @@ PROVEN BY — `workshop/attention.hpp` `ranks_before`, `attention_rank`;
 many it is not saying"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-08 — Dismissal is scoped to the statement, not the key
+## WL-ATTN-08 — Dismissal is the PANE's, scoped to the statement and not to the key
 
-LAW — A dismissal remembers the key and a stamp of the statement — compact, detail, role and action — so a condition whose content moves is visible again with nobody clearing anything.
+LAW — The Attention pane remembers the key and a stamp of the statement it hid, so a condition whose content moves is visible again; a dismissal outlives no condition.
 
 MEANS
-- session-only, never persisted; dismiss is not resolve and changes no underlying truth.
+- never persisted; it crosses a same-shape reload in the pane's state and reaches no file;
+- dismiss is not resolve: the host still holds the condition, derives it and says it.
 
-PROVEN BY — `workshop/attention.hpp` `AttentionView::dismissed`, `Condition::stamp`,
-`Dismissal::stamp`, `Dismissal`, `AttentionView`, `AttentionView::hides`;
-`workshop/weave_handlers.cpp` `attention_key`; `tests/test_workshop_panels.cpp` case `"WUX-4:
-dismissal hides a presentation and changes nothing that is true"`, case `"WUX-4: a dismissed
-condition comes back when it materially changes"`, case `"WUX-4: dismiss is not resolve, resolve
-is not dismiss"`.
+PROVEN BY — `attention-pane/vocabulary.hpp` `Dismissal`, `AttentionPaneState::dismissed`;
+`workshop/attention.hpp` `Condition::stamp`; `tests/test_workshop_panes_attention.cpp` case
+`"ATTN-WEAVE: dismissal hides a presentation and changes nothing that is true"`, case
+`"ATTN-WEAVE: a dismissed condition comes back when it materially changes"`, case
+`"ATTN-WEAVE: a dismissal does not outlive the condition it was about"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-09 — `KeyContext::kAttention` is a mode in the picker's place
+## WL-ATTN-09 — RETIRED: the view was a mode in the picker's place
 
-LAW — A mode in the picker's place, below the Terminal and the arrangement scopes and above a focused pane and a live draft; not keys-modal, its gestures being catalog rows; its toggle is a no-text row.
+LAW — The view is a pane, so it takes the keyboard under `KeyContext::kPane` when pressed into; the mode, its four rows and the global chord are gone, and three ids are the pane's own.
 
-PROVEN BY — `workshop/keymap.hpp` `KeyContext::kAttention`, `workshop.attention`,
-`KeyContext::kNoText`; `workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`;
-`workshop/screen_attention.cpp` `paint_attention`; `workshop/screen.hpp` `attention_bounds`;
-`workshop/weave_handlers.cpp` `toggle_attention`, `attention_key`;
-`tests/test_workshop_panels.cpp` case `"WUX-4: the view's gestures are the keymap's, and every
-help surface says so"`.
+PROVEN BY — `tests/test_workshop_panes_attention.cpp` case `"ATTN-WEAVE: the pane declares the
+three ids a maker's keymap file already names"`, case `"ATTN-WEAVE: the pane's keys act only
+after the maker has pressed into it"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-10 — A condition names an action and holds no power
 
-LAW — A condition names an action by its catalog id or names nothing, painted through the effective keymap; nothing may open the view but a maker's gesture, and no severity or count reaches the toggle.
+LAW — A condition names an action by its catalog id, which the HOST resolves into words against the effective keymap; the id never crosses, and no severity opens or arranges anything.
 
-PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/weave_handlers.cpp`
-`toggle_attention`; `workshop/keymap.hpp` `ActionRow`; `tests/test_workshop_panels.cpp` case
-`"WUX-4: a condition names an action and cannot execute one"`, case `"WUX-4: an alert condition
-opens nothing"`.
+MEANS
+- the pane is handed a sentence and could not press an action if it were given one;
+- nothing puts this pane on a screen but a maker choosing it from the picker.
+
+PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/keymap.hpp` `ActionRow`;
+`workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_panels.cpp` case
+`"WUX-4: a condition names an action and what crosses is the maker's own gesture"`, case
+`"WUX-4: an alert condition opens nothing"`; `tests/test_workshop_panes_attention.cpp` case
+`"ATTN-WEAVE: the action a condition names arrives as words and not as a name"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-11 — The condition path touches neither the Recorder nor the Logger
+## WL-ATTN-11 — The condition path holds no timer, no callback and no history
 
-LAW — `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`, so a condition has no wire form and cannot be observed, recorded, selected or persisted; displaying one implies no history.
+LAW — `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`; nothing in the path schedules, calls back, records or persists, and displaying a condition implies no history.
+
+MEANS
+- the wire form is the SEAM's; the internal type still crosses nothing;
+- an observer can see what the host says, and that grants nobody observation authority.
 
 PROVEN BY — `workshop/attention.hpp` `HeldConditions`; `tests/test_workshop_panels.cpp` case
 `"WUX-4: the condition path carries no timer, no callback and no history"`, case `"WUX-4:
 showing a condition writes no history"`.
+WHY — `agents/decisions/a-condition-has-a-lifetime.md`
+
+## WL-ATTN-12 — What is true right now crosses as a publication, and only when it changes
+
+LAW — The host says every current condition as `StandingConditions`, `to_any`, ranked, with the action resolved into words; it compares against its own last utterance and stays silent when they are equal.
+
+MEANS
+- silence is what makes it terminate: content ends in a repaint, so saying it always would loop;
+- what the host remembers is its own last utterance, never a second copy of the truth.
+
+DOES NOT MEAN
+- that a condition is addressed to anybody: which weave presents it is a load plan's answer.
+
+PROVEN BY — `workshop/attention_seam_vocabulary.hpp` `StandingCondition`,
+`StandingCondition::suggestion`, `StandingConditions`; `workshop/screen_attention.cpp`
+`standing_conditions`, `same_conditions`; `workshop/weave_run.cpp`
+`WorkshopWeave::say_conditions`; `workshop/weave.hpp` `WorkshopWeave::said_conditions_`,
+`WorkshopWeave::conditions_said_`; `tests/test_workshop_panels.cpp` case `"WUX-4: what is
+true is said across the seam, in the host's own order and words"`, case `"WUX-4: nothing new
+is nothing said, which is what stops the seam looping"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
