@@ -47,10 +47,12 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
         // panel to vanish.
         if (ExternalPane* pane = session_.panels.external_pane(admitted.kind)) {
             pane->shown.clear();
-            pane->clear_refusal();
             pane->heard = false;
             pane->awaiting = true;
             pane->granted = false;
+            // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
+            // correcting its own summary has not sent content this host accepted, so what
+            // last happened to this pane's content is still what happened to it.
         }
     }
     // ⚠ AND A PARTY THAT HAS JUST ARRIVED HAS HEARD NOTHING, so what is currently true is
