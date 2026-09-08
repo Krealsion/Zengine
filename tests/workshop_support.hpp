@@ -661,24 +661,28 @@ struct SeenState {
 /// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
-                                                    StandingConditions>,
+                                                    StandingConditions, DocumentShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
-            std::vector<StandingConditions>& conditions)
-        : canvases_(&canvases), notes_(&notes), conditions_(&conditions) {}
+            std::vector<StandingConditions>& conditions,
+            std::vector<DocumentShown>& documents)
+        : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
+          documents_(&documents) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
     }
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
+    void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
+    std::vector<DocumentShown>* documents_;
 };
 
 
@@ -822,6 +826,8 @@ struct Live {
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
+    /// ...AND EVERY `DocumentShown`, in order, for the same reason.
+    std::vector<DocumentShown> said_documents;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -842,7 +848,7 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -2073,6 +2079,79 @@ struct SeatState {
 /// speech from the actual role holder, one office speaking about another's pane, a
 /// content message one column too wide -- and a shipped fixture that could be
 /// talked into those would not be a fixture worth shipping.
+/// A WEAVE THAT ASKS THE DOCUMENT'S DOOR, and keeps every answer.
+///
+/// It is the suite's stand-in for the Info pane at the HOST's tier: what these cases measure
+/// is what the DOOR does with an ask and what it answers, which is a claim about this host
+/// and needs no image on disk. The seam suite drives the real pane against the real
+/// publication.
+class DocumentAsker
+    : public loom::WeaveBase<DocumentAsker, SeatState,
+                             loom::Accept<DocumentActed, SeatDo>,
+                             loom::Emit<DocumentActRequested>> {
+public:
+    void on(const DocumentActed& a, loom::Mail&) {
+        ++state_.said;
+        answers.push_back(a);
+    }
+
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            next(*this, mail);
+            next = nullptr;
+        }
+    }
+
+    void ask(loom::Mail& mail, DocumentActRequested request) {
+        (void)mail.as_role(kAskerOffice).send_to_role(kWorkshopProvider, std::move(request));
+    }
+
+    static constexpr const char* kAskerOffice = "zengine.test-asker";
+
+    std::vector<DocumentActed> answers;
+    std::function<void(DocumentAsker&, loom::Mail&)> next;
+};
+
+/// SEAT A PARTY THAT MAY ASK THE DOCUMENT'S DOOR, in an office of its own -- the door names
+/// nobody, so a tool added tomorrow asks with no edit there.
+inline DocumentAsker* mount_document_asker(Live& t) {
+    auto seat = std::make_unique<DocumentAsker>();
+    DocumentAsker* raw = seat.get();
+    loom::Grant say;
+    say.allow_to_role(DocumentActRequested::zen_name, DocumentActRequested::zen_version,
+                      kWorkshopProvider);
+    const loom::WeaveId id =
+        t.bus.register_weave(std::move(seat), std::move(say),
+                             std::string(DocumentAsker::kAskerOffice));
+    raw->zen_set_self(id);
+    return raw;
+}
+
+/// ASK THE DOOR FOR ONE ACT, from the seated party, and drain.
+inline void ask_document(Live& t, DocumentAsker* seat, DocumentActRequested request) {
+    REQUIRE(seat != nullptr);
+    seat->next = [request](DocumentAsker& a, loom::Mail& m) { a.ask(m, request); };
+    t.publish(loom::to_value(SeatDo{}));
+}
+
+/// ...and the two shapes a case reaches for most.
+inline void ask_document_act(Live& t, DocumentAsker* seat, const char* act,
+                             std::int64_t identity = 0) {
+    DocumentActRequested request;
+    request.act = act;
+    request.identity = identity;
+    ask_document(t, seat, std::move(request));
+}
+
+inline void ask_document_commit(Live& t, DocumentAsker* seat, std::int64_t row,
+                                const std::string& text) {
+    DocumentActRequested request;
+    request.act = kDocumentCommit;
+    request.row = row;
+    request.text = text;
+    ask_document(t, seat, std::move(request));
+}
+
 class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
@@ -2333,6 +2412,8 @@ struct PaneRig {
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
+    /// ...AND EVERY `DocumentShown`, in order, for the same reason.
+    std::vector<DocumentShown> said_documents;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     std::vector<std::string> loaded;
@@ -2340,7 +2421,7 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
     }
 
 
@@ -2393,6 +2474,10 @@ struct PaneRig {
         // left it out would make the Attention pane look like a pane that never hears
         // anything, which is a rig defect wearing a product defect's face.
         speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
+        // ...and the object document's picture and the one act it answers, exactly as
+        // workshop.cpp grants them.
+        speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
+        speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);

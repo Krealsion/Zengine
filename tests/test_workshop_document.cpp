@@ -5214,6 +5214,110 @@ TEST_CASE("CTX-0: contextually deleting a pointed object preserves an unrelated 
     REQUIRE_FALSE(t.session().rows.empty());
 }
 
+TEST_CASE("WL-DOC-20: the document crosses as a picture, and only when it changed") {
+    // ⭐ THIS MIGRATION'S ONE NEW SENTENCE. The Info pane shows the object document and
+    // derives none of it; the host says what the document looks like, in the form the
+    // built-in's own painter already had it, and says it again the moment it differs.
+    //
+    // ⚠ AND IT IS A PUBLICATION RATHER THAN AN ANSWER because WL-DOC-14 is a law: the
+    // canvas, the object list and the inspector agree after every gesture, and the document
+    // changes with no gesture into the pane at all -- which the second half below is.
+    //
+    // ⚔ MUTATION: drop the `say_document` call from `repaint`. Nothing is ever said.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.said_documents.empty());
+    const DocumentShown first = t.said_documents.back();
+    REQUIRE(first.objects.size() == 2); // the two the fresh document holds
+    CHECK(first.objects[0].identity == t.first()->id);
+    CHECK(first.objects[0].name == t.first()->label);
+    CHECK(first.selected == t.session().selected);
+    CHECK_FALSE(first.properties.empty());
+
+    // THE ROWS ARE THE INSPECTOR'S OWN, VALUE INCLUDED -- a fresh read through the property,
+    // which is what makes a cached copy impossible on either side.
+    bool named = false;
+    for (const ShownProperty& row : first.properties) {
+        named = named || (row.label == "Name" && row.editable);
+    }
+    CHECK(named);
+
+    // A REPAINT WITH NO NEWS IN IT SAYS NOTHING, which is what stops the seam looping: a
+    // pane answers a publication by publishing rows, and content ends in a repaint.
+    const std::size_t after_first = t.said_documents.size();
+    t.key(input::scan::kTab);
+    t.key(input::scan::kTab); // back to where it was: the selection is the same again
+    CHECK(t.said_documents.size() > after_first); // ...but it moved in between, twice
+    const std::size_t settled = t.said_documents.size();
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.said_documents.size() == settled);
+
+    // ...AND A CHANGE MADE WITH NO GESTURE INTO ANY PANE IS STILL NEWS. This is the half a
+    // door could not carry: `l` nudges the selected object on the WORKSPACE, and the list
+    // and the inspector are owed the new picture.
+    t.key(input::scan::kL);
+    REQUIRE(t.said_documents.size() == settled + 1);
+    bool moved = false;
+    for (const ShownProperty& row : t.said_documents.back().properties) {
+        moved = moved || (row.label == "X" && row.value != "0");
+    }
+    CHECK(moved);
+}
+
+TEST_CASE("WL-DOC-20: the four acts are the writes the keys are bound to, and the refusals "
+          "are the document's") {
+    // THE DOOR, AT THE OFFICE THIS HOST ALREADY HOLDS. Four acts, each the same call the
+    // host's own key is bound to, so both gestures converge on one write, one selection rule
+    // and one sentence.
+    //
+    // ⚔ MUTATION: answer `accepted` unconditionally in `on(DocumentActRequested)`. The three
+    //   refusal checks below go red and a maker is told a write happened that did not.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    DocumentAsker* seat = mount_document_asker(t);
+    const std::size_t objects = t.doc().elements.size();
+
+    // CREATE mints one, exactly as `n` does.
+    ask_document_act(t, seat, kDocumentCreate);
+    CHECK(t.doc().elements.size() == objects + 1);
+    REQUIRE_FALSE(seat->answers.empty());
+    CHECK(seat->answers.back().accepted);
+
+    // SELECT is total: an identity the document does not have selects nothing new, and is
+    // not an error -- a selection outlives a list.
+    ask_document_act(t, seat, kDocumentSelect, t.doc().elements[0].id);
+    CHECK(t.session().selected == t.doc().elements[0].id);
+    CHECK(seat->answers.back().accepted);
+
+    // COMMIT writes through the property, and a value the property refuses comes back in the
+    // document's own words with nothing written.
+    std::size_t width_row = 0;
+    for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
+        if (t.session().rows[i].label() == "Width") {
+            width_row = i;
+        }
+    }
+    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "40%");
+    CHECK(seat->answers.back().accepted);
+    CHECK(t.session().rows[width_row].value() == "40%");
+    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "banana");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal.find("Width") != std::string::npos);
+    CHECK(t.session().rows[width_row].value() == "40%"); // and nothing was written
+
+    // A ROW THE CURRENT DERIVATION DOES NOT HAVE IS REFUSED BY NAME rather than applied to
+    // whatever moved into its place -- the one hazard an index across a seam has.
+    ask_document_commit(t, seat, 9999, "40%");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal.find("not in this object") != std::string::npos);
+
+    // DELETE removes exactly one, exactly as `d` does.
+    const std::size_t before_delete = t.doc().elements.size();
+    ask_document_act(t, seat, kDocumentDelete);
+    CHECK(seat->answers.back().accepted);
+    CHECK(t.doc().elements.size() == before_delete - 1);
+}
+
 TEST_CASE("CTX-0: a live draft holds a contextual deletion back") {
     Live t;
     t.begin_editing("Name");

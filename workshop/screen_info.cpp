@@ -62,6 +62,46 @@ std::string action_row_text(std::size_t which, bool pressable, std::int64_t colu
     return detail::fit(open + action_label(which) + close, columns);
 }
 
+// WL-DOC-20 -- agents/workshop/document.md
+DocumentShown document_shown(const WorkshopDoc& d, const Session& s) {
+    DocumentShown shown;
+    shown.selected = s.selected;
+    for (const ui::Element& e : d.elements) {
+        shown.objects.push_back(ShownObject{e.id, e.label});
+    }
+    // THE INSPECTOR ROWS AS THEY STAND, VALUE INCLUDED. `Row::value()` is a fresh read
+    // through the property, so what crosses is what the document says at this instant --
+    // never a cached copy, on either side of the seam.
+    for (const Row& row : s.rows) {
+        shown.properties.push_back(
+            ShownProperty{row.label(), row.value(), row.editable(), row.section()});
+    }
+    return shown;
+}
+
+// WL-DOC-20 -- agents/workshop/document.md
+bool same_document(const DocumentShown& a, const DocumentShown& b) {
+    if (a.selected != b.selected || a.objects.size() != b.objects.size() ||
+        a.properties.size() != b.properties.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.objects.size(); ++i) {
+        if (a.objects[i].identity != b.objects[i].identity ||
+            a.objects[i].name != b.objects[i].name) {
+            return false;
+        }
+    }
+    for (std::size_t i = 0; i < a.properties.size(); ++i) {
+        if (a.properties[i].label != b.properties[i].label ||
+            a.properties[i].value != b.properties[i].value ||
+            a.properties[i].editable != b.properties[i].editable ||
+            a.properties[i].section != b.properties[i].section) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // WL-INFO-04 -- agents/workshop/info-body.md
 std::size_t inspector_focus(const Session& s) {
     for (std::size_t i = 0; i < s.rows.size(); ++i) {

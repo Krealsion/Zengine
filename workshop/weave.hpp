@@ -229,6 +229,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::OpenSourceRequested,
+                                          zengine::workshop::DocumentActRequested,
                                           zengine::workshop::RecipeSourceRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -243,6 +244,8 @@ class WorkshopWeave
                                         zengine::workshop::PaneWheel,
                                         zengine::workshop::PaneActionRequested,
                                         zengine::workshop::StandingConditions,
+                                        zengine::workshop::DocumentShown,
+                                        zengine::workshop::DocumentActed,
                                         zengine::workshop::SourceOpened>> {
 public:
     explicit WorkshopWeave(HostContext& host);
@@ -274,6 +277,16 @@ public:
     /// of what this weave last said, which is the same thing `builder::BuildStatus`'s
     /// publisher keeps for the same reason.
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
+
+    /// SAY WHAT THE OBJECT DOCUMENT LOOKS LIKE, to anyone presenting it -- and only when it
+    /// CHANGED, on `say_conditions`' discipline and for its reason.
+    ///
+    /// ⚠ WHY THIS ONE IS A PUBLICATION AND NOT AN ANSWER. WL-DOC-14 requires the canvas, the
+    /// object list and the inspector to agree after every gesture, and the document changes
+    /// under a presenting pane constantly with no gesture into that pane at all -- a drag on
+    /// the workspace, a nudge, a create, a restore, a workspace refit. A pane that could only
+    /// ask would be a list that is wrong most of the time.
+    void say_document(loom::Mail& mail);
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
@@ -456,6 +469,11 @@ public:
     /// resolution is here because the CATALOG is here: a pane holds a recipe's name and
     /// never its procedure, so it says the name and this host looks it up.
     void on(const RecipeSourceRequested& asked, loom::Mail& mail);
+
+    /// THE OBJECT DOCUMENT'S ONE ACTING DOOR: select, create, delete, commit one property.
+    /// Answered at this host's own office, because the party that owns the document is the
+    /// party that answers for it (`document_seam_vocabulary.hpp`).
+    void on(const DocumentActRequested& asked, loom::Mail& mail);
 
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
@@ -1168,6 +1186,12 @@ private:
     /// never published.
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
+
+    /// ...AND THE SAME RECORD FOR THE DOCUMENT'S PICTURE. Not a copy of the document: the
+    /// document is `state_`, this is what this weave last SAID about it.
+    // WL-DOC-20 -- agents/workshop/document.md
+    DocumentShown said_document_;
+    bool document_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md

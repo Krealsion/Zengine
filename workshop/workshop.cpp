@@ -1161,6 +1161,13 @@ int main(int argc, char** argv) {
     // office would be a host with that pane compiled into it again. It carries prose a maker
     // can already read off their own screen and commands nothing.
     speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
+    // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, on the same terms and for the same reason:
+    // the party that presents it is named by the load plan, and it carries a picture a maker
+    // is already reading off the workspace beside it.
+    speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
+    // ...and the answer to the one act the document has a door for. `to_any` for
+    // `SourceOpened`'s reason -- Loom picks the recipient of an answer.
+    speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------

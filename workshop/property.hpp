@@ -360,6 +360,27 @@ public:
     /// Try to make the draft the property's value. On anything but Accepted the
     /// property is untouched, the row stays in edit with the draft intact, and
     /// `refusal()` says why in words.
+    /// COMMIT TEXT THIS ROW NEVER DRAFTED -- the seam's door, where a maker's draft lives in
+    /// another image and only its finished text crosses. The conversion is the same, the two
+    /// refusals are the same and they are worded the same; what is absent is the draft,
+    /// which was never here. `commit()` below is this call with the row's own draft.
+    // WL-DOC-20 -- agents/workshop/document.md
+    Commit commit_text(const std::string& text) {
+        if (!editable_) {
+            refusal_ = "not authored";
+            return Commit::Refused;
+        }
+        const std::pair<Commit, std::string> result = commit_(text);
+        if (result.first == Commit::Unparseable) {
+            refusal_ = "not " + std::string(expected_ == nullptr ? "valid" : expected_);
+        } else if (result.first == Commit::Refused) {
+            refusal_ = result.second;
+        } else {
+            refusal_.clear();
+        }
+        return result.first;
+    }
+
     Commit commit() {
         if (!editing_) {
             return Commit::Accepted; // nothing was drafted; nothing changed
