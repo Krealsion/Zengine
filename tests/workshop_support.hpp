@@ -2371,12 +2371,14 @@ struct PaneRig {
         speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
                             surface::SurfacePlacementRemembered::zen_version,
                             surface::kSkinRole);
-        speak.allow_to_role(zengine::builder::StatusRequested::zen_name,
-                            zengine::builder::StatusRequested::zen_version,
-                            zengine::builder::kBuilderRole);
-        speak.allow_to_role(zengine::builder::BuildRequested::zen_name,
-                            zengine::builder::BuildRequested::zen_version,
-                            zengine::builder::kBuilderRole);
+        // ⚠ TWO BUILDER SENTENCES USED TO BE HERE AND ARE NOT IN THE HOST'S GRANT ANY MORE.
+        // `builder::StatusRequested` and `builder::BuildRequested`, role-scoped to the Builder,
+        // left `workshop.cpp`'s `speak` when the Builder panel became a weave and stopped being
+        // something Workshop asked things of. This rig spells the production grant BY HAND, so
+        // a sentence it keeps after the host drops it is a rig that is more powerful than the
+        // product -- and a case proving a pane can be reached would be proving it about a
+        // Workshop nobody ships. The grant is what `workshop.cpp` says today, and that is the
+        // only thing it is allowed to be.
         speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
         speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
