@@ -244,11 +244,11 @@ public:
     std::string value() const { return read_(); }
 
     /// What the maker sees: the committed value, or the live draft.
-    // WL-INFO-05 -- agents/workshop/info-body.md
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     std::string display() const { return editing_ ? draft_.text() : read_(); }
 
     /// Start editing from the current committed value, WITH THE CARET AT ITS END.
-    // WL-INFO-05 -- agents/workshop/info-body.md
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     void begin() {
         if (!editable_ || editing_) {
             return;
@@ -403,7 +403,7 @@ public:
     }
 
     /// TAKE OVER A DRAFT FROM THE ROW THIS ONE REPLACES.
-    // WL-INFO-06 -- agents/workshop/info-body.md; WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- agents/workshop/text-box.md
     void resume(const Row& previous) {
         if (!editable_ || !previous.editing_) {
             return;

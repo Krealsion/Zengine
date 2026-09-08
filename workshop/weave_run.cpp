@@ -126,7 +126,7 @@ void WorkshopWeave::quit() {
     }
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-CTRL-03 -- agents/workshop/info-controls.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 std::string WorkshopWeave::finish_draft_first() const {
     return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
            hotkey(Act::kDraftCancel) + " cancels";

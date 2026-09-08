@@ -10,8 +10,8 @@ METHOD — A claim about a BOUND needs the range, not a point: sweep it as a pro
 BECAUSE — thirty cases and twenty-four caught mutations were green while the shipped terminal at
 its minimum width of 78 columns showed the marker cut; the crowded case stopped three tabs short
 of the boundary.
-SEEN — `tests/test_workshop_panels.cpp` case `"HD-7: the sharing policy is monotonic, bounded
-and never starves either list"`.
+SEEN — `tests/test_workshop_panels.cpp` case `"WIND-1: the half-share pays at the bottom of
+the range too, and buys no slot"`.
 
 ## VM-FIX-02 — A bound with slack is asserted against the shape's own constants
 

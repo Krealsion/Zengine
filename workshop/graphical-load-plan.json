@@ -55,6 +55,11 @@
         "artifact": "zengine-attention-pane",
         "provider": [],
         "weave": [ { "role": "zengine.attention" } ]
+      },
+      {
+        "artifact": "zengine-info-pane",
+        "provider": [],
+        "weave": [ { "role": "zengine.info" } ]
       }
     ]
   }

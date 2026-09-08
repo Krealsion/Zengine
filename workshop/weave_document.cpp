@@ -118,52 +118,16 @@ std::string WorkshopWeave::size_notice(const ui::Element& e, const Handled& done
            " x " + TextForm<ui::Extent>::format(e.height) + edge_of(done);
 }
 
-bool WorkshopWeave::inspector_shown() const { return session_.panels.has(panel::kInfo); }
-
-// WL-INFO-10 -- agents/workshop/info-body.md
-bool WorkshopWeave::inspector_absent() {
-    if (inspector_shown()) {
-        return false;
-    }
-    say("the properties are not showing -- " + hotkey(Act::kPicker) +
-        " opens the Info panel",
-        true);
-    return true;
-}
-
-void WorkshopWeave::move_cursor(std::int64_t delta) {
-    if (inspector_absent()) {
-        return;
-    }
-    if (delta < 0) {
-        if (session_.cursor > 0) {
-            --session_.cursor;
-        }
-    } else if (session_.cursor + 1 < session_.rows.size()) {
-        ++session_.cursor;
-    }
-}
-
-// WL-INFO-05 -- agents/workshop/info-body.md
-void WorkshopWeave::begin_edit() {
-    if (inspector_absent()) {
-        return;
-    }
-    if (session_.cursor >= session_.rows.size()) {
-        return;
-    }
-    Row& row = session_.rows[session_.cursor];
-    if (!row.editable()) {
-        say(row.label() + " is not authored -- it is what the workspace makes of the "
-                          "authored value",
-            true);
-        return;
-    }
-    row.begin();
-    say("editing " + row.label() + " -- " + hotkey(Act::kDraftCommit) + " commits, " +
-            hotkey(Act::kDraftCancel) + " cancels",
-        false);
-}
+// ⭐ `inspector_shown`, `inspector_absent`, `move_cursor` AND `begin_edit` LEFT WITH THE INFO
+// PANEL. All four were about a cursor into a list this host derived and PAINTED, and the list
+// is published now: the Info weave holds the cursor, opens the draft on it and commits the
+// draft back through the document door (`document_seam_vocabulary.hpp`). `Session::cursor`
+// went with them. What stays is `Session::rows` -- the derived inspector itself -- because it
+// is the host's reading of the host's document, and the commit door writes through it.
+//
+// AND THE SENTENCE ABOUT A MISSING INSPECTOR WENT TOO. "the properties are not showing -- p
+// opens the Info panel" was said when a command-mode key acted on a panel that was not there;
+// there is no such key any more, because a maker presses into the pane to reach its rows.
 
 void WorkshopWeave::resize_workspace(std::int64_t delta) {
     // The ceiling is THIS SCREEN'S room, not a constant: a surface can offer
@@ -206,7 +170,7 @@ void WorkshopWeave::select(std::int64_t id) {
     rebuild_rows();
 }
 
-// WL-INFO-06 -- agents/workshop/info-body.md
+// WL-PED-04 -- agents/workshop/pane-manager.md
 void WorkshopWeave::rebuild_rows() { refocus(state_, session_); }
 
 // WL-TEXT-03 -- agents/workshop/text-box.md

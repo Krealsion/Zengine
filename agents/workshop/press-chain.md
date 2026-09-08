@@ -14,35 +14,39 @@ MEANS
 DOES NOT MEAN
 - that a `Disposition`, `InteractionResult` or target enum is wanted on the routing path.
 
-PROVEN BY — `workshop/weave_seam.cpp` `info_press`, `objects_press`, `actions_press`;
-`workshop/weave_pointer.cpp` `take_hold`; `tests/test_workshop_document.cpp` case `"QR-2: a press
-where the caret already is is CONSUMED, and the panel never answers"`, case `"QR-2: consumed and
-not-consumed are told apart by WHERE, not by what changed"`.
+MEANS
+- ⭐ its three handlers left with the Info panel; the Editor's arm answers now, and a pane's.
+
+PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`, `take_hold`;
+`workshop/weave_editor.cpp` `editor_press`; `workshop/weave_pane_editor.cpp`
+`pane_editor_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets
+first refusal, and a mode takes the press whole"`; `tests/test_workshop_screen.cpp` case `"a
+press that lands on a panel begins nothing, so a hand that leaves it drags nothing"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
-## WL-PRESS-02 — A deliberate `false` is a decision
+## WL-PRESS-02 — A bool that is not the chain's is not unified with it
 
-LAW — `objects_press` declines a press on the already-selected object's row so the panel answers it; `terminal_press`'s bool is "a repaint is owed" and is never unified with the chain.
-
-PROVEN BY — `workshop/weave_seam.cpp` `objects_press`; `workshop/weave_terminal.cpp`
-`terminal_press`; `workshop/weave_pointer.cpp` `repaint_needed`;
-`tests/test_workshop_document.cpp` case `"QR-2: a press on the ALREADY selected object row is
-deliberately not consumed"`.
-WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
-
-## WL-PRESS-03 — `info_body_at` is the resolve-and-locate preamble, owned once
-
-LAW — It answers where and nothing about meaning, and the body is resolved once per press beside the canvas point; holding it is sound because a declining handler changes nothing.
+LAW — `terminal_press`'s bool is "a repaint is owed" and `layouts_press`'s is "this was a tab", and neither is unified with the chain's CONSUMED: one shape, three questions, told apart by name.
 
 MEANS
-- each handler asks its own inverse: `property_row_hit`, `action_press_at`, `object_press_at`.
+- ⭐ the deliberate `false` this law was written over is gone with `objects_press`.
 
-PROVEN BY — `workshop/screen_info.cpp` `info_body_at`, `property_row_hit`, `action_press_at`,
-`object_press_at`; `workshop/screen.hpp` `terminal_input_hit`, `InfoBodyAt`,
-`InfoBodyAt::present`;
-`tests/test_workshop_document.cpp` case `"QR-2: the body's resolve-and-locate is ONE answer, and
-it is the painter's"`, case `"QR-2: no press inside the Info body begins a workspace gesture, on
-any row"`.
+PROVEN BY — `workshop/weave_terminal.cpp` `terminal_press`; `workshop/weave_pointer.cpp`
+`repaint_needed`, `layouts_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0:
+management chrome gets first refusal, and a mode takes the press whole"`.
+WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
+
+## WL-PRESS-03 — A pane's own inverse answers WHERE and nothing about meaning
+
+LAW — A resolved owner's inverse is asked once per press, beside the canvas point, and answers where it landed in that pane's body — never what it means; a decline changes nothing, so holding it is sound.
+
+MEANS
+- ⭐ this law was `info_body_at`'s; `pane_editor_at` is the built-in that owns one now.
+
+PROVEN BY — `workshop/screen_pane_editor.cpp` `pane_editor_at`, `pane_editor_body`;
+`workshop/screen.hpp` `PaneEditorAt`, `PaneEditorAt::present`, `terminal_input_hit`, `ProseAt`;
+`workshop/screen_external.cpp` `external_press_at`; `tests/test_workshop_panes_input.cpp` case
+`"SEL-0: a press in the body names the row under the header, in both media"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy
@@ -51,16 +55,16 @@ LAW — The order is the terminal overlay, arrangement, the open contextual surf
 
 MEANS
 - a new pane-internal gesture belongs in the resolved-owner arm, never above the walk;
-- a pane in front of an Info control takes the point; a pane in front of the tabs takes the press.
+- a pane in front of another takes the press, whichever of them owns a control at that cell.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `take_hold`, `on(PointerButton)`;
-`workshop/weave_external.cpp` `external_press`; `workshop/weave_seam.cpp` `info_press`;
-`workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen.hpp` `Occupancy::kind`,
-`ExternalPressAt`, `kNoKind`; `workshop/screen_external.cpp` `external_press_at`;
-`workshop/screen_gestures.cpp` `take_hold`; `tests/test_workshop_screen.cpp` case
-`"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane takes the press"`, case `"WUX-12/SC-6: a
-pane in front of an Info control takes the point"`; `tests/test_workshop_panes_input.cpp` case
-`"SEL-0: management chrome gets first refusal, and a mode takes the press whole"`.
+`workshop/weave_external.cpp` `external_press`; `workshop/screen_chrome.cpp` `occupied_at`;
+`workshop/screen.hpp` `Occupancy::kind`, `ExternalPressAt`, `kNoKind`;
+`workshop/screen_external.cpp` `external_press_at`; `workshop/screen_gestures.cpp` `take_hold`;
+`tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
+takes the press"`, case `"WIND-2: outside arrangement, an addressed pane behind another clicks
+through nothing"`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets
+first refusal, and a mode takes the press whole"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse

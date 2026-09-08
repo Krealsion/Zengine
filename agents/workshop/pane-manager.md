@@ -62,7 +62,10 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_editor.cpp` `paint_pane_editor`, `pane_editor_rows`;
 `workshop/screen.hpp` `PaneEditor::rows`; `workshop/setup.hpp` `inventory_rows`;
-`workshop/property.hpp` `Row::section`; `workshop/weave_pane_editor.cpp` `rebuild_subject_rows`;
+`workshop/property.hpp` `Row::section`, `Row::display`, `Row::begin`;
+`workshop/screen_info.cpp` `prose_row_in_window`, `item_at_prose_row`;
+`workshop/weave_document.cpp` `WorkshopWeave::rebuild_rows`;
+`workshop/weave_pane_editor.cpp` `rebuild_subject_rows`;
 `tests/test_workshop_panels.cpp` case `"WUX-13/SC-2: the Pane Editor is a built-in, and its list
 is the picker's population"`, case `"WUX-13/SC-4+SC-5: the subject's rows say identity, then
 AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
@@ -104,14 +107,17 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-07 — `kDraft` is one context for two inspectors
 
-LAW — The manager's draft shares Info's draft context — one context for two inspectors — and the draft under the keys is resolved by the same chain, so a change of document selection cannot touch it.
+LAW — `KeyContext::kDraft` is the manager's draft context, and the draft under the keys is resolved by one chain, so a change of document selection cannot touch it; the caret it keeps is its own body's.
 
 MEANS
-- `draft_live` and `pane_editor_draft_live` are two questions; Info's refusals skip the manager.
+- ⭐ it was ONE CONTEXT FOR TWO INSPECTORS until Info's property draft became a weave's;
+- `draft.commit` and `draft.cancel` stayed here because this draft is still the host's;
+- `draft_live` and `pane_editor_draft_live` are two questions over the same rows.
 
 PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`,
 `pane_editor_has_keyboard`, `pane_editor_draft_live`; `workshop/screen_info.cpp` `draft_live`;
-`workshop/weave_seam.cpp` `editing_row`; `workshop/keymap.hpp` `KeyContext::kDraft`,
+`workshop/screen.hpp` `draft_live`; `workshop/weave_seam.cpp` `editing_row`,
+`WorkshopWeave::refresh_inspector`; `workshop/keymap.hpp` `KeyContext::kDraft`,
 `KeyContext::kPaneEditor`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-1: the subject is
 chosen, and interacting inside the editor does not retarget it"`, case `"WUX-13/SC-10: editing a
 pane in a layout related to a current Setup makes it modified"`.

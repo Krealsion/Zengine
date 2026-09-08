@@ -49,7 +49,9 @@ LAW — `12` is cells and `70%` a share; `70p` is accepted for `70%`; the empty 
 
 PROVEN BY — `workshop/property.hpp` `TextForm`, `TextForm::parse`, `TextForm::expected`;
 `tests/test_workshop_document.cpp` case `"the extent text form: canonical out, and the typeable
-spelling in"`, case `"a maker types `70%` through the canonical text route, and 70p is history"`.
+spelling in"`, case `"a property reads the current typed value through the semantic surface"`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on a value the maker owns is
+written to the document"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-05 — Authored and resolved are different facts, and only one of them moves
@@ -194,8 +196,8 @@ MEANS
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`; `workshop/screen_bindings.cpp`
 `workspace_scene`; `tests/test_workshop_document.cpp` case `"canvas, object list and inspector
-agree after every gesture in a session"`, case `"the semantic operations are still the only
-authority, through the message path"`, case `"the pointer lands where the Skin actually drew the
+agree after every gesture in a session"`, case `"a move is ONE authored change: a refused move
+writes neither coordinate"`, case `"the pointer lands where the Skin actually drew the
 workspace"`, case `"the SAME object is under the pointer whichever medium reported it"`, case `"a
 pointer in a space Workshop does not speak is ignored, not mis-placed"`.
 WHY — `agents/decisions/the-document-model.md`

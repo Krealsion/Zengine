@@ -211,9 +211,12 @@ struct ProjectRig {
     /// always there. Kept from `FilesRig` unchanged -- it never went through the browser.
     void to_command() {
         const Session& s = session();
-        const ui::Rect info =
-            cells_covered(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
-        t.press_canvas(info.x + 1, info.y + 1);
+        // THE LAYOUTS PANE, which is on every desk and takes no keyboard. It was Info until
+        // Info became a weave, and a weave's pane takes the keys -- which is the opposite of
+        // what this helper is for.
+        const ui::Rect band =
+            cells_covered(bounds_of(s.panels, s.setup.active, panel::kLayouts, screen_of(s)).rect);
+        t.press_canvas(band.x + band.w - 1, band.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);
     }
 };
@@ -1182,7 +1185,7 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
     CHECK(held_by(owner) == before);
 
     // AND WORKSHOP IS STILL WORKSHOP: a refusal cost the maker the answer and nothing else.
-    CHECK(r.session().panels.has(panel::kInfo));
+    CHECK(r.session().panels.has(panel::kLayouts));
 }
 
 TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved editor buffer") {

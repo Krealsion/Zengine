@@ -1253,11 +1253,93 @@ builder                           doctest           always  55
 # name the mutation that reddens them and what it printed. Nothing was deleted and no floor
 # went down.
 #
-workshop_document                 doctest           always  143
-workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  179
-workshop_panes                    doctest           always  314
-workshop_persistence              doctest           always  181
+# THE INFO SEAM moved five floors, and it is the largest single move this contract has
+# recorded. The shape is the arc's own: a built-in's tiers go whole and the GESTURES come back
+# through the real seam, in `test_workshop_panes_info.cpp`, which loads the real
+# `zengine-info-pane` image through a plan row and drives it over the pane protocol.
+#
+#   workshop_panes  314 -> 337  the seam. Twenty cases in one new source
+#                               (`test_workshop_panes_info.cpp`): the pane arriving on a row
+#                               the DESK already named, the right column as a named place, a
+#                               Workshop with no image at all, the ids a keymap file names,
+#                               both lists over the host's document, the publication that
+#                               moves without a gesture, the omission markers, the two
+#                               controls and their availability in characters, the press that
+#                               asks the document to select, Create and Delete as the same
+#                               operations `n` and `d` perform, the keys acting only after a
+#                               press (VD-22), the draft and its two ids, a commit through the
+#                               document, the refusal that is the pane's own, the live draft
+#                               holding both controls back, the granted room as a wall, an
+#                               undrawable byte, and the source read that keeps "this image
+#                               holds no document". One more case joins them in
+#                               `test_workshop_panes_seam.cpp` -- a refusal standing until
+#                               ACCEPTED content replaces it -- which is a HOST defect this
+#                               migration found and repaired.
+#
+#   workshop_document 143 -> 105  the property draft, gone whole with the panel that held it.
+#                               HD-5 (13): a draft opening on its value, its window, its
+#                               press, its resize, its refused and accepted commits, its
+#                               cancel, and the two TextBoxes exactly one of which hears a
+#                               key. HD-9 (8): the grounds under the structural rows -- the
+#                               ground is a row's own field across the seam now, so what a
+#                               host case could ask is which ROW carries it. QR-2 (5): the
+#                               press chain inside the Info body; WL-PRESS-01 and WL-PRESS-03
+#                               are re-witnessed against the arms that remain. TEXT-0 and
+#                               QR-11 (5): the property draft's clipboard conversation, which
+#                               is `component::TextBox`'s inside the image now. CTX-0 (1): a
+#                               live draft holding a contextual deletion back -- a NAMED LOSS,
+#                               recorded in WL-CTX-07, and the guard stands unable to fire.
+#                               Six more (the canonical text route, the semantic authority,
+#                               a multibyte edit, a close request mid-draft, the selection
+#                               marker, `entered text is text`) are re-witnessed by surviving
+#                               document cases and by the seam suite's commit case. Two cases
+#                               arrived in the same PR: the document seam's own picture and
+#                               its four acts.
+#
+#   workshop_panels 179 -> 127  the built-in's own tiers, gone whole. Info as a PANEL (9): it
+#                               opened at boot, removed, reopened cell for cell, needed no
+#                               weave, and left the document alone -- six of those nine are
+#                               REWRITTEN over the Pane Manager, because what they were about
+#                               was a second built-in kind and not Info. HD-6 (13): the body's
+#                               row capacity from one equation, in both media. HD-7 (17): the
+#                               OBJECTS list, its share, its markers, its presses. HD-8 (15):
+#                               the footer of controls, its availability and its two owners.
+#                               TUI-0 (2) and WUX-7 (2): a resize under the inspector, and the
+#                               two reveal consumers. Every one of them measured `paint_info`,
+#                               `info_body_place` or `info_body_at`.
+#
+#   workshop_screen 245 -> 216  the pictures. The composed screen with an inspector in it
+#                               (14) -- the ring, the list marker and the inspector agreeing,
+#                               an empty document saying so, a long document's walls, a
+#                               refusal reaching the screen. Info's OCCUPANCY and backdrop
+#                               (4), which is the one group the right column keeps: it is
+#                               measured now with a pane the desk authors there, in
+#                               `"occupancy is resolved against the screen"` and `"the cells
+#                               just outside a panel are ordinary workspace"`. HD-10 (4),
+#                               HD-4 (1), QR-3 (1), TYPE-1 (1), WUX-7 (3) and WUX-12/SC-6 (1).
+#                               Two of the deletions were OVER-CUTS and are restored in
+#                               reduced form: the terminal toggle's own keystroke, whose
+#                               second half was an inspector draft and whose first half was
+#                               never Info's, and WIND-2a's front-order paint, rewritten over
+#                               the two overlay panes that remain.
+#
+#   workshop_persistence 181 -> 180  two lifecycle cases: `^s` refusing over a half-typed
+#                               property (a NAMED LOSS, WL-DOC-16) and a fresh Workshop's
+#                               setup and open panels being one decision -- which is no longer
+#                               true and is replaced by the case that says what IS: a fresh
+#                               setup names one pane this build does not compile.
+#
+# WHAT THE FLOORS DO NOT SAY, and the reason this entry is long: 127 host cases were deleted
+# and 21 seam cases arrived. That is not a trade of like for like, and the population contract
+# cannot express the difference. A claim measured across the real seam is worth more than one
+# measured against a built-in; a claim that is simply GONE is worth less than either, and
+# three of those are named above rather than counted away.
+
+workshop_document                 doctest           always  105
+workshop_screen                   doctest           always  216
+workshop_panels                   doctest           always  127
+workshop_panes                    doctest           always  337
+workshop_persistence              doctest           always  180
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65
 workshop_files                    doctest           always  43

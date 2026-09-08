@@ -34,6 +34,12 @@ hover.
 draft is excluded — it is windowed against its own caret. Nothing durable holds the reveal, and
 no file, setup, document, provider or value is touched. On a terminal the gesture does not exist.
 
-**Laws supported.** [WL-PTR-04](../workshop/pointer.md), [WL-PTR-05](../workshop/pointer.md),
-[WL-PTR-06](../workshop/pointer.md), [WL-PTR-08](../workshop/pointer.md),
-[WL-PTR-09](../workshop/pointer.md).
+**Reversed, and the reason is not this record's.** The feature is gone. Its whole consumer set
+was the Info panel's two rows, and the Info panel became a loaded weave: a pane sends rows it
+has already cut, so the unfitted string this decision depended on does not reach the host at
+all. The alternative this record rejected — widening the pane protocol to ask for a longer text
+— is the only route that would have kept it, and it is the host-mapped route VD-22 refuses.
+Four of the five laws below are retired; the fifth is about a medium and outlives the feature.
+The retirement note is in [pointer](../workshop/pointer.md).
+
+**Laws supported.** [WL-PTR-09](../workshop/pointer.md).

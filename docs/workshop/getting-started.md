@@ -118,8 +118,14 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
  +---------------------------------------------------------------------+
 ```
 
-The side panel is a fixed 28 columns, and it is drawn **over** the workspace like every other
-pane rather than beside it: the workspace is the whole width of your terminal, and taking the
+The object list and the inspector are the **Info** pane — a loadable weave that arrives with
+its own artifact, not something Workshop compiles in. Your desk names it, so it is there on a
+first run. If your build tree is missing `zengine-info-pane.so`, Workshop says which artifact
+it could not load and exits: an authored load plan is all-or-nothing, and Info is on the same
+plan as the Builder, the browser and Attention. A desk row naming a pane your plan simply does
+not load is the softer case — the row is kept, reads `unresolved`, and is counted on the setup
+line. Info sits in a fixed 28-column place at the right edge, drawn **over** the workspace like
+every other pane rather than beside it: the workspace is the whole width of your terminal, and taking the
 panel off the desk gives you those columns to build in. Panes cover the material you are
 building. That is uncomfortable on purpose:
 inventing a docking system before anybody had felt the discomfort would be answering a demand
@@ -168,11 +174,17 @@ remembers that layout for you either way.
    index, and is never handed out twice.
 2. **`Tab`** — select the next object. `h` `j` `k` `l` move the selected one by a cell;
    `Shift` with them resizes it.
-3. **`↑` `↓`** — move the inspector cursor down the selected object's properties.
-   **`Enter`** — edit the one under it. Type, then `Enter` to commit or `Esc` to abandon.
-   - Click to put the caret where you aim, drag to sweep a selection, and **double-click a
-     word to select it** — the same word `Ctrl`+`←` and `Ctrl`+`Backspace` already mean.
-     The command line in the terminal overlay does all three too.
+3. **Press into the Info pane first**, then **`↑` `↓`** to move its cursor down the selected
+   object's properties and **`Enter`** to edit the one under it. Type, then `Enter` to commit
+   or `Esc` to abandon. A pane's keys reach it only while it holds the keyboard — press
+   somewhere else and `↑` `↓` are Workshop's again.
+   - Drag to sweep a selection, and **double-click a word to select it** — the same word
+     `Ctrl`+`←` and `Ctrl`+`Backspace` already mean. The command line in the terminal overlay
+     does all three too.
+   - **You will not see a caret while you type a property.** A pane sends finished rows and a
+     caret is not a row, so the value scrolls to where you are typing and the insertion point
+     itself does not cross. It is a real cost of Info being a loaded pane, and it is the
+     contract the Editor's own migration exists to fix.
    - `Width` and `Height` are **one** property each — a mode plus an amount, `12` cells or
      `70%` — presented as one row even though two fields are stored.
    - `Resolved` is a separate, read-only row. Narrowing the workspace with `[` moves
@@ -181,9 +193,6 @@ remembers that layout for you either way.
    - Try an illegal value. The refusal names what is wrong and the property does not move.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
-5. **Hover a row that ends in `...`** — a name or a path too long for its column scrolls
-   under your pointer so you can read the rest of it, and goes back to normal when you move
-   away. Nothing is changed by looking ([panes](panes.md#reading-a-value-the-pane-had-to-cut)).
 6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
    with the thing you pointed at, without selecting it. `Enter` chooses, `Esc` closes, and
    **`a`** opens the same menu from the keyboard. See
@@ -204,14 +213,13 @@ remembers that layout for you either way.
 | | |
 |---|---|
 | objects | `n` new · `d` delete · `Tab` select · `h j k l` move · `Shift`+`h j k l` resize |
-| inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
 | panes | `p` picker · `w` arrange desk · **Pane Manager** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-manager--a-pane-as-a-subject)) · in it, `n` makes a pane of your own, `s` saves it ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
 | other | `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
-| in a pane | its own rows, while it holds the keyboard — press into it first: the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d` |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d` |
 
 These are the defaults; every application binding can be remapped through the keymap file,
 and the on-screen hints and the hotkey view always spell the effective one

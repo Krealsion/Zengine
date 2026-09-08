@@ -16,10 +16,9 @@ PROVEN BY — `component/text_box.hpp` `TextBox`, `TextBox::first_visible`, `Tex
 `workshop/property.hpp` `Row`, `Row::editor`, `Row::backspace`, `Row::draft_`;
 `workshop/screen.hpp` `TerminalPane`, `TerminalPane::input`; `workshop/setup.hpp` `LayoutNaming`;
 `tests/test_component.cpp` case `"component: a TextBox is a value with no identity and no
-policy"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the property draft speaks the same
-vocabulary and keeps its policy keys"`, case `"TEXT-0: the name editor selects with the same keys
-and says it in characters"`, case `"TEXT-0: the real Composer's fields speak the vocabulary across
-the seam"`.
+policy"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the name editor selects with the
+same keys and says it in characters"`, case `"TEXT-0: the real Composer's fields speak the
+vocabulary across the seam"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-02 — A consumer owns the capacity, the clipboard's custody and what the text means
@@ -76,10 +75,9 @@ MEANS
 PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`;
 `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen.hpp` `kTerminalCaretCols`,
 `terminal_input_place`, `TerminalInputPlace::columns`; `surface/region.hpp`
-`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: clicking a SCROLLED
-multibyte line snaps exactly as HD-3's did"`, case `"HD-4: a column and a byte index are inverses
-THROUGH the window"`; `tests/test_component.cpp` case `"component: the window never begins inside
-a character, at any capacity"`.
+`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: a column and a byte
+index are inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the
+window never begins inside a character, at any capacity"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
@@ -114,8 +112,7 @@ LAW — The mirror is written on copy and cut, said to the process once around t
 
 PROVEN BY — `workshop/screen.hpp` `Session::clipboard`; `component/text_box.hpp` `Clipboard`,
 `Clipboard::writes`; `surface/vocabulary.hpp` `ClipboardCopy`; `workshop/weave_pointer.cpp`
-`on(ClipboardCopy)`; `tests/test_workshop_document.cpp` case `"TEXT-0: a copy is said to the
-process once, and a heard copy fills the mirror"`; `tests/test_component.cpp` case `"component:
+`on(ClipboardCopy)`; `tests/test_component.cpp` case `"component:
 copy, cut and paste move text through the owner's clipboard"`, case `"component: copy with nothing
 selected leaves the clipboard alone"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
@@ -135,11 +132,9 @@ PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::pa
 `PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
 `workshop/property.hpp` `Row::paste`, `Row::resume`; `surface/vocabulary.hpp`
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
-reads the platform current, not the mirror stale"`, case `"QR-11: an answer crossing a draft
-boundary lands nowhere, and the payload dies"`, case `"QR-11: the draft that asked keeps its paste
-across a rebuild in flight"`, case `"QR-11: an unsolicited ClipboardText enters no box and no
-mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the owner applies, and
-set/clear name the draft"`.
+reads the platform current, not the mirror stale"`, case `"QR-11: an unsolicited ClipboardText
+enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the
+owner applies, and set/clear name the draft"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
@@ -188,7 +183,8 @@ MEANS
 
 PROVEN BY — `workshop/screen_terminal.cpp` `terminal_caret_column`, `terminal_caret_of_column`,
 `terminal_selection_columns`; `workshop/screen_info.cpp` `property_selection_columns`,
-`property_caret_column`; `workshop/screen.hpp` `TerminalSelectionSpan`; `component/text_box.hpp`
+`property_caret_column`; `workshop/screen.hpp` `TerminalSelectionSpan`, `kPropertyMarkCols`,
+`kPropertyLabelCols`, `kPropertyCaretCols`; `component/text_box.hpp`
 `TextBox`, `TextBox::visible_selection`, `pasteable_line`; `tests/test_workshop_screen.cpp` case
 `"caret geometry: a byte index and a prose column are one number, both ways"`;
 `tests/test_component.cpp` case `"component: the visible selection is the span both media may
@@ -206,7 +202,6 @@ MEANS
 PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`, `terminal_value_column`,
 `property_value_column`, `text_drag_place`; `component/text_box.hpp` `TextBox::drag_to_column`;
 `tests/test_workshop_document.cpp` case `"TEXT-0: a drag sweeps a selection on the terminal line,
-and release keeps it"`, case `"TEXT-0: a drag sweeps a selection on the property draft through its
-own row"`; `tests/test_component.cpp` case `"component: drag_to_column extends from the pressed
-anchor and can leave the slice"`.
+and release keeps it"`; `tests/test_component.cpp` case `"component: drag_to_column extends
+from the pressed anchor and can leave the slice"`.
 WHY — `agents/decisions/one-press-one-gesture.md`

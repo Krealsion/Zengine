@@ -212,7 +212,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
     // into a property, its refusal and the cursor with it. Every OTHER caller of
     // `rebuild_rows` follows a change of selection or of document, where dropping the
     // draft is the right answer and carrying it would put it on a different object.
-    refocus_keeping_draft(state_, session_);
+    refocus(state_, session_);
     // AND THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS. A screen
     // that grew may have gained an overlay slot, and one that shrank may have lost the
     // one a panel was standing in -- so this is the second reason a reconcile happens

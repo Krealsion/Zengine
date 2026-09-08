@@ -74,8 +74,9 @@ MEANS
 - `PaneInside` carries the `RegionFit` beside the rectangle, so no interior is fitted twice;
 - the graphical room is the post-chrome pixels, and selection cannot move it.
 
-PROVEN BY — `workshop/screen_external.cpp` `external_body_place`; `workshop/screen_info.cpp`
-`info_body_place`; `workshop/screen_pane_state.cpp` `panel_prose_place`;
+PROVEN BY — `workshop/screen_external.cpp` `external_body_place`;
+`workshop/screen_pane_editor.cpp` `pane_editor_body`; `workshop/screen_pane_state.cpp`
+`panel_prose_place`;
 `workshop/screen_layouts.cpp` `layouts_body`; `workshop/screen.hpp` `pane_interior`, `PaneInside`,
 `RegionFit`, `PanelProsePlace`; `workshop/screen_chrome.cpp` `pane_interior`;
 `tests/test_workshop_screen.cpp` case `"WUX-5: the border a maker sees and the room a pane spends

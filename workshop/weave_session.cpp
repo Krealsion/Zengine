@@ -175,8 +175,7 @@ void WorkshopWeave::restore_setup(loom::Mail& mail) {
     say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
             unresolved_note(loaded.setup) +
             (loaded.converted.total() > 0
-                 ? "; " + pane_migration::converted_note(loaded.converted.files > 0,
-                                                         loaded.converted.builder > 0)
+                 ? "; " + pane_migration::converted_note(loaded.converted)
                  : std::string()),
         false);
 }
@@ -373,7 +372,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         // The resolved inspector row closes over the workspace extent, and the workspace
         // extent is exactly what just changed -- `on(SurfaceExtent)`'s reason, said at
         // startup.
-        refocus_keeping_draft(state_, session_);
+        refocus(state_, session_);
     }
     // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK --------------------
     //
@@ -453,8 +452,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // told once that it moved -- which is the fact -- rather than eight times, which is
     // an implementation detail of where the reference was written.
     if (last.converted.total() > 0) {
-        said += "; " + pane_migration::converted_note(last.converted.files > 0,
-                                                     last.converted.builder > 0);
+        said += "; " + pane_migration::converted_note(last.converted);
     }
     say(said, !last.declined.empty());
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see

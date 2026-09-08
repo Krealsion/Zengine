@@ -149,9 +149,14 @@ enum class Act : std::uint8_t {
     kObjectShorter,
     kObjectWider,
     kObjectNext,
-    kInfoUp,
-    kInfoDown,
-    kInfoEdit,
+    // ⭐ THE THREE INSPECTOR ROWS LEFT WITH THE INFO PANEL (VD-22). `up`, `down` and `enter`
+    // were command-mode rows: they moved the property cursor and opened a draft on it from
+    // anywhere in Workshop, as long as Info happened to be open. Info is a weave now
+    // (`Zengine/info-pane/`) and declares `info.up`, `info.down` and `info.edit` as its OWN
+    // rows, so a maker presses into the pane and then edits -- and an authored override for
+    // `info.edit` is applied to the pane's row wherever they moved it (WL-KEY-15). The
+    // Builder's nine rows left for this reason one migration ago; these are the same nine
+    // words about three keys.
     kWorkspaceNarrower,
     kWorkspaceWider,
     kPicker,
@@ -319,10 +324,6 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kL, mod::kShift}},
     {Act::kObjectNext, "object.next", "object", KeyContext::kCommand,
      {scan::kTab, mod::kNone}},
-    {Act::kInfoEdit, "info.edit", "edit", KeyContext::kCommand,
-     {scan::kReturn, mod::kNone}},
-    {Act::kInfoUp, "info.up", "row up", KeyContext::kCommand, {scan::kUp, mod::kNone}},
-    {Act::kInfoDown, "info.down", "row down", KeyContext::kCommand, {scan::kDown, mod::kNone}},
     {Act::kWorkspaceNarrower, "workspace.narrower", "narrow workspace", KeyContext::kCommand,
      {scan::kLeftBracket, mod::kNone}},
     {Act::kWorkspaceWider, "workspace.wider", "widen workspace", KeyContext::kCommand,

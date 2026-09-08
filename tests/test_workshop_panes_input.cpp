@@ -428,7 +428,7 @@ TEST_CASE("SEL-0: a press names WHICH pane, when one provider offers two") {
     r.extent(160, 60); // room in the stack for two panes at once
     r.pick(hello_ref());
     r.pick(PaneRef{kHelloOffice, "second"});
-    REQUIRE(r.session().panels.open.size() == 4); // Info, Layouts, and both panes
+    REQUIRE(r.session().panels.open.size() == 3); // Layouts, and both panes
 
     for (const RuntimePane& row : r.session().panels.runtime.entries) {
         CAPTURE(row.pane);
@@ -2627,8 +2627,8 @@ TEST_CASE("MSG-0: selecting a weave in the real Loaded pane retargets the real C
     // AND THE LOADED PANE IS UNTOUCHED BY ANY OF IT. The two tools do not know about
     // each other: one published a fact and stopped, the other heard it and changed
     // its own target. Nothing opened, closed, moved or was hidden.
-    CHECK(r.session().panels.open.size() == 4); // Info, Layouts, Loaded, Compose
-    CHECK(r.session().panels.has(panel::kInfo));
+    CHECK(r.session().panels.open.size() == 3); // Layouts, Loaded, Compose
+    CHECK(r.session().panels.has(panel::kLayouts));
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);
 }
@@ -2668,7 +2668,7 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK(r.session().setup.active == setup_before);
     CHECK(r.last_notice() == notice_before);
     CHECK(r.session().selected == selected_before);
-    CHECK(r.session().panels.has(panel::kInfo));
+    CHECK(r.session().panels.has(panel::kLayouts));
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);
     CHECK_FALSE(r.session().terminal.open);
@@ -2859,16 +2859,15 @@ TEST_CASE("QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a p
     CHECK(r.session().panels.keyboard == kind);
     CHECK(keyboard_context(r.session()) == KeyContext::kPane);
 
-    // THE WAY OUT IS THE WAY IN: press a pane that takes no text -- Info here, Layouts on
-    // every desk -- and Escape is then nothing more specific's.
+    // THE WAY OUT IS THE WAY IN: press a pane that takes no text -- the Layouts pane, which is
+    // on every desk -- and Escape is then nothing more specific's. It was Info until Info
+    // became a weave; a weave's pane TAKES the keyboard, which is the opposite of what this
+    // half of the case needs.
     const Screen sc = screen_of(r.session());
-    const ui::Rect info =
-        cells_covered(bounds_of(r.session().panels, r.session().setup.active, panel::kInfo, sc).rect);
-    // ITS RIGHT-HAND EDGE, not its left: the stack's slot reaches into the right column's
-    // first columns since the room became the surface, so a press at `info.x + 1` lands on
-    // the external pane standing in that slot.
-    r.press_cell(info.x + info.w - 1, info.y + 1);
-    REQUIRE(r.session().panels.selected == panel::kInfo);
+    const ui::Rect band =
+        cells_covered(bounds_of(r.session().panels, r.session().setup.active, panel::kLayouts, sc).rect);
+    r.press_cell(band.x + band.w - 1, band.y);
+    REQUIRE(r.session().panels.selected == panel::kLayouts);
     REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
     r.key(input::scan::kEscape);
     CHECK(seat->keys.size() == 1); // the pane no longer holds the keys: nothing crossed

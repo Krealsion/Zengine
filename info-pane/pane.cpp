@@ -658,9 +658,17 @@ private:
             // AN EMPTY DOCUMENT SAYS IT IS EMPTY, and says what to do next -- a maker can
             // reach this state with their own hand, and a panel that merely goes blank is
             // indistinguishable from a tool that has broken.
-            if (share > 0) {
-                push("(none) -- n makes one", surface::role::kMuted);
-            }
+            //
+            // ⚠ AND IT IS SAID WHATEVER THE SHARE IS, which is a repair rather than a
+            // preference. `share_body_rows` gives an EMPTY list a share of zero -- it wants
+            // nothing, so it is offered nothing -- and this row was behind `share > 0`, so
+            // the one document state the sentence exists for was the one state it never
+            // appeared in: a maker who deleted their last object saw a blank column. The
+            // built-in said it unconditionally (`paint_info`, before this migration) and
+            // padded afterwards, which is what this does. The room is still the wall:
+            // `finish` truncates to the granted rows and cannot be talked past.
+            (void)share;
+            push("(none) -- n makes one", surface::role::kMuted);
             return;
         }
         std::size_t selected_at = 0;
@@ -690,9 +698,8 @@ private:
     template <class Push, class Mark>
     void say_properties(std::size_t share, Push&& push, Mark&& mark) {
         if (known_.properties.empty()) {
-            if (share > 0) {
-                push("(nothing selected)", surface::role::kMuted);
-            }
+            (void)share; // said whatever the share is, for `say_objects`' reason
+            push("(nothing selected)", surface::role::kMuted);
             return;
         }
         const std::size_t focus =

@@ -36,7 +36,9 @@ namespace panel {
 // `CatalogRow`, because it happened to be zero. Those defaults are `kNoPaneKind` now, which
 // is what they always meant -- "nobody has said which yet" -- and was only ever spelled as
 // the Builder because the Builder was first in a list.
-inline constexpr std::int64_t kInfo = 1;
+// 1 IS RETIRED. It was the Info panel's kind until that pane became a weave
+// (`Zengine/info-pane/`), for 3's reason exactly. It was also the only kind that ever
+// declared `placement::kSideRegion`, which is why `kinds_placed_in` now counts zero there.
 inline constexpr std::int64_t kEditor = 2;
 // 3 IS RETIRED. It was the project browser's kind until that pane became a weave
 // (`Zengine/files/`); the number is left unused rather than reassigned, because a kind is a
@@ -95,6 +97,20 @@ inline constexpr const char* kWorkshopProvider = "zengine.workshop";
 // WL-MAKER-03 -- agents/workshop/maker-pane.md
 inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 
+/// THE ONE FOREIGN OFFICE THIS HOST SPELLS, and it is spelled for a DESK rather than for
+/// furniture: `default_setup` (setup.hpp) names the Info pane so that a fresh Workshop opens
+/// with one, the way every saved desk names the panes it wants. It is a literal here rather
+/// than `info-pane/vocabulary.hpp`'s constant, for `pane_migration.hpp`'s reason: this host
+/// does not link the weave, and a case checks the two spellings against each other.
+///
+/// ⚠ AND IT IS NOT A CATALOG ROW. Nothing resolves it, nothing places it, and no code path
+/// asks whether a pane is this one: `add_pane` copies the reference and `resolve_pane` answers
+/// from what this run was offered. A maker who deletes the row gets a Workshop with no Info in
+/// it, which is what deleting a desk row should mean.
+// WL-INFO-11 -- agents/workshop/info-body.md
+inline constexpr const char* kInfoPaneProvider = "zengine.info";
+inline constexpr const char* kInfoPaneKey = "info";
+
 /// One entry in the catalog: what a maker sees in the picker, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
@@ -115,7 +131,8 @@ struct PanelKind {
 /// file format both have to say them and a typo in one of three copies is a
 /// setup that loads as unresolved.
 namespace pane_key {
-inline constexpr const char* kInfo = "info";
+// `info` IS RETIRED HERE AND LIVES IN `info-pane/vocabulary.hpp` NOW. It stays spelled in
+// `pane_migration.hpp`, once, as a historical fact about files already written.
 inline constexpr const char* kEditor = "editor";
 inline constexpr const char* kLayouts = "layouts";
 inline constexpr const char* kPaneEditor = "pane-editor";
@@ -127,14 +144,12 @@ inline constexpr const char* kPaneEditor = "pane-editor";
 // WL-PED-01 -- agents/workshop/pane-manager.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr PanelKind kPanelCatalog[] = {
-    {panel::kInfo, placement::kSideRegion, kWorkshopProvider, pane_key::kInfo, "Info",
-     "objects and properties"},
     // THE SOURCE EDITOR'S PRESENTATION, AND ONLY ITS PRESENTATION. The document -- the
     // path, the buffer, the saved copy, the dirty answer -- is Session state
     // (`Session::editor`), which is exactly what makes removing, hiding or rearranging
     // this pane unable to lose one byte of unsaved source: a panel is a presentation,
-    // and closing one destroys a presentation. Info's own shape, holding a document
-    // instead of holding nothing.
+    // and closing one destroys a presentation. The shape the Info panel had, when it was one:
+    // a presentation holding a document instead of holding nothing.
     {panel::kEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kEditor, "Editor",
      "edit a source file", true},
     // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW. Until this row existed
@@ -240,13 +255,19 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
     return n;
 }
 
-/// THE RIGHT COLUMN HOLDS EXACTLY ONE PANEL BY DEFAULT, and this line is the whole of that
-/// rule. It is about DEFAULTS, not about occupancy: two panes may stand in one place now, and
-/// the one on top covers the other, which is what a maker asking for that has asked for. What
-/// this refuses is two CATALOG rows resolving to one rectangle with nobody having said so.
-static_assert(kinds_placed_in(placement::kSideRegion) == 1,
-              "the right column is one kind's default: a second kind declaring it would "
-              "resolve to the same bounds and paint over the first, unasked");
+/// NO BUILT-IN KIND DEFAULTS TO THE RIGHT COLUMN ANY MORE, and this line is the whole of that
+/// rule. Info was the one that did, and Info is a weave; `placement_of` answers
+/// `kOverlayStack` for every runtime kind, so the only thing that can put a pane in the right
+/// column now is a DESK saying so (`pane_unit::kRightColumn`), which is a maker's sentence
+/// rather than this host's. The place itself stays: it is a rectangle a setup row may name.
+///
+/// ⚠ AND ZERO IS ASSERTED RATHER THAN THE LINE BEING DELETED. "At most one" would still be
+/// true of zero and would go on being true if somebody added a row back; what this says is
+/// that the host declares NO furniture at that edge, which is the thing the arc bought and
+/// the thing a later catalog row would quietly undo.
+static_assert(kinds_placed_in(placement::kSideRegion) == 0,
+              "no built-in kind declares the right column: a desk row names it, and a catalog "
+              "row that took it back would be this host deciding where a weave's pane goes");
 
 /// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word.
 static_assert(kinds_placed_in(placement::kTopBand) == 1,
@@ -455,8 +476,11 @@ struct Panel {
     std::int64_t kind = kNoPaneKind;
 };
 
+/// THE KINDS A FRESH SESSION HAS OPEN BEFORE ANY WEAVE HAS SPOKEN -- one, now that Info is a
+/// weave: a pane this host does not compile cannot be open at construction, and arrives when
+/// its office offers it and the desk names it, exactly as Files, the Builder and Attention do.
 // WL-TAB-01 -- agents/workshop/tab-run.md
-inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo, panel::kLayouts};
+inline constexpr std::int64_t kDefaultPanels[] = {panel::kLayouts};
 
 inline constexpr std::size_t kDefaultPanelCount =
     sizeof(kDefaultPanels) / sizeof(kDefaultPanels[0]);
