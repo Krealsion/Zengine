@@ -40,6 +40,7 @@
 #include "info-pane/vocabulary.hpp"
 
 #include "workshop/document_seam_vocabulary.hpp"
+#include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -97,59 +98,20 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // migration would be a panel a maker could see had changed, for no reason they were told
 // about.
 //
-// ⚠ THIS IS THE FOURTH PANE PACKAGE TO CARRY `fit`, and the second to carry `list_window`.
-// A header that owns no lifecycle and hides no bus would hold all of them honestly; it is a
-// change of its own and this migration already has one contract in it, so the count is
-// written down instead. `files/files.cpp`, `builder-pane/pane.cpp`, `attention-pane/pane.cpp`
-// and this file are the four.
+// ⚠ THE FOURTH COPY OF `fit` IS GONE, AND SO ARE THE OTHER THREE. This file's first stage said
+// it was the fourth package to carry these and that a header owning no lifecycle and hiding no
+// bus would hold them honestly; `workshop/pane_text.hpp` is that header. It arrived when the
+// Terminal would have made the fifth copy, and nothing about the functions changed for moving.
+// `list_window` stays here: two packages carry it, it is a WINDOW rather than text, and two is
+// still a convention.
 
-constexpr const char* kElided = "...";
+using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::omitted_text;
+using zengine::workshop::pane_text::pad;
+
 constexpr std::int64_t kPropertyMarkCols = 1;  ///< the `>` that marks the cursor's row
 constexpr std::int64_t kPropertyLabelCols = 9; ///< the label column a value is measured after
-
-std::string pad(std::string text, std::size_t width) {
-    if (text.size() > width) {
-        text.resize(width);
-        return text;
-    }
-    text.append(width - text.size(), ' ');
-    return text;
-}
-
-std::string fit(std::string text, std::int64_t width) {
-    if (width <= 0) {
-        return {};
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
-        return text;
-    }
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (room <= mark) {
-        return std::string(kElided).substr(0, room);
-    }
-    text.resize(room - mark);
-    text += kElided;
-    return text;
-}
-
-std::string omitted_text(std::size_t how_many, const char* which) {
-    return "... " + std::to_string(how_many) + " " + which;
-}
-
-/// EVERY BYTE A CANVAS CAN DRAW, AT THIS PANE'S OWN DOOR. An object's NAME and a property's
-/// VALUE are a maker's own text and nothing has ever required them to be printable ASCII; a
-/// pane's publication is judged whole (`judge_content`) and one undrawable byte refuses all
-/// of it. The Attention pane's own gate, one migration on, and for the same reason.
-std::string drawable(std::string text) {
-    for (char& c : text) {
-        const unsigned char byte = static_cast<unsigned char>(c);
-        if (byte < 0x20u || byte >= 0x7Fu) {
-            c = ' ';
-        }
-    }
-    return text;
-}
 
 /// WHAT A WINDOW OVER A LIST LOOKS LIKE -- `screen.hpp`'s `ListWindow`, carried.
 struct ListWindow {
