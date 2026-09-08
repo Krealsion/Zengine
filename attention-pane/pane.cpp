@@ -34,6 +34,7 @@
 #include "attention-pane/vocabulary.hpp"
 
 #include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -82,96 +83,17 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // that cut its rows one character differently after the migration would be a view a maker
 // could see had changed, for no reason they were told about.
 //
-// ⚠ THIS IS THE THIRD COPY OF `fit` IN A PANE PACKAGE, and it is named as a seam rather than
-// pretended away. `files/files.cpp` carries one, `builder-pane/pane.cpp` carries `fit`,
-// `wrap` and `pad`, and this file carries `fit`, `wrap` and two more. A header that owns no
-// lifecycle and hides no bus would hold all of them honestly -- and it is a fourth change in
-// a migration that already has three, so it is left open with the count written down.
+// ⚠ AND THEY ARE NOT COPIED HERE ANY MORE. This file's own note called the third copy a seam
+// and predicted the header that would close it; `workshop/pane_text.hpp` is that header, and
+// it arrived when the fifth package would have made a fifth copy. Nothing about the functions
+// changed and this pane gained no base class for using them.
 
-constexpr const char* kElided = "...";
-constexpr std::int64_t kWrapIndent = 2;
+using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::omitted_text;
+using zengine::workshop::pane_text::wrap;
+constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
 
-std::string fit(std::string text, std::int64_t width) {
-    if (width <= 0) {
-        return {};
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
-        return text; // it fits, so nothing about it changes -- not even its role
-    }
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (room <= mark) {
-        return std::string(kElided).substr(0, room);
-    }
-    text.resize(room - mark);
-    text += kElided;
-    return text;
-}
-
-std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
-    std::vector<std::string> rows;
-    if (width <= 0) {
-        return rows;
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    const std::size_t indent =
-        width > kWrapIndent + 1 ? static_cast<std::size_t>(kWrapIndent) : 0;
-    std::size_t at = 0;
-    while (true) {
-        const std::string lead(rows.empty() ? 0 : indent, ' ');
-        const std::size_t take = room - lead.size();
-        if (text.size() - at <= take) {
-            rows.push_back(lead + text.substr(at));
-            return rows;
-        }
-        std::size_t cut = at + take;
-        bool broke = false;
-        for (std::size_t i = cut; i > at; --i) {
-            if (text[i] == ' ') {
-                cut = i;
-                broke = true;
-                break;
-            }
-        }
-        rows.push_back(lead + text.substr(at, cut - at));
-        at = cut;
-        if (broke) {
-            ++at; // the space that broke the line is spent by the break
-        }
-        if (at >= text.size()) {
-            return rows;
-        }
-    }
-}
-
-std::string omitted_text(std::size_t how_many, const char* which) {
-    return "... " + std::to_string(how_many) + " " + which;
-}
-
-/// WHAT A CANVAS CAN DRAW, AT THIS PANE'S OWN DOOR.
-///
-/// ⚠ A CONDITION'S WORDS ARE ITS OWNER'S, AND NOTHING HAS EVER REQUIRED THEM TO BE PRINTABLE
-/// ASCII. A loader's refusal may carry a newline; a pane's own sentence about why an update
-/// did not fit may carry a tab. The built-in drew them into a region and let each medium make
-/// of them what it could -- but a PANE's publication is judged (`judge_content`), and one
-/// undrawable byte anywhere in it refuses the whole thing: Workshop clears the rows, raises a
-/// condition about the refusal, and this pane cannot show that one either. Measured on a real
-/// terminal, with a real malformed keymap file, which is the only place it could have been
-/// found.
-///
-/// SO THE BYTE STANDS IN FOR ITSELF rather than being deleted. A maker reads the sentence and
-/// can see where it was folded, which is what a control character in a refusal MEANS. This is
-/// the discipline `files.cpp` keeps for typed and pasted text, pointed the other way: that
-/// pane gates what comes IN from a maker, this one gates what goes OUT to a canvas.
-std::string drawable(std::string text) {
-    for (char& c : text) {
-        const unsigned char byte = static_cast<unsigned char>(c);
-        if (byte < 0x20u || byte >= 0x7Fu) {
-            c = ' ';
-        }
-    }
-    return text;
-}
 
 /// WHAT A WINDOW OVER A LIST LOOKS LIKE -- `screen.hpp`'s `ListWindow`, carried.
 struct ListWindow {
