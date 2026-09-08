@@ -871,26 +871,14 @@ int main(int argc, char** argv) {
     // Non-owning, handed down the way `request_stop` is. The bus owns the
     // participant; Workshop's weave holds a pointer and inherits nothing from it.
     host.terminal = terminal.session;
-    // THE BOOT LINE NAMES THE TERMINAL'S EFFECTIVE OPENER, NOT A LITERAL. The old
-    // line printed `(shift+space opens it)` into, among others, a POSIX terminal that can
-    // never produce shift+space -- the exact independently-authored claim the keymap
-    // exists to end. The host reads the maker's keymap through the SAME loader and the
-    // same admission the weave uses, so the two cannot disagree: a refused or absent file
-    // means the defaults are active, which is precisely what the weave concludes too (and
-    // the weave speaks the refusal on its own notice line).
-    zengine::workshop::Keymap boot_keymap;
-    if (!host.keymap_path.empty() && std::filesystem::exists(host.keymap_path)) {
-        const keymap_persist::LoadedKeymap loaded =
-            keymap_persist::load_file(host.keymap_path);
-        if (loaded.outcome.accepted) {
-            boot_keymap = loaded.keymap;
-        }
-    }
-    std::printf("zengine-workshop - terminal: weave #%s (%s opens it)\n",
-                std::to_string(terminal.id.value).c_str(),
-                zengine::workshop::gesture_text(
-                    boot_keymap.gesture_of(zengine::workshop::Act::kTerminalToggle))
-                    .c_str());
+    // THE BOOT LINE NAMES THE PARTICIPANT, AND NO LONGER NAMES A KEY. It used to print
+    // the gesture that opened the overlay, read through the maker's own keymap so the host
+    // and the weave could not disagree about it. There is no such gesture: the Terminal is
+    // a pane in the load plan, opened from the picker and placed by a maker's arrangement,
+    // so what this line can honestly say is WHICH IDENTITY the pane speaks as -- which is
+    // the fact somebody reading this line is actually after.
+    std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
+                std::to_string(terminal.id.value).c_str());
     // Flushed like the four banner lines above it, and for a reason met live: a killed
     // process loses whatever is still in the buffer, and the line naming the identity the
     // pane speaks as is exactly the line somebody is reading when they kill it.
@@ -1168,6 +1156,17 @@ int main(int argc, char** argv) {
     // ...and the answer to the one act the document has a door for. `to_any` for
     // `SourceOpened`'s reason -- Loom picks the recipient of an answer.
     speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+    // ...AND WHAT THE TERMINAL PARTICIPANT'S RECORD HOLDS, on the same terms again. It is a
+    // reading of a participant THIS PROCESS mounted and holds a pointer to; publishing it
+    // is not speaking as that participant, and could not be -- an identity is fixed when a
+    // weave is mounted, and this host's own is the one it says this with.
+    speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
+    // ...and the answers to the two things the terminal has doors for: authoring one line,
+    // and asking what could be said next. `to_any` for `SourceOpened`'s reason -- Loom picks
+    // the recipient of an answer.
+    speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
+    speak.allow_to_any(TerminalCompletionOffered::zen_name,
+                       TerminalCompletionOffered::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------

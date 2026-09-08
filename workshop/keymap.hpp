@@ -26,7 +26,10 @@ namespace zengine::workshop {
 // WL-KEY-03, WL-KEY-05 -- agents/workshop/keyboard.md
 enum class KeyContext : std::uint8_t {
     kCommand,
-    kTerminal,
+    // ⭐ `kTerminal` IS GONE (VD-24). It was the last context whose rows belonged to one
+    // particular tool: a modal overlay that owned the keyboard whole while it was open. The
+    // Terminal is a pane, so its keys are its own `PaneActions` rows and reach it through
+    // `kPane` like every other pane's -- which is also why five `Act` values left with it.
     kNaming,
     /// THE PANE CREATOR'S NAME PROMPT: one line a maker types a new pane's name into.
     // WL-MAKER-11 -- agents/workshop/maker-pane.md
@@ -58,9 +61,8 @@ enum class KeyContext : std::uint8_t {
 // WL-FOCUS-09 -- agents/workshop/focus.md
 // WL-KEY-03 -- agents/workshop/keyboard.md
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
-    return c == KeyContext::kTerminal || c == KeyContext::kNaming ||
-           c == KeyContext::kPaneNaming || c == KeyContext::kPane || c == KeyContext::kDraft ||
-           c == KeyContext::kEditor;
+    return c == KeyContext::kNaming || c == KeyContext::kPaneNaming ||
+           c == KeyContext::kPane || c == KeyContext::kDraft || c == KeyContext::kEditor;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -130,7 +132,9 @@ enum class Act : std::uint8_t {
     kQuit,
     kSaveDocument,
     kOpenDocument,
-    kTerminalToggle,
+    // ⚠ `kTerminalToggle` WAS HERE, ABOVE EVERY MODE (VD-22, VD-24) -- the chord that opened
+    // the terminal overlay from anywhere. It retired with the overlay, for `kAttention`'s
+    // reason written three lines down: the Terminal is a pane, opened from the picker.
     kHotkeys,
     // ⚠ `kAttention` WAS HERE, ABOVE EVERY MODE -- the chord that opened the
     // current-condition view from anywhere. The view is a pane and is opened from the
@@ -193,12 +197,10 @@ enum class Act : std::uint8_t {
     kPaneCreatorDiscard,
     kPaneNamingCommit,
     kPaneNamingCancel,
-    // -- the Terminal line's controls --------------------------------------------------
-    kTerminalSubmit,
-    kTerminalBack,
-    kTerminalUp,
-    kTerminalDown,
-    kTerminalComplete,
+    // ⚠ THE TERMINAL LINE'S FIVE CONTROLS WERE HERE (VD-24). `kTerminalSubmit`,
+    // `kTerminalBack`, `kTerminalUp`, `kTerminalDown` and `kTerminalComplete` were an
+    // overlay's mode keys; the pane declares the same five ids as its own `PaneActionRow`s,
+    // so what a maker presses is unchanged and what this host compiles for it is nothing.
     // -- the picker --------------------------------------------------------------------
     kPickerUp,
     kPickerDown,
@@ -282,8 +284,11 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kSaveDocument, "document.save", "save", KeyContext::kNoEditor,
      {scan::kS, mod::kCtrl}},
     {Act::kOpenDocument, "document.open", "open", KeyContext::kGlobal, {scan::kO, mod::kCtrl}},
-    {Act::kTerminalToggle, "workshop.terminal", "terminal", KeyContext::kGlobal,
-     {scan::kT, mod::kCtrl}},
+    // ⚠ `workshop.terminal` WAS A GLOBAL ROW HERE and left with the overlay it opened
+    // (VD-22, VD-24) -- `Ctrl+t`, from anywhere, opening one particular tool. The Terminal
+    // is a pane a maker opens from the picker, exactly as Attention's `Ctrl+a` retired when
+    // the current-condition view became one. A maker who had authored an override for this
+    // row finds it names nothing, which the keymap loader already says out loud.
     {Act::kHotkeys, "workshop.hotkeys", "hotkeys", KeyContext::kGlobal,
      {scan::kK, mod::kCtrl}},
     // THE CURRENT-CONDITION VIEW, AND IT FOLLOWS THE KEYBOARD -- `^c`-quit's
@@ -503,16 +508,11 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kPaneNamingCancel, "pane-creator.cancel", "cancel", KeyContext::kPaneNaming,
      {scan::kEscape, mod::kNone}},
-    {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
-     {scan::kReturn, mod::kNone}},
-    {Act::kTerminalComplete, "terminal.complete", "what can this terminal say?",
-     KeyContext::kTerminal, {scan::kTab, mod::kNone}},
-    {Act::kTerminalUp, "terminal.previous", "completion up", KeyContext::kTerminal,
-     {scan::kUp, mod::kNone}},
-    {Act::kTerminalDown, "terminal.next", "completion down", KeyContext::kTerminal,
-     {scan::kDown, mod::kNone}},
-    {Act::kTerminalBack, "terminal.back", "dismiss list / clear line", KeyContext::kTerminal,
-     {scan::kEscape, mod::kNone}},
+    // ⚠ THE TERMINAL'S FIVE ROWS WERE HERE. `terminal.submit`, `terminal.complete`,
+    // `terminal.previous`, `terminal.next` and `terminal.back` are the pane's own
+    // `PaneActionRow`s now, in the pane's namespace and on the same five gestures
+    // (`terminal-pane/vocabulary.hpp`); a maker's authored override moves with the spelling,
+    // which is why the ids did not change.
     // -- the picker --------------------------------------------------------------------
     {Act::kPickerUp, "picker.up", "row up", KeyContext::kPicker, {scan::kUp, mod::kNone}},
     {Act::kPickerDown, "picker.down", "row down", KeyContext::kPicker,

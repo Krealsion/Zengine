@@ -403,10 +403,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # already a value this host had worked out, and the one thing it needed was a way to be told
 # them. That is the one new sentence in the whole arc
 # (`workshop/attention_seam_vocabulary.hpp`), and it is why this line exists.
+#
+# `zengine-terminal-pane` is the twelfth, and it is the last of the built-ins this arc set out
+# to move. It was not a pane and it was not chrome: it was a MODE -- an overlay that owned the
+# keyboard and the pointer whole while it was open, drawn on a plane after every pane so
+# nothing a maker arranged could stand in front of it. What the migration found is that the
+# only part of it that could not move is the part that speaks as a Loom identity, and that
+# part is about forty lines; everything else was presentation, and it is in `terminal-pane/`.
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
-                               zengine-info-pane
+                               zengine-info-pane zengine-terminal-pane
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)

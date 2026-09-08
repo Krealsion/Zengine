@@ -308,13 +308,9 @@ TEST_CASE("SEL-0: management chrome gets first refusal, and a mode takes the pre
         r.press_cell(panel.x + 1, body_y);
         CHECK(seat->presses.empty());
     }
-    SUBCASE("the terminal overlay is a mode and outranks occupancy entirely") {
-        seat->presses.clear();
-        r.key(input::scan::kT, input::mod::kCtrl);
-        REQUIRE(r.session().terminal.open);
-        r.press_cell(panel.x + 1, body_y);
-        CHECK(seat->presses.empty());
-    }
+    // ⚠ THE TERMINAL OVERLAY WAS A SUBCASE HERE (VD-24) -- "a mode outranks occupancy
+    // entirely", proved by opening it and pressing on a pane underneath. It is a pane now
+    // and outranks nothing: what is in front is what a maker's arrangement put in front.
     SUBCASE("a release is not a press") {
         seat->presses.clear();
         r.release_cell(panel.x + 1, body_y);
@@ -1156,7 +1152,6 @@ TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);
-    CHECK_FALSE(r.session().terminal.open);
     CHECK(r.session().selected == selected_before);
     CHECK(r.last_notice() == notice_before);
     CHECK(r.session().setup.active == setup_before);
@@ -1377,24 +1372,17 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     press_body(r, kind);
     REQUIRE(r.session().panels.keyboard == kind);
 
-    // THE TERMINAL TOGGLE still opens the Terminal above the pane (KEY-0: ctrl+t, a
-    // chord that enters no text, so there is nothing for the pane to be protected from).
-    r.key(input::scan::kT, input::mod::kCtrl);
-    CHECK(r.session().terminal.open);
-    CHECK(seat->keys.empty());
-    CHECK(seat->typed.empty());
-
-    // ...AND THE TERMINAL OWNS THE KEYBOARD WHOLE WHILE IT IS OPEN, above the pane.
+    // ⚠ THE TERMINAL'S THREE PARAGRAPHS WERE HERE (VD-24): the global chord opened it
+    // above the pane, it owned the keyboard whole while it was open, and closing it handed
+    // the keyboard straight back to the pane that had it. All three were true of a MODE, and
+    // there is no mode left that does that to a pane. What survives is the mode that still
+    // takes the keyboard from a pane -- the picker -- and it is the subcase below.
+    r.key(input::scan::kP);
+    REQUIRE(r.session().panels.picker.open);
     r.key(input::scan::kA);
-    r.text("a");
     CHECK(seat->keys.empty());
-    CHECK(r.session().terminal.input.text() == "a");
-
-    // CLOSING IT HANDS THE KEYBOARD STRAIGHT BACK, because the candidate was never
-    // cleared -- the mode took every press whole and never reached the line that sets
-    // it.
-    r.key(input::scan::kT, input::mod::kCtrl);
-    REQUIRE_FALSE(r.session().terminal.open);
+    r.key(input::scan::kEscape);
+    REQUIRE_FALSE(r.session().panels.picker.open);
     r.key(input::scan::kA);
     CHECK(seat->keys.size() == 1);
 
@@ -2671,7 +2659,6 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK(r.session().panels.has(panel::kLayouts));
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);
-    CHECK_FALSE(r.session().terminal.open);
 }
 
 // ---- QR-18: the wheel crosses the seam, and Escape puts a pane down ----------------------

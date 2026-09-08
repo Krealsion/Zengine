@@ -173,6 +173,8 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
         // gone the moment the refusal is, and the attention projection reads it where
         // it lives rather than being told about it (`attention_conditions`).
         pane->refusal_why = judged.refusal;
+        // THE CARET GOES WITH THE ROWS. It was a position IN them, and the rows are gone.
+        pane->clear_caret();
         repaint(mail);
         return;
     }
@@ -180,7 +182,121 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     pane->heard = true;
     pane->awaiting = false;
     pane->clear_refusal();
+    // ⚠ AND THE CARET IS RE-JUDGED AGAINST THE ROWS THAT JUST ARRIVED. A pane sends its
+    // content and its caret as two messages, in that order, so between them there is one
+    // instant where a caret admitted against the PREVIOUS rows is held against these. If
+    // the new answer is shorter, that caret is now at a place with no text under it -- so
+    // it is dropped here rather than drawn there, and the pane's own next `PaneCaret`
+    // (which arrives on this same drain) puts it back where it belongs. A pane that moved
+    // its caret and its rows together therefore never sees this arm; a pane that shrank its
+    // rows and said nothing about its caret has none until it does.
+    if (!judge_caret(PaneCaret{content.pane, pane->caret_row, pane->caret_col,
+                               pane->sel_begin_row, pane->sel_begin_col, pane->sel_end_row,
+                               pane->sel_end_col},
+                     *pane)
+             .accepted) {
+        pane->clear_caret();
+    }
     repaint(mail);
+}
+
+// WL-CARET-01, WL-CARET-03 -- agents/workshop/panes-and-windows.md
+void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return; // personal speech, `on(PaneContent)`'s own first rule
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, caret.pane);
+    if (row == nullptr) {
+        return; // an office speaking about a pane it never offered, or about a built-in
+    }
+    ExternalPane* pane = session_.panels.external_pane(row->kind);
+    if (pane == nullptr || !pane->granted) {
+        return; // a caret for a closed pane opens nothing, exactly as content does not
+    }
+    // WHAT IT WAS, BEFORE ANYTHING IS WRITTEN -- so this handler can repaint on a caret
+    // that MOVED with no content behind it (an arrow key) and stay silent on one that
+    // repeats itself (a repaint the pane answered by re-saying everything it knows).
+    const std::int64_t was_row = pane->caret_row;
+    const std::int64_t was_col = pane->caret_col;
+    const std::int64_t was_sel_row = pane->sel_begin_row;
+    const std::int64_t was_sel_col = pane->sel_begin_col;
+    const std::int64_t was_sel_end_row = pane->sel_end_row;
+    const std::int64_t was_sel_end_col = pane->sel_end_col;
+    const Written judged = judge_caret(caret, *pane);
+    if (!judged.accepted) {
+        // REFUSED WHOLE, AND THE PANE IS LEFT WITH NO CARET RATHER THAN ITS PREVIOUS ONE.
+        // A stale caret is a position, and a position that is wrong is read as a fact --
+        // the rows' own refusal rule, one shape over. It does NOT clear the rows: the
+        // sentences a maker is reading were judged on their own and are still true.
+        pane->clear_caret();
+    } else if (caret.row == surface::kNoCaret) {
+        pane->clear_caret(); // the pane saying it has none: ordinary, and not a refusal
+    } else {
+        pane->caret_row = caret.row;
+        pane->caret_col = caret.column;
+        // THE SELECTION RIDES WITH IT OR NOT AT ALL. `judge_caret` has already refused a
+        // range that names a row the content does not have, so this is a copy and not a
+        // second policy.
+        pane->sel_begin_row = caret.sel_begin_row;
+        pane->sel_begin_col = caret.sel_begin_col;
+        pane->sel_end_row = caret.sel_end_row;
+        pane->sel_end_col = caret.sel_end_col;
+    }
+    if (pane->caret_row != was_row || pane->caret_col != was_col ||
+        pane->sel_begin_row != was_sel_row || pane->sel_begin_col != was_sel_col ||
+        pane->sel_end_row != was_sel_end_row || pane->sel_end_col != was_sel_end_col) {
+        repaint(mail);
+    }
+}
+
+// WL-CARET-03 -- agents/workshop/panes-and-windows.md
+Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& pane) {
+    if (caret.row == surface::kNoCaret) {
+        return Written::ok(); // "I have none" is a sentence, not a position
+    }
+    const std::int64_t rows = static_cast<std::int64_t>(pane.shown.size());
+    if (caret.row < 0 || caret.row >= rows) {
+        return Written::no("put a caret on row " + std::to_string(caret.row) +
+                           " of a pane showing " + std::to_string(rows) + " rows");
+    }
+    const auto within = [&pane](std::int64_t row, std::int64_t column) {
+        const std::int64_t width =
+            static_cast<std::int64_t>(pane.shown[static_cast<std::size_t>(row)].text.size());
+        // ONE PAST THE LAST BYTE IS LEGAL: that is where an insertion point sits at the end
+        // of a line, and it is the position the terminal's own caret holds most of the time.
+        return column >= 0 && column <= width;
+    };
+    if (!within(caret.row, caret.column)) {
+        return Written::no("put a caret at column " + std::to_string(caret.column) +
+                           " of a row that has no such place");
+    }
+    if (caret.sel_begin_row == surface::kNoSelection &&
+        caret.sel_end_row == surface::kNoSelection) {
+        return Written::ok();
+    }
+    // HALF A RANGE IS NOT A RANGE. Both ends or neither -- a selection with one end is a
+    // shape nobody can draw, and admitting it would make the painter decide what it meant.
+    if (caret.sel_begin_row == surface::kNoSelection ||
+        caret.sel_end_row == surface::kNoSelection) {
+        return Written::no("named one end of a selection and not the other");
+    }
+    if (caret.sel_begin_row < 0 || caret.sel_begin_row >= rows || caret.sel_end_row < 0 ||
+        caret.sel_end_row >= rows) {
+        return Written::no("selected a row this pane is not showing");
+    }
+    if (!within(caret.sel_begin_row, caret.sel_begin_col) ||
+        !within(caret.sel_end_row, caret.sel_end_col)) {
+        return Written::no("selected a column a row of this pane does not have");
+    }
+    // READING ORDER, WHICH IS THE ONE THING `SurfaceTextRegion` ALREADY REQUIRES of a
+    // range: a region whose end precedes its begin is refused there by being drawn as
+    // nothing, and refusing it here says so in words instead.
+    if (caret.sel_end_row < caret.sel_begin_row ||
+        (caret.sel_end_row == caret.sel_begin_row && caret.sel_end_col < caret.sel_begin_col)) {
+        return Written::no("selected backwards -- the end precedes the begin");
+    }
+    return Written::ok();
 }
 
 Written WorkshopWeave::judge_content(const PaneContent& content, const ExternalPane& pane) {
@@ -268,7 +384,6 @@ component::TextBox* WorkshopWeave::naming_line() {
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-TEXT-09 -- agents/workshop/text-box.md
 WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     switch (keyboard_context(session_)) {
-    case KeyContext::kTerminal: return PasteOwner::kTerminal;
     case KeyContext::kNaming:
     case KeyContext::kPaneNaming: return PasteOwner::kNaming;
     case KeyContext::kDraft: return PasteOwner::kDraft;
@@ -283,7 +398,6 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
     p.owner = paste_owner_now();
     switch (p.owner) {
     case PasteOwner::kNone: return; // no box of this weave's asked; nothing to do
-    case PasteOwner::kTerminal: p.epoch = session_.terminal.input.draft_epoch(); break;
     case PasteOwner::kNaming: {
         const component::TextBox* line = naming_line();
         if (line == nullptr) {
