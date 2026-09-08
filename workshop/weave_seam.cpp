@@ -47,10 +47,12 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
         // panel to vanish.
         if (ExternalPane* pane = session_.panels.external_pane(admitted.kind)) {
             pane->shown.clear();
-            pane->clear_refusal();
             pane->heard = false;
             pane->awaiting = true;
             pane->granted = false;
+            // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
+            // correcting its own summary has not sent content this host accepted, so what
+            // last happened to this pane's content is still what happened to it.
         }
     }
     // ⚠ AND A PARTY THAT HAS JUST ARRIVED HAS HEARD NOTHING, so what is currently true is
@@ -61,6 +63,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     // moment a new listener certainly exists, and it is cheap: it costs one publication of
     // a reading this host derives anyway.
     conditions_said_ = false;
+    document_said_ = false; // ...and the same for the document's picture, for the same reason
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
@@ -232,15 +235,20 @@ Row* WorkshopWeave::pane_editor_editing_row() {
 }
 
 // WL-PED-07 -- agents/workshop/pane-manager.md
+// ⭐ AND THE INSPECTOR'S HALF OF THIS IS GONE. It scanned `session_.rows` for a row in draft,
+// and nothing in this host opens one any more: the Info weave holds the draft, in its own line,
+// and commits it through the document door -- which writes with `commit_text` and leaves no row
+// editing. The Pane Manager's draft is the only one this host still has.
+//
+// ⚠ SO `^s` NO LONGER REFUSES OVER A HALF-TYPED PROPERTY, AND THAT IS A NAMED LOSS. The save
+// door asked this question so that a file could not be written while a maker was looking at a
+// value they had not committed; the host cannot see that draft now, and telling it about one
+// would be a second host-to-pane sentence this migration does not have. The Pane Manager's
+// draft is still guarded, by this same call.
 Row* WorkshopWeave::editing_row() {
     if (pane_editor_has_keyboard(session_)) {
         if (Row* mine = pane_editor_editing_row()) {
             return mine;
-        }
-    }
-    for (Row& r : session_.rows) {
-        if (r.editing()) {
-            return &r;
         }
     }
     return nullptr;
@@ -323,6 +331,81 @@ WorkshopWeave::PendingPaste WorkshopWeave::take_pending_paste(std::uint64_t ask)
     return PendingPaste{};
 }
 
+// WL-DOC-20 -- agents/workshop/document.md
+void WorkshopWeave::on(const DocumentActRequested& asked, loom::Mail& mail) {
+    // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- the arrangement door's rule, and the
+    // reason it names nobody: a tool added tomorrow asks with no edit here.
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    const auto answer = [&mail](bool accepted, std::string refusal) {
+        (void)mail.answer(DocumentActed{accepted, std::move(refusal)});
+    };
+    if (asked.act == kDocumentSelect) {
+        // A SELECTION IS NOT A REFUSABLE ACT. An identity the document does not have is the
+        // same answer as one it does: nothing is selected that was not already, and the
+        // picture published on this repaint says what is true. `select` is total.
+        select(asked.identity);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentCreate) {
+        const std::int64_t id = create(state_, session_);
+        if (id == 0) {
+            // The mint is spent. Unreachable by pressing `n`; reachable in one line of a
+            // loaded file, which is why this act has an answer rather than an overflow.
+            answer(false, "this document has no identity left to give -- nothing was created");
+            return;
+        }
+        say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentDelete) {
+        const std::int64_t was = session_.selected;
+        const Written gone = delete_selected(state_, session_);
+        if (!gone.accepted) {
+            answer(false, gone.refusal);
+            return;
+        }
+        say(deleted_notice(was), false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentCommit) {
+        // ⚠ THE INDEX IS JUDGED AGAINST THE CURRENT DERIVATION, not against the one the pane
+        // was shown. A row the rows no longer have is refused by name rather than applied to
+        // whatever moved into its place, which is the one hazard an index across a seam has.
+        if (asked.row < 0 ||
+            static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
+            answer(false, "that row is not in this object's properties any more");
+            return;
+        }
+        Row& row = session_.rows[static_cast<std::size_t>(asked.row)];
+        if (!row.editable()) {
+            answer(false, row.label() + " is not authored -- it is what the workspace makes "
+                                        "of the authored value");
+            return;
+        }
+        const Commit result = row.commit_text(asked.text);
+        if (result != Commit::Accepted) {
+            // Two different failures, and the row already words each one for its own kind:
+            // an unparseable draft reads "not <what would have worked>", a refused value
+            // carries the setter's own reason.
+            answer(false, row.label() + ": " + row.refusal());
+            return;
+        }
+        say("committed " + row.label() + " = " + row.value(), false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    answer(false, "`" + asked.act + "` is not something this document can be asked for");
+}
+
 // WL-TEXT-02 -- agents/workshop/text-box.md
 void WorkshopWeave::editing_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     Row* row = editing_row();
@@ -376,7 +459,7 @@ void WorkshopWeave::editing_key(const zengine::input::KeyPressed& k, loom::Mail&
     }
 }
 
-// WL-INFO-01, WL-INFO-05, WL-INFO-06 -- agents/workshop/info-body.md
+// WL-PED-07 -- agents/workshop/pane-manager.md
 void WorkshopWeave::refresh_inspector() {
     const Screen sc = screen_of(session_);
     // THE PANE EDITOR'S DRAFT FIRST, against ITS body's capacity -- the same
@@ -391,20 +474,11 @@ void WorkshopWeave::refresh_inspector() {
             }
         }
     }
-    const PanelBounds info = bounds_of(session_.panels, session_.setup.active, panel::kInfo, sc);
-    if (!info.open) {
-        return;
-    }
-    for (std::size_t i = 0; i < session_.rows.size(); ++i) {
-        if (!session_.rows[i].editing()) {
-            continue;
-        }
-        const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
-        if (body.present) {
-            session_.rows[i].keep_caret_visible(body.value_columns);
-        }
-        return;
-    }
+    // ⭐ AND THE INFO PANEL'S DRAFT IS NOT KEPT HERE ANY MORE, because this host holds no such
+    // draft. `Session::rows` is still the derived inspector and the document door still commits
+    // through it, but the LINE a maker types into is the Info weave's own, windowed by the
+    // component inside the room the pane was granted -- which is the pane's measurer, not this
+    // one's.
 }
 
 // WL-PTR-02, WL-PTR-03 -- agents/workshop/pointer.md
@@ -446,99 +520,12 @@ bool WorkshopWeave::press_selects_word(std::int64_t modifiers, Row& row, std::si
     return false;
 }
 
-// WL-PRESS-01, WL-PRESS-04 -- agents/workshop/press-chain.md
-// WL-PTR-02 -- agents/workshop/pointer.md
-// WL-INFO-01 -- agents/workshop/info-body.md
-bool WorkshopWeave::info_press(const InfoBodyAt& where, std::int64_t modifiers) {
-    if (!where.present) {
-        return false;
-    }
-    for (std::size_t i = 0; i < session_.rows.size(); ++i) {
-        Row& row = session_.rows[i];
-        if (!row.editing()) {
-            continue;
-        }
-        if (!property_row_hit(where.body, i, where.at.column, where.at.row)) {
-            return false; // on the panel, but not on the draft's row: not consumed
-        }
-        // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
-        // `first_visible + offset` of the WHOLE draft, never the offset alone -- the one
-        // subtraction a horizontal window adds to a hit test, and the one that is right
-        // to leave out for exactly as long as no value is long enough to scroll. The
-        // component holds the offset the last repaint resolved, which is the one the
-        // maker is looking at.
-        //
-        // AND THE ROW'S OWN PROSE OFFSET COMES OFF FIRST. A body row carries the
-        // mark and the property's name before the value, exactly as the pane's row
-        // carries `> ` before the command, so a pressed column is a column of the ROW and
-        // the value's column is that minus what the name spent. `property_value_column`
-        // is the one subtraction and it is the inverse of the one
-        // `property_caret_column` added.
-        const std::size_t target =
-            row.editor().position_at_column(property_value_column(where.at.column));
-        //...AND A SECOND PRESS IN THE SAME WORD SELECTS IT. The first press is
-        // still an ordinary press and still places the caret; only the second one means
-        // something else, and it means it in the component's own word vocabulary.
-        if (!press_selects_word(modifiers, row, target)) {
-            row.place(target);
-        }
-        //...AND THE PRESS OPENS A SELECTION DRAG. The press placed the caret,
-        // which is the anchor; every motion until release extends from it. The record
-        // holds WHICH line and nothing else — the geometry is re-resolved per motion by
-        // the same functions this press just spent, `PaneGesture`'s no-live-position law.
-        session_.text_drag.active = true;
-        session_.text_drag.place = text_drag_place::kPropertyDraft;
-        return true; // consumed: the press was on the draft's own row
-    }
-    return false; // no draft is live, so this panel has no editor to press
-}
-
-// WL-CTRL-03, WL-CTRL-05 -- agents/workshop/info-controls.md
-// WL-PRESS-01 -- agents/workshop/press-chain.md
-bool WorkshopWeave::actions_press(const InfoBodyAt& where) {
-    if (!where.present) {
-        return false;
-    }
-    const std::size_t which = action_press_at(where.body, where.at.column, where.at.row);
-    if (which == kNoAction) {
-        return false; // a list row, the heading, a spare row, or off the body entirely
-    }
-    if (action_availability(which, state_, session_) == Availability::kDraftLive) {
-        say(finish_draft_first(), true);
-        return true; // consumed, and refused in this application's own words
-    }
-    if (which == kActionCreate) {
-        create_object();
-    } else {
-        delete_object();
-    }
-    return true; // consumed, whatever the document then made of it
-}
-
-// WL-INFO-01, WL-INFO-09 -- agents/workshop/info-body.md
-// WL-PRESS-01, WL-PRESS-02 -- agents/workshop/press-chain.md
-bool WorkshopWeave::objects_press(const InfoBodyAt& where) {
-    if (!where.present) {
-        return false;
-    }
-    const std::size_t which = object_press_at(where.body, where.at.column, where.at.row);
-    if (which == kNoObject || which >= state_.elements.size()) {
-        return false; // a marker, the heading, a property row, a spare row, or off the body
-    }
-    if (draft_live(session_)) {
-        say(finish_draft_first(), true);
-        return true; // consumed: nothing moved, and the reason is on the notice line
-    }
-    const std::int64_t id = state_.elements[which].id;
-    if (id == session_.selected) {
-        // NOT CONSUMED, DELIBERATELY. The press is on this list and this list has nothing
-        // to do with it; letting it through is how a maker gets the panel's answer rather
-        // than silence.
-        return false;
-    }
-    select(id);
-    say("selected #" + std::to_string(id), false);
-    return true; // consumed
-}
+// ⭐ `info_press`, `actions_press` AND `objects_press` LEFT WITH THE INFO PANEL. They were the
+// panel's three inverses -- a press inside the live property draft, a press on a bracketed
+// control, a press on an object name -- each resolved against a body this host composed. The
+// pane composes it now, so a press inside its rectangle crosses as `PanePressed` carrying the
+// pane's own prose row and column, and the pane answers it with the same three questions in
+// the same order (`info-pane/pane.cpp`). What crossed back from the two that ACTED is an
+// ordinary ask at the document door (`DocumentActRequested`), judged by the host that owns it.
 
 } // namespace zengine::workshop

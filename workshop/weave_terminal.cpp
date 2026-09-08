@@ -420,9 +420,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // created; Alt+Q quit) are gone on purpose.
     switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
     case Act::kObjectNext: select_next(); break;
-    case Act::kInfoUp: move_cursor(-1); break;
-    case Act::kInfoDown: move_cursor(+1); break;
-    case Act::kInfoEdit: begin_edit(); break;
+
     case Act::kObjectNew: create_object(); break;
     case Act::kObjectDelete: delete_object(); break;
     case Act::kObjectLeft: move_by(-1, 0); break;

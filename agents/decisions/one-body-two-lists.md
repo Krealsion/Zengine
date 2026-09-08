@@ -42,12 +42,22 @@ row is fitted whole and a press on it selects in command mode only.
 
 **Consequences.** 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium.
 `completion_first_shown` is deliberately not the same function as `list_window`; it anchors to
-the tail. `inspector_focus` exists though the editing row and the cursor are the same row today
-by reachability. `component/text_box.hpp` was byte-identical through the change.
+the tail. `component/text_box.hpp` was byte-identical through the change.
+
+**Carried to a loaded image, and one thing did not survive the move.** The Info panel is
+`Zengine/info-pane/` now: every decision above holds one image over, said as rows into a room
+the pane is granted instead of written into a region the panel resolved for itself. Two of the
+sentences changed party rather than meaning — the font metric is the HOST's one multiplication
+and no metric crosses the seam, and the press is never rounded because a press crosses as the
+pane's own row. One sentence is simply gone: *an object row's press selects in command mode
+only*. There is no command mode inside a pane; a press asks the document to select, and a live
+draft is ABANDONED rather than refused when the rows it was typed into stop existing. The desk
+row a maker never authored is the other half of the migration, which is why this record now
+supports one more law than it did.
 
 **Laws supported.** [WL-INFO-01](../workshop/info-body.md),
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),
 [WL-INFO-04](../workshop/info-body.md), [WL-INFO-05](../workshop/info-body.md),
 [WL-INFO-06](../workshop/info-body.md), [WL-INFO-07](../workshop/info-body.md),
 [WL-INFO-08](../workshop/info-body.md), [WL-INFO-09](../workshop/info-body.md),
-[WL-INFO-10](../workshop/info-body.md).
+[WL-INFO-10](../workshop/info-body.md), [WL-INFO-11](../workshop/info-body.md).

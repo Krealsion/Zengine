@@ -49,7 +49,9 @@ LAW — `12` is cells and `70%` a share; `70p` is accepted for `70%`; the empty 
 
 PROVEN BY — `workshop/property.hpp` `TextForm`, `TextForm::parse`, `TextForm::expected`;
 `tests/test_workshop_document.cpp` case `"the extent text form: canonical out, and the typeable
-spelling in"`, case `"a maker types `70%` through the canonical text route, and 70p is history"`.
+spelling in"`, case `"a property reads the current typed value through the semantic surface"`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on a value the maker owns is
+written to the document"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-05 — Authored and resolved are different facts, and only one of them moves
@@ -194,8 +196,8 @@ MEANS
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`; `workshop/screen_bindings.cpp`
 `workspace_scene`; `tests/test_workshop_document.cpp` case `"canvas, object list and inspector
-agree after every gesture in a session"`, case `"the semantic operations are still the only
-authority, through the message path"`, case `"the pointer lands where the Skin actually drew the
+agree after every gesture in a session"`, case `"a move is ONE authored change: a refused move
+writes neither coordinate"`, case `"the pointer lands where the Skin actually drew the
 workspace"`, case `"the SAME object is under the pointer whichever medium reported it"`, case `"a
 pointer in a space Workshop does not speak is ignored, not mis-placed"`.
 WHY — `agents/decisions/the-document-model.md`
@@ -204,3 +206,26 @@ WHY — `agents/decisions/the-document-model.md`
 
 - That the document is read at launch: the desk, the window, the keymap and the prefs are; the
   document still is not (WL-SESSION-01).
+
+## WL-DOC-20 — The document crosses the pane seam as a picture, said when it changes
+
+LAW — The host derives `DocumentShown` — object rows, selection, inspector rows — publishes it `to_any` only when it differs from its last utterance, and answers four acts at its own office.
+
+MEANS
+- the document itself never crosses: no `WorkshopDoc`, no `ui::Element`, no `Property`, no `Row`;
+- a publication rather than an answer, because the document changes with no gesture into the pane.
+
+DOES NOT MEAN
+- that a second party owns it: the picture is derived per repaint and held nowhere.
+
+PROVEN BY — `workshop/document_seam_vocabulary.hpp` `ShownObject`, `ShownProperty`,
+`DocumentShown`, `DocumentActRequested`, `DocumentActed`, `kDocumentSelect`, `kDocumentCreate`,
+`kDocumentDelete`, `kDocumentCommit`; `workshop/screen_info.cpp` `document_shown`,
+`same_document`; `workshop/screen.hpp` `document_shown`, `same_document`;
+`workshop/weave_run.cpp` `WorkshopWeave::say_document`;
+`workshop/weave_seam.cpp` `WorkshopWeave::on(DocumentActRequested)`; `workshop/weave.hpp`
+`WorkshopWeave::said_document_`, `WorkshopWeave::document_said_`; `workshop/property.hpp`
+`Row::commit_text`; `tests/test_workshop_document.cpp` case `"WL-DOC-20: the document crosses
+as a picture, and only when it changed"`, case `"WL-DOC-20: the four acts are the writes the
+keys are bound to, and the refusals are the document's"`.
+WHY — `agents/decisions/a-presentation-owns-no-facts.md`

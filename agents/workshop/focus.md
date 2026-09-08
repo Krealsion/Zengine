@@ -44,7 +44,7 @@ MEANS
 - putting the line in the routing arms would be four decisions about one fact.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `kind_takes_keyboard`, `on(PointerButton)`;
-`workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_info.cpp` `info_body_at`;
+`workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_pane_editor.cpp` `pane_editor_at`;
 `workshop/panel.hpp` `Panels::keyboard`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a
 press anywhere else takes the keyboard away again"`; `tests/test_workshop_panes_files.cpp` case
 `"FILES-WEAVE: a press selects, and a second press on the same row activates"`.

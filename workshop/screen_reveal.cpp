@@ -26,70 +26,19 @@ std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch) 
     return rows;
 }
 
-// ---- Which revealable row the pointer is on ----------------------------------------------
-
-RevealAt info_reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                        std::int64_t x, std::int64_t y) {
-    const InfoBodyAt where = info_body_at(d, s, space, x, y);
-    if (!where.present || where.at.column < 0 || where.at.column >= where.body.columns) {
-        return RevealAt{};
-    }
-    const std::size_t object = object_at_prose_row(where.body, where.at.row);
-    if (object != kNoObject && object < d.elements.size()) {
-        const ui::Element& e = d.elements[object];
-        const std::string full = object_row_full(e, e.id == s.selected);
-        return RevealAt{true,
-                        reveal_place::kInfoObject,
-                        object,
-                        full,
-                        detail::fit(full, where.body.columns),
-                        where.body.columns,
-                        where.at.column};
-    }
-    const std::size_t property = property_at_prose_row(where.body, where.at.row);
-    if (property == kNoProperty || property >= s.rows.size()) {
-        return RevealAt{};
-    }
-    const Row& row = s.rows[property];
-    if (row.editing()) {
-        return RevealAt{}; // a draft owns its own window; see `paint_info`
-    }
-    const bool here = property == s.cursor;
-    return RevealAt{true,
-                    reveal_place::kInfoProperty,
-                    property,
-                    property_row_full(row, here),
-                    property_row_text(row, here, where.body.value_columns),
-                    where.body.columns,
-                    where.at.column};
-}
-
-RevealAt reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                   std::int64_t x, std::int64_t y) {
-    const Screen sc = screen_of(s);
-    const PointedAt at = canvas_point_of(space, x, y);
-    if (!at.understood) {
-        return RevealAt{};
-    }
-    const Occupancy here = occupied_at(s.panels, s.setup.active, sc, at);
-    if (!here.occupied) {
-        return RevealAt{};
-    }
-    if (here.kind == panel::kInfo) {
-        return info_reveal_at(d, s, space, x, y);
-    }
-    return RevealAt{};
-}
-
-Revealed reveal_for(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                    std::int64_t x, std::int64_t y) {
-    const RevealAt at = reveal_at(d, s, space, x, y);
-    if (!at.clipped()) {
-        return Revealed{};
-    }
-    return Revealed{at.place, at.item, at.text,
-                    detail::reveal_offset_at_column(at.text, at.columns, at.column)};
-}
+// ⭐ READING PAST AN ELLIPSIS LEFT WITH THE INFO PANEL, AND IT IS A LOSS RATHER THAN A MOVE.
+// `info_reveal_at`, `reveal_at`, `reveal_for`, `RevealAt`, `Revealed`, `reveal_place`,
+// `Session::reveal`, `revealed_row` and `reveal_shown` were one feature: a pointer resting on a
+// truncated OBJECTS or PROPERTIES row scrolled that row under the hand so a maker could read
+// the rest of a long name or value without editing it. Every one of them was Info's -- the
+// `reveal_at` walk answered nothing for any other pane -- and the feature needs the row's
+// UNFITTED text, which is the pane's now: what crosses the seam is rows already cut to the room
+// the pane was granted, so this host has nothing left to scroll.
+//
+// AND IT IS NOT REPLACED, DELIBERATELY. The pane protocol has no hover -- press, key, text and
+// wheel are the four inbound sentences -- and adding one so that this host could keep a feature
+// is exactly the host-mapped route VD-22 refuses. A pane that wants it can scroll its own rows
+// under its own keys, which is a pane's business and not a protocol's.
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md

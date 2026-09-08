@@ -1,7 +1,9 @@
 # Workshop law — pointer
 
-Register `WL-PTR`: two presses as one gesture, and reading past a fitted row under the pointer.
-One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+Register `WL-PTR`: two presses as one gesture. One law per heading; cite by ID.
+Router: [`../workshop.md`](../workshop.md).
+
+**Reading past a fitted row was here and is retired** — see the note below WL-PTR-03.
 
 ## WL-PTR-01 — Two presses are one gesture, and time is an argument
 
@@ -21,15 +23,18 @@ WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — One seam, both editable lines
 
-LAW — One word-selecting press serves both editable lines, so a double-click selects the word under it on the Terminal's line and in a property draft alike.
+LAW — One word-selecting press serves both editable lines this host holds, so a double-click selects the word under it on the Terminal's line and in the Pane Manager's draft alike.
+
+MEANS
+- it served Info's property draft too, until that draft became a loaded image's own.
 
 DOES NOT MEAN
 - that the Editor's multiline machinery or the Composer's fields were taught it — neither was.
 
-PROVEN BY — `workshop/weave_seam.cpp` `press_selects_word`, `info_press`;
-`workshop/weave_terminal.cpp` `terminal_press`; `tests/test_workshop_screen.cpp` case `"WUX-7: a
-double-click on the Terminal's line selects the word under it"`; `tests/test_workshop_panels.cpp`
-case `"WUX-7: a double-click in a property draft selects the word under it"`.
+PROVEN BY — `workshop/weave_seam.cpp` `press_selects_word`;
+`workshop/weave_pane_editor.cpp` `pane_editor_press`; `workshop/weave_terminal.cpp`
+`terminal_press`; `tests/test_workshop_screen.cpp` case `"WUX-7: a double-click on the
+Terminal's line selects the word under it"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-03 — The record arms on the way out, and the completing press spends it
@@ -46,64 +51,20 @@ triple-click"`, subcase `"a modifier-bearing press neither doubles nor arms"`, s
 arming is spent by the gesture it completed"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
-## WL-PTR-04 — A fitted row may be read past, and only under the pointer
+**Retired — WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08: reading past a fitted row.**
+The feature these four laws were about is gone, and it is a loss rather than a move. A
+pointer resting on a truncated OBJECTS or PROPERTIES row scrolled that row under the hand. It
+needed the row's UNFITTED text and the item's identity, and both of those are
+`Zengine/info-pane/`'s now — a pane sends rows it has already cut, so nothing on this side has
+the string to read past. The pane protocol has no hover, and adding one so this host could keep
+one feature is exactly the host-mapped route VD-22 refuses.
 
-LAW — `Session::reveal` is presentation only, and `detail::reveal_shown` returns the revealed window only when surface, item, a non-zero offset and the string all agree.
+Retired with it: `Session::reveal`, `Revealed`, `RevealAt`, `reveal_place`, `reveal_at`,
+`reveal_for`, `reveal_offset_at_column`, `reveal_max_offset`, `revealed_row` and
+`detail::reveal_shown`. `agents/decisions/the-row-is-its-own-scrub-track.md` records the
+decision and now records its reversal; WL-PTR-09 below outlives it, because "the terminal
+cannot report a hover" is a fact about a medium and not about this feature.
 
-MEANS
-- the guard is the reset: there is no clearing path anywhere;
-- no file, setup, document, provider or value is touched, and nothing durable holds it.
-
-DOES NOT MEAN
-- that the reveal is asked while a mode or a held gesture owns the pointer — it is empty then.
-
-PROVEN BY — `workshop/screen.hpp` `Revealed`, `Session::reveal`; `workshop/screen_gestures.cpp`
-`detail::reveal_shown`, `revealed_row`; `tests/test_workshop_screen.cpp` case `"WUX-7: four things
-must agree before a row is scrolled at all"`, case `"WUX-7: a revealed row is a window over the
-same string, never a wider row"`.
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-05 — The item is the identity, never the prose row
-
-LAW — A reveal is bound to the item, not the row it is painted on, and eligibility is `rest != full`: a value that fits never moves, and a provider's shortened text is not recovered.
-
-PROVEN BY — `workshop/screen_reveal.cpp` `reveal_at`, `reveal_for`;
-`workshop/screen_gestures.cpp` `detail::reveal_shown`; `workshop/screen.hpp` `RevealAt`,
-`Revealed::item`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering a clipped object row
-reads past its ellipsis, and nothing else"`; `tests/test_workshop_screen.cpp` case `"WUX-7: a
-revealed row is a window over the same string, never a wider row"`.
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-06 — The pointer's column is the offset
-
-LAW — The left edge of the row is the value's start, the right edge its end, everything between is proportional and monotone, and the head is marked the way the tail is.
-
-MEANS
-- `revealed_row` clamps the offset itself, so "a value that fits never moves" is the projection's.
-
-PROVEN BY — `workshop/screen_gestures.cpp` `reveal_offset_at_column`, `reveal_max_offset`,
-`revealed_row`; `tests/test_workshop_screen.cpp` case `"WUX-7: the pointer's column is the offset,
-monotonically and totally"`, subcase `"the head is marked, and the furthest offset shows the true
-tail"`.
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
-## WL-PTR-08 — The consumer set is the Info panel's two rows, and no pane's
-
-LAW — The Info panel's object rows and its resting property rows reveal; a third is one `reveal_shown` call and one resolver arm, and a LOADED pane has none of them.
-
-MEANS
-- it was four: the browser's location header and listed names revealed too, and left with it;
-- a pane's rows are values it sent, so nothing here laid them out and nothing can read past them.
-
-DOES NOT MEAN
-- that a live draft reveals — it is windowed against its own caret and is excluded;
-- that this is a registry — it must not become one.
-
-PROVEN BY — `workshop/screen.hpp` `reveal_place`, `RevealAt`; `workshop/screen_gestures.cpp`
-`detail::reveal_shown`; `workshop/screen_reveal.cpp` `reveal_for`;
-`docs/workshop/limitations.md` `reveal`; `tests/test_workshop_panels.cpp` case `"WUX-7: hovering
-a clipped object row reads past its ellipsis, and nothing else"`.
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover
 
@@ -115,5 +76,3 @@ undoes enter"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## Do not assume
-
-- That a mode's pointer ownership over the reveal has a witness — it does not (WL-PTR-04).

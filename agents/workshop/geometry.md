@@ -84,9 +84,9 @@ MEANS
 - a resize recomputes all of it, and nothing about it is remembered from one screen.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kMinScreen`, `Screen`;
-`tests/test_workshop_screen.cpp` case `"HD-10: the composition is DERIVED, and a resize recomputes
-all of it"`, case `"HD-10: the same composition truth in a medium that sets type"`, case `"the
-pane's interior follows the metric, and its placement does not"`.
+`tests/test_workshop_screen.cpp` case `"HD-10: the screen's furniture cannot see a panel, open
+or closed"`, case `"HD-10: what the pane DOES cover is unchanged, and is on purpose"`, case
+`"the pane's interior follows the metric, and its placement does not"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-06 — Pane rectangles are sub-units of the canvas lattice

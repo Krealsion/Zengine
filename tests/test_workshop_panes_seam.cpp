@@ -252,22 +252,24 @@ TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
 TEST_CASE("a runtime offer cannot shadow a built-in pane") {
     Panels panels;
     RuntimeCatalog& cat = panels.runtime;
-    // Offered by whoever holds `zengine.workshop`, `info` names the row this build
-    // compiled in -- and a live message may not move it.
+    // Offered by whoever holds `zengine.workshop`, `layouts` names the row this build
+    // compiled in -- and a live message may not move it. It was `info` until Info became a
+    // weave: `zengine.workshop/info` names no built-in now, so the forgery this refuses has
+    // to be one of the rows this host still has.
     CHECK(admit_pane_offer(cat, kWorkshopProvider,
-                           PaneOffered{pane_key::kInfo, "Not Info", "a forgery"})
-              .written.refusal == "`zengine.workshop/info` is a built-in pane");
+                           PaneOffered{pane_key::kLayouts, "Not Layouts", "a forgery"})
+              .written.refusal == "`zengine.workshop/layouts` is a built-in pane");
     CHECK(admit_pane_offer(cat, kWorkshopProvider,
                            PaneOffered{pane_key::kEditor, "Not Editor", "a forgery"})
               .written.accepted == false);
     CHECK(cat.entries.empty());
     // ...and the built-ins still resolve to themselves.
-    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kInfo}, panels).value_or(-1) ==
-          panel::kInfo);
+    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kEditor}, panels).value_or(-1) ==
+          panel::kEditor);
 
     // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
     // admitted normally -- the `PaneRef` is the PAIR.
-    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kInfo, "Info", "theirs"})
+    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kEditor, "Editor", "theirs"})
               .written.accepted);
     REQUIRE(cat.entries.size() == 1);
     CHECK(is_runtime_kind(cat.entries[0].kind));
@@ -469,13 +471,18 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     //
     // ⚠ WHICH ROW THAT IS, IS AN ACCIDENT OF ORDER AND IS ASSERTED AS ONE. It was the
     // Builder while the Builder was first; the Builder pane is a weave now and the row is
-    // Info, which is placed in the SIDE REGION -- so the fall-through's placement is no
-    // longer the overlay stack, and the line below proves that a runtime kind is answered
-    // before the fall-through rather than agreeing with it by luck.
+    // the Editor, which is placed in the OVERLAY STACK -- so the fall-through's placement is
+    // the same one a runtime kind gets, and the two lines below say so separately rather than
+    // agreeing by luck. (It was Info at the right column until Info became a weave, which made
+    // this a sharper control; the control that survives is that `placement_of` branches on
+    // `is_runtime_kind` BEFORE it reaches `panel_kind` at all.)
     CHECK(panel_kind(hello).kind == kPanelCatalog[0].kind); // the fall-through, still total
-    CHECK(panel_kind(hello).placed_in == placement::kSideRegion);
+    CHECK(panel_kind(hello).placed_in == placement::kOverlayStack);
     CHECK(placement_of(hello) == placement::kOverlayStack); // ...and a runtime kind never gets there
-    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
+    // ⭐ AND NO KIND ANSWERS `kSideRegion` NOW. Info was the one that did and Info is a weave,
+    // so the fall-through row above is the Editor's and the right column is a place a DESK
+    // names rather than a kind's default (`kinds_placed_in(kSideRegion) == 0`, panel.hpp).
+    CHECK(placement_of(panel::kEditor) == placement::kOverlayStack);
     // ...and the NAME a maker reads is the offered one rather than the fall-through's.
     CHECK(kind_name(panels, hello) == "Hello");
     CHECK(kind_name(panels, panel::kEditor) == "Editor");
@@ -759,7 +766,7 @@ TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
     CHECK(shown.find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
-    CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(shown.find(detail::pad("Layouts", kPickerNameCols) + "open") != std::string::npos);
     CHECK(shown.find("... ") == std::string::npos); // no omission marker at this population
 }
 
@@ -942,10 +949,22 @@ TEST_CASE("the picker cursor is bounded by the combined population") {
     for (int i = 0; i < 10; ++i) {
         r.key(input::scan::kDown);
     }
-    // THREE ROWS NOW, and the cursor stops on the last of them rather than on the last
-    // BUILT-IN, which is what `kPanelKinds` would have bounded it to.
-    CHECK(r.session().panels.picker.cursor == kPanelKinds);
-    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 1);
+    // THE CURSOR STOPS ON THE LAST ROW OF THE POPULATION THE PICKER WALKS, which is
+    // `inventory_rows` -- and that is neither `kPanelKinds` nor the catalog. It is the
+    // catalog PLUS every reference the desk already authored that this run cannot present.
+    const std::vector<CatalogRow> walked =
+        inventory_rows(r.session().setup.active, r.session().panels);
+    CHECK(r.session().panels.picker.cursor == walked.size() - 1);
+
+    // AND THE TWO WAYS IT EXCEEDS `kPanelKinds` ARE BOTH REAL, one from each source: an
+    // OFFER this run admitted, and a DESK ROW nothing has offered. A bound taken from
+    // `kPanelKinds` would have cut the cursor short of both.
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 1); // the offer
+    CHECK(walked.size() == kPanelKinds + 2);                               // + the desk row
+    CHECK(has_pane(r.session().setup.active, info_ref()));
+    CHECK(walked.back().kind == kNoPaneKind); // the unresolved row names no kind
+    // (`kPanelKinds` is one smaller than it was, and the desk row is the other half of the
+    // same move: Info left the catalog with the panel and became a weave the desk names.)
 }
 
 // ---- Setup resolution: an unchanged reference, resolved later ---------------------
@@ -960,10 +979,12 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.key(input::scan::kP);
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).size() == 1);
+    // TWO: the reference this case authored, and the Info row the shipped desk names -- Info
+    // is a weave and no office has offered it in this rig.
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).size() == 2);
     CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
-              .find("1 unresolved") != std::string::npos);
+              .find("2 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panels.has(kFirstRuntimeKind));
 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -974,11 +995,12 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     CHECK(r.session().setup.active.panes.back().ref == hello_ref());
     CHECK(r.session().panels.has(kind));
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).empty());
-    // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT.
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).size() == 1);
+    // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT: the count went from
+    // two to one, and the one that remains is the shipped desk's Info row.
     CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
-              .find("unresolved") == std::string::npos);
+              .find("1 unresolved") != std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
     CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 }
@@ -988,7 +1010,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     // runtime catalog is session state and earns nothing from the last run.
     Setup saved;
     saved.name = "Future";
-    REQUIRE(add_pane(saved, ref_of(panel::kInfo)));
+    REQUIRE(add_pane(saved, info_ref()));
     REQUIRE(add_pane(saved, hello_ref()));
     REQUIRE(check_setup(saved).accepted);
 
@@ -999,8 +1021,9 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     CHECK(fresh.session().panels.runtime.entries.empty());
     const std::vector<PaneRef> waiting =
         unresolved_panes(saved, fresh.session().panels);
-    REQUIRE(waiting.size() == 1);
-    CHECK(waiting[0] == hello_ref());
+    REQUIRE(waiting.size() == 2);
+    CHECK(waiting[0] == info_ref()); // the shipped desk's row, offered by no office here
+    CHECK(waiting[1] == hello_ref());
     // NOT DROPPED, NOT REMAPPED, AND NOT CALLED UNAVAILABLE. Workshop knows it has no
     // row for the reference and knows nothing at all about whoever could present it.
     CHECK(fresh.session().setup.active.panes.size() == 2);
@@ -1123,8 +1146,12 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     CHECK(r.session().panels.has(panel::kEditor));  // first come, first served
     CHECK_FALSE(r.session().panels.has(hello));
     CHECK(r.session().panels.waiting(hello));
-    // NOT UNRESOLVED: this build knows exactly what it would draw.
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panels).empty());
+    // NOT UNRESOLVED: this build knows exactly what it would draw. (The shipped desk's Info
+    // row is unresolved in this rig and is a different fact, so the count is asked of the
+    // reference this case is about rather than of the desk.)
+    for (const PaneRef& ref : unresolved_panes(r.session().setup.active, r.session().panels)) {
+        CHECK(ref != hello_ref());
+    }
     // AND THE AUTHORED REFERENCE IS UNTOUCHED -- authored validity does not depend on
     // extent, so a setup legal on a tall screen is legal on a short one.
     CHECK(has_pane(r.session().setup.active, hello_ref()));
@@ -1604,6 +1631,92 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     CHECK(r.session().panels.external_pane(kind)->shown.size() == 1);
 }
 
+TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room included") {
+    // ⚔ THE DOOR THAT UN-SAID IT. `clear_refusal` had three callers: accepted content, a
+    // provider's re-offer, and a NEW ROOM GRANT -- and a room is granted whenever the surface
+    // resizes or the maker drags the pane's edge. So a maker whose pane had refused an update
+    // could make the sentence explaining it disappear by widening their window, with nothing
+    // valid having arrived and the pane still showing nothing. What replaced the refusal was
+    // `waiting`, which is true and says less: the reason went with the room.
+    //
+    // The rule is one door with one key: a refusal is cleared by content this host ACCEPTED,
+    // and by nothing else. `awaiting`, `heard` and the shown rows still turn over on a room
+    // grant, because those are about the room; the refusal is about the content.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    const std::int64_t granted_rows = pane->rows;
+
+    // ONE ROW TOO MANY, and the condition that follows it.
+    PaneContent tall;
+    tall.pane = kHelloPane;
+    for (std::int64_t i = 0; i <= granted_rows; ++i) {
+        tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
+    }
+    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
+    const std::string content_key = pane_content_key(hello_ref());
+    REQUIRE_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    REQUIRE(condition_by_key(r.conditions(), content_key) != nullptr);
+    const std::string why = r.session().panels.external_pane(kind)->refusal_why;
+    REQUIRE_FALSE(why.empty());
+
+    // A WIDER SURFACE: a new room goes out, and the refusal is still the last thing that
+    // happened to this pane's content.
+    r.extent(120, 40);
+    const ExternalPane* after = r.session().panels.external_pane(kind);
+    REQUIRE(after != nullptr);
+    CHECK(after->granted);
+    CHECK(after->awaiting);     // the room is out and nothing has answered it
+    CHECK_FALSE(after->heard);
+    CHECK(after->shown.empty());
+    CHECK_FALSE(after->refusal.empty());
+    CHECK(after->refusal_why == why); // the reason, unchanged: it is about the CONTENT
+    // ⚠ THE VECTOR IS HELD, NOT THE POINTER INTO IT. `conditions()` composes and returns a
+    // fresh vector; `condition_by_key` answers with a pointer INTO it, so binding only the
+    // pointer would read a temporary that died at the semicolon. Linux tolerated it and MSVC
+    // did not, which is how it was found -- and it is the reason every other call here is
+    // spent inside its own full expression.
+    const std::vector<Condition> now = r.conditions();
+    const Condition* still = condition_by_key(now, content_key);
+    REQUIRE(still != nullptr);
+    CHECK(still->role == surface::role::kAlert);
+
+    // ...AND THE PANE GOES ON SAYING IT, rather than showing a maker an empty box.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].rfind(detail::fit(kExternalRefused, after->columns), 0) == 0);
+
+    // ONLY ACCEPTED CONTENT TAKES IT AWAY.
+    PaneContent good;
+    good.pane = kHelloPane;
+    good.rows.push_back(surface::SurfaceTextRow{"a good row", surface::role::kFill});
+    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
+    const ExternalPane* healed = r.session().panels.external_pane(kind);
+    CHECK(healed->heard);
+    CHECK(healed->refusal.empty());
+    CHECK(healed->refusal_why.empty());
+    CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
+
+    // AND A RE-OFFER IS NOT ACCEPTED CONTENT EITHER. A provider correcting its own summary
+    // returns the pane to waiting; if its last content was refused, that is still what
+    // happened to it, and the sentence stays until something valid replaces it.
+    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
+    REQUIRE_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        PaneOffered again = good_offer();
+        again.summary = "a bounded external greeting, corrected";
+        s.offer(m, again);
+    });
+    CHECK_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    CHECK(condition_by_key(r.conditions(), content_key) != nullptr);
+}
+
 TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
     PaneRig r;
     r.mount_workshop();
@@ -1644,7 +1757,7 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
     said.pane = kHelloPane;
     said.rows.push_back(surface::SurfaceTextRow{"unasked for", surface::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    CHECK(r.session().panels.open.size() == 2); // Info and Layouts, and nothing else
+    CHECK(r.session().panels.open.size() == 1); // the Layouts pane, and nothing else
     CHECK(r.session().panels.external.empty());
     CHECK(r.session().panels.runtime.entries.size() == catalog_before);
 
@@ -1856,8 +1969,10 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.extent(120, 44); // room for both stack slots, so nothing here is a capacity case
 
-    // INFO STILL USES NO BUS and is open at boot.
-    CHECK(r.session().panels.has(panel::kInfo));
+    // THE LAYOUTS PANE STILL USES NO BUS and is open at boot. It was Info here until Info
+    // became a weave; what the case is about is a built-in that talks to nobody, and Layouts
+    // is the one this host still compiles and opens.
+    CHECK(r.session().panels.has(panel::kLayouts));
     const std::size_t said_before = static_cast<std::size_t>(seat->said);
 
     r.pick(ref_of(panel::kEditor));
@@ -1873,7 +1988,7 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     // AND `panel_kind` IS STILL TOTAL ON ITS OWN BOUNDED PATH, which is what WS-0
     // established and WP-0 was required to leave standing.
     CHECK(panel_kind(9999).kind == kPanelCatalog[0].kind);
-    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
+    CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
     CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels)
                     .has_value());
 }
