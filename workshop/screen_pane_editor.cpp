@@ -282,10 +282,9 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
                            " is unresolved -- its window cannot be measured; `-` resets an "
                            "axis and the order keys still work");
     }
-    if (placement_of(*kind) == placement::kSideRegion) {
-        return Written::no(kind_name(s.panels, *kind) +
-                           " is in the reserved side column -- the screen owns its place");
-    }
+    // AND NO REFUSAL FOR THE RIGHT COLUMN, for `weave_arrange`'s reason word for word: the
+    // screen reserves nothing, so typed geometry reaches the pane standing there like any
+    // other.
     const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, screen_of(s));
     if (!where.open) {
         return Written::no(kind_name(s.panels, *kind) +

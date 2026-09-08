@@ -39,28 +39,33 @@ WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
 
-LAW — Absent intent has exactly one spelling: a `default` mode carrying a number is refused, naming the axis.
+LAW — Absent intent has exactly one spelling: a `default` mode carrying a number is refused, naming the axis. A NAMED place carries none either, for the same reason.
 
 MEANS
 - admission has no optional field, so absence cannot be spelled by omitting one;
-- a magic coordinate is a value a maker could otherwise mean.
+- a magic coordinate is a value a maker could otherwise mean;
+- `kRightColumn` says which place, so a coordinate beside it would be two answers.
 
 PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
-`check_pane_place_coord`, `pane_unit::kDefault`, `PanePlace`;
+`check_pane_place_coord`, `pane_unit::kDefault`, `pane_unit::kRightColumn`, `PanePlace`,
+`default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a default mode carries no numbers, and that
-is one canonical spelling"`.
+is one canonical spelling"`, case `"WIND-2: a fresh setup is version 3, sparse, and carries the
+identity ranks"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
 
-LAW — A place has two mode words and a size three; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
+LAW — A place has three mode words and a size three; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
 
 MEANS
 - the in-memory numbers are arbitrary: a renumber would silently change every saved arrangement;
-- `pixels` offered to a place is a word that field's vocabulary does not have.
+- `pixels` offered to a place is a word that field's vocabulary does not have;
+- adding a word is not a version: the shape is unchanged and an older build refuses out loud.
 
 PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSubcells`,
-`kPlaceWords`, `unit_word`; `workshop/setup.hpp` `pane_unit`, `pane_unit::kSubcells`;
+`kUnitRightColumn`, `kPlaceWords`, `unit_word`, `place_in`; `workshop/setup.hpp` `pane_unit`,
+`pane_unit::kSubcells`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: an unknown mode word names what it found and
 what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels included"`.
 WHY — `agents/decisions/setup-format-v3.md`

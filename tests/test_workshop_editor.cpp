@@ -127,13 +127,21 @@ struct EditorRig {
     /// Editor holds it now and DOES take the keyboard, so the same press would point the keys
     /// back at the very pane this is trying to leave. Info is the pane that still answers the
     /// question the old gesture answered.
+    ///
+    /// ⚠ AND IT PRESSES INFO'S RIGHT-HAND COLUMN, NOT ITS LEFT. With the reserved column
+    /// retired the stack's half-share is measured against the whole surface, so on the
+    /// smallest screen a slot runs to column 62 and Info begins at 50: a press at Info's
+    /// left edge lands on the Editor panel in front of it, which is exactly the pane this is
+    /// leaving. The right-hand column of the same row is Info's alone at every extent, and a
+    /// press there is the same gesture on the same row.
     void to_command() {
         const Session& s = session();
         const ui::Rect info =
             pane_body_cells(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
         REQUIRE(info.w > 0);
-        t.press(info.x, info.y);
-        t.release(info.x, info.y);
+        const std::int64_t x = info.x + info.w - 1;
+        t.press(x, info.y);
+        t.release(x, info.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);
     }
     void open_hello() {
@@ -1198,7 +1206,10 @@ TEST_CASE("EDIT-0: the wheel elsewhere scrolls nothing, and a covered editor is 
     const Session& s = r.session();
     const ui::Rect other = cells_covered(
         bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
-    r.t.wheel_canvas(-1.0, other.x + 2, other.y + 2);
+    // ...at that pane's RIGHT-HAND side: the stack's slot reaches into the right column's
+    // first columns now that the room is the surface, so a wheel two cells inside Info's left
+    // edge would land on the editor itself and prove nothing.
+    r.t.wheel_canvas(-1.0, other.x + other.w - 2, other.y + 2);
     CHECK(r.ed().first_row == 0);
     // Over the editor's HEADER row: the body's own boundary holds.
     const ui::Rect c = r.editor_cells();

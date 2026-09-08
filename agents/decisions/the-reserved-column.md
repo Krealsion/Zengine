@@ -3,6 +3,12 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [geometry](../workshop/geometry.md).
 
+> **The reservation half of this record no longer holds.** `screen_of` subtracts nothing from
+> the width, the right column is an ordinary place, and the Terminal pane's right edge is the
+> screen's — see [the room is the screen](the-room-is-the-screen.md), which names what it
+> reverses and what of this record it keeps. Everything below is the state of the argument
+> until then, including the alternative it went on to take.
+
 **Context.** The Terminal pane's right edge was the screen's, so at every extent it stood in the
 28 columns `screen_of` had already subtracted for the side region, and the Info panel published
 its properties and its footer into cells a later region then cleared to the canvas colour. The
@@ -50,5 +56,5 @@ composition lays out: the pane covered the full 28-column side region and betwee
 rows, so the Info panel published its lists and its footer and a later region erased them in the
 same frame.
 
-**Laws supported.** [WL-GEO-02](../workshop/geometry.md), [WL-GEO-03](../workshop/geometry.md),
-[WL-GEO-04](../workshop/geometry.md), [WL-GEO-05](../workshop/geometry.md).
+**Laws supported.** [WL-GEO-05](../workshop/geometry.md). The three geometry laws this record
+also carried moved to [the room is the screen](the-room-is-the-screen.md) with the reservation.

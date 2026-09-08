@@ -65,10 +65,17 @@ TEST_CASE("WIND-2: a fresh setup is version 3, sparse, and carries the identity 
     REQUIRE(fresh.panes.size() == kDefaultPanelCount);
     for (std::size_t i = 0; i < fresh.panes.size(); ++i) {
         CAPTURE(i);
-        // SPARSE: every geometry field is `default`, and its unused numbers are the required
-        // zeros -- which is the smallest canonical spelling of "this maker has arranged
+        // SPARSE: every geometry field carries no numbers, and its unused numbers are the
+        // required zeros -- the smallest canonical spelling of "this maker has arranged
         // nothing", and the reason a fresh setup's bytes are the shortest they can be.
-        CHECK(fresh.panes[i].place.mode == pane_unit::kDefault);
+        //
+        // ⚠ AND ONE ROW'S PLACE IS NAMED RATHER THAN DEFAULT, WHICH IS THE SHIPPED DESK.
+        // Info opens at the right column because this setup says so, not because the screen
+        // reserves a column for it (`the-room-is-the-screen`); the row still carries no
+        // coordinates, which is what "sparse" was ever about, and `check_pane_place` refuses
+        // a named place that carries any.
+        CHECK((fresh.panes[i].place.mode == pane_unit::kDefault ||
+               fresh.panes[i].place.mode == pane_unit::kRightColumn));
         CHECK(fresh.panes[i].place.x == 0);
         CHECK(fresh.panes[i].place.y == 0);
         CHECK(fresh.panes[i].width.mode == pane_unit::kDefault);
@@ -217,13 +224,13 @@ TEST_CASE("WIND-2: an unknown mode word names what it found and what would have 
     cases.push_back({"an unknown PLACE word",
                      forged_setup(good, "\"place\":{\"mode\":\"default\"",
                                   "\"place\":{\"mode\":\"furlongs\""),
-                     "furlongs", "default or subcells"});
+                     "furlongs", "default, right-column or subcells"});
     // `pixels` IS NOT A PLACE UNIT, and this is where that is said. A place has one unit;
     // offering it a size's is offering a word this field's vocabulary does not have.
     cases.push_back({"a SIZE word offered to a place",
                      forged_setup(good, "\"place\":{\"mode\":\"default\"",
                                   "\"place\":{\"mode\":\"pixels\""),
-                     "pixels", "default or subcells"});
+                     "pixels", "default, right-column or subcells"});
     cases.push_back({"an unknown WIDTH word",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"ems\""),
@@ -1185,13 +1192,15 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     enter_arrange_desk(t);
     select_pane(t, ref_of(panel::kInfo));
-    // Info is the reserved side column, so a geometry step REFUSES LEGIBLY and writes
-    // nothing -- the recovery-versus-authoring line, said about the one pane a maker may
-    // never move.
+    // ⚠ INFO MOVES NOW, AND THAT IS THE CHANGE. This step refused with "is in the reserved
+    // side column -- the screen owns its place", said about the one pane a maker could never
+    // move; the screen reserves nothing (`the-room-is-the-screen`), so a geometry step on it
+    // AUTHORS, and what the step writes is a place in sub-cells over the named one the
+    // shipped desk gave it.
     t.key(input::scan::kRight);
-    CHECK(t.notice().find("reserved side column") != std::string::npos);
+    CHECK(t.notice().find("reserved side column") == std::string::npos);
     CHECK(pane_of(t.session().setup.active, ref_of(panel::kInfo))->place.mode ==
-          pane_unit::kDefault);
+          pane_unit::kSubcells);
 
     // ORDER STILL WORKS ON IT, which is what makes the refusal narrow rather than a dead end.
     // Info is at the BACK of a fresh desk (the Layouts pane is in front of it), so `f`

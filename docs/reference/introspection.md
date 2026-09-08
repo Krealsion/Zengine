@@ -564,7 +564,7 @@ the reader and the Timer the same host boots.
 ## Density
 
 A pane's default room is **8 prose rows** (`kStackRows` is nine, one of which is Workshop's header)
-and 48 columns on the default terminal composition. Every pane is **windowed, never truncated**:
+and 61 columns on the default terminal composition. Every pane is **windowed, never truncated**:
 material is shown until the budget runs out and the remainder is counted on its own row
 (`... 17 more`), so nothing is ever hidden without being counted. Text too long for the granted
 columns is cut with `...`.
