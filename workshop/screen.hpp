@@ -11,6 +11,7 @@
 
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
+#include "document_seam_vocabulary.hpp"  // ...and how the object document does
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "document.hpp"
@@ -1854,6 +1855,16 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
 /// stays silent when there is not.
 bool same_conditions(const std::vector<StandingCondition>& a,
                      const std::vector<StandingCondition>& b);
+
+/// THE OBJECT DOCUMENT AS THE SENTENCE THAT CROSSES THE PANE SEAM: the object rows, the
+/// selection, and the inspector rows of the selected object. Derived from the document and
+/// the session exactly as the built-in's painter derived them, and owning nothing.
+// WL-DOC-20 -- agents/workshop/document.md
+DocumentShown document_shown(const WorkshopDoc& d, const Session& s);
+
+/// IS THIS THE SAME PICTURE? Field by field, in order, for `same_conditions`' reason.
+// WL-DOC-20 -- agents/workshop/document.md
+bool same_document(const DocumentShown& a, const DocumentShown& b);
 
 // ---- WHAT CAN I DO WITH THIS, PRESENTED --------------------------------------------------
 

@@ -61,6 +61,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     // moment a new listener certainly exists, and it is cheap: it costs one publication of
     // a reading this host derives anyway.
     conditions_said_ = false;
+    document_said_ = false; // ...and the same for the document's picture, for the same reason
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
@@ -321,6 +322,81 @@ WorkshopWeave::PendingPaste WorkshopWeave::take_pending_paste(std::uint64_t ask)
         }
     }
     return PendingPaste{};
+}
+
+// WL-DOC-20 -- agents/workshop/document.md
+void WorkshopWeave::on(const DocumentActRequested& asked, loom::Mail& mail) {
+    // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- the arrangement door's rule, and the
+    // reason it names nobody: a tool added tomorrow asks with no edit here.
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    const auto answer = [&mail](bool accepted, std::string refusal) {
+        (void)mail.answer(DocumentActed{accepted, std::move(refusal)});
+    };
+    if (asked.act == kDocumentSelect) {
+        // A SELECTION IS NOT A REFUSABLE ACT. An identity the document does not have is the
+        // same answer as one it does: nothing is selected that was not already, and the
+        // picture published on this repaint says what is true. `select` is total.
+        select(asked.identity);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentCreate) {
+        const std::int64_t id = create(state_, session_);
+        if (id == 0) {
+            // The mint is spent. Unreachable by pressing `n`; reachable in one line of a
+            // loaded file, which is why this act has an answer rather than an overflow.
+            answer(false, "this document has no identity left to give -- nothing was created");
+            return;
+        }
+        say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentDelete) {
+        const std::int64_t was = session_.selected;
+        const Written gone = delete_selected(state_, session_);
+        if (!gone.accepted) {
+            answer(false, gone.refusal);
+            return;
+        }
+        say(deleted_notice(was), false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    if (asked.act == kDocumentCommit) {
+        // ⚠ THE INDEX IS JUDGED AGAINST THE CURRENT DERIVATION, not against the one the pane
+        // was shown. A row the rows no longer have is refused by name rather than applied to
+        // whatever moved into its place, which is the one hazard an index across a seam has.
+        if (asked.row < 0 ||
+            static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
+            answer(false, "that row is not in this object's properties any more");
+            return;
+        }
+        Row& row = session_.rows[static_cast<std::size_t>(asked.row)];
+        if (!row.editable()) {
+            answer(false, row.label() + " is not authored -- it is what the workspace makes "
+                                        "of the authored value");
+            return;
+        }
+        const Commit result = row.commit_text(asked.text);
+        if (result != Commit::Accepted) {
+            // Two different failures, and the row already words each one for its own kind:
+            // an unparseable draft reads "not <what would have worked>", a refused value
+            // carries the setter's own reason.
+            answer(false, row.label() + ": " + row.refusal());
+            return;
+        }
+        say("committed " + row.label() + " = " + row.value(), false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
+    }
+    answer(false, "`" + asked.act + "` is not something this document can be asked for");
 }
 
 // WL-TEXT-02 -- agents/workshop/text-box.md

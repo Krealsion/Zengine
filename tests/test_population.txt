@@ -1193,6 +1193,15 @@ builder                           doctest           always  55
 # the new suite pins. A floor left at 217 would have been a number rather than a walk; a
 # claim that nothing was lost would have been false. What is lost is named here.
 #
+# THE DOCUMENT SEAM raised ONE floor -- workshop_document 141 -> 143 -- and the two cases are
+# this migration's one new sentence and the door beside it. The object document has ONE owner
+# and the code decided which: the workspace plane paints it, the pointer drags it, `^s` writes
+# it, the status slot counts it, a restore replaces it. So the host keeps it, a derived PICTURE
+# crosses to whoever lists it, and four acts cross back. The picture is PUBLISHED rather than
+# answered because WL-DOC-14 is a law -- canvas, object list and inspector agree after every
+# gesture -- and the document changes with no gesture into the pane at all; the second half of
+# the first case is exactly that, a nudge on the workspace reaching the list.
+#
 # ATTENTION AS A WEAVE moved TWO floors, and it is the first migration in this arc whose
 # subject was never a pane at all. The current-condition view was CHROME: an overlay a global
 # chord opened, in a keyboard context of Workshop's own, drawn into a popup in the picker's
@@ -1244,7 +1253,7 @@ builder                           doctest           always  55
 # name the mutation that reddens them and what it printed. Nothing was deleted and no floor
 # went down.
 #
-workshop_document                 doctest           always  141
+workshop_document                 doctest           always  143
 workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  179
 workshop_panes                    doctest           always  314

@@ -406,6 +406,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
+                               zengine-info-pane
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)
