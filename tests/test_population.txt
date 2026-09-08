@@ -1350,7 +1350,7 @@ builder                           doctest           always  55
 # whole, had a rectangle `screen_of` reserved for it, and was painted on a plane after every
 # pane.
 #
-#   workshop_panes  337 -> 359  the seam. Eighteen cases in one new source
+#   workshop_panes  337 -> 360  the seam. Nineteen cases in one new source
 #                               (`test_workshop_panes_terminal.cpp`): the Terminal arriving as
 #                               an ordinary arranged pane a maker PICKS (no setup has ever
 #                               named it), its five ids on the built-in's own spellings, the
@@ -1367,6 +1367,14 @@ builder                           doctest           always  55
 #                               question, acceptance, the end-of-line rule, the state a reload
 #                               keeps, and the source read that keeps "this image cannot reach
 #                               a participant". Four more join them in
+#                               One of the nineteen is a defect the WITNESS found and this
+#                               host had: a pane that loads AFTER the last publication hears
+#                               nothing, and the shipped plan loads the Skin before the
+#                               Terminal pane -- so a real Workshop read "no participant was
+#                               mounted on this bus" over a process that had mounted one. The
+#                               host already re-said the conditions and the document at an
+#                               offer; the record was not on that list.
+#                               Four more join them in
 #                               `test_workshop_panes_seam.cpp` (CARET-1..4): the arc's second
 #                               pane-to-host sentence -- the lattice a caret is judged in, the
 #                               seven ways it is refused WHOLE, `kNoCaret` as ordinary speech,
@@ -1434,7 +1442,7 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  359
+workshop_panes                    doctest           always  360
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65

@@ -2107,8 +2107,12 @@ TEST_CASE("CARET-1: a caret is judged against the CONTENT, and merged with the h
     // ...AND ON THE CANVAS IT IS THE PANE'S ROW PLUS WORKSHOP'S OWN HEADER, which is exactly
     // the offset `external_press_row` subtracts to locate a press. One measurer, both ways.
     const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    // NAMED, NOT BOUND INTO A TEMPORARY. `all_texts` answers BY VALUE, so a pointer into the
+    // range of a `for (... : all_texts(...))` dies at the semicolon -- the exact defect the
+    // sanitizer lane exists for, and the one this suite's own history already paid for once.
+    const std::vector<surface::SurfaceTextRegion> texts = all_texts(t.r.last_canvas());
     const surface::SurfaceTextRegion* region = nullptr;
-    for (const surface::SurfaceTextRegion& one : all_texts(t.r.last_canvas())) {
+    for (const surface::SurfaceTextRegion& one : texts) {
         if (one.x == body.x && one.y == body.y) {
             region = &one;
         }
