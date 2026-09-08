@@ -51,7 +51,8 @@ PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
 `default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: a default mode carries no numbers, and that
 is one canonical spelling"`, case `"WIND-2: a fresh setup is version 3, sparse, and carries the
-identity ranks"`.
+identity ranks"`, case `"WIND-2: a desk row may NAME the right column, and any pane resolves into
+it"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
@@ -67,7 +68,8 @@ PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSu
 `kUnitRightColumn`, `kPlaceWords`, `unit_word`, `place_in`; `workshop/setup.hpp` `pane_unit`,
 `pane_unit::kSubcells`;
 `tests/test_workshop_panes_window.cpp` case `"WIND-2: an unknown mode word names what it found and
-what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels included"`.
+what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels included"`, case
+`"WIND-2: a desk row may NAME the right column, and any pane resolves into it"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-05 — The format version and the envelope's version are one number

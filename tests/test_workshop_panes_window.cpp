@@ -73,9 +73,12 @@ TEST_CASE("WIND-2: a fresh setup is version 3, sparse, and carries the identity 
         // Info opens at the right column because this setup says so, not because the screen
         // reserves a column for it (`the-room-is-the-screen`); the row still carries no
         // coordinates, which is what "sparse" was ever about, and `check_pane_place` refuses
-        // a named place that carries any.
-        CHECK((fresh.panes[i].place.mode == pane_unit::kDefault ||
-               fresh.panes[i].place.mode == pane_unit::kRightColumn));
+        // a named place that carries any. Asserted BY WHICH PANE IT IS, so a shipped desk
+        // that stopped saying where Info goes -- and left it to whatever the catalog happens
+        // to default to -- reddens here rather than passing as "still sparse".
+        const bool is_info = resolve_builtin_pane(fresh.panes[i].ref) == panel::kInfo;
+        CHECK(fresh.panes[i].place.mode ==
+              (is_info ? pane_unit::kRightColumn : pane_unit::kDefault));
         CHECK(fresh.panes[i].place.x == 0);
         CHECK(fresh.panes[i].place.y == 0);
         CHECK(fresh.panes[i].width.mode == pane_unit::kDefault);
@@ -252,6 +255,80 @@ TEST_CASE("WIND-2: an unknown mode word names what it found and what would have 
         CHECK(refused.setup.panes.empty());
     }
     CHECK(setup_persist::from_text(valid).outcome.accepted);
+}
+
+TEST_CASE("WIND-2: a desk row may NAME the right column, and any pane resolves into it") {
+    // THE SENTENCE NO COORDINATE CAN SAY. A setup row's place is two absolute numbers and its
+    // sizes are amounts, so "the right edge, the workspace's full height" is not sayable by a
+    // desk shipped for every screen -- and that sentence being sayable only by the SCREEN is
+    // why the right column was the screen's until `the-room-is-the-screen`. `kRightColumn` is
+    // that sentence, said by a desk.
+    //
+    // IT IS ASKED OF THE EDITOR, whose default place is the overlay stack, because Info's
+    // default IS the right column and would resolve there whether or not the mode did
+    // anything -- which is exactly the case that would let this mechanism rot unnoticed.
+    Setup named = two_overlays();
+    for (SetupPane& row : named.panes) {
+        if (row.ref == ref_of(panel::kEditor)) {
+            row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
+        }
+    }
+    REQUIRE(check_setup(named).accepted);
+
+    // ONE: THE WORD IS WRITTEN AND READ BACK, and the row that comes back is the row that
+    // went out. A place mode is a word from a closed set (WL-SETUP-04), and this is the third.
+    const std::string text = setup_persist::to_text(named);
+    CHECK(text.find("\"mode\":\"right-column\"") != std::string::npos);
+    const setup_persist::LoadedSetup back = setup_persist::from_text(text);
+    REQUIRE(back.outcome.accepted);
+    CHECK(back.setup == named);
+
+    // TWO: A COORDINATE BESIDE THE NAME IS TWO ANSWERS, and admission refuses rather than
+    // picking one -- `kDefault`'s own rule (WL-SETUP-03), said about the second named place.
+    Setup contradictory = named;
+    for (SetupPane& row : contradictory.panes) {
+        if (row.ref == ref_of(panel::kEditor)) {
+            row.place = PanePlace{pane_unit::kRightColumn, surface::subs_of_cells(3), 0};
+        }
+    }
+    const Written both = check_setup(contradictory);
+    CHECK_FALSE(both.accepted);
+    CHECK(both.refusal.find("carries no coordinates") != std::string::npos);
+
+    // THREE: THE RESOLUTION. The Editor is in the stack, and a row naming the right column
+    // puts it in the column's whole rectangle -- the same rectangle `placement_bounds`
+    // answers for that place, because there is no second arithmetic.
+    Live t;
+    open_pane(t, ref_of(panel::kEditor));
+    const Screen sc = screen_of(t.session());
+    const PanelBounds before =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    REQUIRE(before.open);
+    REQUIRE(before.placed_in == placement::kOverlayStack);
+    for (SetupPane& row : live(t).setup.active.panes) {
+        if (row.ref == ref_of(panel::kEditor)) {
+            row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
+        }
+    }
+    const PanelBounds after =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    CHECK(after.placed_in == placement::kSideRegion);
+    CHECK(after.rect == fine_of_cells(placement_bounds(placement::kSideRegion, 0, sc)));
+    CHECK(after.rect != before.rect);
+
+    // FOUR: NAMING A PLACE IS NOT NAMING A SIZE. An authored width still lays over the named
+    // rectangle, per axis, exactly as it lays over a slot's -- which is what keeps this one
+    // mode from becoming a second geometry with rules of its own.
+    REQUIRE(author_pane_size(live(t).setup.active, ref_of(panel::kEditor),
+                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(10)},
+                             PaneSize{pane_unit::kDefault, 0})
+                .accepted);
+    const PanelBounds sized =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    CHECK(sized.placed_in == placement::kSideRegion);
+    CHECK(sized.rect.x == after.rect.x);
+    CHECK(sized.rect.h == after.rect.h);
+    CHECK(sized.rect.w == surface::subs_of_cells(10));
 }
 
 TEST_CASE("WIND-2: a version-1 file is refused BY NUMBER, before its rows are judged") {
