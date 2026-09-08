@@ -1323,11 +1323,16 @@ builder                           doctest           always  55
 #                               never Info's, and WIND-2a's front-order paint, rewritten over
 #                               the two overlay panes that remain.
 #
-#   workshop_persistence 181 -> 180  two lifecycle cases: `^s` refusing over a half-typed
-#                               property (a NAMED LOSS, WL-DOC-16) and a fresh Workshop's
-#                               setup and open panels being one decision -- which is no longer
-#                               true and is replaced by the case that says what IS: a fresh
-#                               setup names one pane this build does not compile.
+#   workshop_persistence 181 -> 181  two lifecycle cases left and two arrived, so the floor
+#                               did not move. Gone: `^s` refusing over a half-typed property
+#                               (a NAMED LOSS, WL-DOC-16), and a fresh Workshop's setup and
+#                               open panels being one decision, which is no longer true.
+#                               Arrived: the case that says what IS -- a fresh setup names one
+#                               pane this build does not compile -- and the one the migration
+#                               TABLE exists for, that Info's PLACE moves with its office
+#                               while a place the maker authored is left exactly as authored.
+#                               That second one reddens on a one-word mutation of the table's
+#                               Info row (`kRightColumn` -> `kDefault`), measured.
 #
 # WHAT THE FLOORS DO NOT SAY, and the reason this entry is long: 127 host cases were deleted
 # and 21 seam cases arrived. That is not a trade of like for like, and the population contract
@@ -1339,7 +1344,7 @@ workshop_document                 doctest           always  105
 workshop_screen                   doctest           always  216
 workshop_panels                   doctest           always  127
 workshop_panes                    doctest           always  337
-workshop_persistence              doctest           always  180
+workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65
 workshop_files                    doctest           always  43
