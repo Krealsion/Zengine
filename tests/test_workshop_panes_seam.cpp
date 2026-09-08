@@ -1676,7 +1676,13 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
     CHECK(after->shown.empty());
     CHECK_FALSE(after->refusal.empty());
     CHECK(after->refusal_why == why); // the reason, unchanged: it is about the CONTENT
-    const Condition* still = condition_by_key(r.conditions(), content_key);
+    // ⚠ THE VECTOR IS HELD, NOT THE POINTER INTO IT. `conditions()` composes and returns a
+    // fresh vector; `condition_by_key` answers with a pointer INTO it, so binding only the
+    // pointer would read a temporary that died at the semicolon. Linux tolerated it and MSVC
+    // did not, which is how it was found -- and it is the reason every other call here is
+    // spent inside its own full expression.
+    const std::vector<Condition> now = r.conditions();
+    const Condition* still = condition_by_key(now, content_key);
     REQUIRE(still != nullptr);
     CHECK(still->role == surface::role::kAlert);
 
