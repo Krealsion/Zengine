@@ -202,10 +202,9 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
                            " is sized in pixels, which no medium here can project -- "
                            "0 then w or h resets that axis");
     }
-    if (placement_of(*kind) == placement::kSideRegion) {
-        return Written::no(kind_name(session_.panels, *kind) +
-                           " is in the reserved side column -- the screen owns its place");
-    }
+    // A REFUSAL STOOD HERE: "is in the reserved side column -- the screen owns its place". The
+    // screen owns no column now, so the sentence has nothing to say and the pane it named is
+    // arranged by the same keys as every other.
     const PanelBounds where =
         bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
     if (!where.open) {
@@ -539,12 +538,13 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
-    // A HAND MAY TAKE HOLD OF ANY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR.
-    // This named the overlay stack while the stack was the only such place; saying it
-    // as the exclusion (`place_is_authorable` -- the side column is the screen's) is
-    // what keeps the hand and the KEYS agreeing, since the arrangement admission has
-    // always refused by that same sentence.
-    if (!kind.has_value() || !place_is_authorable(placement_of(*kind))) {
+    // A HAND MAY TAKE HOLD OF ANY PANE THIS BUILD CAN RESOLVE. This named the overlay stack
+    // while the stack was the only movable place, then said it as an exclusion
+    // (`place_is_authorable` -- the side column was the screen's) so that the hand and the
+    // KEYS refused by one sentence. They still agree, and the sentence they now share is
+    // shorter: nothing is reserved, so an unresolvable reference is the whole of what a hand
+    // can fail to take hold of.
+    if (!kind.has_value()) {
         return false;
     }
     const PanelBounds mine = bounds_of(session_.panels, session_.setup.active, *kind, sc);

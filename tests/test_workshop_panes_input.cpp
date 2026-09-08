@@ -1291,11 +1291,14 @@ TEST_CASE("MSG-0: a press anywhere else takes the keyboard away again") {
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == before);
 
-    // ...and a press on Workshop's own side panel does the same.
+    // ...and a press on Workshop's own right-column panel does the same. The press is at that
+    // column's RIGHT-HAND edge: the stack's slot reaches into its left columns now that the
+    // room is the surface (`the-room-is-the-screen`), and the external pane in that slot would
+    // take a press aimed at the panel's first column.
     press_body(r, kind);
     REQUIRE(r.session().panels.keyboard == kind);
     const Screen sc = screen_of(r.session());
-    r.press_cell(sc.panel_x + 1, kSideY + 2);
+    r.press_cell(sc.panel_x + kPanelCols - 1, kSideY + 2);
     CHECK(r.session().panels.keyboard == kNoPaneKind);
 }
 
@@ -2858,7 +2861,10 @@ TEST_CASE("QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a p
     const Screen sc = screen_of(r.session());
     const ui::Rect info =
         cells_covered(bounds_of(r.session().panels, r.session().setup.active, panel::kInfo, sc).rect);
-    r.press_cell(info.x + 1, info.y + 1);
+    // ITS RIGHT-HAND EDGE, not its left: the stack's slot reaches into the right column's
+    // first columns since the room became the surface, so a press at `info.x + 1` lands on
+    // the external pane standing in that slot.
+    r.press_cell(info.x + info.w - 1, info.y + 1);
     REQUIRE(r.session().panels.selected == panel::kInfo);
     REQUIRE(keyboard_context(r.session()) == KeyContext::kCommand);
     r.key(input::scan::kEscape);

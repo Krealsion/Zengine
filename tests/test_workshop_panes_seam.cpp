@@ -773,16 +773,17 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     picker_onto(r, hello_ref());
     const std::string closed = stack_text(r.last_canvas());
     // THROUGH THE ROW'S OWN OWNER, so the case reads what the painter wrote rather than a
-    // second spelling of it (WIND-2). At the minimum composition this row is two cells
-    // longer than the slot -- WIND-2's state column carries `unresolved`, which is ten bytes
-    // where the old one held eight -- so the summary is FITTED and the cut is MARKED. That is
-    // `detail::fit` doing exactly its job, and asserting the unfitted string here would be a
-    // case measuring a row nobody paints.
+    // second spelling of it (WIND-2). The row is still put through `detail::fit`, which is
+    // the painter's own call and is the identity when the row fits: at the minimum
+    // composition it used to be two cells longer than the slot and marked, and the slot is
+    // fifteen cells wider since the room became the surface (`the-room-is-the-screen`), so
+    // the same row is written whole. Asserting the unfitted string directly would be a case
+    // measuring a row nobody paints, whichever way the arithmetic went.
     const ui::Rect slot = pane_body_cells(picker_bounds(screen_of(r.session())));
     CHECK(closed.find(detail::fit(
               "> " + picker_entry_text("Hello", "closed", "a bounded external greeting"),
               slot.w)) != std::string::npos);
-    CHECK(closed.find(detail::kElided) != std::string::npos);
+    CHECK(closed.find(detail::kElided) == std::string::npos);
 
     r.key(input::scan::kEscape);
     r.pick(hello_ref());
@@ -1205,7 +1206,7 @@ TEST_CASE("opening an external pane grants exactly the fit_region room, authored
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     const ui::Rect panel =
 cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).rect);
-    CHECK(panel == ui::Rect{0, 2, 48, 9});
+    CHECK(panel == ui::Rect{0, 2, 63, 9});
     const ExternalBodyPlace body = external_body_place(
         fine_of_cells(panel), sc,
         external_title_rows(r.session().panels, kind, r.session().pane_titles));
@@ -1213,7 +1214,7 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     // it is unchanged, and the one cell of visible boundary on every side comes off before
     // the provider is told what it has -- the same reservation the header already was.
     const ui::Rect inside = pane_body_cells(panel);
-    CHECK(inside == ui::Rect{1, 3, 46, 7});
+    CHECK(inside == ui::Rect{1, 3, 61, 7});
     CHECK(body.region_x == inside.x);
     CHECK(body.region_y == inside.y);
     CHECK(body.region_w == inside.w);
@@ -1223,7 +1224,7 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     CHECK(seat->rooms[0].rows == fit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[0].columns == fit.columns);
     CHECK(seat->rooms[0].rows == 6);
-    CHECK(seat->rooms[0].columns == 46);
+    CHECK(seat->rooms[0].columns == 61);
 }
 
 TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends exactly one") {
@@ -1247,17 +1248,18 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // to assert the opposite, on the strength of a sentence that has stopped being true: an
     // overlay slot's rectangle was `kStackW` by `kStackRows` at every extent, so only a text
     // metric could move an external pane's budget. A slot now takes half the room's surplus,
-    // so a wider surface moves the body's COLUMNS -- 100 columns of surface is a room of 70,
-    // a surplus of 22, and a slot of 59 -- and the grant follows it through the same
+    // so a wider surface moves the body's COLUMNS -- 100 columns of surface IS a room of 100
+    // since the right column stopped being subtracted from it, a surplus of 52, and a slot of
+    // 74 -- and the grant follows it through the same
     // `fit_region` call. The taller half of the resize still changes nothing: the slot's
     // height is `kStackRows` at every extent and the header still takes one row of it.
     r.extent(100, 40);
     CHECK(screen_of(r.session()).w == 100);
     CHECK(bounds_of(r.session().panels, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 2, 59, 9}));
+          fine_of_cells(ui::Rect{0, 2, 74, 9}));
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
-    CHECK(seat->rooms[1].columns == 57);   // moved: the columns are the room's share, inside
+    CHECK(seat->rooms[1].columns == 72);   // moved: the columns are the room's share, inside
     CHECK(seat->room_authors[1] == std::string(kWorkshopProvider));
 
     // ...and saying it again is not a second answer. The same extent resolves the same
@@ -1271,7 +1273,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // survived: the slot's height is `kStackRows` whatever the surface does.
     r.extent(100, 52);
     CHECK(bounds_of(r.session().panels, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 2, 59, 9}));
+          fine_of_cells(ui::Rect{0, 2, 74, 9}));
     CHECK(seat->rooms.size() == 2);
 
     // A TEXT METRIC MOVES IT TOO: the same cells, set in a real face, hold fewer rows and
@@ -1281,7 +1283,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     const Screen typed = screen_of(r.session());
     CHECK(typed.text_advance_px == 9);
     const ui::Rect graphical = external_body_rect(r.session(), kind);
-    CHECK(graphical.w == 57); // the widened body's INTERIOR, before the face is consulted
+    CHECK(graphical.w == 72); // the widened body's INTERIOR, before the face is consulted
     const surface::RegionFit gfit = surface::fit_region(graphical.x, graphical.y, graphical.w,
                                                         graphical.h, 9, 18);
     CHECK(gfit.graphical());
@@ -1311,15 +1313,15 @@ TEST_CASE("a new room clears the old rows before it is sent") {
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panels.external_pane(kind)->shown.size() == 1);
 
-    // A WIDER SURFACE (WIND-1). The cached row was admitted under 48 columns and 8 rows;
-    // a room of 90 gives the slot 69, so the new grant is a different shape and keeping the
+    // A WIDER SURFACE (WIND-1). The cached row was admitted under 63 columns and 8 rows;
+    // a room of 120 gives the slot 84, so the new grant is a different shape and keeping the
     // old rows would put material admitted under one budget into another -- the one thing
     // this design must not do. Until WIND-1 an extent could not do this at all and the
     // METRIC was the only lever; the metric half is measured immediately below.
     r.extent(120, 40);
     const ExternalPane* wider = r.session().panels.external_pane(kind);
     REQUIRE(wider != nullptr);
-    CHECK(wider->columns == 67);
+    CHECK(wider->columns == 82);
     CHECK(wider->rows == 6);
     CHECK(wider->shown.empty());
     CHECK_FALSE(wider->heard);
@@ -1357,7 +1359,7 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
     r.pick(hello_ref());
     REQUIRE(seat->rooms.size() == 1);
     CHECK(seat->rooms[0].rows == 6);
-    CHECK(seat->rooms[0].columns == 46);
+    CHECK(seat->rooms[0].columns == 61);
 
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     struct Grant {
@@ -1371,12 +1373,12 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
     std::size_t said = seat->rooms.size();
     // WUX-5 TOOK TWO CELLS OFF EVERY ONE OF THESE, on both axes: the pane's rectangle is
     // unchanged and its visible boundary comes out of it.
-    for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 67},
-                                             {200, 60, 0, 0, 6, 107},
-                                             {78, 22, 0, 0, 6, 46},
-                                             {78, 22, 8, 18, 3, 68},
-                                             {120, 40, 8, 18, 3, 100},
-                                             {200, 60, 8, 18, 3, 160}}) {
+    for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 82},
+                                             {200, 60, 0, 0, 6, 122},
+                                             {78, 22, 0, 0, 6, 61},
+                                             {78, 22, 8, 18, 3, 91},
+                                             {120, 40, 8, 18, 3, 122},
+                                             {200, 60, 8, 18, 3, 182}}) {
         CAPTURE(g.w);
         CAPTURE(g.h);
         CAPTURE(g.advance);
@@ -1515,7 +1517,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     const ui::Rect body = external_body_rect(r.session(), kind);
     const ExternalPane* pane = r.session().panels.external_pane(kind);
     REQUIRE(pane->rows == 6);
-    REQUIRE(pane->columns == 46);
+    REQUIRE(pane->columns == 61);
     // THE ROOM THIS PANE WAS ACTUALLY GRANTED, held once: every bound below is derived
     // from it rather than from a number this case remembers, so the pane's interior
     // moving -- WUX-5 took one cell on every side for its visible boundary -- moves the
@@ -1675,7 +1677,11 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x + panel.w - 1, panel.y + panel.h - 1)
               .what == "Hello");
     CHECK_FALSE(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y + panel.h).occupied);
-    CHECK_FALSE(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x + panel.w, panel.y).occupied);
+    // ...and one cell to the RIGHT is not this pane's either -- said as "not this pane's"
+    // rather than "not anybody's", because the slot reaches into the right column's place at
+    // this extent now that the room is the surface (`the-room-is-the-screen`).
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x + panel.w, panel.y)
+              .what != "Hello");
 
     // ...AND IT CARRIES THE HANDLE IT MET SINCE SEL-0, so the one caller that needs a
     // further question of this answer asks it of THIS walk rather than resolving the

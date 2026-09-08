@@ -14,7 +14,7 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 
 | the task touches… | read |
 |---|---|
-| the composition in cells, the reserved column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
+| the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
 | the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, the selection lift, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | a press, a double-click, reading past a fitted row, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |

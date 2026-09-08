@@ -101,13 +101,13 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
-        // EVERY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR WEARS HANDLES. This
-        // named the overlay stack while the stack was the only such place, which made the
-        // ring a list rather than the rule it is; `place_is_authorable` is the same
-        // exclusion the arrangement admission already spoke -- the side column is the
-        // screen's, and a pane whose geometry no gesture can change must not advertise
-        // eight grips that all refuse.
-        if (!kind.has_value() || !place_is_authorable(placement_of(*kind))) {
+        // EVERY PANE THIS BUILD CAN RESOLVE WEARS HANDLES, and that is now every open pane.
+        // The ring named the overlay stack while the stack was the only movable place, then
+        // asked `place_is_authorable` to exclude the reserved column -- a pane whose geometry
+        // no gesture could change must not advertise eight grips that all refuse. No pane is
+        // in that position any more, so the only thing that can still stop a ring is a
+        // reference this build cannot resolve to a kind at all.
+        if (!kind.has_value()) {
             return;
         }
         const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);

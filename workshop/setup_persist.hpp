@@ -50,11 +50,22 @@ inline constexpr const char* kUnitDefault = "default";
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
+/// THE PLACE-ONLY WORD: the right column, named rather than measured.
+///
+/// ⚠ AND ADDING IT IS NOT A FORMAT VERSION. The version gates the SHAPE -- which fields a row
+/// has and what type each holds -- and no field changed here; the mode is the string it always
+/// was. What a build does with a word it has no meaning for is already this format's answer
+/// and is unchanged: `place_in` returns false and the load is refused BY NAME, quoting the
+/// word it found and the words that would have worked. So a file this build writes is read by
+/// an older one exactly as far as its own vocabulary goes and then refused out loud, which is
+/// the behaviour a version bump would have bought, without retiring the reader for version 2.
+// WL-SETUP-04 -- agents/workshop/setup-file.md
+inline constexpr const char* kUnitRightColumn = "right-column";
 
 /// The words a PLACE may be said in, and the words a SIZE may be said in -- two
 /// lists, because they are two different closed sets.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr const char* kPlaceWords = "default or subcells";
+inline constexpr const char* kPlaceWords = "default, right-column or subcells";
 inline constexpr const char* kSizeWords = "default, subcells or pixels";
 
 // ---- The file's own shapes ---------------------------------------------------
@@ -119,6 +130,11 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 // ---- Writing -------------------------------------------------------------------
 
 /// The word for an authored unit. TOTAL over the integer.
+///
+/// ONE FUNCTION FOR BOTH LISTS, still: a size can never hold `kRightColumn` (`check_pane_size`
+/// admits three modes and that is not one), and a place can never hold `kPixels`, so the union
+/// written here is the same one-way map each caller already trusted. The two closed sets are
+/// enforced where a value is JUDGED; this is where a judged value is spelled.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline const char* unit_word(std::int64_t mode) {
     if (mode == pane_unit::kSubcells) {
@@ -126,6 +142,9 @@ inline const char* unit_word(std::int64_t mode) {
     }
     if (mode == pane_unit::kPixels) {
         return kUnitPixels;
+    }
+    if (mode == pane_unit::kRightColumn) {
+        return kUnitRightColumn;
     }
     return kUnitDefault;
 }
@@ -200,6 +219,14 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
     }
     if (w.mode == kUnitSubcells) {
         out = PanePlace{pane_unit::kSubcells, w.x, w.y};
+        return true;
+    }
+    // THE COORDINATES COME THROUGH UNTOUCHED, and `check_pane_place` refuses them if they are
+    // not zero. A codec that silently zeroed them would turn a maker's contradictory row into
+    // a valid one behind their back; the admission's job is to tell them they wrote two
+    // things.
+    if (w.mode == kUnitRightColumn) {
+        out = PanePlace{pane_unit::kRightColumn, w.x, w.y};
         return true;
     }
     return false;

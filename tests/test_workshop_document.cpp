@@ -32,6 +32,22 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+namespace {
+
+/// A WORKSPACE CELL WITH NOTHING ON IT, on the minimum screen -- what the cases below mean
+/// when they press "empty space".
+///
+/// ⚠ IT WAS THE WORKSPACE'S OWN FAR CORNER, `kWorkspaceW - 1`, and that cell is not empty any
+/// more. The room is the surface since the right column stopped being subtracted from it
+/// (`the-room-is-the-screen`), so the workspace's last column is under the pane standing in
+/// that place and a press there answers "Info is here" rather than "nothing there". The column
+/// just left of the place is the cell these cases have always meant: bare room, on a row below
+/// every object this document holds.
+constexpr std::int64_t kBareX = kWorkspaceW - kPanelCols - 1;
+constexpr std::int64_t kBareY = kWorkspaceH - 1;
+
+} // namespace
+
 // ============================================================================
 // Tier 1 — the authored vocabulary
 // ============================================================================
@@ -2055,7 +2071,7 @@ TEST_CASE("a press on the body reaches move; a press on the size handle reaches 
     t.release(px + 1, py);
 
     // Empty space: nothing grabbed, and it says so.
-    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    t.press(kBareX, kBareY);
     CHECK_FALSE(t.session().drag.active);
     CHECK(t.notice() == "nothing there");
 }
@@ -2139,7 +2155,7 @@ TEST_CASE("a click in the WINDOW selects the object the maker is pointing at") {
     CHECK_FALSE(t.session().drag.active);
 
     // And empty space is still empty space: no selection change, no grab.
-    t.press_px(kWorkspaceW - 1, kWorkspaceH - 1);
+    t.press_px(kBareX, kBareY);
     CHECK(t.session().selected == id2);
     CHECK_FALSE(t.session().drag.active);
     CHECK(t.notice() == "nothing there");
@@ -2990,7 +3006,7 @@ TEST_CASE("QR-2: a press where the caret already is is CONSUMED, and the panel n
     // A NOTICE WHOSE PRESERVATION IS OBSERVABLE, and one this press did not write: a press on
     // empty workspace is the LAST thing in the chain, so a sentence it left behind is proof
     // that a later press reached nothing further along than the draft.
-    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    t.press(kBareX, kBareY);
     REQUIRE(t.notice() == "nothing there");
     REQUIRE(t.row("Name")->editing()); // and it took no hands off the draft
     const std::string document = persist::to_text(t.doc());
@@ -3027,7 +3043,7 @@ TEST_CASE("QR-2: consumed and not-consumed are told apart by WHERE, not by what 
     const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
     const std::int64_t y = place.region_y + kInfoHeadingRows + at_row + surface::kTuiCanvasTopRow;
 
-    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    t.press(kBareX, kBareY);
     REQUIRE(t.notice() == "nothing there");
 
     // MOVING THE CARET IS CONSUMED, and says nothing -- the caret is the statement.
@@ -3072,7 +3088,7 @@ TEST_CASE("QR-2: a press on the ALREADY selected object row is deliberately not 
     const std::int64_t row = prose_row_of_object(body, at);
     REQUIRE(row != kNoProseRow);
 
-    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    t.press(kBareX, kBareY);
     REQUIRE(t.notice() == "nothing there");
     const std::int64_t selected = t.session().selected;
 
@@ -3090,7 +3106,7 @@ TEST_CASE("QR-2: the body's resolve-and-locate is ONE answer, and it is the pain
     // this case measures, against the region actually on the canvas rather than against a
     // second call of the same formula.
     Live t;
-    t.press(kWorkspaceW - 1, kWorkspaceH - 1); // any gesture, so there is a canvas to read
+    t.press(kBareX, kBareY); // any gesture, so there is a canvas to read
     const InfoBodyPlace body = body_place(t);
     REQUIRE(body.present);
     REQUIRE_FALSE(t.canvases.empty());
@@ -4866,7 +4882,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     REQUIRE(ctop->rows.size() == 2);
     CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab (WUX-9)
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
-    CHECK(band_row(ctop, 1) == "workspace 48x16 cells");
+    CHECK(band_row(ctop, 1) == "workspace 78x16 cells");
 
     const surface::SurfaceTextRegion* cband = band_on(cell_canvas, csc);
     REQUIRE(cband != nullptr);
@@ -4900,7 +4916,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     REQUIRE(stop->rows.size() == 1);
     REQUIRE(sband->rows.size() == 2);
     CHECK(band_row(stop, 0).rfind(">Default<", 0) == 0);
-    CHECK(band_row(stop, 0).find("| workspace 48x16 cells") != std::string::npos);
+    CHECK(band_row(stop, 0).find("| workspace 78x16 cells") != std::string::npos);
     CHECK(band_row(sband, 0) == "created #1");
     CHECK(band_row(sband, 1).rfind("n new | d delete", 0) == 0);
 

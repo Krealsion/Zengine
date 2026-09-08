@@ -118,8 +118,10 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
  +---------------------------------------------------------------------+
 ```
 
-The side panel is a fixed 28 columns. Everything left of it is the workspace, and panes are
-drawn **over** it — they cover the material you are building. That is uncomfortable on purpose:
+The side panel is a fixed 28 columns, and it is drawn **over** the workspace like every other
+pane rather than beside it: the workspace is the whole width of your terminal, and taking the
+panel off the desk gives you those columns to build in. Panes cover the material you are
+building. That is uncomfortable on purpose:
 inventing a docking system before anybody had felt the discomfort would be answering a demand
 nobody had made. A wider terminal splits the surplus evenly between a pane and the material
 underneath it, so the maker always keeps half.

@@ -1,6 +1,6 @@
 # Workshop law — geometry
 
-Register `WL-GEO`: the composition in canvas cells, the reserved column, the fine lattice and the
+Register `WL-GEO`: the composition in canvas cells, the right column, the fine lattice and the
 unit a face reports. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-GEO-01 — One geometry draws a thing and hits it
@@ -22,58 +22,58 @@ with"`, case `"HD-3: hit geometry follows presentation geometry across a resize"
 panel is painted at and what it occupies are one resolved truth"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
-## WL-GEO-02 — The terminal pane's right edge is the workspace's
+## WL-GEO-02 — The terminal pane's right edge is the room's
 
-LAW — The Terminal pane wants `kTerminalWantW + (w - kScreenMinW)/2` columns, the room is the ceiling, and `terminal_x + terminal_w == room_w`: the pane ends at the workspace's edge.
+LAW — The Terminal pane is `kTerminalWantW + (w - kScreenMinW)/2` columns wide and `terminal_x + terminal_w == room_w`: it gets the want whole, at every extent, and ends at the room's right edge.
 
 MEANS
-- at 78–80 columns the pane gets the room; want and room agree from 94 columns up;
-- the pane shares no cell with the side region at any extent or metric, asserted at `kMinScreen`.
+- the room is never narrower than the want, so `screen_of` carries no clamp to reach;
+- the room's right edge is the surface's, so the pane covers the right column, measured.
 
 DOES NOT MEAN
-- that `kTerminalWantW` is a floor — it is a want, and eight cells at the minimum is the price.
+- that `kTerminalWantW` is a floor — it is a want, and the room used to charge eight cells.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kTerminalWantW`, `kScreenMinW`,
 `Screen::room_w`, `Screen::terminal_x`, `Screen::terminal_w`; `tests/test_workshop_screen.cpp`
-case `"HD-10: the want is unchanged and the room is the ceiling"`, case `"HD-10: the pane and the
-side region share no cell, at any extent or metric"`.
-WHY — `agents/decisions/the-reserved-column.md`
+case `"HD-10: the want is unchanged, and the room is no longer a ceiling"`, case `"HD-10: the
+terminal pane now covers the right column, measured"`.
+WHY — `agents/decisions/the-room-is-the-screen.md`
 
-## WL-GEO-03 — The reservation is the screen's, not the pane's
+## WL-GEO-03 — The room is the surface, and the right column stands on it
 
-LAW — `screen_of` subtracts the side column and the top rows whether or not a pane stands in them; a pane's presence, place, size or removal changes no room.
+LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE at `w - kPanelCols`, reserved out of nothing.
 
 MEANS
-- `room_w` and `room_h` are the screen's facts; what stands in a reserved place is the maker's;
-- hide Info and the column stays empty; move or remove Layouts and the rows stay empty.
+- a pane's presence, place, size or removal changes no room, and neither does the column;
+- take the pane off the desk and the maker gets thirty columns of workspace, not of nothing.
 
 DOES NOT MEAN
-- that the reserved rows are the Layouts pane's — `placement_bounds` merely defaults it there.
+- that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::room_w`, `Screen::room_h`, `kTopRows`,
 `kBottomRows`, `placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
-`placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"HD-10: the reservation is the
-SCREEN's, and holds with no panel in it"`, case `"WUX-12/SC-9: the reservation does not follow the
+`placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"HD-10: the screen's furniture
+cannot see a panel, open or closed"`, case `"WUX-12/SC-9: the reservation does not follow the
 Layouts pane"`.
-WHY — `agents/decisions/the-reserved-column.md`
+WHY — `agents/decisions/the-room-is-the-screen.md`
 
-## WL-GEO-04 — Overlaps stay inside one owner's room
+## WL-GEO-04 — Overlaps are measured, not forbidden
 
-LAW — Presentations may overlap inside the room one owner has; none reaches into a column or row the screen reserved for another.
+LAW — Presentations may overlap; every overlap this composition makes is measured exactly, and none of them may leave the room.
 
 MEANS
 - the completion list over the transcript, the picker over a slot, the pane over the workspace;
-- the pane and the overlay stack meet only at the shortest screens, by a measured, bounded amount.
+- the pane over the right column and the stack's slot into it, both counted at every extent.
 
 DOES NOT MEAN
-- that a test may forbid overlap generally — it would forbid the three intentional ones.
+- that a test may forbid overlap generally — it would forbid every one of them.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kPanelGap`, `kStackRows`,
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`,
 `kMinSide`; `tests/test_workshop_screen.cpp` case `"HD-10: what the pane DOES cover is unchanged,
 and is on purpose"`, case `"HD-10/QR-14: the pane and the overlay stack meet only at the shortest
 screens"`, case `"WIND-1: the stack/pane overlap grew by a bounded amount, and stayed in the
 room"`.
-WHY — `agents/decisions/the-reserved-column.md`
+WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric
 
@@ -207,5 +207,5 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## Do not assume
 
-- That the reserved column is about overlap — it is about the reservation (WL-GEO-04).
+- That the right column is reserved out of the room — the room is the surface (WL-GEO-03).
 - That a metric ever chooses a placement — it chooses how much prose fits (WL-GEO-05).

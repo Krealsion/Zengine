@@ -33,7 +33,7 @@ PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_geomet
 `workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_panels.cpp` case
 `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`; `tests/test_workshop_screen.cpp`
 case `"WUX-7: contextual Arrange lifts the pane it addressed, not the one in front"`, case
-`"WUX-7: a refused Arrange leaves the selection exactly where it was"`.
+`"WUX-7: every pane a maker can point at can be arranged, and the refusals are blind"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-03 — The popup is local and its bounds are derived
