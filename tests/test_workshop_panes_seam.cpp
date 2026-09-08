@@ -1604,6 +1604,86 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     CHECK(r.session().panels.external_pane(kind)->shown.size() == 1);
 }
 
+TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room included") {
+    // ⚔ THE DOOR THAT UN-SAID IT. `clear_refusal` had three callers: accepted content, a
+    // provider's re-offer, and a NEW ROOM GRANT -- and a room is granted whenever the surface
+    // resizes or the maker drags the pane's edge. So a maker whose pane had refused an update
+    // could make the sentence explaining it disappear by widening their window, with nothing
+    // valid having arrived and the pane still showing nothing. What replaced the refusal was
+    // `waiting`, which is true and says less: the reason went with the room.
+    //
+    // The rule is one door with one key: a refusal is cleared by content this host ACCEPTED,
+    // and by nothing else. `awaiting`, `heard` and the shown rows still turn over on a room
+    // grant, because those are about the room; the refusal is about the content.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    const std::int64_t granted_rows = pane->rows;
+
+    // ONE ROW TOO MANY, and the condition that follows it.
+    PaneContent tall;
+    tall.pane = kHelloPane;
+    for (std::int64_t i = 0; i <= granted_rows; ++i) {
+        tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
+    }
+    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
+    const std::string content_key = pane_content_key(hello_ref());
+    REQUIRE_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    REQUIRE(condition_by_key(r.conditions(), content_key) != nullptr);
+    const std::string why = r.session().panels.external_pane(kind)->refusal_why;
+    REQUIRE_FALSE(why.empty());
+
+    // A WIDER SURFACE: a new room goes out, and the refusal is still the last thing that
+    // happened to this pane's content.
+    r.extent(120, 40);
+    const ExternalPane* after = r.session().panels.external_pane(kind);
+    REQUIRE(after != nullptr);
+    CHECK(after->granted);
+    CHECK(after->awaiting);     // the room is out and nothing has answered it
+    CHECK_FALSE(after->heard);
+    CHECK(after->shown.empty());
+    CHECK_FALSE(after->refusal.empty());
+    CHECK(after->refusal_why == why); // the reason, unchanged: it is about the CONTENT
+    const Condition* still = condition_by_key(r.conditions(), content_key);
+    REQUIRE(still != nullptr);
+    CHECK(still->role == surface::role::kAlert);
+
+    // ...AND THE PANE GOES ON SAYING IT, rather than showing a maker an empty box.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].rfind(detail::fit(kExternalRefused, after->columns), 0) == 0);
+
+    // ONLY ACCEPTED CONTENT TAKES IT AWAY.
+    PaneContent good;
+    good.pane = kHelloPane;
+    good.rows.push_back(surface::SurfaceTextRow{"a good row", surface::role::kFill});
+    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
+    const ExternalPane* healed = r.session().panels.external_pane(kind);
+    CHECK(healed->heard);
+    CHECK(healed->refusal.empty());
+    CHECK(healed->refusal_why.empty());
+    CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
+
+    // AND A RE-OFFER IS NOT ACCEPTED CONTENT EITHER. A provider correcting its own summary
+    // returns the pane to waiting; if its last content was refused, that is still what
+    // happened to it, and the sentence stays until something valid replaces it.
+    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
+    REQUIRE_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        PaneOffered again = good_offer();
+        again.summary = "a bounded external greeting, corrected";
+        s.offer(m, again);
+    });
+    CHECK_FALSE(r.session().panels.external_pane(kind)->refusal.empty());
+    CHECK(condition_by_key(r.conditions(), content_key) != nullptr);
+}
+
 TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
     PaneRig r;
     r.mount_workshop();

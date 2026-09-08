@@ -45,16 +45,25 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-04 — A derived condition stays derived
 
-LAW — A condition derived from a live owner — a pane's refusal, a pane's state, the project frontier — is never copied into the held set; the owner's next truth clears it with no retraction call.
+LAW — A derived condition is never copied into the held set; its owner's next truth clears it with no retraction call, and a pane's refusal is that truth until content this host ACCEPTED replaces it.
+
+MEANS
+- a room grant turns over the rows, `heard` and `awaiting`; the refusal is about the content;
+- so a maker cannot un-say it by widening their window, and a re-offer does not either.
+
+DOES NOT MEAN
+- that the reason follows the room — it quotes the grant the refused content was judged against.
 
 PROVEN BY — `workshop/panel.hpp` `ExternalPane`, `ExternalPane::refusal`,
 `ExternalPane::refusal_why`, `ProjectFrontier`, `ExternalPane::clear_refusal`;
 `workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/screen_compose.cpp` `paint`;
+`workshop/weave_external.cpp` `refresh_external_rooms`; `workshop/weave_seam.cpp` `judge_content`;
 `workshop/screen_attention.cpp` `attention_conditions`; `workshop/attention.hpp` `HeldConditions`;
 `workshop/weave.hpp` `HostContext::frontier`; `workshop/weave_run.cpp` `frontier_now`;
 `tests/test_workshop_panels.cpp` case `"WUX-4: a derived condition enters and leaves attention
 with its subject"`, case `"WUX-4: the project frontier is a condition while it waits and nothing
-after"`.
+after"`; `tests/test_workshop_panes_seam.cpp` case `"a refusal stands until ACCEPTED CONTENT
+replaces it, a new room included"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — Three pane states earn ambient attention and four do not
