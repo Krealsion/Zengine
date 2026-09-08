@@ -2929,13 +2929,14 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     // is made over another global row a maker can author.
                       keymap_file_text("default", {{"workshop.picker", "shift+space"}}));
     Keyed t(path);
+    // The note said the honest half out loud at load: a POSIX terminal cannot produce it.
+    // Nothing in the file was rewritten. It is read HERE, before any gesture, because the
+    // notice line has one occupant and the next act writes its own sentence over this one.
+    CHECK(t.notice().find("shift is not observable") != std::string::npos);
     // Accepted: the authored gesture works where the wire can carry it...
     t.key(input::scan::kSpace, input::mod::kShift);
     CHECK(t.session().panels.picker.open);
     t.key(input::scan::kEscape);
-    // ...and the note said the honest half out loud: a POSIX terminal cannot
-    // produce it. Nothing in the file was rewritten.
-    CHECK(t.notice().find("shift is not observable") != std::string::npos);
     // The default it replaced no longer fires -- an override moves a binding,
     // it does not leave the old one behind as an invisible alias.
     t.key(input::scan::kP);
@@ -3437,7 +3438,6 @@ TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the mo
     const std::string view = panel_text(
         t.canvases.back(),
         pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
-    CHECK(view.find("terminal") != std::string::npos);
     CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too

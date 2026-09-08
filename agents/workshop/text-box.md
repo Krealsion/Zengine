@@ -6,7 +6,7 @@ that belongs to no consumer. One law per heading; cite by ID. Router:
 
 ## WL-TEXT-01 — Editing text is a component, and it belongs to no consumer
 
-LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; the Terminal line, a property draft, the name editor and the Composer's fields are four instances.
+LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; a property draft, the name editor, a Composer field and a pane's line are instances.
 
 DOES NOT MEAN
 - that it has a focus flag, a filter, a max length, a multiline mode or a blink — it has none;
@@ -14,7 +14,7 @@ DOES NOT MEAN
 
 PROVEN BY — `component/text_box.hpp` `TextBox`, `TextBox::first_visible`, `TextBox::caret`;
 `workshop/property.hpp` `Row`, `Row::editor`, `Row::backspace`, `Row::draft_`;
-`workshop/screen.hpp` `TerminalPane`, `TerminalPane::input`; `workshop/setup.hpp` `LayoutNaming`;
+`workshop/setup.hpp` `LayoutNaming`;
 `tests/test_component.cpp` case `"component: a TextBox is a value with no identity and no
 policy"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the name editor selects with the
 same keys and says it in characters"`, case `"TEXT-0: the real Composer's fields speak the
@@ -26,7 +26,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::consume`, `kEditingVocabulary`;
-`workshop/weave_terminal.cpp` `terminal_key`; `workshop/weave_seam.cpp` `editing_key`;
+`workshop/weave_seam.cpp` `editing_key`;
 `workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_component.cpp` case `"component:
 the capacity is an argument, so one box serves two different widths"`, case `"component: consume
 owns exactly the editing vocabulary and declines the rest"`.
@@ -49,19 +49,22 @@ begins inside a character"`, case `"component: the window moves as little as it 
 recentres"`, case `"component: no blank room on the right while text is hidden on the left"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
-## WL-TEXT-04 — The Terminal's capacity is never guessed
+## WL-TEXT-04 — A consumer's capacity is never guessed
 
-LAW — The capacity is never guessed: it is the input place's columns, what the painter cuts by and a press is answered against; the window is reconciled once per repaint, above the participant check.
+LAW — The capacity is never guessed: it is the room the consumer resolved, what it cuts by and what a press is answered against; the window is reconciled once per repaint.
 
 MEANS
 - a resize needs no path of its own, because a new extent causes a repaint;
-- the reconcile stays above the return: a maker can type into a pane with no participant mounted.
+- a migrated line resolves its own capacity out of the room the pane was granted.
 
-PROVEN BY — `workshop/screen.hpp` `terminal_input_place`, `TerminalInputPlace::columns`;
-`workshop/weave_terminal.cpp` `refresh_terminal`, `attached`, `terminal_key`;
-`tests/test_workshop_screen.cpp` case `"HD-4: a long line is shown as a slice, and both media draw
-the caret against it"`, case `"HD-4: the window follows the caret across a resize"`, case `"HD-4:
-a press on a SCROLLED line lands in the full authored string"`.
+**The Terminal's instance of this left the host (VD-24)** — `terminal_input_place` and the
+reconcile above the participant check were its one measurer, and the pane owns both now.
+
+PROVEN BY — `workshop/screen.hpp` `editor_body`; `workshop/weave_run.cpp` `repaint`;
+`workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_workshop_panes_terminal.cpp`
+case `"TERM-W12: a press on the input row places the caret where the maker aimed"`;
+`tests/test_component.cpp` case `"HD-4: the window is state, and every operation leaves the
+caret inside it"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-05 — The left edge snaps forwards, the right cut is a byte cut
@@ -73,11 +76,10 @@ MEANS
 - a caret is between characters, so the one after a full row needs somewhere to be.
 
 PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`;
-`workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen.hpp` `kTerminalCaretCols`,
-`terminal_input_place`, `TerminalInputPlace::columns`; `surface/region.hpp`
-`project_text_regions`; `tests/test_workshop_screen.cpp` case `"HD-4: a column and a byte
-index are inverses THROUGH the window"`; `tests/test_component.cpp` case `"component: the
-window never begins inside a character, at any capacity"`.
+`workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen.hpp` `kPropertyCaretCols`;
+`surface/region.hpp` `project_text_regions`; `tests/test_component.cpp` case `"component: the
+window never begins inside a character, at any capacity"`, case `"HD-4: the window never
+begins inside a character"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
@@ -181,14 +183,11 @@ LAW — The caret measurers take the box itself, the visible selection is the on
 MEANS
 - `pasteable_line` flattens foreign bytes into one line, for the byte=column grid's sake.
 
-PROVEN BY — `workshop/screen_terminal.cpp` `terminal_caret_column`, `terminal_caret_of_column`,
-`terminal_selection_columns`; `workshop/screen_info.cpp` `property_selection_columns`,
-`property_caret_column`; `workshop/screen.hpp` `TerminalSelectionSpan`, `kPropertyMarkCols`,
-`kPropertyLabelCols`, `kPropertyCaretCols`; `component/text_box.hpp`
-`TextBox`, `TextBox::visible_selection`, `pasteable_line`; `tests/test_workshop_screen.cpp` case
-`"caret geometry: a byte index and a prose column are one number, both ways"`;
-`tests/test_component.cpp` case `"component: the visible selection is the span both media may
-spend"`, case `"component: paste flattens foreign bytes into one line"`.
+PROVEN BY — `workshop/screen_info.cpp` `property_selection_columns`, `property_caret_column`;
+`workshop/screen.hpp` `TextSelectionSpan`, `kPropertyMarkCols`, `kPropertyLabelCols`,
+`kPropertyCaretCols`; `component/text_box.hpp` `TextBox`, `TextBox::visible_selection`,
+`pasteable_line`; `tests/test_component.cpp` case `"component: the visible selection is the
+span both media may spend"`, case `"component: paste flattens foreign bytes into one line"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-14 — A text-selection drag is a gesture record of its own
@@ -199,9 +198,12 @@ MEANS
 - the row is not re-tested mid-drag, so a hand that wanders off the line keeps sweeping it;
 - a press begins it only on the paths that consume the press; release keeps the selection.
 
-PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`, `terminal_value_column`,
-`property_value_column`, `text_drag_place`; `component/text_box.hpp` `TextBox::drag_to_column`;
-`tests/test_workshop_document.cpp` case `"TEXT-0: a drag sweeps a selection on the terminal line,
-and release keeps it"`; `tests/test_component.cpp` case `"component: drag_to_column extends
-from the pressed anchor and can leave the slice"`.
+**A PANE HAS NO SWEEP (VD-24).** `kTerminalLine` was one of this record's places and left
+with the overlay: a pane is sent a press and no motion, so a migrated line selects a word
+from its own presses and this record holds only lines this host still resolves.
+
+PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`, `property_value_column`,
+`text_drag_place`; `component/text_box.hpp` `TextBox::drag_to_column`;
+`tests/test_component.cpp` case `"component: drag_to_column extends from the pressed anchor
+and can leave the slice"`.
 WHY — `agents/decisions/one-press-one-gesture.md`

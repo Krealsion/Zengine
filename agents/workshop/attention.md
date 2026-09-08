@@ -12,7 +12,7 @@ MEANS
 - a condition disappears because it resolved, never because something else was said.
 
 PROVEN BY — `workshop/screen.hpp` `Session::notice`, `Session::conditions`, `kKeymapWallKey`;
-`workshop/screen_terminal.cpp` `say`; `workshop/attention.hpp` `HeldConditions`, `Condition`;
+`workshop/weave_run.cpp` `say`; `workshop/attention.hpp` `HeldConditions`, `Condition`;
 `workshop/weave.hpp` `HostContext::standing_conditions`, `WorkshopWeave::prefs_bad_`;
 `workshop/weave_handlers.cpp` `take_host_conditions`; `tests/test_workshop_panels.cpp` case
 `"WUX-4: event sentences stay events, and a condition needs no sentence"`, case `"WUX-4: a held

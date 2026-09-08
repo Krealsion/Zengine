@@ -1340,10 +1340,101 @@ builder                           doctest           always  55
 # measured against a built-in; a claim that is simply GONE is worth less than either, and
 # three of those are named above rather than counted away.
 
-workshop_document                 doctest           always  105
-workshop_screen                   doctest           always  216
-workshop_panels                   doctest           always  127
-workshop_panes                    doctest           always  337
+#
+# THE TERMINAL SEAM moved four floors, and it is the second-largest single move here. The
+# shape is the arc's own once more -- a built-in's tiers go whole and the GESTURES come back
+# through the real seam, in `test_workshop_panes_terminal.cpp`, which loads the real
+# `zengine-terminal-pane` image through a plan row, mounts the real participant on the rig's
+# bus, and drives the pane over the pane protocol. What is different is WHAT WAS RETIRED: not
+# a panel and not chrome, but a MODE -- an overlay that owned the keyboard and the pointer
+# whole, had a rectangle `screen_of` reserved for it, and was painted on a plane after every
+# pane.
+#
+#   workshop_panes  337 -> 359  the seam. Eighteen cases in one new source
+#                               (`test_workshop_panes_terminal.cpp`): the Terminal arriving as
+#                               an ordinary arranged pane a maker PICKS (no setup has ever
+#                               named it), its five ids on the built-in's own spellings, the
+#                               global chord and the contextual row both gone (VD-22), the
+#                               whole loop -- press in, type, submit, read the answer -- a
+#                               typed send leaving through the PARTICIPANT's door with the bus
+#                               stamp as the instrument, the record crossing as a picture said
+#                               only when it changed, a Workshop with no participant at all,
+#                               the two omission senses with `earlier` as the PANE's
+#                               arithmetic, the caret and its selection published and merged,
+#                               a press placing the caret, the completion as an ASK that
+#                               authors nothing, the list as rows INSIDE the pane, the
+#                               selection surviving a recomputation and not a change of
+#                               question, acceptance, the end-of-line rule, the state a reload
+#                               keeps, and the source read that keeps "this image cannot reach
+#                               a participant". Four more join them in
+#                               `test_workshop_panes_seam.cpp` (CARET-1..4): the arc's second
+#                               pane-to-host sentence -- the lattice a caret is judged in, the
+#                               seven ways it is refused WHOLE, `kNoCaret` as ordinary speech,
+#                               a caret dropped when the content it named got shorter, and the
+#                               authorship rule it inherits from the offer.
+#
+#   workshop_screen 216 -> 173  the pictures, and the geometry. The overlay's own tiers (18):
+#                               the toggle, the mode owning keys and pointer, the transcript
+#                               reaching the canvas, the pane as ONE bounded region, the
+#                               reflow under real type, the omission, no participant, the
+#                               snapshot outliving its participant, the rasterized solid pane,
+#                               and the two grants staying two. HD-3 (11) and HD-4 (6): the
+#                               caret, the press and the horizontal window, ALL of them driven
+#                               through `terminal_input_place` -- the one measurer this host no
+#                               longer performs, because a pane measures its own row. HD-10
+#                               (4) and WIND-1 (1): what the overlay's rectangle shared with
+#                               the reserved column, which is arithmetic over a rectangle that
+#                               does not exist. WUX-7 (1): the double-click on the terminal's
+#                               line. Two more: `^s` with the overlay open, and the toggle's
+#                               own keystroke never becoming text.
+#                               ** ONE CASE WAS REWRITTEN RATHER THAN DELETED, and it is the
+#                               one the founder pinned: `"HD-10: the terminal pane now covers
+#                               the right column, measured"` is now `"HD-10 is over: a pane
+#                               over a pane, and the boundary is what makes it legible"` --
+#                               the same subject, ended rather than measured.
+#
+#   workshop_panels 127 -> 113  the completer's presentation and the mode's outranking. The
+#                               list's own drawing (6): which slice it shows, that it covers
+#                               transcript rows without changing the omission, the pane's
+#                               whole grammar wrapped, entries-not-lines, the pane's corner
+#                               and half-share, and a wider terminal being a wider command
+#                               line. The mode (2): the overlay outranking everything, and a
+#                               right press meaning nothing inside it -- the second is
+#                               REWRITTEN over the arrangement scope, which is the mode that
+#                               still owns the pointer. TUI-0 (1) and the list under a real
+#                               metric (1), the terminal medium's projection of it (1), and
+#                               three completer cases whose subject was the LIST rather than
+#                               the completer.
+#                               !! SEVEN COMPLETER CASES WERE CUT AND RESTORED IN THE SAME
+#                               PASS, and the mistake is recorded rather than tidied away:
+#                               `complete_line` is still this host's -- it reads the
+#                               participant's vocabulary, its shape descriptions and its LIVE
+#                               composition ladder, none of which cross the seam -- so cases
+#                               over a participant and a string were never the overlay's and
+#                               are back, unchanged, under their own heading.
+#
+#   workshop_document 105 -> 101  the terminal line as a BOX of this host's. TEXT-0 (2): its
+#                               keys, and the drag that swept a selection on it -- the drag is
+#                               a NAMED LOSS (a pane is sent a press and no motion), recorded
+#                               in WL-TERM-09. KEY-0 (2): the header and hints spelling the
+#                               effective toggle, and shift+space being gone as an alias --
+#                               both about a row that no longer exists. Four surviving cases
+#                               were REPOINTED rather than deleted: three QR-11 clipboard
+#                               cases and the hotkey view's editable-text context now stand on
+#                               the layout name editor, which is the box this host still owns,
+#                               and TEXT-0's cross-consumer copy is now a PANE publishing
+#                               `ClipboardCopy` -- which is a wider claim than the one it
+#                               replaces, because the two boxes are in two images.
+#
+# WHAT THE FLOORS DO NOT SAY, again: 61 host cases were deleted and 22 seam cases arrived,
+# and that is not a trade of like for like. Two claims are simply GONE and are named above
+# rather than counted away -- the selection drag on the terminal's line, and the completion
+# list floating OVER the transcript instead of taking rows from it.
+
+workshop_document                 doctest           always  101
+workshop_screen                   doctest           always  173
+workshop_panels                   doctest           always  113
+workshop_panes                    doctest           always  359
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65

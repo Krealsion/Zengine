@@ -51,7 +51,7 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `list_window`, `ListWindow`, `say_objects`,
 `say_properties`; `workshop/screen_gestures.cpp` `list_window`, `omitted_text`;
-`workshop/screen.hpp` `ListWindow`, `completion_first_shown`;
+`workshop/screen.hpp` `ListWindow`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot show, it counts
 -- on the side it left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`

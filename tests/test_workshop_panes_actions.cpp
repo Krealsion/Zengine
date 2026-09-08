@@ -697,7 +697,7 @@ TEST_CASE("the band's legend and the hotkey view print the pane's rows while it 
               std::string::npos);
         // THE PANE'S OWN ROWS FIRST, then the chorded survivors; an unbound row teaches
         // no key (WL-KEY-13).
-        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^t terminal | ^k hotkeys");
+        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^k hotkeys");
     }
     // THE HOTKEY VIEW: the rows, then the ownership sentence for everything else.
     r.key(input::scan::kK, input::mod::kCtrl);
@@ -731,7 +731,7 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^t terminal | ^k hotkeys");
+    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys");
     r.key(input::scan::kK, input::mod::kCtrl);
     const std::string view = hotkeys_text(r);
     CHECK(view.find("every ordinary key and character goes to the pane") != std::string::npos);

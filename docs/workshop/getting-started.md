@@ -7,7 +7,7 @@ write a weave.
 **What Workshop is today:** a working surface where you create authored rectangles, select
 them, move and resize them, inspect and edit their properties, watch invalid edits be refused,
 save the result, and reopen it. Around that sit panes that show what the running system is
-made of, a terminal overlay that talks to the live process, a Builder that starts a real
+made of, a Terminal pane that talks to the live process, a Builder that starts a real
 build and offers the result to the running project, and a [source editor](editor.md) that
 opens the file a build recipe names — so `edit → save → build → realize → inspect` closes
 without leaving the application. Your desk comes back on its own when you relaunch.
@@ -82,9 +82,9 @@ zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/wor
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
 zengine-workshop - prefs: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-prefs.json
 zengine-workshop - load plan: .../default-load-plan.json
-zengine-workshop - load plan: 9 artifact(s) declared
+zengine-workshop - load plan: 12 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)
-zengine-workshop - terminal: weave #3 (^t opens it)
+zengine-workshop - terminal: weave #3 (presented by the Terminal pane)
 zengine-workshop - build recipes: .../default-build-recipes.json (1)
 zengine-workshop - builder: weave #5 holds 1 recipe(s) (p opens the pane picker)
 zengine-workshop - build runner: weave #4 builds with `/usr/bin/cmake`
@@ -150,7 +150,7 @@ another, and — at the row's right-hand edge — what the layout you are on is 
 it. Being a pane means you can move it, resize it, cover it or take it off a layout, like
 Files or the Editor. The **bottom band** is what Workshop just said and what your keys
 mean right now: the notice, then the legend rows advertising the current context's gestures —
-the picker, the desk arrangement and the terminal toggle among them. Every one of those hints
+the picker, the desk arrangement and the hotkey view among them. Every one of those hints
 is a projection of the effective keymap —
 remap a binding and the screen spells the new one — and `Ctrl`+`k` opens the full hotkey
 view, the complete list for whatever context you are in. So the keys are on screen; this
@@ -179,8 +179,9 @@ remembers that layout for you either way.
    or `Esc` to abandon. A pane's keys reach it only while it holds the keyboard — press
    somewhere else and `↑` `↓` are Workshop's again.
    - Drag to sweep a selection, and **double-click a word to select it** — the same word
-     `Ctrl`+`←` and `Ctrl`+`Backspace` already mean. The command line in the terminal overlay
-     does all three too.
+     `Ctrl`+`←` and `Ctrl`+`Backspace` already mean. A pane's own line does neither: a pane
+     is sent a press and no motion, so the Terminal's line selects a word from two presses
+     and sweeps by `Shift` and the arrow keys.
    - **You will not see a caret while you type a property.** A pane sends finished rows and a
      caret is not a row, so the value scrolls to where you are typing and the insertion point
      itself does not cross. It is a real cost of Info being a loaded pane, and it is the
@@ -218,8 +219,8 @@ remembers that layout for you either way.
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
-| other | `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
-| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d` |
+| other | `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d`, the **Terminal**'s `Enter` `Tab` `↑` `↓` `Esc` |
 
 These are the defaults; every application binding can be remapped through the keymap file,
 and the on-screen hints and the hotkey view always spell the effective one

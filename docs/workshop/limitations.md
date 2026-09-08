@@ -211,10 +211,16 @@ honest bounds on that capability today:
 | Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit refuses while source is unsaved |
 
-What text editing also exists is three single-line editors, each over the same component: the
-Pane Manager's property draft, the layout-name line, and the terminal overlay's command line.
-The Info pane has a fourth, in its own image and over the same component — and that one shows
-you no caret, because a caret is not a row and rows are all a pane can send.
+What text editing also exists is two single-line editors in this host, each over the same
+component: the Pane Manager's property draft and the layout-name line. Two more live in loaded
+panes over the same component — Info's property draft and the Terminal's command line.
+
+**A pane's line now shows you a caret, and still cannot be swept.** A pane may publish where
+its caret is and what it has selected beside the rows it sends, so the Terminal's command line
+has an insertion point again — a bar between glyphs in a window, an inserted `_` in a cell.
+Info's property draft does not yet say one; it can, unchanged, whenever that image is next
+touched. What no pane has is a pointer SWEEP: a pane is sent a press and is sent no motion, so
+a word is selected by two presses and a range by `Shift` and the arrow keys.
 
 ### The Files pane is a snapshot, and two identity questions are unanswered
 

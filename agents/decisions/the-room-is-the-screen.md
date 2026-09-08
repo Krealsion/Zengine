@@ -57,18 +57,21 @@ gained the reachable columns to its right that the minimum screen never had: 48 
 maker nothing, and 63 of 78 leaves fifteen. A panel now meets the right column at the smallest
 screens, which is what an overlay is, and it is legible because a panel wears a boundary.
 
-**And one cost this record does not pay for, stated rather than absorbed.** The terminal pane
-reaches the screen's right edge, so with the shipped desk an open terminal covers the pane
-standing there — HD-10's measured defect, returning. The reservation was doing two jobs, and
-only one of them was "these columns are nobody's to spend"; the other was "the terminal cannot
-silently erase what stands there", and every mechanism for that second job needs the screen to
-know a pane is furniture, which is the knowledge this record removes. The overlap is pinned as
-a measured fact (case `"HD-10: the terminal pane now covers the right column, measured"`) rather
-than patched around, because the three candidate fixes — chrome on the terminal pane, a paint
-order that puts the framed thing on top, or a ceiling that is this reservation under another
-name — are three different products and the choice is the founder's. What is different from
-HD-10 is that a maker can now move the pane out of the way, which under the reservation four
-code paths refused to let them do.
+**One cost this record did not pay for, and how it was paid.** The terminal pane reached the
+screen's right edge, so with the shipped desk an open terminal covered the pane standing
+there — HD-10's measured defect, returning. The reservation had been doing two jobs, and only
+one of them was "these columns are nobody's to spend"; the other was "the terminal cannot
+silently erase what stands there", and every mechanism for that second job needed the screen
+to know a pane is furniture, which is the knowledge this record removes. Three fixes were
+offered — chrome on the terminal pane, a paint order that puts the framed thing on top, or a
+ceiling that is this reservation under another name.
+
+**The founder chose none of them: the Terminal became a pane (VD-24).** A pane wears a
+boundary by construction, so there was no mechanism to invent and no rectangle to reserve;
+`screen_of` now sizes no presentation at all. The pinned case is rewritten to what is true —
+`"HD-10 is over: a pane over a pane, and the boundary is what makes it legible"` — and this
+record's own sentence about a maker being able to move the pane out of the way is the half
+that survived: it is the whole of the answer now.
 
 **Laws supported.** [WL-GEO-02](../workshop/geometry.md), [WL-GEO-03](../workshop/geometry.md),
 [WL-GEO-04](../workshop/geometry.md), [WL-PANE-01](../workshop/panes-and-windows.md),

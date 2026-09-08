@@ -2048,3 +2048,141 @@ TEST_CASE("QR-18/SC-5: the picker's windowed inventory is reached by the wheel")
     CHECK(row_with_text(shown(), inventory.front().name) >= 0);
     CHECK(r.session().panels.open.size() == open_before);
 }
+
+// ============================================================================
+// THE CARET — the arc's second pane-to-host sentence, and what Workshop refuses
+//
+// ⭐ `PaneCaret` IS PUBLISHED BESIDE THE ROWS BY A PANE THAT HAS ONE. It is deliberately not
+// a field on `PaneContent`: most panes have no caret, and a version bump would have made all
+// five of them pay for a fact one of them has. What is owned HERE is what Workshop does with
+// one it is sent — the lattice it is judged in, the refusals, and the merge. Where the
+// Terminal pane PUTS its caret is the Terminal's suite.
+// ============================================================================
+
+namespace {
+
+/// A RIG WITH ONE OFFERED PANE OPEN AND TWO ROWS IN IT, which is all four caret cases need.
+struct CaretRig {
+    PaneRig r;
+    ProviderSeat* seat = nullptr;
+    std::int64_t kind = 0;
+
+    CaretRig() {
+        r.mount_workshop();
+        seat = r.mount_provider(kHelloOffice);
+        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+        r.extent(120, 44);
+        REQUIRE_FALSE(r.session().panels.runtime.entries.empty());
+        kind = r.session().panels.runtime.entries.front().kind;
+        r.pick(PaneRef{kHelloOffice, "hello"});
+        REQUIRE(r.session().panels.has(kind));
+        two_rows();
+    }
+
+    void two_rows() {
+        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+            s.say(m, PaneContent{"hello", {surface::SurfaceTextRow{"alpha"},
+                                           surface::SurfaceTextRow{"beta"}}});
+        });
+    }
+
+    void say_caret(const PaneCaret& c) {
+        r.drive(seat, [c](ProviderSeat& s, loom::Mail& m) { s.caret(m, c); });
+    }
+
+    const ExternalPane* pane() {
+        const ExternalPane* one = r.session().panels.external_pane(kind);
+        REQUIRE(one != nullptr);
+        return one;
+    }
+};
+
+} // namespace
+
+TEST_CASE("CARET-1: a caret is judged against the CONTENT, and merged with the header's offset") {
+    CaretRig t;
+    t.say_caret(PaneCaret{"hello", 1, 3});
+    CHECK(t.pane()->caret_row == 1);
+    CHECK(t.pane()->caret_col == 3);
+    // ...AND ON THE CANVAS IT IS THE PANE'S ROW PLUS WORKSHOP'S OWN HEADER, which is exactly
+    // the offset `external_press_row` subtracts to locate a press. One measurer, both ways.
+    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    const surface::SurfaceTextRegion* region = nullptr;
+    for (const surface::SurfaceTextRegion& one : all_texts(t.r.last_canvas())) {
+        if (one.x == body.x && one.y == body.y) {
+            region = &one;
+        }
+    }
+    REQUIRE(region != nullptr);
+    const std::int64_t header =
+        external_title_rows(t.r.session().panels, t.kind, t.r.session().pane_titles);
+    CHECK(region->caret_row == 1 + header);
+    CHECK(region->caret_col == 3);
+}
+
+TEST_CASE("CARET-2: a caret naming a row the content does not have is refused WHOLE") {
+    // ⚠ THE REFUSAL LEAVES THE PANE WITH NO CARET, NOT WITH ITS PREVIOUS ONE — and that is
+    // the opposite of `PaneActions`' rule on purpose. A stale set of rows is still a set of
+    // rows; a stale caret is a POSITION, and a position that is wrong is read as a fact
+    // about where the maker is typing.
+    CaretRig t;
+    t.say_caret(PaneCaret{"hello", 1, 2});
+    REQUIRE(t.pane()->caret_row == 1);
+
+    const auto refused = [&t](const PaneCaret& c) {
+        t.say_caret(c);
+        const bool gone = t.pane()->caret_row == surface::kNoCaret;
+        t.say_caret(PaneCaret{"hello", 1, 2}); // stand the good one back up
+        return gone;
+    };
+    CHECK(refused(PaneCaret{"hello", 2, 0}));  // a row past the last one shown
+    CHECK(refused(PaneCaret{"hello", -2, 0})); // negative, and not `kNoCaret`
+    CHECK(refused(PaneCaret{"hello", 0, 6}));  // a column past the row's own text
+    // ONE PAST THE LAST BYTE IS LEGAL: that is where an insertion point sits at a line's end.
+    CHECK_FALSE(refused(PaneCaret{"hello", 0, 5}));
+    // HALF A RANGE IS NOT A RANGE, and a backwards one is not either.
+    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 0, surface::kNoSelection, 0}));
+    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 3, 0, 1}));
+    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 0, 5, 0})); // a selected row that is not shown
+    // AND THE ROWS SURVIVE A REFUSED CARET: they were judged on their own and are still true.
+    CHECK(t.pane()->shown.size() == 2);
+    CHECK(t.pane()->refusal.empty());
+}
+
+TEST_CASE("CARET-3: `kNoCaret` is a sentence, and shorter content drops a caret it outgrew") {
+    CaretRig t;
+    t.say_caret(PaneCaret{"hello", 1, 1, 1, 0, 1, 3});
+    REQUIRE(t.pane()->sel_begin_row == 1);
+
+    // "I HAVE NONE" IS ORDINARY SPEECH, not a refusal — it is what a pane says when its
+    // draft closes, and it un-says the selection with the caret.
+    t.say_caret(PaneCaret{"hello", surface::kNoCaret});
+    CHECK(t.pane()->caret_row == surface::kNoCaret);
+    CHECK(t.pane()->sel_begin_row == surface::kNoSelection);
+
+    // ⚠ CONTENT AND CARET ARE TWO MESSAGES, so a shorter answer can arrive with a caret
+    // admitted against the previous rows still standing. It is dropped there rather than
+    // drawn at a place with no text under it; the pane's own next caret puts it back.
+    t.say_caret(PaneCaret{"hello", 1, 2});
+    REQUIRE(t.pane()->caret_row == 1);
+    t.r.drive(t.seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, PaneContent{"hello", {surface::SurfaceTextRow{"alpha"}}});
+    });
+    CHECK(t.pane()->caret_row == surface::kNoCaret);
+    CHECK(t.pane()->shown.size() == 1);
+}
+
+TEST_CASE("CARET-4: a caret spoken personally, or about somebody else's pane, is nothing") {
+    // THE OFFER'S OWN AUTHORSHIP RULE, one shape over: holding an office is not speaking as
+    // it (MSG-07), and an office may not place a caret in a pane it never offered.
+    CaretRig t;
+    t.r.drive(t.seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.caret_personally(m, PaneCaret{"hello", 0, 1});
+    });
+    CHECK(t.pane()->caret_row == surface::kNoCaret);
+    t.say_caret(PaneCaret{"a-pane-nobody-offered", 0, 1});
+    CHECK(t.pane()->caret_row == surface::kNoCaret);
+    // ...and the ordinary spelling still works, so the two negatives above are measurements.
+    t.say_caret(PaneCaret{"hello", 0, 1});
+    CHECK(t.pane()->caret_row == 0);
+}

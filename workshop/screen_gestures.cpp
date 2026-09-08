@@ -14,7 +14,6 @@ namespace zengine::workshop {
 
 namespace detail {
 
-// WL-TERM-07 -- agents/workshop/terminal.md
 std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     std::vector<std::string> rows;
     if (width <= 0) {
