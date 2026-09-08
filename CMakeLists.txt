@@ -547,6 +547,9 @@ add_subdirectory(builder-pane)
 # among the package vocabularies, it is staged beside the host, and the boot plan names its
 # artifact -- so the same ordering rule puts it here.
 add_subdirectory(attention-pane)
+# ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
+# it is staged beside the host, and the boot plan names its artifact.
+add_subdirectory(info-pane)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

@@ -923,6 +923,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # that was never a built-in PANE -- it was chrome -- but a loaded artifact is a loaded
     # artifact and the rig resolves every stem the same way.
     "WORKSHOP_SO_ATTENTION_PANE=\"$<TARGET_FILE:zengine-attention-pane>\""
+    # ...AND THE INFO PANE, the fourth on the same terms -- and the first whose reference a
+    # SHIPPED DESK already names (`default_setup`), so a suite that loads this image is also
+    # the only place a fresh Workshop's own second pane resolves.
+    "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -943,7 +947,7 @@ set(ZENGINE_WORKSHOP_DEFS
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane
+    zengine-attention-pane zengine-info-pane
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -1065,6 +1069,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_files.cpp
             test_workshop_panes_builder.cpp
             test_workshop_panes_attention.cpp
+            test_workshop_panes_info.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -1083,7 +1088,10 @@ zengine_workshop_suite(panes
                 # presentation may not spell, are claims a source read can keep and a
                 # runtime case cannot.
                 "BUILDER_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/builder-pane/CMakeLists.txt\""
-                "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder-pane/pane.cpp\"")
+                "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder-pane/pane.cpp\""
+                # ...and the Info pane's own source, for the claim only a source read can
+                # keep: that the image which shows a maker's document holds no document.
+                "INFO_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/info-pane/pane.cpp\"")
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

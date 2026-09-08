@@ -15,8 +15,10 @@ namespace zengine::workshop {
 
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
-void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                  const Screen& sc) {
+// ⭐ THE DOCUMENT IS NO LONGER A PARAMETER. Info was the one pane whose painter needed it --
+// its two lists ARE the document -- and Info is a weave; every remaining painter draws from the
+// session alone, which is what a host that composes no document view looks like.
+void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) {
     const Panels& panels = s.panels;
     const std::int64_t lifted = selected_pane(panels);
     for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
@@ -27,9 +29,7 @@ void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session
         }
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            if (p.kind == panel::kInfo) {
-                paint_info(layer, d, s, b, sc, chrome);
-            } else if (p.kind == panel::kEditor) {
+            if (p.kind == panel::kEditor) {
                 paint_editor(layer, s, b, sc, chrome);
             } else if (p.kind == panel::kLayouts) {
                 // THE LAYOUT RUN, THE SETUP ASSOCIATION AND THE WORKSPACE FACT --
@@ -357,7 +357,7 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // furniture painted unconditionally here is now a panel like any other: present because a
     // fresh session opens it, absent the moment a maker removes it, and painted by whoever
     // owns that kind rather than by `paint`.
-    paint_panels(c, d, s, sc);
+    paint_panels(c, s, sc);
 
     // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which is a
     // budget-composed region rather than one label per cell row, and is ONE of

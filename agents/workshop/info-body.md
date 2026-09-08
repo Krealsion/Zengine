@@ -1,97 +1,102 @@
 # Workshop law — the Info body
 
-Register `WL-INFO`: the Info panel's body, resolved once. One law per heading; cite by ID.
-Router: [`../workshop.md`](../workshop.md).
+Register `WL-INFO`: the Info pane's body, composed once, in the image that owns it. One law
+per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-## WL-INFO-01 — The Info body is resolved once
+**Where this body lives.** It was `workshop/screen_info.cpp`'s `paint_info` and eighteen
+helpers, painting a built-in panel into a region the host resolved. It is
+`info-pane/pane.cpp`'s now: a loadable weave that is GRANTED a room in rows and columns and
+SAYS rows into it. The composition did not change its meaning — the two headings, the fair
+share, the windows, the omission markers, the fitted rows — and every law below is the same
+law one image over. What did change is that no font metric, no rectangle and no canvas is
+reachable from the party that composes, which is why several laws below got shorter.
 
-LAW — `info_body_place` is the whole Info body — its place, the rows of the active medium's type that fit, their sharing, a value's width, the members each window shows — and every consumer calls it.
+## WL-INFO-01 — The Info body is composed once, by the pane, into the room it was granted
+
+LAW — `say` is the whole Info body — the headings, both lists, their sharing, the controls and the notice — composed in one pass over the granted room; nothing else in the image publishes rows.
 
 MEANS
-- the painter, the caret, `refresh_inspector`, both windows, `info_press` and `objects_press`.
+- one pass builds the rows and records where each landed, so the press inverse cannot drift;
+- a room too small ends the pass early rather than inventing rows to fill it.
 
-PROVEN BY — `workshop/screen_info.cpp` `info_body_place`, `paint_info`; `workshop/screen.hpp`
-`InfoBodyPlace`, `kInfoBodyMinRows`; `workshop/weave_seam.cpp` `refresh_inspector`, `info_press`,
-`objects_press`; `tests/test_workshop_panels.cpp` case `"HD-6: the body's row capacity is the
-ACTIVE medium's, from one equation"`, case `"HD-6: one body, two media, different row counts and
-the same property facts"`; `tests/test_workshop_document.cpp` case `"HD-5: the property editor
-paints, carets, measures and hits from one geometry"`.
+PROVEN BY — `info-pane/pane.cpp` `say`, `finish`, `lead`; `info-pane/vocabulary.hpp`
+`InfoPaneState`; `workshop/pane_vocabulary.hpp` `PaneRoom`, `PaneContent`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: the two headings and both lists are
+the pane's rows, over the host's document"`, case `"INFO-WEAVE: a room too short for the body
+invents none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-02 — Nothing in Workshop multiplies a font metric
+## WL-INFO-02 — Nothing in the pane multiplies a font metric
 
-LAW — The body is one region and a property row is one of its rows; the fit gives rows and columns with the text inset inside, and a value's width is the columns less mark, label and caret.
+LAW — The pane is granted ROWS and COLUMNS and counts in them; the fit from a face to a row count is the host's, made once against the pane's rectangle, and no metric crosses the seam at all.
 
 MEANS
-- 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one body;
-- a body too short for the face falls back to cells, with no rule written to say so.
+- 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one grant;
+- a pane that measured type would be a second answer to a question the host already answered.
 
-PROVEN BY — `workshop/screen.hpp` `InfoBodyPlace::value_columns`, `kPropertyMarkCols`,
-`kPropertyLabelCols`, `kPropertyCaretCols`; `surface/region.hpp` `fit_region`, `kTextInsetPx`;
-`tests/test_workshop_panels.cpp` case `"HD-6: the body's row capacity is the ACTIVE medium's, from
-one equation"`, case `"HD-6: the property layer never learned that graphical rows got taller"`,
-case `"HD-6: the body falls back to cells when it is too short for the face"`.
+PROVEN BY — `info-pane/pane.cpp` `rows_`, `columns_`, `granted_`;
+`workshop/pane_vocabulary.hpp` `PaneRoom::rows`, `PaneRoom::columns`;
+`workshop/weave_external.cpp` `refresh_external_rooms`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a room too short for the body invents
+none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-03 — The vertical window is `list_window`
 
-LAW — `list_window`: a population that fits is shown whole, the focused row is always in the window, every omission is counted on its own side and spends a row; derived every paint, stored nowhere.
+LAW — `list_window`: a population that fits is shown whole, the focused row is always in the window, every omission is counted on its own side and spends a row; derived every publication, stored nowhere.
 
 MEANS
-- there is no scroll offset, no session field and no scroll gesture on this list;
-- `completion_first_shown` is deliberately not the same function: it anchors to the tail.
+- there is no scroll offset, no pane state field and no scroll gesture on either list;
+- two packages carry this arithmetic and two is a convention, not a defect.
 
-PROVEN BY — `workshop/screen_gestures.cpp` `list_window`, `omitted_text`; `workshop/screen.hpp`
-`completion_first_shown`, `ListWindow`; `tests/test_workshop_panels.cpp` case `"HD-6: what the
-body cannot show, it counts -- on the side it left it out"`, case `"HD-6: the selected row stays
-visible across the boundary, by keys only"`; `tests/test_workshop_screen.cpp` case `"an object
-past the list's share cannot vanish: it says what it left out"`, case `"the object-list window is
-total, and never spends more rows than it has"`.
+PROVEN BY — `info-pane/pane.cpp` `list_window`, `ListWindow`, `say_objects`,
+`say_properties`; `workshop/screen_gestures.cpp` `list_window`, `omitted_text`;
+`workshop/screen.hpp` `ListWindow`, `completion_first_shown`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot show, it counts
+-- on the side it left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-04 — The row maps are inverses, and a press is never rounded to a cell
+## WL-INFO-04 — The row maps are inverses, and a press names a row and not a cell
 
-LAW — The row that must stay visible is the editing row, else the cursor; the row maps are inverses over one row arithmetic, and a press is never rounded to a Workshop cell.
+LAW — The row that must stay visible is the draft's, else the cursor's; `mark` records what each published row is and `placed` reads it back, so the pane answers a press with the row it composed.
 
 MEANS
-- `prose_row_in_window`/`item_at_prose_row` are helpers, deliberately not a `List` component;
-- an 18-pixel row against a 12-pixel cell would name the wrong property for most of the body.
+- a press crosses as the pane's OWN row and column, resolved to them by the host;
+- a heading, a marker, a blank row or the space below the last control means nothing.
 
-PROVEN BY — `workshop/screen_info.cpp` `inspector_focus`, `prose_row_of_property`,
-`property_at_prose_row`, `prose_row_in_window`, `item_at_prose_row`; `workshop/screen.hpp`
-`ProseAt`; `tests/test_workshop_panels.cpp` case `"HD-6: a press under HD row geometry names the
-property the eye is on"`, case `"HD-6: entering an edit and being refused both keep the row on
-screen"`, case `"HD-8: the graphical press is not rounded to a Workshop cell"`.
+PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `say_properties`;
+`workshop/pane_vocabulary.hpp` `PanePressed::row`, `PanePressed::column`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on an object row selects it,
+through the document's own door"`, case `"INFO-WEAVE: pressing Create is the SAME operation
+the `n` key performs"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-05 — A resting value is fitted and a live draft is windowed
 
-LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, having one; the draft is reconciled once per repaint.
+LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, and the window follows a caret that cannot cross.
 
 MEANS
-- at most one row is ever editing: `begin_edit` is reachable only from command mode.
+- at most one row is ever editing: a draft opens on the cursor's row and closes first;
+- the caret itself does not cross the seam, which is this migration's own named loss.
 
-PROVEN BY — `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_info.cpp`
-`property_row_prefix`; `workshop/weave_document.cpp` `begin_edit`; `workshop/weave_seam.cpp`
-`refresh_inspector`; `component/text_box.hpp` `TextBox::visible`; `workshop/property.hpp`
-`Row::display`, `Row::begin`; `tests/test_workshop_panels.cpp` case `"HD-6: a resting value that
-does not fit is MARKED, not dropped"`; `tests/test_workshop_document.cpp` case `"HD-5: a long
-property draft is a window, and no part of it is lost"`, case `"HD-5: a resize reconciles the
-property window with no path of its own"`.
+PROVEN BY — `info-pane/pane.cpp` `say_properties`, `begin_draft`, `close_draft`;
+`workshop/pane_text.hpp` `fit`, `pad`; `component/text_box.hpp` `TextBox::visible`,
+`TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft
+on a value the maker owns is written to the document"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-06 — A `SurfaceExtent` must not drop a live draft
+## WL-INFO-06 — A new room must not drop a live draft, and a new document must
 
-LAW — `refocus_keeping_draft` rebuilds the rows and hands the draft, its refusal and the cursor back; every other `rebuild_rows` caller follows a new selection or document, where dropping it is right.
+LAW — A `PaneRoom` grant keeps the draft; a `DocumentShown` whose row is gone or renamed ABANDONS it, because carrying a draft onto whatever row took its index writes a maker's text into another property.
 
 MEANS
-- `Name` is a row every object has: a draft carried across a selection would land elsewhere.
+- the abandonment is the one thing this pane drops without being asked, and it is named.
 
-PROVEN BY — `workshop/screen_bindings.cpp` `refocus_keeping_draft`, `inspector_rows`;
-`workshop/weave_document.cpp` `rebuild_rows`; `workshop/weave_seam.cpp` `refresh_inspector`;
-`workshop/property.hpp` `Row::resume`; `tests/test_workshop_document.cpp` case `"HD-5: a surface
-extent does not take a maker's hands off a draft"`; `tests/test_workshop_panels.cpp` case `"HD-6:
-a resize reconciles the row count, the window and the draft together"`.
+PROVEN BY — `info-pane/pane.cpp` `on(DocumentShown)`, `on(PaneRoom)`, `close_draft`,
+`draft_`;
+`workshop/document_seam_vocabulary.hpp` `DocumentShown::properties`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft opens on the cursor's row,
+declares two ids and no more, and commits through the document"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-07 — `share_body_rows` is max-min fair sharing
@@ -99,42 +104,68 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — `share_body_rows` is max-min fair: each list gets what it needs, spare stays spare, what both cannot have is shared equally with an unneeded half going to the other; 50/50 is a consequence.
 
 MEANS
-- growing the panel never shrinks either list;
-- pinned as properties over every budget from 0 to 200.
+- growing the pane never shrinks either list;
+- the host keeps its own copy because the Pane Manager spends the same share.
 
-PROVEN BY — `workshop/screen_info.cpp` `share_body_rows`; `workshop/screen.hpp` `BodyShare`,
-`list_demand`; `tests/test_workshop_panels.cpp` case `"HD-7: the sharing policy is monotonic,
-bounded and never starves either list"`, case `"HD-7: spare room stays spare, and the heading sits
-under the last name"`, case `"HD-7: growing the window gives OBJECTS more and never gives
-PROPERTIES less"`.
+PROVEN BY — `info-pane/pane.cpp` `share_body_rows`, `BodyShare`;
+`workshop/screen_info.cpp` `share_body_rows`; `workshop/screen.hpp` `BodyShare`,
+`list_demand`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot
+show, it counts -- on the side it left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-08 — `OBJECTS` is the region's first prose row; `PROPERTIES` moves
+## WL-INFO-08 — The headings are reserved before either list is offered anything
 
-LAW — The heading rows are reserved before either list is offered anything; body rows begin at zero beneath them and the press inverse subtracts the heading, so a press on a heading names no row.
+LAW — The headings, the controls and a notice row are subtracted from the granted rows before the share is computed; a bound that grows when it is exceeded is not a bound, and `finish` truncates the rest.
 
-PROVEN BY — `workshop/screen_info.cpp` `info_body_place`, `info_body_at`, `paint_info`;
-`workshop/screen.hpp` `kInfoHeadingRows`, `InfoBodyPlace::region_x`;
-`tests/test_workshop_panels.cpp` case `"HD-7: neither list paints through the other, at any
-extent"`; `tests/test_workshop_document.cpp` case `"HD-9: `PROPERTIES` is set on a ground, and the
-row above it is not"`.
+MEANS
+- the press inverse is measured from the same lead, so a notice cannot move a press off its row.
+
+PROVEN BY — `info-pane/pane.cpp` `say`, `lead`, `finish`, `kActionCount`;
+`workshop/weave.hpp` `WorkshopWeave::judge_content`; `tests/test_workshop_panes_info.cpp` case
+`"INFO-WEAVE: a room too short for the body invents none of it"`, case `"INFO-WEAVE: the two
+controls are the last rows of the body, and say their own availability in characters"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-09 — An object row is fitted whole, and a press on it selects in command mode only
+## WL-INFO-09 — An object row is fitted whole, and a press on it asks the document
 
-LAW — `object_row_text` puts the identity before the name and cuts the row at the body's width; `objects_press` selects a visible row in command mode only, and says so while a draft is live.
+LAW — An object row puts the identity before the name and is cut at the granted columns; a press on one ASKS the host to select, and the pane learns the answer as an ordinary picture rather than by moving it.
 
-PROVEN BY — `workshop/screen_info.cpp` `object_row_text`, `object_press_at`, `object_row_full`;
-`workshop/weave_seam.cpp` `objects_press`; `tests/test_workshop_panels.cpp` case `"HD-7: a press
-on a visible object row selects it, through the row's own geometry"`, case `"HD-7: a press on an
-object row is REFUSED while a property draft is live"`, case `"HD-7: a long object name is bounded
-VISIBLY, and the document keeps all of it"`.
+MEANS
+- a name longer than the column is marked, and the document still holds all of it;
+- an undrawable byte is replaced rather than sent, because a publication is judged whole.
+
+PROVEN BY — `info-pane/pane.cpp` `say_objects`, `ask_select`, `on(PanePressed)`;
+`workshop/pane_text.hpp` `drawable`; `workshop/document_seam_vocabulary.hpp`
+`kDocumentSelect`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on an
+object row selects it, through the document's own door"`, case `"INFO-WEAVE: an object name a
+canvas cannot draw is still shown"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-10 — With Info removed, the inspector's keys say so and open no draft
+## WL-INFO-10 — An empty list says it is empty, whatever its share
 
-LAW — A cursor or edit key with Info not showing says so and which key opens the panel, opens no draft and moves no cursor; silence would not tell a removed panel from a broken tool.
+LAW — An empty list says so in its own words, and neither sentence is behind the share: an empty list is offered nothing, so a guarded row would be missing in the one state the sentence exists for.
 
-PROVEN BY — `workshop/weave_document.cpp` `inspector_absent`; `tests/test_workshop_panels.cpp`
-case `"the inspector's keys say so when Info is not showing, and open no draft"`.
+MEANS
+- a panel that merely goes blank is indistinguishable from a tool that has broken;
+- the granted room is still the wall: `finish` truncates and cannot be talked past.
+
+PROVEN BY — `info-pane/pane.cpp` `say_objects`, `say_properties`, `finish`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: an empty document says it is empty and
+says what to do next"`.
+WHY — `agents/decisions/one-body-two-lists.md`
+
+## WL-INFO-11 — The desk names this pane, and an office that does not offer leaves the row
+
+LAW — `default_setup` authors this pane's reference, so a run whose plan loads no Info office keeps the row, reads it unresolved and counts it on the band; silence would not tell an absent office from a loss.
+
+MEANS
+- the desk's row is the INTENT and an office's offer is what resolves it;
+- ⚠ a MISSING ARTIFACT is a different failure: a plan is all-or-nothing, so the host exits;
+- `1 unresolved` is on the band for the frames before that refusal arrives.
+
+PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `workshop/panel.hpp`
+`kInfoPaneProvider`, `kInfoPaneKey`; `workshop/screen_layouts.cpp` `setup_rest_text`;
+`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a Workshop with no Info OFFICE keeps
+the row and says so"`, case `"INFO-WEAVE: the pane arrives by a plan row and resolves a row the
+desk already had"`.
 WHY — `agents/decisions/one-body-two-lists.md`

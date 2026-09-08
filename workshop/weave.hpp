@@ -229,6 +229,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::OpenSourceRequested,
+                                          zengine::workshop::DocumentActRequested,
                                           zengine::workshop::RecipeSourceRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -243,6 +244,8 @@ class WorkshopWeave
                                         zengine::workshop::PaneWheel,
                                         zengine::workshop::PaneActionRequested,
                                         zengine::workshop::StandingConditions,
+                                        zengine::workshop::DocumentShown,
+                                        zengine::workshop::DocumentActed,
                                         zengine::workshop::SourceOpened>> {
 public:
     explicit WorkshopWeave(HostContext& host);
@@ -274,6 +277,16 @@ public:
     /// of what this weave last said, which is the same thing `builder::BuildStatus`'s
     /// publisher keeps for the same reason.
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
+
+    /// SAY WHAT THE OBJECT DOCUMENT LOOKS LIKE, to anyone presenting it -- and only when it
+    /// CHANGED, on `say_conditions`' discipline and for its reason.
+    ///
+    /// ⚠ WHY THIS ONE IS A PUBLICATION AND NOT AN ANSWER. WL-DOC-14 requires the canvas, the
+    /// object list and the inspector to agree after every gesture, and the document changes
+    /// under a presenting pane constantly with no gesture into that pane at all -- a drag on
+    /// the workspace, a nudge, a create, a restore, a workspace refit. A pane that could only
+    /// ask would be a list that is wrong most of the time.
+    void say_document(loom::Mail& mail);
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
@@ -457,6 +470,11 @@ public:
     /// never its procedure, so it says the name and this host looks it up.
     void on(const RecipeSourceRequested& asked, loom::Mail& mail);
 
+    /// THE OBJECT DOCUMENT'S ONE ACTING DOOR: select, create, delete, commit one property.
+    /// Answered at this host's own office, because the party that owns the document is the
+    /// party that answers for it (`document_seam_vocabulary.hpp`).
+    void on(const DocumentActRequested& asked, loom::Mail& mail);
+
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
     ///
@@ -567,16 +585,11 @@ private:
     /// -- so the mutation goes through `Row`'s door and the reading through `editor()`.
     bool press_selects_word(std::int64_t modifiers, Row& row, std::size_t at);
 
-    /// A PRESS INSIDE THE ACTIVE PROPERTY EDITOR, and nothing else: the raw pointer fact,
-    /// the resolved Info body, a prose row and column, a semantic property row, a column of
-    /// its value, a byte of the draft, the caret. It is a place, not a mode, and begins nothing.
-    bool info_press(const InfoBodyAt& where, std::int64_t modifiers);
-
-    /// A PRESS ON AN ACTION CONTROL PERFORMS THE ACT THE CONTROL NAMES.
-    bool actions_press(const InfoBodyAt& where);
-
-    /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there.
-    bool objects_press(const InfoBodyAt& where);
+    // ⭐ `info_press`, `actions_press` AND `objects_press` LEFT WITH THE INFO PANEL. They were
+    // the panel's three inverses -- a press in the live draft, a press on a control, a press on
+    // an object name -- resolved against a body this host composed. The pane composes it now,
+    // so a press inside its rectangle crosses as `PanePressed` with the pane's own prose row
+    // and column, exactly as it does for every other pane, and the pane answers it.
 
     // ---- The terminal overlay ------------------------------------------------
 
@@ -960,26 +973,11 @@ private:
     static std::string move_notice(const ui::Element& e, const Handled& done);
     static std::string size_notice(const ui::Element& e, const Handled& done);
 
-    /// IS THE INSPECTOR ON THE SCREEN AT ALL? the rows are shown by a
-    /// panel a maker may remove, and `Session::rows` goes on existing when they
-    /// do -- correctly, because the rows are a fact about the SELECTION and the
-    /// selection is not the panel's. What must not go on happening is a gesture
-    /// over them.
-    bool inspector_shown() const;
-
-    /// True if the gesture the caller is about to perform has nothing on screen
-    /// to perform it on, HAVING SAID SO. A silent no-op would be the worse half
-    /// of both available answers: these keys did something before Info could be
-    /// removed, so a maker pressing one and seeing nothing has been given no way
-    /// to tell a removed panel from a broken tool -- the same argument the empty
-    /// OBJECTS list already won.
-    bool inspector_absent();
-
-    /// Step the inspector's cursor, when there is an inspector to step it in.
-    void move_cursor(std::int64_t delta);
-
-    /// BEGIN AN EDIT -- and refuse to begin one nobody can see.
-    void begin_edit();
+    // ⭐ `inspector_shown`, `inspector_absent`, `move_cursor` and `begin_edit` LEFT WITH THE
+    // INFO PANEL, and so did `Session::cursor`. They were the host's cursor into a list it
+    // painted; the list is published now and the Info weave holds the cursor and the draft.
+    // `Session::rows` stays: the rows are a fact about the SELECTION, the selection is not a
+    // panel's, and the document door commits through them.
 
     /// Resize the workspace: NO authored value changes, and a share visibly
     /// resolves to something else. One keystroke, and the difference between an
@@ -1168,6 +1166,12 @@ private:
     /// never published.
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
+
+    /// ...AND THE SAME RECORD FOR THE DOCUMENT'S PICTURE. Not a copy of the document: the
+    /// document is `state_`, this is what this weave last SAID about it.
+    // WL-DOC-20 -- agents/workshop/document.md
+    DocumentShown said_document_;
+    bool document_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md

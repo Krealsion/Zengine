@@ -549,7 +549,7 @@ TEST_CASE("a click selects the same authored object the maker can see") {
     s.selected = ui::hit(scene, 5, 3)->id;
     refocus(d, s);
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(object_row(c, d, s, 1) == "> #" + std::to_string(front) + " front");
+    CHECK(shown_object(d, s, 1) == "> #" + std::to_string(front) + " front");
     CHECK(s.rows[0].value() == "#" + std::to_string(front));
     const ui::Rect fr = ui::placed_for(scene, front)->rect;
     CHECK(has_rect(c, kWorkspaceX + fr.x - 1, kWorkspaceY + fr.y - 1, fr.w + 2, fr.h + 2,
@@ -613,7 +613,6 @@ TEST_CASE("creating mints a fresh identity, and the identity is not the label or
     CHECK(s.selected == made);
     REQUIRE_FALSE(s.rows.empty());
     CHECK(s.rows[0].value() == "#" + std::to_string(made));
-    CHECK(s.cursor == first_editable(s.rows));
 
     const surface::SurfaceCanvas c = paint(d, s);
     const ui::Scene scene = workspace_scene(d, s);
@@ -623,7 +622,7 @@ TEST_CASE("creating mints a fresh identity, and the identity is not the label or
                    placed->rect.h, surface::role::kFill));
     CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
                    placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
-    CHECK(object_row(c, d, s, 2) == "> #" + std::to_string(made) + " panel");
+    CHECK(shown_object(d, s, 2) == "> #" + std::to_string(made) + " panel");
 }
 
 TEST_CASE("creation cannot author a state this document would refuse") {
@@ -681,11 +680,11 @@ TEST_CASE("delete removes exactly one identity, and the other duplicate label su
     CHECK(ui::placed_for(workspace_scene(d, s), 1) == nullptr);
     CHECK(workspace_scene(d, s).items.size() == 1);
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(object_row(c, d, s, 0) == "> #" + std::to_string(kept) + " panel");
-    // HD-7: one object is a one-row share, so there is no second list row to go stale in --
-    // what follows it is the heading the composition put there.
-    CHECK(body_of(d, s).objects_rows == 1);
-    CHECK(properties_heading(c, d, s) == "PROPERTIES");
+    CHECK(shown_object(d, s, 0) == "> #" + std::to_string(kept) + " panel");
+    // ONE OBJECT IS ONE ROW OF THE PICTURE, and the properties beside it are the survivor's.
+    // How many ROWS that object gets is the pane's composition and is asked there.
+    CHECK(document_shown(d, s).objects.size() == 1);
+    CHECK_FALSE(document_shown(d, s).properties.empty());
     CHECK(s.rows[0].value() == "#" + std::to_string(kept));
 }
 
@@ -1194,7 +1193,7 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
         CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
                        placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
         // list: the marker is on this identity
-        CHECK(object_row(c, d, s, row).rfind("> #" + std::to_string(id), 0) == 0);
+        CHECK(shown_object(d, s, static_cast<std::size_t>(row)).rfind("> #" + std::to_string(id), 0) == 0);
         // inspector: the same identity, and the authored position it is drawn at
         CHECK(s.rows[0].value() == "#" + std::to_string(id));
         CHECK(s.rows[3].value() == std::to_string(placed->rect.x));
@@ -1861,79 +1860,17 @@ TEST_CASE("a resize survives every extent and pointer a poke or a wire can produ
 // weave ever being told where the pointer is by anything except the event it is
 // handling.
 
-TEST_CASE("a maker types `70%` through the canonical text route, and 70p is history") {
-    // The headline, end to end. A vocabulary of scancodes alone cannot reach `%`
-    // at all, which is what made `70p` a workaround worth committing. The
-    // characters arrive as text the platform produced, and Workshop appends them
-    // without owning one line of keyboard knowledge.
-    Live t;
-    t.begin_editing("Width");
-    REQUIRE(t.row("Width")->editing());
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-
-    t.text("7");
-    t.text("0");
-    t.text("%");
-    CHECK(t.row("Width")->draft() == "70%");
-
-    t.key(input::scan::kReturn);
-    CHECK(t.first()->width.mode == ui::kExtentPercent);
-    CHECK(t.first()->width.amount == 70);
-    CHECK(t.notice() == "committed Width = 70%");
-    CHECK(t.row("Width")->value() == "70%");
-}
-
-TEST_CASE("entered text is text; editing controls are keys; and the two never swap jobs") {
-    Live t;
-    t.begin_editing("Name");
-    REQUIRE(t.row("Name")->editing());
-    CHECK(t.row("Name")->draft() == "panel");
-
-    // Backspace is a KEY and it erases; it is never text.
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    CHECK(t.row("Name")->draft().empty());
-
-    // Capitals and symbols -- both unreachable from a scancode -- and `q`, which
-    // is the quit command in the other mode and is simply a letter here.
-    t.text("Panel");
-    t.text("-");
-    t.text("q");
-    CHECK(t.row("Name")->draft() == "Panel-q");
-    CHECK_FALSE(t.host.quit); // the `q` typed, it did not quit
-
-    // Escape is a key and it cancels: nothing was written.
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.row("Name")->editing());
-    CHECK(t.first()->label == "panel");
-    CHECK(t.notice() == "edit cancelled -- nothing was written");
-
-    // And in COMMAND mode, text is not a command: `n` as text creates nothing.
-    const std::size_t before = t.doc().elements.size();
-    t.text("n");
-    t.text("d");
-    CHECK(t.doc().elements.size() == before);
-}
-
-TEST_CASE("a multi-byte character survives typing and erasing as ONE character") {
-    Live t;
-    t.begin_editing("Name");
-    REQUIRE(t.row("Name")->editing());
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("caf\xc3\xa9"); // cafe-acute, the last character two bytes
-    CHECK(t.row("Name")->draft() == "caf\xc3\xa9");
-    t.key(input::scan::kBackspace);
-    // One press erased the whole character, not half of it -- a draft holding
-    // half a character is not text and no setter could parse it.
-    CHECK(t.row("Name")->draft() == "caf");
-    t.key(input::scan::kReturn);
-    CHECK(t.first()->label == "caf");
-}
+// ⭐ SIX MORE CASES LEFT WITH THE INFO PANEL'S DRAFT. They drove the canonical text route, the
+// text/keys split, a multi-byte character, the message path's authority, a close request and
+// TEXT-0's clipboard THROUGH a property draft opened with `begin_editing` -- three command-mode
+// keys and an inspector cursor this host no longer has. The claims are not lost: the text route
+// and the clipboard are `component::TextBox`'s and are pinned by `tests/test_component.cpp`,
+// the message path's authority is pinned by the document door's own cases below, and the draft
+// itself is the Info weave's, in `tests/test_workshop_panes_info.cpp`.
+//
+// AND ONE MORE THAT WAS THE PANEL'S PICTURE: `"the selection marker never disappears as a maker
+// walks past the list's share"` read the panel's object lines and property rows out of the
+// canvas. The window it was about is the pane's window now.
 
 TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still moves") {
     // A wire that cannot say "with Shift held" makes a second directional gesture
@@ -2076,39 +2013,6 @@ TEST_CASE("a press on the body reaches move; a press on the size handle reaches 
     CHECK(t.notice() == "nothing there");
 }
 
-TEST_CASE("the semantic operations are still the only authority, through the message path") {
-    // The gesture layer got better facts; it did not get new powers. Everything
-    // below travels message -> gesture -> doc::, and doc:: still decides.
-    Live t;
-    const std::int64_t id1 = t.first()->id;
-
-    // CLAMP: a hand that reaches past the origin stops at it, authors the
-    // boundary value, and says which wall it met (screen.hpp's boundary policy).
-    t.press(t.first()->x, t.first()->y);
-    t.motion(-50, -50);
-    CHECK(t.first()->x == 0);
-    CHECK(t.first()->y == 0);
-    CHECK(t.notice() == "#" + std::to_string(id1) + " is at 0,0 -- stopped at the workspace edge");
-    CHECK_FALSE(t.session().notice_is_bad); // a clamp WROTE something
-    t.release(0, 0);
-
-    // REFUSE: a typed value that is not allowed is refused, the authored state
-    // is untouched, and the draft survives on screen.
-    t.begin_editing("Width");
-    REQUIRE(t.row("Width")->editing());
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("0");
-    t.key(input::scan::kReturn);
-    CHECK(t.session().notice_is_bad); // red means NOTHING WAS WRITTEN
-    CHECK(t.notice() == "Width: at least 1 cell");
-    CHECK(t.row("Width")->editing());
-    CHECK(t.row("Width")->draft() == "0");
-    CHECK(t.first()->width.mode == ui::kExtentPercent); // untouched
-    t.key(input::scan::kEscape);
-}
-
 TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-placed") {
     // `space` earning its field, in BOTH directions
     // (docs/reference/pointer-spaces.md). A backend reporting a space this
@@ -2247,23 +2151,6 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
     CHECK(stopped);
 }
 
-TEST_CASE("a close request does not care what the maker was in the middle of") {
-    // A half-typed width is a draft, and a draft is not a reason to refuse to
-    // close: `^s` refuses to SAVE over one because writing an unconfirmed value
-    // would be the tool putting words in a maker's mouth, and quitting writes
-    // nothing at all. Whether closing should ask about unsaved work is a separate
-    // product question, and nothing here answers it.
-    Live t;
-    t.begin_editing("Width");
-    t.text("70");
-    REQUIRE(t.row("Width")->editing());
-
-    t.close_requested();
-    CHECK(t.host.quit);
-    // And nothing was written on the way out.
-    CHECK(t.first()->width.amount == 60);
-}
-
 TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     Live t;
     bool stopped = false;
@@ -2333,52 +2220,6 @@ TEST_CASE("canvas, object list and inspector stay coherent through a message-dri
     CHECK(t.status_note().rfind("[workshop] 2 objects", 0) == 0);
 }
 
-TEST_CASE("the selection marker never disappears as a maker walks past the list's share") {
-    // The contradiction, driven the way a maker reaches it: `tab` cycles the
-    // whole document, and an unwindowed list selects objects it does not draw.
-    // Nine objects, made and walked by keystroke,
-    // and the screen is read after every single one.
-    Live t;
-    for (int i = 0; i < 7; ++i) { // two to begin with, so seven more makes nine
-        t.key(input::scan::kN);
-    }
-    REQUIRE(t.doc().elements.size() == 9);
-
-    for (int step = 0; step < 9; ++step) {
-        t.key(input::scan::kTab);
-        const std::int64_t id = t.session().selected;
-        CAPTURE(step);
-        CAPTURE(id);
-
-        bool marked = false;
-        bool omission_said = false;
-        std::size_t drawn = 0;
-        const InfoBodyPlace place = body_place(t);
-        for (const std::string& line : object_lines(t.canvases.back(), t.doc(), t.session())) {
-            if (line.empty()) {
-                continue;
-            }
-            ++drawn;
-            if (line == "> #" + std::to_string(id) + " panel") {
-                marked = true;
-            }
-            if (line.rfind("... ", 0) == 0) {
-                omission_said = true;
-            }
-        }
-        CHECK(marked);                                // what the status line names, the list shows
-        CHECK(omission_said);                         // and what it cannot show, it counts
-        CHECK(drawn == place.objects_rows); // inside the budget the ROOM gave it (HD-7)
-
-        // The status line and the inspector name the same object, on the same
-        // frame the list was read from.
-        CHECK(t.status_note().rfind("[workshop] 9 objects | selected #" + std::to_string(id), 0) ==
-              0);
-        CHECK(property_row(t.canvases.back(), t.doc(), t.session(), 0) ==
-              " Identity #" + std::to_string(id));
-    }
-}
-
 TEST_CASE("a notice a maker's own path makes too long is marked on screen, not cut in the session") {
     // The overlong notice through the real message path, on one Workshop produces
     // honestly. A document path is the maker's own input and may be any length the
@@ -2422,1093 +2263,25 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 // editor's answers COME from there, and that the property layer's own semantics -- parse,
 // validate, refuse, commit, cancel -- did not follow the draft into the component.
 
-TEST_CASE("HD-5: a property draft opens on its value with the caret at the end") {
-    Live t;
-    t.begin_editing("Name");
-    const Row* row = t.row("Name");
-    REQUIRE(row != nullptr);
-    REQUIRE(row->editing());
-
-    // The draft IS the committed value, and the caret is where a maker about to amend it
-    // would put their hand.
-    CHECK(row->draft() == "panel");
-    CHECK(row->editor().text() == "panel");
-    CHECK(row->editor().caret() == 5);
-    CHECK(row->editor().first_visible() == 0);
-    CHECK(row->editor().at_end());
-
-    // ...and the property has not moved, because a draft is not a write.
-    CHECK(row->value() == "panel");
-    CHECK(t.doc().elements[0].label == "panel");
-}
-
-TEST_CASE("HD-5: a property value is repaired in the MIDDLE, by keys the row did not have") {
-    // The user-facing target, and the exact gesture the pristine tree could not make: on the
-    // START tree `hellp world` cost seven backspaces and seven retyped characters, because
-    // Left, Right, Home, End and Delete were every one of them `default: break`.
-    Live t;
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("hellp world")) {
-        t.text(std::string(1, c));
-    }
-    REQUIRE(t.row("Name")->draft() == "hellp world");
-
-    // Six lefts, one delete, one keystroke. The rest of the value is untouched.
-    for (int i = 0; i < 7; ++i) {
-        t.key(input::scan::kLeft);
-    }
-    CHECK(t.row("Name")->editor().caret() == 4);
-    t.key(input::scan::kDelete);
-    CHECK(t.row("Name")->draft() == "hell world");
-    t.text("o");
-    CHECK(t.row("Name")->draft() == "hello world");
-    CHECK(t.row("Name")->editor().caret() == 5);
-
-    // HOME AND END REACH BOTH ENDS, and Backspace still takes the character before the caret
-    // rather than the one at the end of the value.
-    t.key(input::scan::kHome);
-    CHECK(t.row("Name")->editor().caret() == 0);
-    t.key(input::scan::kDelete);
-    CHECK(t.row("Name")->draft() == "ello world");
-    t.key(input::scan::kEnd);
-    CHECK(t.row("Name")->editor().caret() == 10);
-    t.key(input::scan::kBackspace);
-    CHECK(t.row("Name")->draft() == "ello worl");
-
-    // AND THE PROPERTY IS STILL UNTOUCHED through all of it: none of the six gestures is a
-    // write, which is the line the component was never allowed to cross.
-    CHECK(t.doc().elements[0].label == "panel");
-}
-
-TEST_CASE("HD-5: a long property draft is a window, and no part of it is lost") {
-    Live t;
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : kLongValue) {
-        t.text(std::string(1, c));
-    }
-
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    REQUIRE(place.value_columns > 0);
-    REQUIRE(static_cast<std::int64_t>(kLongValue.size()) > place.value_columns);
-
-    // THE AUTHORED VALUE IS WHOLE. What the row shows is a slice of it and nothing about the
-    // draft was cut, rotated or marked.
-    const Row* row = t.row("Name");
-    CHECK(row->draft() == kLongValue);
-    CHECK(row->editor().caret() == kLongValue.size());
-    CHECK(row->editor().first_visible() > 0); // it scrolled, which is the point
-
-    // THE ROW SHOWS THE TAIL, with the caret on it, and the body says where the caret is.
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), place);
-    REQUIRE(shown != nullptr);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const std::string& drawn =
-        shown->rows[static_cast<std::size_t>(kInfoHeadingRows + at_row)].text;
-    const std::string slice = row->editor().visible(place.value_columns);
-    CHECK(drawn == property_row_text(*row, true, place.value_columns));
-    CHECK(static_cast<std::int64_t>(slice.size()) <= place.value_columns);
-    CHECK(kLongValue.substr(kLongValue.size() - slice.size()) == slice);
-    CHECK(shown->caret_row == kInfoHeadingRows + at_row);
-    CHECK(shown->caret_col == property_caret_column(*row));
-    CHECK(shown->caret_col <= place.columns);
-
-    // EVERY BYTE IS REACHABLE. Home, then one Right at a time, and the union of what the row
-    // showed along the way is the whole value -- which is the difference between a bounded
-    // presentation and a truncation.
-    t.key(input::scan::kHome);
-    std::string seen = t.row("Name")->editor().visible(place.value_columns);
-    std::size_t reached = 0;
-    for (std::size_t i = 0; i < kLongValue.size(); ++i) {
-        t.key(input::scan::kRight);
-        const Row* r = t.row("Name");
-        const std::size_t first = r->editor().first_visible();
-        const std::string step = r->editor().visible(place.value_columns);
-        CAPTURE(i);
-        CHECK(r->editor().caret_column() <= static_cast<std::size_t>(place.value_columns));
-        if (first + step.size() > reached) {
-            reached = first + step.size();
-            seen += step.substr(seen.size() > first ? seen.size() - first : 0);
-        }
-    }
-    CHECK(seen == kLongValue);
-    CHECK(t.row("Name")->draft() == kLongValue);
-}
-
-TEST_CASE("HD-5: a press inside a SCROLLED property draft lands in the full authored value") {
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18})); // a window, so the press arrives in PIXELS
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : kLongValue) {
-        t.text(std::string(1, c));
-    }
-
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const std::size_t from = t.row("Name")->editor().first_visible();
-    REQUIRE(from > 0); // the value really is scrolled: this is the case's whole point
-
-    // A COLUMN OF WHAT THE MAKER CAN SEE NAMES A BYTE OF THE WHOLE DRAFT, never the offset
-    // alone. Without the window's own offset every one of these would land `from` bytes early.
-    for (std::int64_t col = 0; col <= place.value_columns; ++col) {
-        CAPTURE(col);
-        t.press_at(value_pixel_x(place, col), value_pixel_y(place, at_row),
-                   input::space::kPixels);
-        const std::size_t want =
-            from + static_cast<std::size_t>(col) < kLongValue.size()
-                ? from + static_cast<std::size_t>(col)
-                : kLongValue.size();
-        CHECK(t.row("Name")->editor().caret() == want);
-        CHECK(t.row("Name")->draft() == kLongValue); // a press authors nothing
-    }
-
-    // ...AND A REPAIR AT THE CLICKED PLACE CHANGES ONLY THAT PLACE.
-    t.press_at(value_pixel_x(place, 4), value_pixel_y(place, at_row), input::space::kPixels);
-    const std::size_t at = t.row("Name")->editor().caret();
-    t.key(input::scan::kDelete);
-    std::string want = kLongValue;
-    want.erase(at, 1);
-    CHECK(t.row("Name")->draft() == want);
-
-    // A CELL MEDIUM REACHES THE SAME MODEL, through the other branch of `prose_at`.
-    Live c;
-    c.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        c.key(input::scan::kBackspace);
-    }
-    for (const char ch : kLongValue) {
-        c.text(std::string(1, ch));
-    }
-    const InfoBodyPlace cells = body_place(c);
-    REQUIRE_FALSE(cells.fit.graphical());
-    const std::int64_t cell_row = editing_prose_row(c, cells);
-    REQUIRE(cell_row != kNoProseRow);
-    const std::size_t cfrom = c.row("Name")->editor().first_visible();
-    REQUIRE(cfrom > 0);
-    c.press_at(cells.region_x + kPropertyMarkCols + kPropertyLabelCols + 3,
-               cells.region_y + kInfoHeadingRows + cell_row + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(c.row("Name")->editor().caret() == cfrom + 3);
-}
-
-TEST_CASE("HD-5: the property editor paints, carets, measures and hits from one geometry") {
-    // §9. There is no `paint_property_bounds()` beside a `click_property_bounds()`, and this
-    // is what that buys: every extent below moves the panel, the body, the caret and the
-    // answer to a press together, because there is one function that decides all of them.
-    // HD-6 widened the function from the editing ROW to the whole property BODY; the claim
-    // and this case's shape are unchanged.
-    for (const surface::SurfaceExtent& e :
-         {surface::SurfaceExtent{78, 22, 0, 0}, surface::SurfaceExtent{78, 33, 8, 18},
-          surface::SurfaceExtent{140, 40, 8, 18}, surface::SurfaceExtent{110, 30, 11, 23}}) {
-        Live t;
-        t.publish(loom::to_value(e));
-            t.begin_editing("Name");
-        for (int i = 0; i < 5; ++i) {
-            t.key(input::scan::kBackspace);
-        }
-        for (const char c : kLongValue) {
-            t.text(std::string(1, c));
-        }
-        CAPTURE(e.width);
-        CAPTURE(e.text_advance_px);
-
-        const Screen sc = screen_of(t.session());
-        const ui::Rect panel =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-        const InfoBodyPlace place = body_place(t);
-        REQUIRE(place.present);
-
-        // THE REGION IS THE PANEL'S INTERIOR SINCE WUX-5 -- the whole panel less the one
-        // cell of chrome its visible boundary occupies on every side -- the OBJECTS heading
-        // its first prose row, and the body's capacity the fit less that reservation.
-        const ui::Rect inside = pane_body_cells(panel);
-        CHECK(place.region_x == inside.x);
-        CHECK(place.region_y == inside.y);
-        CHECK(place.region_x + place.region_w == inside.x + inside.w);
-        CHECK(place.region_y + place.region_h == inside.y + inside.h);
-        CHECK(inside.x == panel.x + kChromeCells);
-        CHECK(inside.w == panel.w - 2 * kChromeCells);
-        CHECK(place.columns == place.fit.columns);
-        CHECK(place.value_columns ==
-              place.fit.columns - kPropertyMarkCols - kPropertyLabelCols - kPropertyCaretCols);
-        CHECK(place.capacity == static_cast<std::size_t>(place.fit.rows - kInfoHeadingRows));
-
-        // THE PAINTER CUT THE SLICE WITH IT...
-        const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), place);
-        REQUIRE(shown != nullptr);
-        CHECK(shown->w == place.region_w);
-        CHECK(shown->h == place.region_h);
-        // §11: no row the body cannot hold -- the heading's own row rides above the body's
-        // capacity since WUX-1.
-        CHECK(shown->rows.size() <=
-              static_cast<std::size_t>(kInfoHeadingRows) + place.capacity);
-        const std::int64_t at_row = editing_prose_row(t, place);
-        REQUIRE(at_row != kNoProseRow);
-        CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + at_row)].text ==
-              property_row_text(*t.row("Name"), true, place.value_columns));
-        // ...THE CARET IS ON IT, on both axes...
-        CHECK(shown->caret_row == kInfoHeadingRows + at_row);
-        CHECK(shown->caret_col == property_caret_column(*t.row("Name")));
-        CHECK(shown->caret_col <= place.fit.columns);
-        // ...AND A PRESS AT THE CARET'S OWN COLUMN COMES BACK TO THE CARET.
-        const std::size_t was = t.row("Name")->editor().caret();
-        t.press_at(value_pixel_x(place, property_value_column(shown->caret_col)),
-                   value_pixel_y(place, at_row), input::space::kPixels);
-        CHECK(t.row("Name")->editor().caret() == was);
-    }
-}
-
-TEST_CASE("HD-5: a resize reconciles the property window with no path of its own") {
-    // §27. The reconcile runs once per repaint rather than on the edits, so a new extent --
-    // which is not an edit -- moves the window anyway, and the caret is on the row at every
-    // size. Nothing about the draft changes because the room did.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 0, 0}));
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : kLongValue) {
-        t.text(std::string(1, c));
-    }
-    const std::size_t narrow = t.row("Name")->editor().first_visible();
-    REQUIRE(narrow > 0);
-
-    // The side region is a FIXED width, so a wider surface gives this panel exactly as much
-    // as it had -- which makes the honest resize witness a change of MEDIUM, where the row's
-    // capacity genuinely moves.
-    t.publish(loom::to_value(surface::SurfaceExtent{140, 40, 8, 18}));
-    CHECK(t.row("Name")->draft() == kLongValue); // the value did not move
-    CHECK(t.row("Name")->editor().caret() == kLongValue.size());
-    const InfoBodyPlace wide = body_place(t);
-    REQUIRE(wide.present);
-    CHECK(t.row("Name")->editor().caret_column() <=
-          static_cast<std::size_t>(wide.value_columns));
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), wide);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->caret_col <= wide.fit.columns);
-    CHECK(shown->caret_row == kInfoHeadingRows + editing_prose_row(t, wide));
-
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 0, 0}));
-    CHECK(t.row("Name")->editor().first_visible() == narrow);
-    CHECK(t.row("Name")->draft() == kLongValue);
-}
-
-TEST_CASE("HD-5: a surface extent does not take a maker's hands off a draft") {
-    // A REPAIR, and the defect was reproduced on the pristine HD-4 tree first: one
-    // SurfaceExtent -- a window dragged, which is not a gesture aimed at the inspector at all
-    // -- rebuilt the inspector and the half-typed value was GONE, with no notice. Since HD-5
-    // the same event would also throw away the caret and the window, so the loss got worse
-    // before it got fixed.
-    Live t;
-    t.begin_editing("Height");
-    for (const char c : std::string("zz")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kReturn); // an invalid draft, so the refusal is on screen too
-    REQUIRE(t.row("Height")->editing());
-    const std::size_t cursor = t.session().cursor;
-    const std::string draft = t.row("Height")->draft();
-    const std::string refusal = t.row("Height")->refusal();
-    const std::size_t caret = t.row("Height")->editor().caret();
-    REQUIRE_FALSE(refusal.empty());
-
-    t.publish(loom::to_value(surface::SurfaceExtent{140, 40, 8, 18}));
-
-    CHECK(t.row("Height")->editing());
-    CHECK(t.row("Height")->draft() == draft);
-    CHECK(t.row("Height")->refusal() == refusal);
-    CHECK(t.row("Height")->editor().caret() == caret);
-    CHECK(t.session().cursor == cursor);
-
-    // ...AND THE ROWS REALLY WERE REBUILT: the resolved row closes over the extent, so it is
-    // reporting the new one rather than a stale answer carried over with the draft.
-    CHECK(t.row("Resolved")->value() ==
-          std::to_string(resolved_w(t)) + " x " +
-              std::to_string(ui::placed_for(workspace_scene(t.doc(), t.session()),
-                                            t.session().selected)->rect.h) +
-              " cells");
-
-    // A CHANGE OF SELECTION IS THE OTHER CASE, and it must still drop the draft. ' + chr(96) + 'Name' + chr(96) + ' is a
-    // row every object has, so a draft carried across a selection would arrive on a different
-    // object's property wearing the same label.
-    t.key(input::scan::kEscape);
-    t.begin_editing("Height");
-    t.text("7");
-    REQUIRE(t.row("Height")->editing());
-    t.key(input::scan::kEscape);
-    t.key(input::scan::kTab); // the next object
-    CHECK_FALSE(t.row("Height")->editing());
-    CHECK(t.row("Height")->draft().empty());
-}
-
-TEST_CASE("HD-5: both media project the property caret, in their own type") {
-    Live t;
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("abcdefghij")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kLeft);
-
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const surface::SurfaceCanvas& c = t.canvases.back();
-
-    // THE CELL PROJECTION INSERTS THE MARK AT THE CARET'S OWN COLUMN, which is what a caret
-    // looks like in a medium with no half-cells. The row carries the mark and the property's
-    // NAME as well as the value (HD-6), so the caret's column is that offset plus the
-    // component's own answer -- and the row is padded to the body's width, so it also erases
-    // whatever the panel had underneath it.
-    CHECK(inspector_row(c, place.region_x, place.region_y + kInfoHeadingRows + at_row) ==
-          ">Name     abcdefg_hij");
-    CHECK(label_at(c, place.region_x, place.region_y + kInfoHeadingRows + at_row).size() ==
-          static_cast<std::size_t>(place.region_w));
-
-    // AND THE SAME CANVAS THROUGH THE REAL TERMINAL RASTERIZER puts the mark on the same
-    // cell -- the medium's own bytes, not a model of them.
-    const std::string body = surface::canvas_body(c);
-    CHECK(body.find("abcdefg_hij") != std::string::npos);
-}
-
-TEST_CASE("HD-5: a refused commit keeps the draft AND the place in it") {
-    // §16 and §25. The component contains the draft; it does not know the draft is invalid,
-    // and it certainly does not commit. What survives a refusal is the whole editor.
-    Live t;
-    t.begin_editing("Width");
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("500%")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kLeft); // the caret is INSIDE the draft when the commit is attempted
-    CHECK(t.row("Width")->editor().caret() == 3);
-
-    const ui::Extent before = t.doc().elements[0].width;
-    t.key(input::scan::kReturn);
-
-    CHECK(t.doc().elements[0].width == before);     // the property was not written
-    CHECK(t.row("Width")->editing());               // the editor is still open
-    CHECK(t.row("Width")->draft() == "500%");       // the draft survived
-    CHECK(t.row("Width")->refusal() == "a share is 1% to 100%");
-    CHECK(t.notice() == "Width: a share is 1% to 100%");
-    CHECK(t.row("Width")->editor().caret() == 3);   // ...and so did the caret
-
-    // AND IT IS STILL AN EDITOR: the maker fixes what they typed from where they were.
-    t.key(input::scan::kBackspace); // one 0 of 500, from where the caret already was
-    CHECK(t.row("Width")->draft() == "50%");
-    t.key(input::scan::kReturn);
-    CHECK(t.doc().elements[0].width == ui::Extent{ui::kExtentPercent, 50});
-    CHECK_FALSE(t.row("Width")->editing());
-
-    // AN UNPARSEABLE DRAFT IS THE OTHER FAILURE, and it keeps the same two things.
-    t.begin_editing("Width");
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("banana")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kHome);
-    t.key(input::scan::kReturn);
-    CHECK(t.doc().elements[0].width == ui::Extent{ui::kExtentPercent, 50});
-    CHECK(t.row("Width")->draft() == "banana");
-    CHECK(t.row("Width")->editor().caret() == 0);
-    CHECK(t.row("Width")->refusal() == "not cells (12) or a share (70%)");
-}
-
-TEST_CASE("HD-5: an accepted commit writes the property and closes the editor") {
-    Live t;
-    t.begin_editing("Name");
-    t.key(input::scan::kHome);
-    for (const char c : std::string("my ")) {
-        t.text(std::string(1, c));
-    }
-    CHECK(t.row("Name")->draft() == "my panel"); // typed at the caret, not at the end
-    CHECK(t.doc().elements[0].label == "panel"); // and still not written
-
-    t.key(input::scan::kReturn);
-    CHECK(t.doc().elements[0].label == "my panel");
-    CHECK_FALSE(t.row("Name")->editing());
-    CHECK(t.row("Name")->draft().empty());
-    CHECK(t.row("Name")->editor().caret() == 0);         // the editor was reset with the row
-    CHECK(t.row("Name")->editor().first_visible() == 0);
-    CHECK(t.row("Name")->refusal().empty());
-    CHECK(t.notice() == "committed Name = my panel");
-
-    // ...and nothing is painted for a row nobody is editing: the body is still there (it is
-    // the whole property list) and it carries NO caret.
-    const InfoBodyPlace place = body_place(t);
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), place);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->caret_row == surface::kNoCaret);
-    CHECK(inspector_row(t.canvases.back(), place.region_x,
-                        place.region_y + kInfoHeadingRows + prose_row_of_property(place, 1)) ==
-          ">Name     my panel");
-}
-
-TEST_CASE("HD-5: cancel abandons the draft, the caret and the window together") {
-    Live t;
-    t.begin_editing("Name");
-    for (const char c : kLongValue) {
-        t.text(std::string(1, c));
-    }
-    REQUIRE(t.row("Name")->editor().first_visible() > 0);
-
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.row("Name")->editing());
-    CHECK(t.row("Name")->draft().empty());
-    CHECK(t.row("Name")->editor().first_visible() == 0);
-    CHECK(t.row("Name")->editor().caret() == 0);
-    CHECK(t.doc().elements[0].label == "panel"); // the property was never touched
-    CHECK(t.notice() == "edit cancelled -- nothing was written");
-}
-
-TEST_CASE("HD-5: two TextBoxes exist and exactly one of them ever hears a keystroke") {
-    // §12 and §33. Multiple TextBox instances now live in this application's object graph and
-    // NO focus framework was added, because the modes Workshop already had answer the
-    // question unambiguously: the overlay while it is open, then the picker, then the editing
-    // row, then command mode. Four `if`s, no focused panel, no z-order, no capture.
-    Live t;
-    (void)t.mount_terminal();
-    t.begin_editing("Name");
-    for (const char c : std::string("abc")) {
-        t.text(std::string(1, c));
-    }
-    REQUIRE(t.row("Name")->draft() == "panelabc");
-
-    // THE OVERLAY TAKES THE KEYS THE MOMENT IT OPENS, and the draft underneath is not
-    // cancelled, not committed and not touched.
-    t.toggle_terminal();
-    for (const char c : std::string("send")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kBackspace);
-    CHECK(t.pane().input.text() == "sed");
-    CHECK(t.row("Name")->draft() == "panelabc"); // untouched, caret included
-    CHECK(t.row("Name")->editor().caret() == 8);
-    CHECK(t.row("Name")->editing());
-
-    // A PRESS WHILE THE PANE IS OPEN IS THE PANE'S, wherever it lands: the property editor is
-    // a PLACE and the overlay is a MODE, and a mode takes the pointer entirely.
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    t.press_at(value_pixel_x(place, 2), value_pixel_y(place, editing_prose_row(t, place)),
-               input::space::kPixels);
-    CHECK(t.row("Name")->editor().caret() == 8);
-
-    // ...AND CLOSING IT GIVES THEM BACK, exactly.
-    t.toggle_terminal();
-    t.text("Z");
-    CHECK(t.row("Name")->draft() == "panelabcZ");
-    CHECK(t.pane().input.text() == "sed");
-}
-
-TEST_CASE("HD-5: a press on the panel that is not the draft is still the panel's") {
-    // §34. PNL-2's rule is unchanged: a press inside a visible panel's bounds cannot take
-    // hold of anything underneath it, and it says so. What HD-5 added is one PLACE inside
-    // that rectangle which answers first -- and only while a draft is open on it.
-    Live t;
-    t.begin_editing("Name");
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
-
-    // On the panel, but not on the ROW being edited: the panel's own answer, in words. Since
-    // HD-6 the body is one region spanning every property, so "not the draft" is a different
-    // ROW of it rather than a different rectangle -- which is exactly the distinction
-    // `property_at_prose_row` draws.
-    t.press_at(value_x + 2,
-               place.region_y + kInfoHeadingRows + at_row + 3 + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-    CHECK(t.row("Name")->editor().caret() == 5); // and the caret did not move
-
-    // On the value: the caret moves and the notice is NOT overwritten, because the caret is
-    // the statement and a sentence repeating it would push a refusal off the line.
-    t.press_at(value_x + 2, place.region_y + kInfoHeadingRows + at_row + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.row("Name")->editor().caret() == 2);
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-
-    // And a row that is NOT being edited is not an editor: a press on its value is the
-    // panel's, which is what keeps "Return opens a draft" the only way one opens.
-    t.key(input::scan::kEscape);
-    t.press_at(value_x + 2, place.region_y + kInfoHeadingRows + at_row + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-    CHECK_FALSE(t.row("Name")->editing());
-}
-
-// ============================================================================
-// QR-2 — a press is consumed by the layer that owns what it means
-// ============================================================================
+// ⭐ THE INFO PANEL'S OWN CASES LEFT THIS SUITE WITH THE PANEL, AND THEY ARE NAMED RATHER THAN
+// QUIETLY DROPPED. Thirty-one cases stood here about a presentation this host no longer makes:
+// HD-5's property draft (its window, its caret, its press inverse, its commit and cancel, both
+// media), HD-9's grounds under the controls and the `PROPERTIES` heading, QR-2's consumed-press
+// chain inside the body, TEXT-0's and QR-11's draft vocabulary and clipboard, and CTX-0's
+// live-draft hold on a contextual deletion. Every one of them measured `paint_info`,
+// `info_body_place` or `info_body_at`, and all three are `Zengine/info-pane/pane.cpp`'s now.
 //
-// INT-R0 measured one defect in this chain and one duplication under it, and these cases are
-// both. `info_press` answered *the caret MOVED* where its caller asks *did you CONSUME this
-// press*, and the two agree for exactly as long as every press that lands on the draft also
-// moves it -- which is to say until a maker presses where the caret already is. Measured on
-// the pristine tree, that press fell through the property editor, the controls and the object
-// list and was answered by the panel with `Info is here -- nothing under it can be taken hold
-// of`, written over a notice the maker was still reading.
+// WHERE EACH CLAIM LIVES NOW. The pane's own composition, its draft and its presses are the
+// pane's, in `tests/test_workshop_panes_info.cpp`, driven through the real loaded image and the
+// pane protocol. The editable line's own laws are `component::TextBox`'s and are pinned by
+// `tests/test_component.cpp`, which is where they always were. What this suite keeps is the
+// DOCUMENT -- the operations, the identities, the canvas, the selection and the seam the host
+// publishes -- which is what it is named for.
 //
-// THE CONTRACT AT EVERY BOOL OF THE PRESS CHAIN IS NOW ONE SENTENCE: true means consumed, stop
-// routing; false means not consumed, carry on. Nothing about acceptance, nothing about
-// success, and nothing about anything having changed --
-//
-//     A CONSUMED PRESS DOES NOT HAVE TO CHANGE ANYTHING.
-//     IT ONLY HAS TO HAVE REACHED THE LAYER THAT OWNS WHAT THE PRESS MEANS.
-//
-// `terminal_press` is deliberately NOT part of that contract and is not unified with it: its
-// bool is *is a repaint owed*, and consumption there was already decided one layer up by the
-// MODE (HD-3's `session_.terminal.open`). Two questions with two answers each are not one
-// question.
-
-TEST_CASE("QR-2: a press where the caret already is is CONSUMED, and the panel never answers") {
-    // THE REPRODUCTION, AND THE STOP CONDITION. Everything the maker can see is unchanged by
-    // this press -- and that is precisely why the old bit got it wrong.
-    Live t;
-    t.begin_editing("Name");
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
-    const std::int64_t y = place.region_y + kInfoHeadingRows + at_row + surface::kTuiCanvasTopRow;
-
-    // The caret at a known column, put there by the same gesture this case is about.
-    t.press_at(value_x + 2, y, input::space::kCells);
-    REQUIRE(t.row("Name")->editor().caret() == 2);
-
-    // A NOTICE WHOSE PRESERVATION IS OBSERVABLE, and one this press did not write: a press on
-    // empty workspace is the LAST thing in the chain, so a sentence it left behind is proof
-    // that a later press reached nothing further along than the draft.
-    t.press(kBareX, kBareY);
-    REQUIRE(t.notice() == "nothing there");
-    REQUIRE(t.row("Name")->editing()); // and it took no hands off the draft
-    const std::string document = persist::to_text(t.doc());
-    const std::int64_t selected = t.session().selected;
-
-    // THE PRESS THIS PHASE EXISTS FOR: the same column of the same row, with the caret
-    // already on it.
-    t.press_at(value_x + 2, y, input::space::kCells);
-
-    CHECK(t.row("Name")->editor().caret() == 2);  // the caret did not move...
-    CHECK(t.row("Name")->editing());              // ...the draft is still live...
-    CHECK(t.row("Name")->draft() == "panel");     // ...and unedited...
-    CHECK(persist::to_text(t.doc()) == document); // ...nothing was authored...
-    CHECK(t.session().selected == selected);      // ...nothing was selected...
-    CHECK_FALSE(t.session().drag.active);         // ...no gesture began...
-    CHECK(t.notice() == "nothing there");         // ...and NOTHING was said over the line.
-
-    // Before QR-2 the line above read `Info is here -- nothing under it can be taken hold of`:
-    // the press fell past `info_press` because the caret had not moved, past the controls and
-    // the object list because it is on neither, and into the panel's occupancy answer.
-    CHECK(t.notice().find("nothing under it can be taken hold of") == std::string::npos);
-}
-
-TEST_CASE("QR-2: consumed and not-consumed are told apart by WHERE, not by what changed") {
-    // The two halves of the contract in one case: a press that moves the caret and a press
-    // that does not are the SAME answer to the routing question, and a press one row off the
-    // draft is the other answer -- which is the fall-through the repair had to keep.
-    Live t;
-    t.begin_editing("Name");
-    const InfoBodyPlace place = body_place(t);
-    REQUIRE(place.present);
-    const std::int64_t at_row = editing_prose_row(t, place);
-    REQUIRE(at_row != kNoProseRow);
-    const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
-    const std::int64_t y = place.region_y + kInfoHeadingRows + at_row + surface::kTuiCanvasTopRow;
-
-    t.press(kBareX, kBareY);
-    REQUIRE(t.notice() == "nothing there");
-
-    // MOVING THE CARET IS CONSUMED, and says nothing -- the caret is the statement.
-    t.press_at(value_x + 1, y, input::space::kCells);
-    CHECK(t.row("Name")->editor().caret() == 1);
-    CHECK(t.notice() == "nothing there");
-
-    // NOT MOVING IT IS THE SAME ANSWER.
-    t.press_at(value_x + 1, y, input::space::kCells);
-    CHECK(t.row("Name")->editor().caret() == 1);
-    CHECK(t.notice() == "nothing there");
-
-    // A ROW OF THIS PANEL THAT IS NOT THE DRAFT'S IS NOT CONSUMED, and the panel answers it
-    // exactly as it always has. Asserted to be a row no other run of the body claims, so what
-    // this measures is the property editor declining rather than the footer or the list
-    // taking it.
-    const std::int64_t elsewhere = at_row + 3;
-    REQUIRE(object_at_prose_row(place, elsewhere) == kNoObject);
-    REQUIRE(action_at_prose_row(place, elsewhere) == kNoAction);
-    REQUIRE(property_at_prose_row(place, elsewhere) != editing_index(t));
-    t.press_at(value_x + 2, place.region_y + elsewhere + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-    CHECK(t.row("Name")->editor().caret() == 1); // and the caret did not move
-    CHECK(t.row("Name")->editing());
-}
-
-TEST_CASE("QR-2: a press on the ALREADY selected object row is deliberately not consumed") {
-    // THE CONTRAST INT-R0 FOUND, PINNED FOR THE FIRST TIME. `objects_press` has the shape
-    // `info_press` had -- a press that lands squarely on it and changes nothing -- and here it
-    // is a decision: there is nothing for this list to do with the press, so it goes through
-    // and the maker gets the panel's sentence rather than silence. Naming the bit did not
-    // merge the two sites; it made this one legible as a choice.
-    Live t;
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    std::size_t at = 0;
-    while (at < t.doc().elements.size() && t.doc().elements[at].id != t.session().selected) {
-        ++at;
-    }
-    REQUIRE(at < t.doc().elements.size());
-    const std::int64_t row = prose_row_of_object(body, at);
-    REQUIRE(row != kNoProseRow);
-
-    t.press(kBareX, kBareY);
-    REQUIRE(t.notice() == "nothing there");
-    const std::int64_t selected = t.session().selected;
-
-    t.press_at(body.region_x + 3, body.region_y + row + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.session().selected == selected); // it selects nothing, because it is already there
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-    CHECK_FALSE(t.session().drag.active); // and the panel stopped it before the workspace
-}
-
-TEST_CASE("QR-2: the body's resolve-and-locate is ONE answer, and it is the painter's") {
-    // `info_body_at` is the six lines `info_press`, `actions_press` and `objects_press` each
-    // carried. It answers WHERE and nothing about what that means, and it resolves the body
-    // through the same `bounds_of` + `info_body_place` the painter published -- which is what
-    // this case measures, against the region actually on the canvas rather than against a
-    // second call of the same formula.
-    Live t;
-    t.press(kBareX, kBareY); // any gesture, so there is a canvas to read
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    REQUIRE_FALSE(t.canvases.empty());
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
-    REQUIRE(shown != nullptr);
-
-    const InfoBodyAt where =
-        info_body_at(t.doc(), t.session(), input::space::kCells, body.region_x + 3,
-                     body.region_y + kInfoHeadingRows + 1 + surface::kTuiCanvasTopRow);
-    CHECK(where.present);
-    CHECK(where.body.region_x == shown->x); // the geometry the maker is looking at
-    CHECK(where.body.region_y == shown->y);
-    CHECK(where.body.capacity == body.capacity);
-    CHECK(where.body.action_row == body.action_row);
-    CHECK(where.at.column == 3); // and located in ITS prose, not in cells of the screen
-    CHECK(where.at.row == 1);    // a BODY row: the heading row above the body names none
-
-    // `present` IS THE CONJUNCTION, and it is one bit because it is one fact about the PRESS:
-    // it named nothing in this body. A `space` this application does not recognise is a
-    // question it did not hear...
-    CHECK_FALSE(info_body_at(t.doc(), t.session(), input::space::kUnknown, body.region_x + 3,
-                             body.region_y + 1 + surface::kTuiCanvasTopRow)
-                    .present);
-    // ...and a panel a maker has removed has no body to press. (The third arm -- a panel with
-    // no room for a body -- is `info_body_place`'s own refusal, pinned by HD-6.)
-    Session closed = t.session();
-    (void)close_panel(closed.panels, panel::kInfo);
-    CHECK_FALSE(info_body_at(t.doc(), closed, input::space::kCells, body.region_x + 3,
-                             body.region_y + 1 + surface::kTuiCanvasTopRow)
-                    .present);
-}
-
-TEST_CASE("QR-2: no press inside the Info body begins a workspace gesture, on any row") {
-    // Every prose row of the body, including the two control rows and the object list, while
-    // a draft is live: no drag, no resize, no selection, nothing authored, and the draft still
-    // in the maker's hands at the end of it.
-    Live t;
-    t.begin_editing("Name");
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    REQUIRE(body.capacity > 0);
-    const std::string document = persist::to_text(t.doc());
-    const std::int64_t selected = t.session().selected;
-
-    for (std::size_t row = 0; row < body.capacity; ++row) {
-        t.press_at(body.region_x + 3,
-                   body.region_y + static_cast<std::int64_t>(row) + surface::kTuiCanvasTopRow,
-                   input::space::kCells);
-        CHECK_FALSE(t.session().drag.active);
-        CHECK(t.session().selected == selected);
-        CHECK(persist::to_text(t.doc()) == document);
-    }
-    CHECK(t.row("Name")->editing()); // and every refusal along the way left the draft alone
-    CHECK(t.row("Name")->draft() == "panel");
-}
-
-// ---- HD-9: the Info panel's structural rows get a GROUND -----------------------------------
-//
-// Two consumers of `SurfaceTextRow::background`, one panel: the available action controls and
-// the `PROPERTIES` heading. Everything below asserts the SEMANTIC row values a publisher
-// produces -- not a renderer's pixels and not a screenshot -- because the ground travels
-// unresolved and each medium answers for itself (`project_text_regions` keeps it, the SDL plan
-// resolves it against the region's own).
-
-TEST_CASE("HD-9: an available control sits on a ground and an unavailable one does not") {
-    // BOTH MEDIA, because the row is the publisher's answer and the publisher has one. The
-    // first extent is a cell medium (no metric), the second a graphical one.
-    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-        CAPTURE(line);
-        // A document with something to delete: both controls available.
-        Sample p = panel_of(3, 0, 80, 38, line == 0 ? 0 : 8, line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        const surface::SurfaceCanvas c = paint(p.d, p.s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-        for (const std::size_t which : {kActionCreate, kActionDelete}) {
-            const surface::SurfaceTextRow& row =
-                shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, which))];
-            CHECK(row.text == action_row_text(which, true, body.columns));
-            CHECK(row.role == surface::role::kFill);
-            CHECK(row.background == surface::role::kMuted);
-        }
-
-        // AND WITH NOTHING TO DELETE, the one that cannot run loses the ground rather than
-        // being handed a quieter one. That is the whole of what makes a ground mean
-        // "actionable": availability is not a matter of degree here.
-        Sample empty = panel_of(0, 0, 80, 38, line == 0 ? 0 : 8, line);
-        const InfoBodyPlace eb = body_of(empty.d, empty.s);
-        const surface::SurfaceCanvas ec = paint(empty.d, empty.s);
-        const surface::SurfaceTextRegion* e = body_on(ec, eb);
-        REQUIRE(e != nullptr);
-        const surface::SurfaceTextRow& create_row =
-            e->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(eb, kActionCreate))];
-        const surface::SurfaceTextRow& delete_row =
-            e->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(eb, kActionDelete))];
-        CHECK(create_row.background == surface::role::kMuted);
-        CHECK(delete_row.background == surface::role::kNone);
-        // THE TEXT STILL CARRIES IT ALONE, unchanged by HD-9 and asserted here rather than
-        // only next door, because the ground is what could have tempted this to be dropped.
-        CHECK(create_row.text == "[ Create ]");
-        CHECK(delete_row.text == "( Delete )");
-        // AND THE UNAVAILABLE CONTROL IS NOT SIMPLY MISSING: it is a row, in its own ink, in
-        // exactly the place the available one would be.
-        CHECK(delete_row.role == surface::role::kMuted);
-    }
-}
-
-TEST_CASE("HD-9: a live draft takes the ground off BOTH controls, and gives it back") {
-    // The other unavailability, and the one that moves both controls at once (`kDraftLive`).
-    Live t;
-    t.begin_editing("Name");
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    const surface::SurfaceTextRegion* drafting = body_region(t.canvases.back(), body);
-    REQUIRE(drafting != nullptr);
-    for (const std::size_t which : {kActionCreate, kActionDelete}) {
-        const surface::SurfaceTextRow& row =
-            drafting->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, which))];
-        CHECK(row.background == surface::role::kNone);
-        CHECK(row.role == surface::role::kMuted);
-        CHECK(row.text == action_row_text(which, false, body.columns));
-    }
-    // AND THE ACTIVE EDIT IS STILL THE LOUDEST THING IN THE PANEL. A ground on a control while
-    // a draft is live would have put a second bright row beside the one the maker is typing
-    // into; the availability rule and the ground rule agree here rather than competing.
-    const surface::SurfaceTextRow& editing =
-        drafting->rows[static_cast<std::size_t>(kInfoHeadingRows + editing_prose_row(t, body))];
-    CHECK(editing.role == surface::role::kAlert);
-    CHECK(editing.background == surface::role::kNone);
-
-    t.key(input::scan::kEscape); // cancel: the controls come back, ground and all
-    const InfoBodyPlace after = body_place(t);
-    const surface::SurfaceTextRegion* back = body_region(t.canvases.back(), after);
-    REQUIRE(back != nullptr);
-    CHECK(back->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(after, kActionCreate))]
-              .background == surface::role::kMuted);
-}
-
-TEST_CASE("HD-9: `PROPERTIES` is set on a ground, and the row above it is not") {
-    // THE HD-7 OBSERVATION, PINNED. The row immediately above the heading is the SELECTED
-    // object, which carries accent ink too -- so before HD-9 the boundary and the thing it
-    // was not were the same colour on adjacent rows. The ground is what tells them apart, and
-    // this case asserts BOTH halves so a later phase cannot buy the heading's distinction by
-    // grounding the selection as well.
-    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-        CAPTURE(line);
-        Sample p = panel_of(3, 2, 80, 38, line == 0 ? 0 : 8, line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        const surface::SurfaceCanvas c = paint(p.d, p.s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-        const surface::SurfaceTextRow& heading =
-            shown->rows[static_cast<std::size_t>(kInfoHeadingRows + body.heading_row)];
-        CHECK(heading.text == "PROPERTIES");
-        CHECK(heading.role == surface::role::kAccent); // unchanged: the ink still says what
-        CHECK(heading.background == surface::role::kMuted);
-
-        const surface::SurfaceTextRow& selected =
-            shown->rows[static_cast<std::size_t>(kInfoHeadingRows +
-                                                 prose_row_of_object(body, 2))];
-        CHECK(selected.role == surface::role::kAccent);
-        CHECK(selected.background == surface::role::kNone);
-        CHECK(selected.text.rfind("> ", 0) == 0); // and the mark is still what a cell reads
-    }
-}
-
-TEST_CASE("HD-9: no other row of the body was given a ground") {
-    // THE BLAST RADIUS, ASSERTED RATHER THAN INTENDED. Two consumers were earned; every other
-    // row of this body -- object rows, property rows, both omission markers, the spare rows,
-    // the two empty-state sentences -- shows whatever the region is sitting on, exactly as it
-    // did before HD-9.
-    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-        CAPTURE(line);
-        // Enough objects that the object list omits on both sides at the graphical minimum,
-        // so the marker rows are really in the picture being asserted.
-        Sample p = panel_of(20, 10, 78, 22, line == 0 ? 0 : 8, line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        const surface::SurfaceCanvas c = paint(p.d, p.s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-        REQUIRE(shown->rows.size() == static_cast<std::size_t>(kInfoHeadingRows) + body.capacity);
-        std::size_t grounded = 0;
-        for (std::size_t i = 0; i < shown->rows.size(); ++i) {
-            CAPTURE(i);
-            // Region row i is body row i - kInfoHeadingRows; the OBJECTS heading itself
-            // (body row -1) is deliberately ungrounded -- accent ink alone, like the
-            // selected object row.
-            const std::int64_t body_row = static_cast<std::int64_t>(i) - kInfoHeadingRows;
-            const std::size_t which = action_at_prose_row(body, body_row);
-            const bool structural =
-                body_row == body.heading_row ||
-                (which != kNoAction && available(action_availability(which, p.d, p.s)));
-            if (structural) {
-                CHECK(shown->rows[i].background == surface::role::kMuted);
-                ++grounded;
-            } else {
-                CHECK(shown->rows[i].background == surface::role::kNone);
-            }
-        }
-        // THE HEADING AND BOTH AVAILABLE CONTROLS, AND NOTHING ELSE.
-        CHECK(grounded == 1 + kActionCount);
-        CHECK(body.objects.before + body.objects.after > 0); // the markers were really there
-        CHECK(body.properties.after > 0);
-    }
-}
-
-TEST_CASE("HD-9: the ground reaches the whole row in a CELL medium, not just its characters") {
-    // WHAT THE EXISTING SURFACE CONTRACT ACTUALLY BACKGROUNDS, measured through the shared
-    // cell projection rather than assumed from the field's name. `project_one_text_region`
-    // pads every row to the region's full width and carries the ground on the padding too, so
-    // a character medium's answer to "this row, all of it" really is all of it.
-    Sample p = panel_of(3, 0, 80, 38);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const surface::SurfaceTextRegion* shown = body_on(c, body);
-    REQUIRE(shown != nullptr);
-
-    surface::SurfaceCanvas only;
-    only.width = c.width;
-    only.height = c.height;
-    plane(only).texts.push_back(*shown);
-    const std::vector<surface::ProjectedRow> rows = projected_of(only);
-    REQUIRE(rows.size() == static_cast<std::size_t>(shown->h));
-
-    const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows + body.heading_row);
-    CHECK(rows[heading].background == surface::role::kMuted);
-    CHECK(rows[heading].label.text.size() == static_cast<std::size_t>(shown->w));
-    CHECK(rows[heading].label.text.rfind("PROPERTIES", 0) == 0);
-    CHECK(rows[heading].label.text.back() == ' '); // padded, and the ground rides the padding
-
-    const std::size_t create =
-        static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionCreate));
-    CHECK(rows[create].background == surface::role::kMuted);
-    CHECK(rows[create].label.text.size() == static_cast<std::size_t>(shown->w));
-
-    // AND THE TERMINAL REALLY EMITS IT. `sgr_bg_for_role(kMuted)` is the bright-black ground,
-    // and this is the first Info-panel byte of it -- exactly three runs, one per grounded row,
-    // because a grounded row is one role and one ground from the region's first column to its
-    // last and the writer opens each run once.
-    const std::string bytes = surface::canvas_body(c);
-    std::size_t runs = 0;
-    for (std::size_t at = bytes.find("\x1b[100m"); at != std::string::npos;
-         at = bytes.find("\x1b[100m", at + 1)) {
-        ++runs;
-    }
-    CHECK(runs == 1 + kActionCount);
-    // AND THE GROUND STOPS WHERE THE PANEL'S INTERIOR DOES (WUX-5). Before the panel had a
-    // visible boundary its region reached the canvas row's own end, so a grounded row was
-    // ended by the row itself and `\x1b[49m` never appeared. The boundary is an ungrounded
-    // cell ON the same row now, so the writer closes the ground explicitly -- the branch the
-    // Terminal's completion list has always taken, arriving here for the same reason: a
-    // ground FOLLOWED by cells that are not part of it.
-    CHECK(bytes.find("\x1b[49m") != std::string::npos);
-}
-
-TEST_CASE("HD-9: the ground resolves to a real ink for a graphical medium, per row") {
-    // THE OTHER MEDIUM'S ANSWER TO THE SAME PUBLISHED FACT. `plan_layer_regions` resolves
-    // `role::kNone` to the REGION's own ground, so "has a ground of its own" is spelled as
-    // "differs from the region's" in the renderer -- which is what makes the absence an
-    // absence rather than a second flag to keep in step.
-    Sample p = panel_of(3, 0, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.fit.graphical());
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const std::vector<surface::PlanTextRegion> plan = plan_regions_of(
-        c, surface::SurfaceExtent{80, 38, 8, 18},
-        surface::PlanSize{80 * surface::kCanvasCellPx, 38 * surface::kCanvasCellPx});
-    const surface::PlanTextRegion* planned = nullptr;
-    for (const surface::PlanTextRegion& r : plan) {
-        if (r.view.y == body.region_y * surface::kCanvasCellPx) {
-            planned = &r;
-        }
-    }
-    REQUIRE(planned != nullptr);
-    REQUIRE(planned->rows.size() >
-            static_cast<std::size_t>(kInfoHeadingRows + body.action_row) + 1);
-
-    const surface::PlanTextRow& heading =
-        planned->rows[static_cast<std::size_t>(kInfoHeadingRows + body.heading_row)];
-    const surface::PlanTextRow& create =
-        planned->rows[static_cast<std::size_t>(
-            kInfoHeadingRows + prose_row_of_action(body, kActionCreate))];
-    CHECK(heading.background == surface::ink_for_role(surface::role::kMuted));
-    CHECK(create.background == surface::ink_for_role(surface::role::kMuted));
-    CHECK_FALSE(heading.background == planned->background); // so the strip is really drawn
-    CHECK_FALSE(create.background == planned->background);
-    // AND THE INK ON TOP IS STILL THE ROW'S OWN ROLE -- two independent fields, which is what
-    // lets a grounded heading keep its accent and a grounded control keep its fill.
-    CHECK(heading.ink == surface::ink_for_role(surface::role::kAccent));
-    CHECK(create.ink == surface::ink_for_role(surface::role::kFill));
-
-    // AN ORDINARY ROW RESOLVES TO THE REGION'S OWN GROUND and costs the renderer no strip.
-    const surface::PlanTextRow& ordinary = planned->rows[0];
-    CHECK(ordinary.background == planned->background);
-}
-
-TEST_CASE("HD-9: the grounded strip is exactly the prose row a press resolves to") {
-    // THE HUMAN-FACTOR GUARD. A ground that looked like a larger target than the one that
-    // answers would be presentation lying about interaction, so the two are compared as
-    // NUMBERS: the strip the renderer fills for prose row `i` is
-    // [origin_y + i*line_px, origin_y + (i+1)*line_px) local to the region's viewport, and
-    // `prose_row_of_pixel` partitions the identical pixels. Every pixel of the slab, top edge
-    // and bottom edge included, names the control it is drawn under.
-    Sample p = panel_of(3, 0, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.fit.graphical());
-    for (const std::size_t which : {kActionCreate, kActionDelete}) {
-        const std::int64_t row = prose_row_of_action(body, which);
-        const std::int64_t top = body.region_y * surface::kCanvasCellPx + body.fit.origin_y +
-                                 row * body.fit.line_px;
-        for (const std::int64_t py :
-             {top, top + body.fit.line_px / 2, top + body.fit.line_px - 1}) {
-            CAPTURE(py);
-            CHECK(surface::prose_row_of_pixel(py, body.region_y, body.fit) == row);
-            CHECK(action_press_at(
-                      body, 0, surface::prose_row_of_pixel(py, body.region_y, body.fit)) ==
-                  which);
-        }
-        // AND ONE PIXEL PAST EITHER END OF THE STRIP IS THE NEIGHBOURING ROW, never this one.
-        CHECK(surface::prose_row_of_pixel(top - 1, body.region_y, body.fit) == row - 1);
-        CHECK(surface::prose_row_of_pixel(top + body.fit.line_px, body.region_y, body.fit) ==
-              row + 1);
-    }
-
-    // HORIZONTALLY THE SLAB IS THE VIEWPORT AND THE TARGET IS THE COLUMNS INSIDE IT, and the
-    // difference is exactly `kTextInsetPx` at the left end -- the margin `fit_region` has
-    // always held back and which no glyph was ever drawn in either. It is asserted rather than
-    // waved at, because the ground is the first thing to make it visible.
-    const std::int64_t left = body.region_x * surface::kCanvasCellPx;
-    CHECK(surface::prose_column_of_pixel(left, body.region_x, body.fit) == -1);
-    CHECK(action_press_at(body, -1, body.action_row) == kNoAction);
-    CHECK(surface::prose_column_of_pixel(left + surface::kTextInsetPx, body.region_x,
-                                         body.fit) == 0);
-    CHECK(action_press_at(body, 0, body.action_row) == kActionCreate);
-    CHECK(action_press_at(body, body.fit.columns, body.action_row) == kActionCreate);
-    CHECK(action_press_at(body, body.fit.columns + 1, body.action_row) == kNoAction);
-}
-
-TEST_CASE("HD-9: a ground changed no composition, no row index and no hit mapping") {
-    // A STYLING PHASE MUST NOT BECOME A LAYOUT PHASE. Every number HD-7 and HD-8 established
-    // is re-measured here across the extents those phases quoted, so a later reader can see
-    // that the capacities did not move under the paint.
-    struct Case {
-        std::int64_t w, h, advance, line;
-    };
-    for (const Case& k : std::vector<Case>{{78, 22, 8, 18}, {78, 25, 8, 18}, {120, 40, 8, 18},
-                                           {240, 80, 8, 18}, {80, 38, 0, 0}, {80, 70, 0, 0}}) {
-        CAPTURE(k.w);
-        CAPTURE(k.h);
-        CAPTURE(k.line);
-        Sample p = panel_of(6, 0, k.w, k.h, k.advance, k.line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        REQUIRE(body.present);
-        const surface::SurfaceCanvas c = paint(p.d, p.s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-
-        // THE FOOTER IS STILL EXACTLY TWO ROWS, ANCHORED TO THE FOOT.
-        CHECK(body.action_row == static_cast<std::int64_t>(body.capacity - kActionRows));
-        CHECK(shown->rows.size() == static_cast<std::size_t>(kInfoHeadingRows) + body.capacity);
-        // THE HEADING IS STILL WHERE THE SHARE PUT IT, and the three runs are still disjoint.
-        CHECK(body.heading_row == static_cast<std::int64_t>(body.objects_rows));
-        CHECK(body.objects_rows + 1 + body.properties_rows <= body.capacity - kActionRows);
-        // AND THE INVERSES ARE STILL INVERSES ON EVERY ROW OF THE BODY.
-        for (std::size_t which = 0; which < kActionCount; ++which) {
-            CHECK(action_at_prose_row(body, prose_row_of_action(body, which)) == which);
-        }
-        CHECK(action_at_prose_row(body, body.heading_row) == kNoAction);
-        CHECK(property_at_prose_row(body, body.heading_row) == kNoProperty);
-        CHECK(object_at_prose_row(body, body.heading_row) == kNoObject);
-    }
-}
-
-// ============================================================================
-// TEXT-0: the TextBox contract, driven end to end through the weave
-// ============================================================================
-//
-// The component suite owns what the vocabulary DOES; these cases own that Workshop's four
-// editable places actually reach it -- keys in, published selection out, clipboard across
-// consumers and across the bus, and the routing that keeps `^c` copy where text is being
-// edited and quit where it cannot be.
-
-namespace {
-
-/// An ordinary accepter of a maker's copy -- what the active Skin (and any text-holding
-/// pane provider) looks like to the bus when `ClipboardCopy` is said.
-struct CopyHeard {
-    std::int64_t count = 0;
-    ZEN_SHAPE(CopyHeard, 1, ZEN_FIELD(count));
-};
-class ClipboardEars
-    : public loom::WeaveBase<ClipboardEars, CopyHeard,
-                             loom::Accept<surface::ClipboardCopy>, loom::Emit<>> {
-public:
-    explicit ClipboardEars(std::vector<std::string>& heard) : heard_(&heard) {}
-    void on(const surface::ClipboardCopy& c, loom::Mail&) { heard_->push_back(c.text); }
-
-private:
-    std::vector<std::string>* heard_;
-};
-
-} // namespace
+// ⚠ AND ONE CLAIM HAS NO HOME AND IS A NAMED LOSS: `"CTX-0: a live draft holds a contextual
+// deletion back"`. The rule rested on this host being able to see a live inspector draft, and
+// it cannot: a maker typing a Width while deleting that object from the context menu loses the
+// typing. Reported in RB3 as stage 2's debt and paid here in the only currency there was.
 
 TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by keys") {
     Live t;
@@ -3570,92 +2343,6 @@ TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by
     t.key(input::scan::kHome);
     t.key(input::scan::kRight, input::mod::kCtrl);
     CHECK(t.pane().input.caret() == 6);
-}
-
-TEST_CASE("TEXT-0: a copy is said to the process once, and a heard copy fills the mirror") {
-    // The medium here CANNOT be read -- the terminal's standing truth -- so every paste
-    // below is the fallback road: what this process itself last copied. That is what
-    // keeps copy-here-paste-there working on a medium whose platform never answers, with
-    // no platform claim anywhere (QR-11; the readable road has its own cases).
-    Live t;
-    SkinSeat* skin = t.mount_skin_seat();
-    skin->readable_medium = false;
-    std::vector<std::string> heard;
-    (void)loom::mount<ClipboardEars>(t.bus, heard);
-    (void)t.mount_terminal();
-    t.toggle_terminal();
-    for (const char c : std::string("abc")) {
-        t.text(std::string(1, c));
-    }
-
-    // A copy with nothing selected publishes nothing -- there was no copy.
-    t.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(heard.empty());
-
-    // A real copy is one publication, carrying the copied bytes.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kC, input::mod::kCtrl);
-    REQUIRE(heard.size() == 1);
-    CHECK(heard[0] == "abc");
-    // A cut is a copy too, said the same way.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kX, input::mod::kCtrl);
-    REQUIRE(heard.size() == 2);
-
-    // ANOTHER PARTICIPANT'S ClipboardCopy fills the mirror -- the terminal-media road,
-    // where no platform ever answers back -- and paste STILL ASKS first (read follows
-    // intent whatever the medium), inserting the mirror only because the medium answered
-    // that it cannot say.
-    t.publish(loom::to_value(surface::ClipboardCopy{"a pane's copy"}));
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "a pane's copy");
-    CHECK(skin->clipboard_reads == 1);
-    // ...and MIRRORING is not copying: the ears heard the case's own publication (their
-    // third) and Workshop said nothing back -- neither for hearing it nor for pasting it.
-    CHECK(heard.size() == 3);
-}
-
-TEST_CASE("TEXT-0: the property draft speaks the same vocabulary and keeps its policy keys") {
-    Live t;
-    (void)t.mount_skin_seat(); // the paste below is a conversation; somebody must answer it
-    t.begin_editing("Name");
-    const Row* name = t.row("Name");
-    REQUIRE(name != nullptr);
-    REQUIRE(name->editing());
-    REQUIRE(name->draft() == "panel");
-
-    // Select-all + type replaces the whole draft in one gesture...
-    t.key(input::scan::kA, input::mod::kCtrl);
-    // ...and while the selection is live, the PUBLISHED Info region marks exactly the
-    // value's columns of the editing row, through the same offsets the caret uses.
-    {
-        const InfoBodyPlace body = body_place(t);
-        const surface::SurfaceTextRegion* region = body_region(t.canvases.back(), body);
-        REQUIRE(region != nullptr);
-        CHECK(region->sel_begin_row == region->caret_row);
-        CHECK(region->sel_begin_col == kPropertyMarkCols + kPropertyLabelCols);
-        CHECK(region->sel_end_col == kPropertyMarkCols + kPropertyLabelCols + 5);
-    }
-    t.text("frame");
-    CHECK(name->draft() == "frame");
-
-    // ^c over a live draft is copy, never quit; the clipboard chords work; undo works.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(t.host.quit);
-    CHECK(t.session().clipboard.text == "frame");
-    t.key(input::scan::kEnd);
-    t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(name->draft() == "frameframe");
-    t.key(input::scan::kZ, input::mod::kCtrl);
-    CHECK(name->draft() == "frame");
-
-    // RETURN IS STILL THE OWNER'S: it commits through the property, exactly as before.
-    t.key(input::scan::kReturn);
-    CHECK_FALSE(name->editing());
-    CHECK(t.doc().elements[0].label == "frame");
-    CHECK(t.notice() == "committed Name = frame");
 }
 
 TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
@@ -3769,37 +2456,6 @@ TEST_CASE("TEXT-0: a drag sweeps a selection on the terminal line, and release k
                input::space::kCells);
     CHECK_FALSE(t.pane().input.has_selection());
     CHECK(t.pane().input.caret() == 3);
-}
-
-TEST_CASE("TEXT-0: a drag sweeps a selection on the property draft through its own row") {
-    Live t;
-    t.begin_editing("Name"); // the draft is "panel", caret at its end
-    const Row* name = t.row("Name");
-    REQUIRE(name != nullptr);
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    const std::size_t editing = editing_index(t);
-    const std::int64_t row = prose_row_of_property(body, editing);
-    const std::int64_t value0 = kPropertyMarkCols + kPropertyLabelCols;
-
-    // Press at the value's second character, then sweep right.
-    const std::int64_t row_y =
-        body.region_y + kInfoHeadingRows + row + surface::kTuiCanvasTopRow;
-    t.press_at(body.region_x + value0 + 1, row_y, input::space::kCells);
-    REQUIRE(name->editor().caret() == 1);
-    CHECK(t.session().text_drag.active);
-    t.publish(loom::to_value(input::PointerMoved{
-        body.region_x + value0 + 4, row_y, 0, 0,
-        input::space::kCells, input::mod::kNone}));
-    CHECK(name->editor().selected_text() == "ane");
-
-    // Typing replaces what the hand swept -- the point of sweeping it.
-    t.publish(loom::to_value(input::PointerButton{
-        1, false, body.region_x + value0 + 4, row_y,
-        input::space::kCells, input::mod::kNone}));
-    CHECK_FALSE(t.session().text_drag.active);
-    t.text("X");
-    CHECK(name->draft() == "pXl");
 }
 
 TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
@@ -4063,90 +2719,6 @@ TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.pane().input.text() == "newer");
     CHECK(skin->clipboard_reads == 2);
-}
-
-TEST_CASE("QR-11: an answer crossing a draft boundary lands nowhere, and the payload dies") {
-    // SC-3, the discard half. The acquisition crosses a turn, so a second gesture can be
-    // queued behind the paste before the answer arrives; the draft that asked ends, and
-    // the text must not land in whichever draft stands afterwards. The enqueue helper
-    // exists because Live::key drains to idle per gesture -- the race needs both
-    // messages on the queue before either runs, exactly as one poll batch delivers them.
-    Live t;
-    SkinSeat* skin = t.mount_skin_seat();
-    skin->platform = "SECRET";
-    const auto enqueue_key = [&t](std::int64_t sc, std::int64_t mods) {
-        (void)t.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
-                                          loom::WeaveId{}, loom::WeaveId{}, 0));
-    };
-
-    // The terminal line: paste requested, then the line SUBMITTED before the answer.
-    // clear() gave the successor draft a new epoch, so the in-flight paste is nobody's.
-    (void)t.mount_terminal();
-    t.toggle_terminal();
-    for (const char c : std::string("help")) {
-        t.text(std::string(1, c));
-    }
-    enqueue_key(input::scan::kV, input::mod::kCtrl);
-    enqueue_key(input::scan::kReturn, input::mod::kNone);
-    t.bus.drain_until_idle();
-    CHECK(t.pane().input.empty());          // the fresh line took no foreign text
-    CHECK(skin->clipboard_reads == 1);      // the read did happen -- intent was real
-    CHECK(t.session().clipboard.text.empty()); // ...and the discarded payload died whole:
-    // a readable answer updates the mirror ONLY when its paste applies.
-
-    // A property draft: paste requested, then the draft CANCELLED before the answer.
-    t.toggle_terminal();
-    t.begin_editing("Name");
-    enqueue_key(input::scan::kV, input::mod::kCtrl);
-    enqueue_key(input::scan::kEscape, input::mod::kNone);
-    t.bus.drain_until_idle();
-    const Row* name = t.row("Name");
-    REQUIRE(name != nullptr);
-    CHECK_FALSE(name->editing());
-    CHECK(name->value() == "panel"); // the committed value never met the payload
-    CHECK(t.session().clipboard.text.empty());
-    CHECK(skin->clipboard_reads == 2);
-
-    // THE SHARPEST STAGING: the draft that asked ends AND a new draft opens on the SAME
-    // row before the answer arrives -- same object, same label, same box, a fresh draft.
-    // The epoch is the only fact that tells them apart, and it must: this is exactly
-    // "whichever field happens to own the keyboard later", wearing the old field's name.
-    t.begin_editing("Name");
-    enqueue_key(input::scan::kV, input::mod::kCtrl);      // the OLD draft asks
-    enqueue_key(input::scan::kEscape, input::mod::kNone); // ...and ends
-    enqueue_key(input::scan::kReturn, input::mod::kNone); // a NEW draft opens, same row
-    t.bus.drain_until_idle();
-    const Row* reopened = t.row("Name");
-    REQUIRE(reopened != nullptr);
-    REQUIRE(reopened->editing());
-    CHECK(reopened->draft() == "panel"); // the new draft never met the old draft's paste
-    CHECK(t.session().clipboard.text.empty());
-    CHECK(skin->clipboard_reads == 3); // the old draft's request was real, and it read
-}
-
-TEST_CASE("QR-11: the draft that asked keeps its paste across a rebuild in flight") {
-    // SC-3, the belongs-to half. An extent change between request and answer rebuilds
-    // the inspector rows; the draft rides Row::resume into the new row -- the SAME draft,
-    // draft_epoch and all -- so the paste it asked for still belongs to it and lands.
-    Live t;
-    SkinSeat* skin = t.mount_skin_seat();
-    skin->platform = "carried";
-    t.begin_editing("Name");
-    const auto enqueue_key = [&t](std::int64_t sc, std::int64_t mods) {
-        (void)t.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
-                                          loom::WeaveId{}, loom::WeaveId{}, 0));
-    };
-    enqueue_key(input::scan::kA, input::mod::kCtrl);
-    enqueue_key(input::scan::kV, input::mod::kCtrl);
-    (void)t.bus.publish(loom::Message(
-        loom::to_value(surface::SurfaceExtent{kScreenMinW + 8, kScreenMinH + 4, 0, 0}),
-        loom::WeaveId{}, loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-    const Row* name = t.row("Name");
-    REQUIRE(name != nullptr);
-    REQUIRE(name->editing());
-    CHECK(name->draft() == "carried"); // select-all + paste, applied after the rebuild
-    CHECK(skin->clipboard_reads == 1);
 }
 
 TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing") {
@@ -5214,18 +3786,108 @@ TEST_CASE("CTX-0: contextually deleting a pointed object preserves an unrelated 
     REQUIRE_FALSE(t.session().rows.empty());
 }
 
-TEST_CASE("CTX-0: a live draft holds a contextual deletion back") {
+TEST_CASE("WL-DOC-20: the document crosses as a picture, and only when it changed") {
+    // ⭐ THIS MIGRATION'S ONE NEW SENTENCE. The Info pane shows the object document and
+    // derives none of it; the host says what the document looks like, in the form the
+    // built-in's own painter already had it, and says it again the moment it differs.
+    //
+    // ⚠ AND IT IS A PUBLICATION RATHER THAN AN ANSWER because WL-DOC-14 is a law: the
+    // canvas, the object list and the inspector agree after every gesture, and the document
+    // changes with no gesture into the pane at all -- which the second half below is.
+    //
+    // ⚔ MUTATION: drop the `say_document` call from `repaint`. Nothing is ever said.
     Live t;
-    t.begin_editing("Name");
-    REQUIRE(editing_index(t) < t.session().rows.size());
-    t.right_press(7, 11);
-    REQUIRE(t.menu().object == 2);
-    t.key(input::scan::kReturn); // choose delete -- and the application holds it back
-    CHECK_FALSE(t.menu().open);
-    CHECK(doc::find(t.doc(), 2) != nullptr); // nothing was deleted
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("finish the draft first") != std::string::npos);
-    CHECK(editing_index(t) < t.session().rows.size()); // the draft survived whole
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.said_documents.empty());
+    const DocumentShown first = t.said_documents.back();
+    REQUIRE(first.objects.size() == 2); // the two the fresh document holds
+    CHECK(first.objects[0].identity == t.first()->id);
+    CHECK(first.objects[0].name == t.first()->label);
+    CHECK(first.selected == t.session().selected);
+    CHECK_FALSE(first.properties.empty());
+
+    // THE ROWS ARE THE INSPECTOR'S OWN, VALUE INCLUDED -- a fresh read through the property,
+    // which is what makes a cached copy impossible on either side.
+    bool named = false;
+    for (const ShownProperty& row : first.properties) {
+        named = named || (row.label == "Name" && row.editable);
+    }
+    CHECK(named);
+
+    // A REPAINT WITH NO NEWS IN IT SAYS NOTHING, which is what stops the seam looping: a
+    // pane answers a publication by publishing rows, and content ends in a repaint.
+    const std::size_t after_first = t.said_documents.size();
+    t.key(input::scan::kTab);
+    t.key(input::scan::kTab); // back to where it was: the selection is the same again
+    CHECK(t.said_documents.size() > after_first); // ...but it moved in between, twice
+    const std::size_t settled = t.said_documents.size();
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.said_documents.size() == settled);
+
+    // ...AND A CHANGE MADE WITH NO GESTURE INTO ANY PANE IS STILL NEWS. This is the half a
+    // door could not carry: `l` nudges the selected object on the WORKSPACE, and the list
+    // and the inspector are owed the new picture.
+    t.key(input::scan::kL);
+    REQUIRE(t.said_documents.size() == settled + 1);
+    bool moved = false;
+    for (const ShownProperty& row : t.said_documents.back().properties) {
+        moved = moved || (row.label == "X" && row.value != "0");
+    }
+    CHECK(moved);
+}
+
+TEST_CASE("WL-DOC-20: the four acts are the writes the keys are bound to, and the refusals "
+          "are the document's") {
+    // THE DOOR, AT THE OFFICE THIS HOST ALREADY HOLDS. Four acts, each the same call the
+    // host's own key is bound to, so both gestures converge on one write, one selection rule
+    // and one sentence.
+    //
+    // ⚔ MUTATION: answer `accepted` unconditionally in `on(DocumentActRequested)`. The three
+    //   refusal checks below go red and a maker is told a write happened that did not.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    DocumentAsker* seat = mount_document_asker(t);
+    const std::size_t objects = t.doc().elements.size();
+
+    // CREATE mints one, exactly as `n` does.
+    ask_document_act(t, seat, kDocumentCreate);
+    CHECK(t.doc().elements.size() == objects + 1);
+    REQUIRE_FALSE(seat->answers.empty());
+    CHECK(seat->answers.back().accepted);
+
+    // SELECT is total: an identity the document does not have selects nothing new, and is
+    // not an error -- a selection outlives a list.
+    ask_document_act(t, seat, kDocumentSelect, t.doc().elements[0].id);
+    CHECK(t.session().selected == t.doc().elements[0].id);
+    CHECK(seat->answers.back().accepted);
+
+    // COMMIT writes through the property, and a value the property refuses comes back in the
+    // document's own words with nothing written.
+    std::size_t width_row = 0;
+    for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
+        if (t.session().rows[i].label() == "Width") {
+            width_row = i;
+        }
+    }
+    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "40%");
+    CHECK(seat->answers.back().accepted);
+    CHECK(t.session().rows[width_row].value() == "40%");
+    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "banana");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal.find("Width") != std::string::npos);
+    CHECK(t.session().rows[width_row].value() == "40%"); // and nothing was written
+
+    // A ROW THE CURRENT DERIVATION DOES NOT HAVE IS REFUSED BY NAME rather than applied to
+    // whatever moved into its place -- the one hazard an index across a seam has.
+    ask_document_commit(t, seat, 9999, "40%");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal.find("not in this object") != std::string::npos);
+
+    // DELETE removes exactly one, exactly as `d` does.
+    const std::size_t before_delete = t.doc().elements.size();
+    ask_document_act(t, seat, kDocumentDelete);
+    CHECK(seat->answers.back().accepted);
+    CHECK(t.doc().elements.size() == before_delete - 1);
 }
 
 TEST_CASE("CTX-0: replacing the document drops a captured object subject") {

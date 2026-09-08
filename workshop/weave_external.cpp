@@ -42,9 +42,15 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
         pane->columns = body.columns;
         pane->granted = true;
         pane->shown.clear();
-        pane->clear_refusal();
         pane->heard = false;
         pane->awaiting = true;
+        // ⚠ AND THE REFUSAL IS NOT CLEARED HERE, THOUGH IT USED TO BE. A room goes out
+        // whenever the surface resizes or a maker drags this pane's edge, so clearing it here
+        // let a maker un-say the sentence explaining an empty pane by widening their window --
+        // with nothing valid having arrived and the pane still showing nothing. What replaced
+        // it was `waiting`, which is true and says less. The rows, `heard` and `awaiting` DO
+        // turn over above, because those are facts about the ROOM; a refusal is a fact about
+        // the CONTENT, and only content this host accepted may take it back (WL-ATTN-04).
         // DELIBERATELY AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE THE
         // DESCRIPTOR CAME IN UNDER. The authorship is what lets the provider verify the
         // ask (its side refuses a room from anyone else); the destination is a ROLE

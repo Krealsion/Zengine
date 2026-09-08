@@ -46,16 +46,17 @@ WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-16 — `^s` saves and `^o` loads through the real message path
 
-LAW — `^s` refuses while a row is being edited and writes nothing; a bare `s` or `o` is not a command; with no document file, save and open say so instead of guessing one.
+LAW — A bare `s` or `o` is not a command, and with no document file, save and open say so instead of guessing one; the save door reads no draft, because the draft it read was the Info panel's.
 
 MEANS
 - a successful load cancels a drag, re-establishes the selection and continues no old resize;
-- a failed load costs a maker nothing but the notice.
+- a failed load costs a maker nothing but the notice;
+- ⭐ `^s` refused over a half-typed property and does not now: the line is a loaded image's.
 
 PROVEN BY — `workshop/weave_save.cpp` `save_document`, `load_document`; `workshop/keymap.hpp`
 `document.save`, `document.open`; `tests/test_workshop_persistence.cpp` case `"^s saves and ^o
-loads, through the real message path"`, case `"^s refuses while a row is being edited, and writes
-nothing"`, case `"a bare s and a bare o are not commands, and Ctrl is what makes them one"`, case
+loads, through the real message path"`, case `"a bare s and a bare o are not commands, and Ctrl
+is what makes them one"`, case
 `"a successful load cancels a drag and cannot continue an old resize"`, case `"a failed load costs
 a maker nothing but the notice"`.
 WHY — `agents/decisions/the-document-model.md`

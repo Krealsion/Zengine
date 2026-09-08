@@ -22,6 +22,7 @@
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/path_admission.hpp"
@@ -139,24 +140,10 @@ std::string stem_of(const std::string& name) {
     return dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
 }
 
-/// Fit one row to a column budget, marking the cut -- the browser's own `detail::fit`, kept
-/// here so a pane row never exceeds the room Workshop granted (`judge_content` refuses one
-/// that does, whole).
-std::string fit(std::string text, std::int64_t columns) {
-    if (columns <= 0) {
-        return {};
-    }
-    const std::size_t room = static_cast<std::size_t>(columns);
-    if (text.size() <= room) {
-        return text;
-    }
-    if (room <= 3) {
-        return std::string("...").substr(0, room);
-    }
-    text.resize(room - 3);
-    text += "...";
-    return text;
-}
+/// The shared pane text helpers (`workshop/pane_text.hpp`): the fit this file used to carry a
+/// copy of, with `judge_content` as the reason it must be applied at all.
+using zengine::workshop::pane_text::fit;
+
 
 /// One directory row's text -- `screen_browser.cpp`'s `files_row_text`, unchanged.
 std::string row_text(const FileRow& row) {

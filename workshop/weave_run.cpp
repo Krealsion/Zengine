@@ -56,6 +56,10 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // this is the reading behind it: one sentence per condition, in the host's own order,
     // said only when it changed.
     say_conditions(frontier, mail);
+    // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, to whoever is listing it. The workspace
+    // plane below draws the same document; this is the same truth in the form a pane can
+    // read, said on the same beat and by the same rule.
+    say_document(mail);
     mail.publish(paint(state_, session_));
 }
 
@@ -76,6 +80,17 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
     // any weave's opinion, so the publication carries the office stamp and the pane refuses
     // an unstamped one. `as_role` adds provenance, never a capability (MSG-07).
     (void)mail.as_role(kWorkshopProvider).publish(StandingConditions{std::move(now)});
+}
+
+// WL-DOC-20 -- agents/workshop/document.md
+void WorkshopWeave::say_document(loom::Mail& mail) {
+    DocumentShown now = document_shown(state_, session_);
+    if (document_said_ && same_document(now, said_document_)) {
+        return; // no news is silence, and silence is what makes this seam terminate
+    }
+    said_document_ = now;
+    document_said_ = true;
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md
@@ -111,7 +126,7 @@ void WorkshopWeave::quit() {
     }
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-CTRL-03 -- agents/workshop/info-controls.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 std::string WorkshopWeave::finish_draft_first() const {
     return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
            hotkey(Act::kDraftCancel) + " cancels";

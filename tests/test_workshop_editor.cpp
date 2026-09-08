@@ -136,12 +136,12 @@ struct EditorRig {
     /// press there is the same gesture on the same row.
     void to_command() {
         const Session& s = session();
-        const ui::Rect info =
-            pane_body_cells(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
-        REQUIRE(info.w > 0);
-        const std::int64_t x = info.x + info.w - 1;
-        t.press(x, info.y);
-        t.release(x, info.y);
+        const ui::Rect band =
+            cells_covered(bounds_of(s.panels, s.setup.active, panel::kLayouts, screen_of(s)).rect);
+        REQUIRE(band.w > 0);
+        const std::int64_t x = band.x + band.w - 1;
+        t.press(x, band.y);
+        t.release(x, band.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);
     }
     void open_hello() {
@@ -1205,11 +1205,11 @@ TEST_CASE("EDIT-0: the wheel elsewhere scrolls nothing, and a covered editor is 
     // Over Info (a different pane's cells): nothing.
     const Session& s = r.session();
     const ui::Rect other = cells_covered(
-        bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
+        bounds_of(s.panels, s.setup.active, panel::kLayouts, screen_of(s)).rect);
     // ...at that pane's RIGHT-HAND side: the stack's slot reaches into the right column's
     // first columns now that the room is the surface, so a wheel two cells inside Info's left
     // edge would land on the editor itself and prove nothing.
-    r.t.wheel_canvas(-1.0, other.x + other.w - 2, other.y + 2);
+    r.t.wheel_canvas(-1.0, other.x + other.w - 2, other.y);
     CHECK(r.ed().first_row == 0);
     // Over the editor's HEADER row: the body's own boundary holds.
     const ui::Rect c = r.editor_cells();

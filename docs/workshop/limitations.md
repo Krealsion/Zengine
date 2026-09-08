@@ -148,25 +148,23 @@ whole form comes back; the default itself is unchanged.
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.
 
-### Pointing without pressing is a window-only gesture
+### Pointing without pressing reaches nobody in a terminal
 
-Hovering a clipped line to [read what it cut](panes.md#reading-a-value-the-pane-had-to-cut)
-needs your pointer's position while no button is down, and that is a real difference between
-the two media rather than an omission in one of them. **In the graphical window it works.** In
-a terminal Workshop asks for button-event mouse reporting only — presses, releases and drags —
-so an idle pointer is reported to nobody and there is nothing to hover with. Asking terminals
-for every idle motion would pay for that gesture on every keystroke of every session, which is
-not a trade this application has chosen to make.
+Nothing in Workshop uses an idle pointer today — the one gesture that did, reading past a cut
+row, is [retired](panes.md#reading-a-value-the-pane-had-to-cut--retired) — but the difference
+between the two media is real and worth knowing before anything asks for one again. **In the
+graphical window a hover is reported.** In a terminal Workshop asks for button-event mouse
+reporting only — presses, releases and drags — so an idle pointer is reported to nobody.
+Asking terminals for every idle motion would pay for that gesture on every keystroke of every
+session, which is not a trade this application has chosen to make.
 
 Two smaller edges, in both media:
 
 | | today |
 |---|---|
-| Which surfaces can be read past? | the Info panel's object and property rows — the places Workshop itself cut a value it still holds. **A loaded pane's rows cannot be**: a pane sends finished text, so Workshop never holds the longer value and has nothing to reveal. The Files pane's location and its listed names could be read past while Files was compiled in; since it became a loaded artifact they cannot |
+| Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info panel's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
 | The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([Builder](builder.md#using-it)) |
-| A pane that shortened its own text before sending it | **not recoverable** — Workshop can only show what it was given, and it does not ask a provider for a longer version |
-| Does the reveal follow the pointer out of the window? | the reveal follows the last position the pointer reported; nothing tells Workshop the pointer left the window, so a reveal can stay on screen until the pointer comes back or something else repaints |
-| Is there a timed marquee? | **no** — the reveal is driven by where your pointer is along the row, because Workshop draws when something happens and nothing here happens on its own |
+| Could the pane protocol be widened to ask for the longer text? | **it will not be.** A pane is a participant, not a store the host reaches into; asking one for a value it chose not to send is the shape this project refuses. Widen the pane or the window instead |
 
 ### Builder builds what an authored file says, and no more
 
@@ -213,8 +211,10 @@ honest bounds on that capability today:
 | Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit refuses while source is unsaved |
 
-What text editing also exists is three single-line editors, each over the same component: an
-inspector property draft, the layout-name line, and the terminal overlay's command line.
+What text editing also exists is three single-line editors, each over the same component: the
+Pane Manager's property draft, the layout-name line, and the terminal overlay's command line.
+The Info pane has a fourth, in its own image and over the same component — and that one shows
+you no caret, because a caret is not a row and rows are all a pane can send.
 
 ### The Files pane is a snapshot, and two identity questions are unanswered
 

@@ -6,13 +6,15 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`,
+- **built-in panels** — compiled into Workshop: `Editor`,
   `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
   screen, which is a pane like the rest of them: pick it, move it, cover it, remove it) and
   `Pane Manager` ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places
   and orders any of them, itself included.
 - **external panes** — offered by a loaded weave through a bounded protocol.
-  `Loaded`, `Project` and `Powers` arrive this way, from `zengine-introspection`.
+  `Info`, `Builder`, `Attention`, `Files`, `Loaded`, `Project` and `Powers` arrive this way.
+  `Info` is the one your desk names for you, so it is on screen on a first run; the list of
+  built-ins above is short and getting shorter on purpose.
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
   made from inside the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
@@ -162,28 +164,25 @@ arranging is the one you are working with — and only after the pane passes the
 every arranging road applies. A refusal changes nothing at all, selection included.
 
 The menu offers what is *meaningful* for that kind of thing, not a prediction of success —
-choose `arrange` on the Info panel and the owner answers in its own words (`the screen owns
-its place`). On a terminal, whether a right-click reaches Workshop at all is the terminal
+choose an action on a pane whose place this screen cannot resolve and the owner answers in
+its own words. On a terminal, whether a right-click reaches Workshop at all is the terminal
 emulator's decision first (the Windows console and Windows Terminal both hand it through);
 the `a` key works everywhere.
 
-### Reading a value the pane had to cut
+### Reading a value the pane had to cut — *retired*
 
 Where a single line does not fit the room it has, Workshop cuts it and says so with `...`.
-**Point at that line and the text scrolls under your pointer**: the left edge of the row is
-what you were already reading, the right edge is the end of the value, and everything in
-between is a window onto the middle, marked at whichever end has more behind it. Move away
-and the ordinary cut comes straight back.
+Pointing at such a line used to scroll the text under your pointer so you could read the rest.
 
-It is presentation and nothing else. Nothing is saved, nothing is re-read from disk or asked
-of a pane's provider, the pane does not grow, and the value itself is untouched — you are
-reading bytes Workshop already had in its hand. A line that fits does not move at all, and a
-line whose provider had already shortened it cannot be recovered: Workshop can only show what
-it was given.
+**That is gone, and it is a loss rather than a move.** It only ever worked where Workshop
+itself held the longer value and had cut it — the Info panel's object and property rows, and
+before them the browser's. Every one of those is a loaded pane now, and a pane sends rows it
+has *already* cut: Workshop never receives the longer value, so there is nothing left in its
+hand to reveal. Widening the pane protocol so a pane could be asked for a longer text is the
+one thing that would bring it back, and it is exactly the route this project refuses — a pane
+is a participant, not a thing the host reaches into.
 
-Today this works on the Info panel's object and property rows and on the location
-and names, and only in the graphical window — a terminal is not asked to report a pointer that
-is not pressing anything ([limitations](limitations.md#pointing-without-pressing-is-a-window-only-gesture)).
+Where a value is too long, widen the pane or the window.
 
 ### What "front" means
 
@@ -300,7 +299,7 @@ reads the surface. That is not built, and it is not designed here.
 
 Open **Pane Manager** from the picker. It is a pane whose subject is **another pane** — any row
 the picker lists: a built-in, a pane a loaded weave offered, a pane you made, or a reference
-your layout names that this build cannot resolve. It is *not* the Info panel: Info inspects
+your layout names that this build cannot resolve. It is *not* the Info pane: Info inspects
 the objects of your document; the Pane Manager inspects Workshop's own furniture — which pane
 is where, how big, in what order, and on the layout or not.
 

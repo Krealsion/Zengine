@@ -832,8 +832,9 @@ TEST_CASE("BLD-WEAVE: PANE-MIG -- the office the migration writes is the one thi
     REQUIRE(add_pane(s, PaneRef{pane_migration::kRetiredBuilderProvider,
                                 pane_migration::kBuilderPane}));
     const pane_migration::Converted moved = pane_migration::convert_retired_panes(s);
-    CHECK(moved.builder == 1);
-    CHECK(moved.files == 0);
+    CHECK(pane_migration::held_count(moved, pane_migration::kBuilderProvider) == 1);
+    CHECK(pane_migration::held_count(moved, pane_migration::kFilesProvider) == 0);
+    CHECK(pane_migration::held_count(moved, pane_migration::kInfoProvider) == 0);
     REQUIRE(s.panes.size() == 1);
     CHECK(s.panes[0].ref == builder_ref());
     CHECK(resolve_pane(s.panes[0].ref, b.r.session().panels).value_or(kNoPaneKind) == b.kind);

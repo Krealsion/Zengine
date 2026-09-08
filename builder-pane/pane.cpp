@@ -28,6 +28,7 @@
 
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_text.hpp"
 
 #include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
@@ -91,72 +92,17 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // could see had changed, for no reason they were told about. `files.cpp` carries `fit` for
 // exactly this reason, one pane over.
 
-constexpr const char* kElided = "...";
-constexpr std::int64_t kWrapIndent = 2;
+// ⚠ AND THEY ARE NOT COPIED HERE ANY MORE. `workshop/pane_text.hpp` holds the functions four
+// packages each carried a copy of. Nothing about them changed for moving, with one measured
+// exception written down in that header: `wrap` spends ONE space on a break rather than a run
+// of them, which is what two of the four copies did and what this one did not.
 
-std::string pad(std::string text, std::size_t width) {
-    if (text.size() > width) {
-        text.resize(width);
-        return text;
-    }
-    text.append(width - text.size(), ' ');
-    return text;
-}
+using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::pad;
+using zengine::workshop::pane_text::wrap;
+constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
+constexpr const char* kElided = zengine::workshop::pane_text::kElided;
 
-std::string fit(std::string text, std::int64_t width) {
-    if (width <= 0) {
-        return {};
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
-        return text; // it fits, so nothing about it changes -- not even its role
-    }
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (room <= mark) {
-        return std::string(kElided).substr(0, room);
-    }
-    text.resize(room - mark);
-    text += kElided;
-    return text;
-}
-
-std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
-    std::vector<std::string> rows;
-    if (width <= 0) {
-        return rows;
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    const std::size_t indent =
-        width > kWrapIndent + 1 ? static_cast<std::size_t>(kWrapIndent) : 0;
-    std::size_t at = 0;
-    while (true) {
-        const std::string lead(rows.empty() ? 0 : indent, ' ');
-        const std::size_t take = room - lead.size();
-        if (text.size() - at <= take) {
-            rows.push_back(lead + text.substr(at));
-            return rows;
-        }
-        std::size_t cut = at + take;
-        bool broke = false;
-        for (std::size_t i = cut; i > at; --i) {
-            if (text[i] == ' ') {
-                cut = i;
-                broke = true;
-                break;
-            }
-        }
-        rows.push_back(lead + text.substr(at, cut - at));
-        at = cut;
-        if (broke) {
-            while (at < text.size() && text[at] == ' ') {
-                ++at;
-            }
-        }
-        if (at >= text.size()) {
-            return rows;
-        }
-    }
-}
 
 /// A LABELLED ROW, in the panel's own nine-column gutter -- `screen_pane_state.cpp`'s
 /// `panel_field`, unchanged.

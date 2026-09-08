@@ -72,11 +72,8 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
           {sc::kK, mo::kShift},
           {sc::kL, mo::kShift}},
          "shift+hjkl size"},
-        {Act::kInfoUp,
-         {Act::kInfoDown, Act::kNone, Act::kNone},
-         1,
-         {{sc::kUp, mo::kNone}, {sc::kDown, mo::kNone}, {}, {}},
-         "up/down row"},
+        // THE `up/down row` FOLD LEFT WITH THE INFO PANEL'S ROWS. A fold is a legend spelling
+        // for rows this host declares; the two it folded are the Info pane's own now.
         {Act::kWorkspaceNarrower,
          {Act::kWorkspaceWider, Act::kNone, Act::kNone},
          1,
@@ -191,7 +188,7 @@ ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
     return ui::resolve(d.elements, ui::Viewport{s.workspace_w, s.workspace_h});
 }
 
-// WL-DOC-05 -- agents/workshop/document.md; WL-INFO-06 -- agents/workshop/info-body.md
+// WL-DOC-05 -- agents/workshop/document.md
 std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
     std::vector<Row> rows;
     const std::int64_t id = s.selected;
@@ -236,26 +233,12 @@ std::size_t first_editable(const std::vector<Row>& rows) {
     return 0;
 }
 
-void refocus(WorkshopDoc& d, Session& s) {
-    s.rows = inspector_rows(d, s);
-    s.cursor = first_editable(s.rows);
-}
-
-// WL-INFO-06 -- agents/workshop/info-body.md
-void refocus_keeping_draft(WorkshopDoc& d, Session& s) {
-    const std::vector<Row> was = std::move(s.rows);
-    const std::size_t cursor = s.cursor;
-    s.rows = inspector_rows(d, s);
-    for (std::size_t i = 0; i < s.rows.size() && i < was.size(); ++i) {
-        if (s.rows[i].label() == was[i].label()) {
-            s.rows[i].resume(was[i]);
-        }
-    }
-    // AND THE CURSOR STAYS WHERE THE MAKER LEFT IT. It is the other half of "their hands are
-    // still on it": a resize that moved the highlight to the first editable row would make a
-    // maker who was reading Height look at Name instead, for no reason they could see.
-    s.cursor = cursor < s.rows.size() ? cursor : first_editable(s.rows);
-}
+// ⭐ `refocus` AND `refocus_keeping_draft` ARE ONE FUNCTION AGAIN. The two existed because the inspector's DRAFT and its CURSOR lived beside its
+// rows in this host: one rebuild threw both away and the other carried them across, and every
+// caller had to know which it wanted. Both belong to the Info weave now -- it holds the cursor
+// in its own state and the draft in its own line -- so a rebuild is a rebuild, and the host's
+// derived rows are the only thing there is to rebuild.
+void refocus(WorkshopDoc& d, Session& s) { s.rows = inspector_rows(d, s); }
 
 std::size_t position_of(const WorkshopDoc& d, std::int64_t id) {
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
@@ -277,7 +260,6 @@ std::string pad(std::string text, std::size_t width) {
     return text;
 }
 
-// WL-INFO-05 -- agents/workshop/info-body.md
 // WL-RGN-05 -- agents/workshop/regions.md
 // WL-TEXT-05 -- agents/workshop/text-box.md
 std::string fit(std::string text, std::int64_t width) {

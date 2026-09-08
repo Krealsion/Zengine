@@ -244,11 +244,11 @@ public:
     std::string value() const { return read_(); }
 
     /// What the maker sees: the committed value, or the live draft.
-    // WL-INFO-05 -- agents/workshop/info-body.md
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     std::string display() const { return editing_ ? draft_.text() : read_(); }
 
     /// Start editing from the current committed value, WITH THE CARET AT ITS END.
-    // WL-INFO-05 -- agents/workshop/info-body.md
+    // WL-PED-04 -- agents/workshop/pane-manager.md
     void begin() {
         if (!editable_ || editing_) {
             return;
@@ -360,6 +360,27 @@ public:
     /// Try to make the draft the property's value. On anything but Accepted the
     /// property is untouched, the row stays in edit with the draft intact, and
     /// `refusal()` says why in words.
+    /// COMMIT TEXT THIS ROW NEVER DRAFTED -- the seam's door, where a maker's draft lives in
+    /// another image and only its finished text crosses. The conversion is the same, the two
+    /// refusals are the same and they are worded the same; what is absent is the draft,
+    /// which was never here. `commit()` below is this call with the row's own draft.
+    // WL-DOC-20 -- agents/workshop/document.md
+    Commit commit_text(const std::string& text) {
+        if (!editable_) {
+            refusal_ = "not authored";
+            return Commit::Refused;
+        }
+        const std::pair<Commit, std::string> result = commit_(text);
+        if (result.first == Commit::Unparseable) {
+            refusal_ = "not " + std::string(expected_ == nullptr ? "valid" : expected_);
+        } else if (result.first == Commit::Refused) {
+            refusal_ = result.second;
+        } else {
+            refusal_.clear();
+        }
+        return result.first;
+    }
+
     Commit commit() {
         if (!editing_) {
             return Commit::Accepted; // nothing was drafted; nothing changed
@@ -382,7 +403,7 @@ public:
     }
 
     /// TAKE OVER A DRAFT FROM THE ROW THIS ONE REPLACES.
-    // WL-INFO-06 -- agents/workshop/info-body.md; WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- agents/workshop/text-box.md
     void resume(const Row& previous) {
         if (!editable_ || !previous.editing_) {
             return;
