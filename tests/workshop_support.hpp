@@ -581,15 +581,17 @@ struct SeenState {
 /// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
-                                                    StandingConditions, DocumentShown>,
+                                                    StandingConditions, DocumentShown,
+                                                    TranscriptShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
             std::vector<StandingConditions>& conditions,
-            std::vector<DocumentShown>& documents)
+            std::vector<DocumentShown>& documents,
+            std::vector<TranscriptShown>& transcripts)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
-          documents_(&documents) {}
+          documents_(&documents), transcripts_(&transcripts) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
@@ -597,12 +599,14 @@ public:
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
     void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
+    void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
     std::vector<DocumentShown>* documents_;
+    std::vector<TranscriptShown>* transcripts_;
 };
 
 
@@ -737,6 +741,8 @@ struct Live {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `TranscriptShown` this host published, for the same reason.
+    std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -757,7 +763,8 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
+                                   said_transcripts);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -1982,7 +1989,8 @@ class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions>> {
+                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
+                                        PaneCaret>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2059,6 +2067,14 @@ public:
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
     void say_personally(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.send_to_role(kWorkshopProvider, c);
+    }
+    /// WHERE THIS SEAT'S CARET IS -- the arc's second pane-to-host sentence, said as the
+    /// office, and personally for the refusal that is about authorship rather than lattice.
+    void caret(loom::Mail& mail, const PaneCaret& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    void caret_personally(loom::Mail& mail, const PaneCaret& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
     }
     /// Declare a pane's actions, deliberately AS this office -- and personally, from the
@@ -2240,6 +2256,8 @@ struct PaneRig {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `TranscriptShown` this host published, for the same reason.
+    std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     std::vector<std::string> loaded;
@@ -2247,7 +2265,8 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
+                                   said_transcripts);
     }
 
 
@@ -2304,11 +2323,45 @@ struct PaneRig {
         // workshop.cpp grants them.
         speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
         speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+        // ...and the terminal participant's record and the two answers its doors give,
+        // exactly as workshop.cpp grants them.
+        speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
+        speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
+        speak.allow_to_any(TerminalCompletionOffered::zen_name,
+                           TerminalCompletionOffered::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
         return w;
     }
+
+    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant,
+    /// owned by the bus, and handed to Workshop as a non-owning pointer.
+    ///
+    /// ⚠ IT IS MOUNTED HERE AND NOT IN THE PANE, which is the seam's whole shape: the pane
+    /// under test cannot construct one of these, cannot reach this one, and cannot speak as
+    /// it. Every case below drives the pane and then asks THIS object what it heard.
+    loom::TerminalSession* mount_terminal(int shapes = 0) {
+        loom::TerminalVocabulary vocab;
+        vocab.knows(loom::schema_of<surface::SurfaceText>())
+            .accepts(loom::schema_of<loom::Ack>())
+            .accepts(loom::schema_of<loom::Refused>());
+        for (int i = 0; i < shapes; ++i) {
+            vocab.knows(loom::SchemaBuilder("Extra" + std::to_string(i), 1)
+                            .field("seq", loom::Kind::Int)
+                            .build());
+        }
+        loom::Grant grant;
+        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
+                            surface::kSkinRole);
+        const loom::MountedTerminal mounted = loom::host_mount_terminal(
+            bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
+            std::move(grant));
+        host.terminal = mounted.session;
+        terminal_id = mounted.id;
+        return mounted.session;
+    }
+    loom::WeaveId terminal_id{};
 
     /// A native provider in an office of its own, granted exactly the two sentences
     /// the pane protocol has and nothing else.
@@ -2324,6 +2377,8 @@ struct PaneRig {
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
+        // ...and where its caret is, which is the arc's second host-facing pane sentence.
+        grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
         // claim under test is that a PROVIDER refuses a press it did not get from
         // Workshop -- a refusal the bus made unreachable would prove nothing.
@@ -2536,6 +2591,11 @@ struct PaneRig {
         if (stem == "zengine-info-pane") {
             return WORKSHOP_SO_INFO_PANE;
         }
+#ifdef WORKSHOP_SO_TERMINAL_PANE
+        if (stem == "zengine-terminal-pane") {
+            return WORKSHOP_SO_TERMINAL_PANE;
+        }
+#endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 

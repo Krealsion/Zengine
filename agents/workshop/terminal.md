@@ -1,61 +1,69 @@
 # Workshop law — the Terminal
 
-Register `WL-TERM`: the Terminal overlay as a mode, its pane, and its completion, written from
-the tests. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md). The pane's
-placement is [`geometry.md`](geometry.md) (WL-GEO-02) and its editable line is
+Register `WL-TERM`: the terminal PARTICIPANT this host mounts and holds, and the seam across
+which a pane presents it. One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md). The pane's own presentation — its rows, its list, its caret
+and its keys — is the Terminal pane's, not this host's; the caret it publishes is
+[`panes-and-windows.md`](panes-and-windows.md) (WL-CARET) and the line it is typed into is
 [`text-box.md`](text-box.md).
 
-## WL-TERM-01 — The Terminal is a modal overlay, toggled by one action
+## WL-TERM-01 — The Terminal is a pane, and nothing global reaches it
 
-LAW — `workshop.terminal` (`^t`) opens the overlay and the same toggle closes it; its keystroke never becomes text, and while it is open the keys and the pointer belong to it.
+LAW — The Terminal is a loaded weave offered by `zengine.terminal`, arranged like any other pane; no key, chord or contextual row of this host's opens it or acts on it.
 
 MEANS
-- a closed overlay leaves every ordinary Workshop gesture exactly as it was;
-- the above-mode chords still work inside it: `^s` saves, `^c` copies.
+- a maker opens it from the picker and reaches its keys by pressing into it (VD-22);
+- its five action ids and gestures are the retired mode's, so an override moves with it;
+- it wears a pane's boundary, so what it covers it covers legibly.
 
-PROVEN BY — `workshop/weave_terminal.cpp` `toggle_terminal`, `terminal_key`, `terminal_press`;
-`workshop/screen.hpp` `TerminalPane`; `workshop/keymap.hpp` `workshop.terminal`,
-`KeyContext::kTerminal`; `tests/test_workshop_screen.cpp` case `"the terminal toggle opens the
-overlay, and the same toggle closes it"`, case `"the toggle's own keystroke never becomes text, in
-either direction"`, case `"a closed overlay leaves every ordinary Workshop gesture exactly as it
-was"`, case `"while the overlay is open the keys and the pointer belong to it"`, case `"^s still
-means save with the overlay open, and ^c means copy there (TEXT-0)"`.
+DOES NOT MEAN — that the participant moved. It is mounted by this host and reached by a pointer
+this host holds (WL-TERM-02).
+
+PROVEN BY — `terminal-pane/vocabulary.hpp` `kTerminalPaneRole`, `kTerminalPane`,
+`kActionSubmit`, `kActionBack`, `kActionUp`, `kActionDown`, `kActionComplete`;
+`workshop/default-load-plan.json`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W1: the
+Terminal is an ordinary arranged pane, offered by an office"`, case `"TERM-W2: the five keys are
+the pane's rows, on the built-in's own spellings"`, case `"TERM-W3: nothing global opens it, and
+no key acts on it from anywhere else"`, case `"TERM-W4: a maker presses in, types a line, and the
+participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-02 — The pane presents an ordinary participant on Workshop's own bus
+## WL-TERM-02 — The participant stays this host's, and speaks as itself
 
-LAW — A typed line reaches the `loom::TerminalSession`'s own record; a typed send leaves through the participant's door, not as Workshop; the address grammar is Loom's; an ask waits for Loom's answer.
+LAW — `HostContext::terminal` is a non-owning pointer to the `loom::TerminalSession` this host mounted; a typed line reaches that participant's record and leaves through its door, as ITS identity.
 
 MEANS
-- an address without its sigil sends nothing and records nothing.
+- the address grammar is Loom's own (`loom::tokenize`, `loom::parse_address`), never a second;
+- `submit_terminal_line` is the one path in this process that speaks as that identity;
+- no participant is a reading, not an absence: the door refuses, and the picture says so.
 
-PROVEN BY — `workshop/weave_terminal.cpp` `submit_terminal_line`; `workshop/weave.hpp`
-`HostContext::terminal`; `workshop/complete.hpp` `read_command_line`;
-`workshop/screen_terminal.cpp` `terminal_address`; `tests/test_workshop_screen.cpp` case `"a typed
-line reaches the participant's own record, understood or not"`, case `"a typed send leaves through
-the PARTICIPANT's door, on Workshop's own bus"`, case `"the address grammar the pane reads is
-Loom's own, not a second one"`, case `"an ask waits, and LOOM's own answer settles it on the
-screen"`.
+DOES NOT MEAN — that the participant could have migrated. Its handler sends nothing by
+construction and it accepts only the three answer doors its host declared, so no message drives
+it: the door is the only route inside the Loom fence.
+
+PROVEN BY — `workshop/weave_terminal.cpp` `submit_terminal_line`, `on(TerminalActRequested)`;
+`workshop/weave.hpp` `HostContext::terminal`; `workshop/terminal_seam_vocabulary.hpp`
+`TerminalActRequested`, `TerminalActed`, `kTerminalSubmitAct`; `workshop/screen_terminal.cpp`
+`transcript_shown`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W5: a typed send leaves
+through the PARTICIPANT's door, not the pane's"`, case `"TERM-W8: a Workshop with no participant
+says so, and authors nothing"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-03 — The pane is one bounded region that fits entries, and says what it omits
+## WL-TERM-03 — The record crosses as a picture, said only when the reading changed
 
-LAW — The pane is one bounded region placed in cells; it fits entries rather than lines (`entries_that_fit`), and `terminal_omission` says what it is not showing in the two senses that differ.
+LAW — This host derives `TranscriptShown` on the repaint, compares it against the last utterance, and publishes it `to_any` as its own office only when it changed.
 
 MEANS
-- `earlier` counts what the window left out; `dropped` counts what the record itself dropped;
-- a medium that sets type reflows the pane, and the omission stays true;
-- the snapshot outlives the participant it came from.
+- the picture is the WHOLE record (its owner bounds it); `dropped` is what that owner evicted;
+- what a pane shows whole, and what each entry costs, are the PANE's: `earlier` is not sent;
+- silence when nothing changed terminates the seam: rows answer it, and a repaint follows.
 
-PROVEN BY — `workshop/screen.hpp` `TerminalPane`, `kTerminalMinH`, `kTerminalChrome`,
-`kTerminalMinCols`, `Screen::terminal_cols`, `Screen::terminal_rows`;
-`workshop/screen_terminal.cpp` `entries_that_fit`, `terminal_omission`, `paint_terminal`;
-`workshop/weave_terminal.cpp` `refresh_terminal`; `tests/test_workshop_screen.cpp` case `"the pane
-is published as ONE bounded region, placed in cells"`, case `"a medium that sets real type reflows
-the pane, and the omission stays true"`, case `"the pane says what it is not showing, in the two
-senses that differ"`, case `"the pane's snapshot outlives the participant it came from"`;
-`tests/test_workshop_panels.cpp` case `"a pane fits ENTRIES, not lines, and says what it could not
-show"`.
+PROVEN BY — `workshop/screen_terminal.cpp` `transcript_shown`, `same_transcript`, `entry_kind`,
+`entry_addressing`; `workshop/weave_terminal.cpp` `say_transcript`;
+`workshop/terminal_seam_vocabulary.hpp` `TranscriptShown`, `ShownEntry`, `kEntryCommand`,
+`kEntrySubmitted`, `kAddressWeave`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W6: the
+record crosses as a picture, said only when the reading changed"`, case `"TERM-W9: the pane says
+what it is not showing, in the two senses that differ"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
@@ -67,83 +75,84 @@ MEANS
 - shapes are the catalog in the host's order; arguments offer field names, never values;
 - a quoted token is left alone: the quote is not on the line the completer sees.
 
+DOES NOT MEAN — that it could cross as a picture. `compose` runs the real composition
+ladder over the arguments already finished and resolves references against messages this
+participant has
+received, so the answer is a live fact and the pane asks for it (WL-TERM-05).
+
 PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `TerminalVerb`,
 `kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`,
 `CommandLine::said`, `starts_with`, `named_already`; `workshop/weave_terminal.cpp`
-`submit_terminal_line`; `tests/test_workshop_panels.cpp` case `"a half-typed line says which part
-of it the maker is standing in"`, case `"the verbs a maker is offered are the verbs the submitter
-runs"`, case `"an address offers the three forms and never pretends to know the values"`, case
-`"arguments offer field NAMES, never values, and the heading is compose()'s verdict"`, case `"a
-quoted token is left alone, because the quote is not on the line the completer sees"`.
+`submit_terminal_line`, `slot_name`; `tests/test_workshop_panels.cpp` case `"a half-typed line
+says which part of it the maker is standing in"`, case `"the verbs a maker is offered are the
+verbs the submitter runs"`, case `"an address offers the three forms and never pretends to know
+the values"`, case `"arguments offer field NAMES, never values, and the heading is compose()'s
+verdict"`, case `"a quoted token is left alone, because the quote is not on the line the completer
+sees"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-05 — Browsing candidates authors nothing
+## WL-TERM-05 — What could be said next is an ask, and browsing authors nothing
 
-LAW — Browsing sends no traffic, opens no ask and writes no transcript entry; accepting a candidate edits the line with the grammar's separators right, and an untouched line asks nothing.
+LAW — A pane holding a line asks `TerminalCompletionRequested` and hears `TerminalCompletionOffered`; every call on that path is const, so browsing authors nothing.
 
 MEANS
-- the completion keys are unbound in this mode: Tab opens, Up and Down move, Up at the top stays.
+- the one path that authors is `TerminalActRequested`, and it is a different shape;
+- `selected` is not sent: the pane owns it, and keeps it when slot and partial are unchanged.
 
-PROVEN BY — `workshop/weave_terminal.cpp` `accept_completion`, `move_completion`,
-`completion_selectable`, `terminal_key`; `workshop/screen_terminal.cpp` `completion_rows`;
-`workshop/screen.hpp` `completion_first_shown`, `kCompletionMinRows`, `TerminalPane::dismissed`,
-`TerminalPane::asked`; `tests/test_workshop_panels.cpp` case `"browsing candidates authors NOTHING
--- no traffic, no ask, no transcript entry"`, case `"accepting a candidate edits the line, and the
-grammar's separators stay right"`, case `"the completion keys were unbound in this mode, and the
-ones that were not still work"`, case `"an untouched line asks nothing, so the answer to the last
-command stays readable"`.
+PROVEN BY — `workshop/weave_terminal.cpp` `on(TerminalCompletionRequested)`;
+`workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionRequested`,
+`TerminalCompletionOffered`, `ShownCandidate`, `kSlotVerb`, `kSlotArguments`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W13: what could be said next is an ASK, and
+browsing authors nothing"`, case `"TERM-W15: the selection survives a recomputation and not a
+change of question"`, case `"TERM-W16: accepting a candidate edits the line, and the grammar's
+separators hold"`, case `"TERM-W17: completion follows the END of the line, and says so when it
+cannot"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-06 — The completion list is a bounded region inside the pane
+## WL-TERM-06 — The completion list is rows inside the pane, never a second region
 
-LAW — The list never lies over the input line; it says which slice of the vocabulary it shows, and it covers transcript rows without changing what the pane omits.
+LAW — The list is rows of the pane's own `PaneContent`, above the input row and taking room from the transcript; it says which slice it shows, and never lies over the input line.
 
-MEANS
-- the list clears the input line under a real metric too, where a row is not a cell;
-- the terminal medium projects the list honestly, ground and all.
+DOES NOT MEAN — that it still floats. It was a SECOND bounded region drawn on top of the
+overlay's own; a pane publishes one list of rows and Workshop assembles one region from it, so
+covering the
+transcript became taking rows from it. That is a change a maker sees.
 
-PROVEN BY — `workshop/screen_terminal.cpp` `completion_rows`; `workshop/screen.hpp`
-`completion_first_shown`, `CompletionPlace`; `tests/test_workshop_panels.cpp` case `"the list is a
-bounded region inside the pane, and never over the input line"`, case `"the list clears the input
-line under a real metric too, where a row is not a cell"`, case `"the list says which slice of a
-long vocabulary it is showing"`, case `"the list covers transcript rows and changes nothing about
-what the pane omits"`, case `"the terminal medium projects the list honestly, ground and all"`.
+PROVEN BY — `terminal-pane/pane.cpp` `say_list`, `first_shown`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W14: the list is rows INSIDE the pane, above
+the line it belongs to"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-07 — Wrapping is a presentation act
+## WL-TERM-07 — Wrapping is a presentation act, and it is the pane's
 
-LAW — A sentence takes as many rows as it needs, and the pane states its whole grammar wrapped with nothing elided.
+LAW — A transcript entry takes as many of the pane's rows as its sentence needs; the core records it whole, so a length is a question about the pane and never about the grammar.
 
-PROVEN BY — `workshop/screen_terminal.cpp` `paint_terminal`, `terminal_line`, `terminal_legend`,
-`terminal_wrapped`; `workshop/screen_gestures.cpp` `wrap`; `tests/test_workshop_panels.cpp` case
-`"wrapping is a presentation act: as many rows as the sentence needs"`, case `"the pane states its
-whole grammar, wrapped, with nothing elided"`.
+PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `entries_that_fit`,
+`legend_text`, `omission_text`; `workshop/pane_text.hpp` `wrap`;
+`workshop/weave_terminal.cpp` `submit_terminal_line`; `tests/test_workshop_panes_terminal.cpp`
+case `"TERM-W4: a maker presses in, types a line, and the participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-08 — A fresh skin clears nothing, and no participant is said plainly
+## WL-TERM-08 — The image that presents a participant cannot reach one
 
-LAW — A fresh skin's hello does not clear the presentation context, and a Workshop with no participant says so and authors nothing; `open` is the mode and `attached` the participant.
+LAW — `terminal-pane/` includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
 
-PROVEN BY — `workshop/weave_terminal.cpp` `refresh_terminal`, `attached`; `workshop/screen.hpp`
-`TerminalPane`; `tests/test_workshop_screen.cpp` case `"a fresh skin's hello does NOT clear the
-presentation context -- measured, not blessed"`, case `"a Workshop with no participant says so and
-authors nothing"`.
+PROVEN BY — `terminal-pane/CMakeLists.txt`; `terminal-pane/pane.cpp` `TerminalPaneWeave`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W7: the image that presents a participant
+cannot reach one"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-09 — A press in the pane is the pane's
+## WL-TERM-09 — A press in the pane is the pane's, and there is no sweep
 
-LAW — A press on the input row places the caret where the maker aimed, a press in the pane never reaches the workspace, and both media answer the caret in their own type.
+LAW — A press on the input row places the caret through the same window the row was drawn with; a press on a candidate row chooses it; a press elsewhere in the pane changes nothing.
 
-MEANS
-- opening the pane mid-drag does not strand the gesture;
-- clicking a completion row selects it, and Tab accepts what was clicked;
-- a terminal medium's press reaches the same local hit model.
+DOES NOT MEAN — that a selection can be swept by pointer. A pane is sent a press and is sent no
+motion and no release, so the drag the overlay performed across its own line is GONE: a second
+press in the same word selects it, and shift with the caret keys sweeps by keyboard.
 
-PROVEN BY — `workshop/weave_terminal.cpp` `terminal_press`; `workshop/screen.hpp`
-`terminal_input_place`, `kTerminalPromptCols`, `kTerminalCaretCols`, `TerminalInputPlace`,
-`terminal_input_hit`, `TerminalInputPlace::columns`; `tests/test_workshop_screen.cpp` case `"HD-3:
-a press on the input row places the caret where the maker aimed"`, case `"HD-3: a press in the
-pane never reaches the workspace underneath it"`, case `"HD-3: opening the pane mid-drag does not
-strand the gesture"`, case `"HD-3: clicking a completion row selects it, and Tab accepts what was
-clicked"`, case `"HD-3: the pane publishes a caret, and both media answer it in their own type"`.
+PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `say_caret`;
+`workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W12: a press on the input row places the
+caret where the maker aimed"`, case `"TERM-W10: the pane publishes a caret, and Workshop draws it
+into the region"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`

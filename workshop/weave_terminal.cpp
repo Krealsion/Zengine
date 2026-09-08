@@ -34,7 +34,7 @@ void WorkshopWeave::say_transcript(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
 }
 
-// WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
+// WL-TERM-02 -- agents/workshop/terminal.md
 void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
     // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
     // the reason it names nobody: a second presentation of this participant asks with no
@@ -65,7 +65,7 @@ void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-TERM-04, WL-TERM-05 -- agents/workshop/terminal.md
+// WL-TERM-05 -- agents/workshop/terminal.md
 void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return;

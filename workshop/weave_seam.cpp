@@ -200,7 +200,7 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CARET-01, WL-CARET-03 -- agents/workshop/panes-and-windows.md
+// WL-CARET-01, WL-CARET-03 -- agents/workshop/pane-caret.md
 void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
@@ -250,7 +250,7 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     }
 }
 
-// WL-CARET-03 -- agents/workshop/panes-and-windows.md
+// WL-CARET-03 -- agents/workshop/pane-caret.md
 Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& pane) {
     if (caret.row == surface::kNoCaret) {
         return Written::ok(); // "I have none" is a sentence, not a position

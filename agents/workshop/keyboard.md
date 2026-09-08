@@ -31,7 +31,7 @@ MEANS
 PROVEN BY — `workshop/screen.hpp` `Session::keymap`; `workshop/screen_bindings.cpp`
 `hotkey_text`; `workshop/screen_layouts.cpp` `setup_hints`; `workshop/keymap.hpp` `gesture_text`;
 `tests/test_workshop_document.cpp` case `"KEY-0: an authored override changes dispatch AND every
-displayed spelling"`, case `"KEY-0: the terminal header and hints spell the effective toggle"`;
+displayed spelling"`;
 `tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is ordinary action
 vocabulary, not pane chrome"`.
 WHY — `agents/decisions/one-binding-truth.md`
@@ -60,8 +60,8 @@ LAW — A binding matches the observed modifier bits exactly, one family spelled
 
 PROVEN BY — `workshop/keymap.hpp` `Keymap`, `Gesture`, `Keymap::action_for`;
 `tests/test_workshop_document.cpp` case `"KEY-0: exact modifier matching -- the accidental subset
-aliases no longer fire"`, case `"KEY-0: shift+space is gone -- not a binding, not an invisible
-alias"`.
+aliases no longer fire"`, case `"KEY-0: a known backend gap is accepted and said, never
+silently rewritten"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-05 — Three declaration-only activity classes

@@ -93,7 +93,7 @@ struct CommandLine {
 inline constexpr std::uint64_t kMaxShapeVersion = 0xFFFFFFFFull;
 
 /// DECOMPOSE ONE (POSSIBLY HALF-TYPED) COMMAND LINE.
-// WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
+// WL-TERM-04 -- agents/workshop/terminal.md
 inline CommandLine read_command_line(const std::string& line) {
     CommandLine cl;
     cl.tokens = loom::tokenize(line);

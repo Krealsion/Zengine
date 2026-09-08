@@ -358,13 +358,14 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     // resize -- is exactly seven shapes, and the one that carries a provider's material
     // travels in one direction only: Workshop never speaks a `PaneContent`.
     //
-    // ⚠ THE SIXTH AND SEVENTH ARE `StandingConditions` AND `DocumentShown`, AND THEIR ARRIVAL
-    // IS WHAT THIS CASE IS FOR. The Attention and Info migrations are the first things since
-    // PR #15 to widen what this host says, and each widening is deliberate and is ONE: what
-    // is currently true, and what the object document looks like, are readings the panes that
-    // show them cannot make (WL-ATTN-12, WL-DOC-20). A case that had to be edited to admit
-    // them is the point of writing the list down -- the next sentence somebody adds by
-    // accident fails here too.
+    // ⚠ THE SIXTH, SEVENTH AND EIGHTH ARE `StandingConditions`, `DocumentShown` AND
+    // `TranscriptShown`, AND THEIR ARRIVAL IS WHAT THIS CASE IS FOR. The Attention, Info and
+    // Terminal migrations are the only things since PR #15 to widen what this host says, and
+    // each widening is deliberate and is ONE: what is currently true, what the object
+    // document looks like, and what the terminal participant's record holds are readings the
+    // panes that show them cannot make (WL-ATTN-12, WL-DOC-20, WL-TERM-03). A case that had
+    // to be edited to admit them is the point of writing the list down -- the next sentence
+    // somebody adds by accident fails here too.
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};
@@ -394,7 +395,7 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     const std::vector<std::string> allowed{"DocumentShown",      "PaneCatalogRequested",
                                            "PanePressed",        "PaneRoom",
                                            "StandingConditions", "SurfaceCanvas",
-                                           "SurfaceText"};
+                                           "SurfaceText",        "TranscriptShown"};
     CHECK(distinct == allowed);
 
     // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three
@@ -1372,19 +1373,18 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     press_body(r, kind);
     REQUIRE(r.session().panels.keyboard == kind);
 
-    // ⚠ THE TERMINAL'S THREE PARAGRAPHS WERE HERE (VD-24): the global chord opened it
-    // above the pane, it owned the keyboard whole while it was open, and closing it handed
-    // the keyboard straight back to the pane that had it. All three were true of a MODE, and
-    // there is no mode left that does that to a pane. What survives is the mode that still
-    // takes the keyboard from a pane -- the picker -- and it is the subcase below.
+    // ⚠ THE TERMINAL'S THREE PARAGRAPHS WERE HERE (VD-24): a global chord opened it ABOVE
+    // the pane, it owned the keyboard whole while it was open, and closing it handed the
+    // keyboard straight back to the pane that had it. All three were true of a MODE, and no
+    // mode does that to a pane any more -- which is the migration's point rather than a gap
+    // in this case. `p` reaches the PANE now, exactly as `a` does: a pane that holds the
+    // keyboard holds it, and the way out is a press elsewhere.
     r.key(input::scan::kP);
-    REQUIRE(r.session().panels.picker.open);
+    CHECK_FALSE(r.session().panels.picker.open);
+    REQUIRE(seat->keys.size() == 1);
+    CHECK(seat->keys[0].scancode == input::scan::kP);
     r.key(input::scan::kA);
-    CHECK(seat->keys.empty());
-    r.key(input::scan::kEscape);
-    REQUIRE_FALSE(r.session().panels.picker.open);
-    r.key(input::scan::kA);
-    CHECK(seat->keys.size() == 1);
+    CHECK(seat->keys.size() == 2);
 
     // CTRL+C IS THE PANE'S WHILE IT HOLDS THE KEYBOARD (TEXT-0). A focused pane is a place
     // that takes text, and `^c` over text means copy, so the chord travels the chain and
@@ -1394,9 +1394,9 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     CHECK_FALSE(r.host.quit);
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(r.host.quit);
-    REQUIRE(seat->keys.size() == 2); // forwarded, beside the bare `a` above
-    CHECK(seat->keys[1].scancode == input::scan::kC);
-    CHECK(seat->keys[1].modifiers == input::mod::kCtrl);
+    REQUIRE(seat->keys.size() == 3); // forwarded, beside the `p` and the `a` above
+    CHECK(seat->keys[2].scancode == input::scan::kC);
+    CHECK(seat->keys[2].modifiers == input::mod::kCtrl);
 
     // ...AND QUIT COMES BACK WITH THE KEYBOARD. A press outside the pane clears the
     // candidate, and the same chord is the application's again.
@@ -1405,7 +1405,7 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     REQUIRE(r.session().panels.keyboard == kNoPaneKind);
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK(r.host.quit);
-    CHECK(seat->keys.size() == 2); // and this one was not forwarded
+    CHECK(seat->keys.size() == 3); // and this one was not forwarded
 }
 
 TEST_CASE("MSG-0: every Workshop mode owns the keyboard above a focused pane") {
@@ -1652,7 +1652,7 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "^s save | ^o open | ^t terminal | ^k hotkeys");
+        CHECK(lines[1] == "^s save | ^o open | ^k hotkeys");
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 

@@ -461,7 +461,7 @@ struct ExternalPane {
     /// caret was ever published, the pane said it has none, or the last one was refused.
     /// Workshop adds its own header offset when it merges these into the region it
     /// assembles; nothing here is ever a cell, a pixel or a region origin.
-    // WL-CARET-01 -- agents/workshop/panes-and-windows.md
+    // WL-CARET-01 -- agents/workshop/pane-caret.md
     std::int64_t caret_row = surface::kNoCaret;
     std::int64_t caret_col = 0;
     std::int64_t sel_begin_row = surface::kNoSelection;
@@ -479,7 +479,7 @@ struct ExternalPane {
     /// THIS PANE HAS NO CARET -- the state a refusal lands in and the one a pane asks for
     /// by sending `kNoCaret`. One door, so "refused whole" is one call rather than six
     /// assignments somebody can write five of.
-    // WL-CARET-02 -- agents/workshop/panes-and-windows.md
+    // WL-CARET-02 -- agents/workshop/pane-caret.md
     void clear_caret() {
         caret_row = surface::kNoCaret;
         caret_col = 0;

@@ -2128,8 +2128,17 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEd
     CHECK(after->place.mode == place_mode);
     CHECK(after->place.x == place_x);
 
-    // THE SAME FOR A SIZE GESTURE, which is a different record with the same custody.
-    t.press_at(rect.x + rect.w - 1, rect.y + rect.h - 1 + surface::kTuiCanvasTopRow,
+    // THE SAME FOR A SIZE GESTURE, which is a different record with the same custody. The
+    // arrangement is re-entered (a size gesture is a scope's, not command mode's) and the
+    // rectangle is re-resolved, because the release above PLACED the pane and the corner the
+    // hand reaches for is wherever it is now.
+    enter_arrange_desk(t);
+    select_pane(t, builder);
+    const ui::Rect now = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor,
+                  screen_of(t.session()))
+            .rect);
+    t.press_at(now.x + now.w - 1, now.y + now.h - 1 + surface::kTuiCanvasTopRow,
                input::space::kCells);
     REQUIRE(t.session().pane_drag.active);
     REQUIRE(t.session().pane_drag.sizing);
@@ -2253,7 +2262,6 @@ TEST_CASE("WIND-2a/WUX-1: the opening gestures are claimed by the band's own tru
     };
     CHECK(has_pair("w arrange desk"));
     CHECK(has_pair("p + panel"));
-    CHECK(has_pair("^t terminal"));
     CHECK(has_pair("^k hotkeys")); // the recovery key: the full list is one keystroke away
 
     const std::vector<std::string> raster = rasterized(paint(d, s));
@@ -4664,7 +4672,6 @@ TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings"
     REQUIRE(t.menu().subject == context_subject::kRoot);
     CHECK(context_annotation(t.session(), entry_of("workshop.picker")) == "p");
     CHECK(context_annotation(t.session(), entry_of("workshop.manage")) == "w");
-    CHECK(context_annotation(t.session(), entry_of("workshop.terminal")) == "^t");
     CHECK(context_annotation(t.session(), entry_of("workshop.hotkeys")) == "^k");
     CHECK(context_annotation(t.session(), entry_of("manage.reset-order")).empty());
 
@@ -4707,7 +4714,7 @@ TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings"
     t.right_press(40, 15);
     REQUIRE(t.menu().open);
     CHECK(context_annotation(t.session(), entry_of("object.new")).empty());
-    CHECK(context_annotation(t.session(), entry_of("workshop.terminal")) == "^t");
+    CHECK(context_annotation(t.session(), entry_of("workshop.hotkeys")) == "^k");
     t.key(input::scan::kEscape); // the menu
     t.key(input::scan::kEscape); // the picker
     REQUIRE_FALSE(t.session().panels.picker.open);

@@ -23,18 +23,23 @@ WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — One seam, both editable lines
 
-LAW — One word-selecting press serves both editable lines this host holds, so a double-click selects the word under it on the Terminal's line and in the Pane Manager's draft alike.
+LAW — One word-selecting press serves every editable line this host still holds, so a double-click selects the word under it in the Pane Manager's draft.
 
 MEANS
 - it served Info's property draft too, until that draft became a loaded image's own.
 
 DOES NOT MEAN
-- that the Editor's multiline machinery or the Composer's fields were taught it — neither was.
+- that the Editor's multiline machinery or the Composer's fields were taught it — neither was;
+- that a PANE gets it: a pane is sent a press and no motion, so it cannot sweep (WL-TERM-09).
+
+**The live witness went with the Terminal's line, and is not replaced.** It was driven over
+the terminal overlay's own row; the Pane Manager's draft spends the same call and has no
+live case, so what is pinned now is the PURE qualification and not the spend. Named rather
+than counted away.
 
 PROVEN BY — `workshop/weave_seam.cpp` `press_selects_word`;
-`workshop/weave_pane_editor.cpp` `pane_editor_press`; `workshop/weave_terminal.cpp`
-`terminal_press`; `tests/test_workshop_screen.cpp` case `"WUX-7: a double-click on the
-Terminal's line selects the word under it"`.
+`workshop/weave_pane_editor.cpp` `pane_editor_press`; `tests/test_workshop_screen.cpp` case
+`"WUX-7: what makes two presses one double-click, and what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-03 — The record arms on the way out, and the completing press spends it
@@ -44,11 +49,15 @@ LAW — The click that first lands in a word is an ordinary press with an arming
 MEANS
 - a modifier-bearing press neither doubles nor arms, and its ordinary behaviour is untouched.
 
+**The three live subcases went with the Terminal's line (WL-PTR-02).** The spend is still
+written where it happens, and the qualification it consults is pinned pure and total; what
+no case drives any more is a third press, a modifier-bearing press and a spent arming
+against a real box.
+
 PROVEN BY — `workshop/screen.hpp` `ClickMemory`; `workshop/screen_arrange.cpp`
 `doubles_a_click`; `workshop/weave_seam.cpp` `press_selects_word`;
-`tests/test_workshop_screen.cpp` subcase `"a third press is an ordinary press again -- there is no
-triple-click"`, subcase `"a modifier-bearing press neither doubles nor arms"`, subcase `"the
-arming is spent by the gesture it completed"`.
+`tests/test_workshop_screen.cpp` subcase `"nothing armed is nothing to double"`, subcase
+`"a different DRAFT of the same line is a different box"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 **Retired — WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08: reading past a fitted row.**

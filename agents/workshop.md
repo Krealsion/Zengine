@@ -28,7 +28,8 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 | several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the Pane Manager, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
-| the Terminal overlay, its pane, its completion | [terminal](workshop/terminal.md) `WL-TERM` |
+| the terminal participant, the seam its pane presents it across, the completer | [terminal](workshop/terminal.md) `WL-TERM` |
+| a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
 
 **Where the code is.** Declarations are in the headers; the bodies of `screen.hpp`'s and
 `weave.hpp`'s functions are in `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`,

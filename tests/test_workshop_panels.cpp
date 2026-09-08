@@ -2085,17 +2085,18 @@ TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id"
     REQUIRE(object.size() == 1);
     CHECK(object[0].row->act == Act::kObjectDelete);
 
-    // The room: TEN zero-target doors, no groups. It was eleven until the
-    // current-condition view became a pane -- `workshop.attention` opened one particular
-    // overlay from the empty room, and what is left in its place is `workshop.picker`,
-    // which was already on this list and opens the choice rather than the pane (VD-22).
+    // The room: NINE zero-target doors, no groups. It was eleven until the two overlays
+    // became panes -- `workshop.attention` and then `workshop.terminal` each opened one
+    // particular overlay from the empty room, and what is left in their place is
+    // `workshop.picker`, which was already on this list and opens the CHOICE rather than
+    // any one pane (VD-22, VD-24).
     const std::vector<ContextEntry> root = context_population(context_subject::kRoot, "");
-    REQUIRE(root.size() == 10);
+    REQUIRE(root.size() == 9);
     for (const ContextEntry& e : root) {
         CHECK_FALSE(e.is_group);
     }
     CHECK(root[0].row->act == Act::kObjectNew);
-    CHECK(root[9].row->act == Act::kManageResetOrder);
+    CHECK(root[8].row->act == Act::kManageResetOrder);
 
     // EVERY DECLARATION RESOLVES AND OWNS NO POWER: an id `row_of_id` answers and three
     // plain fields -- the compile-time cross-check, restated where a reader looks.
@@ -4086,3 +4087,4 @@ TEST_CASE("QR-18/SC-5: the Pane Editor's two lists are reached by the wheel past
     CHECK(t.session().pane_editor.row_cursor == at);
     CHECK(t.session().pane_editor.cursor == panes_cursor);
 }
+
