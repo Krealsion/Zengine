@@ -456,11 +456,37 @@ struct ExternalPane {
     std::string refusal_why;
     std::vector<surface::SurfaceTextRow> shown;
 
+    /// WHERE THIS PANE SAID ITS CARET IS, in the BODY lattice it was granted -- and what
+    /// it has selected. `surface::kNoCaret` on `caret_row` is the ordinary state: no
+    /// caret was ever published, the pane said it has none, or the last one was refused.
+    /// Workshop adds its own header offset when it merges these into the region it
+    /// assembles; nothing here is ever a cell, a pixel or a region origin.
+    // WL-CARET-01 -- agents/workshop/panes-and-windows.md
+    std::int64_t caret_row = surface::kNoCaret;
+    std::int64_t caret_col = 0;
+    std::int64_t sel_begin_row = surface::kNoSelection;
+    std::int64_t sel_begin_col = 0;
+    std::int64_t sel_end_row = surface::kNoSelection;
+    std::int64_t sel_end_col = 0;
+
     /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.
     // WL-ATTN-04 -- agents/workshop/attention.md
     void clear_refusal() {
         refusal.clear();
         refusal_why.clear();
+    }
+
+    /// THIS PANE HAS NO CARET -- the state a refusal lands in and the one a pane asks for
+    /// by sending `kNoCaret`. One door, so "refused whole" is one call rather than six
+    /// assignments somebody can write five of.
+    // WL-CARET-02 -- agents/workshop/panes-and-windows.md
+    void clear_caret() {
+        caret_row = surface::kNoCaret;
+        caret_col = 0;
+        sel_begin_row = surface::kNoSelection;
+        sel_begin_col = 0;
+        sel_end_row = surface::kNoSelection;
+        sel_end_col = 0;
     }
 };
 

@@ -399,49 +399,12 @@ inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc
     return inspector_row(c, 0, sc.notice_y);
 }
 
-/// THE TERMINAL PANE'S REGION on a canvas, found by the place it was drawn at.
-///
-/// BY PLACE, NOT BY POSITION (HD-6). `texts[0]` was the pane for as long as the pane was the
-/// only region this application published; the Inspector's property body is published on
-/// every paint since HD-6 and is painted BEFORE the overlay, so an index now names the
-/// Inspector. That is the same defect a second copy of any geometry is, arriving in a test
-/// helper: it would have gone on passing while asserting things about the wrong rectangle.
-///
-/// IT RETURNS A POINTER and the call sites dereference it, which is not style: GCC 13's
-/// `-Wdangling-reference` fires on a function returning a REFERENCE when any argument is a
-/// temporary, and `screen_of(t.session())` is one. The reference would have been perfectly
-/// alive -- it points into the canvas, not into the Screen -- but a heuristic that cannot know
-/// that is `-Werror` on the MinGW lane, and a pointer says the same thing without arguing.
-inline const surface::SurfaceTextRegion* pane_of(const surface::SurfaceCanvas& c, const Screen& sc) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == sc.terminal_x && r.y == sc.terminal_y) {
-                return &r;
-            }
-        }
-    }
-    FAIL("no terminal pane region on this canvas");
-    return nullptr;
-}
 
-/// The completion list on a canvas, or nullptr — the region that is neither the pane nor
-/// the Inspector's property body.
-///
-/// BY PLACE, NOT BY POSITION (HD-6). It used to be "the second region", which was true for
-/// exactly as long as the pane was the only other one; since HD-6 the Inspector publishes
-/// its property body on every paint, so an index would name the wrong region on every canvas
-/// this file paints. The pane's own x is `Screen::terminal_x` and the list sits in the same
-/// column above it, so "not the pane's top row" identifies it without a second arithmetic.
-inline const surface::SurfaceTextRegion* list_of(const surface::SurfaceCanvas& c, const Screen& sc) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == sc.terminal_x && r.y != sc.terminal_y && r.w < sc.w) {
-                return &r; // a band spans the canvas; the pane's own regions do not
-            }
-        }
-    }
-    return nullptr;
-}
+// ⭐ `pane_of` AND `list_of` WERE HERE AND ARE GONE (VD-24). Both found a region by the
+// rectangle the SCREEN reserved for the terminal overlay (`Screen::terminal_x/_y`). A pane's
+// region is where a maker's arrangement put it, so a case that wants the Terminal's rows asks
+// the pane the way every other pane's cases do -- through `panel_shown`, or through the
+// published `PaneContent` in the seam suite.
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
 /// written, because painter's order is list order and every Skin draws it that
@@ -720,17 +683,6 @@ inline std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& m
     return out;
 }
 
-/// Everything the overlay is showing, as one string -- the pane's own column, top to bottom.
-inline std::string pane_text(const surface::SurfaceCanvas& c) {
-    std::string out;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == kMinScreen.terminal_x && l.y >= kMinScreen.terminal_y) {
-            out += l.text;
-            out += '\n';
-        }
-    }
-    return out;
-}
 
 /// ONE CONDITION OUT OF A PROJECTION, BY KEY -- or nothing, which is the answer a resolved
 /// condition gives. It takes the vector rather than a fixture so the two rigs share
@@ -864,14 +816,6 @@ struct Live {
         return raw;
     }
 
-    /// Ctrl+T, AS THE BACKENDS ACTUALLY REPORT IT (KEY-0): the key transition and no text,
-    /// because a ctrl chord produces no character on any supported backend. The old
-    /// shift+space default is gone -- it could not arrive from the POSIX backend at all --
-    /// and a fixture that still sent it would be driving a binding that no longer exists.
-    void toggle_terminal() {
-        key(input::scan::kT, input::mod::kCtrl);
-    }
-
     /// Type a whole line into whatever is taking text, then press Return.
     void type_line(const std::string& line) {
         for (const char c : line) {
@@ -879,8 +823,6 @@ struct Live {
         }
         key(input::scan::kReturn);
     }
-
-    const TerminalPane& pane() const { return w->session().terminal; }
 
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -1410,24 +1352,6 @@ inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s
         return {}; // a closed panel says nothing, which is the answer a case wants
     }
     return panel_text(c, pane_body_cells(at.rect, screen_of(s)));
-}
-
-/// WHAT THE TERMINAL OVERLAY IS SAYING, at its own rectangle. It is a MODE and not a pane,
-/// so it wears no pane chrome and its rows begin at its own corner (WUX-5 changed nothing
-/// about it) -- and at the minimum composition that corner is column 0, which is also the
-/// overlay stack's, so a case reading it through `stack_text` would be reading the stack's
-/// INTERIOR and missing the terminal's first column.
-inline std::string terminal_text(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return panel_text(c, ui::Rect{sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h});
-}
-
-/// The cell a terminal medium would report for a prose position of the pane's own region.
-/// The inverse of `terminal_input_place`'s resolution, exactly as `pane_pixel_x` is.
-inline std::int64_t pane_cell_x(const TerminalInputPlace& p, std::int64_t column) {
-    return p.region_x + column;
-}
-inline std::int64_t pane_cell_y(const TerminalInputPlace& p, std::int64_t row) {
-    return p.region_y + row + surface::kTuiCanvasTopRow;
 }
 
 /// A document of `n` identical objects with the selection on the `at`th, and a session

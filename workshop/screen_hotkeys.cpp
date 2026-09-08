@@ -15,7 +15,6 @@ namespace zengine::workshop {
 // WL-KEY-11 -- agents/workshop/keyboard.md
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     switch (ctx) {
-    case KeyContext::kTerminal: return "the terminal line";
     case KeyContext::kNaming: return "naming a layout";
     case KeyContext::kPaneNaming: return "naming a new pane";
     case KeyContext::kPicker: return "the + panel picker";
@@ -99,7 +98,7 @@ std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
         }
         entry(gesture_text(k.row_gesture(row)), row.label);
     }
-    if (ctx == KeyContext::kTerminal || ctx == KeyContext::kNaming ||
+    if (ctx == KeyContext::kNaming ||
         ctx == KeyContext::kPaneNaming || ctx == KeyContext::kDraft) {
         group("the text box's own keys (not remappable)");
         for (const component::EditingGesture& g : component::kEditingVocabulary) {

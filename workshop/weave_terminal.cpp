@@ -1,235 +1,118 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s sections -- the terminal overlay -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
-// Workshop law: agents/workshop/terminal.md (+6 registers; agents/workshop.md routes)
+// THE DOOR ONTO THE TERMINAL PARTICIPANT -- the picture said when it changed, the one act
+// that authors, and the read that says what could be said next. Compiled once into
+// `zengine-workshop-logic` and linked by the host and every suite.
+//
+// ⚠ WHAT USED TO BE IN THIS FILE. `toggle_terminal`, `terminal_key`, `terminal_press`,
+// `completion_selectable`, `move_completion`, `accept_completion` and `refresh_terminal` were
+// the overlay: a mode with its own keyboard context, its own press chain and its own
+// snapshot. All seven are gone. What a maker does to the terminal is now what a maker does to
+// any pane -- press into it, and its own keys are its own rows -- and the one thing this host
+// still does is hold the participant and answer for it.
+//
+// `submit_terminal_line` SURVIVED, ALMOST UNCHANGED, and that is the measurement this
+// migration was for: the part of the terminal that could not move is the part that speaks as
+// a Loom identity, and it is about forty lines.
+// Workshop law: agents/workshop/terminal.md (+2 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
 namespace zengine::workshop {
 
-// ---- The terminal overlay ------------------------------------------------
-
-// WL-TERM-01 -- agents/workshop/terminal.md
-void WorkshopWeave::toggle_terminal() {
-    session_.terminal.open = !session_.terminal.open;
-    if (!session_.terminal.open) {
-        // Said on the way OUT and not on the way in, because the notice line
-        // is not painted while the pane covers it -- an "opened" notice would
-        // be a sentence nobody could read that then reappeared, stale, at the
-        // moment it stopped being true. The pane's own header says how to
-        // close it, which is the fact a maker needs while it is open.
-        say("terminal closed -- " + hotkey(Act::kTerminalToggle) + " reopens it", false);
+// WL-TERM-03 -- agents/workshop/terminal.md
+void WorkshopWeave::say_transcript(loom::Mail& mail) {
+    TranscriptShown now = transcript_shown(host_->terminal);
+    if (transcript_said_ && same_transcript(now, said_transcript_)) {
+        return; // no news is silence, and silence is what makes this seam terminate
     }
-    refresh_terminal();
-}
-
-// WL-TERM-01, WL-TERM-05 -- agents/workshop/terminal.md
-// WL-TEXT-02, WL-TEXT-04 -- agents/workshop/text-box.md
-void WorkshopWeave::terminal_key(const zengine::input::KeyPressed& k) {
-    TerminalPane& pane = session_.terminal;
-    // THE LINE'S OWN VOCABULARY FIRST: the six editing keys this switch used
-    // to spell, and selection, clipboard, word movement and history behind them, all
-    // through the one component call every consumer now makes. A consumed gesture
-    // still reaches `refresh_terminal`, for the reason the caret keys always fell
-    // through rather than `return`ing the way Up/Down do: an edit or a caret move
-    // changes whether the caret is AT THE END, which is the question the completer is
-    // allowed to be asked.
-    if (pane.input.consume(k.scancode, k.modifiers, session_.clipboard)) {
-        refresh_terminal();
-        return;
-    }
-    switch (session_.keymap.action_for(KeyContext::kTerminal, k.scancode, k.modifiers)) {
-    case Act::kTerminalSubmit: submit_terminal_line(); break;
-    case Act::kTerminalBack:
-        if (completion_selectable()) {
-            // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted
-            // the line gone presses it again; a maker who wanted only the list
-            // gone has not lost the word they were half-way through.
-            pane.dismissed = true;
-            pane.dismissed_at = pane.completion.slot;
-            pane.asked = false;
-        } else {
-            // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was
-            // made against a word; there is no longer a word, so keeping it would
-            // leave the list hidden for the whole of the next command with nothing
-            // on screen to explain why. (Measured: after Escape-Escape the next
-            // three characters produced no list at all.)
-            pane.input.clear(); // ...and the caret with it: `clear` moves both
-            pane.dismissed = false;
-        }
-        break;
-    case Act::kTerminalUp: move_completion(-1); return;   // the line did not change
-    case Act::kTerminalDown: move_completion(+1); return; // ...so nothing is recomputed
-    case Act::kTerminalComplete:
-        // ONE KEY, ONE MEANING: "help me here". With a list on screen that is
-        // taking the selected candidate; with nothing on screen it is asking
-        // for one, which is the only gesture discovery needs because every
-        // other entry point is ordinary typing.
-        if (completion_selectable()) {
-            accept_completion();
-        } else {
-            pane.asked = true;
-            pane.dismissed = false;
-        }
-        break;
-    default: break;
-    }
-    refresh_terminal();
-}
-
-// WL-TERM-01, WL-TERM-09 -- agents/workshop/terminal.md
-// WL-GEO-01 -- agents/workshop/geometry.md
-// WL-PTR-02 -- agents/workshop/pointer.md
-// WL-PRESS-02 -- agents/workshop/press-chain.md
-bool WorkshopWeave::terminal_press(const zengine::input::PointerButton& b) {
-    TerminalPane& pane = session_.terminal;
-    const Screen sc = screen_of(session_);
-
-    // THE COMPLETION LIST, IF IT IS ON SCREEN. Its own condition is `paint_terminal`'s,
-    // read from the same two flags, so a list a maker cannot see cannot be clicked.
-    if (pane.completion.open && !pane.dismissed) {
-        const CompletionPlace place =
-            completion_place(sc, pane.completion.candidates.size() + 1 /*the heading*/);
-        if (place.visible) {
-            const surface::RegionFit fit =
-                surface::fit_region(place.x, place.y, place.w, place.h, sc.text_advance_px,
-                                    sc.text_line_px);
-            const ProseAt at = prose_at(b.space, b.x, b.y, place.x, place.y, fit);
-            if (at.understood && at.column >= 0 && at.column <= fit.columns &&
-                at.row >= 0 && at.row < static_cast<std::int64_t>(place.rows)) {
-                // ROW 0 IS THE HEADING and is not a candidate. A press on it is a press
-                // on the list -- consumed, changing nothing -- rather than a press that
-                // falls through to the input line underneath, which is not underneath
-                // it at all.
-                if (at.row >= 1) {
-                    // THE SAME WINDOW THE ROWS WERE DRAWN WITH. `completion_first_shown`
-                    // is the one answer to "which candidate is the first visible row",
-                    // and it is read here rather than recomputed.
-                    const std::size_t first =
-                        completion_first_shown(pane.completion.selected, place.rows);
-                    const std::size_t at_index =
-                        first + static_cast<std::size_t>(at.row - 1);
-                    if (at_index < pane.completion.candidates.size()) {
-                        // ONE SELECTION, WHICHEVER HAND MOVED IT. There is no
-                        // pointer-selected state beside the keyboard's: this writes the
-                        // field Up/Down write, so the row a click chooses is a row Tab
-                        // then accepts and the renderer cannot tell which happened.
-                        pane.completion.selected = at_index;
-                        return true;
-                    }
-                }
-                return false; // on the list, on nothing choosable
-            }
-        }
-    }
-
-    // THE EDITABLE LINE. One region -- the pane's own -- and one row of it.
-    const TerminalInputPlace place = terminal_input_place(sc);
-    const ProseAt at = prose_at(b.space, b.x, b.y, place.region_x, place.region_y,
-                                place.fit);
-    if (at.understood && terminal_input_hit(place, at.column, at.row)) {
-        const std::size_t was = pane.input.caret();
-        const bool had_selection = pane.input.has_selection();
-        // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
-        // `first_visible + offset` of the WHOLE authored line, never the offset alone --
-        // that is the one subtraction a horizontal viewport adds to a hit test, and
-        // leaving it out is right for exactly as long as no line is long enough to
-        // scroll. The offset read here is the one the last repaint resolved, which is
-        // the one the maker is looking at.
-        const std::size_t target = terminal_caret_of_column(place, pane.input, at.column);
-        //...AND A SECOND PRESS IN THE SAME WORD SELECTS IT, `info_press`'s twin
-        // over the other instance of one component: the first press still places the
-        // caret and still means exactly what it always did.
-        const bool word = press_selects_word(b.modifiers, text_drag_place::kTerminalLine,
-                                             pane.input, target);
-        if (!word) {
-            pane.input.place(target);
-        }
-        //...AND THE PRESS OPENS A SELECTION DRAG, `info_press`'s twin: the
-        // caret just placed is the anchor, and motion until release extends from it. A
-        // press that selected a WORD opens one too -- the anchor is the word's start, so
-        // dragging from it extends the selection rather than replacing it, which is what
-        // the component's own anchor/caret split already meant.
-        session_.text_drag.active = true;
-        session_.text_drag.place = text_drag_place::kTerminalLine;
-        // The caret moving is what changes whether completion may be asked, so a press
-        // that moved it has to reach `refresh_terminal` exactly as a caret key does. A
-        // press that COLLAPSED a selection changed the picture too, even where the
-        // caret stood still — the highlight has to leave the screen.
-        if (word || pane.input.caret() != was || had_selection) {
-            refresh_terminal();
-            return true;
-        }
-        return false;
-    }
-    return false; // inside the mode, on none of its regions: consumed, and nothing moved
-}
-
-// WL-TERM-05 -- agents/workshop/terminal.md
-bool WorkshopWeave::completion_selectable() const {
-    const TerminalPane& pane = session_.terminal;
-    return pane.open && pane.completion.open && !pane.dismissed &&
-           !pane.completion.candidates.empty();
-}
-
-// WL-TERM-05 -- agents/workshop/terminal.md
-void WorkshopWeave::move_completion(int by) {
-    if (!completion_selectable()) {
-        return;
-    }
-    Completion& comp = session_.terminal.completion;
-    const std::size_t last = comp.candidates.size() - 1;
-    if (by < 0) {
-        comp.selected = comp.selected == 0 ? 0 : comp.selected - 1;
-    } else {
-        comp.selected = comp.selected >= last ? last : comp.selected + 1;
-    }
-}
-
-// WL-TERM-05 -- agents/workshop/terminal.md
-void WorkshopWeave::accept_completion() {
-    if (!completion_selectable()) {
-        return;
-    }
-    TerminalPane& pane = session_.terminal;
-    const Completion& comp = pane.completion;
-    const Candidate& c = comp.candidates[comp.selected];
-    // `partial` is a TOKEN of this very line, so it can never be longer than the
-    // line -- `tokenize` drops quote characters, which only ever makes a token
-    // shorter than the text it came from, and a quoted token is refused by the
-    // completer outright. The `min` is written anyway rather than as an `if`,
-    // because the alternative to clamping is appending without stripping, which
-    // is a doubled word on a line nobody could explain.
-    const std::size_t typed =
-        comp.partial.size() < pane.input.size() ? comp.partial.size() : pane.input.size();
-    std::string line = pane.input.text();
-    line.resize(line.size() - typed);
-    line += c.insert;
-    const std::size_t at = line.size();
-    pane.input.set(std::move(line), at);
+    said_transcript_ = now;
+    transcript_said_ = true;
+    // `to_any`, NOT ADDRESSED, AND SAID AS THE OFFICE -- `say_conditions`' own three
+    // reasons, unchanged one shape over.
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
 }
 
 // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
-void WorkshopWeave::submit_terminal_line() {
-    const std::string line = session_.terminal.input.text();
-    session_.terminal.input.clear();
-    // A SUBMITTED LINE ENDS BOTH PIECES OF COMPLETION STATE. Escape said "not for
-    // this word" and Tab said "show me anyway"; the next line is neither, and a
-    // maker who pressed one of them once should not find its effect still in
-    // force three commands later.
-    session_.terminal.dismissed = false;
-    session_.terminal.asked = false;
-    if (line.empty()) {
+void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
+    // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
+    // the reason it names nobody: a second presentation of this participant asks with no
+    // edit here.
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    if (asked.act != kTerminalSubmitAct) {
+        (void)mail.answer(TerminalActed{false, "this door knows one act, and it is `submit`"});
         return;
     }
     if (host_->terminal == nullptr) {
-        // Nothing to author through, and nowhere to record the attempt: the
-        // participant IS the transcript. So the tool's own notice line says
-        // it, and it is visible the moment the pane closes.
-        say("no terminal participant is mounted on this bus -- nothing was authored", true);
+        // Nothing to author through, and nowhere to record the attempt: the participant IS
+        // the transcript. The built-in said this on the tool's own notice line, where it
+        // was visible the moment the pane closed; a pane that cannot be closed needs the
+        // sentence beside the line it was typed on, so it crosses as the refusal.
+        (void)mail.answer(
+            TerminalActed{false, "no terminal participant is mounted on this bus -- "
+                                 "nothing was authored"});
+        return;
+    }
+    submit_terminal_line(asked.line);
+    (void)mail.answer(TerminalActed{true, std::string()});
+    // THE ANSWER, THEN THE PICTURE. Submitting recorded at least one entry on the
+    // participant, so the reading HAS changed and `say_transcript` will publish it on the
+    // repaint this ends in -- which is how the pane learns what its own line came to
+    // without this door telling it twice.
+    repaint(mail);
+}
+
+// WL-TERM-04, WL-TERM-05 -- agents/workshop/terminal.md
+void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return;
+    }
+    TerminalCompletionOffered out;
+    if (host_->terminal == nullptr) {
+        // A CLOSED QUESTION, ANSWERED. `open` false is "there is nothing true to say here",
+        // which is exactly the state a pane with no participant is in -- and answering it
+        // is what keeps the asker from waiting on a door that will never reply.
+        (void)mail.answer(std::move(out));
+        return;
+    }
+    // AND IT AUTHORS NOTHING. `complete_line` takes the participant by const reference;
+    // every method it reaches (`vocabulary()`, `describe()`, `compose()`) is const, and the
+    // only path that authors goes through the participant's own channel, which a const
+    // reference cannot touch. This is the call that runs on every keystroke, and it is the
+    // one that must never send.
+    const Completion c = complete_line(*host_->terminal, asked.line);
+    out.open = c.open;
+    out.slot = slot_name(c.slot);
+    out.partial = c.partial;
+    out.heading = c.heading;
+    out.candidates.reserve(c.candidates.size());
+    for (const Candidate& in : c.candidates) {
+        out.candidates.push_back(ShownCandidate{in.insert, in.display, in.detail});
+    }
+    (void)mail.answer(std::move(out));
+    // NO REPAINT. Nothing about this host changed: the participant was read and not
+    // written, and what the answer becomes on a screen is the pane's own `PaneContent`,
+    // which repaints on its own arrival like every other pane's.
+}
+
+// WL-TERM-04 -- agents/workshop/terminal.md
+const char* slot_name(LineSlot slot) noexcept {
+    switch (slot) {
+    case LineSlot::Verb: return kSlotVerb;
+    case LineSlot::Address: return kSlotAddress;
+    case LineSlot::Shape: return kSlotShape;
+    case LineSlot::Version: return kSlotVersion;
+    case LineSlot::Arguments: return kSlotArguments;
+    }
+    return kSlotVerb;
+}
+
+// WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
+void WorkshopWeave::submit_terminal_line(const std::string& line) {
+    if (line.empty()) {
         return;
     }
     loom::TerminalSession& me = *host_->terminal;
@@ -241,8 +124,7 @@ void WorkshopWeave::submit_terminal_line() {
     // one thing asked the question; a list a maker can be SHOWN is a second
     // asker, and two lists of two verbs is how the third verb gets learned by
     // only one of them.
-    const TerminalVerb* verb =
-        tok.empty() ? nullptr : terminal_verb(tok[0].text);
+    const TerminalVerb* verb = tok.empty() ? nullptr : terminal_verb(tok[0].text);
     loom::Address to;
     std::uint64_t version = 0;
     if (verb != nullptr && tok.size() >= 4 && loom::parse_address(tok[1].text, to) &&
@@ -267,146 +149,11 @@ void WorkshopWeave::submit_terminal_line() {
     }
     // THE WHOLE SENTENCE, at whatever length it takes to be a complete one. It is
     // recorded on the participant, unshortened, exactly as every other entry is: the pane
-    // wraps it across as many of its own rows as it needs (`detail::wrap`), so the length
-    // of this string is a question about the GRAMMAR and never about the furniture. Before
-    // wrapping it was fitted into one 56-cell row and a maker asking how to send a message got
-    // `this pane speaks two verbs: \`send <addr> <Shape> <ver...` -- the answer truncated
-    // at exactly the point it started being an answer.
+    // wraps it across as many of its own rows as it needs, so the length of this string is
+    // a question about the GRAMMAR and never about the furniture.
     me.record_notice("this pane speaks two verbs, and `ask` takes the same form as `send`: "
                      "send <addr> <Shape> <version> [args] -- an address is #12 for one "
                      "weave, @office for whoever holds a role, or * for everyone");
-}
-
-// WL-TERM-03, WL-TERM-08 -- agents/workshop/terminal.md
-// WL-TEXT-04 -- agents/workshop/text-box.md
-void WorkshopWeave::refresh_terminal() {
-    TerminalPane& pane = session_.terminal;
-    const Screen sc = screen_of(session_);
-    // THE ONE PLACE THE INPUT LINE'S HORIZONTAL WINDOW IS RECONCILED.
-    //
-    // It is here because this function runs on EVERY repaint -- which is the property
-    // completion met as a trap and this needs as a guarantee. The window has to follow the
-    // caret after a keystroke, after a press, after accepting a candidate AND after a
-    // resize that changed nothing but the room; the first three are edits and the fourth
-    // is not, so a hook on the edits would have missed exactly the witness §19 asks for.
-    // Running it once per repaint answers all four with no special case, and it answers
-    // them BEFORE `paint` and before the next press is mapped, so the picture and the
-    // hit test are resolved against the same window.
-    //
-    // ABOVE THE `attached` RETURN ON PURPOSE: `paint_terminal` draws the pane whenever it
-    // is OPEN, and `terminal_key` edits the line on the same condition, so a maker can
-    // type into a pane with no participant mounted and must still be able to see where
-    // they are. The capacity is `terminal_input_place`'s -- the same answer the painter
-    // and the press consume, never a second count of the columns.
-    pane.input.keep_caret_visible(terminal_input_place(sc).columns);
-    pane.attached = host_->terminal != nullptr;
-    pane.id = pane.attached ? host_->terminal->id() : loom::WeaveId{};
-    pane.shown.clear();
-    pane.earlier = 0;
-    pane.dropped = 0;
-    // TAKEN BEFORE THE CLEAR, because the clear is what this function does to
-    // everything derived and the selection is the one thing that is not. See the
-    // note below `complete_line` for what happens when these four are read after it.
-    const LineSlot was_slot = pane.completion.slot;
-    const std::string was_partial = pane.completion.partial;
-    const bool was_open = pane.completion.open;
-    const std::size_t was_selected = pane.completion.selected;
-    pane.completion = Completion{};
-    if (!pane.attached || !pane.open) {
-        pane.dismissed = false; // a closed pane has no half-typed word to remember one for
-        return;                 // nothing is painted from it, so nothing is copied
-    }
-    // WHAT COULD BE SAID NEXT, RECOMPUTED WITH THE LINE. It is derived from the
-    // input and the participant's vocabulary and from nothing else, so it is
-    // rebuilt rather than patched -- which is the same reason `shown` is a fresh
-    // copy every time and not a list somebody maintains.
-    //
-    // AND IT AUTHORS NOTHING. `complete_line` takes the participant by const
-    // reference; every method it reaches (`vocabulary()`, `describe()`,
-    // `compose()`) is const, and the only path that authors goes through the
-    // participant's own channel, which a const reference cannot touch. This is
-    // the one call in this file that runs on every keystroke, and it is the one
-    // that must never send.
-    //
-    // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE
-    //. completer rests on an assumption that was free when the caret could
-    // not move: the token being completed is the LAST one, so accepting is "drop what
-    // has been typed of this token, append what it was going to be". With a caret in the
-    // middle that edit would delete everything after it. The two honest repairs are to
-    // teach the completer about a token under an arbitrary caret -- a second parser, on
-    // a phase about carets and pointers -- or to say plainly that completion follows the
-    // end of the line.
-    //
-    // AND IT SAYS IT OUT LOUD RATHER THAN GOING QUIET, which is own measured rule
-    // arriving from a new direction: three different silences would otherwise render
-    // identically, and a maker who moves the caret and watches the list vanish cannot
-    // tell "not here" from "broken". So the list becomes a heading with no candidates in
-    // it -- exactly the shape `send * s` already produces -- and a heading-only list is
-    // transient and takes no gesture to dismiss.
-    if (pane.input.at_end()) {
-        pane.completion = complete_line(*host_->terminal, pane.input.text());
-    } else {
-        pane.completion.open = true;
-        pane.completion.slot = read_command_line(pane.input.text()).slot;
-        pane.completion.heading =
-            "completion follows the END of the line -- this caret is inside it";
-    }
-    // THE SELECTION SURVIVES A REPAINT AND NOT A CHANGE OF QUESTION.
-    //
-    // This function runs on every repaint, not only when the line changes -- the pane
-    // is a snapshot and a snapshot is only true when taken -- so a freshly computed
-    // Completion arrives with `selected` at zero every time. Without this the arrow
-    // keys appeared to do nothing at all: the move landed, the repaint immediately
-    // after it undid the move, and the next Tab took the first candidate. (Found in
-    // the live SDL run and reproduced headlessly, which is what said it was never the
-    // driver -- and then reproduced a SECOND time, because the first repair read the
-    // previous selection AFTER this function had already cleared it. A rebuild-from-
-    // scratch function has exactly one place a survivor can be read, and it is the
-    // top.)
-    //
-    // The question is the SLOT and the PARTIAL together. Same question, same
-    // selection; a different word or a different part of the line is a new list and
-    // starts at the top. Clamped either way, because a list can shrink under an
-    // unchanged partial -- name a field and the field that was selected leaves.
-    if (was_open && pane.completion.open && pane.completion.slot == was_slot &&
-        pane.completion.partial == was_partial && !pane.completion.candidates.empty()) {
-        const std::size_t last = pane.completion.candidates.size() - 1;
-        pane.completion.selected = was_selected < last ? was_selected : last;
-    }
-    // A DISMISSAL BELONGS TO THE PART OF THE LINE IT WAS MADE IN. Moving on to
-    // the next word is a new question, so the list comes back for it.
-    if (pane.dismissed && pane.completion.slot != pane.dismissed_at) {
-        pane.dismissed = false;
-    }
-    // AN UNTOUCHED LINE ASKS NOTHING. See `TerminalPane::asked`: the line is
-    // empty immediately after a submit, and a list there covers the answer the
-    // pane just gave. Typing is the gesture; Tab is the way to ask anyway.
-    if (!pane.input.empty()) {
-        pane.asked = false;
-    } else if (!pane.asked) {
-        pane.completion = Completion{};
-    }
-    // AN EMPTY LINE HAS ITS CARET AT THE END BY CONSTRUCTION, so the branch above and
-    // the caret rule cannot disagree about it -- there is no position in an empty string
-    // that is not both 0 and the end.
-    // AS MANY ENTRIES AS THIS PANE CAN SHOW WHOLE, which is no longer the same as "as
-    // many entries as it has rows": a line too long for the pane WRAPS rather
-    // than being cut, so one entry can cost several rows. `entries_that_fit` is the one
-    // place that arithmetic lives, and `paint_terminal` carries out the same choice with
-    // the same call -- two answers here would be a pane whose omission marker lied.
-    //
-    // A row apiece is the floor, so `tail(rows)` is always at least as many entries as
-    // can possibly fit, and the fitting only ever takes fewer. `sc` is the one resolved
-    // at the top of this function -- the same screen the input line's window was
-    // reconciled against, because two screens in one refresh is two answers.
-    const loom::Transcript& record = host_->terminal->transcript();
-    std::vector<loom::TranscriptEntry> newest = record.tail(sc.terminal_rows);
-    const std::size_t fits = entries_that_fit(newest, sc.terminal_cols, sc.terminal_rows);
-    newest.erase(newest.begin(),
-                 newest.end() - static_cast<std::ptrdiff_t>(fits));
-    pane.shown = std::move(newest);
-    pane.earlier = record.size() - pane.shown.size();
-    pane.dropped = record.evicted();
 }
 
 // WL-KEY-01 -- agents/workshop/keyboard.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
@@ -440,6 +187,11 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // on one pane's subject always has to say. The Builder is a weave now and hears its own
     // ids while it holds the keyboard, so the answer to "what does `b` do from here" is that
     // there is no `b` here to ask about.
+    //
+    // ⭐ AND THE TERMINAL'S GLOBAL CHORD WENT THE SAME WAY (VD-22, VD-24). `workshop.terminal`
+    // was a GLOBAL row -- the last one that opened one particular pane from anywhere -- and a
+    // pane a maker opens from the picker needs no key of its own, exactly as Attention's
+    // `Ctrl+a` needed none once the current-condition view became a pane.
     // The editor's deliberate discard, reachable from command mode too so the quit
     // refusal names a gesture that works where the maker is standing.
     case Act::kEditorDiscard: discard_source_edits(); break;

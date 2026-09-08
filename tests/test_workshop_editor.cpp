@@ -596,7 +596,7 @@ TEST_CASE("EDIT-0: pasteable_source flattens breaks and controls, and declines n
 TEST_CASE("EDIT-0: the editor context takes text, and its class algebra is exact") {
     CHECK(context_takes_text(KeyContext::kEditor));
     CHECK(active_in(KeyContext::kNoEditor, KeyContext::kCommand));
-    CHECK(active_in(KeyContext::kNoEditor, KeyContext::kTerminal));
+    CHECK(active_in(KeyContext::kNoEditor, KeyContext::kNaming));
     CHECK_FALSE(active_in(KeyContext::kNoEditor, KeyContext::kEditor));
     CHECK_FALSE(active_in(KeyContext::kNoText, KeyContext::kEditor));
     // The two save rows can never both be active: their contexts do not intersect.
@@ -609,7 +609,7 @@ TEST_CASE("EDIT-0: one physical ^s resolves to the document's save or the editor
     const Keymap k;
     CHECK(k.action_for(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
           Act::kSaveDocument);
-    CHECK(k.action_for(KeyContext::kTerminal, input::scan::kS, input::mod::kCtrl) ==
+    CHECK(k.action_for(KeyContext::kNaming, input::scan::kS, input::mod::kCtrl) ==
           Act::kSaveDocument);
     CHECK(k.action_for(KeyContext::kEditor, input::scan::kS, input::mod::kCtrl) ==
           Act::kEditorSave);

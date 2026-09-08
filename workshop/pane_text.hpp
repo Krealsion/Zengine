@@ -138,6 +138,28 @@ inline std::string drawable(std::string text) {
     return text;
 }
 
+/// ...AND THE SAME QUESTION ASKED THE OTHER WAY, AT THE OTHER DOOR: is this text, WHOLE,
+/// something a canvas can draw?
+///
+/// `drawable` is for what a pane is about to SAY -- it repairs, because the alternative is
+/// losing the pane. This is for what a maker just TYPED or PASTED, and it refuses, because
+/// the alternative is silently changing bytes they chose. Two doors, two postures, one byte
+/// rule; the browser established the refusing one and Info and the Terminal both spell it.
+///
+/// ⚠ IT IS HERE BECAUSE IT WAS ABOUT TO BE COPIED A THIRD TIME. `info-pane/pane.cpp` and
+/// `introspection/introspection.cpp` each carried a private static of exactly this body, and
+/// the Terminal pane wanted a fourth. The header's own threshold rule -- the count that
+/// argued for it -- is met by the same arithmetic that created it.
+inline bool admissible(const std::string& text) {
+    for (const char c : text) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (byte < 0x20u || byte >= 0x7Fu) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace zengine::workshop::pane_text
 
 #endif // ZENGINE_WORKSHOP_PANE_TEXT_HPP

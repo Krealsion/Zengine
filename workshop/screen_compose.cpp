@@ -382,18 +382,6 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // on a top band two cells tall -- which is what a face needs for one row of type. The
     // reserved total is what it was, so the workspace still did not move.
     //
-    // ⚠ THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN, AND THE LAYOUTS PANE
-    // DOES NOT. The Terminal is anchored to the bottom-right corner and covers most of the
-    // screen's width at every extent, so bottom-band rows painted underneath it would
-    // survive only in the cells to its left -- a sentence beheaded mid-word with nothing to
-    // say so. The Layouts pane's default rows are ones the overlay cannot reach:
-    // `terminal_y` is `h - terminal_h`, which is 9 at the minimum screen and grows with the
-    // surface, so it is never less than `kTopRows`. A maker in the Terminal therefore keeps
-    // reading which layout they are in, which is the honest answer rather than a courtesy --
-    // those rows are not covered, so hiding them would be a lie about occlusion. A maker who
-    // MOVED the pane under the overlay is covered by it and correctly so, which is a thing
-    // this screen could not say at all until the conversion.
-    //
     // A REGION TAKES ITS RECTANGLE, and that is a deliberate widening over the labels it
     // replaced: the old rows cleared only the cells their characters landed on, and a band
     // clears all of its rows across the canvas. A pane a maker authors over the bottom band
@@ -406,27 +394,24 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // press-there, at exactly the boundary one geometry exists to forbid. Both halves are gone: the
     // tabs are a pane's interior, and `occupied_at` answers that pane for those cells like
     // any other.
-    if (!s.terminal.open) {
-        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            layer.texts.push_back(band_region(s, sc));
-        });
-    }
+    // ⭐ AND THE BAND IS PAINTED UNCONDITIONALLY NOW (VD-24). It used to be suppressed while
+    // the terminal overlay was open, because that overlay was anchored to the bottom-right
+    // corner and covered most of the screen's width at every extent -- so band rows painted
+    // under it survived only in the cells to its left, a sentence beheaded mid-word with
+    // nothing to say so. A pane that a maker placed has no such claim: whatever a pane
+    // covers, it covers with a boundary a maker can see and can move.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        layer.texts.push_back(band_region(s, sc));
+    });
 
-    if (s.terminal.open) {
-        // THE FINAL MODAL PLANE, and that is the whole of what "overlay" means here. A pane
-        // in the last layer covers whatever it lands on -- and the screen underneath is
-        // composed exactly as it was before this phase, with no row budget taken from it and
-        // no constant moved. A closed pane appends no layer at all.
-        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            paint_terminal(layer, s.terminal, sc, s.keymap);
-        });
-    }
+    // ⭐ THE TERMINAL'S FINAL MODAL PLANE WAS HERE AND IS GONE (VD-24). It was the whole of
+    // what "overlay" meant: a layer after every pane, so the terminal covered whatever it
+    // landed on and no arrangement a maker authored could put anything in front of it. The
+    // Terminal is in the pane planes now, in the order a maker chose.
 
-    // THE HOTKEY VIEW, LATER STILL: a maker can open it OVER the Terminal to read
-    // the Terminal line's own keys, so it must be readable above the pane whose context it
-    // is describing. It is the one plane after the Terminal's, and it is a projection --
-    // the screen beneath it, the Terminal included, is composed exactly as if it were
-    // closed, which is also why the context it reports is the context beneath it.
+    // THE HOTKEY VIEW, LATER STILL: it is a projection -- the screen beneath it is composed
+    // exactly as if it were closed, which is also why the context it reports is the context
+    // beneath it.
     if (s.hotkeys.open) {
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             paint_hotkeys(layer, s, sc);

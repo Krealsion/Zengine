@@ -12,6 +12,7 @@
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
 #include "document_seam_vocabulary.hpp"  // ...and how the object document does
+#include "terminal_seam_vocabulary.hpp"   // ...and how the terminal participant's record does
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "document.hpp"
@@ -30,7 +31,7 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
-#include <zen/terminal/transcript.hpp> // the participant's own record, rendered HERE
+#include <zen/terminal/session.hpp> // the participant this host holds, for the door
 
 #include <algorithm>
 #include <cstddef>
@@ -114,19 +115,11 @@ inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked p
 // WL-PANE-15 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kPickerRows = 1 + static_cast<std::int64_t>(kPanelKinds);
 
-// ---- The terminal overlay's own furniture, in canvas cells -----------------------------
-
-/// THE WIDTH THE PANE ASKS FOR at the smallest screen, before the room answers. It is a WANT
-/// and not a floor.
-// WL-GEO-02 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kTerminalWantW = 56;
-inline constexpr std::int64_t kTerminalMinH = 13;
-/// Header, the standing statement, the omission marker, the input line: the rows a pane
-/// spends on being a pane, whatever is in it. Everything else is transcript.
-inline constexpr std::int64_t kTerminalChrome = 4;
-/// The narrowest prose the pane will claim to hold, whatever a medium's metric says.
-// WL-TERM-03 -- agents/workshop/terminal.md
-inline constexpr std::int64_t kTerminalMinCols = 8;
+// ⭐ THE TERMINAL OVERLAY'S FURNITURE WAS HERE AND IS GONE (VD-24). `kTerminalWantW`,
+// `kTerminalMinH`, `kTerminalChrome` and `kTerminalMinCols` sized one particular tool's
+// rectangle out of the screen's own arithmetic -- the last built-in that had a place before
+// a maker gave it one. A pane's rectangle comes from the arrangement a maker authored, like
+// every other pane's, and its interior comes from the room Workshop grants it.
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
 // WL-GEO-05 -- agents/workshop/geometry.md
@@ -138,16 +131,6 @@ struct Screen {
     std::int64_t room_h = 0;       ///< ...and the tallest
     std::int64_t notice_y = 0;
     std::int64_t help_y = 0;       ///< the first of two help lines
-    std::int64_t terminal_x = 0;
-    std::int64_t terminal_y = 0;
-    std::int64_t terminal_w = 0;    ///< the pane's PLACEMENT, in cells, always
-    std::int64_t terminal_h = 0;
-    /// THE PANE'S INTERIOR, IN PROSE, and the only numbers anything downstream may
-    /// use to decide what it can show.
-    // WL-TERM-03 -- agents/workshop/terminal.md
-    std::int64_t terminal_cols = 0;  ///< characters that fit across the pane
-    std::size_t terminal_lines = 0;  ///< rows of prose the pane holds, chrome included
-    std::size_t terminal_rows = 0;   ///< ...of which these many carry the transcript
     /// THE METRIC THIS SCREEN WAS RESOLVED WITH, carried rather than looked up.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t text_advance_px = 0;
@@ -198,58 +181,20 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     // at rows it no longer owns.
     s.notice_y = s.h - kBottomRows;
     s.help_y = s.notice_y + 1;
-    // THE PANE, IN THE ROOM -- and the room is the whole surface now. Its right edge is still
-    // the room's right edge; what changed is which edge that is. What the pane WANTS is the
-    // rule unchanged (half of every pair of columns the surface gains above the minimum), and
-    // what it GETS is that want WHOLE, because the want is now always inside the room:
-    // `kTerminalWantW + (w - kScreenMinW)/2 < w` for every `w >= kScreenMinW`, since
-    // `56 + d/2 < 78 + d` holds for every `d >= 0`. The clamp that stood here is deleted
-    // rather than left unreachable; the two assertions under `kMinScreen` hold that algebra
-    // at both ends of the extent this screen clamps to, and would redden if a later want
-    // outgrew the surface it is measured against.
+    // ⚠ HD-10 IS OVER, AND THIS IS WHERE IT ENDED. The reservation retired in PR #21 was
+    // doing two jobs -- "these columns are nobody's to spend" and "the terminal cannot
+    // silently erase what stands there" -- and only the first was retired there, which left
+    // the terminal overlay covering whatever stood at the right column with no boundary to
+    // read it by. The founder was offered chrome, paint order or a ceiling and chose none of
+    // them: the Terminal wears a pane's boundary BY CONSTRUCTION now, so there is no
+    // mechanism to invent and no rectangle to reserve. The seven lines of arithmetic that
+    // stood here -- want, height, corner, fit, the two floors and the row split -- are the
+    // pane's own room, granted by `external_body_place` like every other pane's.
     //
-    // ⚠ SO THE PANE IS EIGHT CELLS WIDER AT THE MINIMUM SCREEN, AND REACHES THE SCREEN'S
-    // EDGE. It asked for 56 columns there and was given 48, because thirty of the surface's
-    // were spoken for; nothing speaks for them, and it gets what it asked for.
-    //
-    // ⚠⚠ AND IT COVERS THE PANE AT THE RIGHT COLUMN, WHICH IS HD-10's DEFECT RETURNING, NAMED
-    // RATHER THAN DISCOVERED. HD-10 measured it: with the terminal open, Info published its
-    // properties and its footer and the pane's region cleared those cells to the canvas
-    // colour, so the panel read as STOPPED rather than as covered and a maker could not tell
-    // omitted rows from hidden ones from destroyed ones. The reservation was the fix, and it
-    // was doing two jobs -- "these columns are nobody's to spend" and "the terminal cannot
-    // silently erase what stands there". Only the first is retired here; the second has no
-    // mechanism left, because every mechanism for it needs the screen to know that a pane is
-    // furniture, which is the knowledge this whole change removes.
-    //
-    // WHAT IS DIFFERENT FROM HD-10, AND IT IS NOT NOTHING: the maker can move the pane now.
-    // Under the reservation, Info stood in the terminal's way and four code paths refused to
-    // move it. The remaining cost is the ONE overlap in this composition that no boundary
-    // makes legible -- the terminal pane wears no chrome, unlike every panel and the picker,
-    // which is why a panel over Info reads correctly and the terminal over Info does not.
-    // Pinned as a measured fact by `tests/test_workshop_screen.cpp` case
-    // "HD-10: the terminal pane now covers the right column, measured" and reported to the
-    // founder rather than patched around here: the candidates are chrome on the terminal
-    // pane, paint order, or a ceiling that is a reservation under another name, and choosing
-    // between them is not this change's to make.
-    s.terminal_w = kTerminalWantW + (s.w - kScreenMinW) / 2;
-    s.terminal_h = kTerminalMinH + (s.h - kScreenMinH) / 2;
-    s.terminal_x = s.room_w - s.terminal_w;
-    s.terminal_y = s.h - s.terminal_h;
-    const surface::RegionFit fit = surface::fit_region(s.terminal_x, s.terminal_y, s.terminal_w,
-                                                      s.terminal_h, text_advance_px,
-                                                      text_line_px);
-    // A FLOOR THE PANE CANNOT DROP THROUGH. The metric arrives on the bus, so a medium
-    // could report a line height taller than the whole pane -- and a pane with no rows is
-    // indistinguishable from a broken tool, which is the same argument `entries_that_fit`
-    // makes for always showing one entry. Below the floor the pane is a cramped pane; it is
-    // never an empty box, and it never publishes a negative row count for someone else to
-    // subtract from.
-    s.terminal_cols = fit.columns > kTerminalMinCols ? fit.columns : kTerminalMinCols;
-    const std::int64_t lines =
-        fit.rows > kTerminalChrome + 1 ? fit.rows : kTerminalChrome + 1;
-    s.terminal_lines = static_cast<std::size_t>(lines);
-    s.terminal_rows = static_cast<std::size_t>(lines - kTerminalChrome);
+    // AND THE FIT IS STILL RESOLVED HERE, because the screen carries the METRIC: it is the
+    // one fact every region on this canvas measures itself with, and it arrives on the bus.
+    const surface::RegionFit fit =
+        surface::fit_region(0, 0, s.w, s.h, text_advance_px, text_line_px);
     // The metric AS THE FIT RESOLVED IT, not as it arrived: `fit_region` already
     // spelled a non-positive advance or line height as "text is a cell" and
     // answered zero for both, so a screen never carries half a metric.
@@ -275,25 +220,7 @@ static_assert(kTopRows == 2 && kWorkspaceY == 2, "the top band owns rows 0 and 1
 static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.h - kBottomRows,
               "the workspace's floor IS the bottom band's top -- no cell between them, and "
               "none reserved twice");
-// THE PANE'S CORNER AND EXTENT ON THE MINIMUM SCREEN.
-static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pane's corner");
-static_assert(kMinScreen.terminal_w == kTerminalWantW && kMinScreen.terminal_h == 13,
-              "the pane's extent -- and the width is the WANT, whole. The eight cells the room "
-              "used to take off it here were the reserved column's, and are the pane's now");
-static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinScreen.room_w,
-              "the pane's right edge is the room's right edge -- unchanged as a rule, and the "
-              "room's right edge is the screen's now (HD-10, re-argued)");
-// AND THE WANT IS INSIDE THE ROOM AT BOTH ENDS OF THE CLAMPED EXTENT, which is the whole of
-// why `screen_of` no longer carries a clamp: a negative x is the shape the failure would take.
-static_assert(kMinScreen.terminal_x >= 0, "the want fits the smallest surface");
-static_assert(screen_of(kScreenMaxW, kScreenMaxH).terminal_x >= 0, "...and the largest");
-static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
-// WITH NO TEXT METRIC THE PANE IS EXACTLY THE PANE IT WAS, and these two say so in the type
-// system: a character IS a cell, so the interior and the placement are the same numbers, and
-// every golden this repository holds over a terminal medium is unmoved.
-static_assert(kMinScreen.terminal_cols == kMinScreen.terminal_w, "no metric: a character is a cell");
-static_assert(kMinScreen.terminal_lines == static_cast<std::size_t>(kMinScreen.terminal_h),
-              "no metric: a row is a cell row");
+
 
 // ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
@@ -583,12 +510,6 @@ static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
               "the side region reaches the screen's right edge");
 static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
               "the side region ends where the workspace does, above the bottom band");
-// AND THE TERMINAL PANE OBEYS THE SAME LAW AS THE STACK -- pointed at the other corner, and
-// at the room's right edge, which is the screen's.
-static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinSide.x + kMinSide.w,
-              "the terminal pane reaches the screen's right edge, where the right column also "
-              "ends: the two places meet, and the column it used to stop short of is a place "
-              "now rather than a reservation");
 static_assert(kPickerRows + 2 * kChromeCells <= kStackRows,
               "the picker still fits a panel's slot INSIDE its own chrome (WUX-5): the "
               "declared floor is the compile-time catalog, and the slot must seat it plus "
@@ -719,35 +640,11 @@ struct Drag {
 };
 
 
-/// THE TERMINAL OVERLAY'S VIEW OF A PARTICIPANT — session, emphatically, and a SNAPSHOT.
-// WL-TERM-01, WL-TERM-03, WL-TERM-08 -- agents/workshop/terminal.md
-// WL-TEXT-01 -- agents/workshop/text-box.md
-struct TerminalPane {
-    bool open = false;         ///< shift+space, and nothing else, decides this
-    bool attached = false;     ///< is there a participant at all (a host may mount none)
-    loom::WeaveId id{};        ///< the participant's identity, for the header
-    /// The line being typed, before Return authors anything — AND THE CARET IN IT,
-    /// AND WHICH PART OF IT THE ROW IS SHOWING.
-    // WL-TEXT-01 -- agents/workshop/text-box.md
-    component::TextBox input;
-    std::vector<loom::TranscriptEntry> shown; ///< the newest entries that FIT, oldest first
-    std::uint64_t earlier = 0; ///< kept by the participant, above the top of this pane
-    std::uint64_t dropped = 0; ///< evicted from the transcript entirely -- gone, not scrolled
-    /// WHAT THE PARTICIPANT COULD SAY NEXT, for the line above. Derived from
-    /// `input` and the participant's own vocabulary, recomputed whenever the line
-    /// changes, and holding no fact that is not readable from those two -- so it is a
-    /// snapshot in exactly the sense `shown` is, and for the same reason.
-    Completion completion;
-    /// THE ONE PIECE OF COMPLETION STATE THAT IS NOT DERIVED: the maker pressed Escape
-    /// and does not want the list for this part of the line.
-    // WL-TERM-05 -- agents/workshop/terminal.md
-    bool dismissed = false;
-    LineSlot dismissed_at = LineSlot::Verb;
-    /// ...and the other direction: the maker pressed the completion key on an EMPTY line,
-    /// which is the one place discovery needs a gesture.
-    // WL-TERM-05 -- agents/workshop/terminal.md
-    bool asked = false;
-};
+// ⭐ `TerminalPane` WAS HERE AND IS GONE (VD-24). It held the overlay's open bit, the line
+// being typed, the transcript snapshot, the completion list and the two flags that are not
+// derived from either -- a whole tool's session state, inside the host's. Every field of it
+// lives in `terminal-pane/` now; what crosses is a picture and two asks
+// (`workshop/terminal_seam_vocabulary.hpp`).
 
 // ---- PANE MANAGEMENT: what a maker is ARRANGING, and how ------------------------------
 
@@ -883,7 +780,10 @@ struct PaneGesture {
 // WL-TEXT-14 -- agents/workshop/text-box.md
 namespace text_drag_place {
 inline constexpr std::int64_t kNone = 0;
-inline constexpr std::int64_t kTerminalLine = 1;  ///< the Terminal pane's editable line
+// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24) -- the Terminal's line is a pane's now, and a
+// pane sweeps its own selection out of the presses and motions it is already sent. The
+// remaining values keep their numbers: they are a session's live routing and never durable,
+// but renumbering them would be a diff nobody could read for no gain anybody could measure.
 inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
 inline constexpr std::int64_t kEditorBody = 3;    ///< the source editor's document body
 inline constexpr std::int64_t kPaneEditorDraft = 4; /// < the Pane Editor's live draft row
@@ -996,7 +896,6 @@ struct Session {
     /// it changes no selection and no keyboard candidate; the subject it holds is spent
     /// through the owner operations at the moment a row is chosen, and nowhere else.
     ContextMenu context;
-    TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
     /// THE DYNAMIC PANELS a maker has opened, and the picker they opened them from
     /// (panel.hpp).
     Panels panels;
@@ -1365,116 +1264,48 @@ ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t r
 /// What one omission marker says. `... 2 earlier` / `... 4 more`: a count and a direction.
 std::string omitted_text(std::size_t how_many, const char* which);
 
-// ---- Rendering one participant's record ------------------------------------------------
-
-/// WHERE A SUBMITTED MESSAGE WAS ADDRESSED, in the SAME three sigils the command line reads.
-std::string terminal_address(const loom::TranscriptEntry& e);
-
-std::string terminal_shape(const loom::TranscriptEntry& e);
-
-/// ONE TRANSCRIPT ENTRY AS ONE LINE.
-std::string terminal_line(const loom::TranscriptEntry& e);
-
-/// WHAT `^` MEANS, said once, on a row the pane always shows.
-std::string terminal_legend();
-
-/// ONE TRANSCRIPT ENTRY AS THE ROWS A PANE THIS WIDE SPENDS ON IT.
-std::vector<std::string> terminal_wrapped(const loom::TranscriptEntry& e,
-                                                 std::int64_t width);
-
-/// HOW MANY OF THE NEWEST ENTRIES A PANE THIS WIDE AND THIS TALL CAN SHOW WHOLE.
-std::size_t entries_that_fit(const std::vector<loom::TranscriptEntry>& entries,
-                                    std::int64_t width, std::size_t rows);
-
-/// WHAT THE PANE IS NOT SHOWING, in two numbers that are two different facts.
-std::string terminal_omission(const TerminalPane& t);
+// ⭐ THE PARTICIPANT'S RENDERER WAS DECLARED HERE AND IS GONE (VD-24).
+// `terminal_address`, `terminal_shape`, `terminal_line`, `terminal_legend`,
+// `terminal_wrapped`, `entries_that_fit` and `terminal_omission` turned one participant's
+// record into rows a pane this wide could hold. Every one of them was PRESENTATION -- what
+// a sentence says and how many rows it costs -- and they moved to `terminal-pane/` whole,
+// where the pane that knows its own width can run them. What is left on this side is the
+// derivation of the picture (`transcript_shown`) and the comparison that decides whether
+// saying it again would be news (`same_transcript`).
 
 // ---- The editable line, resolved ONCE ---------------------------------------------------
 
-/// THE PROMPT, in columns: the `> ` before the editable text.
-// WL-TERM-09 -- agents/workshop/terminal.md
-inline constexpr std::int64_t kTerminalPromptCols = 2;
+// ⭐ AND SO DID THE EDITABLE LINE'S PLACEMENT. `kTerminalPromptCols`, `kTerminalCaretCols`,
+// `TerminalInputPlace`, `terminal_input_place`, `terminal_caret_column`,
+// `terminal_caret_of_column`, `terminal_value_column`, `terminal_selection_columns` and
+// `terminal_input_hit` were the ONE MEASURER of the overlay's input row -- the answer the
+// painter wrote against, the press was located with and the caret was published at. A pane
+// measures its own row: it is told its room and it decides which of its rows is the prompt.
 
-/// THE COLUMN THE INSERTION POINT SITS IN, kept out of the editable line's own budget.
-// WL-TERM-09 -- agents/workshop/terminal.md; WL-TEXT-05 -- agents/workshop/text-box.md
-inline constexpr std::int64_t kTerminalCaretCols = 1;
-
-/// WHERE THE PANE'S EDITABLE LINE IS — the pane's region, the row inside it, and the column
-/// its first byte starts at.
-// WL-TERM-09 -- agents/workshop/terminal.md
-struct TerminalInputPlace {
-    std::int64_t region_x = 0; ///< the pane's own cell origin — a region coordinate
-    std::int64_t region_y = 0;
-    surface::RegionFit fit{};
-    std::int64_t prose_row = 0;   ///< the pane's LAST prose row: the line being typed
-    std::int64_t first_column = kTerminalPromptCols; ///< where the line's first byte sits
-    /// COLUMNS THE VISIBLE PART OF THE LINE MAY OCCUPY — prompt excluded, and the
-    /// caret's own column excluded too.
-    // WL-TERM-09 -- agents/workshop/terminal.md; WL-TEXT-04, WL-TEXT-05 -- agents/workshop/text-box.md
-    std::int64_t columns = 0;
-};
-
-inline constexpr TerminalInputPlace terminal_input_place(const Screen& sc) noexcept {
-    TerminalInputPlace p;
-    p.region_x = sc.terminal_x;
-    p.region_y = sc.terminal_y;
-    p.fit = surface::fit_region(sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h,
-                                sc.text_advance_px, sc.text_line_px);
-    p.prose_row = static_cast<std::int64_t>(sc.terminal_lines) - 1;
-    p.columns = sc.terminal_cols - kTerminalPromptCols - kTerminalCaretCols;
-    if (p.columns < 0) {
-        p.columns = 0; // a pane too narrow for its own prompt shows no line, and says so
-    }
-    return p;
-}
-
-/// THE PROSE COLUMN THE CARET SITS AT, on the row this pane draws the line on.
-std::int64_t terminal_caret_column(const TerminalInputPlace& p,
-                                          const component::TextBox& box) noexcept;
-
-/// THE BYTE INDEX A PROSE COLUMN NAMES, clamped into the line the pane is showing.
-std::size_t terminal_caret_of_column(const TerminalInputPlace& p,
-                                            const component::TextBox& box,
-                                            std::int64_t column) noexcept;
-
-/// A PROSE COLUMN AS A COLUMN OF THE LINE ITSELF — the prompt taken off and NOTHING
-/// clamped, which is what a selection DRAG needs and a press does not.
-// WL-TEXT-14 -- agents/workshop/text-box.md
-inline constexpr std::int64_t terminal_value_column(const TerminalInputPlace& p,
-                                                    std::int64_t column) noexcept {
-    return surface::sub_px(column, p.first_column);
-}
-
-/// THE VISIBLE SELECTION AS PROSE COLUMNS OF THE PANE'S ROW — the prompt added to
-/// the component's own answer, `terminal_caret_column`'s shape for a span.
+/// THE VISIBLE SELECTION AS PROSE COLUMNS OF A ROW -- a component's own answer, shifted by
+/// whatever the row puts in front of the text.
+///
+/// ⚠ IT WAS `TerminalSelectionSpan` AND THE TERMINAL IT WAS NAMED FOR IS GONE. Two consumers
+/// remain and neither is a terminal: the Inspector's property draft
+/// (`property_selection_columns`) and the Pane Editor's. The type was never the overlay's --
+/// it is what any row with a prompt in front of its text answers -- so it kept its shape and
+/// lost the name of the first thing that needed it.
 // WL-TEXT-13 -- agents/workshop/text-box.md
-struct TerminalSelectionSpan {
+struct TextSelectionSpan {
     std::int64_t begin = 0;
     std::int64_t end = 0;
     bool present = false;
 };
-TerminalSelectionSpan terminal_selection_columns(const TerminalInputPlace& p,
-                                                        const component::TextBox& box) noexcept;
-
-/// IS THIS PROSE POSITION ON THE EDITABLE LINE AT ALL?
-// WL-PRESS-03 -- agents/workshop/press-chain.md; WL-TERM-09 -- agents/workshop/terminal.md
-inline constexpr bool terminal_input_hit(const TerminalInputPlace& p, std::int64_t column,
-                                         std::int64_t row) noexcept {
-    return row == p.prose_row && column >= 0 && column <= p.fit.columns;
-}
 
 // ---- The completion list, inside the pane it belongs to ---------------------------------
 
-/// WHERE THE COMPLETION LIST SITS, in canvas cells, and how much prose it holds.
-// WL-TERM-06 -- agents/workshop/terminal.md
-struct CompletionPlace {
-    std::int64_t x = 0; ///< canvas cells, exactly like every other placement here
-    std::int64_t y = 0;
-    std::int64_t w = 0;
-    std::int64_t h = 0;
-    std::size_t rows = 0; ///< prose rows the list can actually show, heading included
-    bool visible = false;
-};
+// ⭐ AND THE COMPLETION LIST'S PLACEMENT WENT WITH THEM. `CompletionPlace`,
+// `kCompletionMinRows`, `completion_place`, `completion_first_shown`, `completion_rows` and
+// `paint_terminal` put a SECOND bounded region on top of the pane's own -- which is the one
+// thing the pane protocol cannot express: a pane publishes ONE list of rows
+// (`PaneContent`), and Workshop assembles ONE region from it. So the list is rows INSIDE the
+// pane now, above the input row it belongs to, and it takes room from the transcript rather
+// than covering it. A maker sees the difference; it is named in the register.
 
 /// The cell row, relative to the pane's top, that the pane's prose row `n` begins on.
 ///
@@ -1488,81 +1319,6 @@ inline constexpr std::int64_t pane_prose_top_cell(const Screen& sc, std::int64_t
         surface::add_cells(surface::kTextInsetPx, surface::mul_px(prose_row, sc.text_line_px));
     return surface::floor_div_px(top, surface::kCanvasCellPx);
 }
-
-/// The list is at least this tall in prose rows before it is worth showing at all — and it
-/// is ONE, because a heading with nothing under it is a complete answer rather than an
-/// empty box.
-// WL-TERM-05 -- agents/workshop/terminal.md
-inline constexpr std::size_t kCompletionMinRows = 1;
-
-/// How much of the pane the list may take. The pane is a record a maker is reading and a
-/// line they are writing; a list that grew to fill it would answer the second question by
-/// erasing the first. Half, rounded down, is the same share rule the pane itself takes from
-/// a growing screen.
-inline constexpr CompletionPlace completion_place(const Screen& sc, std::size_t wanted) noexcept {
-    CompletionPlace p;
-    if (wanted == 0 || sc.terminal_lines < kTerminalChrome + 1) {
-        return p;
-    }
-    // The list ends where the pane's second-from-last prose row begins -- the omission
-    // marker's row -- so the marker and the input line below it are never covered.
-    const std::int64_t bottom_cell =
-        pane_prose_top_cell(sc, static_cast<std::int64_t>(sc.terminal_lines) - 2);
-    // ...and starts no higher than the pane's second cell row, so the header naming the
-    // identity whose record this is stays visible whatever is being typed.
-    const std::int64_t highest = 1;
-    if (bottom_cell <= highest) {
-        return p; // the pane has no room between its own two ends
-    }
-    const std::int64_t room_cells = bottom_cell - highest;
-    const std::int64_t half = room_cells / 2 > 0 ? room_cells / 2 : 1;
-    // Cells enough for `wanted` prose rows, in whichever lattice this medium has.
-    const std::int64_t want_cells =
-        (sc.text_advance_px <= 0 || sc.text_line_px <= 0)
-            ? static_cast<std::int64_t>(wanted)
-            : surface::floor_div_px(
-                  surface::add_cells(surface::mul_px(static_cast<std::int64_t>(wanted),
-                                                     sc.text_line_px),
-                                     2 * surface::kTextInsetPx + surface::kCanvasCellPx - 1),
-                  surface::kCanvasCellPx);
-    const std::int64_t h = want_cells < half ? want_cells : half;
-    if (h <= 0) {
-        return p;
-    }
-    p.x = sc.terminal_x;
-    p.w = sc.terminal_w;
-    p.h = h;
-    p.y = surface::add_cells(sc.terminal_y, bottom_cell - h);
-    const surface::RegionFit fit =
-        surface::fit_region(p.x, p.y, p.w, p.h, sc.text_advance_px, sc.text_line_px);
-    p.rows = fit.rows > 0 ? static_cast<std::size_t>(fit.rows) : 0;
-    p.visible = p.rows >= kCompletionMinRows;
-    return p;
-}
-
-/// WHICH CANDIDATE THE FIRST VISIBLE ROW SHOWS — the windowing, written once.
-// WL-TERM-05, WL-TERM-06 -- agents/workshop/terminal.md
-// WL-GEO-01 -- agents/workshop/geometry.md
-// WL-INFO-03 -- agents/workshop/info-body.md
-inline constexpr std::size_t completion_first_shown(std::size_t selected,
-                                                    std::size_t capacity) noexcept {
-    if (capacity <= 1) {
-        return 0; // no room for a candidate row at all: the heading is the whole list
-    }
-    const std::size_t room = capacity - 1; // the heading always costs one
-    return selected >= room ? selected - room + 1 : 0;
-}
-
-/// THE LIST AS ROWS -- heading first, then as many candidates as the place holds, with the
-/// selected one marked. Windowed around the selection, and the heading says which slice it
-/// is showing; the `>` marker says which one on a medium with no colour at all.
-std::vector<surface::SurfaceTextRow> completion_rows(const Completion& comp,
-                                                            std::size_t capacity,
-                                                            std::int64_t width);
-
-/// The overlay, painted OVER the finished screen.
-void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
-                           const Screen& sc, const Keymap& keymap);
 
 // ---- The dynamic panels, painted -------------------------------------------------------
 
@@ -1816,9 +1572,20 @@ bool same_conditions(const std::vector<StandingCondition>& a,
 // WL-DOC-20 -- agents/workshop/document.md
 DocumentShown document_shown(const WorkshopDoc& d, const Session& s);
 
+/// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT -- `document_shown`'s exact shape one
+/// owner over: derived at the moment of the ask, holding no `loom::TerminalSession`, no
+/// `Transcript` and no entry the renderer could not read.
+TranscriptShown transcript_shown(const loom::TerminalSession* me);
+
 /// IS THIS THE SAME PICTURE? Field by field, in order, for `same_conditions`' reason.
 // WL-DOC-20 -- agents/workshop/document.md
 bool same_document(const DocumentShown& a, const DocumentShown& b);
+
+/// ...and the comparison that decides whether saying it again would be news.
+bool same_transcript(const TranscriptShown& a, const TranscriptShown& b);
+
+/// `LineSlot` AS THE SEAM SPELLS IT.
+const char* slot_name(LineSlot slot) noexcept;
 
 // ---- WHAT CAN I DO WITH THIS, PRESENTED --------------------------------------------------
 
@@ -1990,8 +1757,8 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 }
 
 /// THE DRAFT'S VISIBLE SELECTION AS PROSE COLUMNS OF ITS BODY ROW —
-/// `property_caret_column`'s shape for a span, and `terminal_selection_columns`' twin.
-TerminalSelectionSpan property_selection_columns(const Row& row,
+/// `property_caret_column`'s shape for a span.
+TextSelectionSpan property_selection_columns(const Row& row,
                                                         std::int64_t value_columns);
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
@@ -2080,7 +1847,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
 
 inline constexpr std::int64_t kEditorHeaderRows = 1;
 
-/// ONE COLUMN OF EVERY BODY ROW THE TEXT MAY NOT USE -- `kTerminalCaretCols`' rule, for
+/// ONE COLUMN OF EVERY BODY ROW THE TEXT MAY NOT USE -- the caret's own column, for
 /// its reason.
 // WL-EDIT-08 -- agents/workshop/editor.md
 inline constexpr std::int64_t kEditorCaretCols = 1;
@@ -2100,7 +1867,7 @@ inline constexpr std::int64_t editor_text_columns(const ExternalBodyPlace& body)
 std::string editor_header(const EditorState& e, bool typing);
 
 /// KEEP THE VIEWPORT TRUE AGAINST THE ROOM AND THE DOCUMENT IT HAS NOW -- the editor's
-/// member of the once-per-repaint reconcile family (`refresh_terminal`'s argument, two
+/// member of the once-per-repaint reconcile family (`refresh_editor`'s argument, two
 void reconcile_editor_view(Session& s);
 
 /// WHERE A PRESS LANDED IN THE EDITOR'S BODY -- `external_press_at`'s shape for the one

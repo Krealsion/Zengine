@@ -60,6 +60,11 @@
         "artifact": "zengine-info-pane",
         "provider": [],
         "weave": [ { "role": "zengine.info" } ]
+      },
+      {
+        "artifact": "zengine-terminal-pane",
+        "provider": [],
+        "weave": [ { "role": "zengine.terminal" } ]
       }
     ]
   }

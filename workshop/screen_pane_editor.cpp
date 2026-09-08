@@ -753,7 +753,7 @@ void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
         if (row.editing()) {
             region.caret_row = kPaneEditorHeadingRows + prose_row_of_field(body, i);
             region.caret_col = property_caret_column(row);
-            const TerminalSelectionSpan marked =
+            const TextSelectionSpan marked =
                 property_selection_columns(row, body.value_columns);
             if (marked.present) {
                 region.sel_begin_row = region.caret_row;

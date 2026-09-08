@@ -24,7 +24,6 @@ std::int64_t WorkshopWeave::interaction_now() const {
 }
 
 void WorkshopWeave::repaint(loom::Mail& mail) {
-    refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
     refresh_inspector(); // and a draft's window is only true against the room it has now
     refresh_setup_name(); // ...and so is the name editor's, against the same room
     refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading
@@ -60,6 +59,9 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // plane below draws the same document; this is the same truth in the form a pane can
     // read, said on the same beat and by the same rule.
     say_document(mail);
+    // ...and what the terminal participant's record holds, to whoever is presenting it.
+    // Same beat, same rule, same silence when nothing changed.
+    say_transcript(mail);
     mail.publish(paint(state_, session_));
 }
 

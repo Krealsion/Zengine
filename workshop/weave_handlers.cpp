@@ -272,10 +272,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         quit();
         repaint(mail);
         return;
-    case Act::kTerminalToggle:
-        toggle_terminal();
-        repaint(mail);
-        return;
     case Act::kSaveDocument:
         save_document();
         repaint(mail);
@@ -326,7 +322,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     const std::uint64_t copied_before = session_.clipboard.writes;
     const std::uint64_t pastes_before = session_.clipboard.paste_requests;
     switch (ctx) {
-    case KeyContext::kTerminal: terminal_key(k); break;
     case KeyContext::kArrangePane:
     case KeyContext::kArrangeDesk:
     case KeyContext::kArrangeReset: arrange_key(k, mail); break;

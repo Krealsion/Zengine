@@ -187,9 +187,6 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06, WL-FOCUS-09 -- agents/workshop/focus.md
 // WL-ARR-14 -- agents/workshop/arrangement.md; WL-CTX-08 -- agents/workshop/contextual.md
 KeyContext keyboard_context(const Session& s) {
-    if (s.terminal.open) {
-        return KeyContext::kTerminal;
-    }
     if (s.arrange.open) {
         if (s.arrange.resetting) {
             return KeyContext::kArrangeReset;
