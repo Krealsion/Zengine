@@ -63,11 +63,14 @@ inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON TH
 inline constexpr std::int64_t kWorkspaceY = kTopRows; ///< ...under the top band, which owns row 0
 inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
 
-/// THE SIDE REGION (`placement::kSideRegion`): the column beside the workspace, FIXED, and
-/// anchored to the right edge rather than to a column number.
+/// THE RIGHT COLUMN (`placement::kSideRegion`): a PLACE at the screen's right edge, fixed
+/// width, anchored to the edge rather than to a column number -- AND RESERVING NOTHING. It
+/// took 28 columns plus a two-cell gap off the room for as long as it was a reservation, held
+/// empty whether or not a pane stood in them. The room runs underneath it whole now, and a
+/// pane standing here covers room rather than owning it -- which is what a stacked panel has
+/// always done to the room it is over.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanelCols = 28;
-inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
 
 /// The rows INSIDE the side region's bounds: one, the `OBJECTS` heading.
 // WL-GEO-03 -- agents/workshop/geometry.md
@@ -128,7 +131,7 @@ inline constexpr std::int64_t kTerminalMinCols = 8;
 struct Screen {
     std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints, in cells
     std::int64_t h = kScreenMinH;
-    std::int64_t panel_x = 0;      ///< the object list and the inspector
+    std::int64_t panel_x = 0;      ///< the right column's left edge: a place, not a reservation
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
     std::int64_t notice_y = 0;
@@ -168,7 +171,22 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
     s.panel_x = s.w - kPanelCols;
-    s.room_w = s.panel_x - kPanelGap;
+    // THE ROOM IS THE SURFACE. This line subtracted the right column and its gap for as long
+    // as that column was reserved; nothing reserves it now. `panel_x` above is still the x a
+    // pane placed at the right edge resolves to -- a PLACE -- and the room runs under it,
+    // whole, so a maker who takes that pane off the desk gets thirty columns of workspace
+    // back instead of thirty columns of nothing.
+    //
+    // ⚠ AND EVERY %-WIDE OBJECT RESOLVES AGAINST THE BIGGER NUMBER, once, at this version.
+    // `workspace_w` follows `room_w` (screen_bindings.cpp `resize_screen`), so a 60% object on
+    // a 160-column surface is 96 cells where it was 78. That is the move `the-reserved-column`
+    // refused when Info became removable, and it is refused here for the same reason it was
+    // then: what a share means may not depend on which panes are open. It does not depend on
+    // that here -- the room is the surface at every moment, whatever stands on it.
+    s.room_w = s.w;
+    // THE HEIGHT STILL LOSES ITS BANDS, and the asymmetry is the point: the top and bottom
+    // rows are chrome this screen paints itself, under no pane and coverable by none, while
+    // the right column is a place panes are put in.
     s.room_h = s.h - kWorkspaceY - kBottomRows;
     // THE BOTTOM BAND'S FIRST TWO ROWS, DERIVED FROM ITS HEIGHT RATHER THAN COUNTED BACK
     // FROM THE SCREEN'S FOOT. They used to be `h - 4` and `h - 2` against a five-row
@@ -178,16 +196,41 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     // at rows it no longer owns.
     s.notice_y = s.h - kBottomRows;
     s.help_y = s.notice_y + 1;
-    // THE PANE, INSIDE THE ROOM THE SCREEN JUST RESERVED. `room_w` is two lines up
-    // and it is the whole of the fix: the pane's right edge is the workspace's right edge, so
-    // the reserved side column is not the pane's to spend and does not have to know it. What
-    // the pane WANTS is rule unchanged (half of every pair of columns the surface
-    // gains); what it GETS is the smaller of that want and the room. The two differ only
-    // below 94 columns, where the want exceeds the whole room and the pane simply is the
-    // room -- and `room_w` is never less than the minimum screen's 48, so the clamp has no
-    // degenerate branch to guard.
-    const std::int64_t pane_want = kTerminalWantW + (s.w - kScreenMinW) / 2;
-    s.terminal_w = pane_want < s.room_w ? pane_want : s.room_w;
+    // THE PANE, IN THE ROOM -- and the room is the whole surface now. Its right edge is still
+    // the room's right edge; what changed is which edge that is. What the pane WANTS is the
+    // rule unchanged (half of every pair of columns the surface gains above the minimum), and
+    // what it GETS is that want WHOLE, because the want is now always inside the room:
+    // `kTerminalWantW + (w - kScreenMinW)/2 < w` for every `w >= kScreenMinW`, since
+    // `56 + d/2 < 78 + d` holds for every `d >= 0`. The clamp that stood here is deleted
+    // rather than left unreachable; the two assertions under `kMinScreen` hold that algebra
+    // at both ends of the extent this screen clamps to, and would redden if a later want
+    // outgrew the surface it is measured against.
+    //
+    // ⚠ SO THE PANE IS EIGHT CELLS WIDER AT THE MINIMUM SCREEN, AND REACHES THE SCREEN'S
+    // EDGE. It asked for 56 columns there and was given 48, because thirty of the surface's
+    // were spoken for; nothing speaks for them, and it gets what it asked for.
+    //
+    // ⚠⚠ AND IT COVERS THE PANE AT THE RIGHT COLUMN, WHICH IS HD-10's DEFECT RETURNING, NAMED
+    // RATHER THAN DISCOVERED. HD-10 measured it: with the terminal open, Info published its
+    // properties and its footer and the pane's region cleared those cells to the canvas
+    // colour, so the panel read as STOPPED rather than as covered and a maker could not tell
+    // omitted rows from hidden ones from destroyed ones. The reservation was the fix, and it
+    // was doing two jobs -- "these columns are nobody's to spend" and "the terminal cannot
+    // silently erase what stands there". Only the first is retired here; the second has no
+    // mechanism left, because every mechanism for it needs the screen to know that a pane is
+    // furniture, which is the knowledge this whole change removes.
+    //
+    // WHAT IS DIFFERENT FROM HD-10, AND IT IS NOT NOTHING: the maker can move the pane now.
+    // Under the reservation, Info stood in the terminal's way and four code paths refused to
+    // move it. The remaining cost is the ONE overlap in this composition that no boundary
+    // makes legible -- the terminal pane wears no chrome, unlike every panel and the picker,
+    // which is why a panel over Info reads correctly and the terminal over Info does not.
+    // Pinned as a measured fact by `tests/test_workshop_screen.cpp` case
+    // "HD-10: the terminal pane now covers the right column, measured" and reported to the
+    // founder rather than patched around here: the candidates are chrome on the terminal
+    // pane, paint order, or a ceiling that is a reservation under another name, and choosing
+    // between them is not this change's to make.
+    s.terminal_w = kTerminalWantW + (s.w - kScreenMinW) / 2;
     s.terminal_h = kTerminalMinH + (s.h - kScreenMinH) / 2;
     s.terminal_x = s.room_w - s.terminal_w;
     s.terminal_y = s.h - s.terminal_h;
@@ -218,8 +261,11 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
 /// the 78x22 composition was written with is still exactly what this screen resolves to.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
-static_assert(kMinScreen.panel_x == 50, "the panel column has not moved on the minimum screen");
-static_assert(kMinScreen.room_w == 48, "the workspace's documented default width");
+static_assert(kMinScreen.panel_x == 50, "the right column has not moved on the minimum screen");
+static_assert(kMinScreen.room_w == kMinScreen.w,
+              "the room IS the surface: nothing comes off its width. The 48 this read before "
+              "was 78 less the right column's 28 and the two-cell gap beside it, and those "
+              "thirty columns are the room's");
 static_assert(kMinScreen.room_h == 16, "the workspace's documented default height");
 static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 19, "the bottom band");
 // THE MINIMUM COMPOSITION'S THREE REGIONS, WRITTEN OUT.
@@ -228,10 +274,17 @@ static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.h - kBottomRows,
               "the workspace's floor IS the bottom band's top -- no cell between them, and "
               "none reserved twice");
 // THE PANE'S CORNER AND EXTENT ON THE MINIMUM SCREEN.
-static_assert(kMinScreen.terminal_x == 0 && kMinScreen.terminal_y == 9, "the pane's corner");
-static_assert(kMinScreen.terminal_w == 48 && kMinScreen.terminal_h == 13, "the pane's extent");
+static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pane's corner");
+static_assert(kMinScreen.terminal_w == kTerminalWantW && kMinScreen.terminal_h == 13,
+              "the pane's extent -- and the width is the WANT, whole. The eight cells the room "
+              "used to take off it here were the reserved column's, and are the pane's now");
 static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinScreen.room_w,
-              "the pane's right edge is the WORKSPACE's right edge, not the screen's (HD-10)");
+              "the pane's right edge is the room's right edge -- unchanged as a rule, and the "
+              "room's right edge is the screen's now (HD-10, re-argued)");
+// AND THE WANT IS INSIDE THE ROOM AT BOTH ENDS OF THE CLAMPED EXTENT, which is the whole of
+// why `screen_of` no longer carries a clamp: a negative x is the shape the failure would take.
+static_assert(kMinScreen.terminal_x >= 0, "the want fits the smallest surface");
+static_assert(screen_of(kScreenMaxW, kScreenMaxH).terminal_x >= 0, "...and the largest");
 static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
 // WITH NO TEXT METRIC THE PANE IS EXACTLY THE PANE IT WAS, and these two say so in the type
 // system: a character IS a cell, so the interior and the placement are the same numbers, and
@@ -257,21 +310,21 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
         return ui::Rect{0, 0, sc.w, kTopRows};
     }
     if (where == placement::kSideRegion) {
-        // From the top of the canvas to the bottom of the workspace: the column beside the
-        // material, ending where the bottom band begins.
+        // From the top of the workspace to its floor, against the right edge: the column OVER
+        // the material rather than beside it, ending where the bottom band begins. The
+        // rectangle is what it always was; what it no longer is, is subtracted from the room
+        // it stands on.
         return ui::Rect{sc.panel_x, kSideY, kPanelCols, kWorkspaceY + sc.room_h - kSideY};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
                                : static_cast<std::int64_t>(slot);
-    // THE WIDTH IS THE MINIMUM PLUS HALF THE ROOM'S SURPLUS OVER IT, floored. The
-    // floor is the whole of the difference at an odd surplus and it is deliberate: rounding
-    // up would take the odd column from the maker, and at 79 columns of surface -- a room of
-    // 49, a surplus of exactly one -- that is the difference between a panel that leaves a
-    // reachable column and one that does not. `room_w` is clamped to at least
-    // `kMinScreen.room_w`, which IS `kStackW`, so the subtraction is never negative and this
-    // needs no guard; the x is 0, so `x + w <= room_w` holds at every extent, and strictly
-    // below it wherever there is any surplus at all.
+    // THE WIDTH IS THE MINIMUM PLUS HALF THE ROOM'S SURPLUS OVER IT, floored. The floor is
+    // deliberate: rounding up would take the odd column from the maker. `room_w` is the
+    // surface's own width and is never below `kScreenMinW`, which is thirty cells above
+    // `kStackW`, so the subtraction is never negative and this needs no guard; the x is 0, so
+    // `x + w < room_w` holds STRICTLY at every extent -- including the smallest, where the
+    // slot used to be the whole room and left the maker nothing to its right.
     return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap),
                     kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
@@ -502,17 +555,23 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
 inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
 inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
-static_assert(kMinStack.x + kMinStack.w <= kMinSide.x - kPanelGap,
-              "the two places do not overlap: a stacked panel never reaches the side region");
-static_assert(kMinStack.x + kMinStack.w == kMinScreen.room_w,
-              "the stack is exactly the minimum screen's workspace width -- it covers the top "
-              "of the workspace and nothing else");
-// AND THE HALF-SHARE NEVER SPENDS WHAT IS NOT THE STACK'S.
-static_assert(kMinStack.w == kStackW, "the minimum composition is byte-identical");
-static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(79, 22)).w == kStackW,
-              "an odd surplus of one is FLOORED: the odd column stays the maker's");
-static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w == 109,
-              "48 + (170 - 48)/2 -- the half-share, spelled out");
+// THE TWO PLACES MAY NOW MEET, and that is the decision rather than an oversight: the stack's
+// half-share is measured against a room that no longer stops short of the right column, so on
+// the smallest screen a slot runs to column 62 and the right column begins at 50. A panel
+// covering a pane is what an overlay is for; what the half-share still promises is that a
+// slot never covers the WHOLE room, and the line under this one is that promise.
+static_assert(kMinStack.x + kMinStack.w < kMinScreen.room_w,
+              "a stacked panel leaves reachable workspace to its right at every extent -- "
+              "which at the smallest screen it did NOT before: 48 of 48 left nothing, and 63 "
+              "of 78 leaves fifteen");
+// AND THE HALF-SHARE IS THE SAME ARITHMETIC IT WAS, over a bigger room.
+static_assert(kMinStack.w == kStackW + (kMinScreen.room_w - kStackW) / 2 && kMinStack.w == 63,
+              "48 + (78 - 48)/2 -- the half-share on the minimum screen, spelled out");
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(79, 22)).w == 63,
+              "an odd surplus is FLOORED: 48 + (79 - 48)/2 is 63, not 64 -- the odd column "
+              "stays the maker's");
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w == 124,
+              "48 + (200 - 48)/2 -- the half-share, spelled out");
 static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(200, 60)).w ==
                   placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w,
               "the width is a fact about the SCREEN, not about which slot a panel sits in");
@@ -522,9 +581,12 @@ static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
               "the side region reaches the screen's right edge");
 static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
               "the side region ends where the workspace does, above the bottom band");
-// AND THE TERMINAL PANE OBEYS THE SAME LAW AS THE STACK.
-static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w <= kMinSide.x - kPanelGap,
-              "the two places do not overlap: the terminal pane never reaches the side region");
+// AND THE TERMINAL PANE OBEYS THE SAME LAW AS THE STACK -- pointed at the other corner, and
+// at the room's right edge, which is the screen's.
+static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinSide.x + kMinSide.w,
+              "the terminal pane reaches the screen's right edge, where the right column also "
+              "ends: the two places meet, and the column it used to stop short of is a place "
+              "now rather than a reservation");
 static_assert(kPickerRows + 2 * kChromeCells <= kStackRows,
               "the picker still fits a panel's slot INSIDE its own chrome (WUX-5): the "
               "declared floor is the compile-time catalog, and the slot must seat it plus "

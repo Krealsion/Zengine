@@ -166,17 +166,17 @@ TEST_CASE("a cells extent stays cells and a share stays a share") {
     // The semantic distinction, preserved even where both happen to resolve to
     // the same number of cells in the workspace that saved them.
     WorkshopDoc original;
-    const std::int64_t cells = doc::add(original, "cells", 0, 0, ui::Extent{ui::kExtentCells, 28},
+    const std::int64_t cells = doc::add(original, "cells", 0, 0, ui::Extent{ui::kExtentCells, 46},
                                         ui::Extent{ui::kExtentCells, 3});
     const std::int64_t share = doc::add(original, "share", 0, 5, ui::Extent{ui::kExtentPercent, 60},
                                         ui::Extent{ui::kExtentCells, 3});
-    Session s; // the default 48-cell workspace: 60% of 48 IS 28
+    Session s; // the default 78-cell workspace: 60% of 78 IS 46
     const ui::Scene scene = workspace_scene(original, s);
     REQUIRE(ui::placed_for(scene, cells)->rect.w == ui::placed_for(scene, share)->rect.w);
 
     WorkshopDoc live;
     REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
-    CHECK(doc::find(live, cells)->width == ui::Extent{ui::kExtentCells, 28});
+    CHECK(doc::find(live, cells)->width == ui::Extent{ui::kExtentCells, 46});
     CHECK(doc::find(live, share)->width == ui::Extent{ui::kExtentPercent, 60});
 
     // The file says which is which in words, so a person reading it does not
@@ -346,7 +346,7 @@ TEST_CASE("the same share, loaded into a different workspace, resolves different
 
     // RESOLVED: the share moved with the workspace, the cells did not.
     const std::int64_t share_narrow = ui::placed_for(workspace_scene(live, narrow), share)->rect.w;
-    CHECK(share_wide == 28);
+    CHECK(share_wide == 46);
     CHECK(share_narrow == 14);
     CHECK(share_narrow != share_wide);
     CHECK(ui::placed_for(workspace_scene(live, narrow), fixed)->rect.w == 20);
@@ -356,8 +356,8 @@ TEST_CASE("the same share, loaded into a different workspace, resolves different
 }
 
 TEST_CASE("a save normalizes nothing: 60% is not written as the cells it happens to be") {
-    // The no-op stability rule, in its persistence form. At a 48-cell
-    // workspace both 59% and 60% resolve to 28 cells, so a loader that
+    // The no-op stability rule, in its persistence form. At a 78-cell
+    // workspace both 59% and 60% resolve to 46 cells, so a loader that
     // "helpfully" canonicalised would be free to pick either. Each is written
     // and read as itself.
     for (const std::int64_t pct : {59, 60}) {
@@ -366,7 +366,7 @@ TEST_CASE("a save normalizes nothing: 60% is not written as the cells it happens
         const std::int64_t id = doc::add(d, "p", 0, 0, ui::Extent{ui::kExtentPercent, pct},
                                          ui::Extent{ui::kExtentCells, 3});
         Session s;
-        REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28);
+        REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 46);
 
         WorkshopDoc live;
         REQUIRE(persist::load_into(live, persist::to_text(d)).accepted);

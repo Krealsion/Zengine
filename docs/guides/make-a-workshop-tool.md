@@ -186,8 +186,8 @@ summary      one line, so a maker can tell what they are about to open
 under the catalog refuse a row that would fail silently:
 
 ```text
-kinds_placed_in(placement::kSideRegion) == 1   two kinds in the side region resolve to
-                                               ONE rectangle and paint over each other
+kinds_placed_in(placement::kSideRegion) == 1   two kinds DEFAULTING to the right column
+                                               resolve to ONE rectangle, unasked
 every_kind_is_referable()                      an empty provider or pane key is a row
                                                a saved setup can never name
 every_reference_is_one_kind()                  two rows sharing a PaneRef make one of them
@@ -233,8 +233,8 @@ A kind **declares an intent**, not a coordinate. There are exactly two places:
 
 | `placement::` | where | rectangle |
 |---|---|---|
-| `kSideRegion` | the reserved column beside the workspace | 28 cells wide, as tall as the workspace |
-| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 9 cells tall; 48 cells wide at the minimum composition and wider on a wider surface (below), one blank row between slots — **and all of it a default a maker may override** (WIND-2) |
+| `kSideRegion` | the column at the workspace's right edge — a place, reserving nothing | 28 cells wide, as tall as the workspace |
+| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 9 cells tall; 63 cells wide at the minimum composition and wider on a wider surface (below), one blank row between slots — **and all of it a default a maker may override** (WIND-2) |
 
 `placement_bounds(where, slot, screen)` turns an intent into the DEVELOPER'S DEFAULT rectangle;
 `bounds_of(panels, setup, kind, screen)` lays the maker's authored override over it, per axis, and
@@ -247,8 +247,9 @@ panel that will look broken the first time somebody drags its corner.
 
 Four things follow that are easy to get wrong by assuming otherwise:
 
-- **The side region holds exactly one panel.** A second kind declaring it is a *compile error*
-  with the reason in the message.
+- **Exactly one built-in kind defaults to the right column.** A second kind declaring it is a
+  *compile error* with the reason in the message. A maker's setup file may still put any pane
+  there by naming the place, and two panes in one place is a desk asking for that.
 - **The overlay stack has a finite number of slots, and it is small.** `stack_slots_that_fit`
   counts them by asking `placement_bounds` — there is no second arithmetic — against the floor
   the workspace ends at, which is the row WS-0 spent on the setup line. **At the 78 × 22 minimum
@@ -286,11 +287,13 @@ Four things follow that are easy to get wrong by assuming otherwise:
 - **An authored place takes your panel out of the tiling.** A pane the maker put somewhere spends
   no stack slot and cannot become `waiting` — which is what frees the tile for whatever was
   waiting behind it. Resetting the place puts it back.
-- **A wider window widens your stacked panel, and by half.** The side region keeps its width at
+- **A wider window widens your stacked panel, and by half.** The right column keeps its width at
   every extent and only its *height* follows the screen. An overlay slot's width is
-  `48 + (room_w - 48)/2`, floored — 48 cells at the 78 × 22 minimum, 59 at 100 columns of
-  surface, 69 at 120, 109 at 200 — so the surplus a bigger surface gives the workspace is split
-  evenly between your panel and the material underneath it. Its **height does not follow the
+  `48 + (room_w - 48)/2`, floored, and `room_w` is the whole surface — 63 cells at the 78 × 22
+  minimum, 74 at 100 columns of surface, 84 at 120, 124 at 200 — so the surplus a bigger surface
+  gives the workspace is split evenly between your panel and the material underneath it. At the
+  narrowest screens that width reaches into the right column's place, which is what an overlay
+  does and is why your panel wears a boundary. Its **height does not follow the
   screen at all**, and neither does the number of slots: those answer to `kStackRows` and to how
   much room is left above the setup line.
 - **Every cell of your rectangle is yours for the POINTER as well as the paint.** A press inside

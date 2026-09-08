@@ -45,8 +45,7 @@ whole panel's worth of rows over the first slot: a three-row picker over a nine-
 six rows of another panel reading as one box, so covering the slot buys a screen that cannot be
 misread.
 
-**Laws supported.** [WL-PANE-01](../workshop/panes-and-windows.md),
-[WL-PANE-03](../workshop/panes-and-windows.md), [WL-PANE-08](../workshop/panes-and-windows.md),
+**Laws supported.** [WL-PANE-03](../workshop/panes-and-windows.md),
 [WL-PANE-09](../workshop/panes-and-windows.md), [WL-PANE-10](../workshop/panes-and-windows.md),
 [WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md),
 [WL-PANE-14](../workshop/panes-and-windows.md), [WL-PANE-15](../workshop/panes-and-windows.md).

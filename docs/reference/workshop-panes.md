@@ -86,15 +86,17 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 
   The **overlay stack** is anchored to the canvas's top-left, stacked downwards — the terminal
   overlay's mechanism pointed at the other corner — and it covers the top of the material a
-  maker is building. It is **48 cells wide at the 78×22 minimum, where that is exactly the
-  workspace's width, and 48 plus half the room's surplus over that anywhere wider** (
-  floored: 59 cells at 100 columns of surface, 109 at 200, 329 at 640). *A wider room is shared
+  maker is building. It is **48 cells plus half the room's surplus over that, floored**, and the
+  room is the whole surface — 63 cells at the 78×22 minimum, 74 at 100 columns of surface, 124
+  at 200, 344 at 640. *A wider room is shared
   by the pane and the maker* — the same half-share the terminal overlay takes at the other
   corner — so the columns the panel does not take stay reachable at every extent, and the ones
   it does take are its own for paint **and** for the pointer. Its height, its column, its row
   and the blank row between slots do not move with the surface. The **side region** is
-  the fixed right-hand column `Info` has always been; it holds exactly one panel, and a second
-  kind declaring it is a compile-time refusal rather than two panels painting over each other.
+  the fixed right-hand column `Info` has always been — a place, reserved out of nothing, with
+  the workspace running underneath it. Exactly one built-in kind DEFAULTS there, and a second
+  declaring it is a compile-time refusal; a setup file may put any pane there by name, and two
+  panes in one place is a desk saying so rather than an accident.
   A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
   list never pushes it down a slot it does not occupy. `bounds_of(panels, kind, screen)` is the
   one path to an open panel's bounds — a closed one answers with an empty rectangle rather than
@@ -136,12 +138,13 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   maker two different things. What it is **not** is an argument for a painted-cell mask: what a
   hand meets is still bounds, because a mask would make occlusion depend on the length of a
   label. Whitespace inside a panel is the panel's.
-- **Removing `Info` leaves its 28 columns empty, deliberately.** Giving them to the workspace
-  would not be a tidier layout — the workspace's extent is what a share resolves against, so
-  every `%`-wide object on screen would change size because a maker hid a list of names. A
-  panel's presence must not be visible in the picture of the document. That rule is what settles
-  the drag question above too: a panel may cover what a maker authored, and may not change what
-  they are able to author.
+- **Removing `Info` gives its 28 columns back, and always could have.** The workspace runs the
+  full width of the surface underneath every pane, `Info` included, so taking it off the desk
+  reveals room rather than creating it. What is still refused is a room that CHANGES with which
+  panes are open: the workspace's extent is what a share resolves against, and a `%`-wide object
+  that resized because a maker hid a list of names would make a panel's presence visible in the
+  picture of the document. That rule settles the drag question above too: a panel may cover what
+  a maker authored, and may not change what they are able to author.
 - **No focus framework.** Twenty contexts for the keyboard (`KeyContext`, `workshop/keymap.hpp`)
   plus one per external pane holding the keys, keyed by its runtime handle, resolved fresh at
   every keystroke by one routing chain: the terminal overlay, the arrangement scopes, the
@@ -354,10 +357,11 @@ authored setup                 resolved presentation          session interactio
 - **The host clips; it never rewrites.** A rectangle running past the canvas is legal authored
   intent, drawn and met and granted room for the part this screen has, and saved exactly as the
   maker said it.
-- **Info stays in its reserved column and the Terminal stays a mode.** `screen_of` reserves the
-  side column whether or not Info is open, and `room_w` is what every share of the workspace
-  resolves against — so a movable Info would change the resolved size of objects in a maker's
-  document. Management refuses to author its geometry and says why.
+- **Info is an ordinary arranged pane, and the Terminal stays a mode.** `screen_of` reserves
+  nothing across the width: `room_w` is the surface, it is what every share of the workspace
+  resolves against, and the right column stands on it. Management authors Info's geometry like
+  any other pane's. The shipped default setup is what opens it at the right edge, by naming
+  that place (`"mode": "right-column"`) rather than by coordinates no desk could know.
 - **`w` opens pane management**, from command mode. Inside it: `tab`/`up` select, `m` move,
   `s` size (`tab` cycles the eight edges and corners, arrows resize), `f`/`b` front/back,
   `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one

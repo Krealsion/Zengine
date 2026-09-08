@@ -55,8 +55,12 @@ inline constexpr std::int64_t kPaneEditor = 5;
 /// coordinate somebody chose.
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace placement {
-/// The reserved column beside the workspace: fixed width, against the right
-/// edge, and reserved whether or not anything is in it.
+/// The column at the workspace's right edge: fixed width, against that edge, and RESERVING
+/// NOTHING. It was subtracted from the room whether or not anything stood in it, which made
+/// it the one place a maker could not author and the one pane whose absence bought them no
+/// space. It is an ordinary place now -- the room runs under it, a pane standing here covers
+/// room exactly as a stacked panel does, and a maker may move a pane out of it and get the
+/// thirty columns back.
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kSideRegion = 0;
 /// Over the workspace, from the canvas's top-left, stacked downwards — the
@@ -71,11 +75,14 @@ inline constexpr std::int64_t kOverlayStack = 1;
 inline constexpr std::int64_t kTopBand = 2;
 } // namespace placement
 
-/// IS THIS PLACE THE MAKER'S TO AUTHOR?
-// WL-PANE-01, WL-PANE-08 -- agents/workshop/panes-and-windows.md
-inline constexpr bool place_is_authorable(std::int64_t where) noexcept {
-    return where != placement::kSideRegion;
-}
+// `place_is_authorable` IS GONE, AND THE ANSWER IT GAVE IS NOW UNCONDITIONAL. It read
+// `where != placement::kSideRegion` -- one place excluded, because the screen reserved that
+// column and owned what stood in it. Nothing is reserved, so EVERY place is the maker's to
+// author, and a predicate that can only answer true is a question this code no longer has.
+// Its four readers said the same sentence four ways (the arrangement admission, the pointer's
+// hold, the pane editor's typed geometry, and `project_pane`'s layering of authored intent
+// over a resolved rectangle); each of them now simply layers what the maker said. The two laws
+// that named it, WL-PANE-01 and WL-PANE-08, name what replaced it instead.
 
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
 /// below carries, and the first half of a durable `PaneRef`.
@@ -233,10 +240,13 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
     return n;
 }
 
-/// THE SIDE REGION HOLDS EXACTLY ONE PANEL, and this line is the whole of that rule.
+/// THE RIGHT COLUMN HOLDS EXACTLY ONE PANEL BY DEFAULT, and this line is the whole of that
+/// rule. It is about DEFAULTS, not about occupancy: two panes may stand in one place now, and
+/// the one on top covers the other, which is what a maker asking for that has asked for. What
+/// this refuses is two CATALOG rows resolving to one rectangle with nobody having said so.
 static_assert(kinds_placed_in(placement::kSideRegion) == 1,
-              "the side region has room for one panel: a second kind placed there would "
-              "resolve to the same bounds and paint over the first");
+              "the right column is one kind's default: a second kind declaring it would "
+              "resolve to the same bounds and paint over the first, unasked");
 
 /// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word.
 static_assert(kinds_placed_in(placement::kTopBand) == 1,

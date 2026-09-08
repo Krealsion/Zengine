@@ -63,8 +63,8 @@ PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPane
 `workshop/weave_arrange.cpp` `enter_arrange_pane`; `workshop/weave_external.cpp` `unselect_pane`;
 `workshop/weave_pane_editor.cpp` `open_source`; `tests/test_workshop_screen.cpp` case `"WUX-5: the
 selection lift never reaches the file, and no session starts with one"`, case `"WUX-7: contextual
-Arrange lifts the pane it addressed, not the one in front"`, case `"WUX-7: a refused Arrange
-leaves the selection exactly where it was"`.
+Arrange lifts the pane it addressed, not the one in front"`, case `"WUX-7: every pane a maker can
+point at can be arranged, and the refusals are blind"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-05 — `effective_pane_order` is the one foreground order
