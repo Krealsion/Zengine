@@ -147,14 +147,20 @@ struct TerminalRig {
 
     /// The region this pane's rows are drawn into, on the last canvas -- found at the exact
     /// corner `external_body_rect` resolves, which is what `external_region_rows` matches on.
-    const surface::SurfaceTextRegion* region() {
+    ///
+    /// BY VALUE, because `all_texts` answers by value: a pointer into the range of a
+    /// range-for over it dies at the semicolon, which is a use-after-free the sanitizer lane
+    /// names and an ordinary run does not.
+    surface::SurfaceTextRegion region() {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        for (const surface::SurfaceTextRegion& one : all_texts(r.last_canvas())) {
+        const std::vector<surface::SurfaceTextRegion> texts = all_texts(r.last_canvas());
+        for (const surface::SurfaceTextRegion& one : texts) {
             if (one.x == body.x && one.y == body.y) {
-                return &one;
+                return one;
             }
         }
-        return nullptr;
+        FAIL("no region at this pane's own corner");
+        return surface::SurfaceTextRegion{};
     }
 
     /// Every entry of the participant's own record, rendered by the CORE's own facts.
@@ -332,8 +338,13 @@ TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading 
     t.open();
     const std::size_t said_before = t.r.said_transcripts.size();
     REQUIRE(said_before > 0); // the first reading is news
-    t.r.ready();
-    t.r.ready();
+    // ⚠ THE REPAINTS HERE ARE RESIZES AND NOT SKIN HELLOS, and the difference is real: a
+    // fresh skin's hello makes this host ask the catalog again, every office re-offers, and
+    // an OFFER deliberately un-says the pictures so a listener that has just arrived hears
+    // them (`on(PaneOffered)`; TERM-W6b). A resize is an ordinary repaint with no new
+    // listener in it, which is the beat this law is about.
+    t.r.extent(160, 48);
+    t.r.extent(160, 48);
     CHECK(t.r.said_transcripts.size() == said_before);
     // A NEW ENTRY IS NEWS.
     t.focus();
@@ -346,6 +357,44 @@ TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading 
     REQUIRE_FALSE(last.entries.empty());
     CHECK(last.entries.front().kind == ws::kEntryCommand);
     CHECK(last.entries.front().text == "x");
+}
+
+TEST_CASE("TERM-W6b: a pane that loaded after the last publication still hears the reading") {
+    // ⭐ THE DEFECT THE WITNESS FOUND, AND IT WAS MINE. "Said only when the reading changed" is
+    // what makes this seam terminate -- and it means a pane that arrives AFTER this host last
+    // spoke hears nothing, and shows a permanent "no participant was mounted on this bus" over
+    // a process that mounted one. The shipped plan loads the Skin before the Terminal pane, so
+    // the first repaint happens with the pane not yet live: in a real Workshop the header read
+    // the wrong sentence, and the rig did not because it loads the pane before it paints.
+    //
+    // AN OFFER IS THE ONE MOMENT A NEW LISTENER CERTAINLY EXISTS. The host already re-says the
+    // conditions and the document there (`on(PaneOffered)`); the record was simply not on that
+    // list. Driven here as it happens: paint FIRST, load SECOND.
+    TerminalRig t;
+    t.r.mount_workshop();
+    t.me = t.r.mount_terminal();
+    t.r.ready();
+    t.r.extent(160, 48);
+    REQUIRE_FALSE(t.r.said_transcripts.empty()); // the host has spoken, to nobody
+    REQUIRE(t.r.said_transcripts.back().attached);
+
+    load::LoadPlan plan;
+    load::ArtifactIntent seat;
+    seat.stem = pane::kTerminalPaneStem;
+    seat.weave = load::WeaveIntent{pane::kTerminalPaneRole};
+    plan.artifacts.push_back(seat);
+    const load::Executed done = t.r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    t.r.ready();
+    REQUIRE(t.row() != nullptr);
+    t.kind = t.row()->kind;
+    t.r.pick(pane_terminal_ref());
+    REQUIRE(t.r.session().panels.has(t.kind));
+
+    // ⚔ MUTATION: dropping `transcript_said_ = false` from `on(PaneOffered)` puts
+    // "no participant was mounted on this bus" here, which is the sentence a maker read.
+    CHECK(t.text().find("TERMINAL -- weave #") != std::string::npos);
+    CHECK(t.text().find("no participant was mounted") == std::string::npos);
 }
 
 TEST_CASE("TERM-W7: the image that presents a participant cannot reach one") {
@@ -435,13 +484,12 @@ TEST_CASE("TERM-W10: the pane publishes a caret, and Workshop draws it into the 
     REQUIRE(seat != nullptr);
     CHECK(seat->caret_row == t.input_row());
     CHECK(seat->caret_col == 2 + 3); // `> ` and three characters
-    const surface::SurfaceTextRegion* region = t.region();
-    REQUIRE(region != nullptr);
+    const surface::SurfaceTextRegion region = t.region();
     // The region's caret is the pane's, plus Workshop's own header row.
-    CHECK(region->caret_row == seat->caret_row + external_title_rows(
+    CHECK(region.caret_row == seat->caret_row + external_title_rows(
                                                     t.r.session().panels, t.kind,
                                                     t.r.session().pane_titles));
-    CHECK(region->caret_col == seat->caret_col);
+    CHECK(region.caret_col == seat->caret_col);
     // ...and a cell projection inserts it as a character, so a character medium reads as it
     // always did.
     const std::vector<std::string> rows = t.shown();
@@ -462,10 +510,9 @@ TEST_CASE("TERM-W11: the caret carries a selection, and both ends or neither") {
     CHECK(seat->sel_end_row == t.input_row());
     CHECK(seat->sel_begin_col == 2);
     CHECK(seat->sel_end_col == 2 + 5);
-    const surface::SurfaceTextRegion* region = t.region();
-    REQUIRE(region != nullptr);
-    CHECK(region->sel_begin_row != surface::kNoSelection);
-    CHECK(region->sel_end_col - region->sel_begin_col == 5);
+    const surface::SurfaceTextRegion region = t.region();
+    CHECK(region.sel_begin_row != surface::kNoSelection);
+    CHECK(region.sel_end_col - region.sel_begin_col == 5);
     // COLLAPSING IT UN-SAYS IT: a caret with no selection publishes none.
     t.r.key(input::scan::kRight);
     const ExternalPane* after = t.seat();

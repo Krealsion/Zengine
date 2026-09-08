@@ -63,7 +63,8 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     // moment a new listener certainly exists, and it is cheap: it costs one publication of
     // a reading this host derives anyway.
     conditions_said_ = false;
-    document_said_ = false; // ...and the same for the document's picture, for the same reason
+    document_said_ = false;   // ...and the same for the document's picture, for the same reason
+    transcript_said_ = false; // ...and the terminal participant's record, for the same reason
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
