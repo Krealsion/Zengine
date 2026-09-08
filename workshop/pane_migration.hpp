@@ -44,21 +44,27 @@
 // the migration register's own rule about reading, and it is the reason this converter is
 // needed only while yesterday's bytes exist.
 //
-// IT IS NOT A GENERAL MECHANISM. Retired references, named in full, with no table, no
-// pattern and no registration seam. The previous revision of this comment predicted the
-// cost of the second one exactly -- "a second named pair and one more line in the loop" --
-// and the Builder's migration paid it: three constants and one `if`. The prediction is left
-// standing rather than deleted, because a design note that turned out to be right about its
-// own next step is worth more than the sentence that would replace it.
+// IT IS NOT A GENERAL MECHANISM. Retired references, named in full, in a table this file
+// writes out by hand -- no pattern, no registration seam, and nothing any other party may add
+// a row to. The previous revision of this comment predicted the cost of the second one exactly
+// -- "a second named pair and one more line in the loop" -- and the Builder's migration paid
+// it: three constants and one `if`. The revision before this one predicted the THRESHOLD, and
+// Info's migration met it exactly as written. Both predictions are left standing rather than
+// deleted, because a design note that turned out to be right about its own next step is worth
+// more than the sentence that would replace it.
 //
-// ⚠ AND THE THRESHOLD IS NAMED SO NOBODY HAS TO GUESS IT. Two pairs is still cheaper than a
-// table; the case for a table is a THIRD reference plus something a pair cannot say -- a
-// pane key that moved as well as its office, or a reference that resolves to two panes. Two
-// spellings of "the office moved and the key did not" are two lines, and two lines are not a
-// framework.
+// ⚠ AND THE THRESHOLD IT NAMED HAS BEEN REACHED, WHICH IS WHY THERE IS A TABLE. The rule it
+// wrote was: two pairs is cheaper than a table, and the case for a table is "a THIRD reference
+// plus something a pair cannot say -- a pane key that moved as well as its office, or a
+// reference that resolves to two panes". Info is the third reference, and what it says that a
+// pair cannot is its PLACE. The next threshold, named for whoever meets it: a row whose
+// conversion depends on anything OUTSIDE the row -- the file's version, another row, the
+// screen -- because that is a converter with a context, and a table of independent rewrites is
+// not one.
 
 #include "setup.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -96,6 +102,46 @@ inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
 /// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
 inline constexpr const char* kBuilderPane = "builder";
 
+/// THE OFFICE THE INFO PANEL USED TO BE OFFERED FROM, and the one it is offered from now --
+/// the third pair, spelled for `kFilesProvider`'s reasons on both sides.
+inline constexpr const char* kRetiredInfoProvider = "zengine.workshop";
+inline constexpr const char* kInfoProvider = "zengine.info";
+
+/// THE PANE KEY, WHICH DID NOT MOVE.
+inline constexpr const char* kInfoPane = "info";
+
+// ---- THE TABLE, AT THE THRESHOLD THIS FILE NAMED FOR ONE --------------------------------
+//
+// ⚠ THE THIRD PAIR IS THE ONE THAT BOUGHT THE TABLE, AND FOR THE REASON WRITTEN ABOVE RATHER
+// THAN FOR ITS NUMBER. The note above says two pairs is cheaper than a table and that the case
+// for one is "a THIRD reference plus something a pair cannot say". Info is the third reference
+// and it says the extra thing: its PLACE moved with its office. Every desk a maker saved holds
+// `zengine.workshop/info` with a `default` place, and `default` used to mean the right column
+// because Workshop's own catalog put it there; the catalog row leaves in this commit, so
+// `default` would start meaning the overlay stack and a maker's Info would appear over their
+// material. A pair rewrites a provider. This rewrites a provider AND the place the host used
+// to answer with, which is one more column and one more line in one loop.
+
+/// ONE PANE THAT CHANGED HANDS: what a saved file wrote, what it means now, and the place the
+/// host's own catalog used to give it.
+struct Retired {
+    const char* was_provider;
+    const char* was_pane;
+    const char* now_provider;
+    const char* now_pane;
+    /// `pane_unit::kDefault` when the host's answer and the weave's are the same place, so the
+    /// row's own `default` goes on meaning what it always meant and nothing is written.
+    std::int64_t place;
+};
+
+inline constexpr Retired kRetired[] = {
+    {kRetiredFilesProvider, kFilesPane, kFilesProvider, kFilesPane, pane_unit::kDefault},
+    {kRetiredBuilderProvider, kBuilderPane, kBuilderProvider, kBuilderPane, pane_unit::kDefault},
+    {kRetiredInfoProvider, kInfoPane, kInfoProvider, kInfoPane, pane_unit::kRightColumn},
+};
+
+inline constexpr std::size_t kRetiredCount = sizeof(kRetired) / sizeof(kRetired[0]);
+
 /// Is this the reference a saved file wrote for the built-in browser?
 inline bool names_the_retired_browser(const PaneRef& ref) {
     return ref.provider == kRetiredFilesProvider && ref.pane == kFilesPane;
@@ -106,31 +152,69 @@ inline bool names_the_retired_builder(const PaneRef& ref) {
     return ref.provider == kRetiredBuilderProvider && ref.pane == kBuilderPane;
 }
 
-/// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted apart, because the sentence a maker
-/// reads names what THEIR file held rather than everything that ever moved.
+/// Is this the reference a saved file wrote for the built-in Info panel?
+inline bool names_the_retired_info(const PaneRef& ref) {
+    return ref.provider == kRetiredInfoProvider && ref.pane == kInfoPane;
+}
+
+/// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted per table row, because the sentence a
+/// maker reads names what THEIR file held rather than everything that ever moved.
 struct Converted {
-    std::int64_t files = 0;
-    std::int64_t builder = 0;
-    std::int64_t total() const { return files + builder; }
+    std::int64_t rows[kRetiredCount] = {};
+
+    std::int64_t total() const {
+        std::int64_t n = 0;
+        for (const std::int64_t r : rows) {
+            n += r;
+        }
+        return n;
+    }
+    /// Did this file hold the reference in table row `which`? Total over the index.
+    bool held(std::size_t which) const { return which < kRetiredCount && rows[which] > 0; }
 };
 
-/// REWRITE EVERY RETIRED REFERENCE IN ONE SETUP, and say which ones. Everything else about
-/// the row -- its place, its two sizes, its front order -- is untouched, because none of it
-/// changed hands.
+/// HOW MANY ROWS OF ONE SETUP HELD ONE PARTICULAR RETIRED REFERENCE -- named by the office the
+/// pane is offered from NOW, so a caller says which pane it means rather than an index into a
+/// table it did not write. Total over the string: an office no row names answers zero.
+inline std::int64_t held_count(const Converted& converted, const char* now_provider) {
+    if (now_provider == nullptr) {
+        return 0;
+    }
+    for (std::size_t i = 0; i < kRetiredCount; ++i) {
+        if (std::string(kRetired[i].now_provider) == now_provider) {
+            return converted.rows[i];
+        }
+    }
+    return 0;
+}
+
+/// REWRITE EVERY RETIRED REFERENCE IN ONE SETUP, and say which ones. A row's two sizes and its
+/// front order are untouched, because none of those changed hands.
+///
+/// ⚠ THE PLACE IS WRITTEN ONLY OVER A `default`. A maker who moved their Info pane said where
+/// it goes, and that sentence outranks the one the catalog used to say for them: converting it
+/// would move a pane they had already put somewhere. A row that said nothing gets the place the
+/// host would have given it, which is the whole of what the conversion preserves.
 ///
 /// ⚠ IT RUNS BEFORE THE SETUP'S OWN LAW. A file that names BOTH spellings of one pane holds
-/// two rows for it after this, and `check_setup` refuses it by name ("`zengine.files/
-/// project-files` is named twice") -- which is the true sentence about a contradictory file,
-/// and is what a converter that ran afterwards would have hidden.
+/// two rows for it after this, and `check_setup` refuses it by name -- which is the true
+/// sentence about a contradictory file, and is what a converter that ran afterwards would
+/// have hidden.
 inline Converted convert_retired_panes(Setup& s) {
     Converted converted;
     for (SetupPane& row : s.panes) {
-        if (names_the_retired_browser(row.ref)) {
-            row.ref.provider = kFilesProvider;
-            ++converted.files;
-        } else if (names_the_retired_builder(row.ref)) {
-            row.ref.provider = kBuilderProvider;
-            ++converted.builder;
+        for (std::size_t i = 0; i < kRetiredCount; ++i) {
+            const Retired& moved = kRetired[i];
+            if (row.ref.provider != moved.was_provider || row.ref.pane != moved.was_pane) {
+                continue;
+            }
+            row.ref.provider = moved.now_provider;
+            row.ref.pane = moved.now_pane;
+            if (moved.place != pane_unit::kDefault && row.place.mode == pane_unit::kDefault) {
+                row.place.mode = moved.place;
+            }
+            ++converted.rows[i];
+            break;
         }
     }
     return converted;
@@ -144,19 +228,21 @@ inline Converted convert_retired_panes(Setup& s) {
 /// (`setup_persist::setup_in`), so a maker whose desk holds a pane twice over two layouts is
 /// told once -- and not told which of their rows was which.
 ///
-/// ⚠ ...AND IT NAMES WHAT ACTUALLY MOVED. `converted` counts rows, not pairs, so the sentence
-/// is composed from what this run's file HELD: a maker who never opened the Builder is not
-/// told about a pane they would not find if they went and looked, which is the whole reason
-/// the note spells durable names in the first place.
-inline std::string converted_note(bool files, bool builder) {
+/// ⚠ ...AND IT NAMES WHAT ACTUALLY MOVED. `converted` counts rows, so the sentence is composed
+/// from what this run's file HELD: a maker who never opened the Builder is not told about a
+/// pane they would not find if they went and looked, which is the whole reason the note spells
+/// durable names in the first place.
+inline std::string converted_note(const Converted& converted) {
     std::string said = "panes moved to their own offices";
-    if (files) {
-        said += std::string(" -- ") + kRetiredFilesProvider + "/" + kFilesPane + " is now " +
-                kFilesProvider + "/" + kFilesPane;
-    }
-    if (builder) {
-        said += std::string(files ? ", and " : " -- ") + kRetiredBuilderProvider + "/" +
-                kBuilderPane + " is now " + kBuilderProvider + "/" + kBuilderPane;
+    std::int64_t named = 0;
+    for (std::size_t i = 0; i < kRetiredCount; ++i) {
+        if (!converted.held(i)) {
+            continue;
+        }
+        const Retired& moved = kRetired[i];
+        said += std::string(named == 0 ? " -- " : ", and ") + moved.was_provider + "/" +
+                moved.was_pane + " is now " + moved.now_provider + "/" + moved.now_pane;
+        ++named;
     }
     return said;
 }

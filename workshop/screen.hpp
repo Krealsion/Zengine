@@ -73,10 +73,11 @@ inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a 
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanelCols = 28;
 
-/// The rows INSIDE the side region's bounds: one, the `OBJECTS` heading.
+/// The side region's top edge. ⭐ `kInfoHeadingRows` STOOD BESIDE IT AND IS RETIRED: it was
+/// the row the `OBJECTS` heading kept, and the heading is `Zengine/info-pane/`'s now. Nothing
+/// this host compiles knows what a pane in this place puts on its first row.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: the body's own
-inline constexpr std::int64_t kInfoHeadingRows = 1; ///< prose rows the `OBJECTS` heading keeps
 
 /// The band under the workspace.
 // WL-GEO-03 -- agents/workshop/geometry.md
@@ -936,30 +937,13 @@ struct LayoutTabDrag {
 ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
                                 const component::WordSpan& word, std::int64_t now_ms) noexcept;
 
-/// WHICH FITTED ROW A POINTER MAY INSPECT -- the surfaces whose painter still holds
-/// the whole of what it cut.
-// WL-PTR-08 -- agents/workshop/pointer.md
-namespace reveal_place {
-inline constexpr std::int64_t kNone = 0;
-inline constexpr std::int64_t kInfoObject = 1;   ///< one row of the Info panel's OBJECTS
-inline constexpr std::int64_t kInfoProperty = 2; ///< ...and one of its PROPERTIES
-} // namespace reveal_place
+// ⭐ `reveal_place`, `Revealed` AND THE FOUR REVEAL FUNCTIONS LEFT WITH THE INFO PANEL. Reading
+// past an ellipsis was one feature and it was Info's alone: a pointer resting on a truncated
+// OBJECTS or PROPERTIES row scrolled that row under the hand. It needs the row's UNFITTED text,
+// which is the pane's now -- what crosses the seam is rows already cut to the room the pane was
+// granted. `screen_reveal.cpp` carries the whole argument where the code was, including why the
+// pane protocol is not given a hover so this host could keep it (VD-22).
 
-/// WHAT THE POINTER IS CURRENTLY REVEALING, or nothing.
-// WL-PTR-04, WL-PTR-05 -- agents/workshop/pointer.md
-struct Revealed {
-    std::int64_t place = reveal_place::kNone;
-    std::size_t item = 0;    ///< which object, property or listed name
-    std::string text;        ///< the WHOLE row as the painter held it when this began
-    std::int64_t offset = 0; ///< how many bytes of its head are currently scrolled away
-    bool present() const noexcept { return place != reveal_place::kNone; }
-    /// Is this the same reading? Asked by the one writer, so a motion that changed nothing
-    /// about the picture does not republish one.
-    bool same_as(const Revealed& other) const noexcept {
-        return place == other.place && item == other.item && offset == other.offset &&
-               text == other.text;
-    }
-};
 
 /// THE FULL HOTKEY VIEW'S ONE FACT: whether it is open.
 // WL-KEY-10, WL-KEY-11 -- agents/workshop/keyboard.md
@@ -998,7 +982,6 @@ struct Session {
     bool place_maximized = false;
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
-    std::size_t cursor = 0;   ///< which inspector row the maker is on
     std::vector<Row> rows;    ///< the inspector, rebuilt when the selection changes
     Drag drag;                ///< a pointer drag in flight, if any
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
@@ -1054,8 +1037,6 @@ struct Session {
     /// fourth gesture record, for the other three's own reason; see `LayoutTabDrag`.
     LayoutTabDrag tab_drag;
     /// ...and which clipped row their pointer is currently reading past the ellipsis
-    /// See `Revealed`: presentation only, and the most transient state here.
-    Revealed reveal;
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
     // WL-TEXT-08 -- agents/workshop/text-box.md
     component::Clipboard clipboard;
@@ -1140,19 +1121,15 @@ ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s);
 /// are not properties.
 std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s);
 
-/// Where the cursor belongs on a freshly built inspector: the first row a maker
-/// can actually author. Landing it on `Identity` instead would open onto a row
-/// whose only possible answer to "edit this" is a refusal.
-std::size_t first_editable(const std::vector<Row>& rows);
-
-/// Rebuild the inspector for the current selection and put the cursor somewhere
-/// useful. One gesture, so the running weave and the suite cannot come to
-/// disagree about what a fresh inspector is -- and rebuilding rather than
+/// Rebuild the inspector for the current selection. One gesture, so the running weave and the
+/// suite cannot come to disagree about what a fresh inspector is -- and rebuilding rather than
 /// patching is why nothing in this package has a "refresh the inspector" call.
+///
+/// ⭐ IT USED TO HAVE A TWIN AND A CURSOR. `refocus_keeping_draft` carried a live draft and the
+/// maker's row across a rebuild, and `first_editable` chose where a fresh one landed; both were
+/// about state the Info panel held in this host and the Info WEAVE holds now. What the host
+/// still owns is the derived rows themselves, which are a fact about the selection.
 void refocus(WorkshopDoc& d, Session& s);
-
-/// REBUILD THE INSPECTOR WITHOUT TAKING A MAKER'S HANDS OFF IT.
-void refocus_keeping_draft(WorkshopDoc& d, Session& s);
 
 /// Where an identity sits in DOCUMENT ORDER, or `elements.size()` for one this
 /// document does not have.
@@ -1178,6 +1155,9 @@ std::string pad(std::string text, std::size_t width);
 /// mark a maker cannot read.
 inline constexpr const char* kElided = "...";
 
+/// How far a wrapped continuation row is indented, when the room can hold an indent at all.
+inline constexpr std::int64_t kWrapIndent = 2;
+
 /// Fit `text` into `width` cells, AND SAY SO when it did not fit.
 std::string fit(std::string text, std::int64_t width);
 
@@ -1190,32 +1170,6 @@ std::string fit_path(const std::string& path, std::int64_t width);
 
 // ---- Reading past the ellipsis -----------------------------------------------------------
 
-/// THE FURTHEST A ROW MAY BE SCROLLED: exactly enough to bring the last byte into view, and
-/// never one further. It is what makes the right edge of the row mean "the end", rather than
-/// meaning "somewhere past the end" with blank cells after it.
-std::size_t reveal_max_offset(const std::string& full, std::int64_t columns);
-
-/// WHICH OFFSET THE POINTER IS ASKING FOR, from the column it is on.
-std::int64_t reveal_offset_at_column(const std::string& full, std::int64_t columns,
-                                            std::int64_t column);
-
-/// ONE ROW, SHOWN FROM `offset` BYTES IN. Total at every width and every offset, and never
-/// wider than `columns`: the mark is spent first and `fit` bounds whatever is left, so the
-/// widest answer this can give is exactly the width the fitted answer would have taken.
-std::string revealed_row(const std::string& full, std::int64_t columns,
-                                std::int64_t offset);
-
-/// WHAT A PAINTER PUTS ON A REVEALABLE ROW -- its ordinary answer, unless the pointer is on
-/// THIS row of THIS surface showing THIS string.
-std::string reveal_shown(const Revealed& rev, std::int64_t place, std::size_t item,
-                                const std::string& full, std::string rest,
-                                std::int64_t columns);
-
-/// How far a wrapped continuation row is indented, so a reader can tell one sentence
-/// running on from a new one starting. Two cells: enough to be visible under the sigils
-/// every transcript line begins with (`> `, `-- `, `!! `, `^ `, `v `), and cheap enough that
-/// a pane loses almost none of its width to it.
-inline constexpr std::int64_t kWrapIndent = 2;
 
 /// FIT `text` INTO AS MANY ROWS AS IT NEEDS, at most `width` cells each.
 std::vector<std::string> wrap(const std::string& text, std::int64_t width);
@@ -1375,7 +1329,7 @@ void end_drag(Session& s);
 
 
 /// WHERE A POINTER LANDED INSIDE A BOUNDED TEXT REGION, in that region's own prose.
-// WL-INFO-04 -- agents/workshop/info-body.md
+// WL-PRESS-03 -- agents/workshop/press-chain.md
 struct ProseAt {
     bool understood = false;
     std::int64_t column = 0;
@@ -1928,12 +1882,15 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 // ---- The Info panel's BODY, resolved ONCE ----
 
 /// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
-// WL-INFO-02 -- agents/workshop/info-body.md
+/// ⭐ THE PANE MANAGER'S NOW. They were the Info panel's row composition and the Pane Manager
+/// borrowed them; the Info pane carries its own copies in its own image, and what is left
+/// here has one consumer.
+// WL-TEXT-13 -- agents/workshop/text-box.md
 inline constexpr std::int64_t kPropertyMarkCols = 1;
 inline constexpr std::int64_t kPropertyLabelCols = 9;
 
 /// THE COLUMN THE INSERTION POINT SITS IN, kept out of the value's own budget.
-// WL-INFO-02 -- agents/workshop/info-body.md
+// WL-TEXT-13 -- agents/workshop/text-box.md
 inline constexpr std::int64_t kPropertyCaretCols = 1;
 
 /// "This prose row shows no property" — a marker row, the `PROPERTIES` heading, an object
@@ -1967,161 +1924,30 @@ struct BodyShare {
 BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
                                  std::size_t want_properties);
 
-/// THE SMALLEST BODY THAT CAN SAY ANYTHING: one object row, the `PROPERTIES` heading, one
-/// property row.
-// WL-INFO-01 -- agents/workshop/info-body.md
-inline constexpr std::size_t kInfoBodyMinRows = 3;
-
-// ---- The Info panel's ACTION CONTROLS -----------------------------------------------------
-// WL-CTRL-01 -- agents/workshop/info-controls.md
-
-/// The two acts a maker can reach without knowing a key. Indices into one table, in the order
-/// the footer paints them.
-inline constexpr std::size_t kActionCreate = 0;
-inline constexpr std::size_t kActionDelete = 1;
-inline constexpr std::size_t kActionCount = 2;
-
-/// "This prose row carries no control" — `kNoProperty`'s and `kNoObject`'s twin, one run over.
-inline constexpr std::size_t kNoAction = static_cast<std::size_t>(-1);
-
-/// PROSE ROWS THE FOOTER COSTS: one per control, and the count is the table's.
-// WL-CTRL-01 -- agents/workshop/info-controls.md
-inline constexpr std::size_t kActionRows = kActionCount;
-
-/// WHY AN ACTION CANNOT RUN RIGHT NOW, or that it can.
-// WL-CTRL-03, WL-CTRL-04 -- agents/workshop/info-controls.md
-enum class Availability {
-    kAvailable, ///< press it and the operation runs
-    kNoTarget,  ///< there is no object for this act to be about
-    kDraftLive, ///< the maker has unfinished work this act would destroy
-};
-
-inline constexpr bool available(Availability a) noexcept {
-    return a == Availability::kAvailable;
-}
-
-/// IS A PROPERTY DRAFT LIVE?
+/// IS A DRAFT LIVE ON `Session::rows`? The rows are the Pane Manager's since the Info panel
+/// left, so this is the question a contextual delete asks before it destroys unfinished work.
+// WL-PED-07 -- agents/workshop/pane-manager.md
 bool draft_live(const Session& s);
 
-/// AVAILABILITY OVER THE TWO FACTS IT DEPENDS ON, so the whole rule is readable in one place
-/// and testable without a document. The overload below is what a painter and a press call.
-inline constexpr Availability action_availability(std::size_t which, bool editing,
-                                                  bool has_target) noexcept {
-    if (editing) {
-        return Availability::kDraftLive; // both controls; the reason is about the MAKER
-    }
-    if (which == kActionDelete && !has_target) {
-        return Availability::kNoTarget;
-    }
-    return Availability::kAvailable;
-}
-
-/// THE SAME QUESTION ABOUT THE DOCUMENT AND SESSION EVERYTHING ELSE HERE IS DERIVED FROM.
-Availability action_availability(std::size_t which, const WorkshopDoc& d,
-                                        const Session& s);
-
-/// THE NAME A MAKER READS. Application words, in the application's file: a control does not
-/// know the key that also performs its act (`n`, `d`), and a shortcut hint is not written
-/// here -- the two help lines at the bottom of the screen are where this tool says what its
-/// keys do, and a second copy beside every control is a second thing to keep true.
-inline constexpr const char* action_label(std::size_t which) noexcept {
-    return which == kActionCreate ? "Create" : "Delete";
-}
-
-/// ONE CONTROL AS PROSE — and the availability is said in CHARACTERS, not in colour.
-std::string action_row_text(std::size_t which, bool pressable, std::int64_t columns);
-
-/// WHERE THE INFO PANEL'S TWO LISTS ARE, HOW MANY ROWS EACH GETS, AND WHICH MEMBERS ARE SHOWN.
-// WL-INFO-01 -- agents/workshop/info-body.md
-struct InfoBodyPlace {
-    bool present = false;
-    /// THE PANEL'S WHOLE RECTANGLE: the `OBJECTS` heading is the region's first
-    /// prose row and the body begins under it, so the region and the panel are one
-    /// rectangle and `kInfoHeadingRows` is subtracted from the PROSE budget, not the cells.
-    // WL-INFO-08 -- agents/workshop/info-body.md
-    std::int64_t region_x = 0;
-    std::int64_t region_y = 0;
-    std::int64_t region_w = 0;
-    std::int64_t region_h = 0;
-    std::int64_t region_sub_x = 0;
-    std::int64_t region_sub_y = 0;
-    std::int64_t region_sub_w = 0;
-    std::int64_t region_sub_h = 0;
-    surface::RegionFit fit{}; ///< what this medium makes of those bounds
-    /// COLUMNS ONE BODY ROW HAS — `fit.columns`, named so a reader does not have to know which
-    /// of the fit's numbers is the prose width. An OBJECT row is fitted to this whole width;
-    /// a PROPERTY row spends part of it on the mark and the name.
-    std::int64_t columns = 0;
-    /// COLUMNS A PROPERTY VALUE MAY OCCUPY — the mark, the label and the caret's own column
-    /// taken off. It is the ONE capacity for a value: the slice the painter cuts of a live
-    /// draft, the window `keep_caret_visible` reconciles, the width a RESTING value is fitted
-    /// to, and the room a press is answered against are all this number.
-    std::int64_t value_columns = 0;
-    /// PROSE ROWS THE WHOLE BODY HOLDS -- both lists, the `PROPERTIES` heading and the
-    /// spare rows together, with the `OBJECTS` heading's rows already reserved off the top.
-    std::size_t capacity = 0;
-    std::size_t objects_rows = 0;    ///< of those, the OBJECTS list's share
-    std::size_t properties_rows = 0; ///< of those, the property list's share
-    ListWindow objects{};            ///< which objects are shown, and what is left out
-    ListWindow properties{};         ///< which properties are shown, and what is left out
-    /// THE PROSE ROW CARRYING `PROPERTIES`. It MOVES: it is exactly the number of rows the
-    /// object list was given, so a panel that can show more objects pushes it down and a panel
-    /// that can show fewer pulls it up. `kRowsY = 8` was this number when it could not move.
-    std::int64_t heading_row = kNoProseRow;
-    /// THE FIRST OF THE `kActionRows` CONTROL ROWS, and the one number the footer needs.
-    // WL-CTRL-01 -- agents/workshop/info-controls.md
-    std::int64_t action_row = kNoProseRow;
-};
-
-/// THE PROPERTY ROW THAT MUST STAY ON SCREEN: the one being edited, or the cursor's.
-std::size_t inspector_focus(const Session& s);
+// ⭐ THE INFO PANEL'S PRESENTATION AND ITS CONTROLS ARE DECLARED NOWHERE NOW, BECAUSE THEY ARE
+// NOT THIS HOST'S. `action_row_text`, `InfoBodyPlace`, `inspector_focus`, the four
+// `info_body_place` overloads, `InfoBodyAt`, `info_body_at`, the six prose-row mappers, the
+// three press helpers, the object row texts and `paint_info` stood here; so did the footer's
+// whole vocabulary -- `kActionCreate`, `kActionDelete`, `kActionCount`, `kActionRows`,
+// `kNoAction`, `Availability`, `available`, both `action_availability` overloads and
+// `action_label` -- and `kInfoBodyMinRows` with them. They are `Zengine/info-pane/pane.cpp`'s
+// composition now, and the rows it makes of it cross as `PaneContent` like every other pane's.
+//
+// ⚠ THE CONTROLS WERE KEPT ONE STAGE LONGER THAN THE PAINTER AND ARE DELETED HERE. Nothing in
+// this host called them after `paint_info` left: the availability rule is the pane's, made
+// against facts the pane holds (its own draft, the picture it was shown), and a second copy
+// in the host would be a second answer to a question the host is no longer asked.
 
 /// WHAT A LIST ASKS THE BODY FOR: one row per member, and never zero.
 // WL-INFO-07 -- agents/workshop/info-body.md
 inline constexpr std::size_t list_demand(std::size_t members) noexcept {
     return members == 0 ? 1 : members;
 }
-
-/// THE BODY, RESOLVED. `total_objects`/`selected_at` and `total_properties`/`focus` are the two
-/// populations and the two members that must stay on screen. They are arguments rather than a
-/// document and a session so this is pure over the four numbers the composition depends on.
-InfoBodyPlace info_body_place(const FineRect& outer, const Screen& sc,
-                                     std::size_t total_objects, std::size_t selected_at,
-                                     std::size_t total_properties, std::size_t focus);
-
-/// The same resolution for the document and session a painter is holding. One call, so nothing
-/// can resolve the body against a population, a selection or a focus the rest of the screen
-/// does not have.
-InfoBodyPlace info_body_place(const FineRect& panel, const Screen& sc,
-                                     const WorkshopDoc& d, const Session& s);
-
-/// The cell-lattice doors to the same two resolutions — one multiply each, so a
-/// caller holding a whole-cell rectangle (the side region is one at every extent)
-/// asks the identical question the fine door answers.
-InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
-                                     std::size_t total_objects, std::size_t selected_at,
-                                     std::size_t total_properties, std::size_t focus);
-
-InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
-                                     const WorkshopDoc& d, const Session& s);
-
-/// WHERE A POINTER FACT LANDED IN THE INFO PANEL'S BODY — the resolve-and-locate answer the
-/// three body handlers all begin from.
-// WL-PRESS-03 -- agents/workshop/press-chain.md
-struct InfoBodyAt {
-    /// THE PANEL IS OPEN, THE BODY RESOLVED, AND THE POSITION UNDERSTOOD — the one bit that
-    /// says the two fields below are worth asking anything.
-    // WL-PRESS-03 -- agents/workshop/press-chain.md
-    bool present = false;
-    InfoBodyPlace body{}; ///< the body the painter resolved, not a second reading of it
-    ProseAt at{};         ///< where the fact landed, in BODY rows: 0 is the row under `OBJECTS`
-};
-
-/// The preamble itself: the Info panel's body resolved from the same `bounds_of` the painter
-/// used, and this pointer fact located in it by the same `prose_at` every region press goes
-/// through. Three copies of these six lines lived in `info_press`, `actions_press` and
-InfoBodyAt info_body_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                               std::int64_t x, std::int64_t y);
 
 // ---- One windowed list's rows, mapped both ways ------------------------------------------
 
@@ -2135,35 +1961,6 @@ std::int64_t prose_row_in_window(const ListWindow& w, std::int64_t first_row,
 /// and its only inverse; callers turn "not an item" into their own sentinel.
 bool item_at_prose_row(const ListWindow& w, std::int64_t first_row, std::size_t rows,
                               std::int64_t row, std::size_t& out);
-
-/// WHICH PROSE ROW OF THE BODY SHOWS OBJECT `index`, and which object a prose row shows. The
-/// object list begins at the body's first row, so its `first_row` is zero.
-std::int64_t prose_row_of_object(const InfoBodyPlace& p, std::size_t index);
-
-std::size_t object_at_prose_row(const InfoBodyPlace& p, std::int64_t row);
-
-/// WHICH PROSE ROW OF THE BODY SHOWS PROPERTY `index`, and which property a prose row shows.
-/// The property list begins one row under the `PROPERTIES` heading, which is itself one row
-/// under the object list's last row -- so both answers move when the composition does, and
-/// they move together because they are the same two calls.
-std::int64_t prose_row_of_property(const InfoBodyPlace& p, std::size_t index);
-
-std::size_t property_at_prose_row(const InfoBodyPlace& p, std::int64_t row);
-
-/// WHICH PROSE ROW OF THE BODY CARRIES CONTROL `which`, and which control a prose row carries.
-std::int64_t prose_row_of_action(const InfoBodyPlace& p, std::size_t which);
-
-std::size_t action_at_prose_row(const InfoBodyPlace& p, std::int64_t row);
-
-/// WHICH CONTROL A PRESS INSIDE THE BODY NAMES, or `kNoAction`.
-std::size_t action_press_at(const InfoBodyPlace& p, std::int64_t column,
-                                   std::int64_t row);
-
-/// ONE SEMANTIC OBJECT ROW AS PROSE — the selection mark, the identity, and as much of the
-/// authored name as the body has room for.
-std::string object_row_full(const ui::Element& e, bool chosen);
-
-std::string object_row_text(const ui::Element& e, bool chosen, std::int64_t columns);
 
 /// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
 /// body has room for.
@@ -2180,18 +1977,11 @@ std::string property_row_text(const Row& row, bool here, std::int64_t value_colu
 /// THE CARET'S COLUMN IN A BODY ROW: the mark and the name, plus the component's own answer.
 std::int64_t property_caret_column(const Row& row);
 
-/// THE DRAFT'S VISIBLE SELECTION AS PROSE COLUMNS OF ITS BODY ROW —
-/// `property_caret_column`'s shape for a span, and `terminal_selection_columns`' twin.
-TerminalSelectionSpan property_selection_columns(const Row& row,
-                                                        std::int64_t value_columns);
-
-/// IS THIS PROSE POSITION ON THE BODY ROW SHOWING PROPERTY `index` AT ALL?
-bool property_row_hit(const InfoBodyPlace& p, std::size_t index, std::int64_t column,
-                             std::int64_t row);
-
-/// WHICH OBJECT A PRESS INSIDE THE BODY NAMES, or `kNoObject`.
-std::size_t object_press_at(const InfoBodyPlace& p, std::int64_t column,
-                                   std::int64_t row);
+/// Where the cursor belongs on a freshly built row list: the first row a maker can actually
+/// author. Landing it on a read-only row instead would open onto a row whose only possible
+/// answer to "edit this" is a refusal. The Info panel spent it first; the Pane Manager spends
+/// it now, on its own fields.
+std::size_t first_editable(const std::vector<Row>& rows);
 
 /// A PRESSED COLUMN AS A COLUMN OF THE VALUE. Negative to the left of the value, which
 /// `TextBox::position_at_column` reads as "the start of what is shown".
@@ -2199,11 +1989,10 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
     return row_column - (kPropertyMarkCols + kPropertyLabelCols);
 }
 
-/// THE INFO PANEL — the OBJECTS list and the PROPERTIES inspector, in the column they have
-/// always occupied.
-void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const Session& s,
-                       const FineRect& b, const Screen& sc,
-                       std::int64_t chrome = kPaneChrome);
+/// THE DRAFT'S VISIBLE SELECTION AS PROSE COLUMNS OF ITS BODY ROW —
+/// `property_caret_column`'s shape for a span, and `terminal_selection_columns`' twin.
+TerminalSelectionSpan property_selection_columns(const Row& row,
+                                                        std::int64_t value_columns);
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
@@ -2349,43 +2138,13 @@ inline constexpr std::int64_t kListWheelRows = 3;
 /// TURN NOTCHES INTO WHOLE ROWS, CARRYING THE FRACTION.
 std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch);
 
-// ---- Which revealable row the pointer is on ----------------------------------------------
-// WL-PTR-05, WL-PTR-08 -- agents/workshop/pointer.md
+// ---- The arrangement's affordance rings --------------------------------------------------
+//
+// ⭐ THE SECTION ABOVE THIS ONE WAS "WHICH REVEALABLE ROW THE POINTER IS ON" AND IS GONE with
+// the reveal (see the retirement note in `agents/workshop/pointer.md`). Its doc comment and the
+// browser's, which left a phase earlier, were spliced together by the deletion; this is the
+// comment the surviving declaration always had.
 
-/// WHAT THE POINTER IS OVER, if it is over a revealable row at all.
-struct RevealAt {
-    bool present = false;
-    std::int64_t place = reveal_place::kNone;
-    std::size_t item = 0;
-    std::string text;        ///< the WHOLE row -- what the painter holds before its width
-    std::string rest;        ///< ...and what it shows when nobody is pointing
-    std::int64_t columns = 0;
-    std::int64_t column = 0; ///< where along the row's own prose the hand is
-    /// IS ANYTHING ACTUALLY HIDDEN HERE? Presentation differing from what it presents is the
-    /// whole of the question, so a fitted row, a path-fitted row and a row cut by some later
-    /// measurer all answer it the same way without this having to know which cut it.
-    bool clipped() const noexcept { return present && rest != text; }
-};
-
-RevealAt info_reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                               std::int64_t x, std::int64_t y);
-
-/// THE ONE ANSWER A MOTION SPENDS: which revealable row -- of any surface -- this position is
-/// on. The occupancy walk is asked FIRST and once, so a surface can only answer for cells it
-/// actually owns on this screen.
-RevealAt reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                          std::int64_t x, std::int64_t y);
-
-/// WHAT THE SESSION SHOULD HOLD FOR THIS POSITION -- the record `Revealed` keeps, or an empty
-/// one where there is nothing to read past. Pure: the weave compares it with what it already
-/// had and repaints only on a difference, so a hand moving along one row costs one repaint per
-/// column it actually changes and a hand moving over furniture costs none.
-Revealed reveal_for(const WorkshopDoc& d, const Session& s, std::int64_t space,
-                           std::int64_t x, std::int64_t y);
-
-/// THE PROJECT BROWSER, PAINTED: the frame, the header, and one directory's rows through
-/// the shared list window. Every branch here says something -- an absent project, a
-/// directory that would not open, and an empty directory are three different facts and a
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
 void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
                                    const Screen& sc);
@@ -2707,7 +2466,7 @@ std::int64_t pane_name_columns(std::int64_t heading_columns);
 
 // ---- THE PANE EDITOR: a Workshop pane as a SUBJECT, inspected and edited -----------------
 
-/// Prose rows the `PANES` heading keeps -- `kInfoHeadingRows`' twin, one pane over.
+/// Prose rows the `PANES` heading keeps -- what `kInfoHeadingRows` was, one pane over.
 inline constexpr std::int64_t kPaneEditorHeadingRows = 1;
 
 /// THE INVENTORY ROW THE SUBJECT NAMES RIGHT NOW, or nothing -- a fresh view over the SAME
@@ -2820,7 +2579,7 @@ void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
 /// current-condition view's painter, which read the frontier to derive one of its rows -- and
 /// that view is a pane now, told what is true rather than working it out. Nothing else in the
 /// composition ever looked at it.
-void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
+void paint_panels(surface::SurfaceCanvas& c, const Session& s,
                          const Screen& sc);
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean

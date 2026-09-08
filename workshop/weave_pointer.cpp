@@ -585,16 +585,8 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // it. A consumed press does not have to change anything -- it only has to have
         // reached the layer that owns what the press means.
         //
-        // AND THE BODY IS RESOLVED ONCE, HERE, beside the canvas point above it.
-        // The three handlers under it are three questions about ONE place, and they used
-        // to resolve it separately -- the same six lines three times, and up to three
-        // resolutions of one body for one press. Holding it across the chain is safe for a
-        // reason worth writing down rather than assuming: every one of the three changes
-        // nothing on the paths where it declines, so a handler that says "not mine" has
-        // not moved the picture the next handler is about to ask about.
-        const InfoBodyAt where = info_body_at(state_, session_, b.space, b.x, b.y);
-        // AND THE OCCUPANCY WALK IS RESOLVED HERE TOO beside the body and
-        // the canvas point, for the reason the body was hoisted: it is one question
+        // AND THE OCCUPANCY WALK IS RESOLVED HERE, beside the canvas point above it: it is
+        // one question
         // about one place, every handler below changes nothing on the path where it
         // declines, and the answer is now needed BEFORE the chain rather than after it.
         // It is the same pure walk `occupied_at` always was -- the picker first, then
@@ -701,41 +693,6 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             // is consumed as a focus statement. The selection line above has already
             // made this pane the selected one; nothing in here reads that fact.
             pane_editor_press(b, b.modifiers);
-        } else if (here.occupied && here.kind == panel::kInfo &&
-                   (info_press(where, b.modifiers) || actions_press(where) ||
-                    objects_press(where))) {
-            // THE INFO PANEL'S OWN THREE INVERSES, BEHIND THE OWNERSHIP DECISION LIKE
-            // EVERY OTHER PANE'S. They are unchanged -- same order, same
-            // disjointness, same `true means consumed` -- and what changed is only
-            // WHERE they are asked. Until this phase all three ran BEFORE the occupancy
-            // walk and never consulted the effective order, so a pane authored over the
-            // side column and ranked in FRONT of Info still lost its presses on Info's
-            // control cells to Info: see-here, press-there, at the same boundary the
-            // top band had it. Nothing here is a new routing layer; three questions
-            // moved down into the arm that already knew which pane owns the point.
-            //
-            // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a
-            // panel rather than a mode: the innermost thing that owns the
-            // pointer where it landed answers before the thing around it, and a press
-            // it declines falls through unchanged. It says nothing and consumes whether
-            // or not the caret moved -- the caret IS the statement, and a sentence
-            // repeating it would push off the line a refusal the maker may still need
-            //.
-            //
-            // THEN THE ACTION CONTROLS, then the OBJECT LIST. The three
-            // runs of the body cannot fight over a press -- the footer, the object list
-            // and a live draft's own row are disjoint runs of ONE row budget, which is
-            // what making the body one region bought -- so this ordering is
-            // written down because an ordering resting on a disjointness proof is one
-            // refactor from being silently wrong, not because two of them could answer.
-            //
-            // ⚠ THE SHORT CIRCUIT IS THE CHAIN, and it is exact: `||` stops at the
-            // first `true`, and each of the three changes nothing on the path where it
-            // declines -- which is the property that let the body be hoisted in the
-            // first place. A press none of them owns falls to Info's own sentence
-            // below, which is what it always did.
-            repaint(mail);
-            return;
         } else if (here.occupied && here.kind == panel::kLayouts &&
                    layouts_press(b, mail)) {
             // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
@@ -789,34 +746,13 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
 
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-    // ---- READING PAST AN ELLIPSIS, BEFORE ANYTHING ELSE THIS MOTION MEANS ------------
-    //
-    // IT IS A POINTING AND NOT A GESTURE, which is why it is resolved here rather than in
-    // one of the branches below: nothing is held, nothing is claimed, and the answer is a
-    // pure function of where the pointer is right now (`reveal_for`) compared with what
-    // the session was already showing. A motion that changes neither costs no repaint,
-    // which is what keeps a hand crossing the screen from republishing the canvas.
-    //
-    // A MODE THAT OWNS THE POINTER OWNS THIS TOO. While the Terminal, an arrangement
-    // scope or the contextual surface is open, a motion is theirs -- and so is the
-    // absence of a reveal, because a row a maker cannot point at is not a row they are
-    // pointing at.
-    //
-    // AND A HELD GESTURE IS NOT A HOVER. A hand sweeping a selection, moving an object or
-    // sizing a pane is doing something with the pointer; scrolling a row underneath it
-    // would be a second meaning for one motion.
-    const bool pointer_is_spent = session_.terminal.open || session_.arrange.open ||
-                                  session_.context.open || session_.hotkeys.open ||
-                                  session_.text_drag.active ||
-                                  session_.drag.active || session_.pane_drag.active ||
-                                  session_.tab_drag.active;
-    const Revealed want =
-        pointer_is_spent ? Revealed{}
-                         : reveal_for(state_, session_, m.space, m.x, m.y);
-    if (!want.same_as(session_.reveal)) {
-        session_.reveal = want;
-        repaint(mail);
-    }
+    // ⭐ READING PAST AN ELLIPSIS WAS THE FIRST THING THIS HANDLER DID, AND IT LEFT WITH THE
+    // INFO PANEL. A motion used to resolve `reveal_for` before anything else it might mean and
+    // scroll a truncated row under the hand; that feature was Info's alone, needs the row's
+    // unfitted text, and the text is the pane's now (`screen_reveal.cpp` says the rest). What
+    // this handler does now is what it always did after that: carry a tab, sweep a selection,
+    // move an object, size a pane.
+
     // ---- CARRYING A LAYOUT TAB ALONG THE RUN -----------------------------------------
     //
     // THE HAND IS HOLDING THE LIVE LAYOUT, because the press that began this made that
@@ -886,21 +822,11 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         }
         return;
     }
-    // A SELECTION DRAG ON THE LIVE PROPERTY DRAFT — the Terminal branch's twin
-    // on the ordinary path, before the document's drag for the same reason the press
-    // chain asks the draft first: it is the narrower claim, and the two cannot both be
-    // active (a press `info_press` consumed never reached `take_hold`).
-    if (session_.text_drag.active &&
-        session_.text_drag.place == text_drag_place::kPropertyDraft) {
-        Row* row = editing_row();
-        const InfoBodyAt where = info_body_at(state_, session_, m.space, m.x, m.y);
-        if (row != nullptr && where.present) {
-            row->drag_to_column(property_value_column(where.at.column));
-            refresh_inspector();
-            repaint(mail);
-        }
-        return;
-    }
+    // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL. The draft is the
+    // pane's own line now, inside the pane's own room, and a sweep across it is a press and a
+    // motion the pane resolves against its own composition -- this host has no body to resolve
+    // it against and no row to sweep.
+
     // A SELECTION DRAG IN THE SOURCE EDITOR — the third editable place, and the first
     // where the ROW is meaningful mid-drag: a document has many. The geometry is
     // re-resolved per motion through the same resolution the press spent; a hand past

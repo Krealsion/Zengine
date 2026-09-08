@@ -521,8 +521,6 @@ bottom band projects the same effective bindings. A binding matches its modifier
 |---|---|
 | `n` / `d` | create / delete an object |
 | `Tab` | select the next object |
-| `↑` `↓` | move the inspector cursor |
-| `Enter` | edit the selected property |
 | `h` `j` `k` `l` | move the selected object by one cell |
 | `Shift`+`h` `j` `k` `l` | resize the selected object |
 | `[` `]` | narrow / widen the workspace by 4 cells |
@@ -618,10 +616,10 @@ deliver it). See
 
 ### Panes
 
-Built-in: **Builder**, **Info**, **Editor**, **Files**, **Layouts**, **Pane Manager**. Loaded
-through the default plan: **Loaded**,
-**Project**, **Powers** (from `zengine-introspection`), and the **Composer**. Made by you,
-from data: whatever the **Pane Creator** made and `--pane` holds.
+Built-in: **Editor**, **Layouts**, **Pane Manager**. Loaded through the default plan:
+**Info** (`↑` `↓` `Enter`, once you have pressed into it), **Builder**, **Attention**,
+**Files**, **Loaded**, **Project**, **Powers** (from `zengine-introspection`), and the
+**Composer**. Made by you, from data: whatever the **Pane Creator** made and `--pane` holds.
 
 | pane | shows |
 |---|---|

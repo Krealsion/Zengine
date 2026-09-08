@@ -1101,20 +1101,24 @@ inline Setup default_setup() {
         (void)add_pane(s, pane_ref_of(kind));
     }
     // AND THE SHIPPED DESK IS WHAT OPENS INFO AT THE RIGHT EDGE. The screen used to do it by
-    // reserving the column; it reserves nothing now, so the sentence has to be said by
-    // somebody, and a DESK is the right somebody: it is the maker's own artifact, it round-
-    // trips through `workshop-setup.json` in words they can read, and moving Info out of the
-    // column is now an ordinary edit to it rather than an argument with the screen.
+    // reserving the column and the catalog used to name the kind; neither does now, so the
+    // sentence is said HERE, by a desk -- the maker's own artifact, round-tripping through
+    // `workshop-setup.json` in words they can read, and moving Info out of the column is an
+    // ordinary edit to it rather than an argument with the screen.
     //
-    // ⚠ THE CATALOG ROW STILL SAYS IT TOO (`kPanelCatalog`, `panel::kInfo` at
-    // `placement::kSideRegion`), and that duplication is deliberate and dated. Dropping the
-    // catalog's answer in this change would move every desk a maker has already saved -- their
-    // Info row says `default`, and `default` would start meaning the overlay stack. The row
-    // retires with Info's migration to a weave, where `pane_migration` is already rewriting
-    // those saved rows and can carry the place across in the same step.
-    for (SetupPane& row : s.panes) {
-        if (resolve_builtin_pane(row.ref) == panel::kInfo) {
-            row.place.mode = pane_unit::kRightColumn;
+    // ⚠ SO THIS IS THE ONE PLACE THIS HOST NAMES A WEAVE'S OFFICE, and it is a DESK row rather
+    // than furniture: `kDefaultPanels` above holds only the kinds this host compiles, and Info
+    // is not one of them. What the row does is what a maker's saved desk does -- name a pane
+    // and where it goes -- and a maker who deletes it gets a Workshop with no Info in it,
+    // which is exactly what deleting a desk row should mean. `add_pane` takes the reference,
+    // so nothing here resolves it: an office that never arrives leaves an unresolved row, and
+    // `unresolved_panes` already says so.
+    const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
+    if (add_pane(s, info)) {
+        for (SetupPane& row : s.panes) {
+            if (row.ref == info) {
+                row.place.mode = pane_unit::kRightColumn;
+            }
         }
     }
     return s;

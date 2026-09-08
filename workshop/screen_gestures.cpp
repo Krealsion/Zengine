@@ -12,56 +12,7 @@
 
 namespace zengine::workshop {
 
-// ---- Reading past the ellipsis -----------------------------------------------------------
-
 namespace detail {
-
-// WL-PTR-06 -- agents/workshop/pointer.md
-std::size_t reveal_max_offset(const std::string& full, std::int64_t columns) {
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (columns <= 0 || static_cast<std::size_t>(columns) <= mark) {
-        return 0;
-    }
-    const std::size_t room = static_cast<std::size_t>(columns) - mark;
-    return full.size() > room ? full.size() - room : 0;
-}
-
-// WL-PTR-06 -- agents/workshop/pointer.md
-std::int64_t reveal_offset_at_column(const std::string& full, std::int64_t columns,
-                                     std::int64_t column) {
-    const std::int64_t furthest = static_cast<std::int64_t>(reveal_max_offset(full, columns));
-    if (furthest <= 0 || columns <= 1 || column <= 0) {
-        return 0;
-    }
-    const std::int64_t last = columns - 1;
-    return column >= last ? furthest : (furthest * column) / last;
-}
-
-// WL-PTR-04, WL-PTR-06 -- agents/workshop/pointer.md
-std::string revealed_row(const std::string& full, std::int64_t columns,
-                         std::int64_t offset) {
-    if (columns <= 0) {
-        return {};
-    }
-    const std::size_t furthest = reveal_max_offset(full, columns);
-    if (offset <= 0 || furthest == 0) {
-        return fit(full, columns);
-    }
-    const std::size_t want = static_cast<std::size_t>(offset);
-    return std::string(kElided) +
-           fit(full.substr(want < furthest ? want : furthest),
-               columns - static_cast<std::int64_t>(std::char_traits<char>::length(kElided)));
-}
-
-// WL-PTR-04, WL-PTR-05, WL-PTR-08 -- agents/workshop/pointer.md
-std::string reveal_shown(const Revealed& rev, std::int64_t place, std::size_t item,
-                         const std::string& full, std::string rest,
-                         std::int64_t columns) {
-    if (rev.place != place || rev.item != item || rev.offset <= 0 || rev.text != full) {
-        return rest;
-    }
-    return revealed_row(full, columns, rev.offset);
-}
 
 // WL-TERM-07 -- agents/workshop/terminal.md
 std::vector<std::string> wrap(const std::string& text, std::int64_t width) {

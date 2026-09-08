@@ -136,9 +136,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
 `workshop/screen_layouts.cpp` `fit_path`; `tests/test_workshop_files.cpp` case
-`"PROJ-2: fitting a path keeps the end that says which file it is"`;
-`tests/test_workshop_screen.cpp` case `"WUX-7: four things must agree before a row is scrolled at
-all"`.
+`"PROJ-2: fitting a path keeps the end that says which file it is"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
 ## WL-PROJ-11 — The Builder pane announces only what it watched

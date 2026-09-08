@@ -495,7 +495,6 @@ TEST_CASE("the list is a bounded region inside the pane, and never over the inpu
     // panel's body is the FIRST since HD-6: the panels are painted, then the overlay.)
     CHECK(all_texts(without_workspace(c)).back().x == list->x);
     CHECK(all_texts(without_workspace(c)).back().y == list->y);
-    CHECK(all_texts(without_workspace(c)).front().y == body_place(t).region_y);
     CHECK(list->rows[0].text.rfind("verbs", 0) == 0);
     CHECK(list->rows[1].text.rfind("> send", 0) == 0);
 
@@ -752,9 +751,9 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // surface since the right column stopped being subtracted from it, so the room runs under
     // the panel rather than stopping thirty columns short of the edge.
     CHECK(workspace_row(c, t.session(), sc) == "workspace 100x27 cells");
-    // The panel came with the right edge rather than staying at column 50.
-    CHECK(inspector_row(c, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
-    CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
+    // (WHAT STANDS IN THE RIGHT COLUMN USED TO BE ASSERTED HERE, by reading the Info panel's
+    // own two headings off the canvas. The pane composes those rows now; what this case is
+    // about is where the COLUMN is.)
     CHECK(sc.panel_x == 72);
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
@@ -824,9 +823,17 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(c.width == 78);
     CHECK(c.height == 22);
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 78, 16, surface::role::kMuted));
-    CHECK(inspector_row(c, 50 + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
+    // THE OBJECTS COLUMN IS NOT IN THIS PICTURE ANY MORE, and its absence is the fallback
+    // being honest rather than the fallback shrinking: a default `Session` opens the panels
+    // `kDefaultPanels` names, the Info weave is not one of them, and a run with no medium is
+    // also a run with no load plan. What this case owes is the COMPOSITION -- 78 by 22, the
+    // workspace at its full extent, the bands where they belong -- and every row of it is
+    // still asked for below.
     CHECK(label_at(c, 0, 19).rfind("n new | d delete", 0) == 0);
-    CHECK(label_at(c, 0, 20).rfind("enter edit | up/down row", 0) == 0);
+    // ⭐ THE SECOND HELP ROW LOST THREE KEYS AND KEPT ITS SHAPE. `enter edit` and
+    // `up/down row` were the Info panel's command-mode rows and left with it; what stands
+    // here is the row the keymap composes from what remains.
+    CHECK(label_at(c, 0, 20).rfind("[ ] workspace | p + panel", 0) == 0);
     const std::vector<std::string> rows = rasterized(c);
     REQUIRE(rows.size() == 22);
     for (const std::string& row : rows) {
@@ -1083,12 +1090,12 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     // entries rather than over the number two. Measured: with the loop below bounded at two
     // instead of `kPanelKinds`, the old spelling passed and this one names every missing row.
     REQUIRE(kPanelKinds >= 2);
-    CHECK(kPanelCatalog[0].kind == panel::kInfo);
-    CHECK(std::string(kPanelCatalog[0].name) == "Info");
-    CHECK(kPanelCatalog[1].kind == panel::kEditor);
-    CHECK(std::string(kPanelCatalog[1].name) == "Editor");
+    CHECK(kPanelCatalog[0].kind == panel::kEditor);
+    CHECK(std::string(kPanelCatalog[0].name) == "Editor");
+    CHECK(kPanelCatalog[1].kind == panel::kLayouts);
+    CHECK(std::string(kPanelCatalog[1].name) == "Layouts");
 
-    Session s; // a fresh session: Info open, the Editor not
+    Session s; // a fresh session: the Layouts band open, the other two not
     s.panels.picker.open = true;
     surface::SurfaceCanvas c;
     paint_picker(plane(c), s.panels, s.setup.active, screen_of(s), s.keymap);
@@ -1103,10 +1110,9 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     //
     // ⚠ FITTED TO THE PICKER'S OWN COLUMNS SINCE WUX-13. The name column widened to hold
     // `Pane Manager` whole (thirteen since WUX-14), and at the 78-column minimum that is
-    // three cells off every summary
-    // -- Info's `objects and properties` is now cut there and MARKED, which is `detail::fit`
-    // doing its job. What the picker owes is the row AS IT FITS IT; the case searches for
-    // exactly that rather than for a sentence the room cannot hold.
+    // three cells off every summary -- a long one is cut there and MARKED, which is
+    // `detail::fit` doing its job. What the picker owes is the row AS IT FITS IT; the case
+    // searches for exactly that rather than for a sentence the room cannot hold.
     const std::int64_t columns =
         panel_prose_place(picker_bounds(screen_of(s)), screen_of(s)).columns - 2;
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
@@ -1118,7 +1124,7 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
                                      columns)) != std::string::npos);
     }
     CHECK(shown.find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
-    CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(shown.find(detail::pad("Layouts", kPickerNameCols) + "open") != std::string::npos);
 }
 
 TEST_CASE("a panel opens from the picker, is removed, and opens again") {
@@ -1162,9 +1168,10 @@ TEST_CASE("the picker can be dismissed without opening anything, two ways") {
         t.key(out);
         CHECK_FALSE(t.w->session().panels.picker.open);
         // NOTHING WAS OPENED AND NOTHING WAS REMOVED -- the second half matters
-        // now that one gesture does both, and Info was open when the picker was.
+        // now that one gesture does both, and the Layouts band was open when the picker was.
         CHECK_FALSE(t.w->session().panels.has(panel::kEditor));
-        CHECK(t.w->session().panels.has(panel::kInfo));
+        CHECK_FALSE(t.w->session().panels.has(panel::kPaneEditor));
+        CHECK(t.w->session().panels.has(panel::kLayouts));
     }
 }
 
@@ -1189,10 +1196,12 @@ TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
     // about the removal: no message reached the office, and reopening finds it
     // exactly where it was.
     const std::int64_t asked_of_tool = tool->described;
-    pick(t, panel::kInfo);
-    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
+    pick(t, panel::kPaneEditor);
+    REQUIRE(t.w->session().panels.has(panel::kPaneEditor)); // opened, so it can be removed
+    pick(t, panel::kPaneEditor);
+    CHECK_FALSE(t.w->session().panels.has(panel::kPaneEditor));
     CHECK(t.w->session().notice ==
-          "removed Info -- p brings it back; nothing behind it was touched");
+          "removed Pane Manager -- p brings it back; nothing behind it was touched");
     CHECK(tool->described == asked_of_tool);
 }
 
@@ -1232,26 +1241,37 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEd
         }
     }
     CHECK(stacked_rows == static_cast<std::size_t>(inside.h));
-    // The OBJECTS and PROPERTIES columns are untouched by any of this.
-    CHECK(inspector_row(with, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
-    CHECK(properties_heading(with, t.doc(), t.session()) == "PROPERTIES");
+    // AND THE BAND ABOVE IT IS UNTOUCHED BY ANY OF THIS. The OBJECTS and PROPERTIES columns
+    // used to be what this line checked; they are a weave's rows now, in a place this run
+    // seats nobody in. The Layouts band is the neighbour a stacked panel still has.
+    CHECK_FALSE(stack_text(with).empty());
+    CHECK(t.session().panels.has(panel::kLayouts));
 }
 
-// ---- PNL-1: the two places, said once -------------------------------------------------
+// ---- PNL-1: the places, said once -----------------------------------------------------
 //
-// WHAT THESE CASES ARE ABOUT is not where the two panels are -- the case above and the
-// 186 that came before it already pin that, cell by cell, and every one of them still
-// passes unchanged. It is WHERE THAT ANSWER COMES FROM: a kind declares one of two
-// places in the catalog, `placement_bounds` turns a place into a rectangle on a screen,
-// and each painter is handed the rectangle. Before PNL-1 the same answer was arrived at
-// twice, by two painters that each knew a column of their own.
+// WHAT THESE CASES ARE ABOUT is not where the panels are -- the case above and the
+// 186 that came before it already pin that, cell by cell. It is WHERE THAT ANSWER COMES
+// FROM: a kind declares a place in the catalog, `placement_bounds` turns a place into a
+// rectangle on a screen, and each painter is handed the rectangle. Before PNL-1 the same
+// answer was arrived at twice, by two painters that each knew a column of their own.
+//
+// THERE ARE THREE PLACES AND THE BUILT-INS DECLARE TWO OF THEM. The side region is the
+// third, and no compile-time kind is placed there any more: it survives as a PLACE a DESK
+// ROW can name (`pane_unit::kRightColumn`), which is how the Info weave reaches the right
+// edge. A place with no kind in it is exactly the case that would have gone untested when
+// the count was "one kind, over there".
 
 TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     // THE INTENT IS AUTHORED IN THE CATALOG. It is a fact about the kind, known
     // before anything is open and readable without a screen anywhere near it.
     CHECK(placement_of(panel::kEditor) == placement::kOverlayStack);
-    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
-    CHECK(kinds_placed_in(placement::kSideRegion) == 1); // asserted at compile time too
+    CHECK(placement_of(panel::kPaneEditor) == placement::kOverlayStack);
+    CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
+    // AND NO BUILT-IN DECLARES THE SIDE REGION AT ALL. Zero is ASSERTED rather than the line
+    // deleted: "at most one" would still be true of zero and would go on being true if a row
+    // were added back, and the place itself is not retired -- a desk row still names it.
+    CHECK(kinds_placed_in(placement::kSideRegion) == 0); // asserted at compile time too
     // AND THE TWO PLACES PARTITION THE BUILT-IN CATALOG (WG-0). This used to read
     // `kinds_placed_in(kOverlayStack) == 1`, which is a census of the place whose whole
     // purpose is to hold several -- so it reddened for any kind added to the stack while
@@ -1274,9 +1294,9 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
               kinds_placed_in(placement::kTopBand) ==
           kPanelKinds);
 
-    // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and they are the two places
-    // Workshop has always had: the column beside the workspace, and the top of
-    // the workspace itself.
+    // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and the side region resolves to a rectangle
+    // WITH NO KIND DECLARING IT -- which is the whole of what makes it a place rather than a
+    // panel's private constant. A desk row spelled `right-column` lands here.
     const ui::Rect side = placement_bounds(placement::kSideRegion, 0, kMinScreen);
     const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
     CHECK(side == ui::Rect{50, 2, 28, 16});
@@ -1302,51 +1322,49 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
 }
 
 TEST_CASE("each panel is painted where the placement path says it is") {
+    // TWO PANELS IN TWO DIFFERENT PLACES, which is what this case needs and what the
+    // built-ins still give it: the Layouts band at the top, the Editor in the stack. It was
+    // Info and the Editor, in the side region and the stack, until the side region stopped
+    // being any kind's.
     Live t;
     (void)mount_tool(t, "zengine-snake");
     open_editor_pane(t);
     const Screen sc = screen_of(t.session());
     const surface::SurfaceCanvas c = t.canvases.back();
 
-    const PanelBounds info = bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc);
-    const PanelBounds builder = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
-    REQUIRE(info.open);
+    const PanelBounds band =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc);
+    const PanelBounds builder =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    REQUIRE(band.open);
     REQUIRE(builder.open);
-    CHECK(info.placed_in == placement::kSideRegion);
+    CHECK(band.placed_in == placement::kTopBand);
     CHECK(builder.placed_in == placement::kOverlayStack);
+    CHECK(band.rect == fine_of_cells(placement_bounds(placement::kTopBand, 0, sc)));
 
-    // INFO'S REGION COMES FROM THE PATH: its two headings are at the rectangle it
-    // was handed, on the rows it keeps inside that rectangle. The panels are
-    // cell-aligned here, so the covered-cell reading is the exact one.
-    // ...AND EACH PANEL'S ROWS ARE INSIDE ITS OWN CHROME (WUX-5): the rectangle the path
-    // hands it is unchanged, and the boundary it now draws is subtracted from it once.
-    const ui::Rect info_cells = pane_body_cells(info.rect);
-    const ui::Rect builder_cells = pane_body_cells(builder.rect);
-    CHECK(inspector_row(c, info_cells.x, info_cells.y) == "OBJECTS");
-    CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
     // BUILDER'S REGION COMES FROM THE PATH, at the first slot of the stack.
+    // ...AND ITS ROWS ARE INSIDE ITS OWN CHROME (WUX-5): the rectangle the path hands it is
+    // unchanged, and the boundary it now draws is subtracted from it once.
+    const ui::Rect builder_cells = pane_body_cells(builder.rect);
     CHECK(label_at(c, builder_cells.x, builder_cells.y).find("Editor") > 0);
     CHECK(builder.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
 
-    // AND NEITHER PANEL PAINTS OUTSIDE ITS OWN BOUNDS. Every label in a panel's
-    // column is on one of that panel's rows, and every row of the stacked panel
-    // is padded to the width its bounds gave it -- which is the erasing mechanism
-    // following the panel rather than a constant.
-    std::size_t seen_info = 0;
+    // AND THE TWO PLACES DO NOT OVERLAP: the band is above the stack's first slot, which is
+    // the relation `placement_bounds` owns and no painter re-derives.
+    CHECK(cells_covered(band.rect).y + cells_covered(band.rect).h <=
+          cells_covered(builder.rect).y);
+
+    // AND THE STACKED PANEL PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
+    // to the width its bounds gave it -- the erasing mechanism following the panel rather
+    // than a constant.
     std::size_t seen_stack = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == info_cells.x) {
-            CHECK(l.y >= info_cells.y);
-            CHECK(l.y < info_cells.y + info_cells.h);
-            ++seen_info;
-        }
         if (l.x == builder_cells.x && l.y >= builder_cells.y &&
             l.y < builder_cells.y + builder_cells.h) {
             CHECK(l.text.size() == static_cast<std::size_t>(builder_cells.w));
             ++seen_stack;
         }
     }
-    CHECK(seen_info > 0);
     CHECK(seen_stack == static_cast<std::size_t>(builder_cells.h));
 }
 
@@ -1373,71 +1391,34 @@ TEST_CASE("a slot is earned by being in the stack, not by being early in the lis
     // THE RULE THAT USED TO BE A COUNTER INSIDE THE PAINTING LOOP. It named a
     // kind; it counts placements now, so the answer cannot depend on the order a
     // maker happened to open two unalike panels in.
+    //
+    // THE UNALIKE PANEL IS THE BAND NOW. It was Info in the side region; the pair that still
+    // proves the rule is a stacked kind and a kind placed somewhere else, and the Layouts
+    // band is the somewhere else this build compiles.
     const Screen sc = kMinScreen;
-    Panels info_first;
-    info_first.open = {Panel{panel::kInfo}, Panel{panel::kEditor}};
+    Panels band_first;
+    band_first.open = {Panel{panel::kLayouts}, Panel{panel::kEditor}};
     Panels builder_first;
-    builder_first.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
+    builder_first.open = {Panel{panel::kEditor}, Panel{panel::kLayouts}};
 
     const ui::Rect first_slot = placement_bounds(placement::kOverlayStack, 0, sc);
-    CHECK(bounds_of(info_first, setup_for(info_first), panel::kEditor, sc).rect == fine_of_cells(first_slot));
-    CHECK(bounds_of(builder_first, setup_for(builder_first), panel::kEditor, sc).rect == fine_of_cells(first_slot));
-    // And Info is in the same column either way: the side region has no slots.
-    CHECK(bounds_of(info_first, setup_for(info_first), panel::kInfo, sc).rect ==
-          bounds_of(builder_first, setup_for(builder_first), panel::kInfo, sc).rect);
+    CHECK(bounds_of(band_first, setup_for(band_first), panel::kEditor, sc).rect ==
+          fine_of_cells(first_slot));
+    CHECK(bounds_of(builder_first, setup_for(builder_first), panel::kEditor, sc).rect ==
+          fine_of_cells(first_slot));
+    // And the band is in the same rows either way: the top band has no slots.
+    CHECK(bounds_of(band_first, setup_for(band_first), panel::kLayouts, sc).rect ==
+          bounds_of(builder_first, setup_for(builder_first), panel::kLayouts, sc).rect);
 }
 
-TEST_CASE("a painter goes where its bounds say, not where a constant says") {
-    // THE STRUCTURAL HALF OF THE THIRD-PANEL CLAIM, and it costs no fake catalog
-    // entry: both painters are called with bounds that are NOT the ones their kind
-    // resolves to, and both land there. A painter that still knew its own column
-    // would ignore this and paint where it always did.
-    //
-    // The rectangles are the same HEIGHT as the real ones. A panel's content is
-    // written for its place's row budget -- the Builder's nine rows are nine
-    // statements about a build -- so what a moved rectangle proves is that the
-    // WHERE is owned by the placement path. A place of a different height is a
-    // layout question nothing has asked yet.
-    WorkshopDoc d = two_panels();
-    Session s;
-    refocus(d, s);
-
-    const ui::Rect moved_info{7, 2, kPanelCols, 17};
-    const ui::Rect moved_body = pane_body_cells(moved_info);
-    surface::SurfaceCanvas ic;
-    paint_info(plane(ic), d, s, fine_of_cells(moved_info), kMinScreen);
-    CHECK(inspector_row(ic, moved_body.x, moved_body.y) == "OBJECTS");
-    // The heading is a ROW of the body since HD-7, so it moves with the rectangle too.
-    const InfoBodyPlace moved = info_body_place(moved_info, kMinScreen, d, s);
-    REQUIRE(moved.present);
-    CHECK(inspector_row(ic, moved.region_x,
-                        moved.region_y + kInfoHeadingRows + moved.heading_row) == "PROPERTIES");
-    // AND ITS BACKDROP GOES WITH IT (PNL-2a). This assertion used to read
-    // `ic.rects.empty()` -- Info had no backdrop at all, pinned deliberately by
-    // PNL-1 and named by PNL-2 as the case that would have to change if anybody
-    // ever gave it one. Somebody did. It is one rect, it is the whole of the
-    // rectangle this painter was HANDED, and it is not the rectangle this kind
-    // would have resolved to -- so the backdrop is owned by the placement path
-    // exactly as much as the labels are.
-    REQUIRE(all_rects(ic).size() == 1);
-    CHECK(all_rects(ic)[0].x == moved_info.x);
-    CHECK(all_rects(ic)[0].y == moved_info.y);
-    CHECK(all_rects(ic)[0].w == moved_info.w);
-    CHECK(all_rects(ic)[0].h == moved_info.h);
-    CHECK(all_rects(ic)[0].role == kPaneChrome);
-    for (const surface::SurfaceLabel& l : cell_text_of(ic)) {
-        CHECK(l.x == moved_body.x);
-        CHECK(l.y >= moved_body.y);
-        CHECK(l.y < moved_body.y + moved_body.h);
-    }
-
-    // ⭐ THE STACK'S HALF OF THIS CLAIM MOVED WITH ITS SUBJECT. It used to paint the
-    // Builder panel into a moved rectangle and read the same three properties back; the
-    // Builder is a weave now and there is no built-in painter for the overlay stack left to
-    // hand a rectangle to. The property is unchanged and is proved where the stack's panes
-    // now live -- an external pane's rows go through `paint_external`, over a rectangle the
-    // same placement path resolved, in `test_workshop_panes_window.cpp`.
-}
+// (...and four more: `"a painter goes where its bounds say, not where a constant says"` and
+// `"Info is open at boot, and it is a panel rather than furniture"` were about `paint_info` and
+// about a built-in that is no longer one; `"the inspector's keys say so when Info is not
+// showing, and open no draft"` was about three command-mode rows that left with the pane; and
+// `"TUI-0: a terminal resize is presentation context, never an authored act"` proved it by
+// watching the inspector's cursor and draft survive a resize. That a resize authors nothing is
+// still pinned, by the document suite's own resize cases and by `"the surface says how much
+// room it has"` directly above.)
 
 TEST_CASE("the stack has a second slot, and the minimum screen has no room for it") {
     // WHAT A THIRD KIND WOULD FIND IF IT DECLARED THE STACK. The path answers for
@@ -1633,77 +1614,56 @@ TEST_CASE("the terminal overlay still outranks everything, panels included") {
 }
 
 // ============================================================================
-// Tier 9 -- Info, the second panel kind (PNL-0)
+// Tier 9 -- a panel that is nobody's weave (PNL-0)
 // ============================================================================
 //
-// THE OBJECTS AND PROPERTIES COLUMNS ARE NO LONGER FURNITURE. They were painted
-// unconditionally by `paint` from W-0 until now; they are a panel like the
-// Builder beside them, and the whole of this tier is the difference that makes.
+// THIS TIER WAS INFO'S, AND ITS SUBJECT OUTLIVED INFO. What it always measured is the
+// difference a SECOND built-in kind makes: that a panel is a presentation with no state of
+// its own, that removing one destroys nothing behind it, and that none of it needs a weave.
+// Info was the instance; the Pane Manager is the instance now, and the OBJECTS and
+// PROPERTIES columns those cases read are `Zengine/info-pane/`'s rows, measured across the
+// seam in `test_workshop_panes_info.cpp`.
 //
-// WHAT MAKES INFO THE INTERESTING SECOND KIND is what it is NOT:
+// WHAT MAKES THE PANE MANAGER THE INTERESTING SECOND KIND is what it is NOT:
 //
 //   it has no weave.        Opening it sends nothing and asks nobody. A Workshop
 //                           hosting no tools at all opens it and it works.
-//   it has no state.        There is no `InfoPane`. Removing it destroys nothing,
-//                           because everything it shows belongs to the document
-//                           or to the session and outlives the panel by a lot.
-//   it is not in the dock.  It sits in the right-hand column, which is a
-//                           different place with different rules, so the two
-//                           kinds together are what the placement question will
-//                           eventually have to be answered from.
+//   it has no state
+//   that outlives it.       Removing it destroys a presentation. Its subject, its
+//                           cursor and its rows are re-derived from the setup and the
+//                           catalog, both of which outlive the panel by a lot.
+//   it is in the dock.      AND THIS IS WHERE THE TIER CHANGED. Info was in the
+//                           right-hand column, a different place with different rules,
+//                           and several cases below were really about THAT difference.
+//                           The room is the screen now (WL-GEO-03) and the second built-in
+//                           shares the stack -- so the cases that compared a reserved
+//                           column before and after a removal are gone, and what is left is
+//                           the part that was never about the column: a presentation that
+//                           leaves whole and comes back whole.
 //
-// The cases that would notice if any of those quietly stopped being true are the
-// ones that remove Info with no tool on the bus, that compare the column before
-// and after a removal, and that measure the document while it is absent.
+// The cases that would notice if any of those quietly stopped being true are the ones that
+// remove the panel with no tool on the bus, that compare its rows before and after a
+// removal, and that measure the document while it is absent.
 
-TEST_CASE("Info is open at boot, and it is a panel rather than furniture") {
+TEST_CASE("a panel can be removed, and takes its whole presentation with it") {
     Live t;
-    t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
-
-    // A FRESH SESSION HAS IT OPEN, beside the Layouts pane the layout run became (WUX-12)
-    // -- and those two are the whole of what a fresh Workshop opens.
-    const Panels& panels = t.w->session().panels;
-    REQUIRE(panels.open.size() == 2);
-    CHECK(panels.open[0].kind == panel::kInfo);
-    CHECK(panels.open[1].kind == panel::kLayouts);
-    CHECK(panels.has(panel::kInfo));
-    CHECK_FALSE(panels.has(panel::kEditor));
-
-    // ...and the screen a maker boots into is the screen they have always booted
-    // into: the two column headings, in the column they have always been in.
+    t.key(input::scan::kN); // something to look at, so an empty panel is not the empty case
+    pick(t, panel::kPaneEditor);
     const Screen sc = screen_of(t.session());
-    const surface::SurfaceCanvas& c = t.canvases.back();
-    CHECK(inspector_row(c, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
-    CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
-    CHECK(object_row(c, t.doc(), t.session(), 0) == "> #1 panel");
-    CHECK(property_row(c, t.doc(), t.session(), 0) == " Identity #1");
+    REQUIRE_FALSE(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor).empty());
 
-    // AND IT IS IN THE CATALOG, which is what makes it a panel rather than a
-    // fixed thing that happens to be listed: the picker is the only door, and
-    // this kind is behind it.
-    CHECK(catalog_at(panel::kInfo) < kPanelKinds);
-}
+    pick(t, panel::kPaneEditor);
+    CHECK_FALSE(t.w->session().panels.has(panel::kPaneEditor));
 
-TEST_CASE("Info can be removed, and takes its whole column with it") {
-    Live t;
-    t.key(input::scan::kN); // something to look at, so an empty column is not the empty case
-    const Screen sc = screen_of(t.session());
-    REQUIRE_FALSE(info_text(t.canvases.back(), sc).empty());
-
-    pick(t, panel::kInfo);
-    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
-
-    // NOT ONE LABEL IS LEFT IN THAT COLUMN. Not the headings, not the object
-    // list, not the inspector, not the "(none)" marker -- the panel is gone
-    // rather than emptied.
+    // NOT ONE LABEL IS LEFT WHERE IT STOOD. Not the heading, not the inventory, not the
+    // subject's rows -- the panel is gone rather than emptied.
     const surface::SurfaceCanvas& gone = t.canvases.back();
-    CHECK(info_text(gone, sc).empty());
-    CHECK(inspector_row(gone, sc.panel_x, kSideY).empty());
+    CHECK(panel_shown(gone, t.session(), panel::kPaneEditor).empty());
     // THE HEADING IS NOWHERE ON THE CANVAS, asked of the whole picture rather than of the
     // row the panel would have put it on: since QR-14 that row is inside the workspace, so
     // a row-addressed question would be asking the document what the panel says.
     for (const std::string& row : rasterized(gone)) {
-        CHECK(row.find("PROPERTIES") == std::string::npos);
+        CHECK(row.find("PANE MANAGER") == std::string::npos);
     }
 
     // AND NOTHING ELSE MOVED. The screen around the hole is the screen it was:
@@ -1713,35 +1673,42 @@ TEST_CASE("Info can be removed, and takes its whole column with it") {
     CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
 }
 
-TEST_CASE("reopening Info brings back the column it had, cell for cell") {
+TEST_CASE("reopening a panel brings back what it had, cell for cell") {
     Live t;
     t.key(input::scan::kN);
     t.key(input::scan::kN);
-    const Screen sc = screen_of(t.session());
-    const std::string before = info_text(t.canvases.back(), sc);
-    REQUIRE(before.find("OBJECTS") != std::string::npos);
+    pick(t, panel::kPaneEditor);
+    const std::string before =
+        panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor);
+    REQUIRE(before.find("PANE MANAGER") != std::string::npos);
 
-    pick(t, panel::kInfo);
-    REQUIRE(info_text(t.canvases.back(), sc).empty());
+    pick(t, panel::kPaneEditor);
+    REQUIRE(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor).empty());
 
-    pick(t, panel::kInfo);
-    CHECK(t.w->session().panels.has(panel::kInfo));
-    // THE SAME COLUMN, not a reconstructed one. It is byte-identical because
-    // there was never a copy to go stale: the panel reads the document and the
-    // session, both of which went on being true while it was absent.
-    CHECK(info_text(t.canvases.back(), sc) == before);
+    pick(t, panel::kPaneEditor);
+    CHECK(t.w->session().panels.has(panel::kPaneEditor));
+    // THE SAME ROWS, not reconstructed ones. They are byte-identical because there was
+    // never a copy to go stale: the panel reads the setup and the catalog, both of which
+    // went on being true while it was absent.
+    CHECK(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor) == before);
 }
 
-TEST_CASE("removing Info changes nothing about the document, not even its picture") {
-    // THE SHARPEST CLAIM IN THIS TIER, and the reason the vacated 28 columns
-    // stay vacant. The workspace's extent is what a share resolves against, so a
-    // workspace that grew into the empty column would make every %-width object
-    // on the screen change size because a maker hid a list of names. A panel's
+TEST_CASE("removing a panel changes nothing about the document, not even its picture") {
+    // THE SHARPEST CLAIM IN THIS TIER: the workspace's extent is what a share resolves
+    // against, so a workspace that grew or shrank when a panel closed would make every
+    // %-width object on the screen change size because a maker hid a list. A panel's
     // presence must not be visible in the picture of the document.
+    //
+    // AND ITS OTHER HALF IS RETIRED WITH THE RESERVATION. This case also asserted that the
+    // vacated 28 columns STAYED vacant -- `sc.panel_x` and `sc.room_w` unmoved -- which was
+    // a claim about a reserved column. The room is the screen now, a panel covers room
+    // rather than owning it, and covering nothing is exactly what a closed panel does. What
+    // survives is the part that was always the point: the DOCUMENT's own extent.
     // The document Workshop boots on already carries the case this needs: object
     // #1 is authored as a SHARE, so its resolved width is a function of the
     // workspace and nothing else.
     Live t;
+    pick(t, panel::kPaneEditor);
     REQUIRE(t.w->document().elements.size() == 2);
     REQUIRE(t.w->document().elements[0].width.mode == ui::kExtentPercent);
 
@@ -1750,8 +1717,8 @@ TEST_CASE("removing Info changes nothing about the document, not even its pictur
     const ui::Scene before = workspace_scene(t.w->document(), t.session());
     REQUIRE(before.items.size() == 2);
 
-    pick(t, panel::kInfo);
-    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
+    pick(t, panel::kPaneEditor);
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kPaneEditor));
 
     // The authored value, the workspace it resolves against, and the rectangle
     // it resolves to -- all three unchanged.
@@ -1764,11 +1731,7 @@ TEST_CASE("removing Info changes nothing about the document, not even its pictur
     CHECK(after.items[0].rect.w == before.items[0].rect.w);
     CHECK(after.items[0].rect.h == before.items[0].rect.h);
 
-    // ...and the same rectangle is still on the canvas, at the same cells. The
-    // Screen itself is untouched too: the column is reserved, not reclaimed.
-    const Screen sc = screen_of(t.session());
-    CHECK(sc.panel_x == kMinScreen.panel_x);
-    CHECK(sc.room_w == kMinScreen.room_w);
+    // ...and the same rectangle is still on the canvas, at the same cells.
     bool found = false;
     for (const surface::SurfaceRect& r : all_rects(t.canvases.back())) {
         if (r.role == surface::role::kFill && r.w == before.items[0].rect.w &&
@@ -1779,89 +1742,113 @@ TEST_CASE("removing Info changes nothing about the document, not even its pictur
     CHECK(found);
 }
 
-TEST_CASE("The Editor and Info are present independently -- all four states") {
+TEST_CASE("The Editor and the Pane Manager are present independently -- all four states") {
     Live t;
+    // ON A SCREEN THAT CAN SEAT BOTH. Both built-ins are overlay panes now, so "both open"
+    // is a state the minimum screen cannot hold at all -- the picker would refuse the
+    // second for room and this case would be measuring a refusal. When the second kind was
+    // Info the two never competed, because Info was not in the stack.
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 0, 0}));
     ToolSeat* tool = mount_tool(t, "zengine-snake");
-    const Screen sc = screen_of(t.session());
-    const auto shows_info = [&t, &sc]() { return !info_text(t.canvases.back(), sc).empty(); };
+    const auto shows_manager = [&t]() {
+        return !panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor).empty();
+    };
     const auto shows_editor = [&t]() {
-        return stack_text(t.canvases.back()).find("Editor") != std::string::npos;
+        return !panel_shown(t.canvases.back(), t.session(), panel::kEditor).empty();
     };
 
-    // Info alone -- how Workshop boots.
+    // Neither -- how Workshop boots, now that the desk's other row is a weave with no
+    // office on this bus.
     t.key(input::scan::kEscape);
-    CHECK(shows_info());
+    CHECK_FALSE(shows_manager());
     CHECK_FALSE(shows_editor());
 
-    // Both. The Editor is over the workspace, Info is in its column, and
-    // neither knows the other exists.
+    // The Pane Manager alone.
+    pick(t, panel::kPaneEditor);
+    CHECK(shows_manager());
+    CHECK_FALSE(shows_editor());
+
+    // Both, and neither knows the other exists.
     open_editor_pane(t);
-    CHECK(shows_info());
+    CHECK(shows_manager());
     CHECK(shows_editor());
 
-    // The Editor alone. Removing Info leaves it exactly where it was -- a slot is earned by
-    // being PLACED in the stack, so an Info ahead of it in the open list never pushed it
-    // down and removing one never pulls it up.
-    pick(t, panel::kInfo);
-    CHECK_FALSE(shows_info());
+    // The Editor alone -- and it MOVES UP, which is the honest answer and not the one this
+    // case used to give. Both built-ins share the stack now, so the second one seated takes
+    // the second slot and removing the first promotes it. When the other kind was Info that
+    // could not happen: Info took no slot, so its removal moved nothing. The independence
+    // this case is about is PRESENCE, not address -- each panel opens and closes without
+    // reference to the other -- and the slot arithmetic is `seat_panes`' own tier.
+    pick(t, panel::kPaneEditor);
+    CHECK_FALSE(shows_manager());
     CHECK(shows_editor());
-    CHECK(first_slot_shows_editor(t));
+    CHECK(cells_covered(bounds_of(t.session().panels, t.session().setup.active,
+                                  panel::kEditor, screen_of(t.session()))
+                            .rect) ==
+          placement_bounds(placement::kOverlayStack, 0, screen_of(t.session())));
 
-    // Neither. An empty screen around a live document is a legitimate state, and
+    // Neither again. An empty screen around a live document is a legitimate state, and
     // the document is still all there.
     open_editor_pane(t);
-    CHECK_FALSE(shows_info());
+    CHECK_FALSE(shows_manager());
     CHECK_FALSE(shows_editor());
-    CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
-          "workspace 78x16 cells");
+    CHECK(t.w->document().elements.size() == 2);
 
     // And back to both, in the other order.
-    pick(t, panel::kInfo);
     open_editor_pane(t);
-    CHECK(shows_info());
+    pick(t, panel::kPaneEditor);
+    CHECK(shows_manager());
     CHECK(shows_editor());
-    CHECK(first_slot_shows_editor(t));
-    // ⭐ AND NOTHING HERE ASKED THE TOOL ANYTHING. Opening the Builder panel used to, twice;
+    // AND NOTHING HERE ASKED THE TOOL ANYTHING. Opening the Builder panel used to, twice;
     // no built-in speaks to a participant on open now.
     CHECK(tool->described == 0);
 }
 
-TEST_CASE("Info needs no weave to be a panel") {
+TEST_CASE("a built-in panel needs no weave, and opening one speaks to no office") {
     // NOTHING IS MOUNTED IN THE BUILDER OFFICE, and nothing else is either. If
     // being a panel required a tool behind it, this is the case that could not
     // pass.
+    //
+    // THE CLAIM MOVED FROM A KIND TO A CATEGORY. It used to read "Info needs no weave to be
+    // a panel", and Info needs one now -- it IS one. What was never about Info is that a
+    // BUILT-IN needs none, which is the whole reason the catalog and the runtime catalog are
+    // two lists (`combined_catalog`) rather than one.
     Live t;
-    const Screen sc = screen_of(t.session());
     t.key(input::scan::kN);
-    CHECK(info_text(t.canvases.back(), sc).find("OBJECTS") != std::string::npos);
+    pick(t, panel::kPaneEditor);
+    CHECK(t.w->session().panels.has(panel::kPaneEditor));
+    CHECK(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor)
+              .find("PANE MANAGER") != std::string::npos);
 
-    pick(t, panel::kInfo);
-    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
-    pick(t, panel::kInfo);
-    CHECK(t.w->session().panels.has(panel::kInfo));
-    CHECK(info_text(t.canvases.back(), sc).find("OBJECTS") != std::string::npos);
+    pick(t, panel::kPaneEditor);
+    CHECK_FALSE(t.w->session().panels.has(panel::kPaneEditor));
+    pick(t, panel::kPaneEditor);
+    CHECK(t.w->session().panels.has(panel::kPaneEditor));
+    CHECK(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor)
+              .find("PANE MANAGER") != std::string::npos);
 
     // AND NO MESSAGE WENT TO THE ONE OFFICE WORKSHOP KNOWS ABOUT. With the
-    // stand-in mounted, opening and removing Info leaves its counters at zero --
+    // stand-in mounted, opening and removing the panel leaves its counters at zero --
     // the sends in `choose_panel` belong to the Builder kind and to no other.
     Live u;
     ToolSeat* tool = mount_tool(u, "zengine-snake");
-    pick(u, panel::kInfo);
-    pick(u, panel::kInfo);
-    pick(u, panel::kInfo);
+    pick(u, panel::kPaneEditor);
+    pick(u, panel::kPaneEditor);
+    pick(u, panel::kPaneEditor);
     CHECK(tool->described == 0);
     CHECK(tool->asked.empty());
 }
 
-TEST_CASE("the document is still a document with Info removed") {
+TEST_CASE("the document is still a document with the panel removed") {
     Live t;
+    pick(t, panel::kPaneEditor);
     const std::size_t born = t.w->document().elements.size();
     REQUIRE(born == 2);
-    pick(t, panel::kInfo);
-    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
+    pick(t, panel::kPaneEditor);
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kPaneEditor));
 
     // Every gesture that authors: they are the WORKSPACE's, not the panel's, and
-    // removing the panel that lists the results does not remove the results.
+    // removing a panel does not remove the results.
     t.key(input::scan::kN);
     REQUIRE(t.w->document().elements.size() == born + 1);
     const std::int64_t made = t.w->document().elements.back().id;
@@ -1884,50 +1871,15 @@ TEST_CASE("the document is still a document with Info removed") {
     CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
           "workspace 78x16 cells");
 
-    // Reopening finds the document that was authored while nobody was showing it.
-    pick(t, panel::kInfo);
-    const Screen sc = screen_of(t.session());
-    CHECK(info_text(t.canvases.back(), sc).find("#" + std::to_string(made)) !=
-          std::string::npos);
-}
-
-TEST_CASE("the inspector's keys say so when Info is not showing, and open no draft") {
-    // THE TRAP THIS CLOSES. A draft opened with Info removed would put Workshop
-    // into editing mode, where `p` types a p instead of opening the picker -- so
-    // the maker could not reopen the panel to find what they were editing -- and
-    // Ctrl+S would then refuse to save, naming a row that is not on the screen.
-    Live t;
-    t.key(input::scan::kN);
-    pick(t, panel::kInfo);
-    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
-
-    t.key(input::scan::kReturn);
-    CHECK(t.w->session().notice == "the properties are not showing -- p opens the Info panel");
-    CHECK(t.w->session().notice_is_bad);
-    for (const Row& r : t.session().rows) {
-        CHECK_FALSE(r.editing());
-    }
-
-    // The cursor keys answer for the same panel, for the same reason: they used
-    // to do something, so silence would be indistinguishable from a broken tool.
-    const std::size_t cursor = t.session().cursor;
-    t.key(input::scan::kDown);
-    CHECK(t.session().cursor == cursor);
-    CHECK(t.w->session().notice == "the properties are not showing -- p opens the Info panel");
-    t.key(input::scan::kUp);
-    CHECK(t.session().cursor == cursor);
-
-    // AND THE CANARY: with Info back, all three do exactly what they always did.
-    pick(t, panel::kInfo);
-    t.key(input::scan::kDown);
-    CHECK(t.session().cursor == cursor + 1);
-    t.key(input::scan::kReturn);
-    CHECK(t.w->session().notice.find("editing ") == 0);
-    bool drafting = false;
-    for (const Row& r : t.session().rows) {
-        drafting = drafting || r.editing();
-    }
-    CHECK(drafting);
+    // Reopening finds a panel whose rows are re-derived, not restored: what it inventories
+    // was authored while nobody was showing it.
+    // WHAT IT USED TO FIND WAS THE OBJECT `#N` THIS CASE MADE, in Info's OBJECTS list. That
+    // row is `Zengine/info-pane/`'s now and is measured across the seam; what a
+    // Workshop-side case can still ask is that the reopened panel is reading the CURRENT
+    // desk, which is the same claim one list over.
+    pick(t, panel::kPaneEditor);
+    CHECK(panel_shown(t.canvases.back(), t.session(), panel::kPaneEditor)
+              .find("Pane Manager") != std::string::npos);
 }
 
 TEST_CASE("x is an unbound key again") {
@@ -1943,7 +1895,7 @@ TEST_CASE("x is an unbound key again") {
 
     t.key(input::scan::kX);
     CHECK(t.w->session().panels.has(panel::kEditor));
-    CHECK(t.w->session().panels.has(panel::kInfo));
+    CHECK(t.w->session().panels.has(panel::kLayouts)); // and the desk's other panel stands
     CHECK(t.w->session().notice == notice); // it said nothing, because it means nothing
 }
 
@@ -1952,15 +1904,20 @@ TEST_CASE("the picker's state column follows the panels, not a memory of them") 
     (void)mount_tool(t, "zengine-snake");
 
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back())
+              .find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back())
+              .find(detail::pad("Pane Manager", kPickerNameCols) + "closed") !=
+          std::string::npos);
     t.key(input::scan::kEscape);
 
     open_editor_pane(t);
-    pick(t, panel::kInfo);
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Editor", kPickerNameCols) + "open") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back())
+              .find(detail::pad("Editor", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back())
+              .find(detail::pad("Pane Manager", kPickerNameCols) + "closed") !=
+          std::string::npos);
     t.key(input::scan::kEscape);
 }
 
@@ -2026,703 +1983,34 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
 
 namespace {
 
-/// A document whose selected object has the eight properties every object has. The HD-6
-/// population witness is the SCREEN, not a manufactured row list: at the minimum extent a
-/// graphical body holds five rows and there are eight properties, so the overflow is what an
-/// ordinary object looks like in an ordinary window.
-WorkshopDoc one_object() {
-    WorkshopDoc d;
-    d.elements.push_back(ui::Element{1, "panel", ui::kRootContext, 5, 2,
-                                     ui::Extent{ui::kExtentPercent, 60},
-                                     ui::Extent{ui::kExtentCells, 6}});
-    d.next_id = 2;
-    return d;
-}
 
-/// THE SAME OBJECT, IN A DOCUMENT OF SIX (HD-7).
-///
-/// HD-6's property-overflow cases were written when the OBJECTS list took a fixed five rows
-/// and the property body took everything under it, so ONE object was enough to make the
-/// graphical minimum screen overflow at five property rows. Both lists share one budget now,
-/// so how much the property list gets depends on how much the object list asked for -- with
-/// one object it asks for one row and all eight properties fit. Six objects is what asks for
-/// enough to put the property list back at five rows on the graphical minimum screen, which is
-/// where these cases' measurements were taken. The selected object is still #1 and its eight
-/// properties are still the eight properties every object has: NOTHING was manufactured, and
-/// the document is smaller than the two-object one a maker boots into plus four `n` presses.
-WorkshopDoc six_objects() {
-    WorkshopDoc d = one_object();
-    for (int i = 0; i < 5; ++i) {
-        REQUIRE(doc::add_default(d) != 0);
-    }
-    return d;
-}
 
 } // namespace
 
-TEST_CASE("HD-6: the body's row capacity is the ACTIVE medium's, from one equation") {
-    // §6 and §40 (row fitting). There is no Inspector row height, no font measurement here
-    // and no 22-pixel constant: `fit_region` answered both numbers from the metric the medium
-    // published, with `kTextInsetPx` already inside it.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    s.screen_w = 80;
-    s.screen_h = 38;
-    refocus(d, s);
-
-    // A CHARACTER MEDIUM: a prose row IS a cell row, so the body holds its own cell height.
-    const InfoBodyPlace cells = body_of(d, s);
-    REQUIRE(cells.present);
-    CHECK_FALSE(cells.fit.graphical());
-    CHECK(cells.capacity == static_cast<std::size_t>(cells.region_h - kInfoHeadingRows));
-    CHECK(cells.columns == cells.region_w);
-    CHECK(cells.value_columns ==
-          cells.region_w - kPropertyMarkCols - kPropertyLabelCols - kPropertyCaretCols);
-
-    // A GRAPHICAL MEDIUM, same bounds: taller rows, narrower characters, and BOTH numbers
-    // move because both came from the same fit.
-    s.text_advance_px = 8;
-    s.text_line_px = 18;
-    const InfoBodyPlace type = body_of(d, s);
-    REQUIRE(type.present);
-    CHECK(type.fit.graphical());
-    CHECK(type.region_h == cells.region_h); // the same rectangle...
-    CHECK(type.region_w == cells.region_w);
-    CHECK(type.capacity < cells.capacity);  // ...fewer rows of a taller face...
-    CHECK(type.columns > cells.columns);    // ...and more characters across it
-    CHECK(type.capacity ==
-          static_cast<std::size_t>((type.region_h * surface::kCanvasCellPx -
-                                    2 * surface::kTextInsetPx) /
-                                   s.text_line_px) -
-              static_cast<std::size_t>(kInfoHeadingRows));
-    CHECK(type.value_columns > cells.value_columns);
-
-    // AND THE FACE'S OWN LINE IS WHAT DECIDES: a taller line is fewer rows, at the same
-    // bounds, with nothing else moving. Half the rows, to within the one row an integer
-    // division can leave behind -- the equation is the assertion above and this is its shape.
-    s.text_line_px = 36;
-    const InfoBodyPlace taller = body_of(d, s);
-    CHECK(taller.capacity ==
-          static_cast<std::size_t>((taller.region_h * surface::kCanvasCellPx -
-                                    2 * surface::kTextInsetPx) /
-                                   s.text_line_px) -
-              static_cast<std::size_t>(kInfoHeadingRows));
-    // Both capacities carry the heading's reservation off the top (WUX-1), so the halving
-    // is exact to within the division's own row plus the one heading row counted twice on
-    // the doubled side.
-    CHECK(taller.capacity * 2 <= type.capacity);
-    CHECK(taller.capacity * 2 + 1 + static_cast<std::size_t>(kInfoHeadingRows) >=
-          type.capacity);
-}
-
-TEST_CASE("HD-6: one body, two media, different row counts and the same property facts") {
-    // §21 and §5. The graphical Inspector may show fewer rows than the terminal one -- taller
-    // type is taller -- and that is honest as long as both say what they are not showing and
-    // both let a maker reach it. What must NOT differ is the semantic row: same order, same
-    // labels, same values.
-    WorkshopDoc d = six_objects();
-    Session tui;
-    tui.selected = 1;
-    tui.screen_w = kScreenMinW;
-    tui.screen_h = kScreenMinH;
-    refocus(d, tui);
-    Session sdl = tui;
-    sdl.text_advance_px = 8;
-    sdl.text_line_px = 18;
-
-    const InfoBodyPlace ct = body_of(d, tui);
-    const InfoBodyPlace cs = body_of(d, sdl);
-    // WUX-5 took two more rows: the panel's visible boundary is one cell on every side, so
-    // both media resolve their budget inside a rectangle two cells shorter.
-    // QR-14 took one more: the side region begins under the top band now, so it is exactly
-    // as tall as the workspace rather than one row taller.
-    REQUIRE(ct.capacity == 13); // thirteen cell rows of body at the minimum screen
-    REQUIRE(cs.capacity == 8);  // (15 * 12 - 4) / 18, less the heading
-    // HD-8's footer comes off both budgets, so both shares are two rows smaller than HD-6
-    // measured them and the CELL body no longer seats all eight properties either. What the
-    // case is about is unmoved: two media, two capacities, one set of semantic rows.
-    REQUIRE(ct.properties_rows == 5);
-    REQUIRE(cs.properties_rows == 3);
-    REQUIRE(tui.rows.size() == 8);
-
-    // THE TERMINAL SHOWS FIVE AND SAYS SO. Before HD-8 it showed all eight and said nothing;
-    // the rows it lost are HD-8's two pressable ones and QR-14's one cell of column, and
-    // `share_body_rows` decides which list pays -- the larger claim does.
-    CHECK(ct.properties.count == 4);
-    CHECK(ct.properties.before == 0);
-    CHECK(ct.properties.after == 4);
-
-    // THE WINDOW SHOWS THREE AND SAYS SO -- the marker spends one of the four rows, which is
-    // `list_window`'s rule and not a second one.
-    CHECK(cs.properties.count == 2);
-    CHECK(cs.properties.before == 0);
-    CHECK(cs.properties.after == 6);
-
-    const surface::SurfaceCanvas tui_canvas = paint(d, tui);
-    const surface::SurfaceCanvas sdl_canvas = paint(d, sdl);
-    const surface::SurfaceTextRegion* tui_body = body_on(tui_canvas, ct);
-    const surface::SurfaceTextRegion* sdl_body = body_on(sdl_canvas, cs);
-    REQUIRE(tui_body != nullptr);
-    REQUIRE(sdl_body != nullptr);
-    // The region carries BOTH lists since HD-7, the FOOTER since HD-8 and the `OBJECTS`
-    // heading since WUX-1, and the footer is anchored to the foot -- so the body now
-    // publishes exactly the heading plus its capacity in every medium, with the spare room
-    // written as the blank rows it is.
-    const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows);
-    CHECK(tui_body->rows.size() == heading + ct.capacity);
-    CHECK(sdl_body->rows.size() == heading + cs.capacity);
-    CHECK(tui_body->rows[heading + static_cast<std::size_t>(ct.action_row)].text ==
-          "[ Create ]");
-    CHECK(sdl_body->rows.back().text == "[ Delete ]");
-    // ...and the omission marker is still the last thing the property list says, one row
-    // under the properties rather than at the end of the region.
-    CHECK(sdl_body->rows[heading + static_cast<std::size_t>(cs.heading_row) +
-                         cs.properties_rows]
-              .text == "... 6 more");
-
-    // SAME PROPERTY FACTS, in the same order, for the rows both are showing. The value
-    // columns differ because the media differ; the property does not.
-    for (std::size_t i = 0; i < cs.properties.count; ++i) {
-        CAPTURE(i);
-        const auto& tr =
-            tui_body->rows[heading + static_cast<std::size_t>(prose_row_of_property(ct, i))];
-        const auto& sr =
-            sdl_body->rows[heading + static_cast<std::size_t>(prose_row_of_property(cs, i))];
-        CHECK(tr.text == property_row_text(tui.rows[i], i == tui.cursor, ct.value_columns));
-        CHECK(sr.text == property_row_text(sdl.rows[i], i == sdl.cursor, cs.value_columns));
-        CHECK(tr.text.substr(0, 10) == sr.text.substr(0, 10));
-    }
-
-    // AND NO ROW IS PUBLISHED THAT THE BODY CANNOT HOLD, in either medium (§11).
-    CHECK(tui_body->rows.size() <= heading + ct.capacity);
-    CHECK(sdl_body->rows.size() <= heading + cs.capacity);
-}
-
-TEST_CASE("HD-6: no property row is painted below the panel it belongs to") {
-    // THE DEFECT, REPRODUCED ON THE PRISTINE TREE FIRST: `paint_info` looped over every row
-    // and wrote a label per row, so a property population taller than the panel ran off its
-    // bottom edge -- measured at the minimum screen with twelve rows: three labels below the
-    // panel and one of them on the notice band, with no marker anywhere.
-    WorkshopDoc d = six_objects();
-    Session s;
-    s.selected = 1;
-    s.screen_w = kScreenMinW;
-    s.screen_h = kScreenMinH;
-    s.text_advance_px = 8;
-    s.text_line_px = 18;
-    refocus(d, s);
-
-    const Screen sc = screen_of(s);
-    const ui::Rect panel =
-cells_covered(bounds_of(s.panels, s.setup.active, panel::kInfo, sc).rect);
-    const InfoBodyPlace body = body_of(d, s);
-    REQUIRE(body.properties.after > 0); // the population really does overflow
-
-    const surface::SurfaceCanvas c = paint(d, s);
-    // NOTHING IN THE PANEL'S COLUMN IS BELOW THE PANEL, labels and region rows alike.
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x < panel.x) {
-            continue; // the workspace and the bottom band are not this panel's
-        }
-        CAPTURE(l.text);
-        CHECK(l.y < panel.y + panel.h);
-        CHECK(l.y < sc.h);
-    }
-    // ...and the body's own rectangle ends where the panel does.
-    const surface::SurfaceTextRegion* shown = body_on(c, body);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->y + shown->h == panel.y + panel.h - kChromeCells);
-}
-
-TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it out") {
-    // §15. The wording and the arithmetic are the OBJECTS list's own -- `list_window` and
-    // `omitted_text` -- so a maker reads the same sentence in both halves of the panel and a
-    // change to either moves both.
-    WorkshopDoc d = six_objects();
-    Session s;
-    s.selected = 1;
-    s.screen_w = kScreenMinW;
-    s.screen_h = kScreenMinH;
-    s.text_advance_px = 8;
-    s.text_line_px = 18;
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-    REQUIRE(body_of(d, s).properties_rows == 3); // less the footer's two and the boundary's
-
-    struct Want {
-        std::size_t cursor;
-        std::size_t before;
-        std::size_t after;
-        const char* first_row;
-        const char* last_row;
-    };
-    // A FOUR-ROW WINDOW ONTO EIGHT PROPERTIES CAN SAY BOTH THINGS AT ONCE, which HD-6's
-    // five-row one could not reach with this population: at the cursors in the middle the
-    // list spends a row on `... N earlier` AND a row on `... N more` and shows two.
-    for (const Want& w : {Want{0, 0, 6, ">Identity #1", "... 6 more"},
-                          Want{3, 3, 4, "... 3 earlier", "... 4 more"},
-                          Want{4, 4, 3, "... 4 earlier", "... 3 more"},
-                          Want{7, 6, 0, "... 6 earlier", ">Resolved 46 x 6 cells"}}) {
-        CAPTURE(w.cursor);
-        s.cursor = w.cursor;
-        const InfoBodyPlace body = body_of(d, s);
-        CHECK(body.properties.before == w.before);
-        CHECK(body.properties.after == w.after);
-
-        // THE SELECTED ROW IS ALWAYS ON SCREEN (§12), which is the whole reason the window
-        // moves at all.
-        CHECK(prose_row_of_property(body, w.cursor) != kNoProseRow);
-
-        const surface::SurfaceCanvas c = paint(d, s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-        // HD-8: the footer is anchored to the foot; WUX-1: the `OBJECTS` heading rides
-        // above the body's capacity.
-        const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows);
-        CHECK(shown->rows.size() == heading + body.capacity);
-        CHECK(shown->rows[heading + static_cast<std::size_t>(body.heading_row) + 1].text ==
-              w.first_row);
-        // THE LAST ROW OF THE PROPERTY RUN, which is no longer the last row of the region --
-        // the footer is under it. Asked for by the run's own arithmetic rather than by
-        // `back()`, so this case cannot come to be about the control rows by accident.
-        CHECK(shown->rows[heading + static_cast<std::size_t>(body.heading_row) +
-                          body.properties_rows]
-                  .text == w.last_row);
-
-        // EVERY MARKER IS A COUNT AND A DIRECTION, and it comes out of the row budget -- the
-        // PROPERTY list's share of it since HD-7, which is the number the markers are bounded
-        // by and the number `list_window` was handed.
-        const std::size_t first = heading + static_cast<std::size_t>(body.heading_row) + 1;
-        if (w.before > 0) {
-            CHECK(shown->rows[first].text == omitted_text(w.before, "earlier"));
-            CHECK(shown->rows[first].role == surface::role::kMuted);
-        }
-        if (w.after > 0) {
-            const std::size_t last = heading + static_cast<std::size_t>(body.heading_row) +
-                                     body.properties_rows;
-            CHECK(shown->rows[last].text == omitted_text(w.after, "more"));
-            CHECK(shown->rows[last].role == surface::role::kMuted);
-        }
-        CHECK(body.properties.count + (w.before > 0 ? 1u : 0u) + (w.after > 0 ? 1u : 0u) ==
-              body.properties_rows);
-    }
-}
-
-TEST_CASE("HD-6: the selected row stays visible across the boundary, by keys only") {
-    // §12 and §40 (vertical window). Driven through the real weave: Up and Down are the only
-    // gestures, the window follows because the SELECTION moved, and no property becomes
-    // unreachable.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    REQUIRE(t.session().rows.size() == 8);
-    // THE PREMISE, STATED AS ONE: the body cannot hold every property, so the window has
-    // somewhere to move to. HD-7's composition decides the number and this case does not
-    // depend on which number it is.
-    REQUIRE(body_place(t).properties_rows < t.session().rows.size());
-    CHECK(body_place(t).properties_rows == 3); // less the footer's two and the boundary's
-
-    // DOWN through the whole population, one row at a time.
-    std::vector<std::string> reached;
-    for (std::size_t step = 0; step < t.session().rows.size(); ++step) {
-        const InfoBodyPlace body = body_place(t);
-        CAPTURE(t.session().cursor);
-        CHECK(prose_row_of_property(body, t.session().cursor) != kNoProseRow);
-        reached.push_back(t.session().rows[t.session().cursor].label());
-        const surface::SurfaceTextRegion* shown = body_on(t.canvases.back(), body);
-        REQUIRE(shown != nullptr);
-        CHECK(shown->rows.size() <= static_cast<std::size_t>(kInfoHeadingRows) + body.capacity);
-        // THE ROW THE CURSOR IS ON CARRIES THE MARK, wherever the window put it.
-        CHECK(shown->rows[static_cast<std::size_t>(
-                              kInfoHeadingRows +
-                              prose_row_of_property(body, t.session().cursor))]
-                  .text.rfind(">", 0) == 0);
-        t.key(input::scan::kDown);
-    }
-    // The cursor opens on the first EDITABLE row (Name), so a walk down reaches every row
-    // from there to the end -- and back up reaches the two above it.
-    CHECK(reached.front() == "Name");
-    CHECK(reached.back() == "Resolved");
-
-    for (std::size_t step = 0; step < t.session().rows.size(); ++step) {
-        const InfoBodyPlace body = body_place(t);
-        CAPTURE(t.session().cursor);
-        CHECK(prose_row_of_property(body, t.session().cursor) != kNoProseRow);
-        t.key(input::scan::kUp);
-    }
-    CHECK(t.session().cursor == 0);
-    CHECK(prose_row_of_property(body_place(t), 0) != kNoProseRow);
-    CHECK(t.session().rows[0].label() == "Identity"); // the one above the opening cursor
-
-    // AND THE VIEW IS NOT THE SELECTION. Nothing reordered the properties to make one
-    // visible: the rows are in the order `inspector_rows` built them, at every window.
-    const InfoBodyPlace body = body_place(t);
-    for (std::size_t n = 0; n < body.properties.count; ++n) {
-        CHECK(property_at_prose_row(body, prose_row_of_property(body, body.properties.first + n)) ==
-              body.properties.first + n);
-    }
-}
-
-TEST_CASE("HD-6: entering an edit and being refused both keep the row on screen") {
-    // §12's other two requirements. `inspector_focus` is what makes them structural rather
-    // than incidental: a live draft is the row that must be visible, and it wins over the
-    // cursor if the two ever part company.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    REQUIRE(body_place(t).properties_rows < t.session().rows.size());
-
-    t.begin_editing("Height"); // row 6 of 8 -- outside the opening window
-    REQUIRE(t.row("Height")->editing());
-    const InfoBodyPlace editing = body_place(t);
-    CHECK(editing.properties.before > 0); // the body really did have to move
-    CHECK(prose_row_of_property(editing, editing_index(t)) != kNoProseRow);
-    // ON THE LAST ROW BUT ONE OF THE PROPERTY LIST'S OWN SHARE -- resolved, because the
-    // share is what the composition gave it rather than the whole body (HD-7).
-    CHECK(editing_prose_row(t, editing) ==
-          editing.heading_row + static_cast<std::int64_t>(editing.properties_rows) - 1);
-
-    // A REFUSAL DOES NOT MOVE IT, and the draft, the caret and the window all survive.
-    for (int i = 0; i < 4; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("z");
-    t.key(input::scan::kReturn);
-    REQUIRE(t.row("Height")->editing());
-    REQUIRE_FALSE(t.row("Height")->refusal().empty());
-    const InfoBodyPlace refused = body_place(t);
-    CHECK(refused.properties.first == editing.properties.first);
-    CHECK(prose_row_of_property(refused, editing_index(t)) != kNoProseRow);
-    CHECK(t.row("Height")->draft() == "z");
-
-    // AND THE CARET IS PUBLISHED ON THAT ROW, in the body's own prose lattice.
-    const surface::SurfaceTextRegion* shown = body_on(t.canvases.back(), refused);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->caret_row == kInfoHeadingRows + editing_prose_row(t, refused));
-    CHECK(shown->caret_col == property_caret_column(*t.row("Height")));
-}
-
-TEST_CASE("HD-6: a resize reconciles the row count, the window and the draft together") {
-    // §20. One extent, one resolved place, and everything that depends on the room moves
-    // from it: how many rows fit, which of them are shown, how wide a value is, and where
-    // the horizontal window of a live draft sits.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    t.begin_editing("Height");
-    for (int i = 0; i < 4; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("7");
-    const InfoBodyPlace narrow = body_place(t);
-    REQUIRE(narrow.properties_rows < t.session().rows.size());
-    REQUIRE(narrow.properties.before > 0);
-
-    // TALLER: more rows fit, and the omission shrinks or goes.
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 40, 8, 18}));
-    const InfoBodyPlace tall = body_place(t);
-    CHECK(tall.capacity > narrow.capacity);
-    CHECK(tall.properties.count > narrow.properties.count);
-    CHECK(prose_row_of_property(tall, editing_index(t)) != kNoProseRow);
-    CHECK(t.row("Height")->draft() == "7");
-    CHECK(t.row("Height")->editing());
-
-    // A CHARACTER MEDIUM AT THE SAME EXTENT: more rows still, and a narrower value.
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 40, 0, 0}));
-    const InfoBodyPlace cells = body_place(t);
-    CHECK(cells.capacity > tall.capacity);
-    CHECK(cells.value_columns < tall.value_columns);
-    CHECK(prose_row_of_property(cells, editing_index(t)) != kNoProseRow);
-    CHECK(t.row("Height")->draft() == "7");
-
-    // BACK TO THE SMALL WINDOW: the draft is still there and still on screen.
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    const InfoBodyPlace back = body_place(t);
-    CHECK(back.capacity == narrow.capacity);
-    CHECK(back.properties.first == narrow.properties.first);
-    CHECK(prose_row_of_property(back, editing_index(t)) != kNoProseRow);
-    CHECK(t.row("Height")->draft() == "7");
-
-    // AND NO TWO ROWS OVERLAP AT ANY OF THEM: the body publishes one row per prose row,
-    // the heading riding above the capacity (WUX-1).
-    const surface::SurfaceTextRegion* shown = body_on(t.canvases.back(), back);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->rows.size() == static_cast<std::size_t>(kInfoHeadingRows) + back.capacity);
-}
-
-TEST_CASE("HD-6: a resting value that does not fit is MARKED, not dropped") {
-    // §8 and §27, and the asymmetry HD-5 left open on purpose: the editing row was truthful
-    // and its neighbours were not. Measured on the pristine tree: a committed 32-character
-    // name published a 42-character label from column 52 of an 80-column canvas -- fourteen
-    // characters past the edge, dropped by `canvas_body`'s `put`, with no marker at all.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    s.screen_w = 80;
-    s.screen_h = 38;
-    refocus(d, s);
-    const InfoBodyPlace body = body_of(d, s);
-    // Two columns narrower than before WUX-5: the panel's boundary is one cell on each side.
-    REQUIRE(body.value_columns == 15);
-    const std::size_t vc = static_cast<std::size_t>(body.value_columns);
-
-    // SHORT: unchanged, and not even fitted -- `detail::fit` returns a value that fits
-    // byte-for-byte, marker included.
-    CHECK(property_row_text(s.rows[1], false, body.value_columns) == " Name     panel");
-
-    // EXACTLY THE WIDTH: still whole. The mark begins one character later than that.
-    d.elements[0].label = std::string(vc, 'a');
-    refocus(d, s);
-    CHECK(property_row_text(s.rows[1], false, body.value_columns) ==
-          " Name     " + std::string(vc, 'a'));
-    d.elements[0].label = std::string(vc + 1, 'a');
-    refocus(d, s);
-    CHECK(property_row_text(s.rows[1], false, body.value_columns) ==
-          " Name     " + std::string(vc - 3, 'a') + "...");
-
-    // OVER-WIDTH: the established marker, and the whole row still fits the body.
-    d.elements[0].label = "the-quick-brown-fox-jumps-over-5";
-    refocus(d, s);
-    const std::string row = property_row_text(s.rows[1], false, body.value_columns);
-    CHECK(row == " Name     the-quick-br...");
-    CHECK(static_cast<std::int64_t>(row.size()) <= body.columns);
-    const surface::SurfaceCanvas painted = paint(d, s);
-    const surface::SurfaceTextRegion* shown = body_on(painted, body);
-    REQUIRE(shown != nullptr);
-    // The cursor opens on Name, so the row a maker SEES carries the mark; the fitting is
-    // the same either way, which is the half this case is about.
-    const std::size_t name_row =
-        static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_property(body, 1));
-    CHECK(shown->rows[name_row].text == property_row_text(s.rows[1], true, body.value_columns));
-    CHECK(shown->rows[name_row].text.substr(1) == row.substr(1));
-
-    // THE LABEL SURVIVES INTACT, whatever the value does to it.
-    CHECK(row.substr(0, 10) == " Name     ");
-
-    // AND THE WHOLE AUTHORED VALUE IS STILL REACHABLE: entering the edit opens the draft on
-    // the committed value, not on what the row was showing.
-    s.rows[1].begin();
-    CHECK(s.rows[1].draft() == "the-quick-brown-fox-jumps-over-5");
-    CHECK(s.rows[1].editor().caret() == 32);
-    // ...and leaving it returns to the truthful bounded resting presentation.
-    s.rows[1].cancel();
-    CHECK(property_row_text(s.rows[1], false, body.value_columns) == row);
-}
-
-TEST_CASE("HD-6: the graphical property caret is a BAR, off the same fit that drew the row") {
-    // §7. Nothing here is an Inspector caret renderer: the body is a region with room for the
-    // face, so `plan_layer_regions` sets it in type and `plan_caret` puts a `kCaretWidthPx`
-    // bar at the caret's own column -- the identical machinery the Terminal's pane uses.
-    // HD-5's row could not reach this because one cell holds no line of the face.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    t.begin_editing("Name");
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kLeft);
-
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.fit.graphical()); // the fidelity claim, before anything is drawn
-    const surface::SurfaceCanvas& c = t.canvases.back();
-    const std::vector<surface::PlanTextRegion> plan = plan_regions_of(
-        c, surface::SurfaceExtent{80, 38, 8, 18}, surface::PlanSize{4000, 4000});
-    const surface::PlanTextRegion* drawn = nullptr;
-    for (const surface::PlanTextRegion& r : plan) {
-        if (r.view.x == body.region_x * surface::kCanvasCellPx) {
-            drawn = &r;
-        }
-    }
-    REQUIRE(drawn != nullptr);
-    CHECK(drawn->line_px == 18);
-    CHECK(drawn->caret.present);
-    CHECK(drawn->caret.w == surface::kCaretWidthPx); // a BAR, not a glyph
-    CHECK(drawn->caret.h == 18);
-    CHECK(drawn->caret.x == drawn->origin_x + property_caret_column(*t.row("Name")) * 8);
-    CHECK(drawn->caret.y ==
-          drawn->origin_y + (kInfoHeadingRows + editing_prose_row(t, body)) * 18);
-
-    // AND A CHARACTER MEDIUM STILL ANSWERS WITH THE GLYPH, at the same prose position: two
-    // projections of one published fact.
-    const std::vector<surface::ProjectedRow> cells = projected_of(without_workspace(c));
-    const std::string& row =
-        cells[static_cast<std::size_t>(kInfoHeadingRows + editing_prose_row(t, body))]
-            .label.text;
-    CHECK(row.rfind(">Name     pan_el", 0) == 0);
-}
-
-TEST_CASE("HD-6: a press under HD row geometry names the property the eye is on") {
-    // §16. Once a body row is 18 device pixels tall against a 12-pixel cell, rounding a press
-    // to a Workshop cell would name the wrong property for most of the body -- so the press
-    // goes through the same `RegionFit` the rows were positioned with, on BOTH axes.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    t.begin_editing("Height");
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.fit.graphical());
-    REQUIRE(body.properties.count == t.session().rows.size()); // this extent holds them all
-
-    // EVERY ROW OF THE BODY, resolved from the middle of its own band of pixels.
-    for (std::size_t i = 0; i < body.properties.count; ++i) {
-        const std::int64_t row = prose_row_of_property(body, i);
-        CAPTURE(i);
-        const std::int64_t py = body.region_y * surface::kCanvasCellPx + body.fit.origin_y +
-                                row * body.fit.line_px + body.fit.line_px / 2;
-        CHECK(property_at_prose_row(
-                  body, surface::prose_row_of_pixel(py, body.region_y, body.fit)) == i);
-    }
-
-    // A PRESS ON THE EDITING ROW PLACES THE CARET; the same pixel rounded to a Workshop cell
-    // would be a different row entirely, which is what makes this a measurement.
-    const std::int64_t at_row = editing_prose_row(t, body);
-    t.press_at(value_pixel_x(body, 1), value_pixel_y(body, at_row), input::space::kPixels);
-    CHECK(t.row("Height")->editor().caret() == 1);
-    CHECK(surface::cell_of_pixel(value_pixel_y(body, at_row)) - body.region_y !=
-          at_row); // the cell row and the prose row genuinely disagree here
-
-    // A PRESS ON A DIFFERENT PROPERTY'S ROW IS NOT THE EDITOR'S -- it is the panel's, and the
-    // panel answers in words (PNL-2). §18: clicking does not begin an edit.
-    t.press_at(value_pixel_x(body, 1), value_pixel_y(body, at_row - 2), input::space::kPixels);
-    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
-    CHECK(t.row("Height")->editor().caret() == 1);
-    CHECK_FALSE(t.row("X")->editing());
-
-    // A PRESS ON THE MARK OR THE NAME OF THE EDITING ROW is on the row, and the component
-    // clamps it to the start of what is shown.
-    t.press_at(value_pixel_x(body, -4), value_pixel_y(body, at_row), input::space::kPixels);
-    CHECK(t.row("Height")->editor().caret() == t.row("Height")->editor().first_visible());
-}
-
-TEST_CASE("HD-6: the body falls back to cells when it is too short for the face") {
-    // §24. HD-5's repair is not special-cased away: a body with no room for one line of type
-    // resolves to the CELL projection, byte-for-byte the answer a faceless medium gets, and
-    // the region is still drawn by somebody.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    s.screen_w = kScreenMinW;
-    s.screen_h = kScreenMinH;
-    refocus(d, s);
-    const ui::Rect panel =
-cells_covered(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect);
-
-    // A LINE TALLER THAN THE WHOLE PANEL: seventeen cells is 204 pixels (the region is the
-    // whole panel since WUX-1, heading included), so a 210-pixel line fits no row at all
-    // and the body is described in cells instead.
-    s.text_advance_px = 8;
-    s.text_line_px = 210;
-    const InfoBodyPlace squeezed = info_body_place(panel, screen_of(s), d, s);
-    CHECK_FALSE(squeezed.fit.graphical());
-    CHECK(squeezed.capacity ==
-          static_cast<std::size_t>(squeezed.region_h - kInfoHeadingRows));
-
-    Session faceless = s;
-    faceless.text_advance_px = 0;
-    faceless.text_line_px = 0;
-    CHECK(squeezed.fit == info_body_place(panel, screen_of(faceless), d, faceless).fit);
-
-    // AND IT IS STILL DRAWN. Both draw lists partition on `fit_region(...).graphical()`, so
-    // the body is in exactly one of them and never in neither. The band is a region since
-    // WUX-1 and its five cells hold no 210-pixel row either, so its rows are in the cell
-    // list beside the body's.
-    const surface::SurfaceCanvas c = paint(d, s);
-    const surface::SurfaceExtent metric{s.screen_w * surface::kCanvasCellPx,
-                                        s.screen_h * surface::kCanvasCellPx, 8, 210};
-    const std::size_t typed =
-        plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000}).size();
-    const std::size_t celled = projected_of(without_workspace(c), metric).size();
-    CHECK(typed == 0);
-    // ...and BOTH bands are in the cell list beside it since QR-14.
-    CHECK(celled == static_cast<std::size_t>(squeezed.region_h + kBottomRows + kTopRows));
-}
-
-TEST_CASE("HD-6: a panel with no room for a body publishes no body at all") {
-    // The other end of `present`. `bounds_of` answers with an empty rectangle for a panel
-    // nobody has open, a panel too narrow for a value beside a name has nowhere to put one,
-    // and a panel too short to seat a row of each list around the heading between them has
-    // nowhere to put either -- all three are refusals rather than a rectangle somewhere the
-    // panel is not.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    refocus(d, s);
-    const Screen sc = screen_of(s);
-    CHECK_FALSE(info_body_place(ui::Rect{}, sc, d, s).present);
-    CHECK_FALSE(info_body_place(ui::Rect{50, 0, 28, kInfoHeadingRows}, sc, d, s).present);
-    CHECK_FALSE(info_body_place(ui::Rect{50, 0, kPropertyMarkCols + kPropertyLabelCols, 30}, sc,
-                                d, s)
-                    .present);
-    // HD-7: one cell of body is one prose row here and the body needs three. HD-8: it needs
-    // `kActionRows` more, because a panel that shows a maker two lists and no way to act on
-    // either is the state this phase exists to end -- so the controls are bought at the same
-    // price as the material, and the floor moves rather than the footer being dropped.
-    // Unreachable at every screen this composition supports (the shortest body a face
-    // resolves to here is ten prose rows); asserted because the metric arrives on the bus.
-    // The heights are the panel's OUTER ones, so each carries the chrome the boundary
-    // spends (WUX-5) on top of the rows the floor is actually about.
-    const auto outer_for = [](std::int64_t rows) {
-        return ui::Rect{50, 0, 28 + 2 * kChromeCells, rows + 2 * kChromeCells};
-    };
-    CHECK_FALSE(info_body_place(outer_for(kInfoHeadingRows + 2), sc, d, s).present);
-    CHECK_FALSE(info_body_place(outer_for(kInfoHeadingRows + 3), sc, d, s).present);
-    CHECK_FALSE(info_body_place(outer_for(kInfoHeadingRows +
-                                          static_cast<std::int64_t>(kInfoBodyMinRows +
-                                                                    kActionRows) - 1),
-                                sc, d, s)
-                    .present);
-    CHECK(info_body_place(outer_for(kInfoHeadingRows + static_cast<std::int64_t>(
-                                                          kInfoBodyMinRows + kActionRows)),
-                          sc, d, s)
-              .present);
-
-    // A CLOSED INFO PANEL PAINTS NO BODY, which is what keeps the caret count honest. The
-    // band is the screen's own region since WUX-1 and is on the canvas either way, so the
-    // claim is about the panel's rectangle: no region is published there.
-    Session closed;
-    closed.selected = 1;
-    refocus(d, closed);
-    (void)close_panel(closed.panels, panel::kInfo);
-    const Screen closed_sc = screen_of(closed);
-    for (const surface::SurfaceTextRegion& r :
-         all_texts(without_workspace(paint(d, closed)))) {
-        CHECK(r.x != closed_sc.panel_x);
-    }
-}
-
-TEST_CASE("HD-6: the property layer never learned that graphical rows got taller") {
-    // §1. HD-6 is a presentation phase. `Row`, `TextForm<T>`, the parse, the refusal and the
-    // commit are the same code they were, and the component is untouched -- what changed is
-    // the room the presentation asks for and the number it hands the component.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    t.begin_editing("Width");
-    for (int i = 0; i < 3; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("500%")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kReturn);
-    CHECK(t.row("Width")->editing()); // refused, and still editing
-    CHECK(t.notice() == "Width: a share is 1% to 100%");
-    CHECK(t.doc().elements[0].width.amount == 60); // the property is untouched
-
-    for (int i = 0; i < 4; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("40%")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kReturn);
-    CHECK_FALSE(t.row("Width")->editing());
-    CHECK(t.doc().elements[0].width.amount == 40);
-    CHECK(t.notice() == "committed Width = 40%");
-    CHECK(t.doc().elements[0].width.mode == ui::kExtentPercent);
-}
-
-// ---- tier 8: the terminal is a medium with a size (TUI-0) ---------------------------------
+// ⭐ THE INFO PANEL'S OWN SUITE LEFT THIS FILE WITH THE PANEL, AND IT WAS THE LARGEST SET IN
+// THE ARC. Fifty-odd cases stood here about a presentation this host no longer makes:
 //
-// Every case below is written in TERMINAL sizes, because that is what a maker has, and turns
-// them into canvas extents through `surface::tui_canvas_extent` -- the medium's own arithmetic
-// -- rather than through a second copy of it. A case that wrote `SurfaceExtent{120, 37}` would
-// be asserting against a number this suite had computed for itself, and would keep passing on
-// the day the medium's own answer changed.
+//   HD-6  the property body under a real face -- its rows, its fallback to cells, its
+//         press-to-property inverse, and a panel with no room for a body at all;
+//   HD-7  the OBJECTS list -- its share of the body, its window, its omission marker, its two
+//         row maps, long names, duplicate names, an empty document, presses on rows, and both
+//         media's spellings of the same row;
+//   HD-8  the two bracketed controls -- where they sit, their inverses, availability said in
+//         characters, Create and Delete as the same operations the keys perform, and what a
+//         live draft does to both;
+//   TUI-0 more terminal is more Inspector, and the marker still tells the truth;
+//   WUX-7 hovering a clipped object row to read past its ellipsis, and a double-click in a
+//         property draft.
+//
+// WHERE EACH CLAIM LIVES NOW. All of it is `Zengine/info-pane/pane.cpp`'s composition, and the
+// pane's own cases are in `tests/test_workshop_panes_info.cpp`, driven through the real loaded
+// image and the pane protocol -- which is a stronger place for them than here, because they now
+// cross a seam a maker's own weave could cross.
+//
+// ⚠ AND ONE FAMILY HAS NO HOME, WHICH IS THE HONEST PART. The WUX-7 hover cases measured
+// reading past an ellipsis, and that feature retired with the panel: the pane protocol has no
+// hover, and adding one so this host could keep the feature is the host-mapped route VD-22
+// refuses. `screen_reveal.cpp` carries the same sentence beside the code that left.
 
 TEST_CASE("TUI-0: the terminal's own size becomes Workshop's screen, growing and shrinking") {
     Live t;
@@ -2838,140 +2126,6 @@ TEST_CASE("TUI-0: a terminal below the composition's minimum is published, not f
     CHECK(t.session().screen_w == kScreenMinW);
 }
 
-TEST_CASE("TUI-0: a terminal resize is presentation context, never an authored act") {
-    // §12. A hand on a terminal edge must not become a gesture aimed at the document.
-    Live t;
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{90, 28})));
-    t.key(input::scan::kN); // a second object, so a SELECTION is a real choice
-    t.key(input::scan::kTab);
-
-    const std::int64_t selected = t.session().selected;
-    const std::string authored = persist::to_text(t.doc());
-
-    // A LIVE DRAFT, MID-EDIT, WITH A CARET THAT IS NOT AT THE END.
-    t.begin_editing("Name");
-    while (!t.row("Name")->draft().empty()) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("edge");
-    t.key(input::scan::kLeft);
-    t.key(input::scan::kLeft);
-    const std::size_t cursor = t.session().cursor;
-    const std::size_t caret = t.row("Name")->editor().caret();
-    REQUIRE(t.row("Name")->editing());
-    REQUIRE(t.row("Name")->draft() == "edge");
-
-    for (const surface::TerminalSize& size :
-         {surface::TerminalSize{160, 50}, surface::TerminalSize{78, 24},
-          surface::TerminalSize{120, 40}, surface::TerminalSize{90, 28}}) {
-        CAPTURE(size.cols);
-        t.publish(loom::to_value(surface::tui_canvas_extent(size)));
-
-        // NOTHING AUTHORED MOVED -- compared as the bytes that would be SAVED, so a change
-        // anywhere in the document would show up here whether or not a test knew to look.
-        CHECK(persist::to_text(t.doc()) == authored);
-        // ...AND NO DOCUMENT WAS REBUILT UNDER THE MAKER: the selection, the cursor, the
-        // draft, the caret and the editing state all survive.
-        CHECK(t.session().selected == selected);
-        CHECK(t.session().cursor == cursor);
-        REQUIRE(t.row("Name") != nullptr);
-        CHECK(t.row("Name")->editing());
-        CHECK(t.row("Name")->draft() == "edge");
-        CHECK(t.row("Name")->editor().caret() == caret);
-    }
-
-    // A REFUSAL SURVIVES ONE TOO, and a refusal is the most fragile thing on this screen:
-    // it is the notice AND the row still being editable that together say "try again".
-    t.key(input::scan::kEscape);
-    t.begin_editing("Width");
-    while (!t.row("Width")->draft().empty()) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : std::string("500%")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kReturn);
-    const std::string refusal = t.notice();
-    const std::string on_the_row = t.row("Width")->refusal();
-    REQUIRE_FALSE(refusal.empty());
-    REQUIRE_FALSE(on_the_row.empty());
-    REQUIRE(t.row("Width")->editing());
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{200, 60})));
-    CHECK(t.notice() == refusal);
-    CHECK(t.row("Width")->editing());
-    CHECK(t.row("Width")->draft() == "500%");
-    CHECK(t.row("Width")->refusal() == on_the_row);
-    // ...AND THE PROPERTY IT WOULD HAVE WRITTEN IS STILL WHAT IT WAS.
-    CHECK(persist::to_text(t.doc()) == authored);
-}
-
-TEST_CASE("TUI-0: more terminal is more Inspector, and the marker still tells the truth") {
-    // §13. The Inspector gained no TUI-specific layout: `info_body_place` and
-    // `fit_region` answer a bigger question with the same equation, and the omission marker
-    // appears and disappears because the room genuinely changed.
-    Live t;
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
-    const InfoBodyPlace minimum = body_place(t);
-    const std::size_t properties = t.session().rows.size();
-    REQUIRE(properties > 0);
-
-    // A BIG TERMINAL FITS MORE ROWS...
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{120, 50})));
-    const InfoBodyPlace roomy = body_place(t);
-    CHECK(roomy.capacity > minimum.capacity);
-
-    // ...AND A SMALL ONE FITS FEWER, WITH A MARKER SAYING SO. The minimum TUI screen already
-    // shows all eight properties, so the witness for a marker has to come from a genuinely
-    // short terminal rather than from a manufactured row list.
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
-    REQUIRE(body_place(t).capacity >= properties);
-    CHECK(body_place(t).properties.before == 0);
-    CHECK(body_place(t).properties.after == 0);
-
-    // Shorten the panel until the body genuinely cannot hold every property. The extent is
-    // clamped at the minimum screen, so the room has to come out of the SESSION the same way
-    // a below-minimum medium would leave it -- which is why this drives `paint` directly.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    s.screen_w = kScreenMinW;
-    s.screen_h = kScreenMinH;
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-    const InfoBodyPlace cells = info_body_place(
-        bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).rect, screen_of(s), d, s);
-    // A CELL MEDIUM AT THE MINIMUM HOLDS ALL EIGHT -- HD-6's own measurement, restated here
-    // because it is the reason a TUI marker needs a shorter terminal to appear at all.
-    CHECK(cells.capacity >= 8);
-    CHECK(cells.properties.before == 0);
-    CHECK(cells.properties.after == 0);
-
-    // AND THE ROWS THE BODY PUBLISHES ARE THE ROWS IT SAID IT WOULD.
-    //
-    // THE CANVAS IS NAMED, and that is not a style choice: `body_on` hands back a pointer
-    // INTO the canvas it was given, so passing `paint(d, s)` directly would leave `shown`
-    // pointing at a temporary that died at the semicolon. The ordinary lane passed over
-    // exactly that; the sanitizer lane named it as a heap-use-after-free, which is the
-    // second kind of evidence W-3a built this lane to be.
-    const surface::SurfaceCanvas painted = paint(d, s);
-    const surface::SurfaceTextRegion* shown = body_on(painted, cells);
-    REQUIRE(shown != nullptr);
-    // HD-7: the region carries BOTH lists now. HD-8: it carries the footer too, anchored to
-    // the foot. WUX-1: the `OBJECTS` heading is its first row, above the body's capacity --
-    // so what it publishes is the heading plus exactly the capacity: the two lists, the
-    // `PROPERTIES` heading, the spare room written as blank rows, and the two controls.
-    const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows);
-    CHECK(shown->rows.size() == heading + cells.capacity);
-    // The MATERIAL is still exactly the object rows, the heading and the property rows, and
-    // everything after it to the footer is blank -- which is what "spare room stays spare"
-    // looks like once a footer forces the spare rows to be written down.
-    for (std::size_t i = heading + cells.objects_rows + 1 + cells.properties.count;
-         i < heading + static_cast<std::size_t>(cells.action_row); ++i) {
-        CAPTURE(i);
-        CHECK(shown->rows[i].text.empty());
-    }
-}
-
 TEST_CASE("TUI-0: a wider terminal is a wider command line, and the draft survives it") {
     // §14. The pane's prose width is `screen_of(session).terminal_cols`, and a TextBox is
     // handed that number as an ARGUMENT -- so `component/text_box.hpp` gains room without
@@ -3017,1252 +2171,6 @@ TEST_CASE("TUI-0: a wider terminal is a wider command line, and the draft surviv
           static_cast<std::size_t>(back_cols));
     CHECK(t.pane().open);
 }
-
-TEST_CASE("HD-7: a bigger terminal is a bigger OBJECTS list, and the marker goes away") {
-    // The claim TUI-0 wrote down as pressure and this phase closed, driven the way TUI-0
-    // measured it: three real terminal sizes through the real extent message.
-    //
-    // ON THE PRISTINE HD-7 TREE these three screens were character-for-character identical --
-    // five rows and `... 16 more` at 78x25, at 120x40 and at 240x80 -- because the list's
-    // capacity was `kListRows`, a constant, while the property body beside it went from nine
-    // rows to sixty-four over the same range.
-    Live t;
-    for (int i = 0; i < 18; ++i) {
-        t.key(input::scan::kN);
-    }
-    REQUIRE(t.doc().elements.size() == 20);
-    t.key(input::scan::kTab); // wrap the selection back to the first object
-
-    std::vector<std::string> seen;
-    std::vector<std::size_t> shares;
-    for (const surface::TerminalSize& size :
-         {surface::TerminalSize{78, 25}, surface::TerminalSize{120, 40},
-          surface::TerminalSize{240, 80}}) {
-        CAPTURE(size.rows);
-        t.publish(loom::to_value(surface::tui_canvas_extent(size)));
-        const InfoBodyPlace place = body_place(t);
-        REQUIRE(place.present);
-        shares.push_back(place.objects_rows);
-        std::string tail;
-        for (const std::string& line : object_lines(t.canvases.back(), t.doc(), t.session())) {
-            tail += line + "|";
-        }
-        seen.push_back(tail);
-    }
-
-    // MORE TERMINAL IS MORE LIST, in the direction the room moved.
-    CHECK(shares[0] < shares[1]);
-    CHECK(shares[1] <= shares[2]);
-    CHECK(seen[0] != seen[1]);
-
-    // AND THE SMALLER ONES COUNT WHAT THEY CANNOT SHOW while the biggest has nothing to
-    // count. WUX-5's boundary moved the threshold by two rows: a 120x40 terminal seats
-    // eighteen of the twenty now and says so, where it used to seat them all.
-    CHECK(seen[0].find("... ") != std::string::npos);
-    CHECK(seen[1].find("... ") != std::string::npos);
-    CHECK(seen[2].find("... ") == std::string::npos);
-    CHECK(seen[1].find("> #1 panel") != std::string::npos);
-    CHECK(seen[2].find("  #20 panel") != std::string::npos); // all twenty, at 240x80
-}
-
-// ----------------------------------------------------------------------------
-// Tier 12 — HD-7: the Info panel's two lists share one bounded body
-// ----------------------------------------------------------------------------
-//
-// The OBJECTS list was the last information-bearing surface in this panel with a capacity a
-// constant decided. `kListRows = 5` and `kRowsY = 8` are gone; both lists are rows of one
-// `SurfaceTextRegion` and both capacities come from one `fit_region` and one sharing policy.
-
-TEST_CASE("HD-7: the sharing policy is monotonic, bounded and never starves either list") {
-    // THE POLICY, ASSERTED AS A PROPERTY RATHER THAN AT THE EXTENTS THIS PHASE HAPPENED TO
-    // RUN. Every claim §4 makes about the composition is here, over every budget from nothing
-    // to two hundred rows and five demand pairs -- including the pair a maker actually has
-    // (a growing document beside eight properties) and the two degenerate ones.
-    for (const std::pair<std::size_t, std::size_t>& want :
-         {std::pair<std::size_t, std::size_t>{1, 1}, {2, 8}, {20, 8}, {200, 8}, {1, 300}}) {
-        CAPTURE(want.first);
-        CAPTURE(want.second);
-        BodyShare last{};
-        for (std::size_t budget = 0; budget <= 200; ++budget) {
-            CAPTURE(budget);
-            const BodyShare share = share_body_rows(budget, want.first, want.second);
-
-            // BOUNDED: the two shares are the budget, or less when neither needs it all.
-            CHECK(share.objects + share.properties <= budget);
-            // NEVER MORE THAN A LIST ASKED FOR -- §4.7, and the reason spare room stays spare.
-            CHECK(share.objects <= want.first);
-            CHECK(share.properties <= want.second);
-            // MONOTONIC IN THE ROOM -- §4.5 and §4.6 together: growing the panel never takes a
-            // row away from either list.
-            CHECK(share.objects >= last.objects);
-            CHECK(share.properties >= last.properties);
-            // NEITHER IS STARVED once there is room to seat one of each.
-            if (budget >= 2) {
-                CHECK(share.objects >= 1);
-                CHECK(share.properties >= 1);
-            }
-            // AND WHEN BOTH FIT, BOTH ARE WHOLE and the rest of the body is spare.
-            if (want.first + want.second <= budget) {
-                CHECK(share.objects == want.first);
-                CHECK(share.properties == want.second);
-            }
-            last = share;
-        }
-    }
-
-    // THE 50/50 CASE IS A CONSEQUENCE AND NOT A DECISION: it is what "share what is contested
-    // equally" produces when both lists want more than half, and it stops the moment either
-    // wants less.
-    CHECK(share_body_rows(10, 50, 50).objects == 5);
-    CHECK(share_body_rows(10, 50, 50).properties == 5);
-    CHECK(share_body_rows(10, 3, 50).objects == 3);   // it took what it needed...
-    CHECK(share_body_rows(10, 3, 50).properties == 7); // ...and the rest went to the other
-    CHECK(share_body_rows(10, 50, 2).objects == 8);
-    CHECK(share_body_rows(10, 50, 2).properties == 2);
-}
-
-TEST_CASE("HD-7: the OBJECTS list spends the room the medium reports, not a constant") {
-    // THE PHASE'S HEADLINE, at the four extents §1 reproduced the ceiling on. On the pristine
-    // tree every one of these was five.
-    struct Want {
-        std::int64_t w;
-        std::int64_t h;
-        std::int64_t advance;
-        std::int64_t line;
-        std::size_t objects_rows;
-        std::size_t properties_rows;
-    };
-    // HD-8 TOOK TWO ROWS OFF EVERY ONE OF THESE BUDGETS, and the three that had room to
-    // spare did not move at all -- which is the composition policy working: a fixed demand
-    // reduces the budget, and a budget reduced by a constant still gives a list that FITS
-    // exactly what it asked for.
-    std::size_t previous = 0;
-    // WUX-5 TOOK TWO MORE OFF EVERY ONE, for the panel's own visible boundary -- and again
-    // the budgets with room to spare did not move.
-    // ...AND QR-14 TOOK ONE MORE CELL ROW OFF THE COLUMN, because the side region begins
-    // under the top band now. It lands where `share_body_rows` already decides such things
-    // land -- on whichever list has the larger claim -- and the budgets with room to spare
-    // did not move at all.
-    for (const Want& want : {Want{78, 22, 0, 0, 5, 5},   // the minimum TUI screen
-                             Want{120, 37, 0, 0, 17, 8}, // a 120x40 terminal: seventeen
-                             Want{240, 77, 0, 0, 20, 8}, // and a 240x80 one, with room over
-                             Want{78, 22, 8, 18, 2, 3},  // the minimum graphical screen
-                             // The ordinary window: the `OBJECTS` heading is a row of the
-                             // face since WUX-1, and at this height that row genuinely
-                             // costs the object list one (the extra cell row the region
-                             // gained does not reach another 18-pixel line here).
-                             Want{80, 38, 8, 18, 7, 8},
-                             Want{80, 70, 8, 18, 20, 8}}) {
-        CAPTURE(want.h);
-        CAPTURE(want.line);
-        Sample p = panel_of(20, 0, want.w, want.h, want.advance, want.line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        REQUIRE(body.present);
-        CHECK(body.objects_rows == want.objects_rows);
-        CHECK(body.properties_rows == want.properties_rows);
-        // The two lists, the heading between them and the footer under them never exceed the
-        // body -- and the footer is always inside it, at every extent.
-        CHECK(body.objects_rows + 1 + body.properties_rows + kActionRows <= body.capacity);
-        CHECK(body.action_row + static_cast<std::int64_t>(kActionRows) ==
-              static_cast<std::int64_t>(body.capacity));
-        if (want.advance == 0) {
-            CHECK(body.objects_rows >= previous); // the cell lane, growing with the terminal
-            previous = body.objects_rows;
-        }
-    }
-}
-
-TEST_CASE("HD-7: spare room stays spare, and the heading sits under the last name") {
-    // §4.7 and §4.8. Two objects in a very tall panel: the list takes two rows, `PROPERTIES`
-    // is on the third, and the sixty rows nobody asked for stay empty. A list inflated to
-    // fill the panel would put the properties on the floor of it.
-    Sample p = panel_of(2, 0, 240, 77);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.present);
-    CHECK(body.objects_rows == 2);
-    CHECK(body.properties_rows == 8);
-    CHECK(body.heading_row == 2);
-    const std::size_t spent = body.objects_rows + 1 + body.properties_rows;
-    CHECK(body.capacity > spent + 50);
-
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const surface::SurfaceTextRegion* shown = body_on(c, body);
-    REQUIRE(shown != nullptr);
-    const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows);
-    CHECK(shown->rows[heading + 0].text == "> #1 panel");
-    CHECK(shown->rows[heading + 2].text == "PROPERTIES");
-    CHECK(shown->rows[heading + 3].text.rfind(" Identity", 0) == 0);
-    // ELEVEN ROWS OF MATERIAL AND NO MORE. HD-7 asserted that as `rows.size() == 11`, which
-    // HD-8's foot-anchored footer makes false about the REGION and still true about the
-    // material: everything from the eleventh row to the controls is blank, and the controls
-    // are the last two rows whatever the document does.
-    CHECK(shown->rows.size() == heading + body.capacity);
-    for (std::size_t i = heading + spent; i < heading + static_cast<std::size_t>(body.action_row);
-         ++i) {
-        CAPTURE(i);
-        CHECK(shown->rows[i].text.empty());
-    }
-    CHECK(shown->rows[heading + static_cast<std::size_t>(body.action_row)].text ==
-          "[ Create ]");
-    CHECK(shown->rows.back().text == "[ Delete ]");
-}
-
-TEST_CASE("HD-7: neither list paints through the other, at any extent") {
-    // §4.4, and it is structural rather than checked: the two lists are disjoint RUNS of one
-    // row budget rather than two rectangles somebody has to keep apart. Asserted anyway,
-    // across a population and an extent sweep, because "structural" is a claim.
-    for (const std::size_t objects : std::vector<std::size_t>{1, 2, 6, 20, 100}) {
-        for (const std::int64_t h : std::vector<std::int64_t>{22, 30, 45, 77}) {
-            for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-                CAPTURE(objects);
-                CAPTURE(h);
-                CAPTURE(line);
-                Sample p = panel_of(objects, objects / 2, 80, h, line == 0 ? 0 : 8, line);
-                const InfoBodyPlace body = body_of(p.d, p.s);
-                REQUIRE(body.present);
-
-                // NO PROSE ROW IS CLAIMED BY BOTH, and the heading is claimed by neither.
-                for (std::int64_t row = -2;
-                     row < static_cast<std::int64_t>(body.capacity) + 2; ++row) {
-                    const bool is_object = object_at_prose_row(body, row) != kNoObject;
-                    const bool is_property = property_at_prose_row(body, row) != kNoProperty;
-                    const bool both = is_object && is_property;
-                    CHECK_FALSE(both);
-                    if (row == body.heading_row) {
-                        CHECK_FALSE(is_object);
-                        CHECK_FALSE(is_property);
-                    }
-                }
-                // AND EVERY ROW EITHER LIST NAMES IS INSIDE THE BODY.
-                for (std::size_t i = 0; i < p.d.elements.size(); ++i) {
-                    const std::int64_t at = prose_row_of_object(body, i);
-                    if (at != kNoProseRow) {
-                        CHECK(at >= 0);
-                        CHECK(at < body.heading_row);
-                    }
-                }
-                for (std::size_t i = 0; i < p.s.rows.size(); ++i) {
-                    const std::int64_t at = prose_row_of_property(body, i);
-                    if (at != kNoProseRow) {
-                        CHECK(at > body.heading_row);
-                        CHECK(at < static_cast<std::int64_t>(body.capacity));
-                    }
-                }
-                // AND THE PUBLISHED REGION NEVER EXCEEDS WHAT IT CLAIMED.
-                const surface::SurfaceCanvas c = paint(p.d, p.s);
-                const surface::SurfaceTextRegion* shown = body_on(c, body);
-                REQUIRE(shown != nullptr);
-                CHECK(shown->rows.size() <=
-                      static_cast<std::size_t>(kInfoHeadingRows) + body.capacity);
-                CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows +
-                                                           body.heading_row)]
-                          .text == "PROPERTIES");
-            }
-        }
-    }
-}
-
-TEST_CASE("HD-7: the two object row maps are inverses, and nothing else is an object") {
-    // The one-measurer claim on the vertical axis, for the list a press can now reach. The
-    // painter positions a name with `prose_row_of_object` and `objects_press` inverts it, so a
-    // scrolled list cannot land a press one row off the name a maker aimed at.
-    Sample p = panel_of(30, 15, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.present);
-    REQUIRE(body.objects.before > 0); // the marker really is spending the body's first row
-    REQUIRE(body.objects.after > 0);
-
-    for (std::size_t i = body.objects.first; i < body.objects.first + body.objects.count; ++i) {
-        CAPTURE(i);
-        const std::int64_t at = prose_row_of_object(body, i);
-        REQUIRE(at != kNoProseRow);
-        CHECK(object_at_prose_row(body, at) == i);
-    }
-    // A MARKER ROW, THE HEADING, A PROPERTY ROW AND A ROW OUTSIDE THE BODY NAME NO OBJECT.
-    CHECK(object_at_prose_row(body, 0) == kNoObject); // `... N earlier`
-    CHECK(object_at_prose_row(body, body.heading_row) == kNoObject);
-    CHECK(object_at_prose_row(body, body.heading_row + 1) == kNoObject);
-    CHECK(object_at_prose_row(body, -1) == kNoObject);
-    CHECK(object_at_prose_row(body, static_cast<std::int64_t>(body.capacity)) == kNoObject);
-    // An object the window is not showing has no row at all.
-    CHECK(prose_row_of_object(body, 0) == kNoProseRow);
-    CHECK(prose_row_of_object(body, 29) == kNoProseRow);
-}
-
-TEST_CASE("HD-7: a long object name is bounded VISIBLY, and the document keeps all of it") {
-    // §10. The mark and the identity come first, so cutting the row at the body's width cuts
-    // exactly the name -- and it says so with the `...` this canvas has used since W-6.
-    const std::string long_name = "the-quick-brown-fox-jumps-over-the-lazy-dog";
-    Sample p = panel_of(2, 0, 78, 22);
-    p.d.elements[0].label = long_name;
-    refocus(p.d, p.s);
-
-    const InfoBodyPlace narrow = body_of(p.d, p.s);
-    const surface::SurfaceCanvas narrow_canvas = paint(p.d, p.s);
-    const std::string cut =
-        body_on(narrow_canvas, narrow)->rows[static_cast<std::size_t>(kInfoHeadingRows)].text;
-    CHECK(static_cast<std::int64_t>(cut.size()) <= narrow.columns);
-    CHECK(cut.rfind("> #1 ", 0) == 0);                       // the mark and the identity survive
-    CHECK(cut.substr(cut.size() - 3) == "...");              // and the cut is SAID
-    CHECK(cut == "> #1 the-quick-brown-fo...");
-    CHECK(p.d.elements[0].label == long_name);               // the authored name is untouched
-    // AND WHAT A MAKER READS IS THAT ROW: the cell projection of the body draws it whole.
-    CHECK(object_row(narrow_canvas, p.d, p.s, 0) == cut);
-
-    // A WIDER MEDIUM SHOWS MORE OF IT WITHOUT THE DOCUMENT MOVING. The panel is 28 cells at
-    // both extents; what changed is how many characters of this repository's face fit across
-    // them.
-    Sample wide = panel_of(2, 0, 78, 22, 8, 18);
-    wide.d.elements[0].label = long_name;
-    refocus(wide.d, wide.s);
-    const InfoBodyPlace roomier = body_of(wide.d, wide.s);
-    const surface::SurfaceCanvas wide_canvas = paint(wide.d, wide.s);
-    const std::string more =
-        body_on(wide_canvas, roomier)->rows[static_cast<std::size_t>(kInfoHeadingRows)].text;
-    CHECK(roomier.columns > narrow.columns);
-    CHECK(more.size() > cut.size());
-    CHECK(more.rfind("> #1 the-quick-brown-fo", 0) == 0);
-    CHECK(more.substr(more.size() - 3) == "...");
-    CHECK(wide.d.elements[0].label == long_name);
-
-    CHECK(static_cast<std::int64_t>(more.size()) <= roomier.columns);
-
-    // AND A NAME THAT FITS IS NOT MARKED, which is `detail::fit`'s own rule and not a second.
-    p.d.elements[0].label = "short";
-    refocus(p.d, p.s);
-    CHECK(object_row(paint(p.d, p.s), p.d, p.s, 0) == "> #1 short");
-}
-
-TEST_CASE("HD-7: duplicate names cannot confuse the selected row -- identity decides") {
-    // §24, and it is not a hypothetical: EVERY object `n` makes is called `panel`, so a
-    // document of duplicates is the default rather than an edge case. The mark follows the
-    // selected IDENTITY, and the row says which identity it is.
-    Sample p = panel_of(4, 2, 78, 22);
-    for (ui::Element& e : p.d.elements) {
-        e.label = "twin";
-    }
-    refocus(p.d, p.s);
-
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const std::vector<std::string> lines = object_lines(c, p.d, p.s);
-    CHECK(lines[0] == "  #1 twin");
-    CHECK(lines[1] == "  #2 twin");
-    CHECK(lines[2] == "> #3 twin");
-    CHECK(lines[3] == "  #4 twin");
-
-    // ONE MARK, and it is on the row whose IDENTITY is selected rather than on the first row
-    // whose text matches.
-    std::size_t marked = 0;
-    for (const std::string& line : lines) {
-        if (line.rfind("> ", 0) == 0) {
-            ++marked;
-        }
-    }
-    CHECK(marked == 1);
-    CHECK(p.s.selected == 3);
-    // AND THE PRESS PATH NAMES THE POSITION, not the text: two rows with identical text
-    // resolve to different objects.
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    CHECK(object_at_prose_row(body, 0) == 0);
-    CHECK(object_at_prose_row(body, 3) == 3);
-    CHECK(p.d.elements[object_at_prose_row(body, 0)].id != p.d.elements[3].id);
-}
-
-TEST_CASE("HD-7: an empty document says so, and the arithmetic stays in range") {
-    // §23. Zero objects IS reachable -- `d` on the last one gets there -- so the empty state
-    // is a row of the body rather than a special case in the painter, and neither list is
-    // given zero rows to say nothing in.
-    Sample p = panel_of(0, 0, 78, 22);
-    REQUIRE(p.d.elements.empty());
-    REQUIRE(p.s.selected == 0);
-    REQUIRE(p.s.rows.empty());
-
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.present);
-    CHECK(body.objects_rows >= 1);
-    CHECK(body.properties_rows >= 1);
-    CHECK(body.objects.count == 0);
-    CHECK(body.objects.before == 0);
-    CHECK(body.objects.after == 0); // nothing is hidden, because there is nothing
-
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    CHECK(object_row(c, p.d, p.s, 0) == "(none) -- n makes one");
-    CHECK(properties_heading(c, p.d, p.s) == "PROPERTIES");
-    CHECK(property_row(c, p.d, p.s, 0) == "(nothing selected)");
-    // NO BOGUS MARK, and no row claiming to be an object.
-    CHECK(object_at_prose_row(body, 0) == kNoObject);
-    CHECK(prose_row_of_object(body, 0) == kNoProseRow);
-    for (const surface::SurfaceTextRow& row : body_on(c, body)->rows) {
-        CHECK(row.text.rfind("> ", 0) != 0);
-    }
-}
-
-TEST_CASE("HD-7: creating and deleting objects keeps the list truthful, by keys only") {
-    // §22, driven the way a maker reaches it. Nothing is cached: the list is derived from the
-    // document every paint, so there is no stale row to survive a delete.
-    Live t;
-    for (int i = 0; i < 18; ++i) {
-        t.key(input::scan::kN);
-    }
-    REQUIRE(t.doc().elements.size() == 20);
-
-    const auto reading = [&t] {
-        return object_lines(t.canvases.back(), t.doc(), t.session());
-    };
-    const auto counted = [&t] {
-        const InfoBodyPlace body = body_place(t);
-        return body.objects.before + body.objects.count + body.objects.after;
-    };
-
-    // THE NEW ONE IS SELECTED AND VISIBLE, at the end of a document that overflows the share.
-    CHECK(counted() == t.doc().elements.size());
-    CHECK(prose_row_of_object(body_place(t), 19) != kNoProseRow);
-    {
-        bool marked = false;
-        for (const std::string& line : reading()) {
-            marked = marked || line == "> #20 panel";
-        }
-        CHECK(marked);
-    }
-
-    // DELETE A NON-SELECTED ONE: the counts move by exactly one and the selection follows the
-    // document's own post-delete rule.
-    t.key(input::scan::kTab); // wrap to #1
-    REQUIRE(t.session().selected == 1);
-    t.key(input::scan::kD);
-    CHECK(t.doc().elements.size() == 19);
-    CHECK(t.session().selected == 2);
-    CHECK(counted() == 19);
-    CHECK(prose_row_of_object(body_place(t), position_of(t.doc(), 2)) != kNoProseRow);
-    for (const std::string& line : reading()) {
-        CHECK(line.find("#1 panel") == std::string::npos); // no stale row survived
-    }
-
-    // DELETE THE SELECTED ONE, repeatedly, down to nothing -- the window never names a member
-    // the document does not have, and the empty state arrives honestly.
-    for (int guard = 0; guard < 40 && !t.doc().elements.empty(); ++guard) {
-        t.key(input::scan::kD);
-        const InfoBodyPlace body = body_place(t);
-        CAPTURE(t.doc().elements.size());
-        CHECK(body.objects.first + body.objects.count <= t.doc().elements.size());
-        CHECK(counted() == t.doc().elements.size());
-        if (!t.doc().elements.empty()) {
-            CHECK(prose_row_of_object(body, position_of(t.doc(), t.session().selected)) !=
-                  kNoProseRow);
-        }
-    }
-    CHECK(t.doc().elements.empty());
-    CHECK(object_row(t.canvases.back(), t.doc(), t.session(), 0) == "(none) -- n makes one");
-}
-
-TEST_CASE("HD-7: a press on a visible object row selects it, through the row's own geometry") {
-    // §16 outcome B and §17. The press resolves through the SAME body the painter drew with,
-    // and the row a maker sees is the row the press names -- including with the list scrolled,
-    // which is the case a second copy of the window arithmetic would get wrong.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    for (int i = 0; i < 18; ++i) {
-        t.key(input::scan::kN);
-    }
-    REQUIRE(t.doc().elements.size() == 20);
-    REQUIRE(t.session().selected == 20);
-
-    const InfoBodyPlace scrolled = body_place(t);
-    REQUIRE(scrolled.present);
-    REQUIRE(scrolled.objects.before > 0); // the list HAS scrolled: a marker owns row 0
-
-    // The second name shown, which is NOT the second object in the document.
-    const std::size_t second_shown = scrolled.objects.first + 1;
-    const std::int64_t at = prose_row_of_object(scrolled, second_shown);
-    REQUIRE(at != kNoProseRow);
-    const std::int64_t want = t.doc().elements[second_shown].id;
-    REQUIRE(want != t.session().selected);
-
-    t.press_at(body_pixel_x(scrolled, 3), body_pixel_y(scrolled, at), input::space::kPixels);
-    CHECK(t.session().selected == want);
-    CHECK(t.notice() == "selected #" + std::to_string(want));
-    // AND THE INSPECTOR FOLLOWED, because a press reaches the document through `select` --
-    // the same door `tab` uses.
-    CHECK(t.row("Identity")->value() == "#" + std::to_string(want));
-
-    // NOT ROUNDED TO A WORKSHOP CELL. An 18-pixel row against a 12-pixel cell means the cell
-    // a press lands in and the prose row it lands on genuinely disagree, and this asserts the
-    // disagreement at the pixel it presses rather than assuming it.
-    const std::int64_t y = body_pixel_y(scrolled, at);
-    const std::int64_t cell_row = y / surface::kCanvasCellPx - scrolled.region_y;
-    CHECK(cell_row != at);
-
-    // A PRESS ON A ROW THAT IS NOT AN OBJECT SELECTS NOTHING, and the panel answers as it
-    // does for any other press it does not own. The body is RE-RESOLVED first, because the
-    // selection just moved and with it the window -- reusing the old place would be exactly
-    // the second copy of the geometry this phase exists to not have.
-    const InfoBodyPlace now = body_place(t);
-    std::int64_t nobody = kNoProseRow;
-    for (std::int64_t row = 0; row < now.heading_row + 1; ++row) {
-        if (object_at_prose_row(now, row) == kNoObject) {
-            nobody = row;
-            break;
-        }
-    }
-    REQUIRE(nobody != kNoProseRow);
-    const std::int64_t was = t.session().selected;
-    t.press_at(body_pixel_x(now, 3), body_pixel_y(now, nobody), input::space::kPixels);
-    CHECK(t.session().selected == was);
-    CHECK(t.notice().find("nothing under it can be taken hold of") != std::string::npos);
-}
-
-TEST_CASE("HD-7: a press on an object row is REFUSED while a property draft is live") {
-    // THE MODE LAW, PINNED. Changing objects rebuilds the inspector rows, which is exactly
-    // what a live draft cannot survive -- so the press changes nothing and says why. HD-6
-    // refused the mirror of this question (a press does not BEGIN an edit) for the same
-    // reason: three plausible answers, no measurement between them.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    REQUIRE(t.doc().elements.size() == 2);
-    const std::int64_t was = t.session().selected;
-
-    t.begin_editing("Name");
-    t.text("x");
-    REQUIRE(t.row("Name")->editing());
-    REQUIRE(t.row("Name")->draft() == "panelx");
-
-    const InfoBodyPlace body = body_place(t);
-    const std::int64_t other = prose_row_of_object(body, 1);
-    REQUIRE(other != kNoProseRow);
-    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, other), input::space::kPixels);
-
-    CHECK(t.session().selected == was);                    // nothing moved...
-    CHECK(t.row("Name")->editing());                       // ...the draft is untouched...
-    CHECK(t.row("Name")->draft() == "panelx");
-    CHECK(t.notice() == "finish the draft first -- enter commits it, esc cancels");
-
-    // AND THE LIST IS LIVE AGAIN THE MOMENT THE DRAFT IS NOT.
-    t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.row("Name")->editing());
-    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, other), input::space::kPixels);
-    CHECK(t.session().selected == t.doc().elements[1].id);
-}
-
-TEST_CASE("HD-7: a cell medium's press takes the other branch, and lands on the same row") {
-    // §17's second half. A terminal's position is already a character, so it is never divided
-    // by a pixel size its numbers were never in -- and both media resolve the press through
-    // one `object_at_prose_row`.
-    Live t;
-    for (int i = 0; i < 18; ++i) {
-        t.key(input::scan::kN);
-    }
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
-    REQUIRE(t.doc().elements.size() == 20);
-
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    REQUIRE_FALSE(body.fit.graphical());
-    const std::size_t shown = body.objects.first + 1;
-    const std::int64_t at = prose_row_of_object(body, shown);
-    REQUIRE(at != kNoProseRow);
-    const std::int64_t want = t.doc().elements[shown].id;
-
-    t.press_at(body.region_x + 3,
-               body.region_y + kInfoHeadingRows + at + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.session().selected == want);
-    CHECK(t.notice() == "selected #" + std::to_string(want));
-}
-
-TEST_CASE("HD-7: on a graphical medium the object names are set in the SAME type as the rest") {
-    // §14. There is no second font, no OBJECTS-specific metric and no second region: the
-    // names are rows of the body the property rows are rows of, so a medium that sets that
-    // body in type sets the names in type.
-    Sample p = panel_of(6, 0, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.fit.graphical());
-    CHECK(body.fit.advance_px == 8);
-    CHECK(body.fit.line_px == 18);
-
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const surface::SurfaceExtent metric{80 * surface::kCanvasCellPx, 38 * surface::kCanvasCellPx,
-                                        8, 18};
-    // THE BODY IS IN THE TYPE LIST AND NOT IN THE CELL LIST -- one region, one partition, and
-    // the object rows are inside it. THREE regions in the type list: the panel's and the two
-    // BANDS' (the screen's own chrome is real type now too, and since QR-14 there are two of
-    // them); the case reads the panel's by its place, and the claim about the object rows is
-    // unchanged.
-    const std::vector<surface::PlanTextRegion> typed =
-        plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000});
-    REQUIRE(typed.size() == 3);
-    const surface::PlanTextRegion* panel_region = nullptr;
-    for (const surface::PlanTextRegion& r : typed) {
-        if (r.view.y == body.region_y * surface::kCanvasCellPx) {
-            panel_region = &r;
-        }
-    }
-    REQUIRE(panel_region != nullptr);
-    CHECK(panel_region->line_px == 18);
-    bool named = false;
-    for (const surface::PlanTextRow& row : panel_region->rows) {
-        named = named || row.text == "> #1 panel";
-    }
-    CHECK(named);
-    for (const surface::ProjectedRow& row : projected_of(without_workspace(c), metric)) {
-        CHECK(row.label.text.find("#1 panel") == std::string::npos); // not drawn as cells
-    }
-    // AND THE ROWS ARE POSITIONED OFF THE SAME FIT: the plan carries ONE line pitch for the
-    // whole region, which is the face's, so an object name and a property row cannot be set
-    // at two different pitches.
-    CHECK(panel_region->rows.size() >= 2);
-    CHECK(panel_region->line_px == body.fit.line_px);
-}
-
-TEST_CASE("HD-7: growing the window gives OBJECTS more and never gives PROPERTIES less") {
-    // §4.5 and §4.6 on a running Workshop, with a draft alive across every step so the
-    // resize path is the one HD-5 built rather than a fresh session per extent.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    for (int i = 0; i < 18; ++i) {
-        t.key(input::scan::kN);
-    }
-    REQUIRE(t.doc().elements.size() == 20);
-    t.begin_editing("Height");
-    t.text("7");
-    REQUIRE(t.row("Height")->draft() == "47");
-
-    std::size_t objects = 0;
-    std::size_t properties = 0;
-    for (const std::int64_t h : std::vector<std::int64_t>{22, 28, 34, 40, 52, 70}) {
-        CAPTURE(h);
-        t.publish(loom::to_value(surface::SurfaceExtent{78, h, 8, 18}));
-        const InfoBodyPlace body = body_place(t);
-        REQUIRE(body.present);
-        CHECK(body.objects_rows >= objects);
-        CHECK(body.properties_rows >= properties);
-        objects = body.objects_rows;
-        properties = body.properties_rows;
-
-        // THE DRAFT, THE CARET AND BOTH SELECTIONS SURVIVE EVERY STEP.
-        REQUIRE(t.row("Height")->editing());
-        CHECK(t.row("Height")->draft() == "47");
-        CHECK(t.session().selected == 20);
-        // §12 WHERE THE SHARE CAN SEAT IT. A list of fewer than three rows cannot show an
-        // object AND say what it hid, so `list_window` spends what it has on the omission
-        // -- its own rule 3, reachable since HD-7 and one extent sooner since WUX-5 gave
-        // the panel a visible boundary. Above that floor the selection is always shown.
-        if (body.objects_rows >= 3) {
-            CHECK(prose_row_of_object(body, 19) != kNoProseRow);
-        } else {
-            CHECK(body.objects.count == 0);
-            CHECK(body.objects.after == t.doc().elements.size());
-        }
-        CHECK(prose_row_of_property(body, inspector_focus(t.session())) != kNoProseRow);
-    }
-    // The tallest extent holds every object and every property, so both markers are gone.
-    const InfoBodyPlace tall = body_place(t);
-    CHECK(tall.objects.after == 0);
-    CHECK(tall.objects.before == 0);
-    CHECK(tall.properties.after == 0);
-    CHECK(tall.objects_rows == 20);
-    CHECK(tall.properties_rows == 8);
-}
-
-TEST_CASE("HD-7: the object list's omission is counted and directional, in the panel's role") {
-    // §12. The wording is `omitted_text`'s, the arithmetic is `list_window`'s, and both are
-    // the functions the property list beside it uses -- so the two halves of one panel cannot
-    // come to be worded by two hands.
-    Sample p = panel_of(30, 15, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.objects.before > 0);
-    REQUIRE(body.objects.after > 0);
-
-    const surface::SurfaceCanvas c = paint(p.d, p.s);
-    const surface::SurfaceTextRegion* shown = body_on(c, body);
-    REQUIRE(shown != nullptr);
-    const std::size_t heading = static_cast<std::size_t>(kInfoHeadingRows);
-    CHECK(shown->rows[heading].text == omitted_text(body.objects.before, "earlier"));
-    CHECK(shown->rows[heading].role == surface::role::kMuted);
-    const std::size_t last = heading + static_cast<std::size_t>(body.heading_row) - 1;
-    CHECK(shown->rows[last].text == omitted_text(body.objects.after, "more"));
-    CHECK(shown->rows[last].role == surface::role::kMuted);
-    // EVERY OBJECT IS ACCOUNTED FOR, once.
-    CHECK(body.objects.before + body.objects.count + body.objects.after ==
-          p.d.elements.size());
-    // AND THE MARKERS COME OUT OF THE LIST'S OWN SHARE.
-    CHECK(body.objects.count + 2 == body.objects_rows);
-
-    // THE SELECTED OBJECT'S MARK IS TEXT AND NOT ONLY A ROLE, so a terminal with no ground to
-    // tint reads the same fact (§15).
-    const std::int64_t here = prose_row_of_object(body, 15);
-    REQUIRE(here != kNoProseRow);
-    CHECK(shown->rows[heading + static_cast<std::size_t>(here)].text.rfind("> ", 0) == 0);
-    CHECK(shown->rows[heading + static_cast<std::size_t>(here)].role ==
-          surface::role::kAccent);
-}
-
-// ---- HD-8: the Info panel gets action controls -------------------------------------------
-//
-// THE PHASE'S CLAIM, IN ONE SENTENCE: a maker who does not know that `n` creates an object
-// can now see that creating one is a thing this tool does, press it, and get exactly what the
-// key would have given them. Everything below is that claim taken apart.
-//
-// THERE IS NO `component::Button`, so there is no component suite for one and every case is
-// here. That is not less verification -- it is the verification arriving where the behaviour
-// actually lives. What HD-5 put in the component suite was a state machine with an invariant;
-// a control is a label, a bit and a row, and all three of those are Workshop's.
-
-TEST_CASE("HD-8: the footer is reserved off the budget, and every HD-7 property survives it") {
-    // The composition answer is one subtraction, so the way to prove it did not break the
-    // sharing policy is to re-run HD-7's own property over the budget the lists actually get,
-    // which is `capacity - 1 - kActionRows`.
-    for (const std::pair<std::size_t, std::size_t>& want :
-         {std::pair<std::size_t, std::size_t>{1, 1}, {2, 8}, {20, 8}, {200, 8}, {1, 300}}) {
-        CAPTURE(want.first);
-        CAPTURE(want.second);
-        BodyShare last{};
-        for (std::size_t capacity = kInfoBodyMinRows + kActionRows; capacity <= 200; ++capacity) {
-            CAPTURE(capacity);
-            const std::size_t budget = capacity - 1 - kActionRows;
-            const BodyShare share = share_body_rows(budget, want.first, want.second);
-
-            // THE FOOTER IS ALWAYS AFFORDED. Whatever the lists take, the two control rows and
-            // the heading are still inside the body -- which is the reason the reservation is
-            // a subtraction rather than a third claimant on the sharing.
-            CHECK(share.objects + share.properties + 1 + kActionRows <= capacity);
-            // AND EVERY HD-7 PROPERTY STILL HOLDS OF THE REDUCED BUDGET. A budget reduced by a
-            // constant is still a budget: monotonic in the room, never more than a list asked
-            // for, and never starving either.
-            CHECK(share.objects >= last.objects);
-            CHECK(share.properties >= last.properties);
-            CHECK(share.objects <= want.first);
-            CHECK(share.properties <= want.second);
-            CHECK(share.objects >= 1);
-            CHECK(share.properties >= 1);
-            last = share;
-        }
-    }
-}
-
-TEST_CASE("HD-8: the controls are the last two rows of the body, at every extent and size") {
-    // The footer is anchored to the FOOT, so it is in the same place whatever the document
-    // does -- and nothing else is ever painted there, which is structural rather than checked
-    // (three disjoint runs of one budget) and checked anyway, because "structural" is a claim.
-    for (const std::size_t objects : std::vector<std::size_t>{0, 1, 6, 20, 100}) {
-        for (const std::int64_t h : std::vector<std::int64_t>{22, 30, 45, 77}) {
-            for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-                CAPTURE(objects);
-                CAPTURE(h);
-                CAPTURE(line);
-                Sample p = panel_of(objects, objects / 2, 80, h, line == 0 ? 0 : 8, line);
-                const InfoBodyPlace body = body_of(p.d, p.s);
-                REQUIRE(body.present);
-
-                // THE FOOTER IS INSIDE THE BODY AND AT ITS FOOT.
-                REQUIRE(body.action_row != kNoProseRow);
-                CHECK(body.action_row + static_cast<std::int64_t>(kActionRows) ==
-                      static_cast<std::int64_t>(body.capacity));
-                // NEITHER LIST REACHES IT, and neither does the heading.
-                CHECK(static_cast<std::int64_t>(body.objects_rows) <= body.action_row);
-                CHECK(body.heading_row < body.action_row);
-                CHECK(body.heading_row + static_cast<std::int64_t>(body.properties_rows) <
-                      body.action_row);
-                // NO PROSE ROW IS CLAIMED BY A LIST AND BY THE FOOTER BOTH.
-                for (std::int64_t row = 0; row < static_cast<std::int64_t>(body.capacity);
-                     ++row) {
-                    const bool is_action = action_at_prose_row(body, row) != kNoAction;
-                    const bool is_object = object_at_prose_row(body, row) != kNoObject;
-                    const bool is_property = property_at_prose_row(body, row) != kNoProperty;
-                    const bool clash = is_action && (is_object || is_property);
-                    CHECK_FALSE(clash);
-                }
-
-                // AND THE PAINTER PUT THEM THERE. Both labels are on the rows the geometry
-                // named, in every medium and at every population -- including the empty
-                // document, which is the maker who most needs to see `Create`.
-                const surface::SurfaceCanvas c = paint(p.d, p.s);
-                const surface::SurfaceTextRegion* shown = body_on(c, body);
-                REQUIRE(shown != nullptr);
-                REQUIRE(shown->rows.size() ==
-                        static_cast<std::size_t>(kInfoHeadingRows) + body.capacity);
-                for (std::size_t which = 0; which < kActionCount; ++which) {
-                    const std::int64_t at = prose_row_of_action(body, which);
-                    REQUIRE(at != kNoProseRow);
-                    CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + at)]
-                              .text.find(action_label(which)) != std::string::npos);
-                }
-            }
-        }
-    }
-}
-
-TEST_CASE("HD-8: the action row maps are inverses, and nothing else is a control") {
-    // One resolved answer used by paint and by hit, and no third copy -- the same claim HD-6
-    // made for properties and HD-7 for objects, at the third and last run of this body.
-    Sample p = panel_of(6, 0, 80, 38, 8, 18);
-    const InfoBodyPlace body = body_of(p.d, p.s);
-    REQUIRE(body.present);
-
-    for (std::size_t which = 0; which < kActionCount; ++which) {
-        CAPTURE(which);
-        const std::int64_t at = prose_row_of_action(body, which);
-        REQUIRE(at != kNoProseRow);
-        CHECK(action_at_prose_row(body, at) == which);
-        CHECK(action_press_at(body, 0, at) == which);
-        CHECK(action_press_at(body, body.fit.columns, at) == which); // the whole ROW is target
-    }
-    CHECK(prose_row_of_action(body, kActionCount) == kNoProseRow);
-
-    // EVERY OTHER ROW OF THE BODY NAMES NO CONTROL, including the spare ones just above it.
-    for (std::int64_t row = -3; row < body.action_row; ++row) {
-        CAPTURE(row);
-        CHECK(action_at_prose_row(body, row) == kNoAction);
-    }
-    CHECK(action_at_prose_row(body, static_cast<std::int64_t>(body.capacity)) == kNoAction);
-    // A COLUMN OUTSIDE THE BODY NAMES NOTHING, on either side.
-    CHECK(action_press_at(body, -1, body.action_row) == kNoAction);
-    CHECK(action_press_at(body, body.fit.columns + 1, body.action_row) == kNoAction);
-    // AND A BODY THAT IS NOT PRESENT ANSWERS NOTHING RATHER THAN A ROW SOMEWHERE IT IS NOT.
-    const InfoBodyPlace absent;
-    CHECK(prose_row_of_action(absent, kActionCreate) == kNoProseRow);
-    CHECK(action_at_prose_row(absent, 0) == kNoAction);
-    CHECK(action_press_at(absent, 0, 0) == kNoAction);
-}
-
-TEST_CASE("HD-8: availability is two reasons, one bit, and no prediction of a refusal") {
-    // The pure table. `Create` is unavailable for exactly one reason and `Delete` for two,
-    // and neither answer knows anything about what the document will say.
-    CHECK(action_availability(kActionCreate, false, true) == Availability::kAvailable);
-    CHECK(action_availability(kActionCreate, false, false) == Availability::kAvailable);
-    CHECK(action_availability(kActionDelete, false, true) == Availability::kAvailable);
-    CHECK(action_availability(kActionDelete, false, false) == Availability::kNoTarget);
-    // A LIVE DRAFT OUTRANKS THE TARGET QUESTION, for both controls: it is a fact about the
-    // MAKER, and it is the one this application has to hold a press back for.
-    CHECK(action_availability(kActionCreate, true, true) == Availability::kDraftLive);
-    CHECK(action_availability(kActionDelete, true, true) == Availability::kDraftLive);
-    CHECK(action_availability(kActionDelete, true, false) == Availability::kDraftLive);
-    CHECK(available(Availability::kAvailable));
-    CHECK_FALSE(available(Availability::kNoTarget));
-    CHECK_FALSE(available(Availability::kDraftLive));
-
-    // AND THE DOCUMENT OVERLOAD ASKS BY IDENTITY. A selection that has outlived its object is
-    // exactly the state `delete_selected` refuses in, so a control reading the raw number
-    // would offer a press the document has already decided against.
-    WorkshopDoc d = one_object();
-    Session s;
-    s.selected = 1;
-    refocus(d, s);
-    CHECK(action_availability(kActionDelete, d, s) == Availability::kAvailable);
-    s.selected = 4242; // an identity this document does not have
-    CHECK(action_availability(kActionDelete, d, s) == Availability::kNoTarget);
-    s.selected = 0;
-    CHECK(action_availability(kActionDelete, d, s) == Availability::kNoTarget);
-    CHECK(action_availability(kActionCreate, d, s) == Availability::kAvailable);
-}
-
-TEST_CASE("HD-8: unavailable is said in CHARACTERS, so a colourless medium reads it too") {
-    // The brackets are the statement and the role is the second signal, which is the object
-    // list's `> ` mark one run down and the same argument: a terminal has no ground to tint,
-    // so the difference may not live in a Skin's ink.
-    CHECK(action_row_text(kActionCreate, true, 40) == "[ Create ]");
-    CHECK(action_row_text(kActionCreate, false, 40) == "( Create )");
-    CHECK(action_row_text(kActionDelete, true, 40) == "[ Delete ]");
-    CHECK(action_row_text(kActionDelete, false, 40) == "( Delete )");
-    // THE TWO STATES DIFFER AS TEXT, which is the whole claim, and they are the same WIDTH so
-    // nothing under them moves when one changes.
-    CHECK(action_row_text(kActionDelete, true, 40) != action_row_text(kActionDelete, false, 40));
-    CHECK(action_row_text(kActionDelete, true, 40).size() ==
-          action_row_text(kActionDelete, false, 40).size());
-    // AND A CONTROL IS FITTED LIKE EVERY OTHER ROW OF THIS BODY.
-    CHECK(action_row_text(kActionCreate, true, 6) == "[ C...");
-    CHECK(action_row_text(kActionCreate, true, 0).empty());
-
-    // ON THE CANVAS, in both media, an unavailable control is muted and an available one is
-    // not -- the panel's existing roles, with nothing added and nothing widened.
-    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
-        CAPTURE(line);
-        Sample p = panel_of(0, 0, 80, 38, line == 0 ? 0 : 8, line);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        const surface::SurfaceCanvas c = paint(p.d, p.s);
-        const surface::SurfaceTextRegion* shown = body_on(c, body);
-        REQUIRE(shown != nullptr);
-        const surface::SurfaceTextRow& create_row =
-            shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionCreate))];
-        const surface::SurfaceTextRow& delete_row =
-            shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionDelete))];
-        CHECK(create_row.text == "[ Create ]");
-        CHECK(create_row.role == surface::role::kFill);
-        CHECK(delete_row.text == "( Delete )"); // an empty document has nothing to delete
-        CHECK(delete_row.role == surface::role::kMuted);
-        // AND SINCE HD-9 THE AVAILABLE ONE SITS ON SOMETHING AND THE UNAVAILABLE ONE DOES
-        // NOT. The text above is what HD-8 proved and it is unchanged by that: a medium with
-        // no ground at all still reads the two states apart, which is why this case still
-        // asserts the characters first. (HD-8 recorded here that the field was unused by this
-        // repository; that was not so even then -- the Terminal's completion list has set its
-        // selected row on `kMuted` since HD-2. What HD-9 changed is that the Info panel
-        // spends it too.)
-        CHECK(create_row.background == surface::role::kMuted);
-        CHECK(delete_row.background == surface::role::kNone);
-    }
-}
-
-TEST_CASE("HD-8: pressing Create is the SAME operation the `n` key performs") {
-    // Two gestures, one meaning: the pointer path and the key path are driven separately from
-    // identical starts and their whole outcome is compared -- document bytes, selection,
-    // inspector, notice.
-    Live keyed;
-    keyed.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    keyed.key(input::scan::kN);
-
-    Live pressed;
-    pressed.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    const InfoBodyPlace body = body_place(pressed);
-    const std::int64_t at = prose_row_of_action(body, kActionCreate);
-    REQUIRE(at != kNoProseRow);
-    pressed.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
-
-    CHECK(persist::to_text(pressed.doc()) == persist::to_text(keyed.doc()));
-    CHECK(pressed.session().selected == keyed.session().selected);
-    CHECK(pressed.notice() == keyed.notice());
-    CHECK(pressed.notice() == "created #3 -- a new identity, not a new name");
-    CHECK(pressed.row("Identity")->value() == keyed.row("Identity")->value());
-    CHECK(pressed.doc().elements.size() == 3); // the boot document's two, plus exactly one
-}
-
-TEST_CASE("HD-8: pressing Delete is the SAME operation the `d` key performs") {
-    // Same shape as Create's, at a document with something to delete and a selection the
-    // post-delete rule has to move.
-    Live keyed;
-    Live pressed;
-    for (int pass = 0; pass < 2; ++pass) {
-        Live& t = pass == 0 ? keyed : pressed;
-        t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-        for (int i = 0; i < 3; ++i) {
-            t.key(input::scan::kN);
-        }
-        t.key(input::scan::kTab); // wrap onto #1, so the selection has somewhere to go
-        REQUIRE(t.session().selected == 1);
-        if (pass == 0) {
-            t.key(input::scan::kD);
-        } else {
-            const InfoBodyPlace body = body_place(t);
-            const std::int64_t at = prose_row_of_action(body, kActionDelete);
-            REQUIRE(at != kNoProseRow);
-            t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
-        }
-    }
-
-    CHECK(persist::to_text(pressed.doc()) == persist::to_text(keyed.doc()));
-    CHECK(pressed.session().selected == keyed.session().selected);
-    CHECK(pressed.notice() == keyed.notice());
-    CHECK(pressed.notice() == "deleted #1 -- now on #2");
-    CHECK(pressed.doc().elements.size() == 4);
-    CHECK(pressed.row("Identity")->value() == "#2");
-}
-
-TEST_CASE("HD-8: an unavailable Delete presents as unavailable and mutates nothing") {
-    // The control stays VISIBLE with nothing to delete -- a maker has to be able to discover
-    // that the act exists -- and reads as not pressable before they try it.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    for (int guard = 0; guard < 40 && !t.doc().elements.empty(); ++guard) {
-        t.key(input::scan::kD);
-    }
-    REQUIRE(t.doc().elements.empty());
-    REQUIRE(t.session().selected == 0);
-
-    const InfoBodyPlace body = body_place(t);
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
-    REQUIRE(shown != nullptr);
-    // STILL THERE, and saying which of the two it is.
-    CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionCreate))].text ==
-          "[ Create ]");
-    CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionDelete))].text ==
-          "( Delete )");
-    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kNoTarget);
-
-    // AND A PRESS ON IT CHANGES NOTHING. The refusal comes from the DOCUMENT, in the
-    // document's own words -- the same sentence `d` gets, because it is the same call.
-    const std::string before = persist::to_text(t.doc());
-    const std::int64_t at = prose_row_of_action(body, kActionDelete);
-    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
-    CHECK(persist::to_text(t.doc()) == before);
-    CHECK(t.doc().elements.empty());
-    CHECK(t.session().selected == 0);
-    const std::string by_pointer = t.notice();
-    t.key(input::scan::kD);
-    CHECK(by_pointer == t.notice()); // one state, one sentence, two gestures
-
-    // AND CREATE IS STILL REACHABLE FROM THE EMPTY DOCUMENT, which is the only way out of
-    // this state with a pointer.
-    const InfoBodyPlace now = body_place(t);
-    t.press_at(body_pixel_x(now, 3),
-               body_pixel_y(now, prose_row_of_action(now, kActionCreate)),
-               input::space::kPixels);
-    CHECK(t.doc().elements.size() == 1);
-}
-
-TEST_CASE("HD-8: a live property draft survives both controls, with no implicit commit") {
-    // The phase's critical interaction case. A nontrivial draft (a moved caret, a scrolled
-    // window) meets each control in turn and comes back untouched, and the reason is on the
-    // notice line.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    t.begin_editing("Name");
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : kLongValue) {
-        t.text(std::string(1, c));
-    }
-    for (int i = 0; i < 6; ++i) {
-        t.key(input::scan::kLeft);
-    }
-    REQUIRE(t.row("Name")->editing());
-    REQUIRE(t.row("Name")->editor().first_visible() > 0); // the window really has scrolled
-
-    const std::string draft = t.row("Name")->draft();
-    const std::size_t caret = t.row("Name")->editor().caret();
-    const std::size_t window = t.row("Name")->editor().first_visible();
-    const std::int64_t selected = t.session().selected;
-    const std::size_t cursor = t.session().cursor;
-    const std::size_t objects = t.doc().elements.size();
-    const std::string document = persist::to_text(t.doc());
-
-    for (const std::size_t which : {kActionCreate, kActionDelete}) {
-        CAPTURE(which);
-        // BOTH READ AS UNAVAILABLE while the draft is live -- visible and temporarily not
-        // pressable, rather than hidden.
-        const InfoBodyPlace body = body_place(t);
-        CHECK(action_availability(which, t.doc(), t.session()) == Availability::kDraftLive);
-        const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
-        REQUIRE(shown != nullptr);
-        CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, which))].text ==
-              action_row_text(which, false, body.columns));
-
-        const std::int64_t at = prose_row_of_action(body, which);
-        t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
-
-        CHECK(t.row("Name")->editing());
-        CHECK(t.row("Name")->draft() == draft);
-        CHECK(t.row("Name")->editor().caret() == caret);
-        CHECK(t.row("Name")->editor().first_visible() == window);
-        CHECK(t.session().selected == selected);
-        CHECK(t.session().cursor == cursor);
-        CHECK(t.doc().elements.size() == objects);
-        CHECK(persist::to_text(t.doc()) == document);
-        // THE SAME SENTENCE THE OBJECT LIST SAYS, because it is the same wall and one
-        // constant (HD-7 wrote it; HD-8 named it).
-        CHECK(t.notice() == "finish the draft first -- enter commits it, esc cancels");
-    }
-
-    // ESC RESOLVES THE DRAFT AND THE CONTROLS COME BACK -- nothing about the draft was
-    // resolved for the maker, and the way out is the way it always was.
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.row("Name")->editing());
-    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kAvailable);
-    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kAvailable);
-    const InfoBodyPlace free_now = body_place(t);
-    const surface::SurfaceTextRegion* after = body_region(t.canvases.back(), free_now);
-    REQUIRE(after != nullptr);
-    CHECK(after->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(free_now, kActionCreate))]
-              .text == "[ Create ]");
-    t.press_at(body_pixel_x(free_now, 3),
-               body_pixel_y(free_now, prose_row_of_action(free_now, kActionCreate)),
-               input::space::kPixels);
-    CHECK(t.doc().elements.size() == objects + 1);
-
-    // AND A COMMITTED DRAFT DOES THE SAME. `Return` writes the value, and the controls are
-    // live again immediately after it.
-    t.begin_editing("Name");
-    t.text("x");
-    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kDraftLive);
-    t.key(input::scan::kReturn);
-    CHECK_FALSE(t.row("Name")->editing());
-    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kAvailable);
-}
-
-TEST_CASE("HD-8: availability is not a prediction of what the document will say") {
-    // The third classification, found in source rather than in the prompt: `doc::remove`
-    // refuses an object something else measures against. That is the DOCUMENT's policy, so
-    // Delete stays AVAILABLE, the press goes through, and the refusal arrives in the
-    // document's own words -- byte-for-byte what pressing `d` does. A control that predicted
-    // it would be a second copy of that policy, re-run on every paint.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    t.key(input::scan::kN); // #3, which will take its context from #1
-    REQUIRE(t.session().selected == 3);
-    t.begin_editing("Context");
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.type_line("#1");
-    REQUIRE(t.row("Context")->value() == "#1");
-
-    t.key(input::scan::kTab); // onto #1, which #3 now depends on
-    REQUIRE(t.session().selected == 1);
-    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kAvailable);
-    const InfoBodyPlace body = body_place(t);
-    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
-    REQUIRE(shown != nullptr);
-    CHECK(shown->rows[static_cast<std::size_t>(kInfoHeadingRows + prose_row_of_action(body, kActionDelete))].text ==
-          "[ Delete ]");
-
-    const std::string before = persist::to_text(t.doc());
-    t.press_at(body_pixel_x(body, 3),
-               body_pixel_y(body, prose_row_of_action(body, kActionDelete)),
-               input::space::kPixels);
-    CHECK(persist::to_text(t.doc()) == before); // refused, and nothing was written
-    CHECK(t.notice() == "#3 takes context from #1 -- change or delete it first");
-}
-
-TEST_CASE("HD-8: a press on a control never reaches the object list or the workspace") {
-    // One gesture, one semantic owner. A press that fell through would put the panel's own
-    // `... is here` sentence on the notice line in place of the operation's own answer.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    for (int i = 0; i < 4; ++i) {
-        t.key(input::scan::kN);
-    }
-
-    for (const std::size_t which : {kActionCreate, kActionDelete}) {
-        CAPTURE(which);
-        const InfoBodyPlace now = body_place(t);
-        const std::size_t before = t.doc().elements.size();
-        t.press_at(body_pixel_x(now, 3),
-                   body_pixel_y(now, prose_row_of_action(now, which)), input::space::kPixels);
-        // THE ACT HAPPENED...
-        CHECK(t.doc().elements.size() == (which == kActionCreate ? before + 1 : before - 1));
-        // ...AND NOTHING ELSE DID: no drag began, and the notice is the operation's own.
-        CHECK_FALSE(t.session().drag.active);
-        CHECK(t.notice().find("is here") == std::string::npos);
-        CHECK(t.notice().find("holding #") == std::string::npos);
-        CHECK(t.notice().find("selected #") == std::string::npos);
-    }
-}
-
-TEST_CASE("HD-8: a cell medium's press takes the other branch and lands on the same control") {
-    // A terminal reports a character position and a window reports a pixel; the two go down
-    // different arms of `prose_at` and must name the same control. Driving only the pixel arm
-    // would leave the TUI's own answer unproven.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 0, 0}));
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE_FALSE(body.fit.graphical());
-    const std::int64_t at = prose_row_of_action(body, kActionCreate);
-    REQUIRE(at != kNoProseRow);
-
-    const std::size_t before = t.doc().elements.size();
-    t.press_at(body.region_x + 3,
-               body.region_y + kInfoHeadingRows + at + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    CHECK(t.doc().elements.size() == before + 1);
-    CHECK(t.notice().rfind("created #", 0) == 0);
-}
-
-TEST_CASE("HD-8: the graphical press is not rounded to a Workshop cell") {
-    // A body row is eighteen device pixels against a twelve-pixel cell, so a press resolved
-    // through cells names the wrong row for most of the body -- and the footer, at the very
-    // bottom, is where that error is largest. Asserted at the pixel it presses.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.fit.graphical());
-    const std::int64_t at = prose_row_of_action(body, kActionCreate);
-    const std::int64_t y = body_pixel_y(body, at);
-    const std::int64_t cell_row = y / surface::kCanvasCellPx - body.region_y;
-    CHECK(cell_row != at); // the two genuinely disagree here
-
-    const std::size_t before = t.doc().elements.size();
-    t.press_at(body_pixel_x(body, 3), y, input::space::kPixels);
-    CHECK(t.doc().elements.size() == before + 1);
-}
-
-TEST_CASE("HD-8: the terminal overlay still owns the pointer entirely") {
-    // The first rule of the routing order, re-proven now that a third thing inside the Info
-    // panel wants presses. The overlay is a MODE: it takes every pointer event anywhere.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    const InfoBodyPlace body = body_place(t);
-    const std::int64_t at = prose_row_of_action(body, kActionCreate);
-    t.toggle_terminal();
-    REQUIRE(t.session().terminal.open);
-
-    const std::size_t before = t.doc().elements.size();
-    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
-    CHECK(t.doc().elements.size() == before); // the mode had it; nothing was created
-
-    t.toggle_terminal();
-    const InfoBodyPlace now = body_place(t);
-    t.press_at(body_pixel_x(now, 3),
-               body_pixel_y(now, prose_row_of_action(now, kActionCreate)),
-               input::space::kPixels);
-    CHECK(t.doc().elements.size() == before + 1); // and closing it restores the gesture
-}
-
-TEST_CASE("HD-8: growing the panel gives the lists more room and the footer exactly two rows") {
-    // A control asks for the room it needs. Nothing here stretches, and the spare room a tall
-    // panel has stays spare -- it simply falls between the properties and the footer.
-    std::size_t objects = 0;
-    std::size_t properties = 0;
-    for (const std::int64_t h : std::vector<std::int64_t>{22, 30, 40, 55, 70, 77}) {
-        CAPTURE(h);
-        Sample p = panel_of(20, 0, 80, h, 8, 18);
-        const InfoBodyPlace body = body_of(p.d, p.s);
-        REQUIRE(body.present);
-        CHECK(body.objects_rows >= objects);       // monotonic...
-        CHECK(body.properties_rows >= properties); // ...on both
-        CHECK(static_cast<std::int64_t>(body.capacity) - body.action_row ==
-              static_cast<std::int64_t>(kActionRows)); // ...and the footer never grows
-        objects = body.objects_rows;
-        properties = body.properties_rows;
-    }
-
-    // AND AT THE TALLEST, THE SPARE ROOM IS REAL AND IT IS SPARE.
-    Sample tall = panel_of(2, 0, 240, 77);
-    const InfoBodyPlace body = body_of(tall.d, tall.s);
-    const std::size_t spent = body.objects_rows + 1 + body.properties_rows;
-    REQUIRE(body.capacity > spent + kActionRows + 40);
-    const surface::SurfaceCanvas c = paint(tall.d, tall.s);
-    const surface::SurfaceTextRegion* shown = body_on(c, body);
-    REQUIRE(shown != nullptr);
-    for (std::size_t i = static_cast<std::size_t>(kInfoHeadingRows) + spent;
-         i < static_cast<std::size_t>(kInfoHeadingRows + body.action_row); ++i) {
-        CAPTURE(i);
-        CHECK(shown->rows[i].text.empty());
-    }
-}
-
-TEST_CASE("HD-8: a resize moves the footer and changes no document and no draft") {
-    // The footer is derived from the capacity every paint, so a new extent moves it with no
-    // path of its own -- and a window dragged is still not an edit.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
-    t.key(input::scan::kN);
-    t.begin_editing("Name");
-    t.text("q");
-    const std::string draft = t.row("Name")->draft();
-    const std::string document = persist::to_text(t.doc());
-    const std::int64_t small = body_place(t).action_row;
-
-    t.publish(loom::to_value(surface::SurfaceExtent{140, 60, 8, 18}));
-    const InfoBodyPlace big = body_place(t);
-    CHECK(big.action_row > small); // a taller body puts the footer lower
-    CHECK(big.action_row + static_cast<std::int64_t>(kActionRows) ==
-          static_cast<std::int64_t>(big.capacity));
-    CHECK(t.row("Name")->editing());
-    CHECK(t.row("Name")->draft() == draft);
-    CHECK(persist::to_text(t.doc()) == document);
-}
-
-// ==========================================================================================
-// ATTENTION HAS A PLACE -- the current-condition surface
-// ==========================================================================================
-//
-// The phase's subject is a DISTINCTION, not a feature: Workshop can say a thing that
-// HAPPENED and a thing that is TRUE, and both used to go out through one unowned
-// string with no lifetime. So the cases below are mostly about what does NOT happen -- a
-// condition that does not go stale, a dismissal that does not resolve, a resolution that
-// does not need un-saying, a severity that does not open anything, and a presentation that
-// does not become history.
-//
-// EACH OF THE EIGHT NAMED FALSIFIERS HAS A CASE, and each is written so that the defect it
-// names would turn it red rather than merely leaving it unproven.
 
 TEST_CASE("WUX-4: a healthy Workshop says nothing on the attention slot at all") {
     Live t;
@@ -4311,7 +2219,7 @@ TEST_CASE("WUX-4: a derived condition enters and leaves attention with its subje
     // own state IS the condition, and NOTHING in this case calls a retraction.
     Session s;
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
+    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kPaneEditor}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(panel::kEditor);
     REQUIRE(attention_conditions(s).empty());
@@ -4343,7 +2251,7 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     // authored, resolvable, and nothing of it to look at.
     Session s;
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kInfo}};
+    s.panels.open = {Panel{panel::kEditor}, Panel{panel::kPaneEditor}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(panel::kEditor);
 
@@ -4361,8 +2269,8 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     // then puts an authored-but-unopened pane into a case about a CLOSED one. What the case
     // means is one desk naming Info alone, so it says that.
     Session closed;
-    closed.setup.active = setup_of("Info only", {panel::kInfo});
-    closed.panels.open = {Panel{panel::kInfo}};
+    closed.setup.active = setup_of("Info only", {panel::kPaneEditor});
+    closed.panels.open = {Panel{panel::kPaneEditor}};
     REQUIRE(pane_state_of(closed.panels, closed.setup.active, screen_of(closed),
                           CatalogRow{panel::kEditor, builder, "Editor", ""}) ==
             pane_state::kClosed);
@@ -4848,6 +2756,11 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
 
 TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
     Live t;
+    // TWO PANES, ON A SCREEN THAT SEATS TWO. The first subcase captures a pane and then
+    // pushes THAT pane off the screen, so it needs a second pane to point at -- and both
+    // built-ins are in the stack now, which the minimum screen has one slot of.
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 0, 0}));
+    open_pane(t, ref_of(panel::kPaneEditor));
     open_pane(t, ref_of(panel::kEditor));
 
     SUBCASE("a refused entry establishes nothing") {
@@ -4861,14 +2774,14 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
         // which is the very hazard the captured subject exists for and is a better witness
         // than the one it replaces.
         const ui::Rect side = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
+            bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(side.x + side.w - 1, side.y + 1);
         REQUIRE(t.menu().subject == context_subject::kPane);
-        REQUIRE(t.menu().pane == ref_of(panel::kInfo));
+        REQUIRE(t.menu().pane == ref_of(panel::kPaneEditor));
         // ...and the pane the menu is holding goes off this screen before the key lands.
-        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kPaneEditor),
                                   surface::subs_of_cells(kScreenMaxW),
                                   surface::subs_of_cells(kScreenMaxH))
                     .accepted);
@@ -5027,7 +2940,6 @@ TEST_CASE("CTX-0: navigation backtracks cleanly and every way out closes") {
 
 TEST_CASE("CTX-0: input spent on the open surface does not leak through it") {
     Live t;
-    const std::size_t inspector_before = t.session().cursor;
     t.right_press(40, 0); // the room's menu
     REQUIRE(t.menu().open);
     REQUIRE(t.menu().subject == context_subject::kRoot);
@@ -5036,7 +2948,9 @@ TEST_CASE("CTX-0: input spent on the open surface does not leak through it") {
         t.key(input::scan::kDown);
         t.key(input::scan::kDown);
         CHECK(t.menu().cursor == 2);
-        CHECK(t.session().cursor == inspector_before); // the Inspector did not move
+        // (THE INSPECTOR'S CURSOR USED TO BE ASKED HERE TOO. It is the Info weave's own now, and
+        // the surface's keys cannot reach a pane that does not hold the keyboard -- which is a
+        // stronger statement of the same claim and is the pane's own case.)
         CHECK(t.session().selected == 1);
     }
     SUBCASE("a press outside dismisses, is consumed, and operates nothing") {
@@ -5183,237 +3097,6 @@ TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps 
 
 // ---- WUX-7: the Inspector's draft, and reading past its ellipsis ---------------------------
 
-TEST_CASE("WUX-7: a double-click in a property draft selects the word under it") {
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
-    t.begin_editing("Name");
-    while (!t.row("Name")->draft().empty()) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text("alpha beta gamma");
-    REQUIRE(t.row("Name")->draft() == "alpha beta gamma");
-    const InfoBodyPlace body = body_place(t);
-    const std::int64_t row = editing_prose_row(t, body);
-    const auto press_col = [&](std::int64_t column, std::int64_t mods = input::mod::kNone) {
-        t.press_at(value_pixel_x(body, column), value_pixel_y(body, row),
-                   input::space::kPixels, mods);
-    };
-
-    SUBCASE("the second press selects it; the first still places the caret") {
-        t.clock.together();
-        press_col(7); // inside `beta`, which begins at byte 6
-        CHECK(t.row("Name")->editor().caret() == 7);
-        CHECK_FALSE(t.row("Name")->editor().has_selection());
-        press_col(8);
-        CHECK(t.row("Name")->editor().selected_text() == "beta");
-        // ...and it is the draft's ordinary selection: typing replaces it.
-        t.text("B");
-        CHECK(t.row("Name")->draft() == "alpha B gamma");
-    }
-    SUBCASE("too slow is two presses, and a different word is two presses") {
-        t.clock.apart();
-        press_col(7);
-        press_col(8);
-        CHECK_FALSE(t.row("Name")->editor().has_selection());
-        t.clock.together();
-        press_col(7);
-        press_col(2); // inside `alpha`
-        CHECK_FALSE(t.row("Name")->editor().has_selection());
-    }
-    SUBCASE("a press in one box and a press in another are never one gesture") {
-        // ⚔ MUTATION: an arming that carries no place. The Terminal's line and this draft
-        // hold the same bytes at the same offsets, so only the identity tells them apart.
-        (void)t.mount_terminal();
-        t.clock.together();
-        t.toggle_terminal();
-        const Screen sc = screen_of(t.session());
-        const TerminalInputPlace p = terminal_input_place(sc);
-        for (const char c : std::string("alpha beta gamma")) {
-            t.text(std::string(1, c));
-        }
-        // The inverse of `terminal_input_place`'s own resolution, spelled here because the
-        // pane's press helper belongs to the suite that owns the pane.
-        t.press_at(p.region_x * surface::kCanvasCellPx + p.fit.origin_x +
-                       (kTerminalPromptCols + 7) * p.fit.advance_px + p.fit.advance_px / 2,
-                   p.region_y * surface::kCanvasCellPx + p.fit.origin_y +
-                       p.prose_row * p.fit.line_px + p.fit.line_px / 2,
-                   input::space::kPixels);
-        REQUIRE(t.session().click.place == text_drag_place::kTerminalLine);
-        t.toggle_terminal();
-        press_col(7);
-        CHECK_FALSE(t.row("Name")->editor().has_selection());
-        CHECK(t.pane().input.has_selection() == false);
-    }
-    SUBCASE("a modifier-bearing press keeps its ordinary meaning") {
-        t.clock.together();
-        press_col(7, input::mod::kCtrl);
-        press_col(8, input::mod::kCtrl);
-        CHECK_FALSE(t.row("Name")->editor().has_selection());
-        CHECK(t.row("Name")->editor().caret() == 8);
-    }
-}
-
-TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and nothing else") {
-    // A LONG NON-PATH IDENTITY -- a document object's own name, which is exactly the kind of
-    // value the OBJECTS column has always cut and never been able to show.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
-    const std::string name = "a-considerably-longer-object-name-than-this-column-can-hold";
-    t.begin_editing("Name");
-    while (!t.row("Name")->draft().empty()) {
-        t.key(input::scan::kBackspace);
-    }
-    t.text(name);
-    t.key(input::scan::kReturn);
-    REQUIRE(t.doc().elements.front().label == name);
-
-    const InfoBodyPlace body = body_place(t);
-    REQUIRE(body.present);
-    const std::int64_t first_row = prose_row_of_object(body, 0);
-    REQUIRE(first_row != kNoProseRow);
-    const std::string full = object_row_full(t.doc().elements.front(),
-                                             t.doc().elements.front().id == t.session().selected);
-    REQUIRE(full.size() > static_cast<std::size_t>(body.columns)); // it really is cut
-    const auto row_text = [&](std::int64_t n) {
-        return object_row(t.canvases.back(), t.doc(), t.session(), n);
-    };
-    const auto hover = [&](std::int64_t prose_row, std::int64_t column) {
-        t.motion_canvas(body.region_x + column,
-                        body.region_y + kInfoHeadingRows + prose_row);
-    };
-    const std::string at_rest = row_text(first_row);
-    REQUIRE(at_rest.find(detail::kElided) != std::string::npos);
-
-    SUBCASE("the left edge is the row a maker was already looking at") {
-        // ⚔ MUTATION: an offset that does not start at zero -- the row would jump the
-        // instant a pointer touched it.
-        hover(first_row, 0);
-        CHECK(row_text(first_row) == at_rest);
-        CHECK(t.session().reveal.present());
-        CHECK(t.session().reveal.offset == 0);
-    }
-    SUBCASE("the right edge shows the end of the name, inside the same row") {
-        hover(first_row, body.columns - 1);
-        const std::string revealed = row_text(first_row);
-        CHECK(revealed != at_rest);
-        CHECK(revealed.rfind(detail::kElided, 0) == 0); // marked where the head went
-        CHECK(revealed.find("column-can-hold") != std::string::npos);
-        CHECK(static_cast<std::int64_t>(revealed.size()) <= body.columns);
-        // ...AND NOTHING UNDERNEATH IT MOVED: not the value, not the geometry, not the desk.
-        CHECK(t.doc().elements.front().label == name);
-        CHECK(body_place(t).region_x == body.region_x);
-        CHECK(body_place(t).columns == body.columns);
-    }
-    SUBCASE("leaving the row puts the ordinary presentation back") {
-        hover(first_row, body.columns - 1);
-        REQUIRE(row_text(first_row) != at_rest);
-        t.motion_canvas(kWorkspaceX + 2, kWorkspaceY + 2);
-        CHECK_FALSE(t.session().reveal.present());
-        CHECK(row_text(first_row) == at_rest);
-    }
-    SUBCASE("a row that fits does not move, however long the pointer rests on it") {
-        // ⚔ MUTATION: revealing on length rather than on what the projection omitted.
-        t.key(input::scan::kN); // a second object, called `panel` -- comfortably short
-        const InfoBodyPlace now = body_place(t);
-        const std::int64_t second = prose_row_of_object(now, 1);
-        REQUIRE(second != kNoProseRow);
-        const std::string short_row = object_row(t.canvases.back(), t.doc(), t.session(), second);
-        REQUIRE(short_row.find(detail::kElided) == std::string::npos);
-        for (std::int64_t column = 0; column < now.columns; ++column) {
-            t.motion_canvas(now.region_x + column,
-                            now.region_y + kInfoHeadingRows + second);
-            CAPTURE(column);
-            CHECK(object_row(t.canvases.back(), t.doc(), t.session(), second) == short_row);
-            CHECK_FALSE(t.session().reveal.present());
-        }
-    }
-    SUBCASE("the neighbouring rows, the heading and the blank body are not this row") {
-        // ⚔ MUTATION: approximate row arithmetic. Every prose row of the body except the
-        // one showing this object is swept, and none of them may reveal it.
-        const InfoBodyPlace now = body_place(t);
-        for (std::int64_t row = -kInfoHeadingRows; row < static_cast<std::int64_t>(now.capacity);
-             ++row) {
-            if (row == first_row) {
-                continue;
-            }
-            CAPTURE(row);
-            hover(row, now.columns - 1);
-            CHECK(row_text(first_row) == at_rest);
-            CHECK(t.session().reveal.place != reveal_place::kInfoObject);
-        }
-    }
-    SUBCASE("a pane drawn OVER the panel owns those cells, and the row underneath is still") {
-        // ⚔ MUTATION: resolving the hover from the panel's own bounds without asking the
-        // occupancy walk first -- a maker pointing at the Builder would scroll a row
-        // underneath it that they cannot even see.
-        open_pane(t, ref_of(panel::kEditor));
-        const Screen sc = screen_of(t.session());
-        const ui::Rect side = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kEditor),
-                                  surface::subs_of_cells(side.x),
-                                  surface::subs_of_cells(side.y))
-                    .accepted);
-        t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
-        const InfoBodyPlace covered = body_place(t);
-        const std::int64_t row = prose_row_of_object(covered, 0);
-        REQUIRE(row != kNoProseRow);
-        const std::int64_t cx = covered.region_x + covered.columns - 1;
-        const std::int64_t cy = covered.region_y + kInfoHeadingRows + row;
-        REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
-                            cx, cy)
-                    .kind == panel::kEditor);
-        t.motion_canvas(cx, cy);
-        CHECK(t.session().reveal.place != reveal_place::kInfoObject);
-    }
-    SUBCASE("hover is never authorship: no press, no draft, no rebuild, no notice") {
-        const std::string said = t.notice();
-        const std::string desk = setup_persist::to_text(t.session().setup.active);
-        const std::size_t cursor = t.session().cursor;
-        const std::int64_t chosen = t.session().selected;
-        for (std::int64_t column = 0; column < body.columns; ++column) {
-            hover(first_row, column);
-        }
-        CHECK(t.notice() == said);
-        CHECK(setup_persist::to_text(t.session().setup.active) == desk);
-        CHECK(t.session().cursor == cursor);
-        CHECK(t.session().selected == chosen);
-        CHECK(t.doc().elements.front().label == name);
-        CHECK_FALSE(t.row("Name")->editing());
-    }
-}
-
-// ============================================================================
-// ---- WUX-9: several layouts in one running Workshop ------------------------
-//
-// The live half: the four gestures, the switch transaction through `apply_setup`, the
-// pointer's own door on the band, and the Workshop-global facts a switch may not touch.
-
-namespace {
-
-/// The names of the layouts this Workshop is holding, in the maker's order.
-std::vector<std::string> layout_names(const Live& t) {
-    std::vector<std::string> out;
-    for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
-        out.push_back(layout_at(t.session().setup, i).name);
-    }
-    return out;
-}
-
-/// The canvas cell a painted tab's first byte sits on, for a press.
-std::int64_t tab_cell(const Live& t, std::size_t at) {
-    const Screen sc = screen_of(t.session());
-    const BandStatus row = band_status(t.session(), sc);
-    for (const LayoutTab& tab : row.tabs) {
-        if (tab.at == at) {
-            return top_band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
-        }
-    }
-    return -1;
-}
-
-} // namespace
-
 TEST_CASE("WUX-9/SC-10: four ordinary command-mode actions reach the layout shelf") {
     Live t;
     const LayoutKeys k = layout_keys(t);
@@ -5460,11 +3143,42 @@ TEST_CASE("WUX-9/SC-10: four ordinary command-mode actions reach the layout shel
     CHECK(t.notice().find("removed layout") == 0);
 }
 
+namespace {
+
+// ⭐ RESTORED AFTER THE INFO PANEL'S CASES LEFT: these two read the LAYOUT run and are about
+// the tab run rather than about any panel.
+/// The names of the layouts this Workshop is holding, in the maker's order.
+std::vector<std::string> layout_names(const Live& t) {
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
+        out.push_back(layout_at(t.session().setup, i).name);
+    }
+    return out;
+}
+
+/// The canvas cell a painted tab's first byte sits on, for a press.
+std::int64_t tab_cell(const Live& t, std::size_t at) {
+    const Screen sc = screen_of(t.session());
+    const BandStatus row = band_status(t.session(), sc);
+    for (const LayoutTab& tab : row.tabs) {
+        if (tab.at == at) {
+            return top_band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
 TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as authored") {
     Live t;
     const LayoutKeys k = layout_keys(t);
-    // LAYOUT ONE: Info alone, moved somewhere a maker chose.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+    // LAYOUT ONE: the Pane Manager alone, moved somewhere a maker chose. It was Info, which
+    // a fresh desk had open; Info is a weave and arrives with its office, so a layout that
+    // needs a pane on it opens one.
+    pick(t, panel::kPaneEditor);
+    REQUIRE(t.session().panels.has(panel::kPaneEditor));
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kPaneEditor),
                               surface::subs_of_cells(3), surface::subs_of_cells(4))
                 .accepted);
     const Setup first = t.session().setup.active;
@@ -5484,7 +3198,7 @@ TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as 
         CAPTURE(round);
         press_gesture(t, k.previous);
         CHECK(t.session().setup.active == first);
-        CHECK(t.session().panels.has(panel::kInfo));
+        CHECK(t.session().panels.has(panel::kPaneEditor));
         CHECK_FALSE(t.session().panels.has(panel::kEditor));
         press_gesture(t, k.next);
         CHECK(t.session().setup.active == second);
@@ -5949,10 +3663,10 @@ TEST_CASE("WUX-11/SC-8: at the minimum width the `+` yields to the tab and the s
             CAPTURE(count);
             CAPTURE(len);
             Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-            s.setup.active = setup_of(std::string(len, 'z'), {panel::kInfo});
+            s.setup.active = setup_of(std::string(len, 'z'), {panel::kPaneEditor});
             for (std::size_t more = 1; more < count; ++more) {
                 s.setup.shelved.push_back(Layout{
-                    setup_of(std::string(len, static_cast<char>('a' + more)), {panel::kInfo}),
+                    setup_of(std::string(len, static_cast<char>('a' + more)), {panel::kPaneEditor}),
                     SetupLink{}});
             }
             s.setup.active_link =
@@ -6245,7 +3959,11 @@ TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, the
     CHECK(editor_value(t, "Y") == "-");
     CHECK(editor_value(t, "Width") == "-");
     CHECK(editor_value(t, "Height") == "-");
-    CHECK(editor_value(t, "Front").find("f1 of 3") == 0);
+    // ⭐ `f0`, NOT `f1`. Layouts is the FIRST row `default_setup` authors now -- the Info
+    // row that used to precede it is a weave the desk names after it -- so it is back-most
+    // rather than one up from it. The count is still three: the two the desk boots with and
+    // the Pane Manager this case opened.
+    CHECK(editor_value(t, "Front").find("f0 of 3") == 0);
     CHECK(editor_value(t, "Open").find("yes") == 0);
     // RESOLVED: the rectangle the pane path answers RIGHT NOW, in the face's unit.
     CHECK(rows[11].section());
@@ -6824,17 +4542,18 @@ TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and des
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
 
     // THE PICKER: a mode above every pane. Select a pane that takes no keys so `p` still
-    // reaches command mode.
+    // reaches command mode -- the Layouts band, which the catalog says does not take the
+    // keyboard. It was Info, which took none either and is not on this desk.
     const Screen sc = screen_of(t.session());
-    const ui::Rect info =
-        cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-    t.press_canvas(info.x + 1, info.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kInfo);
+    const ui::Rect band = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc).rect);
+    t.press_canvas(band.x + 1, band.y);
+    REQUIRE(t.session().panels.selected == panel::kLayouts);
     t.key(input::scan::kP);
     REQUIRE(t.session().panels.picker.open);
     t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().panels.picker.open);      // `picker.close` answered...
-    CHECK(t.session().panels.selected == panel::kInfo); // ...and the selection stood
+    CHECK_FALSE(t.session().panels.picker.open);          // `picker.close` answered...
+    CHECK(t.session().panels.selected == panel::kLayouts); // ...and the selection stood
     t.key(input::scan::kEscape);
     CHECK(t.session().panels.selected == kNoPaneKind); // the next Escape sheds it
 
@@ -6854,13 +4573,13 @@ TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and des
     CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
 
     // THE HOTKEY VIEW, keys-modal above everything: Escape closes it and nothing else.
-    t.press_canvas(info.x + 1, info.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kInfo);
+    t.press_canvas(band.x + 1, band.y);
+    REQUIRE(t.session().panels.selected == panel::kLayouts);
     t.key(input::scan::kK, input::mod::kCtrl);
     REQUIRE(t.session().hotkeys.open);
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().hotkeys.open);
-    CHECK(t.session().panels.selected == panel::kInfo);
+    CHECK(t.session().panels.selected == panel::kLayouts);
 }
 
 TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none") {

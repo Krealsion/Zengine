@@ -547,68 +547,25 @@ inline void link_live_setup(SetupState& s, std::string path) {
     s.active_link = SetupLink{std::move(path), s.active};
 }
 
-/// THE INFO PANEL'S BODY, resolved the way the painter resolves it — through `bounds_of` and
-/// `info_body_place`, never through a second arithmetic (HD-6, widened by HD-7). A case that
-/// computed the rectangle or the row of a heading for itself would pass while the picture and
-/// the hit test disagreed.
-inline InfoBodyPlace body_of(const WorkshopDoc& d, const Session& s) {
-    const Screen sc = screen_of(s);
-    return info_body_place(bounds_of(s.panels, s.setup.active, panel::kInfo, sc).rect, sc, d, s);
+/// ONE OBJECT ROW OF THE PICTURE THE HOST PUBLISHES, spelled the way the built-in's own row
+/// read -- the selection mark, the identity and the authored name. It is composed HERE rather
+/// than read off a canvas, because the composition is the Info weave's and what this host owns
+/// is the picture (`DocumentShown`): a case about the DOCUMENT asks what the host said, and a
+/// case about the ROW asks the pane.
+inline std::string shown_object(const WorkshopDoc& d, const Session& s, std::size_t at) {
+    const DocumentShown shown = document_shown(d, s);
+    REQUIRE(at < shown.objects.size());
+    const ShownObject& o = shown.objects[at];
+    return std::string(o.identity == shown.selected ? "> " : "  ") + "#" +
+           std::to_string(o.identity) + " " + o.name;
 }
 
-/// The body region a canvas actually published, or nullptr.
-inline const surface::SurfaceTextRegion* body_on(const surface::SurfaceCanvas& c,
-                                                 const InfoBodyPlace& p) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == p.region_x && r.y == p.region_y) {
-                return &r;
-            }
-        }
-    }
-    return nullptr;
-}
-
-/// ONE OBJECT ROW OF THE BODY, as a maker reads it in a CELL medium (HD-7).
-///
-/// A prose row of the body is a cell row when the medium has no type, so this is the same
-/// arithmetic `project_text_regions` performs and no second copy of it.
-inline std::string object_row(const surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                              std::int64_t n) {
-    const InfoBodyPlace p = body_of(d, s);
-    return inspector_row(c, p.region_x, p.region_y + kInfoHeadingRows + n);
-}
-
-/// ONE PROPERTY ROW OF THE BODY, and the row `PROPERTIES` itself sits on (HD-7).
-///
-/// RESOLVED, NEVER ADDED TO A CONSTANT. `kRowsY = 8` used to be the property body's first row
-/// and these cases used to say `kRowsY + n`; the heading now moves with the object list above
-/// it, so a case that kept a constant would be asserting about a row nobody drew.
-inline std::string property_row(const surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                                std::int64_t n) {
-    const InfoBodyPlace p = body_of(d, s);
-    return inspector_row(c, p.region_x,
-                         p.region_y + kInfoHeadingRows + p.heading_row + 1 + n);
-}
-
-inline std::string properties_heading(const surface::SurfaceCanvas& c, const WorkshopDoc& d,
-                                      const Session& s) {
-    const InfoBodyPlace p = body_of(d, s);
-    return inspector_row(c, p.region_x, p.region_y + kInfoHeadingRows + p.heading_row);
-}
-
-/// The OBJECTS list exactly as a maker reads it: every row of its share of the body, in
-/// order, including the ones that are empty.
-inline std::vector<std::string> object_lines(const surface::SurfaceCanvas& c, const WorkshopDoc& d,
-                                             const Session& s) {
-    const InfoBodyPlace p = body_of(d, s);
-    std::vector<std::string> lines;
-    for (std::size_t i = 0; i < p.objects_rows; ++i) {
-        lines.push_back(inspector_row(c, p.region_x, p.region_y + kInfoHeadingRows +
-                                                         static_cast<std::int64_t>(i)));
-    }
-    return lines;
-}
+// ⭐ THE INFO PANEL'S TEST HELPERS LEFT WITH THE PANEL. `body_of`, `body_on`, `object_row`,
+// `property_row`, `properties_heading` and `object_lines` all resolved the panel's body through
+// `info_body_place` so that a case read the same composition the painter drew. There is no such
+// composition in this host: the Info pane is a weave, its rows cross as `PaneContent`, and a
+// case that wants to read them reads the pane's published rows the way every other pane's cases
+// do (`external_rows`, below).
 
 inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
@@ -1079,88 +1036,17 @@ struct Live {
         return nullptr;
     }
 
-    /// Put the cursor on a named row and open it for editing, by keys only.
-    void begin_editing(const std::string& label) {
-        for (int guard = 0; guard < 32; ++guard) {
-            const Session& s = session();
-            REQUIRE(s.cursor < s.rows.size());
-            if (s.rows[s.cursor].label() == label) {
-                key(input::scan::kReturn);
-                return;
-            }
-            key(input::scan::kDown);
-        }
-        FAIL("no inspector row labelled ", label);
-    }
+    // ⭐ `begin_editing` LEFT WITH THE INFO PANEL'S KEYS. It walked the host's inspector cursor
+    // to a named row with `down` and opened a draft with `enter` -- three command-mode rows
+    // that are the Info weave's own now (VD-22). A case that wants a draft presses into the
+    // pane and spends the pane's keys, which is what the pane's seam cases do.
 };
 
-/// The index of the inspector row a session is editing, or `rows.size()` when none is.
-inline std::size_t editing_index(const Live& t) {
-    const Session& s = t.session();
-    for (std::size_t i = 0; i < s.rows.size(); ++i) {
-        if (s.rows[i].editing()) {
-            return i;
-        }
-    }
-    return s.rows.size();
-}
-
-/// THE INSPECTOR'S PROPERTY BODY, resolved the way the painter resolves it — through
-/// `bounds_of` and `info_body_place`, never through a second arithmetic. A case that
-/// computed the rectangle for itself would pass while the picture and the hit test disagreed.
-inline InfoBodyPlace body_place(const Live& t) {
-    const Screen sc = screen_of(t.session());
-    return info_body_place(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect, sc, t.doc(),
-                           t.session());
-}
-
-/// What the last canvas actually published for that body, or nullptr if it published none.
-inline const surface::SurfaceTextRegion* body_region(const surface::SurfaceCanvas& c,
-                                                     const InfoBodyPlace& p) {
-    // OVER THE PLANES THEMSELVES, never over `all_texts` -- that returns a VALUE and a
-    // pointer into it would dangle at the end of this expression (WIND-2a).
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == p.region_x && r.y == p.region_y) {
-                return &r;
-            }
-        }
-    }
-    return nullptr;
-}
-
-/// The prose row of the body the editing property is drawn on. `kNoProseRow` when none is.
-inline std::int64_t editing_prose_row(const Live& t, const InfoBodyPlace& p) {
-    return prose_row_of_property(p, editing_index(t));
-}
-
-/// The window pixel a graphical medium, and the terminal cell a character medium, would
-/// report for a VALUE column of a body row. The inverse of what `prose_at` does with them,
-/// and it goes through the same `RegionFit` — a helper that assumed cells would pass on the
-/// TUI lane and lie on the SDL one.
-inline std::int64_t body_pixel_x(const InfoBodyPlace& p, std::int64_t column) {
-    if (!p.fit.graphical()) {
-        return (p.region_x + column) * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
-    }
-    return p.region_x * surface::kCanvasCellPx + p.fit.origin_x + column * p.fit.advance_px +
-           p.fit.advance_px / 2;
-}
-inline std::int64_t body_pixel_y(const InfoBodyPlace& p, std::int64_t prose_row) {
-    // A BODY row sits under the `OBJECTS` heading inside the panel's one region (WUX-1),
-    // so the region row a pixel resolves to is the body row plus the heading's reservation.
-    const std::int64_t region_row = kInfoHeadingRows + prose_row;
-    if (!p.fit.graphical()) {
-        return (p.region_y + region_row) * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
-    }
-    return p.region_y * surface::kCanvasCellPx + p.fit.origin_y + region_row * p.fit.line_px +
-           p.fit.line_px / 2;
-}
-inline std::int64_t value_pixel_x(const InfoBodyPlace& p, std::int64_t value_column) {
-    return body_pixel_x(p, kPropertyMarkCols + kPropertyLabelCols + value_column);
-}
-inline std::int64_t value_pixel_y(const InfoBodyPlace& p, std::int64_t prose_row) {
-    return body_pixel_y(p, prose_row);
-}
+// ⭐ AND SO DID THE LIVE RIG'S HALF OF THEM. `editing_index`, `body_place`, `editing_prose_row`
+// and the four pixel helpers resolved a press position inside the Info panel's body -- a
+// composition this host no longer makes. A case that wants to press into the Info pane presses
+// into a PANE, at the pane's own prose row and column, which is `PanePressed`'s business and is
+// exercised by the pane's own seam cases.
 
 /// A long value that cannot fit an Inspector row at any extent this composition has.
 inline const std::string kLongValue = "the quick brown fox jumps over the lazy dog";
@@ -1512,10 +1398,18 @@ inline bool first_slot_shows_editor(Live& t) {
            label_at(t.canvases.back(), cells.x, cells.y).find("Editor") != std::string::npos;
 }
 
-/// Everything the Info panel is showing, top to bottom -- through the same path,
-/// asked about the other place.
-inline std::string info_text(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return panel_text(c, pane_body_cells(placement_bounds(placement::kSideRegion, 0, sc)));
+/// EVERYTHING A PANEL IS SHOWING, top to bottom, ASKED BY KIND. It replaces `info_text`,
+/// which read `placement::kSideRegion` at a fixed rectangle -- right while exactly one kind
+/// was placed there and wrong the moment none was. A case that wants a panel's rows asks
+/// the placement path where that panel IS, the way the painter did, so no case can agree
+/// with the screen by both of them holding the same constant.
+inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s,
+                               std::int64_t kind) {
+    const PanelBounds at = bounds_of(s.panels, s.setup.active, kind, screen_of(s));
+    if (!at.open) {
+        return {}; // a closed panel says nothing, which is the answer a case wants
+    }
+    return panel_text(c, pane_body_cells(at.rect, screen_of(s)));
 }
 
 /// WHAT THE TERMINAL OVERLAY IS SAYING, at its own rectangle. It is a MODE and not a pane,
@@ -1584,6 +1478,14 @@ inline const Panels& no_providers() {
 /// why it is one). Every case below reconciles at most one stacked panel, so
 /// this is the capacity they were all written under.
 inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
+
+/// A ROOM WITH TWO STACK SLOTS, which is what a case naming two overlay panes needs.
+///
+/// ⭐ IT USED TO BE UNNECESSARY. Workshop had two built-ins in two DIFFERENT places -- Info at
+/// the right column and one overlay pane -- so a case could name two panes and seat both at the
+/// minimum screen. Info is a weave, so the two built-ins that remain are an overlay pane and the
+/// top band's, and a case that wants two overlays has to say which screen it is on.
+inline StackCapacity two_slot_room() { return stack_capacity(screen_of(120, 44)); }
 
 /// A setup, spelled the way a case reads: a name and the kinds it means.
 inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
@@ -2707,6 +2609,9 @@ struct PaneRig {
         if (stem == "zengine-attention-pane") {
             return WORKSHOP_SO_ATTENTION_PANE;
         }
+        if (stem == "zengine-info-pane") {
+            return WORKSHOP_SO_INFO_PANE;
+        }
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 
@@ -2883,14 +2788,24 @@ inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
     return ui::Rect{body.region_x, body.region_y, body.region_w, body.region_h};
 }
 
-/// The setup a WIND-2 case starts from: two overlay panes and the side region, at a screen
-/// with room for two stack slots. Built through the doors, so the ranks are the identity
-/// permutation `add_pane` assigns.
+/// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it. It is a weave's
+/// name now (`Zengine/info-pane/vocabulary.hpp`), so it cannot be `ref_of(panel::kInfo)`; the
+/// literal is checked against the weave's own constant by a case in the panes suite, which is
+/// where a divergence would be caught.
+inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
+
+/// The setup a WIND-2 case starts from: two overlay panes, at a screen with room for two stack
+/// slots. Built through the doors, so the ranks are the identity permutation `add_pane` assigns.
+///
+/// ⭐ IT WAS THE EDITOR AND INFO, and Info is a weave now: a setup row naming it resolves to
+/// nothing unless a provider is in the room, which would turn every case built on this into a
+/// case about an unresolved row. The Pane Manager is the second built-in this host still
+/// compiles, and the name this helper always had is what it now is.
 inline Setup two_overlays() {
     Setup s;
     s.name = "Arranged";
     REQUIRE(add_pane(s, ref_of(panel::kEditor)));
-    REQUIRE(add_pane(s, ref_of(panel::kInfo)));
+    REQUIRE(add_pane(s, ref_of(panel::kPaneEditor)));
     return s;
 }
 
@@ -3020,6 +2935,32 @@ inline void open_pane(Live& t, const PaneRef& ref) {
     REQUIRE(t.session().panels.picker.cursor == want);
     t.key(input::scan::kReturn);
     REQUIRE(has_pane(t.session().setup.active, ref));
+}
+
+/// OPEN A PANE AND PUT IT AT THE RIGHT COLUMN -- the desk row `default_setup` ships for the
+/// Info weave, spelled by hand so a case can have a pane in that place without an office
+/// behind it.
+///
+/// WHY IT IS WRITTEN AND NOT GESTURED. `pane_unit::kRightColumn` is a PLACE MODE rather than
+/// a coordinate: no arrow produces it, because no pair of numbers can mean "the right edge,
+/// the room's full height" on a screen the desk does not know. A setup file spelling
+/// `right-column` produces exactly this row, and so does `default_setup`.
+///
+/// A great many cases in this suite were written when INFO stood here as a built-in. What
+/// they are about -- a pane at the screen's right edge, as tall as the room, overlapping the
+/// stack at the wider extents -- is still a real place with a real occupant; it is a weave's
+/// now, and a host-side case reaches it by authoring the row rather than by loading an image.
+inline void open_at_right_column(Live& t, std::int64_t kind) {
+    pick(t, kind);
+    REQUIRE(t.session().panels.has(kind));
+    for (SetupPane& row : live(t).setup.active.panes) {
+        if (row.ref == pane_ref_of(kind)) {
+            row.place.mode = pane_unit::kRightColumn;
+        }
+    }
+    REQUIRE(bounds_of(t.session().panels, t.session().setup.active, kind,
+                      screen_of(t.session()))
+                .placed_in == placement::kSideRegion);
 }
 
 /// Put the desk's keyboard address on a setup-named pane, by the key a maker presses.

@@ -751,9 +751,13 @@ TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's nam
             CHECK(pane_state_of(s.panels, s.setup.active, sc, row) == pane_state::kUnresolved);
         }
     }
+    // TWO ROWS WAIT, AND ONLY ONE OF THEM IS THIS CASE'S. The other is the desk's Info
+    // weave, which no office in this rig offers -- every layout here carries it, so a bare
+    // count would be a claim about the rig's load plan rather than about the maker pane.
     const std::vector<PaneRef> waiting = unresolved_panes(s.setup.active, s.panels);
-    REQUIRE(waiting.size() == 1);
-    CHECK(waiting[0] == kMine);
+    REQUIRE(waiting.size() == 2);
+    CHECK(waiting[0] == info_ref());
+    CHECK(waiting[1] == kMine);
     // A REFERENCE WITH THE NAMESPACE AND ANY OTHER NAME RESOLVES TO NOTHING.
     CHECK_FALSE(resolve_pane(maker_pane_ref("other"), s.panels).has_value());
     CHECK_FALSE(resolve_pane(PaneRef{kMakerPaneProvider, ""}, s.panels).has_value());
@@ -1306,12 +1310,15 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
     CHECK_FALSE(gone.session().panels.maker.open());
     REQUIRE(has_pane(gone.session().setup.active, kMine));
     CHECK_FALSE(gone.session().panels.has(kMakerPaneKind));
+    // TWO ROWS WAIT: this case's pane, and the desk's Info weave, which no office in this
+    // rig offers. The band says so with the count it actually has.
     const std::vector<PaneRef> waiting =
         unresolved_panes(gone.session().setup.active, gone.session().panels);
-    REQUIRE(waiting.size() == 1);
-    CHECK(waiting[0] == kMine);
+    REQUIRE(waiting.size() == 2);
+    CHECK(waiting[0] == info_ref());
+    CHECK(waiting[1] == kMine);
     CHECK(setup_rest_text(gone.session().setup, gone.session().panels, gone.session().keymap)
-              .find("1 unresolved") != std::string::npos);
+              .find("2 unresolved") != std::string::npos);
     // ...AND LEAVING WRITES THE ROW BACK UNCHANGED.
     gone.press(90, 35);
     gone.key(input::scan::kQ);
@@ -1437,7 +1444,10 @@ TEST_CASE("WUX-14/SC-19: a run with no maker pane is the run it always was") {
     CHECK_FALSE(s.panels.maker.open());
     CHECK_FALSE(s.panels.maker.dirty());
     CHECK(combined_catalog(s.panels).size() == kPanelKinds);
-    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds);
+    // THE INVENTORY IS ONE LONGER THAN THE CATALOG, and the extra row is not a maker pane:
+    // it is the desk's Info weave, authored by `default_setup` and offered by nobody here.
+    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 1);
+    CHECK(has_pane(s.setup.active, info_ref()));
     CHECK_FALSE(resolve_pane(kMine, s.panels).has_value());
     CHECK(kind_name(s.panels, kMakerPaneKind).empty());
     // THE QUIT IS UNGUARDED BY A PANE NOBODY MADE.
