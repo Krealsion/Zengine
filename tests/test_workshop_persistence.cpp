@@ -6616,6 +6616,64 @@ TEST_CASE("PANE-MIG: the maker is told once, in the pane's own durable names") {
     CHECK(pane_row(t.session().setup.active, new_files_ref()) != kNoPaneRow);
 }
 
+TEST_CASE("PANE-MIG: Info's PLACE moves with its office, and an authored one does not") {
+    // ⭐ THE CLAIM THE TABLE EXISTS FOR. `pane_migration.hpp` was two pairs and is a table
+    // because a THIRD retired reference arrived that says something a pair cannot: Info's
+    // place moved with its office. A saved desk wrote `zengine.workshop/info` with a
+    // `default` place, and `default` meant the right column then because the CATALOG put it
+    // there. This build's catalog puts nothing there, so a conversion that moved only the
+    // office would drop a maker's Info into the overlay stack, on top of their material.
+    //
+    // AND THE OTHER HALF IS THE HALF THAT MAKES IT SAFE: a row whose place the maker
+    // AUTHORED is left exactly as they authored it. The rule is one line -- write the place
+    // only over a `kDefault` -- and both directions are asserted here, in one file, so a
+    // repair to either cannot pass by moving the other.
+    Setup desk;
+    desk.name = "Yesterday";
+    REQUIRE(add_pane(desk, PaneRef{"zengine.workshop", "info"}));
+    REQUIRE(add_pane(desk, PaneRef{"zengine.workshop", "layouts"}));
+    // A SECOND INFO-ERA ROW, MOVED BY HAND. It is the Builder, because a desk cannot hold
+    // two rows with one reference and the Builder's conversion is the neighbouring pair.
+    REQUIRE(add_pane(desk, PaneRef{"zengine.workshop", "builder"}));
+    const std::size_t built = pane_row(desk, PaneRef{"zengine.workshop", "builder"});
+    REQUIRE(built != kNoPaneRow);
+    desk.panes[built].place = PanePlace{pane_unit::kSubcells, 96, 32};
+
+    Setup live = desk;
+    const pane_migration::Converted moved = pane_migration::convert_retired_panes(live);
+    CHECK(moved.total() == 2);
+
+    // THE OFFICE MOVED...
+    const std::size_t info_at = pane_row(live, info_ref());
+    REQUIRE(info_at != kNoPaneRow);
+    CHECK(pane_row(live, PaneRef{"zengine.workshop", "info"}) == kNoPaneRow);
+    // ...AND THE PLACE CAME WITH IT, by NAME and carrying no coordinates.
+    CHECK(live.panes[info_at].place.mode == pane_unit::kRightColumn);
+    CHECK(live.panes[info_at].place.x == 0);
+    CHECK(live.panes[info_at].place.y == 0);
+    // ...and the resulting desk is one this host would accept from a file.
+    CHECK(check_setup(live).accepted);
+
+    // THE AUTHORED ROW KEPT ITS OWN COORDINATES, office moved and place untouched.
+    const std::size_t builder_at = pane_row(live, PaneRef{"zengine.builder-pane", "builder"});
+    REQUIRE(builder_at != kNoPaneRow);
+    CHECK(live.panes[builder_at].place.mode == pane_unit::kSubcells);
+    CHECK(live.panes[builder_at].place.x == 96);
+    CHECK(live.panes[builder_at].place.y == 32);
+
+    // AND AN INFO ROW THE MAKER HAD ALREADY MOVED IS LEFT WHERE THEY PUT IT.
+    Setup authored = desk;
+    const std::size_t was = pane_row(authored, PaneRef{"zengine.workshop", "info"});
+    REQUIRE(was != kNoPaneRow);
+    authored.panes[was].place = PanePlace{pane_unit::kSubcells, 12, 8};
+    (void)pane_migration::convert_retired_panes(authored);
+    const std::size_t now = pane_row(authored, info_ref());
+    REQUIRE(now != kNoPaneRow);
+    CHECK(authored.panes[now].place.mode == pane_unit::kSubcells);
+    CHECK(authored.panes[now].place.x == 12);
+    CHECK(authored.panes[now].place.y == 8);
+}
+
 TEST_CASE("PANE-MIG: a session with nothing to convert says nothing about it") {
     TempDir dir("pane-mig-quiet");
     const std::string path = dir.file("session.json");
