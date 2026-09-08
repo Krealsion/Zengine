@@ -84,6 +84,22 @@ inline constexpr std::int64_t kSubcells = 1;
 /// DEVICE PIXELS, declared from the beginning and currently unprojectable.
 // WL-SETUP-06 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = 2;
+/// THE RIGHT COLUMN, NAMED -- a PLACE a desk asks for, carrying no coordinates.
+///
+/// WHY A PLACE BELONGS IN A FIELD CALLED A UNIT. `kDefault` is already one: it does not say
+/// what unit x and y are in, it says "I gave no coordinates -- put this pane where its place
+/// puts it". This is the second such answer and the first that NAMES the place, and the two
+/// coordinate modes are the odd ones out rather than this. A separate field would have said
+/// the same thing twice, and would have had to answer what a named place plus coordinates
+/// means.
+///
+/// WHY A DESK NEEDS IT AT ALL. A setup row's coordinates are absolute (`check_pane_place_coord`
+/// refuses a negative) and its sizes are amounts, so no row of absolute numbers can say "the
+/// right edge, the workspace's full height" on a screen whose extent it does not know. That
+/// sentence was only ever sayable by the SCREEN, which is what made the right column the
+/// screen's and not the maker's. It is sayable by a desk now.
+// WL-SETUP-03 -- agents/workshop/setup-file.md
+inline constexpr std::int64_t kRightColumn = 3;
 } // namespace pane_unit
 
 /// THE AUTHORED LATTICE'S WALLS, in sub-units: the same cell bounds the setup
@@ -95,7 +111,8 @@ inline constexpr std::int64_t kPaneSubMax = doc::kMaxCells * surface::kCellSubs;
 /// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kSubcells`; never `kPixels`
+    /// `kDefault`, `kSubcells` or `kRightColumn`; never `kPixels`
+    std::int64_t mode = pane_unit::kDefault;
     std::int64_t x = 0;
     std::int64_t y = 0;
 
@@ -392,7 +409,8 @@ inline Written check_pane_place_coord(std::int64_t v) {
     return Written::ok();
 }
 
-/// A PLACE: default with nothing said, or an absolute position on the fine lattice.
+/// A PLACE: default with nothing said, a named place, or an absolute position on the fine
+/// lattice.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -400,8 +418,17 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
+    // A NAMED PLACE CARRIES NO COORDINATES EITHER, and is refused for carrying them for
+    // `kDefault`'s reason exactly: a row that says both "the right column" and "column 7" has
+    // said two things, and a reader picking one of them would be choosing for the maker.
+    if (p.mode == pane_unit::kRightColumn) {
+        if (p.x != 0 || p.y != 0) {
+            return Written::no("a named pane place carries no coordinates");
+        }
+        return Written::ok();
+    }
     if (p.mode != pane_unit::kSubcells) {
-        return Written::no("a pane place is either default or subcells");
+        return Written::no("a pane place is default, right-column or subcells");
     }
     const Written x = check_pane_place_coord(p.x);
     if (!x.accepted) {
@@ -1072,6 +1099,23 @@ inline Setup default_setup() {
     s.panes.reserve(kDefaultPanelCount);
     for (const std::int64_t kind : kDefaultPanels) {
         (void)add_pane(s, pane_ref_of(kind));
+    }
+    // AND THE SHIPPED DESK IS WHAT OPENS INFO AT THE RIGHT EDGE. The screen used to do it by
+    // reserving the column; it reserves nothing now, so the sentence has to be said by
+    // somebody, and a DESK is the right somebody: it is the maker's own artifact, it round-
+    // trips through `workshop-setup.json` in words they can read, and moving Info out of the
+    // column is now an ordinary edit to it rather than an argument with the screen.
+    //
+    // ⚠ THE CATALOG ROW STILL SAYS IT TOO (`kPanelCatalog`, `panel::kInfo` at
+    // `placement::kSideRegion`), and that duplication is deliberate and dated. Dropping the
+    // catalog's answer in this change would move every desk a maker has already saved -- their
+    // Info row says `default`, and `default` would start meaning the overlay stack. The row
+    // retires with Info's migration to a weave, where `pane_migration` is already rewriting
+    // those saved rows and can carry the place across in the same step.
+    for (SetupPane& row : s.panes) {
+        if (resolve_builtin_pane(row.ref) == panel::kInfo) {
+            row.place.mode = pane_unit::kRightColumn;
+        }
     }
     return s;
 }

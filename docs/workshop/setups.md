@@ -86,9 +86,14 @@ the desk at all. Take it off a layout and that layout simply has no tab run in i
 below still reach every layout, and the picker puts it back where it started.
 
 **Removing it does not give the space to your document.** The two rows at the top of Workshop
-are reserved whether or not anything stands on them — exactly as the column beside your
-workspace stays reserved when you remove Info — so a `%`-sized object is the size it was
+are reserved whether or not anything stands on them, so a `%`-sized object is the size it was
 whatever you do with the selector. Moving it away leaves those rows empty on purpose.
+
+The column at the right-hand edge is a different case, and used to be the same one: it was
+reserved too, and removing `Info` left it empty. It is an ordinary place now. Your workspace
+runs underneath it at full width, `Info` stands on that room the way a stacked panel stands on
+it, and taking `Info` off the desk gives you the thirty columns to reach rather than thirty
+columns of nothing.
 
 | gesture | does |
 |---|---|

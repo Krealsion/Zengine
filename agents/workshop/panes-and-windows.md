@@ -5,22 +5,25 @@ over, and the seven states. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). What crosses the pane seam is the protocol's law, in
 [`../panes.md`](../panes.md); this register holds Workshop's side only.
 
-## WL-PANE-01 — Three places, and only one of them is the screen's
+## WL-PANE-01 — Three places, and every one of them is the maker's
 
-LAW — Three places: the side region is the screen's, place-fixed with no override; the overlay stack and the top band are the maker's. One predicate is that exclusion, and every consumer asks it.
+LAW — Three places: the right column, the overlay stack and the top band. Each is a named rectangle a pane resolves into, none is reserved out of the room, and an authored override is spent in all three.
 
 MEANS
-- `project_pane`'s gate, `take_pane_hold` and `paint_pane_affordances` spend one sentence;
-- `kinds_placed_in` pins the side region and the top band at one kind each, at compile time.
+- `project_pane` lays an override over whatever rectangle a place answered, for every place;
+- `kinds_placed_in` pins the right column and the top band at one catalog DEFAULT each.
 
-PROVEN BY — `workshop/panel.hpp` `place_is_authorable`, `kSideRegion`, `kOverlayStack`,
+DOES NOT MEAN
+- that two panes may not stand in one place — a desk that says so gets what it asked for.
+
+PROVEN BY — `workshop/panel.hpp` `kSideRegion`, `kOverlayStack`,
 `kTopBand`, `kinds_placed_in`, `placement`, `kPanelCatalog`, `placement_of`;
 `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_reveal.cpp`
 `paint_pane_affordances`; `workshop/weave_arrange.cpp` `take_pane_hold`;
 `tests/test_workshop_panels.cpp` case `"a panel kind declares its place, and the place resolves to
 bounds"`; `tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts
 pane, and the tabs with it"`.
-WHY — `agents/decisions/three-places.md`
+WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-03 — A band-anchored or authored pane spends no reactive slot
 
@@ -47,9 +50,9 @@ MEANS
 - a width edit never buys a slot: `stack_slots_that_fit` reads `y` and `h` only.
 
 PROVEN BY — `workshop/screen.hpp` `placement_bounds`, `kStackW`, `stack_slots_that_fit`,
-`kStackX`; `tests/test_workshop_panels.cpp` case `"WIND-1: the side region keeps its reservation
-and the stack takes half the surplus"`, case `"WIND-1: the minimum composition is byte-identical,
-and a width buys no slot"`.
+`kStackX`; `tests/test_workshop_panels.cpp` case `"WIND-1: the right column keeps its width and
+the stack takes half the surplus"`, case `"WIND-1: the half-share pays at the bottom of the range
+too, and buys no slot"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-05 — Every cell a slot gains is paint and pointer alike
@@ -99,21 +102,24 @@ else"`; `tests/test_workshop_persistence.cpp` case `"reconciling opens what the 
 the setup's order"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
-## WL-PANE-08 — The override is spent in the overlay stack and the top band only
+## WL-PANE-08 — The override is spent in every place, and the refusals are blind
 
-LAW — A side-region row's authored geometry is retained in the file, never rewritten and never spent, and arrangement refuses to author one, naming the reservation it hit.
+LAW — An authored row's geometry is spent wherever the pane stands; every refusal `arrange_geometry_ready` still makes belongs to a pane with no rectangle, so none can be reached by pointing.
 
 MEANS
-- a movable Info would change the resolved size of objects in a maker's document;
-- the Layouts pane's authored geometry is spent: it moves, and its tabs with it.
+- absent, unresolved, sized in pixels or off the screen — each is invisible as well as refused;
+- the right column's pane is arranged by the keys and the hand that arrange every other.
+
+DOES NOT MEAN
+- that a refusal cannot be reached at all: a captured subject can be made unreachable after it.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp` `PaneProjection`;
-`workshop/screen_pane_editor.cpp` `pane_geometry_typeable`; `workshop/panel.hpp`
-`place_is_authorable`; `workshop/weave_arrange.cpp` `arrange_geometry_ready`;
-`tests/test_workshop_screen.cpp` case `"WUX-12/SC-3: authored geometry moves the Layouts pane, and
-the tabs with it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
-setup-valid, projection-refused, and never falls back"`.
-WHY — `agents/decisions/three-places.md`
+`workshop/screen_pane_editor.cpp` `pane_geometry_typeable`;
+`workshop/weave_arrange.cpp` `arrange_geometry_ready`;
+`tests/test_workshop_screen.cpp` case `"WUX-7: every pane a maker can point at can be arranged,
+and the refusals are blind"`; `tests/test_workshop_panes_window.cpp`
+case `"WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back"`.
+WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-09 — The host clips and never rewrites
 
@@ -230,3 +236,5 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 - That docking exists — it is absent and refused.
 - That `kinds_placed_in` has a runtime witness — its pins are compile-time only (WL-PANE-01).
+- That two panes cannot stand in one place — a desk may say so, and one covers the other
+  (WL-PANE-01).

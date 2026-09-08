@@ -721,7 +721,7 @@ TEST_CASE("a maker's authored work keeps its place while the surface grows") {
     const ui::Placed* q2 = ui::placed_for(s2, before_share.id);
     REQUIRE(q1 != nullptr);
     REQUIRE(q2 != nullptr);
-    CHECK(q1->rect.w == 28);
+    CHECK(q1->rect.w == 46); // 60% of the minimum screen's 78-cell room
     CHECK(q2->rect.w > q1->rect.w);
     CHECK(q2->rect.x == q1->rect.x); // its authored position did not move
 }
@@ -745,11 +745,13 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(c.height == 33);
     // MORE USABLE SURFACE, not a stretched picture: the workspace rectangle a maker builds
     // inside is genuinely bigger, in cells.
-    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 70, 27, surface::role::kMuted));
-    CHECK(sc.room_w == 70);
+    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 100, 27, surface::role::kMuted));
+    CHECK(sc.room_w == 100);
     // The workspace fact lives in the band's own row since WUX-1, and it moved with the
-    // extent: what a share resolves against is said where the tool speaks.
-    CHECK(workspace_row(c, t.session(), sc) == "workspace 70x27 cells");
+    // extent: what a share resolves against is said where the tool speaks. It is the whole
+    // surface since the right column stopped being subtracted from it, so the room runs under
+    // the panel rather than stopping thirty columns short of the edge.
+    CHECK(workspace_row(c, t.session(), sc) == "workspace 100x27 cells");
     // The panel came with the right edge rather than staying at column 50.
     CHECK(inspector_row(c, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
     CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
@@ -777,14 +779,15 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
 TEST_CASE("`]` reaches the room a bigger surface gave, and `[` still narrows") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
-    CHECK(t.session().workspace_w == 70);
+    CHECK(t.session().workspace_w == 100);
 
-    // The ceiling moved with the screen: before G-2 this stopped at 48.
+    // The ceiling moved with the screen: before G-2 this stopped at 48, and it stopped thirty
+    // columns short of the surface until the right column stopped being a reservation.
     for (int i = 0; i < 60; ++i) {
         t.key(input::scan::kRightBracket);
     }
-    CHECK(t.session().workspace_w == 70);
-    CHECK(t.notice().find("70 cells wide") != std::string::npos);
+    CHECK(t.session().workspace_w == 100);
+    CHECK(t.notice().find("100 cells wide") != std::string::npos);
     CHECK(t.notice().find("authored values unchanged") != std::string::npos);
 
     // ...and the floor did not.
@@ -820,7 +823,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     const surface::SurfaceCanvas c = paint(d, s);
     CHECK(c.width == 78);
     CHECK(c.height == 22);
-    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 48, 16, surface::role::kMuted));
+    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 78, 16, surface::role::kMuted));
     CHECK(inspector_row(c, 50 + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
     CHECK(label_at(c, 0, 19).rfind("n new | d delete", 0) == 0);
     CHECK(label_at(c, 0, 20).rfind("enter edit | up/down row", 0) == 0);
@@ -939,13 +942,12 @@ TEST_CASE("the pane states its whole grammar, wrapped, with nothing elided") {
     // fit leaves, and its absence on the transcript is the difference between an answer and
     // the beginning of one.
     //
-    // THE CHROME IS ASKED SEPARATELY, AND ONE ROW OF IT DOES CARRY THE MARK (HD-10). The
-    // pane's standing statement is 51 characters and the pane is 48 cells wide at this
-    // extent, so `detail::fit` cuts it -- which is why this claim is now made over the
-    // TRANSCRIPT rows rather than over the whole pane. The distinction is the point: an
-    // elided ANSWER is the failure this case exists to catch, and an elided legend is a
-    // three-character price the phase paid deliberately and pinned above. Asserted both
-    // ways, so neither can drift into the other.
+    // THE CHROME IS ASKED SEPARATELY, and one row of it used to carry the mark (HD-10): the
+    // pane's standing statement is 51 characters and the pane was 48 cells wide at this
+    // extent, so `detail::fit` cut it -- which is why this claim is made over the TRANSCRIPT
+    // rows rather than over the whole pane. The distinction is still the point, and the price
+    // is refunded: the pane is 56 cells here now (`the-room-is-the-screen`) and nothing on
+    // either half is elided. Asserted both ways, so neither can drift into the other.
     std::string transcript;
     for (std::int64_t y = sc.terminal_y + 2; y < sc.h - 2; ++y) {
         transcript += rows[static_cast<std::size_t>(y)].substr(
@@ -953,7 +955,12 @@ TEST_CASE("the pane states its whole grammar, wrapped, with nothing elided") {
         transcript += "\n";
     }
     CHECK(transcript.find("...") == std::string::npos);
-    CHECK(rows[static_cast<std::size_t>(sc.terminal_y) + 1].find("...") != std::string::npos);
+    // ⚠ AND THE LEGEND IS NOT ELIDED EITHER, ANY MORE. It was cut by three characters because
+    // the pane was 48 cells at this extent; the pane is 56 -- the want it always asked for --
+    // since the right column stopped being subtracted from the room, and the statement is 51.
+    // The claim is still made both ways so neither can drift into the other: nothing in the
+    // TRANSCRIPT is elided, and nothing on the legend row is either.
+    CHECK(rows[static_cast<std::size_t>(sc.terminal_y) + 1].find("...") == std::string::npos);
 
     // The command a maker typed is above the answer, and every row is still the pane's width.
     CHECK(pane.find("> help") != std::string::npos);
@@ -1189,7 +1196,7 @@ TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
     CHECK(tool->described == asked_of_tool);
 }
 
-TEST_CASE("a stacked panel covers the workspace and never reaches the side region") {
+TEST_CASE("a stacked panel covers the workspace, and may reach the right column") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
@@ -1218,7 +1225,10 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEd
             // backdrop rect, which erases the rest (WUX-5).
             ++stacked_rows;
             CHECK(l.text.size() == static_cast<std::size_t>(inside.w));
-            CHECK(stack.x + stack.w <= sc.panel_x);
+            // ...and the slot reaches INTO the right column's place at this extent, which is
+            // what a room that is the whole surface buys the stack (`the-room-is-the-screen`).
+            // It is still inside the room, which is the wall that remains.
+            CHECK(stack.x + stack.w <= sc.room_w);
         }
     }
     CHECK(stacked_rows == static_cast<std::size_t>(inside.h));
@@ -1270,21 +1280,25 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     const ui::Rect side = placement_bounds(placement::kSideRegion, 0, kMinScreen);
     const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
     CHECK(side == ui::Rect{50, 2, 28, 16});
-    CHECK(stack == ui::Rect{0, 2, 48, 9});
+    CHECK(stack == ui::Rect{0, 2, 63, 9}); // 48 + (78 - 48)/2, over a room that is the surface
 
-    // AND THEY DO NOT OVERLAP -- one comparison of two rectangles, which is what
-    // the model bought: it was a hand-checked relation between four separate
-    // constants before, and nothing would have noticed one of them moving.
-    CHECK(stack.x + stack.w <= side.x);
+    // AND THEY OVERLAP AT THE SMALLEST SCREEN, which is the change: the stack's half-share is
+    // measured against a room that no longer stops short of the right column, so its slot runs
+    // to 62 and the column begins at 50. One comparison of two rectangles is still what the
+    // model buys -- it was a hand-checked relation between four separate constants before,
+    // and nothing would have noticed one of them moving.
+    CHECK(stack.x + stack.w > side.x);
+    CHECK(stack.x + stack.w == 63);
+    CHECK(side.x == 50);
     CHECK(side.x + side.w == kMinScreen.w);          // the region reaches the right edge
     CHECK(stack.y + stack.h <= kMinScreen.notice_y); // neither reaches the bottom band
     CHECK(side.y + side.h <= kMinScreen.notice_y);
-    // The side region is the SCREEN'S own reservation made into a rectangle: the
-    // workspace measures against that column whether or not a panel is in it,
-    // which is why removing Info moves nothing.
+    // The right column is a PLACE made into a rectangle, and no longer a reservation taken out
+    // of the room: the room is the surface, and this column stands on it.
     CHECK(side.x == kMinScreen.panel_x);
     CHECK(side.w == kPanelCols);
-    CHECK(kMinScreen.room_w == side.x - kPanelGap);
+    CHECK(kMinScreen.room_w == kMinScreen.w);
+    CHECK(side.x + side.w == kMinScreen.room_w);
 }
 
 TEST_CASE("each panel is painted where the placement path says it is") {
@@ -1449,7 +1463,7 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // question PNL-1 did not answer.
 }
 
-TEST_CASE("WIND-1: the side region keeps its reservation and the stack takes half the surplus") {
+TEST_CASE("WIND-1: the right column keeps its width and the stack takes half the surplus") {
     // THE TWO PLACES ANSWER THE EXTENT QUESTION DIFFERENTLY, and the path is where that
     // difference lives: the region is anchored to the right edge and keeps its width; the
     // stack is anchored to the top-left corner, keeps its rows, and takes HALF of whatever
@@ -1470,14 +1484,22 @@ TEST_CASE("WIND-1: the side region keeps its reservation and the stack takes hal
     // the half of the old sentence that stayed true.
     CHECK(side.w == placement_bounds(placement::kSideRegion, 0, kMinScreen).w);
     // The stack is not. Its column, its rows and its height are; its width followed the
-    // room: 100 columns of surface is a room of 70, a surplus of 22, and half of that is 11.
+    // room: 100 columns of surface IS a room of 100 since the right column stopped being
+    // subtracted from it, a surplus of 52 over the slot's floor, and half of that is 26.
     const ui::Rect min_stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
     CHECK(stack.x == min_stack.x);
     CHECK(stack.y == min_stack.y);
     CHECK(stack.h == min_stack.h);
-    CHECK(stack.w == 59);
+    CHECK(stack.w == 74);
     CHECK(stack.w > min_stack.w);
-    CHECK(stack.x + stack.w <= side.x);
+    // ...and it stops inside the ROOM rather than short of the right column, which is the one
+    // wall that survived the reservation's retirement. At this extent the slot's last two
+    // columns are over the right column's place, which is what a room that is the whole
+    // surface buys the stack -- and is legible, because a panel wears a boundary. The screen
+    // suite measures the same overlap for the other overlay, which does not
+    // (`"HD-10: the terminal pane now covers the right column, measured"`).
+    CHECK(stack.x + stack.w <= big.room_w);
+    CHECK(stack.x + stack.w == side.x + 2);
 
     // THE LAW, OVER EVERY WIDTH THIS COMPOSITION LAYS OUT, at three heights so that a
     // height creeping into the width would be named here rather than discovered later.
@@ -1490,18 +1512,17 @@ TEST_CASE("WIND-1: the side region keeps its reservation and the stack takes hal
             CHECK(b.w == kStackW + (sc.room_w - kStackW) / 2);
             CHECK(b.x == kStackX);
             CHECK(b.h == kStackRows);
-            // NEVER PAST THE ROOM, and this is HD-10's reserved-column law asked of the
-            // other overlay: what is beside the workspace is nobody's to spend.
+            // NEVER PAST THE ROOM -- and the room is the surface now, so this is the only
+            // wall left. It used to be said three times, twice against the reserved column;
+            // the column reserves nothing, so a slot may reach it and the two extra
+            // comparisons said something that is no longer true.
             CHECK(b.x + b.w <= sc.room_w);
-            CHECK(b.x + b.w <= sc.panel_x - kPanelGap);
-            CHECK(b.x + b.w <= placement_bounds(placement::kSideRegion, 0, sc).x - kPanelGap);
-            // AND THE MAKER KEEPS THE OTHER HALF. This is the law that would silently die
-            // if a later phase simplified the expression to sc.room_w: wherever the room
-            // has any surplus at all, a column of the panel's own rows is still the
-            // maker's to press.
-            if (sc.room_w > kStackW) {
-                CHECK(b.x + b.w < sc.room_w);
-            }
+            // AND THE MAKER KEEPS THE OTHER HALF -- unconditionally now. The guard was here
+            // because at the minimum screen the room WAS `kStackW` and the slot was the whole
+            // of it; the room is thirty columns wider than the slot's floor at every extent,
+            // so a column of the panel's own rows is always the maker's to press.
+            CHECK(sc.room_w > kStackW);
+            CHECK(b.x + b.w < sc.room_w);
             // Never narrower than the composition it was written for, either.
             CHECK(b.w >= kStackW);
         }
@@ -1517,12 +1538,12 @@ TEST_CASE("WIND-1: the side region keeps its reservation and the stack takes hal
         std::int64_t width;
         std::int64_t free;
     };
-    for (const Witness& row : std::vector<Witness>{{78, 22, 48, 48, 0},
-                                                   {79, 22, 49, 48, 1},
-                                                   {96, 22, 66, 57, 9},
-                                                   {120, 40, 90, 69, 21},
-                                                   {200, 60, 170, 109, 61},
-                                                   {640, 400, 610, 329, 281}}) {
+    for (const Witness& row : std::vector<Witness>{{78, 22, 78, 63, 15},
+                                                   {79, 22, 79, 63, 16},
+                                                   {96, 22, 96, 72, 24},
+                                                   {120, 40, 120, 84, 36},
+                                                   {200, 60, 200, 124, 76},
+                                                   {640, 400, 640, 344, 296}}) {
         CAPTURE(row.w);
         CAPTURE(row.h);
         const Screen sc = screen_of(row.w, row.h);
@@ -1537,14 +1558,16 @@ TEST_CASE("WIND-1: the side region keeps its reservation and the stack takes hal
           kStackW + (screen_of(79, 22).room_w - kStackW + 1) / 2);
 }
 
-TEST_CASE("WIND-1: the minimum composition is byte-identical, and a width buys no slot") {
-    // THE PRICE OF THE HALF-SHARE AT THE BOTTOM OF THE RANGE IS ZERO. At 78x22 the room IS
-    // kStackW, the surplus is nothing, and every number the composition was written with is
-    // exactly what it was -- which is why nothing else in this suite moved.
-    CHECK(kMinStack == ui::Rect{0, 2, 48, 9});
-    CHECK(placement_bounds(placement::kOverlayStack, 0, kMinScreen) == ui::Rect{0, 2, 48, 9});
-    CHECK(kMinStack.x + kMinStack.w == kMinScreen.room_w);
-    CHECK(kMinStack.x + kMinStack.w <= kMinSide.x - kPanelGap);
+TEST_CASE("WIND-1: the half-share pays at the bottom of the range too, and buys no slot") {
+    // THE PRICE OF THE HALF-SHARE AT THE BOTTOM OF THE RANGE WAS ZERO, AND IS NOT ANY MORE.
+    // At 78x22 the room WAS kStackW, the surplus was nothing, and the slot was the whole of
+    // the room -- the one extent where the rule's own promise, that a column of the panel's
+    // rows stays reachable, bought the maker nothing. The room is the surface now, so the
+    // surplus at the smallest screen is thirty and the slot takes fifteen of it.
+    CHECK(kMinStack == ui::Rect{0, 2, 63, 9});
+    CHECK(placement_bounds(placement::kOverlayStack, 0, kMinScreen) == ui::Rect{0, 2, 63, 9});
+    CHECK(kMinStack.x + kMinStack.w < kMinScreen.room_w);
+    CHECK(kMinScreen.room_w - (kMinStack.x + kMinStack.w) == 15);
     CHECK(kMinStack.y + kMinStack.h <= kMinScreen.notice_y);
 
     // A WIDTH IS NOT A HEIGHT. `stack_slots_that_fit` reads y and h and nothing else, so a
@@ -1686,7 +1709,7 @@ TEST_CASE("Info can be removed, and takes its whole column with it") {
     // AND NOTHING ELSE MOVED. The screen around the hole is the screen it was:
     // the band's workspace fact and the help lines are exactly where they were, because
     // removing a panel is not a re-layout.
-    CHECK(workspace_row(gone, t.session(), sc) == "workspace 48x16 cells");
+    CHECK(workspace_row(gone, t.session(), sc) == "workspace 78x16 cells");
     CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
 }
 
@@ -1790,7 +1813,7 @@ TEST_CASE("The Editor and Info are present independently -- all four states") {
     CHECK_FALSE(shows_info());
     CHECK_FALSE(shows_editor());
     CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
-          "workspace 48x16 cells");
+          "workspace 78x16 cells");
 
     // And back to both, in the other order.
     pick(t, panel::kInfo);
@@ -1859,7 +1882,7 @@ TEST_CASE("the document is still a document with Info removed") {
 
     // ...and the picture kept up the whole time, in the workspace where it lives.
     CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
-          "workspace 48x16 cells");
+          "workspace 78x16 cells");
 
     // Reopening finds the document that was authored while nobody was showing it.
     pick(t, panel::kInfo);
@@ -2240,7 +2263,7 @@ TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it 
     for (const Want& w : {Want{0, 0, 6, ">Identity #1", "... 6 more"},
                           Want{3, 3, 4, "... 3 earlier", "... 4 more"},
                           Want{4, 4, 3, "... 4 earlier", "... 3 more"},
-                          Want{7, 6, 0, "... 6 earlier", ">Resolved 28 x 6 cells"}}) {
+                          Want{7, 6, 0, "... 6 earlier", ">Resolved 46 x 6 cells"}}) {
         CAPTURE(w.cursor);
         s.cursor = w.cursor;
         const InfoBodyPlace body = body_of(d, s);
@@ -4828,21 +4851,33 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
     open_pane(t, ref_of(panel::kEditor));
 
     SUBCASE("a refused entry establishes nothing") {
-        // Info sits in the reserved side column -- the screen owns its place, and the
-        // owner's own sentence says so. No arrangement scope, no binding.
+        // ⚠ THE REFUSAL THIS SUBCASE DROVE IS RETIRED, AND THE ONES THAT REMAIN ARE BLIND.
+        // It right-pressed Info and read back "is in the reserved side column -- the screen
+        // owns its place"; nothing is reserved now (`the-room-is-the-screen`) and Info is
+        // arranged by the same keys as every other pane. Every refusal
+        // `arrange_geometry_ready` still makes belongs to a pane with NO RECTANGLE -- absent,
+        // unresolved, sized in pixels, or off the screen -- so none of them can be reached by
+        // pointing at all. The subject has to be captured and only then made unreachable,
+        // which is the very hazard the captured subject exists for and is a better witness
+        // than the one it replaces.
         const ui::Rect side = cells_covered(
             bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
                       screen_of(t.session()))
                 .rect);
-        t.right_press_canvas(side.x + 1, side.y + 1);
+        t.right_press_canvas(side.x + side.w - 1, side.y + 1);
         REQUIRE(t.menu().subject == context_subject::kPane);
         REQUIRE(t.menu().pane == ref_of(panel::kInfo));
+        // ...and the pane the menu is holding goes off this screen before the key lands.
+        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+                                  surface::subs_of_cells(kScreenMaxW),
+                                  surface::subs_of_cells(kScreenMaxH))
+                    .accepted);
         t.key(input::scan::kReturn); // the top row is Arrange
         CHECK_FALSE(t.menu().open);
         CHECK_FALSE(t.session().arrange.open);
         CHECK_FALSE(t.session().arrange.addressed());
         CHECK(t.session().notice_is_bad);
-        CHECK(t.notice().find("reserved side column") != std::string::npos);
+        CHECK(t.notice().find("off this screen") != std::string::npos);
     }
     SUBCASE("an accepted entry binds exactly the pointed pane, and one state carries "
             "both manipulations") {

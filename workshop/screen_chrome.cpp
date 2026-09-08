@@ -78,13 +78,13 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     if (!pane_unit_projectable(authored)) {
         return PaneProjection{false, FineRect{}, FineRect{}};
     }
-    // THE MAKER'S ANSWER IS SPENT WHEREVER THE PLACE IS THEIRS TO AUTHOR. This
-    // used to name the overlay stack, which was the same set said as a list while the stack
-    // was the only movable place -- and a list is what a fourth place would be added to by
-    // somebody who remembered. `place_is_authorable` (panel.hpp) is the exclusion itself:
-    // the side region is the SCREEN's and everything else takes an override. Nothing about
-    // the overlay stack changed; the top band joined it.
-    if (place_is_authorable(where) && authored != nullptr) {
+    // THE MAKER'S ANSWER IS SPENT WHEREVER THEY GAVE ONE, and there is no longer a place it
+    // is not spent in. This named the overlay stack while the stack was the only movable
+    // place, then asked `place_is_authorable` to exclude the one place the screen reserved.
+    // Nothing is reserved, so the exclusion has no members and the question is gone with it:
+    // an authored override lays over whatever rectangle `placement_bounds` answered, per
+    // axis, for every place this screen has.
+    if (authored != nullptr) {
         if (authored->place.mode == pane_unit::kSubcells) {
             out.resolved.x = authored->place.x;
             out.resolved.y = authored->place.y;
@@ -106,7 +106,6 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
                       const Screen& sc) {
     std::size_t slot = 0;
     for (const Panel& p : panels.open) {
-        const std::int64_t where = placement_of(p.kind);
         const SetupPane* authored = nullptr;
         for (const SetupPane& row : setup.panes) {
             const std::optional<std::int64_t> named = resolve_pane(row.ref, panels);
@@ -115,10 +114,24 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
                 break;
             }
         }
+        // THE DESK MAY NAME THE PLACE, and this is the one line where it does. The catalog
+        // says where a kind goes when nobody has said otherwise; a setup row saying
+        // `kRightColumn` has said otherwise, and it says it by NAME rather than by coordinate
+        // because no coordinate can mean "the right edge, full height" on a screen whose
+        // extent the desk does not know. Everything downstream is unchanged: the named place
+        // resolves through `placement_bounds` like any other, and an authored width or height
+        // still lays over it per axis.
+        std::int64_t where = placement_of(p.kind);
+        if (authored != nullptr && authored->place.mode == pane_unit::kRightColumn) {
+            where = placement::kSideRegion;
+        }
         if (p.kind == kind) {
             const PaneProjection got = project_pane(where, slot, authored, sc);
             return PanelBounds{true, where, got.visible, got.resolved, got.projected};
         }
+        // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
+        // elsewhere is not in the stack to begin with, and one that named its own coordinates
+        // does not queue for a rectangle it is not going to use.
         if (where == placement::kOverlayStack &&
             (authored == nullptr || authored->place.mode == pane_unit::kDefault)) {
             ++slot;
