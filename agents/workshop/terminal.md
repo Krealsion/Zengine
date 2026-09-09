@@ -183,8 +183,8 @@ MEANS
 - Escape, a submit, a caret leaving the end and a further keystroke each end one;
 - the selection still survives a recomputation of the same question (WL-TERM-05).
 
-DOES NOT MEAN — that the list blinks between keystrokes. The host drains to idle, so an ask
-and its answer are spent inside one turn of its loop.
+DOES NOT MEAN — that a maker never sees the gap. The ask and its answer are one turn of the
+host's drain; what a medium draws inside that turn is unmeasured (VM-FIX-25).
 
 PROVEN BY — `terminal-pane/pane.cpp` `here`, `offer_applies`, `ask_completion`,
 `on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;

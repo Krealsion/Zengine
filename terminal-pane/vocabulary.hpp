@@ -77,20 +77,29 @@ inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help m
 /// ⚠ THIS IS THE OPPOSITE CHOICE FROM INFO'S AND THE BUILDER'S, AND FOUR QUESTIONS DECIDE
 /// IT -- not the word "composition", which names a real difference and settles nothing on its
 /// own. Info kept a cursor and dropped its property draft; the Builder dropped its role line.
-/// Asked of a terminal line, the four answer the other way:
+/// Two of the four separate a terminal line from those, and TWO DO NOT -- which is the part
+/// the first version of this comment got wrong, and it is written out because a rule that
+/// only ever agrees with the decision it was written for is not a rule:
 ///
-///   recoverable?          NO. A property draft can be reopened on the committed value, which
-///                         is on screen; a half-typed command exists nowhere else.
-///   how much work?        MINUTES. An address, a shape, a version and a run of named
-///                         arguments, assembled over many keystrokes with the completer.
-///   names a target?       NO. A property draft belongs to an object and a label and can go
-///                         stale under them; a line belongs to nobody until it is submitted.
-///   kept, what breaks?    NOTHING. A kept property draft could commit a stale value to a
-///                         live document; a kept line is text the maker reads before Return.
+///   recoverable?      NO, AND NEITHER IS A PROPERTY DRAFT. Reopening a property gives back
+///                     its COMMITTED value, never the edits. What differs is how far back a
+///                     maker lands, not whether their edits survive. DOES NOT SEPARATE.
+///   how much work?    MINUTES, against seconds. An address, a shape, a version and a run of
+///                     named arguments, assembled with the completer. SEPARATES, by degree.
+///   names a target?   YES -- `#12` and `@office` are targets, and this was written down as
+///                     "no". They resolve AT SUBMIT, and a send that does not resolve is
+///                     recorded as a refusal on the transcript (`submit_terminal_line`,
+///                     read to check this) -- but a role resolves to whoever holds it THEN,
+///                     so a kept line can reach a successor. DOES NOT SEPARATE; it is a
+///                     named consequence of keeping one.
+///   kept, what risks? NOTHING UNTIL AN EXPLICIT SUBMIT: the text sits inert on a row the
+///                     maker reads. A property draft's commit writes into a live document.
+///                     SEPARATES, and it is the one that carries the decision.
 ///
-/// So the line is kept, and this pane is the first that keeps a draft. A draft whose four
-/// answers are MIXED is undecided by this and by the decision record -- the first one that
-/// appears decides it (`agents/decisions/the-terminal-is-a-participant.md`).
+/// So the line is kept -- on the effort and on the inertness, not on four clean answers -- and
+/// this pane is the first that keeps a draft. A draft whose answers are MIXED is undecided
+/// here and in the record (`agents/decisions/the-terminal-is-a-participant.md`); the first one
+/// that appears decides it.
 ///
 /// AND THE CARET IS NOT KEPT WITH IT. `component::TextBox` holds the text, the caret, the
 /// selection and the window; only the TEXT crosses a reload, and the new image places the

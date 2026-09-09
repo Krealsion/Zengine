@@ -505,6 +505,26 @@ public:
     /// and start a different one, which is `clear` and a new draft. Text asked for by a
     /// draft that has ended lands nowhere, which is the law every other box in this
     /// repository already keeps (`files/`, `introspection/`, `composer/`, WL-TEXT-09).
+    ///
+    /// ⚠ AND IT GOES IN THROUGH `TextBox::paste`, WHICH IS THE COMPONENT'S OWN DOOR FOR
+    /// THIS. The migration reached for `type` instead and lost two things the built-in had,
+    /// both invisible until a maker did the next thing:
+    ///
+    ///   the UNDO GROUP     `type` coalesces into the typing burst before it, so `keep`,
+    ///                      paste `OLD`, Ctrl+Z took the whole line. `paste` is one
+    ///                      gesture and one entry, like a cut.
+    ///   the NORMALIZATION  `pasteable_line` turns a tab, an LF, a CR and a CRLF pair into
+    ///                      one space apiece, which is what a SINGLE-LINE field can hold.
+    ///                      Gating on `admissible` instead refused two copied lines whole,
+    ///                      and said nothing about it.
+    ///
+    /// SO THE GATE ASKS ABOUT THE TEXT THAT WOULD LAND, not the text that arrived: normalize
+    /// first, then judge. What survives that and is still undrawable is a byte outside
+    /// printable ASCII, and THAT is refused whole -- this pane's own typed door refuses one
+    /// for the same reason, and a line holding bytes its own row draws as spaces would show
+    /// a maker something other than what they would submit. Refused ALOUD, on the notice
+    /// row: the editor says so on its own line and a silent whole-refusal of a paste is the
+    /// exact shape of failure this correction exists about.
     void on(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
@@ -513,11 +533,21 @@ public:
         if (line_.draft_epoch() != paste_.epoch) {
             return; // the draft that asked is over; the payload is discarded, silently
         }
-        const std::string text = a.readable ? a.text : clip_.text;
-        if (text.empty() || !admissible(text)) {
+        // A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10), which is what
+        // keeps copy-here paste-there true on a terminal that claims nothing.
+        const std::string offered = a.readable ? a.text : clip_.text;
+        if (!admissible(component::pasteable_line(offered))) {
+            notice_ = "the clipboard holds bytes outside plain ASCII, which this line cannot "
+                      "carry truthfully -- nothing was pasted";
+            say(mail);
             return;
         }
-        line_.type(text);
+        if (a.readable) {
+            // The platform's current truth, asked for by THIS paste -- including an empty
+            // one, which is a real answer and must not leave a stale mirror to paste from.
+            clip_.text = a.text;
+        }
+        line_.paste(clip_);
         remember_line();
         ask_completion(mail);
         say(mail);
@@ -709,10 +739,13 @@ private:
     /// list is drawn as well as before a candidate is taken, because a list drawn under a
     /// line it is not about is a wrong answer whether or not anybody presses Tab.
     ///
-    /// ⚠ THE COST IS A FRAME WITH NO LIST while a fresh answer is in flight, and it is the
-    /// price of the seam: the completion used to be a function call and is a round trip now.
-    /// The host drains to idle, so the ask and its answer are spent inside one turn of the
-    /// loop and the gap is never a frame a maker waits through.
+    /// ⚠ THE COST IS A PUBLICATION WITH NO LIST while a fresh answer is in flight, and it is
+    /// the price of the seam: the completion used to be a function call and is a round trip
+    /// now. DO NOT read "the host drains to idle" as "nobody sees it" -- the drain says the
+    /// ask and its answer are spent in one turn, and says nothing about what the Skin was
+    /// handed on the way. Both canvases are delivered in that same turn, and whether a medium
+    /// draws both is the medium's business, unmeasured here. What is bought for it is that no
+    /// candidate is ever offered against a line that is not on the screen.
     bool offer_applies() const { return offered_about_ == here(); }
 
     // ---- The rows, and the caret beside them ----------------------------------------------

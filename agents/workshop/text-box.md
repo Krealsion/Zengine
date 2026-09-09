@@ -131,6 +131,9 @@ MEANS
 DOES NOT MEAN — that the check belongs to this host. `TextBox::draft_epoch` is the boundary made
 comparable, and a line that left for a pane's own image asks and checks for itself.
 
+DOES NOT MEAN — that any insertion door will do. `TextBox::paste` is the one that applies a
+payload: one structural undo entry, and `pasteable_line` before it. `type` is a keystroke.
+
 PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::paste`,
 `TextBox::draft_epoch`; `workshop/weave_seam.cpp` `paste_owner_now`, `naming_line`,
 `begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
@@ -140,9 +143,12 @@ PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::pa
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
 reads the platform current, not the mirror stale"`, case `"QR-11: an unsolicited ClipboardText
 enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the
-owner applies, and set/clear name the draft"`; `tests/test_workshop_panes_terminal.cpp` case
-`"TERM-W21: clipboard text lands in the draft that asked for it, or nowhere"`, case `"TERM-W21b:
-an edit is not a new draft, and a submit is"`.
+owner applies, and set/clear name the draft"`, case `"component: a paste is its own undo entry,
+however much typing preceded it"`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21:
+clipboard text lands in the draft that asked for it, or nowhere"`, case `"TERM-W21b: an edit is
+not a new draft, and a submit is"`, case `"TERM-W22: a paste is one gesture, and undo gives back
+the line it landed in"`, case `"TERM-W23: what the clipboard holds is normalized to fit a line,
+or refused aloud"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror

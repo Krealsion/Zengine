@@ -181,15 +181,17 @@ BECAUSE — an audit's only evidence that one shape had been spoken was the refu
 publication nobody accepted; remove the false positive and it counts one fewer and still passes.
 SEEN — nowhere yet
 
-## VM-FIX-23 — Cross a new message boundary operation by operation
+## VM-FIX-23 — Cross an extraction operation by operation, old call and new request
 
-METHOD — For each operation a new message boundary turns into a request, name what it refers to, what may change before it is consumed, how the receiver re-establishes that it applies and what it does when it cannot.
-BECAUSE — three operations crossed one extraction as requests and all three were answered
-against a line that had moved on; correlation identified each question and none of them said
-the question still stood. Ask it of the changes that can happen, not of a fixed mechanism list.
+METHOD — For each operation an extraction re-homes, name what the OLD call did -- grouping, normalization, selection, fallback -- and, once it is a request, what its answer refers to and how the receiver re-checks it.
+BECAUSE — one extraction lost five things in six operations and every one was invisible until
+the next gesture: three answers outlived the line they were about, and one `paste` became a
+`type`, which surrendered the undo group and the whitespace normalization with it.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a
 line that is gone is neither shown nor taken"`, case `"TERM-W21: clipboard text lands in the
-draft that asked for it, or nowhere"`.
+draft that asked for it, or nowhere"`, case `"TERM-W22: a paste is one gesture, and undo gives
+back the line it landed in"`, case `"TERM-W23: what the clipboard holds is normalized to fit a
+line, or refused aloud"`.
 
 ## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
 
@@ -200,3 +202,13 @@ rig doors; the batch is deterministic and needs no thread.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
 and a submit is"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real Composer's fields
 speak the vocabulary across the seam"`.
+
+## VM-FIX-25 — A loop's shape is not a bound on what a maker can produce
+
+METHOD — A bound on the message loop is not a bound on what a maker can produce: trace the PRODUCER -- how many events one poll publishes -- before calling an interleaving unreachable.
+BECAUSE — "the host drains to idle" was read as "no hand at a keyboard can interleave these",
+and the input weave publishes a WHOLE poll's events before returning while the readers hand
+back everything one read yielded -- so a burst puts several gestures ahead of an ask.
+SEEN — `input/input_weave.hpp` `InputWeaveT::pump`; `input/input.cpp` `TerminalReader`,
+`ConsoleReader`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer
+about a line that is gone is neither shown nor taken"`.

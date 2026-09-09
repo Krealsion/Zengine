@@ -1030,7 +1030,7 @@ input                             doctest           sdl     3
 surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  39
+component                         doctest           always  40
 operator                          doctest           always  126
 composer                          doctest           always  35
 files_weave                       doctest           always  19
@@ -1471,11 +1471,35 @@ builder                           doctest           always  55
 #                               once, so the answer lands behind the gestures already queued.
 #                               No sleep, no thread; `test_workshop_document.cpp` stages
 #                               QR-11's editor race the same way.
+#
+# THE SECOND REVIEW of that correction found a fifth thing the same extraction had lost, and
+# it was not a request lifetime at all -- it was the OLD CALL's own behaviour. The clipboard
+# answer went into the line through `TextBox::type` where the built-in used `TextBox::paste`,
+# which surrendered two things at once: the undo group (`type` coalesces into the typing burst
+# before it, so a maker who typed a word, pasted after it and pressed undo lost both) and
+# `pasteable_line`'s normalization (a tab, an LF and a CRLF pair are one space apiece; gating
+# on `admissible` first refused two copied lines whole, and silently).
+#
+#   workshop_panes  366 -> 368  the seam, the same rig. TERM-W22 (1): the reviewer's own
+#                               reproduction -- type, paste, undo, and the typed word is still
+#                               there -- with redo replaying the two in order.
+#                               TERM-W23 (1): the door's judgement, which asks about the text
+#                               that would LAND rather than the text that arrived. Line breaks
+#                               and tabs normalize; a byte outside printable ASCII is refused
+#                               whole AND SAID on the notice row; a readable-but-empty
+#                               clipboard pastes nothing rather than the mirror's last value;
+#                               an unreadable medium still falls back to the mirror.
+#
+#   component       39 -> 40    the shared contract that had no case, which is how the owner
+#                               above got away with it: `cut` and a selection-replacing edit
+#                               were pinned as standing alone and `paste` was not. One case,
+#                               and a mutation of `paste`'s `remember(kStructural)` to
+#                               `kTyping` reddens 7 of its 15 assertions -- measured.
 
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  366
+workshop_panes                    doctest           always  368
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  130
 workshop_editor                   doctest           always  65
