@@ -241,6 +241,17 @@ The last two are the same distinction everywhere in Workshop: **a paste belongs 
 that asked for it.** Clearing a line with `Esc`, or submitting it with `Enter`, ends that draft;
 typing into it does not.
 
+**What a paste puts on a single-line field.** The Terminal's line is one line, so a clipboard
+holding more than one becomes one: a tab, a line feed, a carriage return and a CRLF pair each
+arrive as a single space, and two copied lines land joined by one. A paste is also **one
+gesture for undo** — `Ctrl`+`Z` after pasting takes back the paste and leaves what you had
+typed before it.
+
+**Text outside plain ASCII is not pasted, and the pane says so.** A line whose row draws those
+bytes as spaces would show you something other than what you would submit, so the whole paste
+is refused with a sentence above the line rather than a half of it landing. Typing such a
+character is refused the same way, and has been since before the Terminal was a pane.
+
 **A refusal never takes the line's row.** If a door refuses what the Terminal asked it to run,
 the sentence appears *above* your command line — the line stays where it was, with your caret
 on it, so you can edit and try again. In a pane exactly one row tall there is no row for the

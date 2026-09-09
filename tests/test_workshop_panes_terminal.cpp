@@ -715,12 +715,12 @@ TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only t
     // ⭐ THE DECISION, WRITTEN DOWN AND PINNED AS A SHAPE. Info kept a cursor and dropped its
     // property draft; the Builder dropped its role line; this pane keeps its line.
     //
-    // AND FOUR QUESTIONS DECIDE THAT, not the word "composition" (`vocabulary.hpp`): whether
-    // the value is recoverable from something that still exists, how much of a maker's work
-    // is in it, whether it names a target that could go stale under it, and what breaks if it
-    // is kept while the world moves. A terminal line answers all four the way "keep" wants; a
-    // property draft answers at least two the way "drop" wants. A draft whose answers are
-    // MIXED is left undecided on purpose.
+    // AND THE REASON IS FOUR QUESTIONS, not the word "composition" (`vocabulary.hpp`) --
+    // recoverability, user effort, target identity, replacement semantics. TWO OF THEM
+    // SEPARATE THESE DRAFTS AND TWO DO NOT: neither draft's edits survive being dropped, and
+    // both name a target that can change under them. What carries the decision is the effort
+    // in the line and the fact that keeping it risks nothing until an explicit submit. A
+    // draft whose answers are MIXED is left undecided on purpose.
     //
     // ⚠ AND WHAT A RELOAD DOES WITH IT IS NOT WITNESSED HERE, which is Attention's own
     // posture one pane over: RELOAD-1's machinery is driven end to end over a real Kernel, a
@@ -975,4 +975,85 @@ TEST_CASE("TERM-W21b: an edit is not a new draft, and a submit is") {
     }
     CHECK(authored);
     CHECK(t.input_text().find("OLD") == std::string::npos);
+}
+
+TEST_CASE("TERM-W22: a paste is one gesture, and undo gives back the line it landed in") {
+    // ⭐ THE REVIEWER'S OWN REPRODUCTION, and the defect is one word wide: the migration
+    // reached for `TextBox::type` where the built-in used `TextBox::paste`. `type` with no
+    // selection is a TYPING edit and coalesces into the burst before it, so the paste joined
+    // the word the maker had typed and one undo took both. `paste` is `kStructural` -- one
+    // gesture, one entry -- exactly as a cut is.
+    TerminalRig t;
+    t.open();
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    skin->platform = "OLD";
+    t.focus();
+    t.type("keep");
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(t.input_text().rfind("> keepOLD", 0) == 0);
+
+    t.r.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(t.input_text().rfind("> keep", 0) == 0);
+    CHECK(t.input_text().find("OLD") == std::string::npos);
+    // ...and the typing that preceded it is still one entry of its own, so a second undo
+    // takes the word and not half of it.
+    t.r.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(t.input_text().find("keep") == std::string::npos);
+    // ...and redo replays the two in order, which is the other half of "one entry".
+    t.r.key(input::scan::kZ, input::mod::kCtrl | input::mod::kShift);
+    CHECK(t.input_text().rfind("> keep", 0) == 0);
+    t.r.key(input::scan::kZ, input::mod::kCtrl | input::mod::kShift);
+    CHECK(t.input_text().rfind("> keepOLD", 0) == 0);
+}
+
+TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or refused aloud") {
+    // THE DOOR'S OWN JUDGEMENT, and it asks about the text that would LAND rather than the
+    // text that arrived. `pasteable_line` is what a single-line field can hold -- a tab, an
+    // LF, a CR and a CRLF pair are one space apiece -- and gating on `admissible` before that
+    // normalization refused two copied lines WHOLE, silently. The component owns the
+    // normalization; this case owns the pane's door spending it.
+    TerminalRig t;
+    t.open();
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    t.focus();
+
+    skin->platform = "two\r\nlines";
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
+
+    t.r.key(input::scan::kEscape); // a fresh draft
+    skin->platform = "a\tb\nc";
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.input_text().rfind("> a b c", 0) == 0);
+
+    // ⚠ AND WHAT NORMALIZATION CANNOT REPAIR IS REFUSED WHOLE AND SAID OUT LOUD. A byte
+    // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
+    // draws it as a space -- so a maker would submit something other than what they read.
+    // This pane's typed door already refuses one; the difference here is that the door speaks.
+    t.r.key(input::scan::kEscape);
+    t.type("hold");
+    skin->platform = "na\xC3\xAFve";
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.text().find("outside plain ASCII") != std::string::npos);
+    CHECK(t.input_text().rfind("> hold", 0) == 0); // ...and the line is untouched
+    CHECK(t.input_text().find("na") == std::string::npos);
+
+    // A READABLE BUT EMPTY CLIPBOARD PASTES NOTHING -- and in particular not the mirror's
+    // last value, which is the stale answer the ask exists to avoid.
+    const int reads = skin->clipboard_reads;
+    skin->platform = "";
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == reads + 1); // the read really happened
+    CHECK(t.input_text().rfind("> hold", 0) == 0);
+
+    // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10) -- the terminal
+    // medium's own standing truth, which is what keeps copy-here paste-there working there.
+    t.r.key(input::scan::kA, input::mod::kCtrl);
+    t.r.key(input::scan::kC, input::mod::kCtrl);
+    skin->readable_medium = false;
+    t.r.key(input::scan::kEnd);
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.input_text().rfind("> holdhold", 0) == 0);
 }

@@ -52,7 +52,8 @@ nothing. A press in the pane is the pane's.
   leaves the coalescing window (an answer for a line the maker has typed past) still usable.
 - *Keeping a superseded list on screen until its replacement arrives* — refused: a list under a
   line it is not about is a wrong answer whether or not anybody presses Tab. The cost is a
-  frame with no list, and the host drains to idle, so the ask and its answer are one turn.
+  publication with no list, delivered to the Skin in the same turn as its replacement; whether
+  a medium draws both is that medium's business and is not measured here.
 - *Cancelling a paste on any keystroke* — refused: an edit is the same draft, and `set`/`clear`
   are the two doors that end one; pinned by case `"TERM-W21b: an edit is not a new draft, and a
   submit is"`.
@@ -71,23 +72,30 @@ the claim wherever it is repeated.
 **Draft lifetime is not settled by calling one thing a composition.** The reload keeps the
 terminal line and drops Info's property draft and the Builder's role line, and the argument
 first written for that — a composition is not a write in flight — names a real difference but
-does not by itself carry the conclusion. What actually decides it is four questions, and they
-are the ones to ask of the next draft:
-- *recoverability* — is the value obtainable again from something that still exists? A property
-  draft's starting point is the property's committed value, on screen; a command line's is
-  nowhere.
-- *user effort* — how much of a maker's work is in it? Minutes of address, shape, version and
-  named arguments, assembled with the completer's help, against a few typed characters.
-- *target identity* — does the draft name a thing that must still exist for it to mean
-  anything? A property draft belongs to an object and a label; a terminal line belongs to
-  nobody until it is submitted, so nothing it points at can go stale under it.
-- *replacement semantics* — what happens if the draft is kept and the world moved? A kept
-  property draft could commit a stale value to a live document; a kept command line is text
-  the maker reads before pressing Return.
-The terminal line answers all four the way "keep" wants; Info's and the Builder's answer at
-least two the way "drop" wants. **The open question is left open**: nothing here decides what a
-draft with a MIXED answer does, and the first one that appears is the phase that decides it,
-not this record.
+does not by itself carry the conclusion. Four questions are worth asking of any draft. **Two of
+them separate these drafts and two do not**, and the two that do not were first written down
+here as though they did; the correction is kept in view because a rule that only ever agrees
+with the decision it was written for is not a rule.
+
+| question | terminal line | property draft | separates? |
+|---|---|---|---|
+| *recoverability* — what do the maker's edits survive as? | nothing; the text was only here | nothing either. Reopening the property gives its COMMITTED value back, never the uncommitted edits | **no** — what differs is how far back a maker lands, not whether their work survives |
+| *user effort* | minutes: address, shape, version, named arguments, assembled with the completer | usually one value, typed in one go | **yes**, by degree |
+| *target identity* — does it name something that can change under it? | yes. `#12` and `@office` are targets, resolved at SUBMIT | yes: an object and a label, resolved at commit | **no** — both name targets |
+| *replacement semantics* — what does keeping it risk? | nothing until an explicit submit: inert text on a row the maker reads | a commit writes into a live document | **yes**, and it carries the decision |
+
+**What the terminal line's execution-time behaviour actually guarantees**, read rather than
+assumed: `submit_terminal_line` resolves the address at submit and, when the send or ask does
+not succeed, records the outcome as a notice on the participant's own transcript — so a stale
+`#12` fails where the maker is looking. It does **not** guarantee the address still means what
+it meant when the line was typed: a role resolves to whoever holds it then, so a kept line can
+reach a successor. That is a real consequence of keeping the draft and is named rather than
+argued away. Preserving inert text is a different act from executing it, and a third from
+validating what it points at.
+
+**The open question is left open**: nothing here decides what a draft with a MIXED answer
+does — high effort and a commit that writes, or low effort and inert — and the first one that
+appears is the phase that decides it, not this record.
 
 **A refusal is a row of the budget.** The pane spends its rows input-line first, and the door's
 refusal is the answer to the gesture the maker just made — so it is budgeted with the rows and

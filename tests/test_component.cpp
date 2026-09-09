@@ -1516,3 +1516,43 @@ TEST_CASE("WUX-7: pointer and keyboard agree about which bytes are one word") {
     REQUIRE(erasing.consume(key::kBackspace, mod::kCtrl, clip));
     CHECK(erasing.text() == "alpha  gamma");
 }
+
+TEST_CASE("component: a paste is its own undo entry, however much typing preceded it") {
+    // ⭐ THE HALF OF THE STRUCTURAL RULE THAT HAD NO CASE, and an owner one repository layer
+    // up shipped a defect through the gap: `cut` and a selection-replacing edit were pinned as
+    // standing alone, `paste` was not, and the Terminal pane's migration reached for `type`
+    // instead -- which coalesces. A maker typed a word, pasted after it, pressed undo once and
+    // lost both.
+    TextBox box;
+    Clipboard clip;
+    clip.text = "OLD";
+    box.type("keep");
+    box.paste(clip);
+    CHECK(box.text() == "keepOLD");
+
+    // ONE UNDO TAKES THE PASTE AND STOPS. `paste` is `kStructural`: one gesture, one entry,
+    // exactly as a cut is.
+    CHECK(box.undo());
+    CHECK(box.text() == "keep");
+    CHECK(box.caret() == 4);
+    // ...and the typing before it is still ONE entry of its own, so the second undo takes the
+    // whole burst rather than a character of it.
+    CHECK(box.undo());
+    CHECK(box.text().empty());
+    // ...and redo replays the two in the order they were made.
+    CHECK(box.redo());
+    CHECK(box.text() == "keep");
+    CHECK(box.redo());
+    CHECK(box.text() == "keepOLD");
+
+    // AND A PASTE AFTER A PASTE IS TWO ENTRIES, which is what "one gesture, one entry" has to
+    // mean for a burst of them -- `kStructural` never coalesces, with itself least of all.
+    clip.text = "X";
+    box.paste(clip);
+    box.paste(clip);
+    CHECK(box.text() == "keepOLDXX");
+    CHECK(box.undo());
+    CHECK(box.text() == "keepOLDX");
+    CHECK(box.undo());
+    CHECK(box.text() == "keepOLD");
+}
