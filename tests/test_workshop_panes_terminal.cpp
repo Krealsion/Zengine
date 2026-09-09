@@ -1023,7 +1023,12 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
 
-    t.r.key(input::scan::kEscape); // a fresh draft
+    // TWICE, because the first Escape dismisses a LIST if one is open and only then
+    // clears: a case that leaned on which branch it took would change meaning under
+    // the completer.
+    t.r.key(input::scan::kEscape);
+    t.r.key(input::scan::kEscape);
+    REQUIRE(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
     skin->platform = "a\tb\nc";
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> a b c", 0) == 0);
@@ -1032,6 +1037,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
     // draws it as a space -- so a maker would submit something other than what they read.
     // This pane's typed door already refuses one; the difference here is that the door speaks.
+    t.r.key(input::scan::kEscape);
     t.r.key(input::scan::kEscape);
     t.type("hold");
     skin->platform = "na\xC3\xAFve";
