@@ -12,13 +12,15 @@
 //
 // ---- WHY THIS ONE IS DIFFERENT FROM THE OTHER FOUR -------------------------------
 //
-// ⚠ THE THING IT PRESENTS CANNOT MIGRATE, AND THAT IS MEASURED. `loom::TerminalSession` is
+// ⚠ THE THING IT PRESENTS DID NOT MIGRATE, AND THAT IS MEASURED. `loom::TerminalSession` is
 // a `loom::Weave` whose handler sends nothing by construction, and the only shapes it accepts
-// are the three answer doors its host declared -- so no message makes it author a line and no
-// message makes it answer with its transcript. It stays a host-mounted identity with a grant
-// of one rule. Every case here mounts it on the rig's bus, drives the PANE, and then asks
-// THAT OBJECT what it heard: the two identities stay two, measured rather than asserted, and
-// the decision record's oldest sentence is still the one under test.
+// are the three answer doors its host declared -- so no message IT ACCEPTS TODAY makes it
+// author a line, and none makes it answer with its transcript. Under this work's constraint
+// -- the Loom is fenced -- that settles it; it is not a claim about every possible Loom. It
+// stays a host-mounted identity with a grant of one rule. Every case here mounts it on the
+// rig's bus, drives the PANE, and then asks THAT OBJECT what it heard: the two identities
+// stay two, measured rather than asserted, and the record's oldest sentence is still under
+// test.
 //
 // ⚠ AND IT IS THE FIRST PANE WITH A CARET. `PaneCaret` is this migration's one new protocol
 // sentence, and the cases for it are here rather than in the seam suite because this is the
@@ -130,6 +132,49 @@ struct TerminalRig {
 
     void press_row(std::int64_t at, std::int64_t column = 0) {
         press_pane(r, kind, at, column);
+    }
+
+    /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a maker would
+    /// drag -- the pane's own chrome is three cells of the authored box, measured.
+    ///
+    /// ⚠ AND THEN REPAINT, because an extent identical to the standing one is deduplicated
+    /// and re-resolves nothing: the room a case asks for arrives on the next repaint, and
+    /// pressing into the pane is the one every case here already makes.
+    void give_rows(std::int64_t rows) {
+        const Written wrote =
+            author_pane_size(r.session().setup.active, pane_terminal_ref(), PaneSize{},
+                             PaneSize{pane_unit::kSubcells, subs(rows + 3)});
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        focus();
+        REQUIRE(seat() != nullptr);
+        REQUIRE_MESSAGE(seat()->rows == rows, "asked for ", rows, " rows and was granted ",
+                        seat()->rows);
+    }
+
+    // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
+    //
+    // ⚠ THE ONLY WAY A CASE HERE CAN SAY "WHILE THAT ANSWER WAS IN FLIGHT". Every helper
+    // above publishes AND drains, so a request and its answer are both spent before the
+    // call returns and no in-flight state survives to the next line. These three enqueue
+    // without draining, so a batch of gestures is delivered the way one poll delivers them
+    // -- and an answer a pane asked for during the batch lands BEHIND the gestures that
+    // were already queued. No sleep, no thread, no timing: the bus is FIFO and the order is
+    // the case's own. `test_workshop_document.cpp` stages QR-11's editor race the same way.
+    void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
+        (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+    void enqueue_text(const std::string& s) {
+        (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{s}), loom::WeaveId{},
+                                          loom::WeaveId{}, 0));
+    }
+    void settle() { r.bus.drain_until_idle(); }
+
+    /// THE ROW THE MAKER IS TYPING ON, as the pane last published it.
+    std::string input_text() {
+        const std::vector<std::string> rows = shown();
+        REQUIRE_FALSE(rows.empty());
+        return rows[static_cast<std::size_t>(input_row())];
     }
 
     /// Type a whole line into the pane, a character at a time, as a backend reports it.
@@ -668,16 +713,14 @@ TEST_CASE("TERM-W17: completion follows the END of the line, and says so when it
 
 TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only the line") {
     // ⭐ THE DECISION, WRITTEN DOWN AND PINNED AS A SHAPE. Info kept a cursor and dropped its
-    // property draft; the Builder dropped its role line. Both of those are a WRITE IN FLIGHT
-    // -- a value about to be committed to a document, a field about to be committed to a
-    // recipe -- and a reload is entitled to drop a write nobody has asked for yet.
+    // property draft; the Builder dropped its role line; this pane keeps its line.
     //
-    // A TERMINAL LINE IS NOT A WRITE IN FLIGHT. It is a COMPOSITION, often a long one: an
-    // address, a shape, a version and a run of named arguments, assembled over many
-    // keystrokes with the completer's help, with no effect anywhere until it is submitted.
-    // Dropping it would throw away minutes of a maker's work at the exact moment the tool is
-    // proving that a reload costs nothing. So it is kept, and this pane is the first that
-    // keeps a draft.
+    // AND FOUR QUESTIONS DECIDE THAT, not the word "composition" (`vocabulary.hpp`): whether
+    // the value is recoverable from something that still exists, how much of a maker's work
+    // is in it, whether it names a target that could go stale under it, and what breaks if it
+    // is kept while the world moves. A terminal line answers all four the way "keep" wants; a
+    // property draft answers at least two the way "drop" wants. A draft whose answers are
+    // MIXED is left undecided on purpose.
     //
     // ⚠ AND WHAT A RELOAD DOES WITH IT IS NOT WITNESSED HERE, which is Attention's own
     // posture one pane over: RELOAD-1's machinery is driven end to end over a real Kernel, a
@@ -709,4 +752,227 @@ TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only t
     t.type("send @zengine.skin SurfaceText 1 slot=a");
     const std::vector<std::string> rows = t.shown();
     CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> send @zengine.skin", 0) == 0);
+}
+
+// ============================================================================
+// THE THREE THINGS THAT CROSS A TURN BOUNDARY
+// ============================================================================
+//
+// ⚠ EVERY CASE BELOW IS ABOUT ONE SHAPE OF DEFECT, and it is the shape this extraction
+// introduced: an operation that used to be a FUNCTION CALL is now a request whose answer
+// arrives later, and between the asking and the answering a maker keeps typing. Three
+// operations cross that boundary here -- the act, the completion and the paste -- and each
+// of them is answered against a line that may no longer be the line it was asked about.
+//
+// They are staged with `enqueue_*` and `settle`, never with a sleep: the bus is FIFO, a
+// batch of gestures is delivered the way one poll delivers them, and an answer asked for
+// during the batch lands behind the gestures already queued.
+
+TEST_CASE("TERM-W19: a refusal is said BESIDE the line it is about, never in place of it") {
+    // ⭐ THE PANE'S OWN PRIORITY ORDER, MADE TRUE. `say` spends its row budget input-row
+    // first -- "a Terminal with no line is not a Terminal" -- and the refusal used to be
+    // added AFTER that budget was spent, by truncating the composed rows to make room. The
+    // row it truncated was the last one, which is the input row: the notice appeared and the
+    // line it was about disappeared, taking the caret with it (`caret_row` back to
+    // `kNoCaret`), so a maker read "nothing was authored" with nowhere to type again.
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/false);
+    t.focus();
+    t.type("send #1 SurfaceText 1");
+    t.submit();
+
+    // THE DOOR'S OWN WORDS ARE ON THE PANE...
+    CHECK(t.text().find("nothing was authored") != std::string::npos);
+    // ...AND SO IS THE LINE THEY ARE ABOUT. The input row is still the last row the pane
+    // published, which is the whole of what "beside" means here.
+    const std::vector<std::string> rows = t.shown();
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows.front().find("nothing was authored") != std::string::npos);
+    CHECK(rows.back().rfind(">", 0) == 0);
+    // ...AND THE CARET IS ON IT, said to Workshop rather than inferred from the picture.
+    const ExternalPane* seat = t.seat();
+    REQUIRE(seat != nullptr);
+    CHECK(seat->caret_row == static_cast<std::int64_t>(rows.size()) - 1);
+    CHECK(seat->caret_row != surface::kNoCaret);
+
+    // AND THE MAKER TYPES AGAIN, which is the thing the lost row made impossible.
+    t.type("send");
+    CHECK(t.input_text().rfind("> send", 0) == 0);
+    CHECK(t.seat()->caret_col == 2 + 4); // the prompt's two columns, then four typed
+    // A PRESS STILL MEANS WHAT THE PICTURE SAYS IT MEANS: the row the caret was published
+    // on is the row a press places the caret in, so the two never disagree about what is
+    // where -- which is the second thing the truncation broke.
+    t.press_row(t.input_row(), 2 + 2);
+    CHECK(t.seat()->caret_col == 2 + 2);
+}
+
+TEST_CASE("TERM-W19b: in a room too small for both, the LINE is what survives") {
+    // THE RESULT FOR THE SMALL ROOMS, SAID OUT LOUD rather than left to arithmetic. Two rows
+    // is the smallest room that holds both, and it holds them in that order.
+    {
+        TerminalRig t;
+        t.open(160, 48, /*shapes=*/0, /*participant=*/false);
+        t.give_rows(2);
+        t.type("send #1 SurfaceText 1");
+        t.submit();
+        const std::vector<std::string> rows = t.shown();
+        REQUIRE(rows.size() == 2);
+        CHECK(rows[0].find("nothing was authored") != std::string::npos);
+        CHECK(rows[1].rfind(">", 0) == 0);
+        CHECK(t.seat()->caret_row == 1);
+    }
+    // ONE ROW IS THE ROOM THAT CANNOT HOLD BOTH, and the line wins it. The refusal is not
+    // shown at all -- there is no row for it that is not the maker's own line -- and the
+    // caret stays where a maker can keep typing.
+    {
+        TerminalRig t;
+        t.open(160, 48, /*shapes=*/0, /*participant=*/false);
+        t.give_rows(1);
+        t.type("send #1 SurfaceText 1");
+        t.submit();
+        const std::vector<std::string> rows = t.shown();
+        REQUIRE(rows.size() == 1);
+        CHECK(rows[0].find("nothing was authored") == std::string::npos);
+        CHECK(rows[0].rfind(">", 0) == 0);
+        CHECK(t.seat()->caret_row == 0);
+    }
+}
+
+TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither shown nor taken") {
+    // ⭐ CORRELATION SAYS WHICH QUESTION AN ANSWER IS TO; IT DOES NOT SAY THE QUESTION STILL
+    // STANDS. The pane asks about the line as it is at that instant, and every path that
+    // ends the question early -- Escape emptying the line, the caret leaving the end, a
+    // submit -- used to return without saying so, leaving the outstanding answer usable. It
+    // then arrived, matched its own correlation, and became a list about a line nobody was
+    // typing any more.
+    TerminalRig t;
+    t.open();
+    // ROOM FOR CANDIDATE ROWS, so "no list" and "a list" are different pictures: the list
+    // takes at most half of what the chrome leaves, and in the default room that half is one
+    // row -- a heading with nothing under it, which both states would show.
+    t.give_rows(10);
+
+    // ONE POLL: the `s` is typed (which asks), and the Escape empties the line -- so the
+    // answer offering `send ` arrives to a pane whose line is empty.
+    t.enqueue_text("s");
+    t.enqueue_key(input::scan::kEscape);
+    t.settle();
+
+    // NOT SHOWN: the pane offers no candidate at all, because the only answer it has is
+    // about a line that no longer exists. (The rows are named by their marker rather than by
+    // the word `send`, which is also inside the standing legend's `a sender`.)
+    CHECK(t.row_of("> send") < 0);
+    CHECK(t.row_of("  send") < 0);
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+
+    // NOT TAKEN: the completion key with nothing on screen means "ask for a list", and it
+    // must not mean "accept the answer to the question I cancelled". The list that comes
+    // back is about the EMPTY line -- both verbs, one of them marked -- and the maker's own
+    // row is still empty.
+    t.r.key(input::scan::kTab);
+    CHECK(t.input_text().find("send") == std::string::npos);
+    const std::int64_t chosen = t.row_of("> send");
+    CHECK(chosen >= 0);
+    CHECK(chosen != t.input_row());
+    CHECK(t.row_of("  ask") >= 0);
+}
+
+TEST_CASE("TERM-W20b: an answer for a caret that has since moved does not reopen the list") {
+    // THE SAME LAW ON THE OTHER GESTURE. Completion follows the END of the line, and the
+    // pane says so out loud when the caret is inside it (TERM-W17). An answer asked for
+    // while the caret WAS at the end used to overwrite that sentence with a real list -- and
+    // a real list is a list the completion key accepts, which would delete everything after
+    // the caret.
+    TerminalRig t;
+    t.open();
+    t.focus();
+    t.type("send ");
+
+    // ONE POLL: the `x` is typed at the end (which asks), and the caret then steps back into
+    // the line, so the answer arrives about a caret position the maker has left.
+    t.enqueue_text("x");
+    t.enqueue_key(input::scan::kLeft);
+    t.settle();
+
+    CHECK(t.text().find("completion follows the END of the line") != std::string::npos);
+    CHECK(t.input_text().rfind("> send x", 0) == 0);
+    // AND THE COMPLETION KEY IS STILL THE SILENCE IT SAYS IT IS: nothing is accepted into
+    // the line from a list that is not open.
+    t.r.key(input::scan::kTab);
+    CHECK(t.input_text().rfind("> send x", 0) == 0);
+}
+
+TEST_CASE("TERM-W21: clipboard text lands in the draft that asked for it, or nowhere") {
+    // ⭐ THE PROTECTION THE HOST USED TO SUPPLY, RESTORED AT ITS NEW OWNER (QR-11 and
+    // the text-box register's paste law). While the terminal line was a box of this HOST's,
+    // Workshop recorded its `draft_epoch` at the paste and applied the answer only if the
+    // same draft still stood. The extracted pane kept the correlation check and lost the
+    // epoch, so a maker who abandoned a command and typed a different one had the first
+    // command's clipboard text spliced into the second.
+    TerminalRig t;
+    t.open();
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    skin->platform = "OLD";
+    t.focus();
+    t.type("abc");
+
+    // ONE POLL: the paste is asked for on `abc`, the line is then abandoned whole, and a
+    // different command is typed on the fresh draft that follows.
+    t.enqueue_key(input::scan::kV, input::mod::kCtrl);
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_text("n");
+    t.enqueue_text("e");
+    t.enqueue_text("w");
+    t.settle();
+
+    // THE READ REALLY HAPPENED, so the absence below is a measurement and not a vacancy:
+    // the staging reached the state where the payload was in the pane's hands.
+    CHECK(skin->clipboard_reads == 1);
+    CHECK(t.input_text().rfind("> new", 0) == 0);
+    CHECK(t.text().find("OLD") == std::string::npos);
+
+    // AND A PASTE INTO THE DRAFT THAT ASKED STILL LANDS, which is the half a check that
+    // discarded everything would also pass.
+    skin->platform = "OK";
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == 2);
+    CHECK(t.input_text().rfind("> newOK", 0) == 0);
+}
+
+TEST_CASE("TERM-W21b: an edit is not a new draft, and a submit is") {
+    // THE POLICY, BOTH WAYS -- because "discard whenever anything changed" is the wrong
+    // repair and would pass the case above. A keystroke is an EDIT to the draft that asked;
+    // `set` and `clear` are the two doors that end one (`component::TextBox::draft_epoch`),
+    // and they are what a paste is bound to.
+    TerminalRig t;
+    t.open();
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    skin->platform = "OLD";
+    t.focus();
+    t.type("ab");
+
+    // TYPED INTO WHILE THE ANSWER WAS IN FLIGHT: the same draft, so the text arrives at the
+    // caret the maker has moved it to.
+    t.enqueue_key(input::scan::kV, input::mod::kCtrl);
+    t.enqueue_text("c");
+    t.settle();
+    CHECK(t.input_text().rfind("> abcOLD", 0) == 0);
+
+    // SUBMITTED WHILE THE ANSWER WAS IN FLIGHT: the line was cleared to author it, so the
+    // draft that asked is over and the payload lands nowhere -- on the fresh line least of
+    // all, where a maker would have found bytes they never pasted anywhere.
+    t.enqueue_key(input::scan::kV, input::mod::kCtrl);
+    t.enqueue_key(input::scan::kReturn);
+    t.settle();
+    // The line that WAS authored is the one the paste had already landed in, asked of the
+    // participant's own record rather than of the pane -- what a six-row pane has room to
+    // show of a transcript is a different question from what is on it.
+    bool authored = false;
+    for (const loom::TranscriptEntry& e : t.record()) {
+        authored = authored || e.text == "abcOLD";
+    }
+    CHECK(authored);
+    CHECK(t.input_text().find("OLD") == std::string::npos);
 }

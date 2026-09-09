@@ -222,6 +222,30 @@ Info's property draft does not yet say one; it can, unchanged, whenever that ima
 touched. What no pane has is a pointer SWEEP: a pane is sent a press and is sent no motion, so
 a word is selected by two presses and a range by `Shift` and the arrow keys.
 
+### A pane asks for some answers, and an answer can arrive after you have moved on
+
+A pane that is its own loaded program cannot call into Workshop; it **asks**, and the answer
+comes back a moment later. Three things the Terminal does work that way — running a line, being
+told what could come next, and pasting — and in each case you may have typed something else in
+between. The rule is the same for all three: **an answer that is no longer about what you are
+typing is discarded, silently.**
+
+| what you did | what you see |
+|---|---|
+| Typed a word, then pressed `Esc` before the suggestions arrived | no list. `Tab` asks again, for the line you have now — it never accepts the suggestion for the word you cancelled |
+| Moved the caret back into the line while suggestions were in flight | `completion follows the END of the line`, and it stays that way. `End` brings the list back |
+| Pressed `Ctrl`+`V`, then cleared the line and typed a different command | **nothing is pasted**, and nothing says so. Paste again |
+| Pressed `Ctrl`+`V` and kept typing on the same line | the text arrives where your caret is. Typing is an edit, not a new command |
+
+The last two are the same distinction everywhere in Workshop: **a paste belongs to the draft
+that asked for it.** Clearing a line with `Esc`, or submitting it with `Enter`, ends that draft;
+typing into it does not.
+
+**A refusal never takes the line's row.** When a door refuses — `no terminal participant is
+mounted on this bus`, say — the sentence appears above your command line and the line stays
+where it was, with your caret on it. In a pane exactly one row tall there is no row for the
+sentence that is not your own line, so the line keeps it and the refusal is not shown.
+
 ### The Files pane is a snapshot, and two identity questions are unanswered
 
 The [Files](files.md) listing is taken when the pane opens, when you navigate, when you press

@@ -74,18 +74,23 @@ inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help m
 ///
 /// ONE FIELD, AND IT IS THE LINE THE MAKER IS HALF-WAY THROUGH TYPING.
 ///
-/// ⚠ THIS IS THE OPPOSITE CHOICE FROM INFO'S AND THE BUILDER'S, AND THE DIFFERENCE IS WHAT
-/// THE THING IS. Info kept a cursor and dropped its property draft; the Builder dropped its
-/// role line. Both of those drafts are a WRITE IN FLIGHT -- a value about to be committed to
-/// a document, a field about to be committed to a recipe -- and a reload is entitled to drop
-/// a write nobody asked for yet, because nothing was written.
+/// ⚠ THIS IS THE OPPOSITE CHOICE FROM INFO'S AND THE BUILDER'S, AND FOUR QUESTIONS DECIDE
+/// IT -- not the word "composition", which names a real difference and settles nothing on its
+/// own. Info kept a cursor and dropped its property draft; the Builder dropped its role line.
+/// Asked of a terminal line, the four answer the other way:
 ///
-/// A TERMINAL LINE IS NOT A WRITE IN FLIGHT. It is a COMPOSITION, and often a long one: an
-/// address, a shape, a version and a run of named arguments, assembled with the completer's
-/// help over many keystrokes. Dropping it on a reload would throw away minutes of a maker's
-/// work at the exact moment the tool is meant to be proving that a reload costs nothing --
-/// and there is nothing to be careful about, because a line that was never submitted has no
-/// effect anywhere. So the line is kept, and this pane is the first that keeps a draft.
+///   recoverable?          NO. A property draft can be reopened on the committed value, which
+///                         is on screen; a half-typed command exists nowhere else.
+///   how much work?        MINUTES. An address, a shape, a version and a run of named
+///                         arguments, assembled over many keystrokes with the completer.
+///   names a target?       NO. A property draft belongs to an object and a label and can go
+///                         stale under them; a line belongs to nobody until it is submitted.
+///   kept, what breaks?    NOTHING. A kept property draft could commit a stale value to a
+///                         live document; a kept line is text the maker reads before Return.
+///
+/// So the line is kept, and this pane is the first that keeps a draft. A draft whose four
+/// answers are MIXED is undecided by this and by the decision record -- the first one that
+/// appears decides it (`agents/decisions/the-terminal-is-a-participant.md`).
 ///
 /// AND THE CARET IS NOT KEPT WITH IT. `component::TextBox` holds the text, the caret, the
 /// selection and the window; only the TEXT crosses a reload, and the new image places the

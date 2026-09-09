@@ -156,3 +156,39 @@ PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `say_caret`;
 caret where the maker aimed"`, case `"TERM-W10: the pane publishes a caret, and Workshop draws it
 into the region"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
+
+## WL-TERM-10 — A refusal is budgeted with the rows, beside the line it is about
+
+LAW — The pane budgets the input row first and a standing refusal second, before any row is composed; two rows is the smallest room that holds both, and one row is the line's.
+
+MEANS
+- the caret and the press mapping name rows the pane actually published, always;
+- a row added after the budget was spent takes back the last one composed, which is the line.
+
+DOES NOT MEAN — that a refusal is dropped when it does not fit. It is dropped only where there
+is no row for it that is not the maker's own line, and that room is one row.
+
+PROVEN BY — `terminal-pane/pane.cpp` `say`, `say_caret`, `kChromeRows`;
+`workshop/panel.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
+`"TERM-W19: a refusal is said BESIDE the line it is about, never in place of it"`, case
+`"TERM-W19b: in a room too small for both, the LINE is what survives"`.
+WHY — `agents/decisions/the-terminal-is-a-participant.md`
+
+## WL-TERM-11 — A completion answer applies to the line and caret it was asked about
+
+LAW — An ask records the line and the caret it is about; an answer that comes back to a different line or caret is neither shown nor accepted, and the question is put again for the line that is there.
+
+MEANS
+- correlation says which question an answer is to, never that the question still stands;
+- Escape, a submit, a caret leaving the end and a further keystroke each end one;
+- the selection still survives a recomputation of the same question (WL-TERM-05).
+
+DOES NOT MEAN — that the list blinks between keystrokes. The host drains to idle, so an ask
+and its answer are spent inside one turn of its loop.
+
+PROVEN BY — `terminal-pane/pane.cpp` `here`, `offer_applies`, `ask_completion`,
+`on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a line that
+is gone is neither shown nor taken"`, case `"TERM-W20b: an answer for a caret that has since
+moved does not reopen the list"`.
+WHY — `agents/decisions/the-terminal-is-a-participant.md`

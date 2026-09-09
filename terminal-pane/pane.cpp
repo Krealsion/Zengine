@@ -11,8 +11,11 @@
 // beside the Skin, the Timer, the browser, the Builder, Attention and Info.
 //
 // ⚠ THE PARTICIPANT DID NOT COME WITH IT, AND THAT IS MEASURED RATHER THAN PREFERRED.
-// `loom::TerminalSession` cannot be driven by a message -- its handler sends nothing, by
-// construction, and the only shapes it accepts are the three answer doors its host declared.
+// `loom::TerminalSession` is not driven by any message in the interface it has TODAY -- its
+// handler sends nothing, by construction, and the only shapes it accepts are the three answer
+// doors its host declared -- and this work adds no Loom sentence, so under that constraint it
+// could not have moved. That is the bound, and it is narrower than "could not, ever": a Loom
+// that gave the session a driven door would change the answer, and this is not that phase.
 // So it stays where its trust lives: a narrow, host-mounted identity whose grant is one
 // rule. What crosses is a PICTURE the host derives (`TranscriptShown`), one ACT
 // (`TerminalActRequested`), and one READ (`TerminalCompletionRequested`). Nothing in this
@@ -272,11 +275,28 @@ public:
 
     /// WHAT COULD BE SAID NEXT. The answer is the participant's; which candidate the maker
     /// is standing on is this pane's, and survives a recomputation on its own rule.
+    ///
+    /// ⚠ AND FIRST: IS IT STILL ABOUT THIS LINE? The correlation says which question this
+    /// answers; it does not say the question still stands. Between the ask and the answer a
+    /// maker can empty the line, move the caret off its end, submit, or type -- and an
+    /// answer about the line as it WAS is a list of candidates for a word nobody is typing.
+    /// Accepting one splices a stripped `partial` that is no longer on the line.
     void on(const TerminalCompletionOffered& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !completing_ || mail.correlation() != completion_pending_) {
             return;
         }
         completing_ = false;
+        const bool moved_on = stale_;
+        stale_ = false;
+        if (asked_about_ != here()) {
+            // THE LINE THIS WAS ABOUT IS GONE. The answer is dropped whole -- not shown, so
+            // it cannot be read as being about this line, and not held, so it cannot be
+            // accepted into one -- and the question is put again for the line that IS here,
+            // which is the only party that can say whether there is one to ask.
+            ask_completion(mail);
+            say(mail);
+            return;
+        }
         // THE SELECTION SURVIVES A RECOMPUTATION AND NOT A CHANGE OF QUESTION. The question
         // is the SLOT and the PARTIAL together: same question, same selection; a different
         // word or a different part of the line is a new list and starts at the top. Clamped
@@ -288,6 +308,7 @@ public:
         const bool same_question = offered_.open && said.open && said.slot == offered_.slot &&
                                    said.partial == offered_.partial;
         offered_ = said;
+        offered_about_ = asked_about_;
         if (same_question && !offered_.candidates.empty()) {
             const std::size_t last = offered_.candidates.size() - 1;
             selected_ = selected_ < last ? selected_ : last;
@@ -301,9 +322,10 @@ public:
         }
         // IF THE LINE MOVED WHILE THE ANSWER WAS IN FLIGHT, ASK AGAIN. At most one question
         // is outstanding at a time, so a maker typing faster than the drain coalesces into
-        // one further ask rather than a queue of them.
-        if (stale_) {
-            stale_ = false;
+        // one further ask rather than a queue of them. (The line moving is normally caught
+        // above; this stands for the paths that move it without changing what `here()` says
+        // -- a room grant between the two, say -- and costs one further ask when it fires.)
+        if (moved_on) {
             ask_completion(mail);
         }
         say(mail);
@@ -474,11 +496,23 @@ public:
         clip_.text = said.text;
     }
 
+    /// THE SKIN'S ANSWER TO A PASTE THIS PANE ASKED FOR (QR-11) -- the one road foreign
+    /// clipboard text has into this line, walked only under a maker's own gesture.
+    ///
+    /// ⚠ TWO QUESTIONS, AND THE CORRELATION ANSWERS ONLY THE FIRST. It says this is the
+    /// answer to an ask this incarnation made. It does not say the line that asked still
+    /// exists -- and between the ask and the answer a maker can abandon the command whole
+    /// and start a different one, which is `clear` and a new draft. Text asked for by a
+    /// draft that has ended lands nowhere, which is the law every other box in this
+    /// repository already keeps (`files/`, `introspection/`, `composer/`, WL-TEXT-09).
     void on(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
         }
         paste_.awaiting = false;
+        if (line_.draft_epoch() != paste_.epoch) {
+            return; // the draft that asked is over; the payload is discarded, silently
+        }
         const std::string text = a.readable ? a.text : clip_.text;
         if (text.empty() || !admissible(text)) {
             return;
@@ -547,9 +581,15 @@ private:
 
     /// ASK WHAT COULD BE SAID NEXT -- at most one question outstanding, and never from a
     /// place the answer could not be about.
+    ///
+    /// ⚠ EVERY EXIT FROM HERE LEAVES THE OFFER APPLYING TO THE LINE THAT IS THERE. The three
+    /// silences below are answers this pane composed about the line as it is now, so each one
+    /// re-stamps `offered_about_`; the ask stamps `asked_about_` instead, so the answer that
+    /// comes back can be measured against the line it comes back to.
     void ask_completion(loom::Mail& mail) {
         if (!known_.attached) {
             offered_ = TerminalCompletionOffered{};
+            offered_about_ = here();
             return; // nothing to ask, and a door that would answer "nothing" anyway
         }
         // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE. The
@@ -564,6 +604,7 @@ private:
             offered_ = TerminalCompletionOffered{};
             offered_.open = true;
             offered_.heading = "completion follows the END of the line -- this caret is inside it";
+            offered_about_ = here();
             selected_ = 0;
             return;
         }
@@ -572,6 +613,7 @@ private:
         // completion key is the way to ask anyway.
         if (line_.empty() && !asked_for_list_) {
             offered_ = TerminalCompletionOffered{};
+            offered_about_ = here();
             selected_ = 0;
             return;
         }
@@ -579,6 +621,7 @@ private:
             stale_ = true; // one question at a time; the answer will re-ask
             return;
         }
+        asked_about_ = here();
         completion_pending_ = ++asked_;
         completing_ = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
@@ -586,8 +629,13 @@ private:
                           completion_pending_);
     }
 
+    /// ...AND THE DRAFT THAT ASKED, so the answer can be measured against the draft it comes
+    /// back to (QR-11, WL-TEXT-09). `set` and `clear` are the two doors that end a draft and
+    /// the two that bump this counter, so an EDIT is the same draft and an abandoned or
+    /// submitted line is not.
     void begin_paste(loom::Mail& mail) {
         paste_.pending = ++asked_;
+        paste_.epoch = line_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
             .send_to_role(zengine::surface::kSkinRole, surface::ClipboardTextRequested{},
@@ -596,8 +644,11 @@ private:
 
     // ---- The completion list's own cursor -------------------------------------------------
 
+    /// WHETHER THERE IS A CANDIDATE TO ACT ON -- and the first half of the question is
+    /// whether what this pane is holding is about the line in front of the maker at all
+    /// (`offer_applies`). A list that outlived its line is not a list.
     bool selectable() const {
-        return offered_.open && !dismissed_ && !offered_.candidates.empty();
+        return offer_applies() && offered_.open && !dismissed_ && !offered_.candidates.empty();
     }
 
     void move_selection(int by) {
@@ -634,6 +685,36 @@ private:
     /// so it is updated wherever the text changes and nowhere else.
     void remember_line() { state_.line = line_.text(); }
 
+    /// THE LINE A QUESTION ABOUT COMPLETION IS ABOUT. Two of these are kept: what the
+    /// OUTSTANDING ask was about (`asked_about_`), and what the offer in hand is about
+    /// (`offered_about_`).
+    struct Asking {
+        std::string line;
+        std::size_t caret = 0;
+        bool operator==(const Asking& o) const { return caret == o.caret && line == o.line; }
+        bool operator!=(const Asking& o) const { return !(*this == o); }
+    };
+
+    /// WHAT A COMPLETION IS ABOUT: the line, and where in it the maker is standing.
+    ///
+    /// BOTH HALVES ARE LOAD-BEARING, and each is a defect on its own. The TEXT, because a
+    /// candidate is accepted by stripping `partial` off the end of the line and appending
+    /// `insert` -- an arithmetic that means nothing against a line the partial is not a
+    /// token of. The CARET, because completion follows the END of the line: an answer asked
+    /// for at the end and read with the caret inside it would splice at the end and delete
+    /// everything the maker had moved back to look at.
+    Asking here() const { return Asking{line_.text(), line_.caret()}; }
+
+    /// IS WHAT THIS PANE IS HOLDING ABOUT THE LINE IN FRONT OF THE MAKER? Asked before the
+    /// list is drawn as well as before a candidate is taken, because a list drawn under a
+    /// line it is not about is a wrong answer whether or not anybody presses Tab.
+    ///
+    /// ⚠ THE COST IS A FRAME WITH NO LIST while a fresh answer is in flight, and it is the
+    /// price of the seam: the completion used to be a function call and is a round trip now.
+    /// The host drains to idle, so the ask and its answer are spent inside one turn of the
+    /// loop and the gap is never a frame a maker waits through.
+    bool offer_applies() const { return offered_about_ == here(); }
+
     // ---- The rows, and the caret beside them ----------------------------------------------
 
     /// THE PANE, COMPOSED. Header, legend, transcript, omission, completion list, input row
@@ -641,11 +722,16 @@ private:
     ///
     /// THE ROW BUDGET IS SPENT IN PRIORITY ORDER, because a pane can be granted any height a
     /// maker's arrangement gives it. The input row is first: a Terminal with no line is not a
-    /// Terminal. Then the header (whose pane is this), then the omission marker (what am I
-    /// not seeing), then the legend (what does `^` mean). What is left is split between the
+    /// Terminal. Then a standing refusal, which is the answer to what the maker just did.
+    /// Then the header (whose pane is this), then the omission marker (what am I not
+    /// seeing), then the legend (what does `^` mean). What is left is split between the
     /// completion list and the transcript, and the list takes at most half -- the built-in's
     /// own share rule, which exists because a list that grew to fill the pane would answer
     /// the second question by erasing the first.
+    ///
+    /// ⚠ EVERY ROW HERE IS BUDGETED BEFORE IT IS COMPOSED, and that is the correction the
+    /// notice taught: a row added after the budget was spent has to take one back, the row
+    /// it takes back is the last one composed, and the last one composed is the input line.
     void say(loom::Mail& mail) {
         if (!granted_) {
             return; // no room has been sent: there is nothing this pane could truthfully fill
@@ -664,12 +750,30 @@ private:
             say_caret(mail);
             return;
         }
-        const bool header = rows_ >= 2;
-        const bool omission = rows_ >= 3;
-        const bool legend = rows_ >= kChromeRows + 1;
-        std::int64_t rest = rows_ - 1 - (header ? 1 : 0) - (omission ? 1 : 0) - (legend ? 1 : 0);
+        // THE INPUT ROW IS TAKEN FIRST AND A NOTICE SECOND, BEFORE ANYTHING ELSE IS
+        // COMPOSED. A refusal is the answer to the gesture the maker just made and belongs
+        // beside the line it is about -- so it is part of the budget rather than something
+        // added to a pane whose budget is already spent. It used to be the latter, and the
+        // row it took back was the last one composed, which is the input row: the sentence
+        // appeared and the line it was about vanished, with the caret.
+        //
+        // TWO ROWS IS THE SMALLEST ROOM THAT HOLDS BOTH. In one row there is no row for a
+        // notice that is not the maker's own line, so the line keeps it and the refusal is
+        // not shown -- the pane's stated order, followed to its end rather than abandoned at
+        // the boundary.
+        const bool notice = !notice_.empty() && rows_ >= 2;
+        const std::int64_t body = rows_ - 1 - (notice ? 1 : 0);
+        const bool header = body >= 1;
+        const bool omission = body >= 2;
+        const bool legend = body >= kChromeRows;
+        std::int64_t rest = body - (header ? 1 : 0) - (omission ? 1 : 0) - (legend ? 1 : 0);
         if (rest < 0) {
             rest = 0;
+        }
+
+        // A REFUSAL THE DOOR GAVE, over the top row, where a maker will see it.
+        if (notice) {
+            push(notice_, surface::role::kAlert);
         }
 
         // THE HEADER NAMES THE IDENTITY whose record this is. A presentation may hold
@@ -687,7 +791,7 @@ private:
 
         // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
         // left rather than the other way round.
-        const bool list_open = offered_.open && !dismissed_;
+        const bool list_open = offer_applies() && offered_.open && !dismissed_;
         std::size_t list_wanted =
             list_open ? offered_.candidates.size() + 1 /*the heading*/ : 0;
         const std::size_t list_ceiling = static_cast<std::size_t>(rest / 2);
@@ -744,25 +848,11 @@ private:
         const std::int64_t visible = columns_ - kPromptCols - kCaretCols;
         line_.keep_caret_visible(visible > 0 ? visible : 0);
         input_row_ = static_cast<std::int64_t>(out.size());
-        const bool prompting = line_.empty() && !(offered_.open && !dismissed_);
+        const bool prompting = line_.empty() && !list_open;
         push(prompting ? std::string(">    Tab: what can this terminal say?")
                        : "> " + line_.visible(visible > 0 ? visible : 0),
              known_.attached ? surface::role::kAccent : surface::role::kAlert);
 
-        // A REFUSAL THE DOOR GAVE, said over the top row, where a maker will see it. It is
-        // the pane's own last row budget rather than an extra one: a notice that pushed the
-        // input line off the pane would be a sentence that hid the thing it is about.
-        if (!notice_.empty() && rows_ > 1) {
-            if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
-                out.resize(static_cast<std::size_t>(rows_ - 1));
-            }
-            out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns_)),
-                                                            surface::role::kAlert});
-            ++input_row_;
-            if (list_first_row_ >= 0) {
-                ++list_first_row_;
-            }
-        }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
@@ -853,6 +943,7 @@ private:
 
     /// WHAT THE PARTICIPANT SAID COULD COME NEXT, and which of it the maker is standing on.
     TerminalCompletionOffered offered_;
+    Asking offered_about_;
     std::size_t selected_ = 0;
     bool dismissed_ = false;
     std::string dismissed_at_;
@@ -862,6 +953,11 @@ private:
     struct Paste {
         bool awaiting = false;
         std::uint64_t pending = 0;
+        /// THE DRAFT THAT ASKED (`component::TextBox::draft_epoch`). The correlation says
+        /// this answer is to this pane's own ask; the epoch says the line it was asked for
+        /// still exists. Workshop held exactly this field while the terminal line was a box
+        /// of the host's, and losing it in the move is what QR-11's law is about.
+        std::uint64_t epoch = 0;
     };
     Paste paste_;
 
@@ -885,6 +981,7 @@ private:
     std::uint64_t act_pending_ = 0;
     bool completing_ = false;
     std::uint64_t completion_pending_ = 0;
+    Asking asked_about_;
     bool stale_ = false;
 
     std::int64_t rows_ = 0;
