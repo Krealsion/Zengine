@@ -250,7 +250,8 @@ typed before it.
 **Text outside plain ASCII is not pasted, and the pane says so.** A line whose row draws those
 bytes as spaces would show you something other than what you would submit, so the whole paste
 is refused with a sentence above the line rather than a half of it landing. Typing such a
-character is refused the same way, and has been since before the Terminal was a pane.
+character is refused the same way — that door is the pane's own, and it arrived with the pane;
+the modal terminal this replaced let those bytes into the line.
 
 **A refusal never takes the line's row.** If a door refuses what the Terminal asked it to run,
 the sentence appears *above* your command line — the line stays where it was, with your caret
