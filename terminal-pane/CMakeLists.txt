@@ -4,8 +4,9 @@
 # builder-pane/, attention-pane/ and info-pane/ do, and Workshop compiles nothing for it.
 #
 # ⚠ THE PARTICIPANT IS NOT IN THIS PACKAGE AND THAT IS THE MIGRATION'S MEASUREMENT.
-# `loom::TerminalSession` is mounted by the host and reached by a pointer the host holds; it
-# cannot be driven by a message, so it could not have come here even if anybody wanted it to.
+# `loom::TerminalSession` is mounted by the host and reached by a pointer the host holds. No
+# message in the interface it has TODAY drives it, and this work adds no Loom sentence, so
+# under that constraint it could not have come here -- which is a bound, not an impossibility.
 # This package links `zengine-workshop-vocabulary` for the pane protocol and the terminal
 # SEAM's shapes, and nothing that could construct, read or author through a participant.
 # What it can do to one is ask.

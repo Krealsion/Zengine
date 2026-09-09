@@ -646,9 +646,14 @@ private:
     /// COMPOSE AND AUTHOR ONE LINE through the participant, in Loom's own grammar.
     ///
     /// THE ONE PATH IN THIS PROCESS THAT SPEAKS AS THE TERMINAL, and the reason the
-    /// participant could not migrate with its presentation: `send`/`ask` go out through
+    /// participant stayed behind when its presentation left: `send`/`ask` go out through
     /// the participant's own channel, stamped with ITS identity and authorized against
     /// ITS grant. A pane authoring this would be authoring as the pane.
+    ///
+    /// ⚠ THE SCOPE OF THAT, SAID EXACTLY. No message in the interface `loom::TerminalSession`
+    /// has TODAY drives it, and this work adds no Loom sentence -- so under that constraint
+    /// it could not have moved. It is not a claim that no participant of this kind ever
+    /// could; a driven door would change the answer, and that is a Loom conversation.
     void submit_terminal_line(const std::string& line);
 
     /// Command mode.

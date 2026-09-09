@@ -36,5 +36,14 @@ draft keeps its epoch, so an extent change mid-flight does not orphan its paste.
 paste-there stays true on a terminal through the mirror with no platform claim. The Composer, a
 provider, holds the same conversation itself with its own book.
 
+**And the conversation moves with the line.** When a box leaves this host for a pane's own
+image, the whole of this decision goes with it: the ask, the recorded epoch and the check on
+arrival are the new owner's, because Workshop no longer holds the box and cannot make them.
+`files/`, `introspection/` and `composer/` each carry their own; the Terminal pane crossed
+without one and was corrected in review (`terminal-pane/pane.cpp` `Paste::epoch`). The
+migration accounting is what missed it — three of this decision's cases were repointed to the
+layout-name editor, which made them cases about that editor and left the extracted line with
+no case of its own (VM-POP-21).
+
 **Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-TEXT-08](../workshop/text-box.md),
 [WL-TEXT-09](../workshop/text-box.md), [WL-TEXT-10](../workshop/text-box.md).

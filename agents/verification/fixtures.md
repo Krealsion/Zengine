@@ -180,3 +180,23 @@ METHOD — A test can lean on a false-positive diagnostic without saying so: whe
 BECAUSE — an audit's only evidence that one shape had been spoken was the refusal of a
 publication nobody accepted; remove the false positive and it counts one fewer and still passes.
 SEEN — nowhere yet
+
+## VM-FIX-23 — Cross a new message boundary operation by operation
+
+METHOD — For each operation a new message boundary turns into a request, name what it refers to, what may change before it is consumed, how the receiver re-establishes that it applies and what it does when it cannot.
+BECAUSE — three operations crossed one extraction as requests and all three were answered
+against a line that had moved on; correlation identified each question and none of them said
+the question still stood. Ask it of the changes that can happen, not of a fixed mechanism list.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a
+line that is gone is neither shown nor taken"`, case `"TERM-W21: clipboard text lands in the
+draft that asked for it, or nowhere"`.
+
+## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
+
+METHOD — To reproduce "the answer arrived after the line moved", enqueue the gestures without draining and drain once: the request a handler sends lands behind what is already queued, so the order is the case's.
+BECAUSE — a sleep does not order a single-threaded bus and a helper that publishes and drains
+spends the answer before it returns, so the interleaving is unreachable from the ordinary
+rig doors; the batch is deterministic and needs no thread.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
+and a submit is"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real Composer's fields
+speak the vocabulary across the seam"`.

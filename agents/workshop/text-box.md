@@ -121,22 +121,28 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-09 — A paste is a conversation, and the answer belongs to the draft that asked
 
-LAW — A paste is a request: the component counts it, Workshop names the asking draft and asks the medium's role through its ask book, and the answer lands only if the same owner holds the same draft epoch.
+LAW — A paste is a request: the component counts it, whoever owns the line names the asking draft and asks the medium's role, and the answer lands only if that same draft is still standing.
 
 MEANS
 - a paste means the platform clipboard's current value, which only the owner can obtain;
 - a property row also needs the same object and label; a `Row::resume` draft keeps its epoch;
 - anything else discards the payload whole; the book holds four asks and refuses a fifth.
 
+DOES NOT MEAN — that the check belongs to this host. `TextBox::draft_epoch` is the boundary made
+comparable, and a line that left for a pane's own image asks and checks for itself.
+
 PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::paste`,
 `TextBox::draft_epoch`; `workshop/weave_seam.cpp` `paste_owner_now`, `naming_line`,
 `begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
 `PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
-`workshop/property.hpp` `Row::paste`, `Row::resume`; `surface/vocabulary.hpp`
+`workshop/property.hpp` `Row::paste`, `Row::resume`; `terminal-pane/pane.cpp` `begin_paste`,
+`on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `surface/vocabulary.hpp`
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
 reads the platform current, not the mirror stale"`, case `"QR-11: an unsolicited ClipboardText
 enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the
-owner applies, and set/clear name the draft"`.
+owner applies, and set/clear name the draft"`; `tests/test_workshop_panes_terminal.cpp` case
+`"TERM-W21: clipboard text lands in the draft that asked for it, or nowhere"`, case `"TERM-W21b:
+an edit is not a new draft, and a submit is"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
