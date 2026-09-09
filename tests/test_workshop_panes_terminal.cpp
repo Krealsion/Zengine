@@ -1054,6 +1054,17 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     CHECK(skin->clipboard_reads == reads + 1); // the read really happened
     CHECK(t.input_text().rfind("> hold", 0) == 0);
 
+    // A PASTE OVER A SELECTION REPLACES IT, which is the behaviour that moved with the door
+    // and would have gone quietly if `paste` had been reached for without it.
+    skin->platform = "gone";
+    t.r.key(input::scan::kA, input::mod::kCtrl);
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.input_text().rfind("> gone", 0) == 0);
+    CHECK(t.input_text().find("hold") == std::string::npos);
+    t.r.key(input::scan::kEscape);
+    t.r.key(input::scan::kEscape);
+    t.type("hold");
+
     // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10) -- the terminal
     // medium's own standing truth, which is what keeps copy-here paste-there working there.
     t.r.key(input::scan::kA, input::mod::kCtrl);
