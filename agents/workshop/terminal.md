@@ -184,7 +184,7 @@ MEANS
 - the selection still survives a recomputation of the same question (WL-TERM-05).
 
 DOES NOT MEAN — that a maker never sees the gap. The ask and its answer are one turn of the
-host's drain; what a medium draws inside that turn is unmeasured (VM-FIX-25).
+host's drain; what a medium draws inside that turn is a different question, and unmeasured.
 
 PROVEN BY — `terminal-pane/pane.cpp` `here`, `offer_applies`, `ask_completion`,
 `on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;
