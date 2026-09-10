@@ -90,6 +90,14 @@ a suite whose fixture never reaches it; the diagnosis turned up a third mutation
 written, because the multiply beside it had none.
 SEEN — nowhere yet
 
+## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
+
+METHOD — A case that forges a message proves the guard only when the forging weave is granted to say that shape; read the grant before believing the green, and let a mutation of the guard show the case reaches it.
+BECAUSE — two forgery cases of a twelve-mutation matrix stayed green under their mutants: the
+asker's grant lacked the forged shape, so the bus refused the forgery before the host ever saw
+it; with the grant added both went red, and one gained an in-flight forgery on the way.
+SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), EDIT-W10, EDIT-W23.
+
 ## VM-MUT-23 — A crashing mutation needs a separate semantic pin
 
 METHOD — A crashing mutation needs a separate semantic pin — the focused suite and the sanitizer, reported together — and a canary must be surgical and non-crashing.
