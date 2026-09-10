@@ -112,8 +112,12 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     const auto take = [&](bool concrete) {
         for (const ActionRow& row : kActionCatalog) {
             const bool is_concrete = row.context != KeyContext::kGlobal &&
-                                     row.context != KeyContext::kNoText;
-            if (is_concrete != concrete || !active_in(row.context, ctx)) {
+                                     row.context != KeyContext::kNoText &&
+                                     row.context != KeyContext::kUnlessOwned;
+            // THE LEGEND TEACHES WHAT WOULD RUN, so a row the focused pane has stood in
+            // for is not spelled here -- the pane's own row for it already is, first
+            // (WL-KEY-15).
+            if (is_concrete != concrete || !k.row_active(row, ctx, pane)) {
                 continue;
             }
             // A ROW WITH NO GESTURE TEACHES NO KEY. The legend's whole job is

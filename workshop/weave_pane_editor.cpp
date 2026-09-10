@@ -93,7 +93,7 @@ void WorkshopWeave::pane_editor_move_in(bool rows, std::int64_t by) {
     }
 }
 
-// WL-EDIT-10 -- agents/workshop/editor.md; WL-PED-08 -- agents/workshop/pane-manager.md
+// WL-PTR-10 -- agents/workshop/pointer.md; WL-PED-08 -- agents/workshop/pane-manager.md
 void WorkshopWeave::pane_editor_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     repair_pane_editor_subject();
     const PaneEditorAt where = pane_editor_at(session_, w.space, w.x, w.y);

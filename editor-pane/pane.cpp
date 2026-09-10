@@ -27,7 +27,7 @@
 // that a design rather than an accident. Presentation and custody are two lifetimes here
 // exactly as they were: hiding, covering, moving, reordering or removing the PANE touches
 // this weave not at all, because Workshop closes a presentation and sends no unload. A
-// SAME-SHAPE RELOAD carries the document across (`EditorPaneState`; `snapshot`/`revive`
+// SAME-SHAPE RELOAD carries the document across (`EditorPaneState`; `mirror_state`/`revive`
 // below), so the one lifecycle act a maker can perform on this image keeps their work. And
 // an ORDERLY QUIT asks this weave before it stops the bus (`PaneQuitRequested`), so dirty
 // source refuses the exit exactly as it did when the host could read it. What is NOT
@@ -36,13 +36,15 @@
 // ⚠ WHAT MOVED ACROSS A MESSAGE BOUNDARY, AND WHAT DID NOT. Save stayed one synchronous
 // call inside this weave: the write, then the saved comparison, with no delivery between
 // them, so a success is about the bytes that were written and can never mark a later edit
-// clean. Open stayed one call too: read and judge before anything moves, then install. What
-// became a round trip is the PASTE (the Skin answers later; the answer is pinned to the
-// document epoch and the buffer revision it was asked for, as the host pinned it), the
-// REVEAL (the host seats the pane after this weave has installed the document; a refused
-// reveal leaves the document open here, as a removed pane would) and the QUIT (the host asks
-// and waits; this weave answers about the instant of the answer, and refuses while a paste
-// is still arriving, because a permission a queued message could falsify is not one).
+// clean. What became a round trip is the PASTE (the Skin answers later; the answer is pinned
+// to the document epoch and the buffer revision it was asked for, as the host pinned it),
+// the QUIT (the host asks and waits; this weave answers about the instant of the answer, and
+// refuses while a paste is still arriving, because a permission a queued message could
+// falsify is not one) -- and the OPEN, which is one transaction across a boundary rather
+// than one call: read and judge, ask the desk to show this pane, and install only if it did
+// (VD-26). A refusal at any step -- a missing file, refused bytes, a dirty document, a
+// screen with no room -- leaves the document that was open, its caret and its history
+// exactly as they were, and travels back to whoever asked as the answer to their request.
 
 #include "editor-pane/vocabulary.hpp"
 
@@ -63,6 +65,7 @@
 #include <zen/weave/standard_shapes.hpp>
 
 #include <cstddef>
+#include <filesystem>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -92,6 +95,7 @@ using ws::PaneOffered;
 using ws::PanePressed;
 using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
+using ws::PaneRevealAnswered;
 using ws::PaneRevealRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
@@ -132,47 +136,51 @@ class EditorPaneWeave
           EditorPaneWeave, pane::EditorPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
                        PaneDragged, PaneKey, PaneTextInput, PaneWheel, PaneActionRequested,
-                       PaneQuitRequested, OpenSourceRequested, ProjectRoot,
+                       PaneQuitRequested, PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneRevealRequested,
                      PaneQuitAnswered, SourceOpened, ProjectRootRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+    /// ONE ACQUISITION IN FLIGHT: the candidate bytes, the reveal it is waiting on, and the
+    /// requester's answer, taken away from the delivery that asked so it can be spent when
+    /// the desk replies (WL-EDIT-05). Not a document: nothing reads it, paints it or edits it.
+    struct Pending {
+        bool live = false;
+        bool same_path = false;
+        std::uint64_t reveal = 0;
+        std::string path;
+        ws::SourceIn admitted;
+        loom::DeferredAnswer answer;
+    };
+
+    /// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
+    struct Drag {
+        bool armed = false;
+        std::int64_t chrome_rows = 0;
+        std::int64_t doc_rows = 0;
+    };
+
 public:
     using Base = loom::WeaveBase<
         EditorPaneWeave, pane::EditorPaneState,
         loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneDragged,
                      PaneKey, PaneTextInput, PaneWheel, PaneActionRequested, PaneQuitRequested,
-                     OpenSourceRequested, ProjectRoot, surface::ClipboardCopy,
-                     surface::ClipboardText>,
+                     PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
+                     surface::ClipboardCopy, surface::ClipboardText>,
         loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneRevealRequested,
                    PaneQuitAnswered, SourceOpened, ProjectRootRequested, surface::ClipboardCopy,
                    surface::ClipboardTextRequested>>;
 
-    // ---- The state a reload carries, materialized on demand ----------------------------
+    // ---- The state a reload carries, and the surface a poke reads ----------------------
 
-    /// THE SNAPSHOT IS BUILT WHEN LOOM ASKS FOR IT, from the live buffer, and at no other
-    /// moment. `state_` is deliberately not written on every keystroke: the document can be
-    /// four megabytes, and a copy of it per gesture would be the cost of a reload paid on
-    /// every keystroke that never leads to one. The shape's own comment says what crosses
-    /// and what does not.
-    loom::Value snapshot() const override {
-        pane::EditorPaneState s;
-        if (e_.open_document()) {
-            s.path = e_.path;
-            s.text = ws::source_text(e_.buffer.lines(), e_.convention);
-            s.saved_text = ws::source_text(e_.saved_lines, e_.convention);
-            s.convention = e_.convention;
-            s.doc_epoch = static_cast<std::int64_t>(e_.doc_epoch);
-            s.caret_row = static_cast<std::int64_t>(e_.buffer.caret_row());
-            s.caret_byte = static_cast<std::int64_t>(e_.buffer.caret_byte());
-            s.anchor_row = static_cast<std::int64_t>(e_.buffer.anchor_row());
-            s.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
-            s.first_row = static_cast<std::int64_t>(e_.first_row);
-            s.first_col = e_.first_col;
-        }
-        return loom::to_value(s);
-    }
-
+    /// ⚠ THERE IS NO `snapshot()` HERE, AND ITS ABSENCE IS THE POINT (VD-26). This pane used
+    /// to build the shape from the live buffer at the moment Loom asked and leave `state_`
+    /// untouched -- two truths, of which Loom reads the WRONG one for `zen.PokeRead`: the
+    /// poke doors are answered off `state_` before any handler runs, so a pane holding an
+    /// unsaved document answered `path` and `text` with empty strings, and a reloaded one
+    /// answered with the snapshot it revived from. `state_` is now written from the live
+    /// document at every composition (`mirror_state`), so Loom's own `snapshot()` is right
+    /// by construction and the read surface cannot drift from what the maker is looking at.
     /// THE DOCUMENT COMES BACK IN `revive`, WHICH IS THE CALL A RELOAD ACTUALLY MAKES.
     /// `swap_state` revives the new incarnation from the host-owned snapshot before anything
     /// else happens to it, so the buffer is whole before the first delivery -- and before
@@ -226,6 +234,14 @@ public:
             return; // not Loom's answer to the question this pane asked
         }
         project_dir_ = said.project_dir;
+        // ⭐ THE FACT A RELATIVE SPELLING TURNS ON (VD-26). An owner that has not answered
+        // and an owner that authoritatively named no project are different, and only the
+        // second one is permission to spell a relative path against the process. This flag
+        // is what tells them apart; before it, an unanswered door left `project_dir_` empty
+        // and a relative request went to the filesystem to mean whatever the process
+        // directory happened to hold.
+        project_known_ = true;
+        mirror_state();
     }
 
     // ---- THE ONE DOOR: open a source ----------------------------------------------------
@@ -238,22 +254,65 @@ public:
     /// AN OFFICE, AND ONLY AN OFFICE, the host doors' rule: opening a maker's source for
     /// anonymous speech would be this weave acting on a sentence with no author.
     ///
-    /// THEN THE REVEAL, AND THE ORDER IS THE HONESTY. The document is installed and the asker
-    /// is answered FIRST; the ask to be shown goes out afterwards, and the host may refuse it
-    /// (no slot on this screen). A refused reveal is said by the host on its notice line and
-    /// changes nothing here: the document is open in a pane the maker can bring back from
-    /// the picker, exactly as a removed pane's document is.
+    /// ⚠ AND THE PRESENTATION IS PART OF THE TRANSACTION (VD-26). An open that ends in a
+    /// pane nobody can see is not an open, so this weave READS AND JUDGES the file, ASKS to
+    /// be shown, and INSTALLS only when the desk says yes. A refusal at any step -- a
+    /// missing file, bytes the law refuses, a dirty document, a screen with no slot -- leaves
+    /// the prior document, its caret, its history and the authored setup exactly as they
+    /// were, and travels back to whoever asked as the answer to their own request.
+    ///
+    /// THE ANSWER IS THEREFORE DEFERRED, because the desk answers on a later delivery. What
+    /// is held in the meantime is a CANDIDATE and never a second document: nothing about it
+    /// is readable, paintable or editable, and the commitment re-judges the document it is
+    /// about to replace, because a maker can type into it while the desk is deciding.
     void on(const OpenSourceRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             return;
         }
-        const Written done = open_source(asked.path);
-        (void)mail.answer(SourceOpened{done.accepted, done.refusal});
-        if (done.accepted) {
-            (void)mail.as_role(pane::kEditorPaneRole)
-                .send_to_role(kWorkshopRole, PaneRevealRequested{pane::kEditorPane});
+        if (open_.live) {
+            // ONE ACQUISITION AT A TIME. Two in flight would be two candidates racing for
+            // one document with one deferred answer each; the second is refused in words a
+            // maker can act on, and the first is still on its way to the desk.
+            (void)mail.answer(SourceOpened{
+                false, "the Editor is still opening " + open_.path + " -- try again once it "
+                                                                     "has"});
+            return;
         }
-        say(mail);
+        Plan plan = judge_source(asked.path);
+        if (!plan.outcome.accepted) {
+            (void)mail.answer(SourceOpened{false, plan.outcome.refusal});
+            say(mail);
+            return;
+        }
+        Pending flight;
+        flight.same_path = plan.same_path;
+        flight.path = std::move(plan.path);
+        flight.admitted = std::move(plan.admitted);
+        flight.answer = mail.defer_answer();
+        flight.reveal = ++asked_;
+        const loom::Ticket asked_desk =
+            mail.as_role(pane::kEditorPaneRole)
+                .send_to_role(kWorkshopRole, PaneRevealRequested{pane::kEditorPane},
+                              flight.reveal);
+        if (!asked_desk.valid()) {
+            // NO DESK TO REFUSE IT -- no `zengine.workshop` holder heard the ask, so there is
+            // no presentation to be part of this transaction and the document is installed
+            // now. The pane's own room, if it ever gets one, paints it.
+            settle(std::move(flight), true, std::string(), mail);
+            return;
+        }
+        flight.live = true;
+        open_ = std::move(flight);
+    }
+
+    /// WHAT THE DESK DID WITH THE REVEAL -- and therefore whether the source was acquired.
+    void on(const PaneRevealAnswered& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || !open_.live || mail.correlation() != open_.reveal) {
+            return; // somebody else's answer, or one to a flight this pane already settled
+        }
+        Pending flight = std::move(open_);
+        open_ = Pending{};
+        settle(std::move(flight), said.revealed, said.refusal, mail);
     }
 
     // ---- The pointer ---------------------------------------------------------------------
@@ -263,14 +322,34 @@ public:
     /// of the document places the caret through the same tab geometry the row was painted
     /// with (WL-EDIT-08), at `first_col + column` of the whole line, which is the one
     /// subtraction a horizontal viewport adds to a hit test.
+    ///
+    /// ⚠ AND IT DECIDES WHETHER A SWEEP IS UNDER WAY (VD-26, WL-EDIT-16). Workshop takes
+    /// hold of this pane for the length of the button whenever a press named ANY row of the
+    /// body -- it owns physical routing and does not read this pane's rows to learn what
+    /// they mean -- so the motions of a focus-only press arrive here exactly as a real
+    /// sweep's do. What tells them apart is this: a `PaneDragged` extends the gesture a
+    /// press began, and a press this pane consumed as focus began none. Without it, a press
+    /// on the status row followed by a drag into the document extended a selection from
+    /// wherever the caret had been left.
+    ///
+    /// ⚠ AND IT LEAVES THE NOTICE ROW ALONE, WHICH IS GEOMETRY AND NOT MANNERS. Clearing a
+    /// standing notice moves the document up one row; a press and the motions that follow it
+    /// were measured by the maker's hand against ONE picture, and the poll that delivers
+    /// them can deliver the motion after the press. A pointer gesture therefore changes no
+    /// row this pane composes -- the notice stands until the maker's next ACT -- and the
+    /// gesture also remembers the chrome it began against, so nothing else that reflows can
+    /// move its meaning either.
     void on(const PanePressed& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
             return;
         }
+        drag_ = Drag{};
         if (!e_.open_document() || press.row < chrome_rows_) {
             return;
         }
-        notice_.clear();
+        drag_.armed = true;
+        drag_.chrome_rows = chrome_rows_;
+        drag_.doc_rows = doc_rows_;
         const std::size_t row = e_.first_row + static_cast<std::size_t>(press.row - chrome_rows_);
         const std::size_t target =
             row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
@@ -292,15 +371,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || drag.pane != pane::kEditorPane) {
             return;
         }
-        if (!e_.open_document()) {
-            return;
+        if (!e_.open_document() || !drag_.armed) {
+            return; // no gesture to extend: this hand took hold of nothing that selects
         }
-        const std::int64_t brow = drag.row - chrome_rows_;
+        // THE PICTURE THE GESTURE BEGAN AGAINST, not the one composed since: the maker's
+        // hand measured this motion against the rows they could see when they pressed.
+        const std::int64_t brow = drag.row - drag_.chrome_rows;
         std::size_t target;
         if (brow < 0) {
             target = e_.first_row > 0 ? e_.first_row - 1 : 0;
-        } else if (brow >= doc_rows_) {
-            target = e_.first_row + static_cast<std::size_t>(doc_rows_);
+        } else if (brow >= drag_.doc_rows) {
+            target = e_.first_row + static_cast<std::size_t>(drag_.doc_rows);
         } else {
             target = e_.first_row + static_cast<std::size_t>(brow);
         }
@@ -309,7 +390,7 @@ public:
         say(mail);
     }
 
-    /// THE WHEEL SCROLLS THE DOCUMENT AND MOVES NO CARET (WL-EDIT-10): the notches accumulate
+    /// THE WHEEL SCROLLS THE DOCUMENT AND MOVES NO CARET (WL-PTR-10): the notches accumulate
     /// until they are worth whole lines, the window slides inside the document, and the
     /// follow flag is deliberately NOT set -- the wheel's whole meaning is to look elsewhere
     /// while the caret stays put. The next caret gesture brings the view back.
@@ -524,10 +605,16 @@ private:
         PaneActions actions;
         actions.pane = pane::kEditorPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
-                                    std::int64_t mods) {
-            actions.rows.push_back(PaneActionRow{id, label, sc, mods});
+                                    std::int64_t mods, const char* stands_for = "") {
+            actions.rows.push_back(PaneActionRow{id, label, sc, mods, stands_for});
         };
-        row(pane::kActionSave, "save source", input::scan::kS, input::mod::kCtrl);
+        // ⭐ AND THE SAVE ROW SAYS WHAT IT STANDS IN FOR (VD-26, WL-KEY-15). This pane holds a
+        // document of its own, so while its keys are the maker's, `document.save` is not the
+        // operation they are asking for -- and saying so by NAME is what keeps that true when
+        // a maker moves either row's key. It is also what lets this row keep `ctrl+s`: the
+        // two are one meaning in two scopes, not two meanings on one gesture.
+        row(pane::kActionSave, "save source", input::scan::kS, input::mod::kCtrl,
+            ws::kOwnableDocumentSave);
         row(pane::kActionNewline, "newline", input::scan::kReturn, input::mod::kNone);
         row(pane::kActionTab, "insert tab", input::scan::kTab, input::mod::kNone);
         row(pane::kActionDiscard, "discard source edits", input::scan::kD, input::mod::kCtrl);
@@ -543,44 +630,116 @@ private:
 
     // ---- The document doors --------------------------------------------------------------
 
-    /// THE ONE DOOR (WL-EDIT-05, WL-EDIT-06, WL-EDIT-13's remedy moved to the host): normalize
-    /// against the project, same-path reveal, dirty refusal, bounded read, `source_in`, install
-    /// with `doc_epoch++` and a viewport reset. Every referrer arrives through it.
-    Written open_source(const std::string& requested) {
-        const std::string path = ws::persist::resolved_against(project_dir_, requested);
-        if (e_.open_document() && e_.path == path) {
+    /// WHAT THIS SPELLING MEANS HERE, or why it means nothing (WL-EDIT-06). An absolute
+    /// path is itself under every condition. A relative one is the PROJECT'S file, and the
+    /// project is a fact this pane is told: until the owner has answered, a relative
+    /// spelling has no meaning here and is refused with the reason, because resolving it
+    /// against the process directory would open a different file that happens to share a
+    /// name -- silently, and then save to it. An owner that authoritatively named NO project
+    /// root is a different answer, and its policy is the one it always was: the spelling is
+    /// spent as the maker wrote it.
+    Written resolve(const std::string& requested, std::string& out) const {
+        if (!requested.empty() && !std::filesystem::path(requested).is_absolute() &&
+            !project_known_) {
+            return Written::no(requested +
+                               " is a relative path and this Editor has not been told where "
+                               "this run began -- open it by its full path");
+        }
+        out = ws::persist::resolved_against(project_dir_, requested);
+        return Written::ok();
+    }
+
+    /// WHAT AN OPEN WOULD COME TO, JUDGED WITH NOTHING MOVED (WL-EDIT-05). The candidate it
+    /// carries is bytes and a name; it is not a document until `commit_source` says so.
+    struct Plan {
+        Written outcome = Written::ok();
+        bool same_path = false;
+        std::string path;
+        ws::SourceIn admitted;
+    };
+
+    Plan judge_source(const std::string& requested) {
+        Plan plan;
+        const Written meaning = resolve(requested, plan.path);
+        if (!meaning.accepted) {
+            plan.outcome = meaning;
+            return plan;
+        }
+        if (e_.open_document() && e_.path == plan.path) {
             // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
             // its caret, its selection, its history and its viewport all stand; what
             // moves is presence and the keyboard, and those are the host's to move.
-            e_.follow_caret = true;
-            notice(e_.dirty() ? "UNSAVED edits stand -- editing " + shown_path()
-                              : "editing " + shown_path(),
-                   false);
-            return Written::ok();
+            plan.same_path = true;
+            return plan;
         }
         if (e_.dirty()) {
             // THE UNSAVED-LOSS FLOOR: a different source must not silently replace a dirty
             // buffer. The two ways out are this pane's own save and its one deliberate
             // discard, named by their actions; the band spells their keys while the pane
             // holds the keyboard.
-            return Written::no(e_.path + " has unsaved changes -- save source or discard "
-                                         "source edits in the Editor first; nothing was opened");
+            plan.outcome =
+                Written::no(e_.path + " has unsaved changes -- save source or discard "
+                                      "source edits in the Editor first; nothing was opened");
+            return plan;
         }
         // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the asker its refusal
         // and nothing else -- the current document (if any) and the file itself are exactly
         // as they were.
         const ws::persist::FileText read =
-            ws::persist::read_file(path, ws::kMaxSourceBytes, "a source file");
+            ws::persist::read_file(plan.path, ws::kMaxSourceBytes, "a source file");
         if (!read.outcome.accepted) {
-            return read.outcome;
+            plan.outcome = read.outcome;
+            return plan;
         }
-        ws::SourceIn admitted = ws::source_in(read.text);
-        if (!admitted.outcome.accepted) {
-            return Written::no(path + ": " + admitted.outcome.refusal);
+        plan.admitted = ws::source_in(read.text);
+        if (!plan.admitted.outcome.accepted) {
+            plan.outcome = Written::no(plan.path + ": " + plan.admitted.outcome.refusal);
         }
-        install(path, std::move(admitted));
+        return plan;
+    }
+
+    /// THE COMMITMENT, RE-JUDGED (WL-EDIT-05). The desk answered on a later delivery, and a
+    /// maker's keystroke could have been delivered in between: a room that was free when the
+    /// question was asked is not permission to replace a document that is dirty now.
+    Written commit_source(Pending& flight) {
+        if (flight.same_path) {
+            if (!e_.open_document() || e_.path != flight.path) {
+                return Written::no(flight.path +
+                                   " is no longer the open source -- ask for it again");
+            }
+            e_.follow_caret = true;
+            notice(e_.dirty() ? "UNSAVED edits stand -- editing " + shown_path()
+                              : "editing " + shown_path(),
+                   false);
+            return Written::ok();
+        }
+        if (e_.open_document() && e_.path == flight.path) {
+            e_.follow_caret = true;
+            notice("editing " + shown_path(), false);
+            return Written::ok();
+        }
+        if (e_.dirty()) {
+            return Written::no(e_.path + " has unsaved changes -- save source or discard "
+                                         "source edits in the Editor first; nothing was opened");
+        }
+        install(flight.path, std::move(flight.admitted));
         notice("editing " + shown_path(), false);
         return Written::ok();
+    }
+
+    /// END ONE ACQUISITION: commit it or refuse it, tell whoever asked, and repaint. The one
+    /// place a deferred `SourceOpened` is spent, so a flight cannot end twice or not at all.
+    void settle(Pending flight, bool revealed, const std::string& refusal, loom::Mail& mail) {
+        const Written done =
+            revealed ? commit_source(flight)
+                     : Written::no(refusal.empty() ? std::string("the Editor could not be "
+                                                                "shown; nothing was opened")
+                                                   : refusal);
+        if (flight.answer.valid()) {
+            (void)loom::answer_deferred(flight.answer, mail,
+                                        SourceOpened{done.accepted, done.refusal});
+        }
+        say(mail);
     }
 
     /// PUT AN ADMITTED DOCUMENT IN PLACE: identity, bytes, saved copy, convention, a new
@@ -588,6 +747,7 @@ private:
     void install(const std::string& path, ws::SourceIn admitted) {
         e_.path = path;
         e_.saved_lines = admitted.lines;
+        ++saved_stamp_;
         e_.buffer.set_lines(std::move(admitted.lines));
         e_.convention = admitted.convention;
         ++e_.doc_epoch;
@@ -595,6 +755,14 @@ private:
         e_.first_col = 0;
         e_.wheel_accum = 0.0;
         e_.follow_caret = true;
+        // ⭐ AND THE PASTE THE OLD DOCUMENT ASKED FOR IS RETIRED WITH IT (VD-26). Its answer
+        // could never have landed -- the epoch it pinned is gone, and `on(ClipboardText)`
+        // discards it -- but the flag outlived the document it was about, and the quit
+        // answer reads that flag: a clean new document refused every exit for the rest of
+        // the session because a paste nobody could still spend had been asked for. Pending
+        // context retires with its subject.
+        drag_ = Drag{};
+        paste_ = Paste{};
     }
 
     /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority (WL-EDIT-01). Atomic
@@ -613,6 +781,7 @@ private:
             return;
         }
         e_.saved_lines = e_.buffer.lines();
+        ++saved_stamp_;
         notice("saved -- " + shown_path(), false);
     }
 
@@ -649,6 +818,13 @@ private:
     /// THE DOCUMENT A SNAPSHOT CARRIED, PUT BACK (see `revive`). `restore_selection` clamps a
     /// pair that outran the bytes; the viewport offsets are clamped by the next reconcile.
     void restore_from_state() {
+        // WHERE THIS RUN BEGAN, AND THE LAST THING THIS PANE SAID: both are the picture the
+        // maker was looking at, and both come back before the document does, because the
+        // notice is a ROW and the room the document gets is what is left under it.
+        project_dir_ = state_.project_dir;
+        project_known_ = state_.project_known;
+        notice_ = state_.notice;
+        notice_bad_ = state_.notice_bad;
         if (state_.path.empty()) {
             e_ = EditorState{};
             return;
@@ -664,6 +840,7 @@ private:
         }
         e_.path = state_.path;
         e_.saved_lines = std::move(saved.lines);
+        ++saved_stamp_;
         e_.buffer.set_lines(std::move(text.lines));
         e_.convention = state_.convention;
         e_.doc_epoch = static_cast<std::uint64_t>(state_.doc_epoch);
@@ -673,8 +850,14 @@ private:
         e_.first_col = state_.first_col < 0 ? 0 : state_.first_col;
         e_.wheel_accum = 0.0;
         e_.follow_caret = false;
-        e_.last_rows = 0;
-        e_.last_cols = 0;
+        // ⭐ THE ROOM THE DOCUMENT WAS LAST LOOKED AT THROUGH, CARRIED (VD-26). Zeroing these
+        // made the first grant after a revival differ from the last room before it, which is
+        // exactly what `reconcile` calls a resize -- so an unchanged room pulled the viewport
+        // back to the caret and a maker who had scrolled somewhere lost the place they were
+        // reading. A genuinely different room still resizes, because these are the numbers it
+        // is compared against.
+        e_.last_rows = state_.last_rows;
+        e_.last_cols = state_.last_cols;
     }
 
     static std::size_t as_index(std::int64_t n) {
@@ -798,7 +981,11 @@ private:
     /// takes what is left.
     void say(loom::Mail& mail) {
         if (!granted_) {
-            return; // no room has been sent: there is nothing this pane could truthfully fill
+            // NO ROOM HAS BEEN SENT: there is nothing this pane could truthfully fill -- but
+            // the document is real whether or not anybody is showing it, and the read
+            // surface says so.
+            mirror_state();
+            return;
         }
         std::vector<surface::SurfaceTextRow> out;
         const auto push = [&out, this](std::string text, std::int64_t role) {
@@ -835,6 +1022,58 @@ private:
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(kWorkshopRole, PaneContent{pane::kEditorPane, std::move(out)});
         say_caret(mail, last, text_cols);
+        mirror_state();
+    }
+
+    /// THE LIVE DOCUMENT, WRITTEN INTO THE SHAPE LOOM ANSWERS READS FROM (VD-26). Called
+    /// wherever this pane finishes an act, which is one call per delivery and not one per
+    /// field written.
+    ///
+    /// THE TWO EXPENSIVE FIELDS ARE GATED ON WHAT ACTUALLY MOVED: the buffer's own revision
+    /// for `text`, a stamp bumped by the three writers of `saved_lines` for `saved_text`. A
+    /// press, a drag, the wheel, a resize, a focus change and a room grant therefore rebuild
+    /// neither. `vocabulary.hpp` carries the cost this leaves and why there is no cheaper
+    /// shape of it.
+    void mirror_state() {
+        state_.notice = notice_;
+        state_.notice_bad = notice_bad_;
+        state_.project_dir = project_dir_;
+        state_.project_known = project_known_;
+        state_.last_rows = e_.last_rows;
+        state_.last_cols = e_.last_cols;
+        if (!e_.open_document()) {
+            state_.path.clear();
+            state_.text.clear();
+            state_.saved_text.clear();
+            state_.convention = 0;
+            state_.doc_epoch = static_cast<std::int64_t>(e_.doc_epoch);
+            state_.caret_row = 0;
+            state_.caret_byte = 0;
+            state_.anchor_row = 0;
+            state_.anchor_byte = 0;
+            state_.first_row = 0;
+            state_.first_col = 0;
+            mirrored_revision_ = 0;
+            mirrored_saved_ = 0;
+            return;
+        }
+        state_.path = e_.path;
+        state_.convention = e_.convention;
+        state_.doc_epoch = static_cast<std::int64_t>(e_.doc_epoch);
+        state_.caret_row = static_cast<std::int64_t>(e_.buffer.caret_row());
+        state_.caret_byte = static_cast<std::int64_t>(e_.buffer.caret_byte());
+        state_.anchor_row = static_cast<std::int64_t>(e_.buffer.anchor_row());
+        state_.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
+        state_.first_row = static_cast<std::int64_t>(e_.first_row);
+        state_.first_col = e_.first_col;
+        if (mirrored_revision_ != e_.buffer.revision()) {
+            state_.text = ws::source_text(e_.buffer.lines(), e_.convention);
+            mirrored_revision_ = e_.buffer.revision();
+        }
+        if (mirrored_saved_ != saved_stamp_) {
+            state_.saved_text = ws::source_text(e_.saved_lines, e_.convention);
+            mirrored_saved_ = saved_stamp_;
+        }
     }
 
     /// WHERE THE CARET IS, AND WHAT IS SELECTED -- beside the rows, never inside them, in the
@@ -905,11 +1144,17 @@ private:
     /// convention, the epoch, and the viewport. Owned by nobody else in this process.
     EditorState e_;
 
+    Pending open_;
+    Drag drag_;
+
     /// WHERE THIS RUN BEGAN, as the host said it -- what a relative spelling means. Empty
-    /// until answered, and empty for a run that began nowhere.
+    /// until answered, and empty for a run that began nowhere; `project_known_` is which of
+    /// those two an empty string is (WL-EDIT-06).
     std::string project_dir_;
+    bool project_known_ = false;
     bool root_asked_ = false;
     std::uint64_t root_pending_ = 0;
+
 
     component::Clipboard clip_;
     struct Paste {
@@ -934,6 +1179,13 @@ private:
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.
     std::uint64_t asked_ = 0;
+
+    /// WHAT THE MIRRORED SHAPE WAS BUILT FROM: the buffer revision `text` was joined at, and
+    /// the stamp `saved_text` was. Bumped by the three writers of `saved_lines` (install,
+    /// save, revival), so a rebuild happens when the bytes moved and at no other time.
+    std::uint64_t saved_stamp_ = 0;
+    std::uint64_t mirrored_revision_ = 0;
+    std::uint64_t mirrored_saved_ = 0;
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;

@@ -1863,7 +1863,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
 /// How many rows the wheel is worth in a cursor-windowed list -- the desktop convention,
 /// three. Spent by the Pane Manager and the picker; the browser and the editor that spent it
 /// as built-ins each take their own copy across the seam now.
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 inline constexpr std::int64_t kListWheelRows = 3;
 
 /// TURN NOTCHES INTO WHOLE ROWS, CARRYING THE FRACTION.

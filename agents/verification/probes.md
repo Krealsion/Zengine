@@ -63,6 +63,25 @@ BECAUSE — all eight compile commands were identical token for token and both l
 in exactly the object path; that is a stronger answer than any argument about flags.
 SEEN — nowhere yet
 
+## VM-PROBE-10 — Read the declared surface, not only the snapshot
+
+METHOD — A weave's snapshot and its declared read surface are two questions; ask both of the running image, because a shape can carry a reload and still answer every advertised field with nothing.
+BECAUSE — a pane built its snapshot on demand from the live document and left the state shape
+untouched, which is exactly the field the substrate answers reads from: a four-megabyte document
+rode a reload intact while `path` and `text` read back empty, and no snapshot case could see it.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W52: every field the pane advertises
+reports what it is holding now"`; `tests/test_workshop_load.cpp` case `"RELOAD-3/VD-26: the
+reloaded pane reads live, not out of the snapshot it revived from"`.
+
+## VM-PROBE-11 — Do not move the simulated hand between two events of one poll
+
+METHOD — When a batch stages a press and the motion behind it, aim both at the picture the FIRST was measured against; re-aiming between them hides exactly the reflow the batch exists to catch.
+BECAUSE — the handler under test cleared a standing notice and moved the document up one row, so
+a sweep to line two selected to line three; a rig that recomputed the row per event would have
+followed the reflow and agreed with the defect.
+SEEN — `tests/test_workshop_panes_editor.cpp` `EditorRig::enqueue_press_doc`,
+`EditorRig::enqueue_motion_doc`.
+
 ## VM-PROBE-09 — A precedent transfers only as far as its reason
 
 METHOD — A precedent transfers only as far as its reason: the neighbouring fixture tree is prepared at build time because a suite binary depends on it; copy the reason, not the shape.

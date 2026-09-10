@@ -40,9 +40,9 @@ The list is grouped by the layer that owns each row:
 - the current context's own keys — command mode, the picker, the two arranging scopes and
   their reset prompt, a property being edited, the Pane Manager, the Pane Creator's name
   prompt, or a focused pane (the Editor among them);
-- the keys answered above every mode (open, this view; and where nothing is taking text, quit
-  and the document's save — inside the Editor the same `Ctrl`+`s` is the pane's own `save
-  source` row);
+- the keys answered above every mode (open, this view; quit where nothing is taking text; and
+  the document's save everywhere except in a pane that has declared it owns that operation —
+  inside the Editor the same `Ctrl`+`s` is the pane's own `save source` row);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
   movement, undo — shown for discovery but **not remappable**: they belong to the editing
   component, in every box at once, and the keymap does not reach into it. A loaded pane's own
@@ -123,11 +123,11 @@ way the file is left exactly as you wrote it: Workshop never rewrites, trims or 
 An action that is available only **where nothing is taking text** is a different class and is
 allowed an editing chord, because in that class no text field is listening: that is exactly
 how `Ctrl`+`c` quits from command mode and copies inside a field, how `Ctrl`+`a` opens the
-current-condition view from command mode and selects all inside one, and how `Ctrl`+`s` saves
-the document from command mode and is the Editor pane's own `save source` while your keys are
-in the source. (The document's save used to be a third class, available everywhere but the
-source editor; the Editor is a loaded pane now and declares that chord itself, so the row
-joined the where-nothing-takes-text class.)
+current-condition view from command mode and selects all inside one, and and how `Ctrl`+`s` saves
+the document from command mode, from a layout name, from a draft and inside every other pane,
+and is the Editor pane's own `save source` while your keys are in the source. The Editor is the
+one pane that **declares** it stands in for the document's save; that declaration, and not the
+chord, is what decides. Rebind either one and the same thing stays true.
 
 **What is kept:** an override whose action id this build does not know is preserved exactly
 as you wrote it — byte for byte, in place — not deleted and not an error. It is your intent,

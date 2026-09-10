@@ -31,12 +31,14 @@ for the source that is *already* open just brings the pane and your keys back to
 caret and selection intact — including when you ask for it the *other* way, because the two
 doors resolve a file to the same identity.
 
-When a file opens, the Editor **asks to be shown**: Workshop seats the pane if it is not on your
-desk, selects it and points your keys at it. On a screen with no room for another pane the
-document still opens — the refusal is about the seat, in the picker's own words (`no room for
-Editor on this screen -- make the window taller, then p again`), and the picker brings the pane
-back with the document in it once there is room. If the Editor pane is not loaded at all (a
-load plan without it), Files and the Builder have nobody to ask, and their open does nothing.
+Opening a file is **one action, and it either happens or it does not**. The Editor reads and
+judges the file, asks Workshop to show the pane, and takes the document only if Workshop did:
+seated if it was not on your desk, selected, with your keys in it. On a screen with no room for
+another pane **nothing opens** — the document you already had, its caret and its history stand
+exactly as they were, and the refusal you get is the picker's own words (`no room for Editor on
+this screen -- make the window taller, then p again`). Make the window taller and ask again. If
+the Editor pane is not loaded at all (a load plan without it), Files and the Builder have nobody
+to ask, and their open does nothing.
 
 ### The file you edit is the file the build reads
 
@@ -52,9 +54,11 @@ the file is there, and the generated project that actually compiles it. So the f
 and the file `b` compiles are the same file, whether the recipe spelled it relatively or
 absolutely.
 
-An **absolute** source keeps exactly the meaning it has. If Workshop could not determine a
-launch directory at all it says so on the banner, and a relative source is then refused rather
-than guessed at.
+An **absolute** source keeps exactly the meaning it has, always. A **relative** one means
+nothing until the project has answered: until then the Editor refuses it and says so, rather
+than opening whatever file of that name happens to sit beside the running program. If Workshop
+determined no launch directory at all it says so on the banner, and a relative source is then
+spelled as you wrote it.
 
 ## Editing
 
@@ -97,14 +101,15 @@ loaded pane, and does nothing with them; press elsewhere for Workshop's own keys
 Workshop has two things worth saving and one save chord, and the chord follows your hands:
 
 - **the Editor holds the keyboard** → `Ctrl`+`s` saves **the source**;
-- **nothing is taking text** — command mode, the picker, the arrangement → `Ctrl`+`s` keeps
-  its standing meaning: save the **object document**.
+- **anywhere else** — command mode, the picker, a layout's name, a draft, another pane --
+  `Ctrl`+`s` keeps its standing meaning: save the **object document**.
 
-These are two separate actions (`editor.save`, declared by the pane, and `document.save`, a
-Workshop row available where nothing takes text — the same class as `Ctrl`+`c`'s quit), so no
-state has both active; remap either without touching the other. Inside another text field —
-a layout's name, a pane's own line — the chord is that field's, as `Ctrl`+`c` already was.
-`Ctrl`+`o` keeps its one meaning everywhere: open the object document.
+These are two separate actions (`editor.save`, declared by the pane, and `document.save`,
+Workshop's own), and what tells them apart is the Editor's **declaration** that its row stands
+in for the document's save. So no state has both active, and remapping either one leaves that
+true: move `editor.save` to `Ctrl`+`e` and `Ctrl`+`s` still will not save the object document
+while you are typing in the source. `Ctrl`+`o` keeps its one meaning everywhere: open the
+object document.
 
 ## Save, dirty, and never losing work
 

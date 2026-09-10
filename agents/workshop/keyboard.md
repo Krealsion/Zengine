@@ -65,26 +65,26 @@ aliases no longer fire"`, case `"KEY-0: a known backend gap is accepted and said
 silently rewritten"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-05 — Two declaration-only activity classes
+## WL-KEY-05 — Three declaration-only activity classes
 
-LAW — Two declaration-only classes: global rows above every mode, and no-text rows exactly where no editable text has the keys; nothing else answers above a mode.
+LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
 
 MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
-- `workshop.quit` (`^c`) and `document.save` (`^s`) are `kNoText`;
-- the Editor pane's own `editor.save` row answers `^s` while it holds the keys (WL-EDIT-04).
+- `workshop.quit` (`^c`) is `kNoText`; `document.save` (`^s`) is `kUnlessOwned`;
+- `Keymap::row_active` is the one answer for all three; every view spends it.
 
 DOES NOT MEAN
-- that a pane's row is a third class: it meets the global rows only (WL-KEY-15).
-- ⚠ `kNoEditor` was the third class until the Editor became a pane (VD-25); it is gone.
+- that a pane's row is a fourth class: it meets these, never another mode's (WL-KEY-15).
+- ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared (VD-26).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`Keymap::above_mode_action`, `workshop.quit`, `document.save`; `workshop/weave_handlers.cpp`
-`on(KeyPressed)`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the
-document's save or the source's, by who holds the keys"`; `tests/test_workshop_document.cpp`
-case `"TEXT-0: ^c still quits exactly where nothing takes text"`;
-`tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys that mean the same thing in every
-mode still outrank a pane"`.
+`KeyContext::kUnlessOwned`, `Keymap::above_mode_action`, `workshop.quit`, `document.save`;
+`workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_panes_editor.cpp` case
+`"EDIT-W3: one physical ^s is the document's save or the source's, by who holds the keys"`;
+`tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits exactly where nothing takes
+text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys that mean the same thing in
+every mode still outrank a pane"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
@@ -236,16 +236,18 @@ LAW — A pane declares rows of the one catalog beside its offer; Workshop judge
 MEANS
 - a pane's context is its runtime handle: active while it holds the keys, never another pane's;
 - a refused shape keeps the previous rows; the file's load re-joins every pane, and the file wins;
-- a matching keystroke crosses as `PaneActionRequested`, swallowed; every other as `PaneKey`.
+- a row may name one `kUnlessOwned` action it STANDS IN FOR, by id: that row is then inactive.
 
 DOES NOT MEAN
 - that a pane says it wants keys: a declaration points no keyboard at it and holds none;
-- that the contextual surface lists a pane's rows: it declares over `kActionCatalog` ids.
+- that rebinding either row moves either meaning, or that a global row can be stood in for.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `PaneActionRequested`; `workshop/keymap.hpp` `PaneRow`, `PaneRows`, `kMaxPaneActionRows`,
 `collision_sentence`, `Keymap::panes`, `Keymap::pane_action_for`, `check_pane_action_text`,
-`join_pane_rows`, `drop_pane_rows`; `workshop/panel.hpp` `RuntimePane::actions`;
+`join_pane_rows`, `drop_pane_rows`, `PaneRow::supersedes`, `Keymap::pane_supersedes`,
+`Keymap::row_active`; `workshop/pane_vocabulary.hpp` `PaneActionRow::supersedes`,
+`kOwnableDocumentSave`; `workshop/panel.hpp` `RuntimePane::actions`;
 `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
 `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
 `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
@@ -257,7 +259,8 @@ resolved id and an undeclared one as the key; typing still crosses raw"`, case `
 authored before the pane arrives is applied when it does, and one loaded after the pane
 declared is applied at the load"`, case `"the keymap file wins: a pane whose rows its bindings
 collide with is refused in words, in both orders"`, case `"a maker's override moves a Powers
-action, and the key it left no longer acts"`.
+action, and the key it left no longer acts"`; `tests/test_workshop_panes_editor.cpp` case
+`"EDIT-W50: supersession is by name, so moving either key moves neither meaning"`.
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## Do not assume

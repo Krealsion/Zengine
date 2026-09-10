@@ -267,6 +267,13 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return;
     }
+    // ⭐ AND THE OUTCOME IS ANSWERED, WHATEVER IT IS (VD-26). A pane asks to be shown in
+    // the middle of an act it has not finished -- the Editor asks before it installs a
+    // document -- so what the desk did is a fact it needs, not a courtesy. The answer goes
+    // out on every path below, and only after the desk has actually moved.
+    const auto answered = [&mail, &asked](bool revealed, const std::string& refusal) {
+        (void)mail.answer(PaneRevealAnswered{asked.pane, revealed, refusal});
+    };
     // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
     // vector may grow under a pointer into it (panel.hpp's own warning).
     const std::int64_t kind = row->kind;
@@ -284,9 +291,11 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
         seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
-            say("no room for " + name +
-                    " on this screen -- make the window taller, then p again",
-                true);
+            const std::string refusal = "no room for " + name +
+                                        " on this screen -- make the window taller, then p "
+                                        "again";
+            say(refusal, true);
+            answered(false, refusal);
             repaint(mail);
             return;
         }
@@ -304,6 +313,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     // SAID, so the sentence on the notice line is about what just happened and names who
     // asked for it -- the pane's own rows say what it is showing.
     say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    answered(true, std::string());
     repaint(mail);
 }
 

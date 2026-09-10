@@ -89,13 +89,25 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 /// WHAT IT REFUSES TO KEEP, said rather than left to be discovered: the UNDO HISTORY (a run of
 /// bounded snapshots that can be eight megabytes wide; the buffer that held it is the owner
 /// that does not survive a reload, and the new one opens its history at the document it was
-/// given), a PASTE IN FLIGHT (the ask was the old incarnation's; its answer arrives to a pane
-/// that is no longer waiting), the WHEEL FRACTION and the FOLLOW FLAG (presentation, spent at
-/// the next repaint anyway). Hiding, covering, moving, reordering or removing the PANE keeps
-/// all of those, because none of them touches this weave.
+/// given), a PASTE IN FLIGHT and an OPEN IN FLIGHT (both were the old incarnation's asks; their
+/// answers arrive to a pane that is no longer waiting), and the WHEEL FRACTION (a fraction of a
+/// line, spent at the next notch).
 ///
-/// `snapshot()` is overridden to build this from the live buffer at the moment Loom asks,
-/// so no keystroke pays for a copy of the document it did not need.
+/// ⚠ AND IT IS ALSO THE PANE'S DECLARED READ SURFACE, WHICH IS WHY IT IS WRITTEN EAGERLY.
+/// Loom answers `zen.PokeRead` from `state_` itself, before any handler of this weave runs
+/// (`WeaveBase::try_poke`, and `handle` is `final` so there is no hook to refresh it on the
+/// way past). A shape kept only for reloads would therefore ADVERTISE every field below and
+/// answer each of them with whatever the last revival left there -- empty on a pane that never
+/// reloaded. So this pane mirrors its live document into `state_` at each composition instead,
+/// and `snapshot()` is Loom's own: one truth, read two ways.
+///
+/// WHAT THAT COSTS, MEASURED RATHER THAN HIDDEN: the two Text fields are rebuilt only when the
+/// buffer's revision or the saved comparison actually moved, so navigating, scrolling,
+/// selecting, resizing and focusing pay nothing at all; an EDIT pays one `source_text` of the
+/// document it just changed. At the admitted bound (`kMaxSourceBytes`, four megabytes) that is
+/// one reserve and one copy per keystroke, which is the price of a read surface that cannot
+/// lie. A cheaper one needs a substrate hook that lets a weave refresh its state before a poke
+/// is answered; there is none to call.
 struct EditorPaneState {
     std::string path;       ///< the normalized source identity; empty = no source open
     std::string text;       ///< the document as file bytes (`source_text`)
@@ -108,10 +120,27 @@ struct EditorPaneState {
     std::int64_t anchor_byte = 0;
     std::int64_t first_row = 0;
     std::int64_t first_col = 0;
+    /// THE ROOM THE DOCUMENT WAS LAST COMPOSED FOR -- body rows and text columns, the two
+    /// numbers `reconcile` calls a resize by comparing. Carried, because a reload that forgot
+    /// them made the first grant of an UNCHANGED room look like a resize and pulled the
+    /// viewport back to the caret (VD-26).
+    std::int64_t last_rows = 0;
+    std::int64_t last_cols = 0;
+    /// THE STANDING NOTICE, carried for the same reason and one better: it is a row of the
+    /// pane's room, so a reload that dropped it changed the room the document had.
+    std::string notice;
+    bool notice_bad = false;
+    /// WHERE THIS RUN BEGAN, as the project door said it, and WHETHER IT HAS SAID SO. The
+    /// second field is the one a relative spelling turns on: an unanswered door and a door
+    /// that authoritatively named no project are different facts (WL-EDIT-06).
+    std::string project_dir;
+    bool project_known = false;
     ZEN_SHAPE(EditorPaneState, 1, ZEN_FIELD(path), ZEN_FIELD(text), ZEN_FIELD(saved_text),
               ZEN_FIELD(convention), ZEN_FIELD(doc_epoch), ZEN_FIELD(caret_row),
               ZEN_FIELD(caret_byte), ZEN_FIELD(anchor_row), ZEN_FIELD(anchor_byte),
-              ZEN_FIELD(first_row), ZEN_FIELD(first_col));
+              ZEN_FIELD(first_row), ZEN_FIELD(first_col), ZEN_FIELD(last_rows),
+              ZEN_FIELD(last_cols), ZEN_FIELD(notice), ZEN_FIELD(notice_bad),
+              ZEN_FIELD(project_dir), ZEN_FIELD(project_known));
 };
 
 } // namespace zengine::editor_pane

@@ -90,6 +90,16 @@ a suite whose fixture never reaches it; the diagnosis turned up a third mutation
 written, because the multiply beside it had none.
 SEEN — nowhere yet
 
+## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
+
+METHOD — For a correction, mutate the FIX back and require the new case to go red; and when an existing expectation moves, say in the case whether the behaviour was restored, changed or newly claimed.
+BECAUSE — a phase that only reports a green suite cannot tell a repair from a surrender: the
+suite agreed with the defect first, and eight cases had been rewritten to accept a narrowed law
+that the maker had not accepted.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
+save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
+opens nothing, and the requester is told why"`.
+
 ## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
 
 METHOD — A case that forges a message proves the guard only when the forging weave is granted to say that shape; read the grant before believing the green, and let a mutation of the guard show the case reaches it.

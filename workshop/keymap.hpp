@@ -58,6 +58,16 @@ enum class KeyContext : std::uint8_t {
     kArrangeReset,
     kGlobal,
     kNoText,
+    /// EVERYWHERE, UNLESS THE PANE HOLDING THE KEYBOARD DECLARED IT OWNS THIS ACTION.
+    ///
+    // ⭐ THIS IS WHAT `kNoEditor` BECAME (VD-26). The old class read "everywhere but the
+    // source editor" and named one built-in in the host's own enum; the Editor is a pane
+    // now, and the relationship it needs is the one that class was really expressing --
+    // an operation the host performs on the object document, which a pane holding a
+    // document of its own performs on ITS document instead, while its keys are the
+    // maker's. The exclusion is DECLARED, by the pane, in `PaneActionRow::supersedes`, so
+    // it survives a maker moving either row's key and the host names no pane anywhere.
+    kUnlessOwned,
 };
 
 /// Does this context hand ordinary keys to something that takes text?
@@ -78,6 +88,12 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
     if (declared == KeyContext::kNoText) {
         return !context_takes_text(current);
     }
+    if (declared == KeyContext::kUnlessOwned) {
+        // EVERY CONTEXT, as a class: what takes this row away is not a mode but the
+        // declaration of the pane holding the keys, which no pair of contexts can express.
+        // `Keymap::row_active` is where the two halves meet.
+        return true;
+    }
     return declared == current;
 }
 
@@ -85,6 +101,13 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
 // WL-KEY-06, WL-KEY-08 -- agents/workshop/keyboard.md
 inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     if (a == b || a == KeyContext::kGlobal || b == KeyContext::kGlobal) {
+        return true;
+    }
+    // A `kUnlessOwned` ROW MEETS EVERY OTHER ROW, because it is active in every context.
+    // The collision law is about two DECLARATIONS that could both fire, and supersession
+    // is not a second declaration -- it is one row standing down for one pane, judged
+    // where the pane's rows are judged (`join_pane_rows`).
+    if (a == KeyContext::kUnlessOwned || b == KeyContext::kUnlessOwned) {
         return true;
     }
     if (a == KeyContext::kNoText) {
@@ -272,13 +295,13 @@ inline constexpr ActionRow kActionCatalog[] = {
     // text's owner's -- the Editor pane declares `editor.save` on it, because a maker with
     // their hands in source who presses the one save chord every editor teaches must not
     // write the OBJECT document instead, and a pane that declares no such row simply
-    // receives the key. It used to be `kNoEditor` -- "everywhere but the source editor" --
-    // while the editor was a context of this host's; the editor is a pane now, and the
-    // class that says "not while a pane has the keys" is the one `workshop.quit` already
-    // spends. What that costs is `^s` inside Files' or the Terminal's line, which saved the
-    // object document and now reaches the pane: press elsewhere first, which is `^c`'s
-    // rule and was always the rule for a text field's own chords.
-    {Act::kSaveDocument, "document.save", "save", KeyContext::kNoText,
+    // receives the key. It was `kNoEditor` -- "everywhere but the source editor" -- while
+    // the editor was a context of this host's, and it is `kUnlessOwned` now, which is the
+    // same sentence with the exception DECLARED rather than named: the Editor is a pane, it
+    // says `supersedes: "document.save"` on its own save row, and the host's row stands down
+    // exactly while that pane holds the keys. So `^s` still saves the object document from
+    // a layout name, a pane draft, Files' line and the Terminal's, as it always did.
+    {Act::kSaveDocument, "document.save", "save", KeyContext::kUnlessOwned,
      {scan::kS, mod::kCtrl}},
     {Act::kOpenDocument, "document.open", "open", KeyContext::kGlobal, {scan::kO, mod::kCtrl}},
     // ⚠ `workshop.terminal` WAS A GLOBAL ROW HERE and left with the overlay it opened
@@ -1000,6 +1023,9 @@ struct PaneRow {
     std::string id;
     std::string label;
     Gesture gesture;
+    /// The `kUnlessOwned` action id this row stands in for while its pane holds the
+    /// keyboard, or empty (`PaneActionRow::supersedes`, WL-KEY-15).
+    std::string supersedes;
 };
 
 /// THE ROWS OF ONE PANE, keyed by the runtime handle Workshop minted for it -- the
@@ -1117,10 +1143,44 @@ struct Keymap {
         return Gesture{};
     }
 
-    /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone.
+    /// HAS THE PANE HOLDING THE KEYBOARD DECLARED THAT IT OWNS THIS ACTION? (WL-KEY-15)
+    /// By ID, never by gesture: a maker who moved either row's key moved neither row's
+    /// meaning. A handle with no admitted rows -- every non-pane context passes one --
+    /// supersedes nothing.
+    bool pane_supersedes(std::int64_t pane, const std::string& action_id) const noexcept {
+        const PaneRows* rows = pane_rows(pane);
+        if (rows == nullptr) {
+            return false;
+        }
+        for (const PaneRow& row : rows->rows) {
+            if (!row.supersedes.empty() && row.supersedes == action_id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// IS THIS DECLARED ROW REQUESTABLE AT THIS MOMENT? The context class says which modes
+    /// it lives in; the pane holding the keyboard says whether it has stood down for that
+    /// pane's own row. The one answer every resolver and every view spends, so a legend
+    /// cannot advertise a key the chain will not run.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    bool row_active(const ActionRow& row, KeyContext current,
+                    std::int64_t keyboard_pane) const noexcept {
+        if (!active_in(row.context, current)) {
+            return false;
+        }
+        if (row.context != KeyContext::kUnlessOwned) {
+            return true;
+        }
+        return !pane_supersedes(keyboard_pane, row.id);
+    }
+
+    /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone. `keyboard_pane` is the
+    /// runtime handle of the pane holding the keys, where one does (`kNoPaneKind` otherwise).
     // WL-KEY-04 -- agents/workshop/keyboard.md
-    Act action_for(KeyContext current, std::int64_t scancode,
-                   std::int64_t modifiers) const noexcept {
+    Act action_for(KeyContext current, std::int64_t scancode, std::int64_t modifiers,
+                   std::int64_t keyboard_pane = -1) const noexcept {
         const Gesture pressed{scancode, modifiers};
         // A KEY THIS BUILD CANNOT NAME REQUESTS NOTHING. Without this an unnamed
         // key would match every row that declares `kNoGesture` and the first one in
@@ -1129,7 +1189,7 @@ struct Keymap {
             return Act::kNone;
         }
         for (const ActionRow& row : kActionCatalog) {
-            if (active_in(row.context, current) && row_gesture(row) == pressed) {
+            if (row_active(row, current, keyboard_pane) && row_gesture(row) == pressed) {
                 return row.act;
             }
         }
@@ -1137,18 +1197,20 @@ struct Keymap {
     }
 
     /// WHICH ABOVE-THE-MODES ACTION THIS GESTURE REQUESTS, or kNone -- `action_for`
-    /// restricted to the rows DECLARED kGlobal or kNoText.
+    /// restricted to the rows DECLARED kGlobal, kNoText or kUnlessOwned.
     // WL-FOCUS-06 -- agents/workshop/focus.md; WL-KEY-05 -- agents/workshop/keyboard.md
-    Act above_mode_action(KeyContext current, std::int64_t scancode,
-                          std::int64_t modifiers) const noexcept {
+    Act above_mode_action(KeyContext current, std::int64_t scancode, std::int64_t modifiers,
+                          std::int64_t keyboard_pane = -1) const noexcept {
         const Gesture pressed{scancode, modifiers};
         if (!is_bound(pressed)) {
             return Act::kNone; // `action_for`'s rule, for `action_for`'s reason
         }
         for (const ActionRow& row : kActionCatalog) {
             const bool above = row.context == KeyContext::kGlobal ||
-                               row.context == KeyContext::kNoText;
-            if (above && active_in(row.context, current) && row_gesture(row) == pressed) {
+                               row.context == KeyContext::kNoText ||
+                               row.context == KeyContext::kUnlessOwned;
+            if (above && row_active(row, current, keyboard_pane) &&
+                row_gesture(row) == pressed) {
                 return row.act;
             }
         }
@@ -1229,7 +1291,8 @@ inline Written apply_overrides(
         // A kNoText row is active only where no text has the keyboard, so a bare
         // printable or an editing chord on one can never be swallowed by a field -- which
         // is why the two guards below are the global rows' alone.
-        if (declared->context == KeyContext::kGlobal) {
+        if (declared->context == KeyContext::kGlobal ||
+            declared->context == KeyContext::kUnlessOwned) {
             if (parsed.gesture.modifiers == mod::kNone &&
                 !expected_text_of(parsed.gesture.scancode, parsed.gesture.modifiers)
                      .empty()) {
@@ -1376,7 +1439,20 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<Pa
             return Written::no("`" + d.id + "`: scancode " + std::to_string(d.scancode) +
                                " is not a key this keymap can name");
         }
-        rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}});
+        if (!d.supersedes.empty()) {
+            const ActionRow* stands_for = row_of_id(d.supersedes);
+            if (stands_for == nullptr) {
+                return Written::no("`" + d.id + "`: `" + d.supersedes +
+                                   "` is not one of Workshop's action ids -- a row can only "
+                                   "stand in for an action that exists");
+            }
+            if (stands_for->context != KeyContext::kUnlessOwned) {
+                return Written::no("`" + d.id + "`: `" + d.supersedes +
+                                   "` is not an action a pane may own -- only the rows "
+                                   "Workshop declares a pane can stand in for");
+            }
+        }
+        rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
     }
     // THE MAKER'S OWN FILE, applied to the ids it names -- rows that were preserved as
     // unknown when the file loaded, because nobody had declared them yet (WL-KEY-06).
@@ -1405,6 +1481,12 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<Pa
         }
         for (const ActionRow& host : kActionCatalog) {
             if (!contexts_intersect(host.context, KeyContext::kPane)) {
+                continue;
+            }
+            // ...EXCEPT THE ONE THIS ROW STANDS IN FOR. A superseded row is not active
+            // while this pane holds the keys, so the two are never both requestable and
+            // the gesture still names exactly one action (WL-KEY-15).
+            if (!rows[i].supersedes.empty() && rows[i].supersedes == host.id) {
                 continue;
             }
             if (k.row_gesture(host) == rows[i].gesture) {

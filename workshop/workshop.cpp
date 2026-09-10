@@ -1155,6 +1155,10 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
+    // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition
+    // this host owns, so a pane can leave itself consistent with a refused presentation
+    // (VD-26).
+    speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
     // ⭐ `SourceOpened` WAS GRANTED HERE AND IS NOT (VD-25): the one answer this host owed
     // across the seam was what opening a source came to, and the source is the Editor
     // weave's now -- the answer is its, at its own office.

@@ -41,4 +41,4 @@ Loaded pane, which holds no cursor. The Composer's fields were not touched.
 
 **Laws supported.** [WL-EDIT-02](../workshop/editor.md), [WL-EDIT-07](../workshop/editor.md),
 [WL-EDIT-08](../workshop/editor.md), [WL-EDIT-09](../workshop/editor.md),
-[WL-EDIT-10](../workshop/editor.md).
+[WL-PTR-10](../workshop/pointer.md).
