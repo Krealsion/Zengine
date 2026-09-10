@@ -31,7 +31,8 @@ measured on.
 A green means nothing complained. It names the repository, the configuration and the compiler —
 "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL off", never "green on Windows" — and it quotes
 `tests/verify.cmake`. Proven means a regression test asserts it; everything else is true by
-construction and not yet pinned. A count is a population, never an acceptance oracle.
+construction and not yet pinned. A count alone does not identify a population or
+prove its behavior; assertion totals are reported evidence, never an acceptance oracle.
 
 ## The population contract
 

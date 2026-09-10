@@ -18,6 +18,7 @@ routed: read a surface's document when the task touches that surface, not before
 | lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers under `agents/verification/` |
 | `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
 | `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
+| `files/`, `builder-pane/`, `attention-pane/`, `info-pane/`, `terminal-pane/` — extracted pane behavior and its shared protocol | [agents/workshop.md](agents/workshop.md) and [agents/panes.md](agents/panes.md) |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
 | `maker/` — a weave built from a maker's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
