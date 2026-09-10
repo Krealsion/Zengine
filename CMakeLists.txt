@@ -550,6 +550,10 @@ add_subdirectory(attention-pane)
 # ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
 # it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)
+# ...and the Terminal pane, fifth and last of the migrations: it links
+# zengine-workshop-vocabulary and zengine-component, it is staged beside the host, and the
+# boot plan names its artifact.
+add_subdirectory(terminal-pane)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

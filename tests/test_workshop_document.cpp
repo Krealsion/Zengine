@@ -2283,83 +2283,18 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 // it cannot: a maker typing a Width while deleting that object from the context menu loses the
 // typing. Reported in RB3 as stage 2's debt and paid here in the only currency there was.
 
-TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by keys") {
-    Live t;
-    // A readable medium at the Skin's role (QR-11): copies land on its platform, and each
-    // paste ASKS it — the conversation every paste below settles inside its own gesture.
-    SkinSeat* skin = t.mount_skin_seat();
-    (void)t.mount_terminal();
-    t.toggle_terminal();
-    for (const char c : std::string("hello world")) {
-        t.text(std::string(1, c));
-    }
-
-    // Shift+Left sweeps a selection, and the PUBLISHED pane region says exactly which
-    // prose columns are selected -- the same prompt shift the caret has always had.
-    for (int i = 0; i < 5; ++i) {
-        t.key(input::scan::kLeft, input::mod::kShift);
-    }
-    CHECK(t.pane().input.selected_text() == "world");
-    {
-        const surface::SurfaceTextRegion& pane =
-            *pane_of(t.canvases.back(), screen_of(t.session()));
-        const TerminalInputPlace p = terminal_input_place(screen_of(t.session()));
-        CHECK(pane.sel_begin_row == p.prose_row);
-        CHECK(pane.sel_end_row == p.prose_row);
-        CHECK(pane.sel_begin_col == kTerminalPromptCols + 6);
-        CHECK(pane.sel_end_col == kTerminalPromptCols + 11);
-        CHECK(pane.caret_col == kTerminalPromptCols + 6); // the active end is the caret
-    }
-
-    // Typing replaces what was swept.
-    t.text("there");
-    CHECK(t.pane().input.text() == "hello there");
-    // ...and the selection's absence is published as the absence.
-    {
-        const surface::SurfaceTextRegion& pane =
-            *pane_of(t.canvases.back(), screen_of(t.session()));
-        CHECK(pane.sel_begin_row == surface::kNoSelection);
-    }
-
-    // Ctrl+A, copy, cut, paste, undo, redo -- the chords land on the line while the
-    // overlay has the keyboard. A copy fills the mirror AND the medium's clipboard; a
-    // paste asks the medium (QR-11) and inserts what it answers.
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(t.session().clipboard.text == "hello there");
-    CHECK(skin->platform == "hello there"); // the copy reached the platform through the Skin
-    CHECK(t.pane().input.text() == "hello there"); // a copy erases nothing
-    t.key(input::scan::kX, input::mod::kCtrl);
-    CHECK(t.pane().input.empty());
-    t.key(input::scan::kV, input::mod::kCtrl);
-    t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "hello therehello there");
-    CHECK(skin->clipboard_reads == 2); // one read per paste, on request, never before
-    t.key(input::scan::kZ, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "hello there");
-    t.key(input::scan::kY, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "hello therehello there");
-    // Word movement is part of the same vocabulary.
-    t.key(input::scan::kHome);
-    t.key(input::scan::kRight, input::mod::kCtrl);
-    CHECK(t.pane().input.caret() == 6);
-}
-
 TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
     TempDir dir("text0-naming");
     Live t;
     (void)t.mount_skin_seat(); // the cross-consumer paste below asks it, like every paste
     t.host.setup_path = dir.file("setup.json");
-    (void)t.mount_terminal();
-
-    // Copy in the Terminal first -- the cross-consumer half of the claim.
-    t.toggle_terminal();
-    for (const char c : std::string("Morning")) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kA, input::mod::kCtrl);
-    t.key(input::scan::kC, input::mod::kCtrl);
-    t.toggle_terminal();
+    // ⚠ THE COPY USED TO HAPPEN IN THE TERMINAL OVERLAY (VD-24), which was a box of this
+    // host's. The Terminal is a weave now, so the cross-consumer half of this claim is said
+    // the way it is actually true: a PANE copies -- publishing `ClipboardCopy`, which is what
+    // every migrated pane does with its own selection -- and this host's name editor pastes
+    // it. That is a wider claim than the one it replaces, because the two boxes are now in
+    // two images.
+    t.publish(loom::to_value(surface::ClipboardCopy{"Morning"}));
 
     // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB SINCE WUX-11: `s` saves now, and
     // renaming is the layout operation reached from the tab a maker points at.
@@ -2394,7 +2329,7 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     // medium's row reads exactly as it always did.
     CHECK(label_at(t.canvases.back(), 0, 0).find("layout name> Default") == 0);
 
-    // Paste replaces the selection: the name a maker copied in the Terminal arrives here.
+    // Paste replaces the selection: the name a maker copied in a PANE arrives here.
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.text() == "Morning");
     // ^c with a selection copies rather than quitting, in this mode too.
@@ -2405,57 +2340,6 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == "Default");
-}
-
-TEST_CASE("TEXT-0: a drag sweeps a selection on the terminal line, and release keeps it") {
-    Live t;
-    (void)t.mount_terminal();
-    t.toggle_terminal();
-    for (const char c : std::string("send something")) {
-        t.text(std::string(1, c));
-    }
-    const TerminalInputPlace p = terminal_input_place(screen_of(t.session()));
-
-    // The press places the caret AND opens the drag; no selection yet.
-    t.press_at(pane_cell_x(p, p.first_column + 5), pane_cell_y(p, p.prose_row),
-               input::space::kCells);
-    REQUIRE(t.pane().input.caret() == 5);
-    CHECK(t.session().text_drag.active);
-    CHECK_FALSE(t.pane().input.has_selection());
-
-    // Motion extends from the pressed anchor -- the same geometry the press resolved.
-    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 9),
-                                                 pane_cell_y(p, p.prose_row), 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
-    CHECK(t.pane().input.selected_text() == "some");
-    CHECK(t.pane().input.anchor() == 5);
-
-    // ...and sweeping back through the anchor selects the other way. The ROW is
-    // deliberately not re-tested mid-drag: a hand that wanders off the line keeps
-    // sweeping it by column, so the selection is stable rather than flickering.
-    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 1),
-                                                 pane_cell_y(p, p.prose_row - 1), 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
-    CHECK(t.pane().input.selected_text() == "end ");
-    CHECK(t.pane().input.caret() == 1);
-
-    // Release ends the GESTURE and keeps the SELECTION -- ending the sweep is not
-    // unselecting -- and a motion after release moves nothing.
-    t.publish(loom::to_value(input::PointerButton{1, false, pane_cell_x(p, p.first_column + 1),
-                                                  pane_cell_y(p, p.prose_row),
-                                                  input::space::kCells, input::mod::kNone}));
-    CHECK_FALSE(t.session().text_drag.active);
-    CHECK(t.pane().input.selected_text() == "end ");
-    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 12),
-                                                 pane_cell_y(p, p.prose_row), 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
-    CHECK(t.pane().input.selected_text() == "end ");
-
-    // A fresh press collapses the old selection: it is the gesture that STARTS one.
-    t.press_at(pane_cell_x(p, p.first_column + 3), pane_cell_y(p, p.prose_row),
-               input::space::kCells);
-    CHECK_FALSE(t.pane().input.has_selection());
-    CHECK(t.pane().input.caret() == 3);
 }
 
 TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
@@ -2656,14 +2540,18 @@ TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
     // directed at the weave, wearing the guessable first correlation -- and it settles
     // nothing, mutates nothing, pastes nothing, because it answers no ask this weave
     // opened and Loom did not stamp it as an answer at all.
+    // ⚠ THE BOX IS THE LAYOUT NAME EDITOR NOW (VD-24). It used to be the terminal
+    // overlay's line, which was a box of this host's; the Terminal is a weave and its line
+    // is its own, so the box this host still owns is the one that stands in for every box
+    // this claim is about.
     Live t;
-    (void)t.mount_terminal();
-    t.toggle_terminal();
+    open_rename_on_tab(t, t.session().setup.active_at);
+    REQUIRE(t.session().setup.naming.open);
     (void)t.bus.send(t.workshop_id,
                      loom::Message(loom::to_value(surface::ClipboardText{true, "EVIL"}),
                                    loom::WeaveId{}, loom::WeaveId{}, 1));
     t.bus.drain_until_idle();
-    CHECK(t.pane().input.empty());
+    CHECK(t.session().setup.naming.line.text() == "Default");
     CHECK(t.session().clipboard.text.empty());
 
     // THE SHARPER HALF: an ask genuinely OUTSTANDING (nobody holds the skin role, so the
@@ -2672,6 +2560,7 @@ TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
     // of why a correlation identifies and never authenticates. The book alone would be
     // satisfied; `answers_ask()` is the wall that is not, because Loom stamps the one
     // authorized answer and no send can wear the stamp.
+    t.key(input::scan::kA, input::mod::kCtrl);
     for (const char c : std::string("abc")) {
         t.text(std::string(1, c));
     }
@@ -2691,7 +2580,7 @@ TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
     (void)t.bus.send(rogue_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                              loom::WeaveId{}, 0));
     t.bus.drain_until_idle();
-    CHECK(t.pane().input.text() == "abc"); // the payload reached no box
+    CHECK(t.session().setup.naming.line.text() == "abc"); // the payload reached no box
     CHECK(t.session().clipboard.text.empty());
 }
 
@@ -2702,8 +2591,9 @@ TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
     // each paste gets its own moment's truth.
     Live t;
     SkinSeat* skin = t.mount_skin_seat();
-    (void)t.mount_terminal();
-    t.toggle_terminal();
+    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box (VD-24)
+    REQUIRE(t.session().setup.naming.open);
+    t.key(input::scan::kA, input::mod::kCtrl);
     for (const char c : std::string("stale")) {
         t.text(std::string(1, c));
     }
@@ -2713,11 +2603,11 @@ TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
     skin->platform = "fresh"; // an unrelated application copies; nothing travels
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "fresh");
+    CHECK(t.session().setup.naming.line.text() == "fresh");
     skin->platform = "newer"; // ...and again, between two pastes
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "newer");
+    CHECK(t.session().setup.naming.line.text() == "newer");
     CHECK(skin->clipboard_reads == 2);
 }
 
@@ -2728,15 +2618,16 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
     // and pressing it past the book's capacity stays quiet rather than becoming a crash
     // or a queue.
     Live t;
-    (void)t.mount_terminal();
-    t.toggle_terminal();
+    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box (VD-24)
+    REQUIRE(t.session().setup.naming.open);
+    t.key(input::scan::kA, input::mod::kCtrl);
     for (const char c : std::string("abc")) {
         t.text(std::string(1, c));
     }
     for (int i = 0; i < 6; ++i) { // past the book's capacity of 4
         t.key(input::scan::kV, input::mod::kCtrl);
     }
-    CHECK(t.pane().input.text() == "abc");
+    CHECK(t.session().setup.naming.line.text() == "abc");
     CHECK_FALSE(t.host.quit);
 }
 
@@ -2770,20 +2661,6 @@ TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no lo
     // Alt+Q used to quit.
     t.key(input::scan::kQ, input::mod::kAlt);
     CHECK_FALSE(t.host.quit);
-}
-
-TEST_CASE("KEY-0: shift+space is gone -- not a binding, not an invisible alias") {
-    // The old Terminal opener could not arrive from the POSIX backend at all
-    // (`ground_byte(' ')` infers Shift only on letters), and KEY-0 removed it rather
-    // than keeping a default one backend advertises and cannot deliver.
-    Live t;
-    t.mount_terminal();
-    t.key(input::scan::kSpace, input::mod::kShift);
-    t.text(" ");
-    CHECK_FALSE(t.pane().open);
-    // ...and the toggle both backends can honestly produce is ctrl+t.
-    t.key(input::scan::kT, input::mod::kCtrl);
-    CHECK(t.pane().open);
 }
 
 TEST_CASE("KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k close it") {
@@ -2843,18 +2720,19 @@ TEST_CASE("KEY-0: the view lists the context beneath it, and three contexts diff
     CHECK(command_view.find("command mode") != std::string::npos);
     CHECK(command_view.find("new") != std::string::npos);
     CHECK(command_view.find("answered above every mode") != std::string::npos);
-    CHECK(command_view.find("^t") != std::string::npos);
+    CHECK(command_view.find("^k") != std::string::npos);
     t.key(input::scan::kEscape);
 
-    // EDITABLE TEXT BENEATH (the Terminal line): its own controls, and the
-    // component's editing vocabulary shown from the component's own rows,
-    // marked as not this keymap's to move.
-    t.toggle_terminal();
-    REQUIRE(t.pane().open);
+    // EDITABLE TEXT BENEATH: its own controls, and the component's editing vocabulary
+    // shown from the component's own rows, marked as not this keymap's to move.
+    //
+    // ⚠ THE TERMINAL LINE USED TO BE THIS CONTEXT (VD-24) and is a pane's now, so the
+    // editable box this host still owns stands for the claim: naming a layout.
+    open_rename_on_tab(t, t.session().setup.active_at);
+    REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kK, input::mod::kCtrl);
     const std::string text_view = view_text();
-    CHECK(text_view.find("the terminal line") != std::string::npos);
-    CHECK(text_view.find("run the line") != std::string::npos);
+    CHECK(text_view.find("naming a layout") != std::string::npos);
     CHECK(text_view.find("not remappable") != std::string::npos);
     CHECK(text_view.find("copy") != std::string::npos);
     // ^c means copy there, so quit's row is not in this context's list.
@@ -3045,24 +2923,24 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     TempDir dir("keymap-gap");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path,
-                      keymap_file_text("default", {{"workshop.terminal", "shift+space"}}));
+    // ⚠ THE ROW IS THE PICKER'S NOW (VD-24). It was `workshop.terminal`, the global chord
+    // that opened the terminal overlay; that row retired with the overlay, so the claim --
+    // an authored gesture a backend cannot produce is ACCEPTED, said, and not rewritten --
+    // is made over another global row a maker can author.
+                      keymap_file_text("default", {{"workshop.picker", "shift+space"}}));
     Keyed t(path);
-    t.mount_terminal();
+    // The note said the honest half out loud at load: a POSIX terminal cannot produce it.
+    // Nothing in the file was rewritten. It is read HERE, before any gesture, because the
+    // notice line has one occupant and the next act writes its own sentence over this one.
+    CHECK(t.notice().find("shift is not observable") != std::string::npos);
     // Accepted: the authored gesture works where the wire can carry it...
     t.key(input::scan::kSpace, input::mod::kShift);
-    CHECK(t.pane().open);
-    // ...its own keystroke's space is swallowed, derived from the binding...
-    t.text(" ");
-    CHECK(t.pane().input.text().empty());
-    // ...and the note said the honest half out loud: a POSIX terminal cannot
-    // produce it. Nothing in the file was rewritten.
-    CHECK(t.notice().find("shift is not observable") != std::string::npos);
+    CHECK(t.session().panels.picker.open);
+    t.key(input::scan::kEscape);
     // The default it replaced no longer fires -- an override moves a binding,
     // it does not leave the old one behind as an invisible alias.
-    t.key(input::scan::kSpace, input::mod::kShift);
-    REQUIRE_FALSE(t.pane().open);
-    t.key(input::scan::kT, input::mod::kCtrl);
-    CHECK_FALSE(t.pane().open);
+    t.key(input::scan::kP);
+    CHECK_FALSE(t.session().panels.picker.open);
 }
 
 TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSIX wire is said") {
@@ -3246,32 +3124,6 @@ TEST_CASE("KEY-0: the picker still closes on the key that opened it, wherever it
     t.key(input::scan::kP); // ...and the retired default does neither
     t.text("p");
     CHECK_FALSE(t.session().panels.picker.open);
-}
-
-TEST_CASE("KEY-0: the terminal header and hints spell the effective toggle") {
-    TempDir dir("keymap-header");
-    const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"}}));
-    Keyed t(path);
-    t.mount_terminal();
-    t.key(input::scan::kG, input::mod::kCtrl);
-    REQUIRE(t.pane().open);
-    const std::string pane_rows = terminal_text(t.canvases.back(), screen_of(t.session()));
-    CHECK(pane_rows.find("(^g closes)") != std::string::npos);
-    CHECK(pane_rows.find("shift+space") == std::string::npos);
-    t.key(input::scan::kG, input::mod::kCtrl);
-    REQUIRE_FALSE(t.pane().open);
-    // ...and the band's legend claim moved with it -- the top-row hint is retired (WUX-1),
-    // so the toggle's one remaining compact claim surface is the pairs the band packs.
-    const std::vector<std::string> pairs =
-        help_pairs(t.session().keymap, KeyContext::kCommand);
-    bool spelled = false;
-    for (const std::string& pair : pairs) {
-        CHECK(pair.find("^t terminal") == std::string::npos); // the old spelling is gone
-        spelled = spelled || pair == "^g terminal";
-    }
-    CHECK(spelled);
-    CHECK(t.notice() == "terminal closed -- ^g reopens it");
 }
 
 TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
@@ -3586,7 +3438,6 @@ TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the mo
     const std::string view = panel_text(
         t.canvases.back(),
         pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
-    CHECK(view.find("terminal") != std::string::npos);
     CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too

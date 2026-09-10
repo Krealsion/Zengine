@@ -8,7 +8,7 @@ listed key true.
 ## One binding truth
 
 Workshop keeps one table of **actions** — a stable identity like `object.new` or
-`workshop.terminal`, a label, the context it is available in, and a default gesture. Dispatch
+`workshop.picker`, a label, the context it is available in, and a default gesture. Dispatch
 resolves your keystroke against that table, and every place a gesture is written on screen —
 the bottom band, each mode's heading, the notices, the full hotkey view — is a projection of
 the same table. There is no second list to drift: remap a binding and the screen spells the
@@ -37,21 +37,19 @@ it could not show.
 
 The list is grouped by the layer that owns each row:
 
-- the current context's own keys — command mode, the terminal line, the picker, the
-  current-condition view, the two arranging scopes and their reset prompt, a property
-  being edited, the source editor, the Files pane, the Pane Manager, the Pane Creator's name
-  prompt, or a focused pane;
-- the keys answered above every mode (open, the terminal toggle, this view; where nothing
-  is taking text, quit and the current-condition view; and everywhere but the source
-  editor, the document's save — inside the editor the same chord is the editor's own
-  `save source`);
+- the current context's own keys — command mode, the picker, the two arranging scopes and
+  their reset prompt, a property being edited, the source editor, the Pane Manager, the Pane
+  Creator's name prompt, or a focused pane;
+- the keys answered above every mode (open, this view; where nothing is taking text, quit;
+  and everywhere but the source editor, the document's save — inside the editor the same
+  chord is the editor's own `save source`);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
   movement, undo — shown for discovery but **not remappable**: they belong to the editing
   component, in every box at once, and the keymap does not reach into it. The source
   editor's own editing keys are listed the same way, from its own declared vocabulary.
 
-The view describes the context **beneath** it — open it over the terminal line and you read
-the terminal line's keys — and it is modal while open: `Esc` or `Ctrl`+`k` puts it away, and
+The view describes the context **beneath** it — open it over a pane holding the keyboard and
+you read that pane's declared rows — and it is modal while open: `Esc` or `Ctrl`+`k` puts it away, and
 any other key is swallowed rather than executed, so reading a binding never performs one. For
 a focused external pane it lists the actions the pane declared — `switch view`, `row up`, and
 so on, spelled from the same effective keymap, so an override you authored for the pane's id

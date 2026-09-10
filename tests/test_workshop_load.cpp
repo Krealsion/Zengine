@@ -1102,7 +1102,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 11); // ...and the Info pane joined them
+    REQUIRE(p.artifacts.size() == 12); // ...and the Terminal pane joined them
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1139,6 +1139,16 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[9].weave.has_value());
     CHECK(p.artifacts[9].weave->role == "zengine.attention");
     CHECK_FALSE(p.artifacts[9].provider.has_value());
+    // ...AND THE TERMINAL PANE, the fifth and last of the migrations, and the first that was
+    // never a pane OR chrome: it was a MODE, opened by a global chord, owning the keyboard
+    // and the pointer whole, drawn on a plane after every pane so nothing a maker arranged
+    // could stand in front of it. It is a row here now, which means a maker can remove it: a
+    // Workshop with no Terminal pane still MOUNTS the participant and still prints its
+    // identity at boot, and there is simply nothing on the desk that can type at it.
+    CHECK(p.artifacts[11].stem == "zengine-terminal-pane");
+    REQUIRE(p.artifacts[11].weave.has_value());
+    CHECK(p.artifacts[11].weave->role == "zengine.terminal");
+    CHECK_FALSE(p.artifacts[11].provider.has_value());
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row

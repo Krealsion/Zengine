@@ -154,6 +154,15 @@ BECAUSE — eight titles in one filter, four holding a comma, selected four and 
 cheerful pass over the rest; nothing said half the request had been discarded.
 SEEN — nowhere yet
 
+## VM-POP-21 — A test repointed to another consumer is coverage lost at the first
+
+METHOD — Account for a migrated suite in three columns -- moved with its behaviour, deliberately changed, genuinely lost -- and count a case REPOINTED to another consumer as LOST at the one it left.
+BECAUSE — three delayed-paste cases moved from the extracted terminal line to the host's
+layout-name editor, kept passing, and left the extracted line with no such check at all: the
+counts balanced, the sentence said "repointed rather than deleted", the protection was gone.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21: clipboard text lands in the
+draft that asked for it, or nowhere"`; `tests/test_population.txt`.
+
 ## Where a case goes
 
 The registers cite their witnesses by exact case name, so the answer to "which suite pins this

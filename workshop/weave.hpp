@@ -228,8 +228,11 @@ class WorkshopWeave
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::PaneContent,
+                                          zengine::workshop::PaneCaret,
                                           zengine::workshop::OpenSourceRequested,
                                           zengine::workshop::DocumentActRequested,
+                                          zengine::workshop::TerminalActRequested,
+                                          zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::RecipeSourceRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -246,6 +249,9 @@ class WorkshopWeave
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::DocumentShown,
                                         zengine::workshop::DocumentActed,
+                                        zengine::workshop::TranscriptShown,
+                                        zengine::workshop::TerminalActed,
+                                        zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::SourceOpened>> {
 public:
     explicit WorkshopWeave(HostContext& host);
@@ -341,7 +347,7 @@ public:
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     /// Open or close the full hotkey view. The whole of the mode change --
-    /// `toggle_terminal`'s own shape, one screen element over.
+    /// The Terminal pane's own shape, one screen element over.
     void toggle_hotkeys();
 
     /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed.
@@ -475,6 +481,20 @@ public:
     /// party that answers for it (`document_seam_vocabulary.hpp`).
     void on(const DocumentActRequested& asked, loom::Mail& mail);
 
+    /// AUTHOR ONE LINE AS THE TERMINAL PARTICIPANT, asked for by whoever presents it.
+    ///
+    /// ANSWERED AT THIS OFFICE for `on(DocumentActRequested)`'s reason exactly: the party
+    /// that holds the participant is the party that answers for it, and a second office
+    /// would be a second answer to "who may speak as this terminal".
+    void on(const TerminalActRequested& asked, loom::Mail& mail);
+
+    /// WHAT COULD BE SAID NEXT, given a line the asker is holding.
+    ///
+    /// READS AND NEVER AUTHORS, and that is a property of the call rather than a rule:
+    /// every method on the path is const, and the participant's channel -- the only thing
+    /// that can send -- is unreachable through a const reference.
+    void on(const TerminalCompletionRequested& asked, loom::Mail& mail);
+
     /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
     /// last granted, and only then copied.
     ///
@@ -510,6 +530,28 @@ public:
     /// of a provider theme.
     static Written judge_content(const PaneContent& content, const ExternalPane& pane);
 
+    /// WHERE A PANE SAYS ITS CARET IS -- accepted whole into the pane's record, or refused
+    /// whole so the pane has none.
+    ///
+    /// ⚠ IT DOES NOT REPAINT BY ITSELF AND THAT IS THE POINT. A caret arrives beside the
+    /// rows it belongs to, on the same drain, and `on(PaneContent)` already ends in a
+    /// repaint; a second one here would paint the rows once with the old caret and once
+    /// with the new. A caret that arrives with no content behind it -- a pane moving its
+    /// insertion point without changing a character, which is what an arrow key does --
+    /// still has to reach the screen, so this handler repaints exactly when the caret it
+    /// admitted DIFFERS from the one the pane already had.
+    void on(const PaneCaret& caret, loom::Mail& mail);
+
+    /// IS THIS CARET INSIDE THE CONTENT THIS PANE LAST HAD ACCEPTED?
+    ///
+    /// PURE, AND ANSWERED AGAINST `shown` RATHER THAN AGAINST THE GRANTED ROOM. The room is
+    /// what a pane MAY fill; `shown` is what it did fill, and a caret on row 9 of a
+    /// four-row answer is at a place with no text under it whether or not nine rows were
+    /// granted. The column is judged against the row's own text, for the same reason, and
+    /// a caret one past the last byte is legal -- that is where the insertion point sits
+    /// at the end of a line.
+    static Written judge_caret(const PaneCaret& caret, const ExternalPane& pane);
+
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
     const Session& session() const;
@@ -535,7 +577,11 @@ private:
     /// Which of this weave's own editable places a consumed paste request came from
     /// `kNone` for every armless branch.
     // WL-TEXT-09 -- agents/workshop/text-box.md
-    enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft, kEditor };
+    /// ⚠ `kTerminal` IS GONE (VD-24). A pane asks the Skin for the clipboard itself --
+    /// `surface::ClipboardTextRequested`, the same conversation this host opens for its own
+    /// drafts -- so the Terminal's line stopped being one of the boxes this host pastes
+    /// into on the day it stopped being this host's box.
+    enum class PasteOwner : std::uint8_t { kNone, kNaming, kDraft, kEditor };
 
     /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's or the Pane
     /// Creator's.
@@ -591,32 +637,24 @@ private:
     // so a press inside its rectangle crosses as `PanePressed` with the pane's own prose row
     // and column, exactly as it does for every other pane, and the pane answers it.
 
-    // ---- The terminal overlay ------------------------------------------------
+    // ---- The terminal participant, behind a door ------------------------------
 
-    /// Open or close the pane. The whole of the mode change.
-    void toggle_terminal();
+    /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the
+    /// repaint, compared against the last utterance, and said only when it changed.
+    void say_transcript(loom::Mail& mail);
 
-    /// Editing mode for the command line: the keys that are controls rather than
-    /// text, exactly as the inspector's editor has.
-    void terminal_key(const zengine::input::KeyPressed& k);
-
-    /// A PRESS INSIDE THE TERMINAL MODE — the first place-within-a-mode.
-    bool terminal_press(const zengine::input::PointerButton& b);
-
-    /// IS THERE A LIST ON SCREEN WITH SOMETHING IN IT TO CHOOSE?
-    bool completion_selectable() const;
-
-    /// Move the selection, and stop at the ends.
-    void move_completion(int by);
-
-    /// TAKE THE SELECTED CANDIDATE INTO THE LINE.
-    void accept_completion();
-
-    /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
-    void submit_terminal_line();
-
-    /// Take the pane's snapshot of the participant.
-    void refresh_terminal();
+    /// COMPOSE AND AUTHOR ONE LINE through the participant, in Loom's own grammar.
+    ///
+    /// THE ONE PATH IN THIS PROCESS THAT SPEAKS AS THE TERMINAL, and the reason the
+    /// participant stayed behind when its presentation left: `send`/`ask` go out through
+    /// the participant's own channel, stamped with ITS identity and authorized against
+    /// ITS grant. A pane authoring this would be authoring as the pane.
+    ///
+    /// ⚠ THE SCOPE OF THAT, SAID EXACTLY. No message in the interface `loom::TerminalSession`
+    /// has TODAY drives it, and this work adds no Loom sentence -- so under that constraint
+    /// it could not have moved. It is not a claim that no participant of this kind ever
+    /// could; a driven door would change the answer, and that is a Loom conversation.
+    void submit_terminal_line(const std::string& line);
 
     /// Command mode.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail);
@@ -824,7 +862,7 @@ private:
     /// A press in the editor's body places the caret and begins the selection sweep.
     void editor_press(const zengine::input::PointerButton& b);
 
-    /// THE ONE PLACE THE EDITOR'S VIEWPORT IS RECONCILED -- `refresh_terminal`'s
+    /// THE ONE PLACE THE EDITOR'S VIEWPORT IS RECONCILED -- the Terminal line's own
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor();
 
@@ -1172,6 +1210,9 @@ private:
     // WL-DOC-20 -- agents/workshop/document.md
     DocumentShown said_document_;
     bool document_said_ = false;
+    /// ...and the same pair for the terminal participant's record.
+    TranscriptShown said_transcript_;
+    bool transcript_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md

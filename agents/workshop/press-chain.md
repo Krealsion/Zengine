@@ -26,13 +26,14 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-02 — A bool that is not the chain's is not unified with it
 
-LAW — `terminal_press`'s bool is "a repaint is owed" and `layouts_press`'s is "this was a tab", and neither is unified with the chain's CONSUMED: one shape, three questions, told apart by name.
+LAW — `layouts_press`'s bool is "this was a tab" and is not unified with the chain's CONSUMED: one shape, two questions, told apart by name.
 
 MEANS
-- ⭐ the deliberate `false` this law was written over is gone with `objects_press`.
+- ⭐ the deliberate `false` this law was written over is gone with `objects_press`;
+- so is `terminal_press`'s "a repaint is owed", which left with the overlay (VD-24).
 
-PROVEN BY — `workshop/weave_terminal.cpp` `terminal_press`; `workshop/weave_pointer.cpp`
-`repaint_needed`, `layouts_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0:
+PROVEN BY — `workshop/weave_pointer.cpp` `layouts_press`; `tests/test_workshop_panes_input.cpp`
+case `"SEL-0:
 management chrome gets first refusal, and a mode takes the press whole"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
@@ -44,7 +45,7 @@ MEANS
 - ⭐ this law was `info_body_at`'s; `pane_editor_at` is the built-in that owns one now.
 
 PROVEN BY — `workshop/screen_pane_editor.cpp` `pane_editor_at`, `pane_editor_body`;
-`workshop/screen.hpp` `PaneEditorAt`, `PaneEditorAt::present`, `terminal_input_hit`, `ProseAt`;
+`workshop/screen.hpp` `PaneEditorAt`, `PaneEditorAt::present`, `ProseAt`;
 `workshop/screen_external.cpp` `external_press_at`; `tests/test_workshop_panes_input.cpp` case
 `"SEL-0: a press in the body names the row under the header, in both media"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`

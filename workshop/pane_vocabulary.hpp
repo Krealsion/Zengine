@@ -397,6 +397,70 @@ struct PaneActionRequested {
     ZEN_SHAPE(PaneActionRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(id));
 };
 
+/// WHERE THIS PANE'S CARET IS, AND WHAT IT HAS SELECTED -- published BESIDE its rows by a
+/// pane that has one, and by no other pane.
+///
+/// ---- WHY IT IS NOT A FIELD ON `PaneContent` ---------------------------------
+///
+/// ⭐ A CARET IS A FACT ABOUT A REGION AND MOST PANES HAVE NONE. `surface::SurfaceTextRegion`
+/// has carried `caret_row`/`caret_col` and the four selection fields since it gained real
+/// type, and every pane's rows are merged into one such region by Workshop -- but a pane
+/// could not SAY them, so a migrated pane's editable line lost its insertion point (the
+/// Files browser's authoring line, the Powers query, and Info's property draft each recorded
+/// the same loss). The founder's rule, 2026-09-07: caret and selection are a PANE'S OWN
+/// shape, published beside its rows, merged by Workshop into the region it assembles --
+/// never a `PaneContent` version every pane pays for. So this is a second sentence a pane
+/// MAY say, not a field every pane must carry: the four panes that have no caret send
+/// nothing, their shape is unchanged, and their images do not recompile.
+///
+/// ---- THE LATTICE IS `PanePressed`'s, AND NOTHING ELSE IS ---------------------
+///
+/// `row` and `column` are the `PaneRoom` lattice -- row 0 is the first prose row of the
+/// BODY this provider was granted, under Workshop's header row, which the provider never
+/// receives and is never told about. Workshop adds its own header offset when it merges,
+/// exactly as it subtracts one when it locates a press. No pixel, no cell, no canvas
+/// coordinate and no region origin: a provider that learned any of those could place a
+/// caret on a screen it has no business seeing.
+///
+/// ---- REFUSED WHOLE ----------------------------------------------------------
+///
+/// ⚠ JUDGED AGAINST THE CONTENT THIS PANE LAST HAD ACCEPTED, and refused ENTIRELY when it
+/// names a row that content does not have -- caret and selection together, never one of
+/// them. A caret on a row that is not there would be drawn at a place the maker is not
+/// typing, which is worse than no caret at all; and a shape half-admitted would make
+/// "where is the caret" have two answers. Refusal leaves the pane with NO caret rather
+/// than with its previous one, for `PaneActions`' opposite reason: a stale caret is a
+/// position, and a position that is wrong is read as a fact.
+///
+/// `row == surface::kNoCaret` IS THE PANE SAYING IT HAS NO CARET RIGHT NOW -- a legal,
+/// ordinary sentence, and the one a pane says when its draft closes. It is not a refusal.
+///
+/// ---- WHAT IT IS NOT ---------------------------------------------------------
+///
+/// No blink, no shape, no width, no colour, no visibility flag, no scroll request, no
+/// "make me visible", no second region, and no claim on the keyboard. A pane that publishes
+/// a caret has not asked for anything; it has said where, inside the rows it already sent,
+/// the insertion point of the text it already wrote is. Which medium draws it how is the
+/// Skin's -- a bar between glyphs in a window, an inserted `_` in a cell projection --
+/// exactly as it already is for every region this host composes.
+struct PaneCaret {
+    std::string pane;
+    /// The prose row the caret is on, in the granted body lattice; `surface::kNoCaret`
+    /// (-1) says this pane has no caret at the moment.
+    std::int64_t row = -1;
+    std::int64_t column = 0; ///< ...and the prose column it sits BEFORE
+    /// THE SELECTION, THE SAME WAY AND IN THE SAME LATTICE. `surface::kNoSelection` (-1)
+    /// on `sel_begin_row` says there is none; a caret with no selection is the ordinary
+    /// case and costs four zeroes.
+    std::int64_t sel_begin_row = -1;
+    std::int64_t sel_begin_col = 0; ///< inclusive, a caret-like position
+    std::int64_t sel_end_row = -1;  ///< reading-order end row
+    std::int64_t sel_end_col = 0;   ///< exclusive, a caret-like position
+    ZEN_SHAPE(PaneCaret, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
+              ZEN_FIELD(sel_end_col));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP

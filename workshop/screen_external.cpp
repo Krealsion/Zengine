@@ -136,6 +136,23 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
             detail::fit(kExternalWaiting, body.columns), surface::role::kMuted});
     } else {
         region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
+        // ⭐ AND THE PANE'S OWN CARET, MERGED HERE AND NOWHERE ELSE. The pane published a
+        // position in the BODY lattice it was granted; Workshop's header is this region's
+        // first row, so the offset added here is exactly the one `external_press_row`
+        // subtracts when it locates a press. One measurer, both directions.
+        //
+        // The refusal already ran at admission (`judge_caret`), so this is a copy: a caret
+        // that is here is a caret inside rows that are here.
+        if (pane->caret_row != surface::kNoCaret) {
+            region.caret_row = pane->caret_row + body.header_rows;
+            region.caret_col = pane->caret_col;
+        }
+        if (pane->sel_begin_row != surface::kNoSelection) {
+            region.sel_begin_row = pane->sel_begin_row + body.header_rows;
+            region.sel_begin_col = pane->sel_begin_col;
+            region.sel_end_row = pane->sel_end_row + body.header_rows;
+            region.sel_end_col = pane->sel_end_col;
+        }
     }
     layer.texts.push_back(std::move(region));
 }

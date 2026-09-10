@@ -47,4 +47,5 @@ and a realization's answer are two rows and two notices.
 **Laws supported.** [WL-PANE-16](../workshop/panes-and-windows.md),
 [WL-PROJ-11](../workshop/project.md), [WL-PROJ-12](../workshop/project.md),
 [WL-PROJ-13](../workshop/project.md), [WL-PROJ-14](../workshop/project.md),
-[WL-DOC-20](../workshop/document.md).
+[WL-DOC-20](../workshop/document.md), [WL-CARET-01](../workshop/pane-caret.md),
+[WL-CARET-02](../workshop/pane-caret.md), [WL-CARET-03](../workshop/pane-caret.md).
