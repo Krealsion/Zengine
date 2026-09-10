@@ -2243,9 +2243,10 @@ if(NOT problems STREQUAL "")
     message(FATAL_ERROR
         "law-register FAILED: ${problem_count} problem(s).\n"
         "${problems}\n\n"
-        "  A register entry that contradicts a passing test is the thing that is wrong: fix "
-        "downward (tests > code > register > decision record), never upward. The form is the "
-        "routers' (${ZEN_LAW_ROUTERS}, Ongoing rules).")
+        "  This check validates register form and references, not intended behavior or "
+        "architectural fitness. Trace disagreements before changing code, tests, or law; "
+        "passing tests do not automatically overrule a contract. See AGENTS.md, Intent, "
+        "evidence, and architectural fit, and the routers (${ZEN_LAW_ROUTERS}, Ongoing rules).")
 endif()
 
 message(STATUS "law-register: PASSED -- every register is well-formed and every name it makes resolves"

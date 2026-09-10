@@ -5,8 +5,10 @@ pane implementations named there. Behavioral ownership follows the component whe
 Workshop's law lives in the registers under [`workshop/`](workshop/): one law per `##`, a
 `WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
-decision record under `decisions/`. Authority when they disagree: tests > code > register >
-decision record. The whole of the law in one screen is `grep -h '^LAW' agents/workshop/*.md`.
+decision record under `decisions/`. Disagreements follow
+[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit):
+passing tests do not automatically overrule intended contracts. The whole of the law in one
+screen is `grep -h '^LAW' agents/workshop/*.md`.
 
 What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
 vocabulary is [`surface.md`](surface.md). These registers hold Workshop behavior and the
@@ -54,8 +56,9 @@ which register each witnesses.
 4. A phase that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
    the same commit, and lists the ids re-verified in the commit message. The evidence trail is
    Git history.
-5. Tests > code > register > decision. Fix downward, never upward: a register entry that
-   contradicts a passing test is the thing that is wrong.
+5. Trace both intended contract and observed behavior when they disagree. Code, test, or register
+   may need correction; never weaken a law merely to match a passing test. Apply the architectural
+   review in `AGENTS.md` to the complete change and its consequences for known next work.
 6. Law ids are permanent; a retired law keeps its number and one line.
 7. `witness: none` is written where it is true and repeated under the register's `## Do not
    assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` after PROVEN BY,
