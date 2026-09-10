@@ -197,6 +197,17 @@ target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
+# A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from
+# weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `84b6bc0` published
+# it) and deliberately NOT from zengine-workshop-vocabulary -- the whole claim is that a party
+# nobody rebuilt still registers, declares and dispatches with the current host, and a case
+# reads its source to check the include is absent. Loaded by the actions suite (through the
+# real Workshop) and the load suite (through the real reload).
+zengine_weave(zengine-legacy-pane weavelib/legacy_pane.cpp)
+target_link_libraries(zengine-legacy-pane
+    PRIVATE zengine-surface-vocabulary zengine-input-vocabulary zengine-activation
+            zengine-warnings zengine-sanitize)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -951,6 +962,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # image holds a maker's DOCUMENT: the suites that drive Files' Return and the Builder's
     # `e` load it beside the asker, because the door those gestures reach is its.
     "WORKSHOP_SO_EDITOR_PANE=\"$<TARGET_FILE:zengine-editor-pane>\""
+    # ...AND THE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE, with its source, which a
+    # case reads to check that the current vocabulary is nowhere in it.
+    "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
+    "LEGACY_PANE_SOURCE=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/legacy_pane.cpp\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -971,7 +986,7 @@ set(ZENGINE_WORKSHOP_DEFS
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-info-pane zengine-terminal-pane
+    zengine-attention-pane zengine-info-pane zengine-terminal-pane zengine-legacy-pane
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -1163,7 +1178,7 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
 # plan can point at and get wrong.
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
-          zengine-operator-consumer-weave zengine-introspection
+          zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
                 # RELOAD-1's two more images: a GOOD consumer weave (the reload's offer
@@ -1179,6 +1194,9 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # maker's document aboard -- the one lifecycle act a maker can perform on
                 # the pane that holds their unsaved work.
                 "EDITOR_PANE_SO=\"$<TARGET_FILE:zengine-editor-pane>\""
+                # The provider built against the published protocol alone, reloaded in place
+                # through the same path with the state it had.
+                "LEGACY_PANE_SO=\"$<TARGET_FILE:zengine-legacy-pane>\""
                 # A provider surface at a version this host does not speak, and a CONSUMER
                 # surface at a version this host does not speak. Two different refusals;
                 # both must remain distinguishable from "an ordinary artifact".

@@ -92,13 +92,14 @@ SEEN — nowhere yet
 
 ## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
 
-METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart, and when an expectation moves say whether it was restored, changed or new.
+METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart; say whether a moved expectation was restored, changed or new; retire one that pins a rejected outcome.
 BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
-and eight cases had been rewritten to a narrowed law the maker had not accepted. And a reverted
-fix is not the old tree, so what it shows is the case's reach, not the release's behaviour.
+and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
+for a choice the maker then rejected stayed green and changed nothing about the disposition.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
 save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
-opens nothing, and the requester is told why"`.
+opens nothing, and the requester is told why"`, case `"EDIT-W68: a resize after the commitment
+is an ordinary presentation change"`.
 
 ## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
 

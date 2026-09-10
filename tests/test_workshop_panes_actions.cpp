@@ -44,6 +44,9 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "editor-pane/vocabulary.hpp"
+#include "weavelib/legacy_pane_protocol.hpp"
+
 #include <zen/registry.hpp>
 
 namespace {
@@ -895,28 +898,12 @@ TEST_CASE("a maker's override moves a Powers action, and the key it left no long
 // A PANE BUILT BEFORE OWNERSHIP EXISTED (VD-27)
 // ============================================================================
 
-/// THE PANE-ACTION PROTOCOL EXACTLY AS `84b6bc0` PUBLISHED IT, written out here so a case can
-/// speak it without the current header. A provider compiled against that header derives THESE
-/// schemas; if the shipped v1 ever drifts from them again, `same_identity` below says so, and
-/// every separately built pane in the world stops registering with this host (Loom GATE-04).
-namespace legacy {
-
-struct PaneActionRow {
-    std::string id;
-    std::string label;
-    std::int64_t scancode = 0;
-    std::int64_t modifiers = 0;
-    ZEN_SHAPE(PaneActionRow, 1, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
-              ZEN_FIELD(modifiers));
-};
-
-struct PaneActions {
-    std::string pane;
-    std::vector<PaneActionRow> rows;
-    ZEN_SHAPE(PaneActions, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
-};
-
-} // namespace legacy
+/// THE PANE-ACTION PROTOCOL EXACTLY AS `84b6bc0` PUBLISHED IT -- one definition, in
+/// `weavelib/legacy_pane_protocol.hpp`, shared with the image built from it. A provider compiled
+/// against that header derives THESE schemas; if the shipped v1 ever drifts from them again,
+/// `same_identity` below says so, and every separately built pane in the world stops registering
+/// with this host (Loom GATE-04).
+namespace legacy = legacy_protocol;
 
 /// A PROVIDER THAT KNOWS ONLY THE OLD PROTOCOL: it offers a pane and declares its rows through
 /// the shapes above, and it has never heard of ownership.
@@ -1030,6 +1017,76 @@ TEST_CASE("a pane built against the published version one still registers, decla
     CHECK(modern->actions.back().id == "hello.save");
     CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
                                                owner) == Act::kNone);
+}
+
+TEST_CASE("a pane provider built as its own image against the published protocol alone loads, declares and dispatches beside the Editor") {
+#ifndef WORKSHOP_SO_LEGACY_PANE
+    MESSAGE("no legacy pane image was built for this tree");
+#else
+    // ⭐ THE BINARY WITNESS, THROUGH THE REAL HOST. The `legacy::` shapes above are compiled
+    // into THIS executable and prove schema agreement; `zengine-legacy-pane` is an image of its
+    // own, built by tests/CMakeLists.txt from a source that never includes the current pane
+    // vocabulary -- read here as a file, so the claim is about the artifact and not about a
+    // namespace this suite happens to contain.
+    const std::string source = slurp(LEGACY_PANE_SOURCE);
+    REQUIRE_FALSE(source.empty());
+    // THE DIRECTIVE, not the name: the fixture's own comment names the header it refuses to
+    // include, and a tripwire that read the comment would refuse the explanation.
+    CHECK(source.find("#include \"workshop/pane_vocabulary.hpp\"") == std::string::npos);
+    CHECK(source.find("#include <workshop/pane_vocabulary.hpp>") == std::string::npos);
+    CHECK(source.find("#include \"legacy_pane_protocol.hpp\"") != std::string::npos);
+    MESSAGE("legacy image: ", WORKSHOP_SO_LEGACY_PANE, ", ",
+            std::filesystem::file_size(WORKSHOP_SO_LEGACY_PANE), " bytes");
+
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    // ONE PLAN, TWO IMAGES: the old provider and the current Editor, which declares version two.
+    load::LoadPlan plan;
+    {
+        load::ArtifactIntent old;
+        old.stem = "zengine-legacy-pane";
+        old.weave = load::WeaveIntent{"zengine.test.legacy"};
+        plan.artifacts.push_back(old);
+        load::ArtifactIntent editor;
+        editor.stem = zengine::editor_pane::kEditorPaneStem;
+        editor.weave = load::WeaveIntent{zengine::editor_pane::kEditorPaneRole};
+        plan.artifacts.push_back(editor);
+    }
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.extent(160, 48);
+    const RuntimePane* old = r.session().panels.runtime.find("zengine.test.legacy", "old");
+    REQUIRE_MESSAGE(old != nullptr, "the legacy image's offer was not admitted");
+    REQUIRE(old->actions.size() == 2); // its version-one rows, widened into the host's own type
+    CHECK(old->actions[1].id == "old.mark");
+    CHECK(old->actions[1].supersedes.empty()); // version one owns nothing, and says so
+    const RuntimePane* editor = r.session().panels.runtime.find(
+        zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
+    REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
+    bool owns = false;
+    for (const v2::PaneActionRow& row : editor->actions) {
+        owns = owns || row.supersedes == kOwnableDocumentSave;
+    }
+    CHECK(owns); // the version-two declaration, admitted in the same session
+
+    // THE OLD PANE, SEATED, PRESSED INTO, AND ASKED FOR ITS OWN ROW BY KEY.
+    const std::int64_t kind = old->kind;
+    r.pick(PaneRef{"zengine.test.legacy", "old"});
+    REQUIRE(r.session().panels.has(kind));
+    REQUIRE_FALSE(pane_rows(r, kind).empty());
+    CHECK(pane_rows(r, kind)[0].rfind("an old pane", 0) == 0);
+    press_body(r, kind);
+    r.key(input::scan::kM);
+    REQUIRE(pane_rows(r, kind).size() >= 2);
+    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image
+    // ...AND `^s` THERE IS THE OBJECT DOCUMENT'S: the old pane owns nothing.
+    const Gesture save = r.session().keymap.gesture_of(Act::kSaveDocument);
+    r.key(save.scancode, save.modifiers);
+    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark");
+    CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                               kind) == Act::kSaveDocument);
+#endif
 }
 
 /// THE SHAPE AS THIS PR HAD IT BEFORE THE CORRECTION: version one with the ownership field in

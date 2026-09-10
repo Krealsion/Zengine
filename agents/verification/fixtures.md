@@ -7,9 +7,9 @@ a durable format, a key. One method per heading; cite by ID. Router:
 ## VM-FIX-01 — A claim about a bound needs the range
 
 METHOD — A claim about a BOUND needs the range, not a point: sweep it as a property, and run the real screen at the supported minimum; one arranged case proves that arrangement.
-BECAUSE — thirty cases and twenty-four caught mutations were green while the shipped terminal at
-its minimum width of 78 columns showed the marker cut; the crowded case stopped three tabs short
-of the boundary.
+BECAUSE — 30 cases and 24 caught mutations were green while the shipped terminal at its minimum
+width of 78 columns showed the marker cut; the crowded case stopped three tabs short of the
+boundary.
 SEEN — `tests/test_workshop_panels.cpp` case `"WIND-1: the half-share pays at the bottom of
 the range too, and buys no slot"`.
 
@@ -89,7 +89,7 @@ SEEN — nowhere yet
 
 METHOD — A case that stops at a gesture's recorded base witnesses what it REMEMBERED, not what it wrote: add the motion and the release, assert the authored amount, and assert the unnamed axis unchanged.
 BECAUSE — the mutation that made the base read the visible rectangle reddened four assertions,
-two of them the authored results the earlier case had stopped short of.
+two of them the authored results the earlier case stopped short of.
 SEEN — `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize begins from the
 full resolved size"`.
 
@@ -144,9 +144,8 @@ high == 7"`.
 ## VM-FIX-18 — Guard an index in the same keystroke
 
 METHOD — Guard `[0]` and `.back()` with `REQUIRE` in the same keystroke: a mutation that empties the container otherwise detonates the run and hides every later result.
-BECAUSE — two such guards turned forty-one and twenty-eight reported red cases into a hundred
-and forty and a hundred and thirty-two; the crash arrives exactly when a mutation empties the
-container, and hides every result after it.
+BECAUSE — two such guards turned 41 and 28 reported red cases into 140 and 132; the crash
+arrives exactly when a mutation empties the container, and hides every result after it.
 SEEN — nowhere yet
 
 ## VM-FIX-19 — Before widening a key's fallthrough, read the no-op cases as law
@@ -189,18 +188,18 @@ next gesture: three answers outlived the line they were about, and one `paste` b
 `type`, surrendering the undo group and the whitespace normalization with it.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a
 line that is gone is neither shown nor taken"`, case `"TERM-W21: clipboard text lands in the
-draft that asked for it, or nowhere"`, case `"TERM-W22: a paste is one gesture, and undo gives
-back the line it landed in"`, case `"TERM-W23: what the clipboard holds is normalized to fit a
-line, or refused aloud"`.
+draft that asked for it, or nowhere"`.
 
 ## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
 
-METHOD — To reproduce "the answer arrived after the line moved", enqueue without draining, ASSERT nothing was delivered yet, and drain once: what a handler sends lands behind what is queued.
+METHOD — Stage an order by enqueueing without draining and pumping one turn at a time: assert the state at each milestone the interference must land at, then drain; a handler's sends land behind what is queued.
 BECAUSE — a sleep does not order a single-threaded bus, and a helper that drains -- including
-one that only READS, through a poke -- spends the batch before it is built; measured, twice.
+one that only READS, through a poke -- spends the batch before it is built; measured, twice. A
+pump count whose meaning moved with the conversation reproduced nothing; a milestone did.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
 and a submit is"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W53: a press that only
-focuses begins no sweep, and a gesture keeps the geometry it was made against"`.
+focuses begins no sweep, and a gesture keeps the geometry it was made against"`, case `"EDIT-W67:
+room lost before the commitment refuses the open, and nothing is authored or moved"`.
 
 ## VM-FIX-26 — A custodian's reload is witnessed at the bound, with the exit asked after
 

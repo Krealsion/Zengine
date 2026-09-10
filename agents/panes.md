@@ -137,24 +137,29 @@ beside the twelve before them, and each is an ordinary optional capability any p
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
   Editor pins it (VD-26).
-- **The reveal is three statements** (VD-26, corrected VD-27), because an acquisition that ends
-  in a presentation is one transaction whose halves live in two weaves:
+- **The reveal is one ask and one answer** (VD-26, corrected twice since), because an
+  acquisition that ends in a presentation is one transaction whose two facts live in two weaves:
   **`PaneRevealRequested v1` `{pane}`** (provider → Workshop, as the office that offered the
-  pane: have you a place for me?), **`PaneRevealAnswered v1` `{pane, room, refusal}`**
-  (Workshop's answer — capacity, judged through the picker's own trial seat, **with the desk
-  unmoved**), and **`PaneRevealSettled v1` `{pane, committed}`** (the provider's own outcome,
-  and the only statement that seats anything).
-  **Why the desk moves last.** The asker has not finished its act when it asks: the Editor
-  re-judges its document at the answer, and a maker's keystroke delivered in between can make
-  the replacement a loss. A host that had already authored the pane and taken the keyboard
-  would then be holding a presentation change belonging to an operation that never happened —
-  measured as a real race, with a held paste answer and a removed pane. So a refusal anywhere
-  leaves the setup, the selection and the keyboard exactly as they were.
-  **What the capacity answer is not.** Not a lock. The desk may change before the settle — a
-  maker removes a pane, shrinks the screen, picks another — and Workshop seats what fits when
-  it seats; a pane whose slot went away is authored and waiting for room, which is what any
-  pane is on a screen too small for it, and Workshop says so on its notice line. A reveal
-  naming a pane the office never offered is refused; one from nobody is dropped unanswered.
+  pane: seat me now, my act needs nothing more) and **`PaneRevealAnswered v1` `{pane, seated,
+  refusal}`** (Workshop's answer, on the delivery that asked, about what that delivery DID —
+  the pane is seated, selected and has the keys, or nothing moved and here is the picker's
+  sentence).
+  **Why the ask is the commitment.** The asker's eligibility and the desk's seat are two facts
+  in two weaves, and FIFO dispatch lets either change between two deliveries. Seating at the
+  answer and re-judging afterwards lost a held paste (the desk moved for an operation that then
+  refused); judging first and seating at a later settle lost a seat (a document replaced in a
+  pane the screen no longer showed); a further statement moves the race. So the asker freezes
+  its own fact — it holds every gesture and clipboard answer from its ask to the answer,
+  Workshop's quit discipline one seam over — and the desk makes its fact TRUE in the delivery
+  that answers. That delivery is the commitment point: the asker completes its own half on the
+  answer without judging again, and a seat is not something it may then decline.
+  **What a refusal and a later change mean.** A refusal moved nothing. A screen that shrank
+  before the ask arrived left the pane waiting for room, so the trial seat refuses: the maker's
+  own shrink, before the commitment, is a refused open. A shrink after the answer is an
+  ordinary presentation change to a pane that is on the desk. Workshop holds nothing between
+  deliveries — no record, no reservation — so two offices' asks are two seats judged in order,
+  and a screen with room for one refuses the second before admission. A reveal naming a pane
+  the office never offered is refused; one from nobody is dropped unanswered.
 - **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
   **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
   that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's

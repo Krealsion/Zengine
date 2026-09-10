@@ -83,6 +83,16 @@ before the motion was queued, and proved two polls. Measured, on the committed w
 SEEN — `tests/test_workshop_panes_editor.cpp` `EditorRig::aim`, `EditorRig::enqueue_press_doc`,
 `EditorRig::admitted_caret`.
 
+## VM-PROBE-12 — A cost is measured at the bound, on both shapes, and split from the baseline
+
+METHOD — A cost claimed per operation is measured at the admitted bound on both document shapes -- one long line and many short lines -- and split into the instrument's own work and the work the owner did anyway.
+BECAUSE — one increment on a four-thousand-line sample counted the materializations and said
+nothing about what one costs beside the history's own snapshot, which is the same order of
+work and was there all along; a count is not a cost.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is rebuilt when the
+bytes move and at no other time"` (the count); the measurement rides with the phase record
+(VM-WIT-24).
+
 ## VM-PROBE-09 — A precedent transfers only as far as its reason
 
 METHOD — A precedent transfers only as far as its reason: the neighbouring fixture tree is prepared at build time because a suite binary depends on it; copy the reason, not the shape.

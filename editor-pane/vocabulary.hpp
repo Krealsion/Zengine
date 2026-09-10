@@ -114,12 +114,16 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 /// by an arrow key, a press and every motion of a drag, with every byte identical -- measured,
 /// and reported at the time as costing nothing. Two questions, two counters.
 ///
-/// WHAT AN EDIT STILL PAYS: one `source_text` of the document it just changed, which at the
-/// admitted bound (`kMaxSourceBytes`, four megabytes) is one reserve and one copy. That is the
-/// standing price of a read surface that cannot lie, beside the buffer's own per-edit work (a
-/// bounded undo snapshot of the same document, which the history has always taken). A cheaper
-/// mirror needs a substrate hook that lets a weave refresh its state before a poke is answered;
-/// there is none to call, and asking for one is a decision of its own rather than a premise.
+/// WHAT AN EDIT STILL PAYS, MEASURED AT THE BOUND (VM-PROBE-12): one `source_text` of the WHOLE
+/// document -- a join of every line into one text -- on EVERY typed byte, because
+/// `content_revision` moves on every mutation. The buffer's own snapshot is not of the same
+/// order, and an earlier writing of this paragraph said it was: `remember` groups a run of
+/// typing into one undo entry, so the history copies the document once per group where the
+/// mirror joins it once per byte. At the bound the join is the larger part of a keystroke's
+/// cost, and a million short lines cost far more than one long one. That is the standing price
+/// of a read surface that cannot lie. A cheaper mirror needs a substrate hook that lets a weave
+/// refresh its state before a poke is answered; there is none to call, and asking for one is a
+/// decision of its own rather than a premise.
 struct EditorPaneState {
     std::string path;       ///< the normalized source identity; empty = no source open
     std::string text;       ///< the document as file bytes (`source_text`)

@@ -291,22 +291,28 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return;
     }
-    // ⚠ THIS STEP ANSWERS CAPACITY AND MOVES NOTHING (VD-27). The asker is in the middle of
-    // an act it has not finished, and that act can still fail -- so a desk that authored the
-    // pane and took the keyboard here would be holding a presentation change that belongs to
-    // an operation which never happened. MEASURED as a real race. What the asker needs from
-    // this delivery is one fact: is there a place for it. The desk moves at the settle.
+    // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
+    // vector may grow under a pointer into it (panel.hpp's own warning).
     const std::int64_t kind = row->kind;
     const std::string name = row->name;
     const PaneRef ref{row->provider, row->pane};
+    // ⚠ THIS DELIVERY IS THE COMMITMENT POINT, AND IT IS ONE DELIVERY ON PURPOSE. The asker
+    // has frozen its own eligibility until it hears back (pane_vocabulary.hpp says how), so
+    // the one instant at which its fact and this desk's fact both hold is the instant this
+    // desk makes the presentation true. Judged first, through the picker's own trial seat, on
+    // a COPY of the setup; written only if the seat is real. MEASURED, twice, the other ways:
+    // seating at an answer the asker then refused, and answering capacity the asker spent
+    // later, after the seat was gone.
     Setup candidate = session_.setup.active;
-    (void)add_pane(candidate, ref);
+    const bool added = add_pane(candidate, ref);
     const Seating trial =
         seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             // THE PICKER'S OWN WORDS, and the picker's own outcome: nothing is authored
-            // behind a refusal, and the asker is told why in a sentence it can pass on.
+            // behind a refusal, and the asker is told why in a sentence it can pass on. A
+            // screen the maker shrank before this arrived is exactly this case -- the pane
+            // is waiting for room, so there is no seat to commit to.
             const std::string refusal = "no room for " + name +
                                         " on this screen -- make the window taller, then p "
                                         "again";
@@ -316,47 +322,23 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
             return;
         }
     }
-    // REMEMBERED, SO THE SETTLE IS ATTRIBUTABLE: office, pane and the correlation of this
-    // ask. It holds no seat and no capacity -- the desk is free to change before the settle,
-    // and what fits is judged again when the pane is actually seated.
-    reveal_ = PendingReveal{true, std::string(office), asked.pane, mail.correlation()};
-    (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
-}
-
-// WL-EDIT-13 -- agents/workshop/editor.md
-void WorkshopWeave::on(const PaneRevealSettled& said, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty() || !reveal_.live || reveal_.office != office ||
-        reveal_.pane != said.pane || reveal_.asked != mail.correlation()) {
-        return; // a settle for an ask this host never answered, or one already settled
-    }
-    reveal_ = PendingReveal{};
-    if (!said.committed) {
-        return; // the asker abandoned: the ask is forgotten, and nothing anywhere moved
-    }
-    const RuntimePane* row = session_.panels.runtime.find(office, said.pane);
-    if (row == nullptr) {
-        return; // the pane left the catalog while its own act was finishing
-    }
-    // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
-    // vector may grow under a pointer into it (panel.hpp's own warning).
-    const std::int64_t kind = row->kind;
-    const std::string name = row->name;
-    const PaneRef ref{row->provider, row->pane};
-    // THE PICKER'S OWN MEMBERSHIP DOOR. The capacity answer above was true when it was
-    // given; a maker may have shrunk the screen or filled the stack since, and this is
-    // exactly what happens to any pane on a screen that no longer holds it -- it is on the
-    // desk and waiting for room. The seat is what decides the keyboard, so the keys are
-    // pointed only at a pane the screen actually seated.
-    Setup candidate = session_.setup.active;
-    if (add_pane(candidate, ref)) {
+    if (added) {
         session_.setup.active = std::move(candidate);
     }
     apply_setup(mail);
     if (!session_.panels.has(kind)) {
-        say(name + " is on your desk, and this screen has no room to show it -- make the "
-                   "window taller",
-            true);
+        // THE BELT UNDER THE TRIAL. `apply_setup` seats through the same `seat_panes` over
+        // the same capacity, so a trial that said yes and a seat that did not happen is a
+        // defect in one of them. Answered as a refusal rather than as a seat, with the row
+        // this delivery authored taken back, because "seated" is the one word the asker
+        // acts on and it must never be said of a pane the screen does not show.
+        if (added) {
+            (void)remove_pane(session_.setup.active, ref);
+            apply_setup(mail);
+        }
+        const std::string refusal = "no room for " + name + " on this screen";
+        say(refusal, true);
+        (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
         repaint(mail);
         return;
     }
@@ -367,8 +349,10 @@ void WorkshopWeave::on(const PaneRevealSettled& said, loom::Mail& mail) {
     session_.panels.selected = kind;
     session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     // SAID, so the sentence on the notice line is about what just happened and names who
-    // asked for it -- the pane's own rows say what it is showing.
+    // asked for it -- the pane's own rows say what it is showing. Said and written BEFORE the
+    // answer leaves, so what the asker hears is a fact about this desk and not a promise.
     say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
     repaint(mail);
 }
 
