@@ -71,23 +71,22 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-EDIT-05 — The one door is `OpenSourceRequested` at `zengine.editor`, and it takes a path
 
-LAW — Judge with nothing moved, ask the desk for a place, install only if it has one AND the document is still eligible; the desk moves LAST, so a refusal at any step opens and authors nothing.
+LAW — Judge with nothing moved, hold every gesture, ask the desk to seat the pane, install on its word; the desk's delivery of the ask is the commitment, so a refusal at any step opens and authors nothing.
 
 MEANS
 - the answer is deferred across the ask; the candidate is bytes, not a second document;
-- commitment re-judges: a free place is no leave to replace a document dirty now;
+- held gestures replay after the outcome, into the document it leaves; a quit meanwhile refuses;
 - one at a time; Files hands a path, the Builder what `RecipeSourceSaid` named.
 
 PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(PaneRevealAnswered)`,
-`judge_source`, `commit_source`, `settle`, `Pending`, `install`;
-`workshop/pane_vocabulary.hpp` `PaneRevealSettled`;
+`judge_source`, `commit_source`, `settle`, `Pending`, `hold`, `replay_held`, `install`;
 `editor-pane/editor.hpp` `source_in`, `kMaxSourceBytes`, `EditorState`;
 `workshop/pane_seam_vocabulary.hpp` `OpenSourceRequested`, `SourceOpened`, `kEditorRole`;
 `workshop/builder_seam_vocabulary.hpp` `RecipeSourceRequested`, `RecipeSourceSaid`;
 `workshop/pane_doors.hpp` `ProjectDoor`; `tests/test_workshop_panes_editor.cpp` case
 `"EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why"`, case
-`"EDIT-W58: a refused commitment leaves the desk exactly as it was"`, case
-`"EDIT-W59: a desk that changed while the asker was committing seats what it can, and says so"`.
+`"EDIT-W58: a clipboard answer refuses the open only if it lands before the ask"`, case
+`"EDIT-W67: room lost before the commitment refuses the open, and nothing is authored or moved"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
@@ -186,19 +185,20 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-13 — The pane asks to be shown, and no room refuses the reveal, not the document
 
-LAW — A reveal is three statements: a pane asks for a place, the desk answers whether it has one AND MOVES NOTHING, and the pane says whether its own act committed -- which is what seats it.
+LAW — A reveal is one ask, made when the pane's act needs nothing more: in that delivery the desk seats, selects and points the keys at the pane, or refuses with nothing moved.
 
 MEANS
 - so a refusal anywhere leaves the setup, the selection and the keyboard as they were;
-- the capacity answer is that instant's, not a lock: what fits is judged again at the seat;
+- the desk holds nothing between deliveries: two asks are two seats, judged in order;
 - a reveal naming a pane the office never offered is refused; from nobody, dropped.
 
-PROVEN BY — `workshop/weave_seam.cpp` `on(PaneRevealRequested)`, `on(PaneRevealSettled)`;
-`workshop/weave.hpp` `PendingReveal`; `workshop/pane_vocabulary.hpp` `PaneRevealRequested`,
-`PaneRevealAnswered`, `PaneRevealSettled`; `workshop/screen.hpp` `stack_slots_that_fit`;
-`editor-pane/pane.cpp` `on(PaneRevealAnswered)`; `tests/test_workshop_panes_editor.cpp` case
+PROVEN BY — `workshop/weave_seam.cpp` `on(PaneRevealRequested)`;
+`workshop/pane_vocabulary.hpp` `PaneRevealRequested`, `PaneRevealAnswered`;
+`workshop/screen.hpp` `stack_slots_that_fit`; `editor-pane/pane.cpp` `on(PaneRevealAnswered)`;
+`tests/test_workshop_panes_editor.cpp` case
 `"EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why"`, case
-`"EDIT-W10: a reveal from an office that offered no such pane is dropped"`.
+`"EDIT-W10: a reveal from an office that offered no such pane is dropped"`, case
+`"EDIT-W68: a resize after the commitment is an ordinary presentation change"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
@@ -206,7 +206,7 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero ends the process now; otherwise every gesture is held until the last `PaneQuitAnswered`, and a refusal replays them and stays.
 
 MEANS
-- a pane answers about the instant it answers, and a paste still arriving refuses;
+- a pane answers about the instant; a paste still arriving, or an open being seated, refuses;
 - a maker-made pane's dirty definition still refuses synchronously, before the ask.
 
 DOES NOT MEAN

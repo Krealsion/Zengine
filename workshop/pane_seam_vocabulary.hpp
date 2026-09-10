@@ -159,9 +159,9 @@ struct RecipeOutcome {
 
 /// OPEN THIS PATH IN THE EDITOR. Addressed to `zengine.editor` (`kEditorRole`), the office
 /// that holds the one source document; the Editor weave normalizes, reads and judges the
-/// file through its one door `open_source(path)` (WL-EDIT-05), installs it, answers, and
-/// asks Workshop to reveal the pane. A dirty buffer's refusal reaches the asker as the
-/// answer. The sentence used to go to `zengine.workshop`; only the address moved.
+/// file (WL-EDIT-05), asks Workshop to seat its pane, and installs the document on the desk's
+/// word that it did. A dirty buffer's refusal, and the desk's, reach the asker as the answer.
+/// The sentence used to go to `zengine.workshop`; only the address moved.
 struct OpenSourceRequested {
     std::string path;
     ZEN_SHAPE(OpenSourceRequested, 1, ZEN_FIELD(path));
@@ -171,10 +171,10 @@ struct OpenSourceRequested {
 /// a file that is not there, a name the custody cannot carry, a dirty buffer that must be
 /// saved or discarded first. The pane says the refusal in its own row.
 ///
-/// ⚠ ACCEPTED IS NOT PRESENTED. The Editor answers this the moment the document is installed
-/// in its own image; whether Workshop then seats its pane is a separate outcome the host says
-/// on the notice line (`PaneRevealRequested`, pane_vocabulary.hpp). A refused reveal leaves
-/// the document open in the weave, exactly as a removed pane does.
+/// ⚠ ACCEPTED MEANS PRESENTED. The Editor answers this only after Workshop has seated its
+/// pane, selected it and pointed the keys at it, in one delivery (`PaneRevealRequested`,
+/// pane_vocabulary.hpp) -- so an accepted open is an open the maker can see, and a refused one
+/// left the prior document, the setup, the selection and the keys exactly as they were.
 struct SourceOpened {
     bool accepted = false;
     std::string refusal;

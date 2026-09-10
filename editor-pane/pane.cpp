@@ -41,10 +41,12 @@
 // the QUIT (the host asks and waits; this weave answers about the instant of the answer, and
 // refuses while a paste is still arriving, because a permission a queued message could
 // falsify is not one) -- and the OPEN, which is one transaction across a boundary rather
-// than one call: read and judge, ask the desk to show this pane, and install only if it did
-// (VD-26). A refusal at any step -- a missing file, refused bytes, a dirty document, a
-// screen with no room -- leaves the document that was open, its caret and its history
-// exactly as they were, and travels back to whoever asked as the answer to their request.
+// than one call: read and judge, hold every gesture that could change what was judged, ask
+// the desk to seat this pane, and install on the desk's word that it did. The desk's delivery
+// of that ask is the commitment point (`pane_vocabulary.hpp` says why): a refusal at any
+// step -- a missing file, refused bytes, a dirty document, a screen with no seat -- leaves the
+// document that was open, its caret, its history and the desk exactly as they were, and
+// travels back to whoever asked as the answer to their request.
 
 #include "editor-pane/vocabulary.hpp"
 
@@ -95,7 +97,6 @@ using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
 using ws::PaneRevealAnswered;
 using ws::PaneRevealRequested;
-using ws::PaneRevealSettled;
 using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PaneWheel;
@@ -128,6 +129,11 @@ constexpr std::int64_t kNoticeNeedsRows = 3;
 constexpr const char* kPasteInFlight =
     "the Editor is still waiting for a clipboard answer -- quit again";
 
+/// THE ANSWER A QUIT ASK GETS WHILE AN OPEN IS STILL BEING SEATED. The gestures held for that
+/// open may carry edits nobody has applied yet, and a permission a queued message could
+/// falsify is not one -- the paste's rule, one operation over.
+constexpr const char* kOpenInFlight = "the Editor is still opening a source -- quit again";
+
 // =============================================================================
 
 class EditorPaneWeave
@@ -138,23 +144,61 @@ class EditorPaneWeave
                        PaneQuitRequested, PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, ws::v2::PaneActions, PaneContent, PaneCaret,
-                     PaneRevealRequested, PaneRevealSettled, PaneQuitAnswered, SourceOpened,
+                     PaneRevealRequested, PaneQuitAnswered, SourceOpened,
                      ProjectRootRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
-    /// ONE ACQUISITION IN FLIGHT: the candidate bytes, the reveal it is waiting on, and the
-    /// requester's answer, taken away from the delivery that asked so it can be spent when
-    /// the desk replies (WL-EDIT-05). Not a document: nothing reads it, paints it or edits it.
+    /// ONE GESTURE HELD WHILE THE DESK IS DECIDING -- a press, a drag, the wheel, a key, text,
+    /// a declared action, or the Skin's clipboard answer, whichever arrived, kept whole so it
+    /// can be replayed exactly, in order, into whichever document the flight leaves open.
+    /// Workshop's `HeldInput`, one seam over, for the same reason.
+    struct Held {
+        enum class Kind : std::uint8_t {
+            kPressed,
+            kDragged,
+            kWheel,
+            kKey,
+            kText,
+            kAction,
+            kClipboard
+        };
+        Kind kind = Kind::kKey;
+        PanePressed pressed;
+        PaneDragged dragged;
+        PaneWheel wheel;
+        PaneKey key;
+        PaneTextInput text;
+        PaneActionRequested action;
+        surface::ClipboardText clipboard;
+    };
+
+    /// ONE ACQUISITION IN FLIGHT: the candidate bytes, the ask the desk is answering, the
+    /// requester's answer taken away from the delivery that asked, and the gestures held
+    /// meanwhile (WL-EDIT-05). Not a document: nothing reads it, paints it or edits it.
+    ///
+    /// ⚠ THE HELD GESTURES ARE WHAT MAKES THE DESK'S DELIVERY THE COMMITMENT POINT. From the
+    /// moment the ask is sent until the answer arrives, nothing that could change this weave's
+    /// eligibility is applied -- so what was judged when the ask was sent is still true when
+    /// the desk seats the pane, and the seat needs no second judgement. Bounded like
+    /// Workshop's own hold: a burst past the bound is dropped and counted, and the count is
+    /// said with the outcome rather than swallowed.
     struct Pending {
         bool live = false;
         bool same_path = false;
-        /// Whether a `zengine.workshop` holder took the reveal ask -- and therefore whether
-        /// there is a desk owed the settle that ends this transaction.
+        /// Whether a `zengine.workshop` holder took the ask -- and therefore whether the
+        /// desk's answer is what ends this transaction.
         bool asked_desk = false;
         std::uint64_t reveal = 0;
         std::string path;
         ws::SourceIn admitted;
         loom::DeferredAnswer answer;
+        std::vector<Held> held;
+        std::size_t dropped = 0;
     };
+
+    /// HOW MANY GESTURES ONE OPEN WILL HOLD -- Workshop's own bound for its quit ask, for its
+    /// reason: the exchange is one drain of the bus, so what arrives during it is one poll's
+    /// burst at most.
+    static constexpr std::size_t kMaxHeldGestures = 256;
 
     /// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
     struct Drag {
@@ -171,7 +215,7 @@ public:
                      PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
                      surface::ClipboardCopy, surface::ClipboardText>,
         loom::Emit<PaneOffered, ws::v2::PaneActions, PaneContent, PaneCaret,
-                   PaneRevealRequested, PaneRevealSettled, PaneQuitAnswered, SourceOpened,
+                   PaneRevealRequested, PaneQuitAnswered, SourceOpened,
                    ProjectRootRequested, surface::ClipboardCopy,
                    surface::ClipboardTextRequested>>;
 
@@ -258,17 +302,19 @@ public:
     /// AN OFFICE, AND ONLY AN OFFICE, the host doors' rule: opening a maker's source for
     /// anonymous speech would be this weave acting on a sentence with no author.
     ///
-    /// ⚠ AND THE PRESENTATION IS PART OF THE TRANSACTION (VD-26). An open that ends in a
-    /// pane nobody can see is not an open, so this weave READS AND JUDGES the file, ASKS to
-    /// be shown, and INSTALLS only when the desk says yes. A refusal at any step -- a
-    /// missing file, bytes the law refuses, a dirty document, a screen with no slot -- leaves
-    /// the prior document, its caret, its history and the authored setup exactly as they
-    /// were, and travels back to whoever asked as the answer to their own request.
+    /// ⚠ AND THE PRESENTATION IS PART OF THE TRANSACTION. An open that ends in a pane nobody
+    /// can see is not an open, so this weave READS AND JUDGES the file, ASKS the desk to seat
+    /// it, and INSTALLS on the desk's word that it did. The desk's delivery of that ask is the
+    /// commitment point (`pane_vocabulary.hpp`, the reveal): from the ask's send to the answer
+    /// this weave HOLDS every gesture and clipboard answer that could change what it judged,
+    /// so nothing has to be judged again at the answer, and a refusal at any step -- a missing
+    /// file, bytes the law refuses, a dirty document, a screen with no seat -- leaves the
+    /// prior document, its caret, its history and the authored setup exactly as they were,
+    /// and travels back to whoever asked as the answer to their own request.
     ///
     /// THE ANSWER IS THEREFORE DEFERRED, because the desk answers on a later delivery. What
     /// is held in the meantime is a CANDIDATE and never a second document: nothing about it
-    /// is readable, paintable or editable, and the commitment re-judges the document it is
-    /// about to replace, because a maker can type into it while the desk is deciding.
+    /// is readable, paintable or editable.
     void on(const OpenSourceRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             return;
@@ -316,16 +362,17 @@ public:
         open_ = std::move(flight);
     }
 
-    /// STEP 2 OF THE REVEAL: HAS THE DESK A PLACE FOR THIS PANE? Nothing on the desk has
-    /// moved when this arrives, so a refusal here costs nothing anywhere, and a yes is what
-    /// this weave needs in order to commit (VD-27).
+    /// THE DESK'S WORD ON THE ASK: seated -- selected, with the keys, in the delivery that
+    /// answered -- or refused with nothing moved. Nothing is judged again here: what this
+    /// weave judged before it asked is still true, because everything that could have changed
+    /// it has been held since (`Pending::held`).
     void on(const PaneRevealAnswered& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !open_.live || mail.correlation() != open_.reveal) {
             return; // somebody else's answer, or one to a flight this pane already settled
         }
         Pending flight = std::move(open_);
         open_ = Pending{};
-        settle(std::move(flight), said.room, said.refusal, mail);
+        settle(std::move(flight), said.seated, said.refusal, mail);
     }
 
     // ---- The pointer ---------------------------------------------------------------------
@@ -356,6 +403,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kPressed;
+            h.pressed = press;
+            hold(std::move(h));
+            return;
+        }
+        apply_press(press, mail);
+    }
+
+    void apply_press(const PanePressed& press, loom::Mail& mail) {
         drag_ = Drag{};
         if (!e_.open_document() || press.row < chrome_rows_) {
             return;
@@ -384,6 +442,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || drag.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kDragged;
+            h.dragged = drag;
+            hold(std::move(h));
+            return;
+        }
+        apply_drag(drag, mail);
+    }
+
+    void apply_drag(const PaneDragged& drag, loom::Mail& mail) {
         if (!e_.open_document() || !drag_.armed) {
             return; // no gesture to extend: this hand took hold of nothing that selects
         }
@@ -411,6 +480,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kWheel;
+            h.wheel = wheel;
+            hold(std::move(h));
+            return;
+        }
+        apply_wheel(wheel, mail);
+    }
+
+    void apply_wheel(const PaneWheel& wheel, loom::Mail& mail) {
         if (!e_.open_document()) {
             return;
         }
@@ -450,6 +530,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kKey;
+            h.key = key;
+            hold(std::move(h));
+            return;
+        }
+        apply_key(key, mail);
+    }
+
+    void apply_key(const PaneKey& key, loom::Mail& mail) {
         if (!e_.open_document()) {
             return; // an empty editor has no document for a key to mean anything to
         }
@@ -478,6 +569,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || typed.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kText;
+            h.text = typed;
+            hold(std::move(h));
+            return;
+        }
+        apply_text(typed, mail);
+    }
+
+    void apply_text(const PaneTextInput& typed, loom::Mail& mail) {
         if (!e_.open_document() || typed.text.empty()) {
             return;
         }
@@ -500,6 +602,17 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kEditorPane) {
             return;
         }
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kAction;
+            h.action = asked;
+            hold(std::move(h));
+            return;
+        }
+        apply_action(asked, mail);
+    }
+
+    void apply_action(const PaneActionRequested& asked, loom::Mail& mail) {
         if (asked.id == pane::kActionSave) {
             save_source();
         } else if (asked.id == pane::kActionNewline) {
@@ -527,11 +640,16 @@ public:
 
     /// MAY THE WORKSHOP END? Answered about THIS instant: dirty source refuses, naming the two
     /// ways out; a paste still arriving refuses too, because its answer could dirty the
-    /// document after this one was given; a clean document, or no document, permits. No
-    /// input can reach this weave between this answer and the host's decision (the host holds
-    /// every gesture while it waits), which is what makes "clean" a fact rather than a race.
+    /// document after this one was given, and so does an open still being seated, because the
+    /// gestures it holds may carry edits; a clean document, or no document, permits. No input
+    /// can reach this weave between this answer and the host's decision (the host holds every
+    /// gesture while it waits), which is what makes "clean" a fact rather than a race.
     void on(const PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        if (open_.live) {
+            (void)mail.answer(PaneQuitAnswered{pane::kEditorPane, false, kOpenInFlight});
             return;
         }
         if (paste_.awaiting) {
@@ -570,6 +688,21 @@ public:
             return;
         }
         paste_.awaiting = false;
+        // THE ANSWER IS THIS PANE'S (Loom said so, and the correlation says which ask), so
+        // it is no longer awaited -- but while an open is being seated it is HELD like any
+        // other gesture, because it could dirty the document that was judged. Replayed after
+        // the outcome, it meets the epoch it pinned: gone if the open took, there if it did not.
+        if (holding()) {
+            Held h;
+            h.kind = Held::Kind::kClipboard;
+            h.clipboard = a;
+            hold(std::move(h));
+            return;
+        }
+        apply_clipboard(a, mail);
+    }
+
+    void apply_clipboard(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!e_.open_document() || e_.doc_epoch != paste_.doc) {
             return; // the document that asked is gone; discarded, silently
         }
@@ -714,9 +847,10 @@ private:
         return plan;
     }
 
-    /// THE COMMITMENT, RE-JUDGED (WL-EDIT-05). The desk answered on a later delivery, and a
-    /// maker's keystroke could have been delivered in between: a room that was free when the
-    /// question was asked is not permission to replace a document that is dirty now.
+    /// THE INSTALL, ON THE DESK'S WORD (WL-EDIT-05). The desk answered on a later delivery,
+    /// and nothing that could have changed what was judged was applied in between -- every
+    /// gesture was held -- so the dirty question below is a belt and not a judgement: a `no`
+    /// here would mean the hold leaked, not that the maker typed.
     Written commit_source(Pending& flight) {
         if (flight.same_path) {
             if (!e_.open_document() || e_.path != flight.path) {
@@ -747,31 +881,68 @@ private:
         return Written::ok();
     }
 
-    /// END ONE ACQUISITION: commit it or refuse it, tell the desk what became of the ask it
-    /// answered, tell whoever asked for the source, and repaint. The one place a deferred
-    /// `SourceOpened` is spent, so a flight cannot end twice or not at all.
+    /// END ONE ACQUISITION on the desk's word: install (or reveal) if it seated the pane,
+    /// refuse if it did not, answer whoever asked for the source, repaint, and then give the
+    /// maker's hands back what they did meanwhile -- in order, into whichever document is open
+    /// now. The one place a deferred `SourceOpened` is spent, so a flight cannot end twice or
+    /// not at all.
     ///
-    /// ⚠ AND THE DESK LEARNS THE OUTCOME BEFORE IT MOVES (VD-27, step 3). Workshop authored
-    /// nothing while this weave was deciding, so a refusal here leaves the setup, the
-    /// selection and the keyboard exactly as they were -- which is the whole reason the
-    /// presentation is the LAST thing that happens rather than the first.
-    void settle(Pending flight, bool room, const std::string& refusal, loom::Mail& mail) {
+    /// ⚠ NOTHING IS JUDGED AGAIN HERE. The desk seated, selected and focused the pane in the
+    /// delivery that answered -- that delivery was the commitment -- and this weave's own
+    /// eligibility could not have changed since the ask, because every gesture that could
+    /// change it was held. A seat the desk reported and a document this weave then refused
+    /// would be a defect in the hold, and is said as one where the maker reads.
+    void settle(Pending flight, bool seated, const std::string& refusal, loom::Mail& mail) {
         const Written done =
-            room ? commit_source(flight)
-                 : Written::no(refusal.empty() ? std::string("the Editor could not be "
-                                                            "shown; nothing was opened")
-                                               : refusal);
-        if (flight.asked_desk) {
-            (void)mail.as_role(pane::kEditorPaneRole)
-                .send_to_role(kWorkshopRole,
-                              PaneRevealSettled{pane::kEditorPane, done.accepted},
-                              flight.reveal);
+            seated ? commit_source(flight)
+                   : Written::no(refusal.empty() ? std::string("the Editor could not be "
+                                                               "shown; nothing was opened")
+                                                 : refusal);
+        if (seated && !done.accepted) {
+            notice(done.refusal, true);
         }
         if (flight.answer.valid()) {
             (void)loom::answer_deferred(flight.answer, mail,
                                         SourceOpened{done.accepted, done.refusal});
         }
         say(mail);
+        replay_held(std::move(flight.held), flight.dropped, mail);
+    }
+
+    /// IS A DESK DECIDING ABOUT THIS PANE RIGHT NOW? While it is, the gestures below are held.
+    bool holding() const noexcept { return open_.live && open_.asked_desk; }
+
+    /// HOLD ONE GESTURE FOR THE FLIGHT'S END -- or, past the bound, drop it and count it.
+    void hold(Held h) {
+        if (open_.held.size() >= kMaxHeldGestures) {
+            ++open_.dropped;
+            return;
+        }
+        open_.held.push_back(std::move(h));
+    }
+
+    /// PLAY THE HELD GESTURES BACK, IN ORDER, through the same bodies they would have reached,
+    /// into whichever document the flight left open -- the new one on a seat, the old one on a
+    /// refusal. A burst past the bound was dropped and counted, and the count is said where
+    /// the maker reads, beside what the open came to.
+    void replay_held(std::vector<Held> held, std::size_t dropped, loom::Mail& mail) {
+        for (const Held& h : held) {
+            switch (h.kind) {
+            case Held::Kind::kPressed: apply_press(h.pressed, mail); break;
+            case Held::Kind::kDragged: apply_drag(h.dragged, mail); break;
+            case Held::Kind::kWheel: apply_wheel(h.wheel, mail); break;
+            case Held::Kind::kKey: apply_key(h.key, mail); break;
+            case Held::Kind::kText: apply_text(h.text, mail); break;
+            case Held::Kind::kAction: apply_action(h.action, mail); break;
+            case Held::Kind::kClipboard: apply_clipboard(h.clipboard, mail); break;
+            }
+        }
+        if (dropped > 0) {
+            notice(notice_ + " (" + std::to_string(dropped) +
+                       " gesture(s) that arrived while the source was opening were dropped)",
+                   true);
+            say(mail);
+        }
     }
 
     /// PUT AN ADMITTED DOCUMENT IN PLACE: identity, bytes, saved copy, convention, a new

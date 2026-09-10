@@ -5,11 +5,12 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// five times since. Sixteen shapes.
+// six times since. Nineteen shapes, two of them a second version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
 //     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
+//     v2::PaneActions        provider  ->  Workshop   "...and this row of mine stands in for one of yours."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
 //     PaneCaret              provider  ->  Workshop   "...and here is where I am typing in it."
@@ -19,16 +20,17 @@
 //     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
 //     PaneWheel              Workshop  ->  provider   "the wheel turned over that room."
 //     PaneActionRequested    Workshop  ->  provider   "a maker asked for this action of yours."
-//     PaneRevealRequested    provider  ->  Workshop   "put my pane where the maker can see it."
+//     PaneRevealRequested    provider  ->  Workshop   "seat my pane now; my act needs nothing more."
+//     PaneRevealAnswered     Workshop  ->  provider   "seated, and it has the keys" / "no room, and why."
 //     PaneQuitRequested      Workshop  ->  everyone   "may this Workshop end?"
 //     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
 //
-// THE LAST FOUR ARE THE EDITOR'S MIGRATION, and each is a contract a built-in had and a pane
+// THE EDITOR'S MIGRATION ADDED FIVE, and each is a contract a built-in had and a pane
 // could not say. A drag swept a selection across a document (`PaneDragged`); opening a
 // source put the Editor on the desk and pointed the keys at it (`PaneRevealRequested`); and
 // an orderly quit read the buffer's dirty state before it stopped the bus -- which it cannot
 // read across a seam, so it ASKS (`PaneQuitRequested`), and every pane that accepts the
-// question answers it (`PaneQuitAnswered`). None of the four names the Editor: a pane that
+// question answers it (`PaneQuitAnswered`). None of the five names the Editor: a pane that
 // wants a sweep, a reveal or a say in the exit accepts the shape, and one that does not is
 // unchanged and never hears it.
 //
@@ -590,100 +592,88 @@ struct PaneDragged {
     ZEN_SHAPE(PaneDragged, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
 };
 
-/// PUT THIS PANE WHERE THE MAKER CAN SEE IT, AND POINT THE KEYS AT IT -- said by the pane's
-/// own office, about a pane it offered, at the end of an act a maker asked for.
+/// SEAT THIS PANE NOW, SELECT IT AND POINT THE KEYS AT IT -- said by the pane's own office,
+/// about a pane it offered, as an ASK, at the one moment its own act needs nothing further
+/// in order to succeed.
 ///
-/// ---- WHAT WORKSHOP DOES WITH IT ------------------------------------------------------
+/// ---- WHAT WORKSHOP DOES WITH IT, IN THE DELIVERY THAT BRINGS IT -------------------------
 ///
-/// Exactly what it did for the built-in Editor when a source was opened: seat the pane on
-/// the active desk if it is not there (through `add_pane`, the picker's own membership door,
-/// with the picker's own trial seat and the picker's own refusal when the screen has no slot
-/// for it), select it, and point the keyboard at it. A reveal is a statement about the DESK
-/// -- membership, selection, keys -- and touches no file, no provider and no other pane's
-/// rows.
+/// Exactly what it did for the built-in Editor when a source was opened, and all of it at
+/// once: judge the seat through the picker's own trial (`seat_panes` over a candidate setup)
+/// and EITHER seat the pane on the active desk if it is not there (`add_pane`, the picker's
+/// own membership door), select it, point the keyboard at it, say so and answer `seated`; OR
+/// refuse in the picker's own words with nothing authored, selected or focused. A reveal is a
+/// statement about the DESK -- membership, selection, keys -- and touches no file, no provider
+/// and no other pane's rows.
 ///
-/// ---- WHY A PANE MAY SAY IT AT ALL ----------------------------------------------------
+/// ---- WHY THE ASK IS THE COMMITMENT -----------------------------------------------------
+///
+/// An acquisition that ends in a presentation is one transaction whose two facts live in two
+/// weaves: the asker's own eligibility (the Editor: is the open document clean, are the new
+/// bytes admitted) and the desk's presentation (is there a seat, and is it taken). Dispatch is
+/// FIFO and a delivery is the atomic boundary, so each owner can establish its own fact only
+/// inside one of its own deliveries -- and whichever acts second, the first owner's fact can
+/// have changed in between. Seating at the answer and re-judging afterwards lost a held paste
+/// (the desk moved for an operation that then refused); judging first and seating at a later
+/// settle lost a seat (a document replaced in a pane the screen no longer showed). A further
+/// statement only moves the race.
+///
+/// So ONE owner freezes its fact for the length of the round trip, and it is the asker: from
+/// the moment it sends this until it hears the answer, everything that could change its
+/// eligibility -- a key, text, a press, a drag, the wheel, a declared action, a clipboard
+/// answer -- is held and replayed afterwards, exactly as Workshop holds every gesture while it
+/// asks the room whether it may quit. The desk cannot freeze its fact without holding a resize
+/// or a picker for everyone; it does not have to, because it makes the presentation TRUE in
+/// the same delivery that answers. That delivery is the commitment point: the asker's
+/// eligibility holds there because it was frozen, the presentation holds there because it was
+/// just written, and the asker completes its own half on the answer without judging anything
+/// again. A pane therefore asks ONLY when nothing else stands between it and success, and a
+/// seat is not something the asker may then decline.
+///
+/// ---- WHAT A REFUSAL AND A LATER CHANGE MEAN --------------------------------------------
+///
+/// A refusal is complete: nothing was authored, selected or focused, and the asker's held
+/// gestures replay into whatever it was showing before. A screen that shrank BEFORE this
+/// arrived left the pane waiting for room, so the trial finds no seat and refuses -- the
+/// maker's own shrink, before the commitment, is a refused open. A screen that shrinks AFTER
+/// the answer is an ordinary presentation change to a pane that is on the desk, like any other
+/// pane's; the operation already completed.
+///
+/// ---- WHY A PANE MAY SAY IT AT ALL ------------------------------------------------------
 ///
 /// `PaneOffered` puts a pane in the LIST and never on the screen, and that stays true: this
 /// shape is refused for a pane the office never offered, and it is honoured through the
-/// ordinary door a maker's own picker press goes through. What it buys is the half of "open
-/// a source" that lived in the host while the host held the document: a Files row pressed
-/// by a maker asks the Editor to open; the Editor installs the document and asks to be
-/// shown. Without it a source opened from Files would be open in a weave nobody could see.
-/// The abuse is named rather than assumed away: an office that asked for this on every
-/// beat would keep pulling its pane in front and taking the keys, and Workshop says on the
-/// notice line which pane asked, every time, so the maker can read who did it and remove
-/// the pane. Nothing here stops that office; a bound on how often is a later seam.
+/// ordinary door a maker's own picker press goes through. What it buys is the half of "open a
+/// source" that lived in the host while the host held the document: a Files row pressed by a
+/// maker asks the Editor to open; the Editor judges and asks to be shown. The abuse is named
+/// rather than assumed away: an office that asked for this on every beat would keep pulling
+/// its pane in front and taking the keys, and Workshop says on the notice line which pane
+/// asked, every time, so the maker can read who did it and remove the pane. Nothing here stops
+/// that office; a bound on how often is a later seam.
 ///
-/// ---- IT IS ASKED FIRST, AND THE DESK MOVES LAST (VD-27) ------------------------------
+/// ---- WHAT IT IS NOT ----------------------------------------------------------------------
 ///
-/// The reveal is THREE statements, because an acquisition that ends in a presentation is one
-/// transaction whose two halves live in different weaves, and only one ordering keeps both
-/// consistent whichever half fails:
-///
-///   1. `PaneRevealRequested`  provider -> Workshop, as an ask: have you a place for me?
-///   2. `PaneRevealAnswered`   Workshop -> provider: yes (and I will seat you when you say
-///                             you are committed), or no, in the picker's own words. ⚠ THE
-///                             DESK HAS NOT MOVED. Nothing is authored, selected or focused.
-///   3. `PaneRevealSettled`    provider -> Workshop: I committed (seat me now), or I did not
-///                             (forget it). Only this makes the desk move.
-///
-/// WHY NOT SEAT AT STEP 2. Because the asker has not finished its own act yet, and its act
-/// can still fail: the Editor re-judges its document at the answer, and a maker's keystroke
-/// delivered in between can make the replacement a loss. A desk that had already authored
-/// the pane and taken the keyboard would then hold a presentation change belonging to an
-/// operation that never happened -- MEASURED as a real race, with a held paste answer and a
-/// removed pane. So the desk moves once, after the asker has committed, and a refusal at
-/// any step leaves the setup, the selection and the keyboard exactly as they were.
-///
-/// WHAT STEP 2 THEREFORE MEANS, and does not: it is capacity, judged the picker's way, at
-/// that instant. It is not a lock. The desk can change before step 3 -- a maker removes a
-/// pane, shrinks the screen, picks another -- and Workshop seats what fits when it seats.
-/// A pane whose slot went away is authored and waiting for room, which is what any pane is
-/// on a screen too small for it, and Workshop says so on its notice line.
-///
-/// ---- WHAT IT IS NOT ------------------------------------------------------------------
-///
-/// Not an offer (the pane must already be in the catalog), not a room grant (the room
-/// follows the seat on the next repaint, as it always has), and not focus authority (the
-/// keys are pointed the way a press points them, and the next press elsewhere takes them
-/// away).
+/// Not an offer (the pane must already be in the catalog), not a room grant (the room follows
+/// the seat on the next repaint, as it always has), not a reservation (the desk holds nothing
+/// between deliveries, so two offices asking are two seats judged in order, and a screen with
+/// room for one refuses the second before admission), and not focus authority (the keys are
+/// pointed the way a press points them, and the next press elsewhere takes them away).
 struct PaneRevealRequested {
     std::string pane;
     ZEN_SHAPE(PaneRevealRequested, 1, ZEN_FIELD(pane));
 };
 
-/// STEP 2: HAS THE DESK A PLACE FOR THIS PANE? Workshop's answer, on the delivery that asked.
+/// THE DESK'S ANSWER, on the delivery that asked, about what that delivery DID.
 ///
-/// `room` is capacity at the instant of the answer, judged through the picker's own trial
-/// seat. A refusal carries the picker's own sentence, the one a maker reads on the notice
-/// line, so a pane that wants to say it in its own rows can say the same words rather than
-/// invent a second vocabulary for the same event.
-///
-/// ⚠ NOTHING HAS MOVED WHEN THIS IS SENT, and `room` is not a reservation: it is what the
-/// asker needs in order to decide whether to commit, and Workshop holds only the memory that
-/// it was asked (released by `PaneRevealSettled`, or replaced by this pane's next ask).
+/// `seated`: the pane is on the active desk, seated by the screen, selected, and the keys are
+/// pointed at it -- all of it written before this was answered, so the asker may complete its
+/// own act on the strength of it. Otherwise the picker's own refusal, the one a maker reads on
+/// the notice line, and nothing anywhere moved.
 struct PaneRevealAnswered {
     std::string pane;
-    bool room = false;
+    bool seated = false;
     std::string refusal;
-    ZEN_SHAPE(PaneRevealAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(room), ZEN_FIELD(refusal));
-};
-
-/// STEP 3: THE ASKER'S OWN OUTCOME, and the only statement that moves the desk.
-///
-/// `committed` true means the operation the reveal belonged to succeeded and the pane wants
-/// its seat now: Workshop adds it to the active setup if it is not there, applies the setup,
-/// and selects it and points the keys at it IF the screen actually seated it. False means the
-/// operation failed or was abandoned: Workshop forgets the ask and nothing anywhere changed.
-///
-/// It carries the correlation of the ask it settles, so a settle for an ask this host never
-/// answered -- or for one already settled -- moves nothing. Sent as the office that offered
-/// the pane, like every other statement about it.
-struct PaneRevealSettled {
-    std::string pane;
-    bool committed = false;
-    ZEN_SHAPE(PaneRevealSettled, 1, ZEN_FIELD(pane), ZEN_FIELD(committed));
+    ZEN_SHAPE(PaneRevealAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(seated), ZEN_FIELD(refusal));
 };
 
 /// MAY THIS WORKSHOP END? -- asked of everyone that can hold a maker's unsaved work, before

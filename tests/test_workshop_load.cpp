@@ -124,6 +124,11 @@ struct Stage {
         // maker's document aboard.
         put("zengine-editor-pane", EDITOR_PANE_SO);
 #endif
+#ifdef LEGACY_PANE_SO
+        // A pane provider built against the published protocol alone, its own image, so a
+        // load and a reload can be driven over a party nobody rebuilt.
+        put("zengine-legacy-pane", LEGACY_PANE_SO);
+#endif
         put("zengine-stale-provider", PROVIDER_ABI_SO);
         put("zengine-broken-consumer", BROKEN_CONSUMER_SO);
         // INTR-1's genericity witness: three powers no projection in this repository
@@ -5242,33 +5247,52 @@ class HostSeat
           loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
                      workshop::PaneTextInput, workshop::OpenSourceRequested,
                      workshop::PaneQuitRequested, workshop::PaneRevealAnswered,
-                     workshop::PaneWheel>> {
+                     workshop::PaneWheel, workshop::PaneActionRequested>> {
 public:
     static constexpr const char* kOffice = "zengine.workshop";
     std::vector<workshop::PaneOffered> offers;
+    std::vector<workshop::PaneActions> declared;
     std::vector<workshop::PaneContent> contents;
     std::vector<workshop::PaneCaret> carets;
     std::vector<workshop::SourceOpened> opens;
     std::vector<workshop::PaneQuitAnswered> quits;
     int reveals = 0;
-    /// WHAT THIS DESK DOES WITH A REVEAL. A real Workshop seats the pane or refuses for want
-    /// of room; this stand-in answers whichever a case asked for, because the ANSWER is what
-    /// the pane's acquisition turns on (VD-26).
+    /// WHAT THIS DESK DOES WITH A REVEAL. A real Workshop seats the pane in the delivery that
+    /// answers, or refuses for want of room; this stand-in answers whichever a case asked for,
+    /// because the ANSWER is what the pane's acquisition turns on.
     bool seats = true;
     std::string no_room = "no room for Editor on this screen";
+    /// ...OR HOLDS ITS ANSWER, so a case can put a real reload between the pane's ask and the
+    /// word it is waiting for. The right to answer is Loom's deferred one, bound to the exact
+    /// incarnation that asked (ANS-02/03).
+    bool answer_later = false;
+    loom::DeferredAnswer held;
+    std::string held_pane;
     std::function<void(HostSeat&, loom::Mail&)> next;
 
     void on(const workshop::PaneOffered& o, loom::Mail&) {
         ++state_.heard;
         offers.push_back(o);
     }
-    void on(const workshop::PaneActions&, loom::Mail&) {}
+    void on(const workshop::PaneActions& a, loom::Mail&) { declared.push_back(a); }
     void on(const workshop::PaneContent& c, loom::Mail&) { contents.push_back(c); }
     void on(const workshop::PaneCaret& c, loom::Mail&) { carets.push_back(c); }
     void on(const workshop::PaneRevealRequested& asked, loom::Mail& mail) {
         ++reveals;
+        if (answer_later) {
+            held = mail.defer_answer();
+            held_pane = asked.pane;
+            return;
+        }
         (void)mail.answer(workshop::PaneRevealAnswered{asked.pane, seats,
                                                        seats ? std::string() : no_room});
+    }
+    /// SPEND THE HELD ANSWER NOW, and hand back its ticket so a case can read its fate off
+    /// the bus's own journal.
+    loom::Ticket answer_held(loom::Mail& mail, bool seated) {
+        return loom::answer_deferred(
+            held, mail,
+            workshop::PaneRevealAnswered{held_pane, seated, seated ? std::string() : no_room});
     }
     void on(const workshop::SourceOpened& s, loom::Mail&) { opens.push_back(s); }
     void on(const workshop::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }
@@ -5319,6 +5343,8 @@ struct EditorReloadRig {
         say.allow_to_any(workshop::PaneRevealAnswered::zen_name,
                          workshop::PaneRevealAnswered::zen_version);
         say.allow_to_any(workshop::PaneWheel::zen_name, workshop::PaneWheel::zen_version);
+        say.allow_to_any(workshop::PaneActionRequested::zen_name,
+                         workshop::PaneActionRequested::zen_version);
         host_id = rig.bus.register_weave(std::move(seat), std::move(say),
                                          std::string(HostSeat::kOffice));
         host->zen_set_self(host_id);
@@ -5607,5 +5633,162 @@ TEST_CASE("RELOAD-1/VD-25: an Editor with no document reloads to no document, an
     const workshop::PaneQuitAnswered yes = w.ask_quit();
     CHECK(yes.permitted);
     CHECK(yes.refusal.empty());
+#endif
+}
+
+TEST_CASE("RELOAD-4: an acquisition outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, the reloaded pane keeps its document, and the requester is never told") {
+#ifndef EDITOR_PANE_SO
+    MESSAGE("no Editor image was built for this tree");
+#else
+    // ⭐ REAL LOADED-IMAGE REPLACEMENT DURING AN OUTSTANDING ACQUISITION. The pane judged B,
+    // asked the desk to seat it and is holding its own gestures; the desk holds its answer;
+    // the maker rebuilds the Editor. Loom's laws decide the rest, and this case observes
+    // them rather than assuming: an answer belongs to the exact incarnation that asked
+    // (ANS-03), a deferred right does not survive the incarnation that earned it (ANS-02), and
+    // the requester is told nothing, because there is no cancellation vocabulary to tell it
+    // with. What the seat did on its own side is the seat's; here the seat is a stand-in.
+    EditorReloadRig w;
+    w.load_editor();
+    const std::filesystem::path a = w.rig.products() / "a.txt";
+    const std::filesystem::path b = w.rig.products() / "b.txt";
+    {
+        std::ofstream out(a, std::ios::binary | std::ios::trunc);
+        out << "one\n";
+    }
+    {
+        std::ofstream out(b, std::ios::binary | std::ios::trunc);
+        out << "two\n";
+    }
+    REQUIRE(w.open(a.generic_string()).accepted);
+    REQUIRE(w.host->reveals == 1);
+    // THE ASK THE DESK HOLDS: the pane judged B and is waiting; the requester (this seat, as
+    // Files would be) has no answer yet.
+    w.host->answer_later = true;
+    const std::string b_path = b.generic_string();
+    w.drive([b_path](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice)
+            .send_to_role("zengine.editor", workshop::OpenSourceRequested{b_path});
+    });
+    REQUIRE(w.host->reveals == 2);
+    REQUIRE(w.host->held.valid());
+    CHECK(w.host->opens.size() == 1);
+    CHECK(w.read("path") == a.generic_string()); // the candidate is not a document
+
+    // "THE MAKER REBUILT THE EDITOR" with the ask outstanding: same id, new incarnation.
+    const loom::WeaveId before = w.editor;
+    w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
+    w.rig.offer("zengine-editor-pane");
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    CHECK(w.rig.ears->answers[0].realized);
+    CHECK(w.rig.kernel.weave_id("zengine-editor-pane") == before);
+    w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
+    w.room(8, 60);
+    // THE RELOADED INCARNATION HOLDS THE DOCUMENT IT HAD, WHOLE, AND NO FLIGHT: the state shape
+    // carries no open in flight, deliberately.
+    CHECK(w.read("path") == a.generic_string());
+    CHECK(w.read("text") == "one\n");
+    CHECK(w.status().rfind("saved", 0) == 0);
+
+    // THE DESK'S LATE ANSWER. Loom refuses to deliver it: the requester at that id is not the
+    // incarnation that asked. Read off the bus's own journal, by the ticket the spend returned.
+    loom::Ticket late;
+    w.drive([&late](HostSeat& h, loom::Mail& m) { late = h.answer_held(m, true); });
+    const loom::DeliveryOutcome fate = w.rig.bus.outcome(late);
+    INFO("ticket valid=", late.valid(), " disposition=", static_cast<int>(fate.disposition),
+         " reason=", static_cast<int>(fate.refusal.reason));
+    const bool never_delivered =
+        !late.valid() || fate.disposition == loom::Disposition::Refused;
+    CHECK(never_delivered);
+    if (late.valid() && fate.disposition == loom::Disposition::Refused) {
+        CHECK(fate.refusal.reason == loom::RefusalReason::AnswerTargetChanged);
+    }
+    // ...SO NOTHING MOVED IN THE PANE, AND THE REQUESTER IS STILL WAITING -- the terminal
+    // outcome it lacks is sender fate's, not this transaction's.
+    CHECK(w.read("path") == a.generic_string());
+    CHECK(w.read("text") == "one\n");
+    CHECK(w.host->opens.size() == 1);
+    // ...AND THE RELOADED PANE IS NOT WEDGED: the next open, answered at once, takes.
+    w.host->answer_later = false;
+    const workshop::SourceOpened next = w.open(b_path);
+    CHECK_MESSAGE(next.accepted, next.refusal);
+    CHECK(w.read("path") == b_path);
+    CHECK(w.read("text") == "two\n");
+#endif
+}
+
+TEST_CASE("RELOAD-5: a pane provider built against the published protocol alone loads and reloads in place, and its rows dispatch to the current host before and after") {
+#ifndef LEGACY_PANE_SO
+    MESSAGE("no legacy pane image was built for this tree");
+#else
+    // ⭐ THE BINARY WITNESS PART TWO OWED. `zengine-legacy-pane` is its own image, compiled
+    // from the protocol as `84b6bc0` published it (tests/weavelib/legacy_pane_protocol.hpp) and
+    // from nothing under workshop/; the source is read as a file to say so. It goes through
+    // the supported load path, declares version one to a seat that speaks the current header,
+    // dispatches, and is then reloaded in place through the same path and does it all again
+    // with the state it had.
+    const std::string source = [] {
+        std::ifstream in(LEGACY_PANE_SOURCE, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    }();
+    REQUIRE_FALSE(source.empty());
+    // THE DIRECTIVE, not the name: the fixture's own comment names the header it refuses to
+    // include, and a tripwire that read the comment would refuse the explanation.
+    CHECK(source.find("#include \"workshop/pane_vocabulary.hpp\"") == std::string::npos);
+    CHECK(source.find("#include <workshop/pane_vocabulary.hpp>") == std::string::npos);
+    CHECK(source.find("#include \"legacy_pane_protocol.hpp\"") != std::string::npos);
+    MESSAGE("legacy image: ", LEGACY_PANE_SO, ", ", std::filesystem::file_size(LEGACY_PANE_SO),
+            " bytes");
+
+    EditorReloadRig w; // the seat and the poke reader; no Editor is loaded here
+    REQUIRE(w.rig.realize(plan_of({weaves("zengine-legacy-pane", "zengine.test.legacy")})).ok);
+    const loom::WeaveId old_pane = w.rig.kernel.weave_id("zengine-legacy-pane");
+    REQUIRE(old_pane.value != 0);
+    w.drive([](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneCatalogRequested{});
+    });
+    REQUIRE_FALSE(w.host->offers.empty());
+    CHECK(w.host->offers.back().pane == "old");
+    // THE VERSION-ONE DECLARATION, ADMITTED BY THE CURRENT HEADER'S SHAPE: one identity.
+    REQUIRE_FALSE(w.host->declared.empty());
+    REQUIRE(w.host->declared.back().rows.size() == 2);
+    CHECK(w.host->declared.back().rows[1].id == "old.mark");
+    const std::size_t declared_before = w.host->declared.size();
+    w.drive([](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice)
+            .send_to_role("zengine.test.legacy", workshop::PaneRoom{"old", 4, 40});
+    });
+    REQUIRE(w.host->rows().size() == 2);
+    CHECK(w.host->rows()[0].rfind("an old pane", 0) == 0);
+    CHECK(w.host->rows()[1] == "acted 0");
+    w.drive([](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice)
+            .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.mark"});
+    });
+    REQUIRE(w.host->rows().size() == 2);
+    CHECK(w.host->rows()[1] == "acted 1: old.mark");
+
+    // "THE MAKER REBUILT IT": reloaded in place, same id, state kept.
+    w.rig.product("zengine-legacy-pane", LEGACY_PANE_SO);
+    w.rig.offer("zengine-legacy-pane");
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    CHECK(w.rig.ears->answers[0].realized);
+    CHECK(w.rig.ears->answers[0].detail.find("reloaded in place") != std::string::npos);
+    CHECK(w.rig.kernel.weave_id("zengine-legacy-pane") == old_pane);
+    // THE RELOADED INCARNATION OFFERED AND DECLARED AGAIN (its activation), and a room and a
+    // key reach it as before -- with the count it had, which a fresh construction would not have.
+    CHECK(w.host->declared.size() > declared_before);
+    CHECK(w.host->declared.back().rows.size() == 2);
+    w.drive([](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice)
+            .send_to_role("zengine.test.legacy", workshop::PaneRoom{"old", 4, 40});
+    });
+    REQUIRE(w.host->rows().size() == 2);
+    CHECK(w.host->rows()[1] == "acted 1: old.mark");
+    w.drive([](HostSeat&, loom::Mail& m) {
+        (void)m.as_role(HostSeat::kOffice)
+            .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.up"});
+    });
+    REQUIRE(w.host->rows().size() == 2);
+    CHECK(w.host->rows()[1] == "acted 2: old.up");
 #endif
 }

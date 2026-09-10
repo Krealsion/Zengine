@@ -33,17 +33,22 @@ pane and never the view. That holds when you ask for it the *other* way too, bec
 doors resolve a file to the same identity.
 
 Opening a file is **one action, and it either happens or it does not**. The Editor reads and
-judges the file, asks Workshop whether it has a place for the pane, and takes the document only
-if it has — and only then does your desk change: the pane is seated if it was not there,
-selected, with your keys in it. On a screen with no room for another pane **nothing opens**:
-the document you already had, its caret and its history stand exactly as they were, your desk
-is untouched, and the refusal you get is the picker's own words (`no room for Editor on this
-screen -- make the window taller, then p again`). Make the window taller and ask again.
+judges the file, holds anything you type or paste into it while it asks Workshop for a seat, and
+takes the document only on Workshop's word that the pane is seated — and that word is given in
+the same instant your desk changes: the pane seated if it was not there, selected, with your
+keys in it. On a screen with no room for another pane **nothing opens**: the document you
+already had, its caret and its history stand exactly as they were, your desk is untouched, and
+the refusal you get is the picker's own words (`no room for Editor on this screen -- make the
+window taller, then p again`). Make the window taller and ask again. A window you shrink
+*after* the open has taken hides the pane the way it hides any other, with the new file in it;
+grow it back and the file is there.
 
 The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
 cannot carry, unsaved edits in the document you have open. Nothing is added to your desk, your
-keys do not move, and whoever asked is told why. If the Editor pane is not loaded at all (a load
-plan without it), Files and the Builder have nobody to ask, and their open does nothing.
+keys do not move, and whoever asked is told why. Keys you typed while the open was on its way
+land in whichever document the open leaves you with — the new one if it took, the old one if it
+did not — and never in both. If the Editor pane is not loaded at all (a load plan without it),
+Files and the Builder have nobody to ask, and their open does nothing.
 
 ### The file you edit is the file the build reads
 

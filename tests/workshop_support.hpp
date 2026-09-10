@@ -1836,8 +1836,8 @@ class DoorAsker
                                         PlanNamesRequested, RecipeUseRequested,
                                         RecipeAuthorRequested, PlanRowRequested,
                                         OpenSourceRequested, RecipeSourceRequested,
-                                        PaneRevealRequested, PaneRevealSettled,
-                                        PaneQuitAnswered, surface::SurfaceExtent>> {
+                                        PaneRevealRequested, PaneQuitAnswered,
+                                        surface::SurfaceExtent>> {
 public:
     explicit DoorAsker(std::string office) : office_(std::move(office)) {}
 
@@ -2717,6 +2717,11 @@ struct PaneRig {
 #ifdef WORKSHOP_SO_EDITOR_PANE
         if (stem == "zengine-editor-pane") {
             return WORKSHOP_SO_EDITOR_PANE;
+        }
+#endif
+#ifdef WORKSHOP_SO_LEGACY_PANE
+        if (stem == "zengine-legacy-pane") {
+            return WORKSHOP_SO_LEGACY_PANE;
         }
 #endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name

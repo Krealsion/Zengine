@@ -423,7 +423,6 @@ struct EditorRig {
         // must reach Workshop to be dropped by it. (The first matrix found both cases vacuous:
         // the asker could not say them, so nothing was ever judged.)
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
-        grant.allow_to_any(PaneRevealSettled::zen_name, PaneRevealSettled::zen_version);
         grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
@@ -827,8 +826,8 @@ TEST_CASE("EDIT-W8: the door refuses speech with no author, and answers nobody")
 
 TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why") {
     // ⭐ ONE TRANSACTION (VD-26). An acquisition that ends in a pane nobody can see is not
-    // an acquisition: the pane reads and judges the file, asks the desk to show it, and
-    // installs only if the desk says yes. A screen with no slot therefore leaves the prior
+    // an acquisition: the pane reads and judges the file, asks the desk to seat it, and
+    // installs on the desk's word that it did. A screen with no slot therefore leaves the prior
     // document, the authored setup and the file itself exactly as they were, and the
     // requester -- Files, the Builder -- is answered with the picker's own refusal instead
     // of a success it would have to discover was hollow.
@@ -2051,7 +2050,12 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a maker can type
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
-    SUBCASE("an edit that races the answer keeps its document, and the requester is told") {
+    SUBCASE("a keystroke queued behind the request lands in the document the open produces") {
+        // THE ASK IS THE PANE'S COMMIT DECISION. A keystroke delivered after it is HELD, not
+        // applied -- what was judged stays true until the desk answers -- and replayed into
+        // the document the answer leaves open: B here, which is exactly where the built-in
+        // put a keystroke queued behind its synchronous open. (Retargeted from "refused as
+        // dirty": the refusal belongs to a keystroke AHEAD of the ask, the next subcase.)
         EditorRig e("edit-open-race");
         e.open();
         e.open_file("a.cpp", "one\n");
@@ -2068,10 +2072,37 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
         e.settle();
         REQUIRE_FALSE(e.asker->opens.empty());
         const SourceOpened said = e.asker->opens.back();
+        CHECK_MESSAGE(said.accepted, said.refusal);
+        CHECK(e.read("path").find("b.cpp") != std::string::npos);
+        CHECK(e.read("text") == "Ztwo\n");           // replayed after the install, at B's caret
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A was never touched
+        CHECK(e.r.session().panels.keyboard == e.kind);
+    }
+
+    SUBCASE("a keystroke ahead of the request dirties the document, and the request is refused at the judge") {
+        // THE OTHER SIDE OF THE SAME BOUNDARY: a keystroke the pane applied BEFORE it judged
+        // made the document dirty, so the judge refuses and nothing is sent to the desk --
+        // no ask, no seat, no change to the notice line.
+        EditorRig e("edit-open-race-before");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        e.press_doc(0, 3);
+        const std::string notice = e.r.session().notice;
+        e.enqueue_text("Z");
+        e.asker->next = [&e](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
+        };
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        e.settle();
+        REQUIRE_FALSE(e.asker->opens.empty());
+        const SourceOpened said = e.asker->opens.back();
         CHECK_FALSE(said.accepted);
         CHECK(said.refusal.find("unsaved changes") != std::string::npos);
         CHECK(e.read("path").find("a.cpp") != std::string::npos);
         CHECK(e.doc_row(0) == "oneZ");
+        CHECK(e.r.session().notice == notice); // the desk was never asked
     }
 
     SUBCASE("a second request while one is in flight is refused in words a maker can act on") {
@@ -2149,29 +2180,119 @@ TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
 // the mirror's real cost, and the viewport a reveal must not move
 // ============================================================================
 
-TEST_CASE("EDIT-W58: a refused commitment leaves the desk exactly as it was") {
-    // ⚔ THE DEFECT, REPRODUCED WITH REAL MESSAGES. Workshop used to author the pane, select
-    // it and take the keyboard when it ANSWERED the reveal -- before the Editor had re-judged
-    // and committed. So an acquisition that then refused (a paste answer landed on the open
-    // document and dirtied it while the desk was deciding) left the desk holding a
-    // presentation change belonging to an operation that never happened.
-    EditorRig e("edit-race-refuse");
-    e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
-    const std::string a_path = e.open_file("a.cpp", "one\n");
-    e.slow->text = "PASTED"; // what the platform answers with, when it is let go
-    e.press_doc(0, 3);
-    e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow Skin
-    REQUIRE(e.slow->held);
-    // THE PANE IS TAKEN OFF THE DESK: the document is the weave's and stays.
-    e.unfocus();
-    e.r.pick(editor_ref());
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
-    REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-    const std::int64_t selected_before = e.r.session().panels.selected;
+TEST_CASE("EDIT-W58: a clipboard answer refuses the open only if it lands before the ask") {
+    // ⚔ THE DEFECT PART TWO REPRODUCED WITH REAL MESSAGES: Workshop authored the pane, selected
+    // it and took the keyboard when it ANSWERED the reveal, before the Editor had re-judged --
+    // so an acquisition that then refused left the desk holding a presentation change for an
+    // operation that never happened. The commitment point is now the desk's delivery of the
+    // pane's ask, and the pane holds everything that could change what it judged until it
+    // hears back. So the same clipboard answer means two different things by WHEN it lands.
+    SUBCASE("before the ask: the document is dirty at the judge, the open is refused, the desk never moves") {
+        EditorRig e("edit-race-refuse");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        e.slow->text = "PASTED"; // what the platform answers with, when it is let go
+        e.press_doc(0, 3);
+        e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow Skin
+        REQUIRE(e.slow->held);
+        // THE PANE IS TAKEN OFF THE DESK: the document is the weave's and stays.
+        e.unfocus();
+        e.r.pick(editor_ref());
+        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+        const std::int64_t selected_before = e.r.session().panels.selected;
+        const std::string notice_before = e.r.session().notice;
+        // ONE POLL, TWO STATEMENTS, THE ANSWER FIRST: the clipboard answer lands on the open
+        // document and dirties it, THEN the request for b.cpp reaches the pane.
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+        };
+        const std::size_t before = e.asker->opens.size();
+        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        // THE DOCUMENT THAT WAS THERE IS STILL THERE, with the pasted bytes in it.
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "onePASTED\n");
+        // ...AND THE DESK DID NOT MOVE: no authored row, no selection, no keyboard, no ask.
+        CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+        CHECK_FALSE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == selected_before);
+        CHECK(e.r.session().panels.keyboard != e.kind);
+        CHECK(e.r.session().notice == notice_before);
+    }
+    SUBCASE("after the ask: held until the desk answers, and stranded with the document it was for") {
+        // THE ORDER PART TWO STAGED: the request first, the clipboard answer behind it. The
+        // answer is delivered while the desk is deciding, so it is HELD; the desk seats the
+        // pane; the pane installs B; and the replayed answer meets a document epoch that is
+        // gone -- stranded silently, WL-EDIT-11's law for a replaced document, which is what
+        // the synchronous built-in did with a paste answered after its open.
+        EditorRig e("edit-race-held");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        e.slow->text = "PASTED";
+        e.press_doc(0, 3);
+        e.key(input::scan::kV, input::mod::kCtrl);
+        REQUIRE(e.slow->held);
+        e.unfocus();
+        e.r.pick(editor_ref());
+        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+        };
+        const std::size_t before = e.asker->opens.size();
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_MESSAGE(said.accepted, said.refusal);
+        CHECK(e.read("path") == b_path);
+        CHECK(e.read("text") == "two\n");              // the paste landed nowhere
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n");  // ...and A's bytes were never touched
+        CHECK(e.clean());
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK_FALSE(e.says("pasted")); // no sentence claims the paste happened
+    }
+}
 
-    // ONE POLL, TWO STATEMENTS: ask for b.cpp, and release the clipboard answer behind it.
-    // The bus is FIFO, so the answer lands while the reveal is in flight -- which is exactly
-    // the window the defect lived in.
+// ============================================================================
+// PART THREE'S CORRECTIONS: the commitment point is the desk's delivery of the ask
+// ============================================================================
+//
+// EDIT-W59 stood here. It pinned the choice the founder rejected -- a pane authored and
+// waiting for room when the screen shrank between the capacity answer and the settle -- and
+// was retired rather than retargeted. EDIT-W67 and EDIT-W68 replace it at the corrected
+// commitment point: room lost BEFORE the desk's delivery of the ask refuses the open with
+// nothing moved; a resize AFTER it is an ordinary presentation change to an open that stands.
+
+TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothing is authored or moved") {
+    // ⚔ THE FINDING, RE-ESTABLISHED AT THE NEW CONVERSATION'S MILESTONES. A real
+    // `SurfaceExtent` delivered to the desk BEFORE the pane's ask leaves the Editor waiting for
+    // room, so the trial seat has nothing to commit to and refuses. The document that was open
+    // stands, the requester is told the picker's words, and the desk did not move for this
+    // operation -- the seat the Editor lost, it lost to the maker's own shrink.
+    EditorRig e("edit-shrink-before");
+    e.open(160, 48, /*pick_it=*/false);
+    e.r.pick(ref_of(panel::kPaneEditor)); // the Pane Manager takes the stack ahead of it
+    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    const std::string a_path = e.open_file("a.cpp", "one\n"); // seated behind the Manager
+    REQUIRE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
@@ -2180,64 +2301,107 @@ TEST_CASE("EDIT-W58: a refused commitment leaves the desk exactly as it was") {
     const std::size_t before = e.asker->opens.size();
     (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
-    (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
-                                                loom::WeaveId{}, 0));
+    // MILESTONE 1: the asker spoke; the request is queued and nothing has been judged.
+    REQUIRE(e.r.bus.pump_pending() == 1);
+    // THE SHRINK, queued behind the request -- and therefore AHEAD of the ask the pane will
+    // send when it handles that request.
+    (void)e.r.bus.publish(loom::Message(
+        loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
+        loom::WeaveId{}, 0));
+    // MILESTONE 2: one turn delivers the request (the pane judges B and asks) and then the
+    // shrink (the Editor, authored behind the Manager, loses its seat). The pane's ask is
+    // queued behind both, so this is the state the desk will judge it against.
+    (void)e.r.bus.pump_pending();
+    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));           // room lost...
+    CHECK(has_pane(e.r.session().setup.active, editor_ref())); // ...by the shrink; the row stands
+    CHECK(e.asker->opens.size() == before);                    // ...with the open still in flight
+    // MILESTONE 3: the attempted commitment -- the desk's delivery of the ask -- finds no seat.
     e.settle();
-
     REQUIRE(e.asker->opens.size() == before + 1);
     const SourceOpened said = e.asker->opens.back();
     CHECK_FALSE(said.accepted);
-    CHECK(said.refusal.find("unsaved changes") != std::string::npos);
-    // THE DOCUMENT THAT WAS THERE IS STILL THERE, with the pasted bytes in it.
+    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, then p "
+                          "again");
+    CHECK(e.r.session().notice == said.refusal);
     CHECK(e.read("path") == a_path);
-    CHECK(e.read("text") == "onePASTED\n");
-    // ...AND THE DESK DID NOT MOVE: no authored row, no selection, no keyboard.
-    CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    CHECK(e.read("text") == "one\n");
     CHECK_FALSE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.selected == selected_before);
-    CHECK(e.r.session().panels.keyboard != e.kind);
-}
-
-TEST_CASE("EDIT-W59: a desk that changed while the asker was committing seats what it can, and says so") {
-    // ⚔ THE OTHER HALF OF THE SAME DEFECT: the capacity answer is a fact about an instant,
-    // and the desk can change before the asker settles. Here the screen shrinks between the
-    // Editor's commitment and Workshop's seating, driven by a real `SurfaceExtent` landing two
-    // deliveries behind the request. The commitment stands -- the document IS open, because
-    // nothing about the document failed -- the pane is on the desk, and Workshop says plainly
-    // that this screen cannot show it.
-    EditorRig e("edit-race-shrink");
-    e.open(160, 48, /*pick_it=*/false);
-    e.r.pick(ref_of(panel::kPaneEditor)); // the Pane Manager takes the stack ahead of it
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
-    put_bytes(e.root / "a.cpp", "held\n");
-    const std::string a_path = spelled(e.root / "a.cpp");
-    e.asker->next = [a_path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{a_path});
-        a.ask(mail, kProjectRole, ProjectRootRequested{}); // the pacing hop, and a real ask
-    };
-    e.asker->then_root = [](DoorAsker&, loom::Mail& mail) {
-        mail.publish(surface::SurfaceExtent{160, kMinScreen.h, 0, 0});
-    };
-    const std::size_t before = e.asker->opens.size();
-    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
-    e.settle();
-
-    REQUIRE(e.asker->opens.size() == before + 1);
-    const SourceOpened said = e.asker->opens.back();
-    CHECK_MESSAGE(said.accepted, said.refusal); // the document opened: nothing about it failed
-    CHECK(e.read("path") == a_path);
-    CHECK(e.read("text") == "held\n");
-    // THE DESK AGREES WITH ITSELF: the pane is authored, the screen has no room, and the
-    // sentence says which -- the keys are NOT pointed at a pane nobody can see.
-    CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.keyboard != e.kind);
-    CHECK(e.r.session().notice.find("no room to show it") != std::string::npos);
-    // ...AND A WINDOW BIG ENOUGH SHOWS IT, WITH THE DOCUMENT IN IT, WITH NO SECOND REQUEST.
+    CHECK(keyboard_pane(e.r.session().panels) != e.kind); // no keys resolve to a hidden pane
+    // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused.
     e.r.extent(160, 48);
     REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.doc_row(0) == "held");
+    CHECK(e.doc_row(0) == "one");
+}
+
+TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation change") {
+    // THE CONTROL THE FOUNDER'S GUARANTEE NAMES: legitimate maker actions after a successful
+    // commitment may change presentation. The desk seats, selects and focuses the pane in the
+    // delivery that answers the ask; a real `SurfaceExtent` delivered after that unseats the
+    // Editor the way a shrink unseats any pane, and the open still completes with B in a pane
+    // that is on the desk and waiting for room. Two interleavings, because the reviewer's ran
+    // the shrink between the desk's step and the pane's answer.
+    EditorRig e("edit-shrink-after");
+    e.open(160, 48, /*pick_it=*/false);
+    e.r.pick(ref_of(panel::kPaneEditor));
+    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    const std::string a_path = e.open_file("a.cpp", "one\n");
+    REQUIRE(e.r.session().panels.has(e.kind));
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+    };
+    const std::size_t before = e.asker->opens.size();
+    const auto shrink = [&e] {
+        (void)e.r.bus.publish(loom::Message(
+            loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
+            loom::WeaveId{}, 0));
+    };
+    const auto after = [&e, &before, &b_path, &a_path] {
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_MESSAGE(said.accepted, said.refusal);
+        CHECK(e.read("path") == b_path);
+        CHECK(e.read("text") == "two\n");
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        CHECK_FALSE(e.r.session().panels.has(e.kind));      // the shrink's doing, after the commitment
+        CHECK(keyboard_pane(e.r.session().panels) != e.kind); // no keys resolve to a hidden pane
+        // ...AND A WINDOW BIG ENOUGH SHOWS THE OPENED DOCUMENT, WITH NO SECOND REQUEST.
+        e.r.extent(160, 48);
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.doc_row(0) == "two");
+        CHECK(e.doc_row(0) != a_path);
+    };
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
+    REQUIRE(e.r.bus.pump_pending() == 1); // the pane judged B and asked; the ask is queued
+
+    SUBCASE("the shrink lands after the desk's seat and before the pane hears of it") {
+        shrink();
+        // ONE TURN DELIVERS THE ASK, THEN THE SHRINK: the desk committed and then lost the seat
+        // to the maker's shrink; the pane has not heard yet.
+        (void)e.r.bus.pump_pending();
+        CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        CHECK_FALSE(e.r.session().panels.has(e.kind));
+        CHECK(e.asker->opens.size() == before);
+        e.settle();
+        after();
+    }
+    SUBCASE("the seat is the milestone, observed on its own, and the shrink lands after the install") {
+        e.r.session().notice.clear(); // the host's own record of what it last said, blanked
+        REQUIRE(e.r.bus.pump_pending() == 1); // the ask alone: THE COMMITMENT
+        CHECK(e.r.session().notice == "showing Editor -- it asked to be shown, and it has the keys");
+        CHECK(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+        CHECK(e.asker->opens.size() == before); // said and written before the pane hears
+        shrink();
+        e.settle();
+        after();
+    }
 }
 
 TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is shown, with nothing else disturbed") {
@@ -2257,27 +2421,93 @@ TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is sho
     CHECK(static_cast<std::int64_t>(e.r.session().setup.active.panes.size()) == others + 1);
 }
 
-TEST_CASE("EDIT-W61: an acquisition outstanding across a removal still settles, and a late answer decides nothing") {
-    EditorRig e("edit-flight-removal");
+TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes") {
+    // THE HELD GESTURES MAY CARRY EDITS NOBODY HAS APPLIED, so a permission given while an open
+    // is between its ask and the desk's answer is one a queued message could falsify -- the
+    // paste's rule, one operation over. The quit ask lands after the pane's ask and before the
+    // desk's answer; the pane refuses it, the host stays, and the open completes.
+    EditorRig e("edit-quit-while-opening");
     e.open();
     e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
-    // THE PANE LEAVES THE DESK IN THE SAME POLL THE REQUEST IS MADE IN: the request is
-    // queued first, so the flight is outstanding when the picker's Return is delivered.
+    e.unfocus(); // `q` is command mode's
     e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
         a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
     };
     const std::size_t before = e.asker->opens.size();
     (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
+    REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
+    e.enqueue_key(input::scan::kQ);       // ...and the quit behind it
+    // ONE TURN: the pane judges B and asks; the host asks the room whether it may end. The
+    // pane's ask and the host's question are both queued, in that order.
+    (void)e.r.bus.pump_pending();
+    CHECK(e.asker->opens.size() == before);
+    e.settle();
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.r.session().notice.find("still opening") != std::string::npos);
+    REQUIRE(e.asker->opens.size() == before + 1);
+    CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+    CHECK(e.read("path") == b_path);
+    CHECK(e.doc_row(0) == "two");
+    // ...AND WITH THE OPEN DONE, THE SAME QUIT TAKES: a clean document permits.
+    e.unfocus();
+    e.r.key(input::scan::kQ);
+    CHECK(e.r.host.quit);
+}
+
+TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
+    // THE PANE LEAVES THE DESK WHILE ITS ASK IS ON ITS WAY. The picker's removal is queued
+    // behind the request and ahead of the pane's ask, so one turn has the pane judge B and
+    // ask, then the picker take the Editor off the desk -- and the ask is still queued. The
+    // desk's delivery of it is the commitment: it seats the pane that asked to be shown,
+    // exactly as the built-in re-added itself for an opened source.
+    EditorRig e("edit-flight-removal");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    e.unfocus(); // the picker is command mode's row
+    const std::vector<CatalogRow> rows = combined_catalog(e.r.session().panels);
+    std::size_t want = 0;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].ref == editor_ref()) {
+            want = i;
+        }
+    }
+    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+    };
+    const std::size_t before = e.asker->opens.size();
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
+    // THE REMOVAL, QUEUED BEHIND THE REQUEST: the picker opens, walks to the Editor's row, and
+    // Return removes it. None of it drains; it is one poll's burst.
+    e.enqueue_key(input::scan::kP);
+    for (std::size_t i = 0; i < want; ++i) {
+        e.enqueue_key(input::scan::kDown);
+    }
+    e.enqueue_key(input::scan::kReturn);
+    // ONE TURN: the pane judges B and asks (its ask lands behind these keys), then the picker
+    // removes the Editor. The flight is outstanding across the removal.
+    (void)e.r.bus.pump_pending();
+    REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.asker->opens.size() == before);
+    // THE COMMITMENT, AND THE END OF THE FLIGHT.
     e.settle();
     REQUIRE(e.asker->opens.size() == before + 1);
-    CHECK(e.asker->opens.back().accepted);
+    CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
     CHECK(e.read("path") == b_path);
+    CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.doc_row(0) == "two");
 
     // ...AND AN ANSWER TO A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
-    // one; the correlation says it belongs to nothing outstanding.
+    // one; Loom's provenance says it answers nothing this pane asked.
     const std::string text_before = e.read("text");
     e.asker_says([](DoorAsker&, loom::Mail& mail) {
         (void)mail.as_role(kDoorAskerOffice)
@@ -2427,8 +2657,10 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
     // document is given, which `reconcile` also called a resize.
     EditorRig e("edit-samepath-view");
     e.open();
-    std::string many;
-    for (int i = 1; i <= 40; ++i) {
+    // LINE 1 IS LONGER THAN ANY ROOM THIS RIG GRANTS, so a caret at its end makes the window
+    // slide horizontally -- the precondition the third subcase needs and asserts.
+    std::string many = "line 1" + std::string(200, 'x') + "\n";
+    for (int i = 2; i <= 40; ++i) {
         many += "line " + std::to_string(i) + "\n";
     }
     const std::string path = e.open_file("a.cpp", many);
@@ -2454,14 +2686,20 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
         CHECK(e.read("first_row") == scrolled);
     }
     SUBCASE("a horizontal offset is kept too, and a genuine room change still reconciles") {
-        e.press_doc(0, 0);
+        // THE WINDOW HAS SLID: the caret at the end of line 1 is past the room's right edge,
+        // so `first_col` is not zero -- REQUIRED, because a case that cannot establish its
+        // precondition must fail visibly rather than assert that a zero equals a zero.
+        e.key(input::scan::kHome, input::mod::kCtrl);
         e.key(input::scan::kEnd);
         const std::string col = e.read("first_col");
-        (void)col;
-        e.wheel(-2.0);
-        const std::string where = e.read("first_row");
+        REQUIRE(std::stoll(col) > 0);
+        REQUIRE(e.read("first_row") == "0");
+        const std::string slice = e.doc_row(0); // line 1 as the maker sees it: its tail...
+        REQUIRE(slice.rfind("line 1", 0) != 0); // ...which is not its head
         REQUIRE(e.ask_open(path).accepted);
-        CHECK(e.read("first_row") == where);
+        CHECK(e.read("first_col") == col);
+        CHECK(e.read("first_row") == "0");
+        CHECK(e.doc_row(0) == slice);
         // A REAL RESIZE STILL PULLS THE CARET'S LINE INTO VIEW -- and this rig's Editor is
         // already six rows tall, so the room has to actually change to be a resize.
         REQUIRE(e.read("last_rows") == "6");

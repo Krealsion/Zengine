@@ -231,7 +231,6 @@ class WorkshopWeave
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
-                                          zengine::workshop::PaneRevealSettled,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::TerminalActRequested,
@@ -476,26 +475,12 @@ public:
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void rejoin_pane_rows(std::string& refusals);
 
-    /// STEP 1 OF THE REVEAL: HAS THIS DESK A PLACE FOR THIS PANE? Judged through the
-    /// picker's own trial seat and ANSWERED (`PaneRevealAnswered`), with nothing authored,
-    /// selected or focused -- the desk does not move until the asker settles (VD-27).
+    /// SEAT THE PANE THAT ASKS, IN THIS DELIVERY, OR REFUSE WITH NOTHING MOVED. Judged through
+    /// the picker's own trial seat; on a seat the pane is authored if it was not, selected,
+    /// and the keys are pointed at it before the answer (`PaneRevealAnswered`) is given. This
+    /// delivery is the acquisition's commitment point, and the host holds nothing across it:
+    /// no record, no reservation, no settle to wait for (pane_vocabulary.hpp says why).
     void on(const PaneRevealRequested& asked, loom::Mail& mail);
-
-    /// STEP 3: THE ASKER'S OUTCOME, and the only statement that moves the desk. `committed`
-    /// seats the pane through the picker's membership door, selects it and points the keys at
-    /// it if the screen seated it; otherwise the ask is forgotten and nothing changed.
-    void on(const PaneRevealSettled& said, loom::Mail& mail);
-
-    /// THE REVEAL THIS HOST HAS ANSWERED AND IS WAITING TO HEAR THE END OF -- one at a time
-    /// per office and pane, replaced by that pane's next ask and released by its settle. It
-    /// holds no seat and no capacity: it is the memory that makes a settle attributable.
-    struct PendingReveal {
-        bool live = false;
-        std::string office;
-        std::string pane;
-        std::uint64_t asked = 0;
-    };
-    PendingReveal reveal_;
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
