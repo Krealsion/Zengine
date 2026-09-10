@@ -368,7 +368,18 @@ public:
     std::size_t caret_byte() const noexcept { return caret_.byte; }
     std::size_t anchor_row() const noexcept { return anchor_.row; }
     std::size_t anchor_byte() const noexcept { return anchor_.byte; }
+    /// EVERY MOVE OF THE CARET, THE ANCHOR OR THE BYTES. A pending paste pins this, because
+    /// an answer that arrives after the maker moved may not land where they asked
+    /// (WL-EDIT-11) -- so navigation and selection must bump it.
     std::uint64_t revision() const noexcept { return revision_; }
+
+    /// THE BYTES ALONE (VD-27). `revision()` above is deliberately movement-sensitive, which
+    /// makes it the wrong question for anything that mirrors, hashes or writes the DOCUMENT:
+    /// an arrow key changed it while every byte stayed identical, and a four-megabyte mirror
+    /// keyed on it was rebuilt by a press, a drag and a caret step. This one moves when the
+    /// lines do and at no other time -- `set_lines`, every mutation (through `remember`), and
+    /// the two history doors that put a whole document back.
+    std::uint64_t content_revision() const noexcept { return content_revision_; }
 
     bool has_selection() const noexcept { return !(anchor_ == caret_); }
     EditorPos selection_begin() const noexcept { return caret_ < anchor_ ? caret_ : anchor_; }
@@ -401,6 +412,7 @@ public:
     /// REPLACE THE WHOLE DOCUMENT -- how one is opened or replaced.
     // WL-EDIT-11 -- agents/workshop/editor.md
     void set_lines(std::vector<std::string> lines) {
+        ++content_revision_;
         lines_ = std::move(lines);
         if (lines_.empty()) {
             lines_.emplace_back();
@@ -736,6 +748,7 @@ public:
             return false;
         }
         push_redo(Memory{lines_, caret_, anchor_});
+        ++content_revision_;
         lines_ = std::move(undo_.back().lines);
         caret_ = undo_.back().caret;
         anchor_ = undo_.back().anchor;
@@ -752,6 +765,7 @@ public:
             return false;
         }
         push_undo(Memory{lines_, caret_, anchor_});
+        ++content_revision_;
         lines_ = std::move(redo_.back().lines);
         caret_ = redo_.back().caret;
         anchor_ = redo_.back().anchor;
@@ -931,6 +945,7 @@ private:
     /// grouping rule, and its redo rule: an edit after an undo makes the undone future a
     /// road not taken.
     void remember(EditKind kind) {
+        ++content_revision_; // the one door every mutation passes through, before it mutates
         if (kind != last_edit_ || kind == EditKind::kStructural) {
             push_undo(Memory{lines_, caret_, anchor_});
         }
@@ -1001,6 +1016,7 @@ private:
     std::size_t undo_bytes_ = 0;
     EditKind last_edit_ = EditKind::kNone;
     std::uint64_t revision_ = 0;
+    std::uint64_t content_revision_ = 0;
 };
 
 // ---- The document layer ------------------------------------------------------------------

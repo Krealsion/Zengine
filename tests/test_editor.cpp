@@ -432,3 +432,45 @@ TEST_CASE("EDIT-0: the editor's declared vocabulary and consume agree, both dire
         }
     }
 }
+
+TEST_CASE("EDIT-0: the buffer has two revisions -- one that moves with the caret and one with the bytes") {
+    // ⚔ THE DEFECT THIS SEPARATION EXISTS FOR (VD-27). `revision()` moves whenever the caret,
+    // the anchor or the bytes move, because a pending paste must notice that its position went
+    // stale (WL-EDIT-11). Anything that MIRRORS, hashes or writes the document wants the other
+    // question, and asking the first one rebuilt a four-megabyte string on an arrow key.
+    EditorBuffer b;
+    b.set_lines({"one", "two", "three"});
+    const std::uint64_t rev = b.revision();
+    const std::uint64_t content = b.content_revision();
+
+    // MOVEMENT: the first moves, the second does not.
+    b.place(1, 1);
+    CHECK(b.revision() != rev);
+    CHECK(b.content_revision() == content);
+    b.drag_to(2, 2);
+    CHECK(b.content_revision() == content);
+    b.select_all();
+    CHECK(b.content_revision() == content);
+    b.restore_selection(0, 0, 0, 1);
+    CHECK(b.content_revision() == content);
+    CHECK(b.lines() == std::vector<std::string>{"one", "two", "three"});
+
+    // BYTES: both move, and the second moves exactly once per edit.
+    b.type("X");
+    CHECK(b.content_revision() != content);
+    const std::uint64_t after_type = b.content_revision();
+    b.newline();
+    CHECK(b.content_revision() != after_type);
+    const std::uint64_t after_newline = b.content_revision();
+    CHECK(b.undo());
+    CHECK(b.content_revision() != after_newline);
+    const std::uint64_t after_undo = b.content_revision();
+    CHECK(b.redo());
+    CHECK(b.content_revision() != after_undo);
+    const std::uint64_t after_redo = b.content_revision();
+    b.revert_to({"one", "two", "three"});
+    CHECK(b.content_revision() != after_redo);
+    const std::uint64_t after_revert = b.content_revision();
+    b.set_lines({"other"});
+    CHECK(b.content_revision() != after_revert);
+}

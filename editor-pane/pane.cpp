@@ -84,8 +84,6 @@ using ws::EditorPos;
 using ws::EditorState;
 using ws::OpenSourceRequested;
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
 using ws::PaneCaret;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
@@ -97,6 +95,7 @@ using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
 using ws::PaneRevealAnswered;
 using ws::PaneRevealRequested;
+using ws::PaneRevealSettled;
 using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PaneWheel;
@@ -138,15 +137,19 @@ class EditorPaneWeave
                        PaneDragged, PaneKey, PaneTextInput, PaneWheel, PaneActionRequested,
                        PaneQuitRequested, PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
                        surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneRevealRequested,
-                     PaneQuitAnswered, SourceOpened, ProjectRootRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+          loom::Emit<PaneOffered, ws::v2::PaneActions, PaneContent, PaneCaret,
+                     PaneRevealRequested, PaneRevealSettled, PaneQuitAnswered, SourceOpened,
+                     ProjectRootRequested, surface::ClipboardCopy,
+                     surface::ClipboardTextRequested>> {
     /// ONE ACQUISITION IN FLIGHT: the candidate bytes, the reveal it is waiting on, and the
     /// requester's answer, taken away from the delivery that asked so it can be spent when
     /// the desk replies (WL-EDIT-05). Not a document: nothing reads it, paints it or edits it.
     struct Pending {
         bool live = false;
         bool same_path = false;
+        /// Whether a `zengine.workshop` holder took the reveal ask -- and therefore whether
+        /// there is a desk owed the settle that ends this transaction.
+        bool asked_desk = false;
         std::uint64_t reveal = 0;
         std::string path;
         ws::SourceIn admitted;
@@ -167,8 +170,9 @@ public:
                      PaneKey, PaneTextInput, PaneWheel, PaneActionRequested, PaneQuitRequested,
                      PaneRevealAnswered, OpenSourceRequested, ProjectRoot,
                      surface::ClipboardCopy, surface::ClipboardText>,
-        loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneRevealRequested,
-                   PaneQuitAnswered, SourceOpened, ProjectRootRequested, surface::ClipboardCopy,
+        loom::Emit<PaneOffered, ws::v2::PaneActions, PaneContent, PaneCaret,
+                   PaneRevealRequested, PaneRevealSettled, PaneQuitAnswered, SourceOpened,
+                   ProjectRootRequested, surface::ClipboardCopy,
                    surface::ClipboardTextRequested>>;
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
@@ -290,29 +294,38 @@ public:
         flight.admitted = std::move(plan.admitted);
         flight.answer = mail.defer_answer();
         flight.reveal = ++asked_;
-        const loom::Ticket asked_desk =
+        const loom::Ticket queued =
             mail.as_role(pane::kEditorPaneRole)
                 .send_to_role(kWorkshopRole, PaneRevealRequested{pane::kEditorPane},
                               flight.reveal);
-        if (!asked_desk.valid()) {
-            // NO DESK TO REFUSE IT -- no `zengine.workshop` holder heard the ask, so there is
-            // no presentation to be part of this transaction and the document is installed
-            // now. The pane's own room, if it ever gets one, paints it.
+        if (!queued.valid()) {
+            // NOTHING TOOK THE ASK -- no `zengine.workshop` holder is there to answer, so
+            // there is no presentation to be part of this transaction and the document is
+            // installed now. The pane's own room, if it ever gets one, paints it.
+            //
+            // ⚠ AND A VALID TICKET IS NOT THE OTHER HALF OF THAT. It says the send was
+            // authorized and queued, never that a recipient resolved or that delivery
+            // happened; a host that accepts the shape and answers nothing leaves the flight
+            // outstanding, and the next request is refused in words rather than lost. That
+            // residue is named in WL-EDIT-05 and belongs to sender fate.
             settle(std::move(flight), true, std::string(), mail);
             return;
         }
+        flight.asked_desk = true;
         flight.live = true;
         open_ = std::move(flight);
     }
 
-    /// WHAT THE DESK DID WITH THE REVEAL -- and therefore whether the source was acquired.
+    /// STEP 2 OF THE REVEAL: HAS THE DESK A PLACE FOR THIS PANE? Nothing on the desk has
+    /// moved when this arrives, so a refusal here costs nothing anywhere, and a yes is what
+    /// this weave needs in order to commit (VD-27).
     void on(const PaneRevealAnswered& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !open_.live || mail.correlation() != open_.reveal) {
             return; // somebody else's answer, or one to a flight this pane already settled
         }
         Pending flight = std::move(open_);
         open_ = Pending{};
-        settle(std::move(flight), said.revealed, said.refusal, mail);
+        settle(std::move(flight), said.room, said.refusal, mail);
     }
 
     // ---- The pointer ---------------------------------------------------------------------
@@ -602,11 +615,14 @@ private:
     /// change. Everything else a maker presses reaches the buffer as an ordinary `PaneKey`,
     /// which is what lets Backspace erase and ctrl+z undo without either being anybody's row.
     void declare(loom::Mail& mail) {
-        PaneActions actions;
+        // ⚠ THE SECOND VERSION OF THE DECLARATION, because this pane owns one of Workshop's
+        // actions and version one has no field to say so (VD-27). Every pane that owns
+        // nothing keeps declaring version one, unchanged and unrebuilt.
+        ws::v2::PaneActions actions;
         actions.pane = pane::kEditorPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
                                     std::int64_t mods, const char* stands_for = "") {
-            actions.rows.push_back(PaneActionRow{id, label, sc, mods, stands_for});
+            actions.rows.push_back(ws::v2::PaneActionRow{id, label, sc, mods, stands_for});
         };
         // ⭐ AND THE SAVE ROW SAYS WHAT IT STANDS IN FOR (VD-26, WL-KEY-15). This pane holds a
         // document of its own, so while its keys are the maker's, `document.save` is not the
@@ -707,14 +723,18 @@ private:
                 return Written::no(flight.path +
                                    " is no longer the open source -- ask for it again");
             }
-            e_.follow_caret = true;
+            // ⚠ AND NOTHING ABOUT THE VIEW MOVES (VD-27). Re-requesting the open source is a
+            // REVEAL: the buffer, its caret, its selection, its history AND the place the
+            // maker had scrolled to all stand, because none of them is what the request was
+            // about. Following the caret here threw away a scrolled viewport (first row six
+            // back to zero with the caret on row zero); so does letting the notice this sets
+            // count as a resize, which is why `reconcile` measures the granted room.
             notice(e_.dirty() ? "UNSAVED edits stand -- editing " + shown_path()
                               : "editing " + shown_path(),
                    false);
             return Written::ok();
         }
         if (e_.open_document() && e_.path == flight.path) {
-            e_.follow_caret = true;
             notice("editing " + shown_path(), false);
             return Written::ok();
         }
@@ -727,14 +747,26 @@ private:
         return Written::ok();
     }
 
-    /// END ONE ACQUISITION: commit it or refuse it, tell whoever asked, and repaint. The one
-    /// place a deferred `SourceOpened` is spent, so a flight cannot end twice or not at all.
-    void settle(Pending flight, bool revealed, const std::string& refusal, loom::Mail& mail) {
+    /// END ONE ACQUISITION: commit it or refuse it, tell the desk what became of the ask it
+    /// answered, tell whoever asked for the source, and repaint. The one place a deferred
+    /// `SourceOpened` is spent, so a flight cannot end twice or not at all.
+    ///
+    /// ⚠ AND THE DESK LEARNS THE OUTCOME BEFORE IT MOVES (VD-27, step 3). Workshop authored
+    /// nothing while this weave was deciding, so a refusal here leaves the setup, the
+    /// selection and the keyboard exactly as they were -- which is the whole reason the
+    /// presentation is the LAST thing that happens rather than the first.
+    void settle(Pending flight, bool room, const std::string& refusal, loom::Mail& mail) {
         const Written done =
-            revealed ? commit_source(flight)
-                     : Written::no(refusal.empty() ? std::string("the Editor could not be "
-                                                                "shown; nothing was opened")
-                                                   : refusal);
+            room ? commit_source(flight)
+                 : Written::no(refusal.empty() ? std::string("the Editor could not be "
+                                                            "shown; nothing was opened")
+                                               : refusal);
+        if (flight.asked_desk) {
+            (void)mail.as_role(pane::kEditorPaneRole)
+                .send_to_role(kWorkshopRole,
+                              PaneRevealSettled{pane::kEditorPane, done.accepted},
+                              flight.reveal);
+        }
         if (flight.answer.valid()) {
             (void)loom::answer_deferred(flight.answer, mail,
                                         SourceOpened{done.accepted, done.refusal});
@@ -872,12 +904,17 @@ private:
     // ---- The viewport ----------------------------------------------------------------------
 
     /// KEEP THE VIEWPORT TRUE AGAINST THE ROOM AND THE DOCUMENT IT HAS NOW (WL-EDIT-09): clamp
-    /// the offsets always, follow the caret when a gesture asked or the body's room changed,
+    /// the offsets always, follow the caret when a gesture asked or THE GRANTED ROOM changed,
     /// and deliberately not after the wheel.
+    ///
+    /// ⚠ THE GRANTED ROOM, AND NOT THE ROWS THE DOCUMENT WAS LEFT (VD-27). A notice appearing
+    /// or clearing changes the second and not the first, and a maker who scrolled somewhere
+    /// to read did not ask to be taken back to the caret because this pane had something to
+    /// say. A genuine resize still follows, because that is what these two numbers are.
     void reconcile(std::int64_t rows_in, std::int64_t text_cols) {
-        const bool resized = rows_in != e_.last_rows || text_cols != e_.last_cols;
-        e_.last_rows = rows_in;
-        e_.last_cols = text_cols;
+        const bool resized = rows_ != e_.last_rows || columns_ != e_.last_cols;
+        e_.last_rows = rows_;
+        e_.last_cols = columns_;
         const std::size_t rows = static_cast<std::size_t>(rows_in > 0 ? rows_in : 0);
         const std::size_t total = e_.buffer.line_count();
         const std::size_t furthest_row = total > rows ? total - rows : 0;
@@ -1053,7 +1090,7 @@ private:
             state_.anchor_byte = 0;
             state_.first_row = 0;
             state_.first_col = 0;
-            mirrored_revision_ = 0;
+            mirrored_content_ = 0;
             mirrored_saved_ = 0;
             return;
         }
@@ -1066,9 +1103,14 @@ private:
         state_.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
         state_.first_row = static_cast<std::int64_t>(e_.first_row);
         state_.first_col = e_.first_col;
-        if (mirrored_revision_ != e_.buffer.revision()) {
+        // ⚠ THE BYTES' OWN REVISION, NOT THE BUFFER'S (VD-27). `revision()` moves when the
+        // CARET moves, because a pending paste has to notice that; keying the mirror on it
+        // rebuilt a four-megabyte string on an arrow key, a press and every motion of a
+        // drag, with every byte identical. `content_revision()` moves when the lines do.
+        if (mirrored_content_ != e_.buffer.content_revision()) {
             state_.text = ws::source_text(e_.buffer.lines(), e_.convention);
-            mirrored_revision_ = e_.buffer.revision();
+            mirrored_content_ = e_.buffer.content_revision();
+            ++state_.text_builds; // the cost, counted where it is paid
         }
         if (mirrored_saved_ != saved_stamp_) {
             state_.saved_text = ws::source_text(e_.saved_lines, e_.convention);
@@ -1184,7 +1226,7 @@ private:
     /// the stamp `saved_text` was. Bumped by the three writers of `saved_lines` (install,
     /// save, revival), so a rebuild happens when the bytes moved and at no other time.
     std::uint64_t saved_stamp_ = 0;
-    std::uint64_t mirrored_revision_ = 0;
+    std::uint64_t mirrored_content_ = 0;
     std::uint64_t mirrored_saved_ = 0;
 
     std::int64_t rows_ = 0;

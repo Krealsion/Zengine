@@ -219,7 +219,7 @@ struct TerminalRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const PaneActionRow& a : one->actions) {
+        for (const v2::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -270,7 +270,7 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
     const auto gesture_of = [row](const char* id) {
-        for (const PaneActionRow& a : row->actions) {
+        for (const v2::PaneActionRow& a : row->actions) {
             if (a.id == id) {
                 return std::pair<std::int64_t, std::int64_t>{a.scancode, a.modifiers};
             }
@@ -283,7 +283,7 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     CHECK(gesture_of(pane::kActionUp).first == input::scan::kUp);
     CHECK(gesture_of(pane::kActionDown).first == input::scan::kDown);
     CHECK(gesture_of(pane::kActionBack).first == input::scan::kEscape);
-    for (const PaneActionRow& a : row->actions) {
+    for (const v2::PaneActionRow& a : row->actions) {
         CHECK(a.modifiers == input::mod::kNone);
     }
 }

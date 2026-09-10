@@ -195,9 +195,9 @@ line, or refused aloud"`.
 
 ## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
 
-METHOD — To reproduce "the answer arrived after the line moved", enqueue the gestures without draining and drain once: what a handler sends lands behind what is already queued.
-BECAUSE — a sleep does not order a single-threaded bus, and a helper that publishes and drains
-spends the answer before it returns; the batch is deterministic and needs no thread.
+METHOD — To reproduce "the answer arrived after the line moved", enqueue without draining, ASSERT nothing was delivered yet, and drain once: what a handler sends lands behind what is queued.
+BECAUSE — a sleep does not order a single-threaded bus, and a helper that drains -- including
+one that only READS, through a poke -- spends the batch before it is built; measured, twice.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
 and a submit is"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W53: a press that only
 focuses begins no sweep, and a gesture keeps the geometry it was made against"`.

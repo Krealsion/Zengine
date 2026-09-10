@@ -677,23 +677,26 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
 /// here: the rows are `join_pane_rows`' to judge (keymap.hpp), and the caller commits
 /// both halves together or neither.
 // WL-KEY-15 -- agents/workshop/keyboard.md
+/// ⚠ OVER THE PANE KEY AND THE OFFICE, NOT OVER A VERSION. Both published versions of the
+/// declaration name a pane the same way, so this door takes the key rather than the shape and
+/// answers the same for either (VD-27).
 inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
                                     std::string_view stamped_office,
-                                    const PaneActions& actions) {
+                                    const std::string& pane) {
     Admission out;
     const Written office = check_pane_key(stamped_office, "provider");
     if (!office.accepted) {
         out.written = office;
         return out;
     }
-    const Written key = check_pane_key(actions.pane, "pane key");
+    const Written key = check_pane_key(pane, "pane key");
     if (!key.accepted) {
         out.written = key;
         return out;
     }
-    const RuntimePane* row = runtime.find(stamped_office, actions.pane);
+    const RuntimePane* row = runtime.find(stamped_office, pane);
     if (row == nullptr) {
-        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office), actions.pane}) +
+        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office), pane}) +
                                   "` is not a pane that office has offered -- its actions "
                                   "were not taken");
         return out;

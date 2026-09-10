@@ -372,7 +372,11 @@ struct RuntimePane {
     /// loads. What is IN FORCE is `Keymap::panes`, derived from this; a refused
     /// declaration leaves this exactly as it was.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    std::vector<PaneActionRow> actions;
+    /// ⚠ HELD AS THE LATER VERSION, whichever version the office declared. A v1 declaration
+    /// is widened at the door (`v2::PaneActionRow` with an empty `supersedes`), so this
+    /// host's admission, legends and dispatch read ONE row population and never two
+    /// dialects; the wire keeps both versions distinct (VD-27).
+    std::vector<v2::PaneActionRow> actions;
 };
 
 /// HOW MANY CATALOG ROWS THIS SESSION WILL HOLD IN TOTAL -- built-ins included.

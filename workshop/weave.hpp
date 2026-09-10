@@ -227,9 +227,11 @@ class WorkshopWeave
                                           zengine::surface::ClipboardCopy,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneActions,
+                                          zengine::workshop::v2::PaneActions,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
+                                          zengine::workshop::PaneRevealSettled,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::TerminalActRequested,
@@ -458,6 +460,15 @@ public:
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void on(const PaneActions& actions, loom::Mail& mail);
 
+    /// THE SAME DECLARATION, in the version that can name an action the pane owns (VD-27).
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    void on(const v2::PaneActions& actions, loom::Mail& mail);
+
+    /// THE ONE BODY BOTH VERSIONS SPEND, over the host's own row type.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    void declare_pane_actions(const std::string& pane,
+                              const std::vector<v2::PaneActionRow>& rows, loom::Mail& mail);
+
     /// RE-JOIN EVERY PANE'S RETAINED DECLARATION INTO THE KEYMAP NOW IN FORCE -- what the
     /// keymap file's load does, because the file may arrive after a pane did and its
     /// overrides are owed to that pane's rows too. A pane whose rows the file's bindings
@@ -465,11 +476,26 @@ public:
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void rejoin_pane_rows(std::string& refusals);
 
-    /// A PANE ASKS TO BE SHOWN: seated on the active desk through the picker's own membership
-    /// door, selected, and given the keys -- the two lines the built-in Editor's open door
-    /// wrote for itself, honoured for any offered pane that says so, and refused in the
-    /// picker's words when the screen has no slot (`pane_vocabulary.hpp`).
+    /// STEP 1 OF THE REVEAL: HAS THIS DESK A PLACE FOR THIS PANE? Judged through the
+    /// picker's own trial seat and ANSWERED (`PaneRevealAnswered`), with nothing authored,
+    /// selected or focused -- the desk does not move until the asker settles (VD-27).
     void on(const PaneRevealRequested& asked, loom::Mail& mail);
+
+    /// STEP 3: THE ASKER'S OUTCOME, and the only statement that moves the desk. `committed`
+    /// seats the pane through the picker's membership door, selects it and points the keys at
+    /// it if the screen seated it; otherwise the ask is forgotten and nothing changed.
+    void on(const PaneRevealSettled& said, loom::Mail& mail);
+
+    /// THE REVEAL THIS HOST HAS ANSWERED AND IS WAITING TO HEAR THE END OF -- one at a time
+    /// per office and pane, replaced by that pane's next ask and released by its settle. It
+    /// holds no seat and no capacity: it is the memory that makes a settle attributable.
+    struct PendingReveal {
+        bool live = false;
+        std::string office;
+        std::string pane;
+        std::uint64_t asked = 0;
+    };
+    PendingReveal reveal_;
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,

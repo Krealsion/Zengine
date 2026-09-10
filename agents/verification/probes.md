@@ -65,22 +65,23 @@ SEEN — nowhere yet
 
 ## VM-PROBE-10 — Read the declared surface, not only the snapshot
 
-METHOD — A weave's snapshot and its declared read surface are two questions; ask both of the running image, because a shape can carry a reload and still answer every advertised field with nothing.
-BECAUSE — a pane built its snapshot on demand from the live document and left the state shape
-untouched, which is exactly the field the substrate answers reads from: a four-megabyte document
-rode a reload intact while `path` and `text` read back empty, and no snapshot case could see it.
+METHOD — A weave's snapshot and its declared read surface are two questions; ask both of the running image, and where a field is materialized, COUNT the materializations and read that count too.
+BECAUSE — a snapshot built on demand left the shape reads are answered from untouched, so a
+document rode a reload intact while `path` and `text` read empty; the repair then rebuilt the
+whole document on an arrow key with every returned byte identical. Output saw neither.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W52: every field the pane advertises
-reports what it is holding now"`; `tests/test_workshop_load.cpp` case `"RELOAD-3/VD-26: the
-reloaded pane reads live, not out of the snapshot it revived from"`.
+reports what it is holding now"`, case `"EDIT-W64: the mirror is rebuilt when the bytes move and
+at no other time"`; `tests/test_workshop_load.cpp` case `"RELOAD-3/VD-26: the reloaded pane reads
+live, not out of the snapshot it revived from"`.
 
 ## VM-PROBE-11 — Do not move the simulated hand between two events of one poll
 
-METHOD — When a batch stages a press and the motion behind it, aim both at the picture the FIRST was measured against; re-aiming between them hides exactly the reflow the batch exists to catch.
-BECAUSE — the handler under test cleared a standing notice and moved the document up one row, so
-a sweep to line two selected to line three; a rig that recomputed the row per event would have
-followed the reflow and agreed with the defect.
-SEEN — `tests/test_workshop_panes_editor.cpp` `EditorRig::enqueue_press_doc`,
-`EditorRig::enqueue_motion_doc`.
+METHOD — Resolve a batch's geometry ONCE, before the first gesture is queued, and let the enqueue helpers spend those numbers: an observation that advances the schedule is not an observation.
+BECAUSE — re-aiming per gesture hid the reflow the batch existed to catch, and it did the
+re-aiming by READING the pane -- a poke, which drains -- so the batch delivered its own press
+before the motion was queued, and proved two polls. Measured, on the committed witness.
+SEEN — `tests/test_workshop_panes_editor.cpp` `EditorRig::aim`, `EditorRig::enqueue_press_doc`,
+`EditorRig::admitted_caret`.
 
 ## VM-PROBE-09 — A precedent transfers only as far as its reason
 

@@ -137,16 +137,24 @@ beside the twelve before them, and each is an ordinary optional capability any p
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
   Editor pins it (VD-26).
-- **`PaneRevealRequested v1` `{pane}`**, provider → Workshop, as the office that offered the pane:
-  seat me, select me, point the keys at me — and **`PaneRevealAnswered v1`
-  `{pane, revealed, refusal}`**, its answer. The host walks the picker's own membership door with
-  its trial seat, refuses no room in the picker's words, says which pane asked on its notice
-  line, and tells the pane which happened. A reveal naming a pane the office never offered is
-  refused; one from nobody is dropped unanswered. **The answer is what lets an acquisition be one
-  transaction** (VD-26): the Editor reads a source, asks to be shown, and installs only if the
-  desk said yes, so a screen with no room leaves the prior document untouched and the refusal is
-  what the requester is told. It is a fact about the desk at the instant of the answer and never
-  a promise about later.
+- **The reveal is three statements** (VD-26, corrected VD-27), because an acquisition that ends
+  in a presentation is one transaction whose halves live in two weaves:
+  **`PaneRevealRequested v1` `{pane}`** (provider → Workshop, as the office that offered the
+  pane: have you a place for me?), **`PaneRevealAnswered v1` `{pane, room, refusal}`**
+  (Workshop's answer — capacity, judged through the picker's own trial seat, **with the desk
+  unmoved**), and **`PaneRevealSettled v1` `{pane, committed}`** (the provider's own outcome,
+  and the only statement that seats anything).
+  **Why the desk moves last.** The asker has not finished its act when it asks: the Editor
+  re-judges its document at the answer, and a maker's keystroke delivered in between can make
+  the replacement a loss. A host that had already authored the pane and taken the keyboard
+  would then be holding a presentation change belonging to an operation that never happened —
+  measured as a real race, with a held paste answer and a removed pane. So a refusal anywhere
+  leaves the setup, the selection and the keyboard exactly as they were.
+  **What the capacity answer is not.** Not a lock. The desk may change before the settle — a
+  maker removes a pane, shrinks the screen, picks another — and Workshop seats what fits when
+  it seats; a pane whose slot went away is authored and waiting for room, which is what any
+  pane is on a screen too small for it, and Workshop says so on its notice line. A reveal
+  naming a pane the office never offered is refused; one from nobody is dropped unanswered.
 - **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
   **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
   that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
@@ -159,19 +167,33 @@ beside the twelve before them, and each is an ordinary optional capability any p
 
 ## A pane declares its actions, and the host dispatches the resolved id
 
-`PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers,
-supersedes}`,
+`PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
 provider → Workshop, sent beside the offer; `PaneActionRequested v1` `{pane, id}`, Workshop →
 provider. They ADDED to the protocol and revised nothing: eleven shapes, and every older one is
 byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
 Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 
-- **A row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`, VD-26), and
-  only for the ones Workshop declares ownable — today `document.save`. While that pane holds the
-  keyboard the host's row is not requestable and no legend spells it, and the pane's row may take
-  its gesture without colliding: the two are one meaning in two scopes. Supersession is by ID, so
-  a maker who rebinds either row moves neither row's meaning. It is how a pane that holds a
-  document of its own makes `^s` mean ITS save without the host naming that pane anywhere.
+**And there is a second published version, beside v1 and not instead of it** (VD-27):
+`v2::PaneActions v2` of `v2::PaneActionRow v2`, which is v1's four fields plus `supersedes`.
+The field was first added to v1 in place, and that was wrong for a reason the substrate states:
+a published `(name, version)` is frozen and identity across a `.so` seam is the content-id
+derived from the shape, so adding a field changed the identity of `PaneActionRow` v1 AND of the
+`PaneActions` v1 that encloses it — a provider built against the old header and a host built
+against the new one could no longer both register
+([Loom GATE-04](https://github.com/Krealsion/Loom/blob/main/docs/laws/admission-laws.md)).
+Measured, with an ordinary Registry, as `SchemaConflict`. Workshop accepts both doors and joins
+them into one admitted row set; a v1 declaration means what it always meant — this pane owns no
+host action — and nothing reinterprets old bytes.
+
+- **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`, VD-26),
+  and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
+  input the host's row is not requestable and no legend spells it, and the pane's rows may take
+  its gesture without colliding: the two are one meaning in two scopes, and the exemption is the
+  pane's, not one row's (VD-27). Supersession is by ID, so a maker who rebinds either row moves
+  neither row's meaning. It is how a pane that holds a document of its own makes `^s` mean ITS
+  save without the host naming that pane anywhere. **Owning input is not being remembered:** the
+  pane's handle counts only while the resolved context is that pane's, so a contextual menu
+  opened over a pane is the menu's, and the host's row is the maker's key there.
 - **A row is the host's own catalog row minus `Act` and minus `KeyContext`.** The id is in the
   pane's namespace and is what a maker's keymap file names, so it is durable the way a pane key
   is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,

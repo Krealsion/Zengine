@@ -374,7 +374,7 @@ TEST_CASE("BLD-WEAVE: the pane declares the nine ids a maker's keymap file alrea
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const PaneActionRow& row : seat->actions) {
+    for (const v2::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     for (const std::string& want : kBrowsingIds) {

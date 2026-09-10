@@ -170,7 +170,7 @@ TEST_CASE("ATTN-WEAVE: the pane declares the three ids a maker's keymap file alr
     const RuntimePane* seat = f.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const PaneActionRow& row : seat->actions) {
+    for (const v2::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     std::sort(declared.begin(), declared.end());
