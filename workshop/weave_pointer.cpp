@@ -760,7 +760,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     repaint(mail);
 }
 
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;

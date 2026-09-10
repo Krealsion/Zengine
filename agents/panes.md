@@ -119,9 +119,9 @@ and every older one is byte-identical.
   it would retarget the Composer by looking. Its `... N more` therefore still counts what no
   gesture reaches; what it would need is a list origin of its own — a recorded seam.
 
-## The sweep, the reveal and the quit cross as four more shapes (VD-25)
+## The sweep, the reveal and the quit cross as five more shapes (VD-25, VD-26)
 
-The Editor's extraction added four shapes and no powers, all in `workshop/pane_vocabulary.hpp`
+The Editor's extraction added five shapes and no powers, all in `workshop/pane_vocabulary.hpp`
 beside the twelve before them, and each is an ordinary optional capability any pane may spend:
 
 - **`PaneDragged v1` `{pane, row, column}`**, Workshop → provider: the hand moved with the button
@@ -132,12 +132,21 @@ beside the twelve before them, and each is an ordinary optional capability any p
   record on release, or when the pane loses its seat or its room, and sends nothing; a pane
   resolves a sweep from the positions it was given. The Terminal ignores it; the Editor steps its
   window on it.
+  **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
+  of the pane, because the host does not read a provider's rows to learn what they mean. So a
+  drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
+  as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
+  Editor pins it (VD-26).
 - **`PaneRevealRequested v1` `{pane}`**, provider → Workshop, as the office that offered the pane:
-  seat me, select me, point the keys at me. The host walks the picker's own membership door with
-  its trial seat, refuses no room in the picker's words, and says which pane asked. A reveal from
-  an office that offered no such pane, or from nobody, is dropped. A pane that has just installed
-  a document sends it AFTER answering the asker, so a refused reveal leaves the document open in
-  the weave for the picker to bring back.
+  seat me, select me, point the keys at me — and **`PaneRevealAnswered v1`
+  `{pane, revealed, refusal}`**, its answer. The host walks the picker's own membership door with
+  its trial seat, refuses no room in the picker's words, says which pane asked on its notice
+  line, and tells the pane which happened. A reveal naming a pane the office never offered is
+  refused; one from nobody is dropped unanswered. **The answer is what lets an acquisition be one
+  transaction** (VD-26): the Editor reads a source, asks to be shown, and installs only if the
+  desk said yes, so a screen with no room leaves the prior document untouched and the refusal is
+  what the requester is told. It is a fact about the desk at the instant of the answer and never
+  a promise about later.
 - **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
   **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
   that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
@@ -150,12 +159,19 @@ beside the twelve before them, and each is an ordinary optional capability any p
 
 ## A pane declares its actions, and the host dispatches the resolved id
 
-`PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
+`PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers,
+supersedes}`,
 provider → Workshop, sent beside the offer; `PaneActionRequested v1` `{pane, id}`, Workshop →
 provider. They ADDED to the protocol and revised nothing: eleven shapes, and every older one is
 byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
 Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 
+- **A row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`, VD-26), and
+  only for the ones Workshop declares ownable — today `document.save`. While that pane holds the
+  keyboard the host's row is not requestable and no legend spells it, and the pane's row may take
+  its gesture without colliding: the two are one meaning in two scopes. Supersession is by ID, so
+  a maker who rebinds either row moves neither row's meaning. It is how a pane that holds a
+  document of its own makes `^s` mean ITS save without the host naming that pane anywhere.
 - **A row is the host's own catalog row minus `Act` and minus `KeyContext`.** The id is in the
   pane's namespace and is what a maker's keymap file names, so it is durable the way a pane key
   is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,

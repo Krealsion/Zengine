@@ -248,6 +248,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneDragged,
                                         zengine::workshop::PaneActionRequested,
                                         zengine::workshop::PaneQuitRequested,
+                                        zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::DocumentShown,
                                         zengine::workshop::DocumentActed,

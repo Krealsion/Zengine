@@ -1557,9 +1557,9 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  417
+workshop_panes                    doctest           always  425
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  132
+workshop_load                     doctest           always  134
 workshop_files                    doctest           always  41
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

@@ -5221,6 +5221,18 @@ struct HostSeatState {
     ZEN_SHAPE(HostSeatState, 1, ZEN_FIELD(heard));
 };
 
+/// A PARTY THAT READS A LOADED WEAVE'S DECLARED SURFACE, over the real Kernel.
+class LoadPokeSeat : public loom::WeaveBase<LoadPokeSeat, HostSeatState,
+                                            loom::Accept<loom::Result, loom::Refused>,
+                                            loom::Emit<>> {
+public:
+    std::vector<std::pair<std::uint64_t, std::string>> answers;
+    void on(const loom::Result& r, loom::Mail& mail) {
+        answers.emplace_back(mail.correlation(), r.value);
+    }
+    void on(const loom::Refused&, loom::Mail&) {}
+};
+
 class HostSeat
     : public loom::WeaveBase<
           HostSeat, HostSeatState,
@@ -5229,7 +5241,8 @@ class HostSeat
                        workshop::PaneQuitAnswered, Nudge>,
           loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
                      workshop::PaneTextInput, workshop::OpenSourceRequested,
-                     workshop::PaneQuitRequested>> {
+                     workshop::PaneQuitRequested, workshop::PaneRevealAnswered,
+                     workshop::PaneWheel>> {
 public:
     static constexpr const char* kOffice = "zengine.workshop";
     std::vector<workshop::PaneOffered> offers;
@@ -5238,6 +5251,11 @@ public:
     std::vector<workshop::SourceOpened> opens;
     std::vector<workshop::PaneQuitAnswered> quits;
     int reveals = 0;
+    /// WHAT THIS DESK DOES WITH A REVEAL. A real Workshop seats the pane or refuses for want
+    /// of room; this stand-in answers whichever a case asked for, because the ANSWER is what
+    /// the pane's acquisition turns on (VD-26).
+    bool seats = true;
+    std::string no_room = "no room for Editor on this screen";
     std::function<void(HostSeat&, loom::Mail&)> next;
 
     void on(const workshop::PaneOffered& o, loom::Mail&) {
@@ -5247,7 +5265,11 @@ public:
     void on(const workshop::PaneActions&, loom::Mail&) {}
     void on(const workshop::PaneContent& c, loom::Mail&) { contents.push_back(c); }
     void on(const workshop::PaneCaret& c, loom::Mail&) { carets.push_back(c); }
-    void on(const workshop::PaneRevealRequested&, loom::Mail&) { ++reveals; }
+    void on(const workshop::PaneRevealRequested& asked, loom::Mail& mail) {
+        ++reveals;
+        (void)mail.answer(workshop::PaneRevealAnswered{asked.pane, seats,
+                                                       seats ? std::string() : no_room});
+    }
     void on(const workshop::SourceOpened& s, loom::Mail&) { opens.push_back(s); }
     void on(const workshop::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }
     void on(const Nudge&, loom::Mail& mail) {
@@ -5276,6 +5298,9 @@ struct EditorReloadRig {
     HostSeat* host = nullptr;
     loom::WeaveId host_id{};
     loom::WeaveId editor{};
+    LoadPokeSeat* poker = nullptr;
+    loom::WeaveId poke_id{};
+    std::uint64_t poke_corr = 0;
     std::filesystem::path file;
 
     EditorReloadRig() {
@@ -5291,9 +5316,16 @@ struct EditorReloadRig {
                          workshop::OpenSourceRequested::zen_version);
         say.allow_to_any(workshop::PaneQuitRequested::zen_name,
                          workshop::PaneQuitRequested::zen_version);
+        say.allow_to_any(workshop::PaneRevealAnswered::zen_name,
+                         workshop::PaneRevealAnswered::zen_version);
+        say.allow_to_any(workshop::PaneWheel::zen_name, workshop::PaneWheel::zen_version);
         host_id = rig.bus.register_weave(std::move(seat), std::move(say),
                                          std::string(HostSeat::kOffice));
         host->zen_set_self(host_id);
+        auto reader = std::make_unique<LoadPokeSeat>();
+        poker = reader.get();
+        poke_id = rig.bus.register_weave(std::move(reader), loom::Grant{}, std::string());
+        poker->zen_set_self(poke_id);
         file = rig.products() / "witness.txt";
     }
 
@@ -5347,6 +5379,28 @@ struct EditorReloadRig {
             (void)m.as_role(HostSeat::kOffice)
                 .send_to_role("zengine.editor", workshop::PaneKey{"editor", sc, mods});
         });
+    }
+
+    void wheel(double dy) {
+        drive([dy](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice)
+                .send_to_role("zengine.editor", workshop::PaneWheel{"editor", 0.0, dy});
+        });
+    }
+
+    /// ONE DECLARED FIELD OF THE LIVE PANE (`zen.PokeRead`), read over the real Kernel.
+    std::string read(const char* field) {
+        const std::uint64_t corr = ++poke_corr;
+        (void)rig.bus.send(editor, loom::Message(loom::to_value(loom::PokeRead{field}),
+                                                 loom::WeaveId{}, poke_id, corr));
+        rig.drain(16);
+        for (const std::pair<std::uint64_t, std::string>& one : poker->answers) {
+            if (one.first == corr) {
+                return one.second;
+            }
+        }
+        FAIL_CHECK("reading `", field, "` was never answered");
+        return std::string();
     }
 
     workshop::PaneQuitAnswered ask_quit() {
@@ -5455,6 +5509,82 @@ TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in plac
     const loom::Value again = w.snapshot();
     CHECK(again.get("text")->as_text() == snap.get("text")->as_text());
     CHECK(again.get("doc_epoch")->as_int() == snap.get("doc_epoch")->as_int());
+#endif
+}
+
+TEST_CASE("RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and the view it was scrolled to stands") {
+#ifndef EDITOR_PANE_SO
+    MESSAGE("no Editor image was built for this tree");
+#else
+    // ⚔ THE DEFECT: revival zeroed the room the document was last composed for, so the FIRST
+    // grant after a reload differed from the last one before it -- which is exactly what the
+    // viewport calls a resize. An equal-sized room therefore followed the caret, and a maker
+    // who had scrolled somewhere to read lost the place they were reading.
+    EditorReloadRig w;
+    w.load_editor();
+    {
+        std::ofstream out(w.file, std::ios::binary | std::ios::trunc);
+        REQUIRE(out.good());
+        for (int i = 1; i <= 40; ++i) {
+            out << "line " << i << "\n";
+        }
+    }
+    REQUIRE(w.open(w.file.generic_string()).accepted);
+    // THE WHEEL SCROLLS AND MOVES NO CARET: the caret is on line 1, the window is not.
+    w.wheel(-2.0);
+    const std::string scrolled = w.read("first_row");
+    CHECK(scrolled != "0");
+    CHECK(w.read("caret_row") == "0");
+    const std::vector<std::string> before = w.host->rows();
+    REQUIRE(before.size() > 1);
+
+    w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
+    w.rig.offer("zengine-editor-pane");
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    CHECK(w.rig.ears->answers[0].realized);
+    w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
+    w.room(8, 60); // THE SAME ROOM the pane had before it was replaced
+
+    CHECK(w.read("first_row") == scrolled);
+    CHECK(w.read("caret_row") == "0");
+    CHECK(w.host->rows() == before);
+    // ...AND A GENUINELY DIFFERENT ROOM STILL RECONCILES, pulling the caret's line into view.
+    w.room(4, 60);
+    CHECK(w.read("first_row") == "0");
+#endif
+}
+
+TEST_CASE("RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot it revived from") {
+#ifndef EDITOR_PANE_SO
+    MESSAGE("no Editor image was built for this tree");
+#else
+    // ⚔ THE OTHER HALF OF THE DEFECT: with `state_` written only at revival, a reloaded pane
+    // answered every read with the snapshot it came back from -- so an edit made after the
+    // reload was invisible to the door Loom answers reads at.
+    EditorReloadRig w;
+    w.load_editor();
+    {
+        std::ofstream out(w.file, std::ios::binary | std::ios::trunc);
+        REQUIRE(out.good());
+        out << "abc\n";
+    }
+    REQUIRE(w.open(w.file.generic_string()).accepted);
+    CHECK(w.read("text") == "abc\n");
+    w.type("X");
+    CHECK(w.read("text") == "Xabc\n");
+    CHECK(w.read("saved_text") == "abc\n");
+
+    w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
+    w.rig.offer("zengine-editor-pane");
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
+    w.room(8, 60);
+    CHECK(w.read("text") == "Xabc\n"); // the document rode across
+    w.type("Y"); // the caret rode across too, so this lands where the maker left it
+    CHECK(w.read("text") == "XYabc\n"); // ...and the read surface is the live one
+    CHECK(w.read("path") == w.file.generic_string());
+    const workshop::PaneQuitAnswered no = w.ask_quit();
+    CHECK_FALSE(no.permitted);
 #endif
 }
 

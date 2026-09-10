@@ -261,7 +261,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // and deliberately not a swallow-the-next-text rule: an unmatched or absent
     // expectation eats nothing).
     swallow_text_.clear();
-    if (session_.keymap.action_for(ctx, k.scancode, k.modifiers) != Act::kNone) {
+    if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
+        Act::kNone) {
         swallow_text_ = expected_text_of(k.scancode, k.modifiers);
     } else if (ctx == KeyContext::kPane &&
                session_.keymap.pane_action_for(keyboard_pane(), k.scancode, k.modifiers) !=
@@ -275,7 +276,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // ordinary `q` row resolves to the same action and still travels the chain --
     // which is what keeps the hotkey view's swallow, and every mode's ownership,
     // ahead of it.
-    switch (session_.keymap.above_mode_action(ctx, k.scancode, k.modifiers)) {
+    switch (session_.keymap.above_mode_action(ctx, k.scancode, k.modifiers, keyboard_pane())) {
     case Act::kQuit:
         // A quit REFUSED says so on the notice line, which has to be painted to be read;
         // a quit that proceeded publishes one last unchanged frame on its way out, which
@@ -373,7 +374,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // answered above and this line does not.
     if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone &&
         escape_may_shed_selection(ctx) &&
-        session_.keymap.action_for(ctx, k.scancode, k.modifiers) == Act::kNone &&
+        session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) ==
+            Act::kNone &&
         session_.panels.selected != kNoPaneKind) {
         unselect_pane();
     }

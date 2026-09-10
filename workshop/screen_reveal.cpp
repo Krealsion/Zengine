@@ -18,7 +18,7 @@ namespace zengine::workshop {
 
 // ---- THE PROJECT BROWSER, PRESENTED -----------------------------------------------------
 
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch) {
     accum += dy * static_cast<double>(rows_per_notch);
     const std::int64_t rows = static_cast<std::int64_t>(accum);

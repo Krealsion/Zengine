@@ -2337,16 +2337,15 @@ TEST_CASE("the name editor takes the keys, and the picker and the document keep 
     CHECK_FALSE(t.host.quit);
     CHECK(t.session().setup.naming.line.text() == "Defaultpq");
 
-    // ⚠ `^s` IS NOT ONE OF THE COMMANDS THAT MEAN THE SAME THING IN EVERY MODE ANY MORE
-    // (VD-25). `document.save` used to be active everywhere but the source editor, so it saved
-    // the DOCUMENT from inside this name line; the Editor is a pane that declares `editor.save`
-    // on the same chord, and a host row active while a pane holds the keys would collide with
-    // it at admission. The row is `kNoText` now -- the class `workshop.quit` (`^c`) already had
-    // -- so inside a line that takes text the chord is the line's, and it is consumed as
-    // nothing here rather than saving behind the maker's back.
+    // ⭐ `^s` STILL SAVES THE DOCUMENT FROM INSIDE THIS NAME LINE (VD-26). `document.save` is
+    // `kUnlessOwned`: the one thing that takes it away is the pane holding the keyboard having
+    // DECLARED that it stands in for it, and a name line is not a pane. So the chord means here
+    // exactly what it means on the bare desk, which is what it meant before the Editor moved
+    // out of this host -- and the line keeps its text, because a binding consumed is not a
+    // character entered.
     const std::string notice_before = t.notice();
     t.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(t.notice() == notice_before);
+    CHECK(t.notice() != notice_before); // the document's save ran, and said so
     CHECK(t.session().setup.naming.line.text() == "Defaultpq");
 
     // The picker and the name editor cannot both be open: `s` is a command, and

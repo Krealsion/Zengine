@@ -2396,6 +2396,7 @@ struct PaneRig {
         // weave's now, and this host answers nothing about a source.
         speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
         speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
+        speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
         // ...and what is currently true, said to whoever presents it -- the arc's one new
         // host-to-pane sentence, granted here exactly as workshop.cpp grants it. A rig that
         // left it out would make the Attention pane look like a pane that never hears
@@ -2627,6 +2628,13 @@ struct PaneRig {
     /// Walk the picker to the row naming this reference and press Return.
     void pick(const PaneRef& ref) {
         key(input::scan::kP);
+        // ⚠ THE PICKER MUST ACTUALLY BE OPEN. `p` is a command-mode row: a case that left
+        // the keyboard pointed at a pane sends the letter to that pane instead, and the walk
+        // below would then step a cursor nothing is moving -- forever, repainting into this
+        // rig's canvas vector until the process runs out of memory. Measured, once. It is a
+        // REQUIRE and not a bound because a picker that did not open is the case's own bug.
+        REQUIRE_MESSAGE(session().panels.picker.open,
+                        "the picker did not open -- the keyboard is a pane's; unfocus first");
         const std::vector<CatalogRow> rows = combined_catalog(session().panels);
         std::size_t want = 0;
         for (std::size_t i = 0; i < rows.size(); ++i) {
@@ -2635,7 +2643,10 @@ struct PaneRig {
             }
         }
         while (session().panels.picker.cursor < want) {
+            const std::size_t was = session().panels.picker.cursor;
             key(input::scan::kDown);
+            REQUIRE_MESSAGE(session().panels.picker.cursor > was,
+                            "the picker's cursor did not move toward the row");
         }
         key(input::scan::kReturn);
     }

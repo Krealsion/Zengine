@@ -133,6 +133,57 @@ public:
     }
 };
 
+/// A PROJECT OWNER THAT TAKES THE ANSWER AWAY WITH IT -- the same `defer_answer()` the slow
+/// Skin spends, one door over, so a case can put a real open between the pane's question and
+/// the project's answer. A run whose owner never answers is the same shape with `AnswerNow`
+/// never sent.
+class SlowProject : public loom::WeaveBase<SlowProject, SeenState,
+                                           loom::Accept<ProjectRootRequested, AnswerNow>,
+                                           loom::Emit<ProjectRoot>> {
+public:
+    std::string root;
+    bool held = false;
+    int asked = 0;
+    loom::DeferredAnswer answer;
+
+    void on(const ProjectRootRequested&, loom::Mail& mail) {
+        ++asked;
+        answer = mail.defer_answer();
+        held = answer.valid();
+    }
+    void on(const AnswerNow&, loom::Mail& mail) {
+        if (!held) {
+            return;
+        }
+        held = false;
+        (void)loom::answer_deferred(answer, mail, ProjectRoot{root, std::string()});
+    }
+};
+
+/// A PARTY THAT READS THE PANE'S DECLARED SURFACE -- `zen.PokeRead`, the door every woven
+/// weave answers, asked of the REAL loaded image and answered from whatever it is holding
+/// right now. It is the rig's own instrument as well as a subject: the row a notice occupies
+/// is read off the pane rather than guessed at by the case, so a case aims at document row
+/// `n` because the pane says where the document starts.
+class PokeSeat : public loom::WeaveBase<PokeSeat, SeenState,
+                                        loom::Accept<loom::Result, loom::Refused,
+                                                     loom::PokeStructure>,
+                                        loom::Emit<>> {
+public:
+    std::vector<std::pair<std::uint64_t, std::string>> answers;
+    std::vector<std::pair<std::uint64_t, std::string>> refusals;
+    std::vector<loom::PokeStructure> structures;
+
+    void on(const loom::PokeStructure& d, loom::Mail&) { structures.push_back(d); }
+
+    void on(const loom::Result& r, loom::Mail& mail) {
+        answers.emplace_back(mail.correlation(), r.value);
+    }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        refusals.emplace_back(mail.correlation(), r.reason);
+    }
+};
+
 /// A LIVE WORKSHOP WITH THE REAL EDITOR PANE LOADED INTO IT.
 ///
 /// The order is the host's, and it is the whole arrangement under test: the project door is
@@ -151,11 +202,14 @@ struct EditorRig {
     loom::WeaveId slow_id{};
     /// What the host's recipe seam answers -- the fact the read-only project door spends.
     HostContext::RecipeSource next_source{};
-    /// WHICH COMPOSED ROWS ARE ABOVE THE DOCUMENT, as the pane will have composed them at
-    /// the next gesture: the status row always, and a notice row while one stands. Kept by
-    /// the helpers that know which acts leave one, so a case aims at document row `n` and
-    /// hits document row `n`.
-    std::int64_t chrome = 1;
+    /// AUTHORED KEYMAP ROWS, written to a file this rig's host reads on its first surface --
+    /// how a case moves a binding the way a maker does.
+    std::vector<std::pair<std::string, std::string>> overrides;
+    /// THE LOADED IMAGE, and the party that reads its declared fields.
+    loom::WeaveId image{};
+    PokeSeat* poke = nullptr;
+    loom::WeaveId poke_id{};
+    std::uint64_t poke_corr = 0;
 
     explicit EditorRig(const char* tag) : dir(tag) {
         root = dir.path();
@@ -166,10 +220,23 @@ struct EditorRig {
 
     /// LOAD THE IMAGE AND, ORDINARILY, PICK THE PANE. A case about the reveal loads it and
     /// leaves the picking to the document's own arrival.
+    /// WHICH PROJECT OWNER THIS RUN HAS: the read-only door that answers at once, one that
+    /// holds its answer until a case releases it, or none at all.
+    enum class Project { kDoor, kSlow, kNone };
+
     void open(std::int64_t width = 160, std::int64_t height = 48, bool pick_it = true,
-              bool slow_skin = false) {
+              bool slow_skin = false, Project project = Project::kDoor) {
+        if (!overrides.empty()) {
+            const std::string path = (root / "keymap.json").generic_string();
+            write_keymap_file(path, keymap_file_text("full", overrides));
+            r.host.keymap_path = path;
+        }
         r.mount_workshop();
-        mount_project_door();
+        if (project == Project::kDoor) {
+            mount_project_door();
+        } else if (project == Project::kSlow) {
+            mount_slow_project();
+        }
         if (slow_skin) {
             mount_slow_skin();
         } else {
@@ -182,6 +249,9 @@ struct EditorRig {
         plan.artifacts.push_back(seat);
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
+        image = r.kernel.weave_id(pane::kEditorPaneStem);
+        REQUIRE(image.value != 0);
+        mount_poke_seat();
         r.ready();
         r.extent(width, height);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `editor` pane");
@@ -208,6 +278,99 @@ struct EditorRig {
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);
+    }
+
+    void mount_poke_seat() {
+        auto seat = std::make_unique<PokeSeat>();
+        poke = seat.get();
+        poke_id = r.bus.register_weave(std::move(seat), loom::Grant{}, std::string());
+        poke->zen_set_self(poke_id);
+    }
+
+    /// ONE DECLARED FIELD OF THE LIVE PANE, as `zen.PokeRead` answers it.
+    std::string read(const char* field) {
+        const std::uint64_t corr = ++poke_corr;
+        (void)r.bus.send(image, loom::Message(loom::to_value(loom::PokeRead{field}),
+                                              loom::WeaveId{}, poke_id, corr));
+        r.bus.drain_until_idle();
+        for (const std::pair<std::uint64_t, std::string>& one : poke->answers) {
+            if (one.first == corr) {
+                return one.second;
+            }
+        }
+        for (const std::pair<std::uint64_t, std::string>& one : poke->refusals) {
+            if (one.first == corr) {
+                FAIL_CHECK("reading `", field, "` was refused: ", one.second);
+                return std::string();
+            }
+        }
+        FAIL_CHECK("reading `", field, "` was never answered");
+        return std::string();
+    }
+
+    /// WHICH COMPOSED ROWS ARE ABOVE THE DOCUMENT -- read off the pane, not tracked here:
+    /// the status row always, plus a notice row wherever the room holds one under it. The
+    /// pane's own composition rule, spent against the pane's own standing notice.
+    std::int64_t chrome() {
+        const ExternalPane* seated = seat();
+        const std::int64_t rows = seated != nullptr ? seated->rows : 0;
+        return (!read("notice").empty() && rows >= 3) ? 2 : 1;
+    }
+
+    SlowProject* slow_project = nullptr;
+    loom::WeaveId slow_project_id{};
+
+    void mount_slow_project() {
+        auto door = std::make_unique<SlowProject>();
+        slow_project = door.get();
+        slow_project->root = root.generic_string();
+        loom::Grant say;
+        say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+        slow_project_id = r.bus.register_weave(std::move(door), std::move(say),
+                                               std::string(kProjectRole));
+        slow_project->zen_set_self(slow_project_id);
+    }
+
+    void project_answers() {
+        REQUIRE(slow_project != nullptr);
+        (void)r.bus.send(slow_project_id, loom::Message(loom::to_value(AnswerNow{}),
+                                                        loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+    }
+
+    /// THE PANE'S DECLARED FIELDS, as `zen.PokeDescribe` lists them.
+    std::vector<std::string> described() {
+        const std::size_t before = poke->structures.size();
+        (void)r.bus.send(image, loom::Message(loom::to_value(loom::PokeDescribe{}),
+                                              loom::WeaveId{}, poke_id, ++poke_corr));
+        r.bus.drain_until_idle();
+        REQUIRE(poke->structures.size() == before + 1);
+        std::vector<std::string> names;
+        for (const loom::PokeFieldInfo& f : poke->structures.back().fields) {
+            names.push_back(f.name);
+        }
+        return names;
+    }
+
+    /// TWO POINTER GESTURES IN ONE POLL -- published without a drain between them, so the
+    /// motion is interpreted against the picture the press was measured on (VM-FIX-24).
+    void enqueue_press_doc(std::int64_t row, std::int64_t col) {
+        const ui::Rect body = external_body_rect(r.session(), kind);
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::PointerButton{
+                1, true, body.x + col,
+                body.y + kExternalHeaderRows + chrome() + row + surface::kTuiCanvasTopRow,
+                input::space::kCells, input::mod::kNone}),
+            loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+    void enqueue_motion_doc(std::int64_t row, std::int64_t col) {
+        const ui::Rect body = external_body_rect(r.session(), kind);
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::PointerMoved{
+                body.x + col,
+                body.y + kExternalHeaderRows + chrome() + row + surface::kTuiCanvasTopRow, 0, 0,
+                input::space::kCells, input::mod::kNone}),
+            loom::WeaveId{}, loom::WeaveId{}, 0));
     }
 
     void mount_slow_skin() {
@@ -262,7 +425,6 @@ struct EditorRig {
             a.ask(mail, kEditorRole, OpenSourceRequested{path});
         });
         REQUIRE(asker->opens.size() == before + 1);
-        chrome = 2; // "editing ..." stands on the notice row until the maker's next act
         return asker->opens.back();
     }
 
@@ -297,8 +459,9 @@ struct EditorRig {
 
     /// Document row `n` of the window, as shown.
     std::string doc_row(std::int64_t n) {
+        const std::int64_t above = chrome();
         const std::vector<std::string> rows = shown();
-        const std::size_t at = static_cast<std::size_t>(chrome + n);
+        const std::size_t at = static_cast<std::size_t>(above + n);
         REQUIRE(at < rows.size());
         return rows[at];
     }
@@ -320,43 +483,30 @@ struct EditorRig {
         REQUIRE(r.session().panels.keyboard != kind);
     }
 
-    /// A press on document row `row`, column `col` of the window.
-    void press_doc(std::int64_t row, std::int64_t col) {
-        press_pane(r, kind, chrome + row, col);
-        chrome = 1; // a press on the document clears a standing notice
-    }
+    /// A press on document row `row`, column `col` of the window. The row is resolved
+    /// against the picture standing NOW, which is the one the maker would be looking at.
+    void press_doc(std::int64_t row, std::int64_t col) { press_pane(r, kind, chrome() + row, col); }
     void motion_doc(std::int64_t row, std::int64_t col) {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.motion_cell(body.x + col, body.y + kExternalHeaderRows + chrome + row);
+        r.motion_cell(body.x + col, body.y + kExternalHeaderRows + chrome() + row);
     }
     void release_doc(std::int64_t row, std::int64_t col) {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.release_cell(body.x + col, body.y + kExternalHeaderRows + chrome + row);
+        r.release_cell(body.x + col, body.y + kExternalHeaderRows + chrome() + row);
     }
     void wheel(double dy) {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.wheel_cell(dy, body.x + 2, body.y + kExternalHeaderRows + chrome);
+        r.wheel_cell(dy, body.x + 2, body.y + kExternalHeaderRows + chrome());
     }
 
-    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
-        r.key(sc, mods);
-        chrome = 1;
-    }
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) { r.key(sc, mods); }
     void type(const std::string& s) {
         for (const char c : s) {
             r.text(std::string(1, c));
         }
-        chrome = 1;
     }
-    /// A save, a discard: acts that leave a notice standing.
-    void save() {
-        r.key(input::scan::kS, input::mod::kCtrl);
-        chrome = 2;
-    }
-    void discard() {
-        r.key(input::scan::kD, input::mod::kCtrl);
-        chrome = 2;
-    }
+    void save() { r.key(input::scan::kS, input::mod::kCtrl); }
+    void discard() { r.key(input::scan::kD, input::mod::kCtrl); }
 
     // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
@@ -367,10 +517,7 @@ struct EditorRig {
         (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{s}), loom::WeaveId{},
                                           loom::WeaveId{}, 0));
     }
-    void settle() {
-        r.bus.drain_until_idle();
-        chrome = 1;
-    }
+    void settle() { r.bus.drain_until_idle(); }
 
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
@@ -463,33 +610,40 @@ TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spe
 }
 
 TEST_CASE("EDIT-W3: one physical ^s is the document's save or the source's, by who holds the keys") {
-    // ⭐ `document.save` IS A `kNoText` ROW NOW. It used to be `kNoEditor` -- "everywhere but
-    // the source editor" -- because the editor was the one text-taking place that owned ^s.
-    // A pane that declares `editor.save` on ctrl+s is a pane, so the host row yields wherever
-    // a pane holds the keys, and the collision law is what says the two never both fire.
+    // ⭐ `document.save` IS `kUnlessOwned`: everywhere, unless the pane holding the keyboard
+    // DECLARED that it stands in for it. That is the sentence `kNoEditor` used to spell by
+    // naming one built-in, with the exception moved to where the exception lives -- so the
+    // object document's save is still the maker's key in a layout name, a draft, and every
+    // pane that holds no document of its own, and it is the Editor's inside the Editor.
     const Keymap k;
     CHECK(k.action_for(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
           Act::kSaveDocument);
-    // ⚠ A NAMED CHANGE: the layout-name line TAKES TEXT, so the document's save is not
-    // active while a maker types a name -- it was, while the class was "everywhere but the
-    // editor". The class is now the one `workshop.quit` already had, and the two rows agree.
-    CHECK(k.action_for(KeyContext::kNaming, input::scan::kS, input::mod::kCtrl) == Act::kNone);
+    CHECK(k.action_for(KeyContext::kNaming, input::scan::kS, input::mod::kCtrl) ==
+          Act::kSaveDocument);
+    CHECK(k.action_for(KeyContext::kDraft, input::scan::kS, input::mod::kCtrl) ==
+          Act::kSaveDocument);
     CHECK(k.above_mode_action(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
           Act::kSaveDocument);
+    // A PANE THAT DECLARED NOTHING KEEPS IT; the Editor's own handle is what takes it away,
+    // and that handle is not in this bare keymap.
     CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kS, input::mod::kCtrl) ==
-          Act::kNone);
-    // `^o` stays global -- a pane holding the keys included.
+          Act::kSaveDocument);
+    // `^o` stays global -- a pane holding the keys included -- and no pane may own it.
     CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kO, input::mod::kCtrl) ==
           Act::kOpenDocument);
-    // ...and the class algebra no longer has an editor-shaped hole in it.
-    CHECK(active_in(KeyContext::kNoText, KeyContext::kCommand));
-    CHECK_FALSE(active_in(KeyContext::kNoText, KeyContext::kPane));
-    CHECK_FALSE(contexts_intersect(KeyContext::kNoText, KeyContext::kPane));
+    // ...and the class is a superset of every mode, because what removes it is not a mode.
+    CHECK(active_in(KeyContext::kUnlessOwned, KeyContext::kCommand));
+    CHECK(active_in(KeyContext::kUnlessOwned, KeyContext::kPane));
+    CHECK(contexts_intersect(KeyContext::kUnlessOwned, KeyContext::kPane));
+    // THE PANE PROTOCOL'S SPELLING OF THE ID AND THE HOST'S CATALOG AGREE.
+    REQUIRE(row_of_id(kOwnableDocumentSave) != nullptr);
+    CHECK(row_of_id(kOwnableDocumentSave)->act == Act::kSaveDocument);
 
     // LIVE: ^s with the Editor holding the keys saves the SOURCE and not the document.
     EditorRig e("edit-ctrl-s");
     e.open();
     const std::string path = e.open_file("a.cpp", "one\n");
+    CHECK(e.r.session().keymap.pane_supersedes(e.kind, kOwnableDocumentSave));
     e.press_doc(0, 3);
     e.type("x");
     REQUIRE(e.dirty());
@@ -498,6 +652,50 @@ TEST_CASE("EDIT-W3: one physical ^s is the document's save or the source's, by w
     CHECK(e.clean());
     CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
     CHECK(e.r.session().notice == doc_notice); // the host's save never ran
+    // ...AND THE HOST'S SAVE IS THE MAKER'S KEY AGAIN THE MOMENT THE KEYS ARE NOT THE PANE'S.
+    e.unfocus();
+    e.r.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(e.r.session().notice != doc_notice);
+}
+
+TEST_CASE("EDIT-W50: supersession is by name, so moving either key moves neither meaning") {
+    // ⚔ THE TWO WAYS A GESTURE-MATCHING RULE WOULD BREAK, driven over the real pane: with
+    // `editor.save` moved off ^s, ^s must still not save the object document while the
+    // Editor holds the keys; with `document.save` moved onto another chord, that chord must
+    // not save the object document there either. Neither pane row nor host row is where the
+    // relationship lives -- the declaration is (WL-KEY-15).
+    SUBCASE("the pane's own row moved, and the host's row is still stood down") {
+        EditorRig e("edit-remap-pane");
+        e.overrides.push_back({"editor.save", "ctrl+e"});
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        e.press_doc(0, 3);
+        e.type("x");
+        REQUIRE(e.dirty());
+        const std::string before = e.r.session().notice;
+        e.r.key(input::scan::kS, input::mod::kCtrl); // the object document's default chord
+        CHECK(e.dirty());                            // no source save
+        CHECK(e.r.session().notice == before);       // and no document save either
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n");
+        e.r.key(input::scan::kE, input::mod::kCtrl); // where the maker put the source save
+        CHECK(e.clean());
+        CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
+    }
+    SUBCASE("the host's row moved, and the pane still owns it") {
+        EditorRig e("edit-remap-host");
+        e.overrides.push_back({"document.save", "ctrl+y"});
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        e.press_doc(0, 3);
+        e.type("x");
+        const std::string before = e.r.session().notice;
+        e.r.key(input::scan::kY, input::mod::kCtrl);
+        CHECK(e.r.session().notice == before); // the object document was not saved here
+        CHECK(e.dirty());
+        e.unfocus();
+        e.r.key(input::scan::kY, input::mod::kCtrl);
+        CHECK(e.r.session().notice != before); // ...and it is that key everywhere else
+    }
 }
 
 TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded pane") {
@@ -605,25 +803,45 @@ TEST_CASE("EDIT-W8: the door refuses speech with no author, and answers nobody")
     CHECK(e.no_source());
 }
 
-TEST_CASE("EDIT-W9: with no room to seat it, the document is open and the reveal is refused in the picker's words") {
-    // ⭐ THE ORDER IS THE HONESTY. The document is installed and the asker answered FIRST;
-    // the reveal is a second ask the host may refuse, and a refused reveal changes nothing
-    // in the pane -- the source is open in a pane a maker can bring back once there is room.
+TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why") {
+    // ⭐ ONE TRANSACTION (VD-26). An acquisition that ends in a pane nobody can see is not
+    // an acquisition: the pane reads and judges the file, asks the desk to show it, and
+    // installs only if the desk says yes. A screen with no slot therefore leaves the prior
+    // document, the authored setup and the file itself exactly as they were, and the
+    // requester -- Files, the Builder -- is answered with the picker's own refusal instead
+    // of a success it would have to discover was hollow.
     EditorRig e("edit-noroom");
     e.open(160, kMinScreen.h, /*pick_it=*/false);
-    e.r.pick(ref_of(panel::kPaneEditor)); // the one stack slot the minimum screen has
+    // A DOCUMENT ALREADY OPEN, so the refusal has something to preserve.
+    put_bytes(e.root / "first.cpp", "first\n");
+    REQUIRE(e.ask_open(spelled(e.root / "first.cpp")).accepted);
+    REQUIRE(e.r.session().panels.has(e.kind));
+    e.press_doc(0, 2);
+    const std::int64_t caret = e.seat()->caret_col;
+    // ...AND THEN THE ONE STACK SLOT THE MINIMUM SCREEN HAS, TAKEN BY SOMETHING ELSE.
+    e.unfocus(); // the picker is command mode's row, and the Editor is holding the keys
+    e.r.pick(editor_ref()); // the picker's other direction: it removes an open pane
+    e.r.pick(ref_of(panel::kPaneEditor));
     REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "a.cpp", "held\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
-    CHECK(said.accepted);
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().notice == "no room for Editor on this screen -- make the window "
-                                  "taller, then p again");
+    CHECK_FALSE(said.accepted);
+    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
+                          "then p again");
+    CHECK(e.r.session().notice == said.refusal);
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref())); // nothing authored
-    // A TALLER WINDOW, AND THE PICK SHOWS THE DOCUMENT THAT WAS THERE ALL ALONG.
+    // NOTHING MOVED IN THE PANE: the first document, its caret and its bytes stand.
     e.r.extent(160, 48);
     e.r.pick(editor_ref());
     REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.doc_row(0) == "first");
+    CHECK(e.status().find("first.cpp") != std::string::npos);
+    CHECK(e.seat()->caret_col == caret);
+    CHECK(e.read("path").find("first.cpp") != std::string::npos);
+    // ...AND WITH ROOM, THE SAME REQUEST TAKES.
+    const SourceOpened again = e.ask_open(spelled(e.root / "a.cpp"));
+    CHECK_MESSAGE(again.accepted, again.refusal);
     CHECK(e.doc_row(0) == "held");
 }
 
@@ -790,7 +1008,6 @@ TEST_CASE("EDIT-W17: removing and reopening the pane cannot lose a byte, a caret
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
     e.r.pick(editor_ref());
     REQUIRE(e.r.session().panels.has(e.kind));
-    e.chrome = 1;
     CHECK(e.dirty());
     CHECK(e.status().rfind("UNSAVED L3:C6/4", 0) == 0);
     CHECK(e.doc_row(1) == "two!");
@@ -835,7 +1052,7 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
     // because the shape is the decision.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::EditorPaneState>();
     REQUIRE(shape != nullptr);
-    REQUIRE(shape->fields().size() == 11);
+    REQUIRE(shape->fields().size() == 17);
     CHECK(shape->fields()[0].name == "path");
     CHECK(shape->fields()[0].type.kind == loom::Kind::Text);
     CHECK(shape->fields()[1].name == "text");
@@ -988,7 +1205,6 @@ TEST_CASE("EDIT-W25: a paste still arriving refuses the quit, because its answer
     CHECK(e.r.session().notice.find("clipboard answer") != std::string::npos);
     // The answer lands, dirties the document, and the next quit says THAT.
     e.answer_now();
-    e.chrome = 1;
     CHECK(e.doc_row(0) == "onePASTED");
     CHECK(e.dirty());
     CHECK_FALSE(e.quit_by_key());
@@ -1101,7 +1317,6 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
     REQUIRE(e.slow->held);
     e.press_doc(1, 0); // the caret moves while the answer is on its way
     e.answer_now();
-    e.chrome = 2;
     CHECK(e.says("after the source moved"));
     CHECK(e.doc_row(0) == "one");
     CHECK(e.doc_row(1) == "two");
@@ -1110,7 +1325,6 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     e.answer_now();
-    e.chrome = 1;
     CHECK(e.doc_row(1) == "LATEtwo");
 }
 
@@ -1138,12 +1352,10 @@ TEST_CASE("EDIT-W34: a clipboard holding non-ASCII refuses the paste, and typed 
     e.press_doc(0, 3);
     e.skin->platform = "caf\xc3\xa9";
     e.key(input::scan::kV, input::mod::kCtrl);
-    e.chrome = 2;
     CHECK(e.says("outside plain ASCII"));
     CHECK(e.doc_row(0) == "one");
     CHECK(e.clean());
     e.r.text("\xc3\xa9");
-    e.chrome = 2;
     CHECK(e.says("nothing was inserted"));
     CHECK(e.doc_row(0) == "one");
     CHECK(e.clean());
@@ -1163,9 +1375,10 @@ TEST_CASE("EDIT-W35: a press places the caret through the same tab geometry the 
     EditorRig e("edit-press");
     e.open();
     e.open_file("a.cpp", "\tab\ncd\n");
-    e.press_doc(0, 5); // inside `b`, past the four-column tab
+    const std::int64_t above = e.chrome(); // the status row, and the standing notice
+    e.press_doc(0, 5);                     // inside `b`, past the four-column tab
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->caret_row == 1); // body lattice: the status row is 0
+    CHECK(e.seat()->caret_row == above); // body lattice: the document starts under the chrome
     CHECK(e.seat()->caret_col == 5);
     e.type("X");
     CHECK(e.doc_row(0) == "    aXb");
@@ -1173,7 +1386,7 @@ TEST_CASE("EDIT-W35: a press places the caret through the same tab geometry the 
     e.unfocus();
     press_pane(e.r, e.kind, 0, 0);
     CHECK(e.r.session().panels.keyboard == e.kind);
-    CHECK(e.seat()->caret_row == 1);
+    CHECK(e.seat()->caret_row == e.chrome());
     CHECK(e.seat()->caret_col == 6);
 }
 
@@ -1184,15 +1397,16 @@ TEST_CASE("EDIT-W36: a drag sweeps a multiline selection, and the selection surv
     EditorRig e("edit-drag");
     e.open();
     e.open_file("a.cpp", "one\ntwo\nthree\n");
+    const std::int64_t above = e.chrome();
     e.press_doc(0, 1);
     e.motion_doc(1, 2);
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->sel_begin_row == 1);
+    CHECK(e.seat()->sel_begin_row == above);
     CHECK(e.seat()->sel_begin_col == 1);
-    CHECK(e.seat()->sel_end_row == 2);
+    CHECK(e.seat()->sel_end_row == above + 1);
     CHECK(e.seat()->sel_end_col == 2);
     e.release_doc(1, 2);
-    CHECK(e.seat()->sel_end_row == 2);
+    CHECK(e.seat()->sel_end_row == above + 1);
     CHECK(e.seat()->sel_end_col == 2);
     // The selection is real: typing replaces it.
     e.type("_");
@@ -1212,15 +1426,17 @@ TEST_CASE("EDIT-W37: a drag past the body's bottom edge steps the window, one ro
     }
     e.open_file("a.cpp", lines);
     e.give_rows(6);
+    const std::int64_t above = e.chrome();
+    const std::int64_t below = 6 - above; // the first row under the last document row
     e.press_doc(0, 0);
-    // Five document rows fit under the status row; a hand below them steps the caret past
-    // the window and the follow pulls the window after it.
-    e.motion_doc(5, 0);
+    // A hand below the document rows steps the caret past the window, and the follow pulls
+    // the window after it.
+    e.motion_doc(below, 0);
     CHECK(e.doc_row(0) == "line 2");
-    e.motion_doc(5, 0);
+    e.motion_doc(below, 0);
     CHECK(e.doc_row(0) == "line 3");
     REQUIRE(e.seat() != nullptr);
-    CHECK(e.seat()->sel_begin_row == 1); // the anchor is above the window: clipped to its top
+    CHECK(e.seat()->sel_begin_row == above); // the anchor is above the window: clipped
     CHECK(e.seat()->sel_begin_col == 0);
     CHECK(e.seat()->sel_end_row == 5);   // the caret's own row, the last one shown
     CHECK(e.seat()->sel_end_col == 0);
@@ -1231,7 +1447,7 @@ TEST_CASE("EDIT-W37: a drag past the body's bottom edge steps the window, one ro
     // `kNoCaret` beside a selection that is still said.
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
-    CHECK(e.seat()->sel_begin_row == 1);
+    CHECK(e.seat()->sel_begin_row == above);
     CHECK(e.seat()->sel_begin_col == 0);
     CHECK(e.seat()->sel_end_row == 6);
     CHECK(e.seat()->sel_end_col == 0);
@@ -1373,15 +1589,21 @@ TEST_CASE("EDIT-W43: in a room too small for both, the document keeps its rows a
     EditorRig e("edit-tiny");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
-    e.press_doc(0, 0); // clears the "editing ..." notice, so the two rows are status and text
     e.give_rows(2);
+    // TWO ROWS: the notice cannot have one of its own -- it would leave the document none --
+    // so it stands in for the status row, and the document keeps its row.
     CHECK(e.shown().size() == 2);
-    CHECK(e.status().rfind("saved", 0) == 0);
-    CHECK(e.doc_row(0) == "one");
+    CHECK(e.shown()[0].find("editing") != std::string::npos);
+    CHECK(e.shown()[1] == "one");
+    // ...AND WITH THE NOTICE SPENT BY AN ACT, THE STATUS ROW IS BACK.
+    e.press_doc(0, 0);
+    e.type("z");
+    CHECK(e.status().rfind("UNSAVED", 0) == 0);
+    CHECK(e.doc_row(0) == "zone");
     // A refusal in two rows: it takes the status row's place, and the document keeps its row.
     e.r.text("\xc3\xa9");
     CHECK(e.shown()[0].find("nothing was inserted") != std::string::npos);
-    CHECK(e.shown()[1] == "one");
+    CHECK(e.shown()[1] == "zone");
     // ONE ROW: the standing notice, and nothing else -- the caret has no row to be on.
     e.give_rows(1);
     CHECK(e.shown().size() == 1);
@@ -1390,8 +1612,7 @@ TEST_CASE("EDIT-W43: in a room too small for both, the document keeps its rows a
     CHECK(e.shown().size() == 1);
     CHECK(e.shown()[0].rfind("UNSAVED", 0) == 0);
     e.give_rows(6);
-    e.chrome = 1;
-    CHECK(e.doc_row(0) == "zone");
+    CHECK(e.doc_row(0) == "zzone");
 }
 
 TEST_CASE("EDIT-W44: long and tabbed lines are windowed by displayed columns, exactly") {
@@ -1426,7 +1647,6 @@ TEST_CASE("EDIT-W45: a sweep in a pane that lost its seat ends, and sends nothin
     CHECK_FALSE(e.r.session().text_drag.active);
     // Back, and nothing was selected by a motion the pane never saw.
     e.r.pick(editor_ref());
-    e.chrome = 1;
     CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
 }
 
@@ -1566,4 +1786,332 @@ TEST_CASE("EDIT-W49: recipes come from the saved file, never from an unsaved Edi
                                            e.r.host.project_dir, &HostContext::so_in);
     CHECK_FALSE(reread.accepted);
     CHECK(owner.all().size() == 1); // a refused candidate installs nothing
+}
+
+// ============================================================================
+// THE CORRECTIONS (VD-26): what each defect cost, and what now holds instead
+// ============================================================================
+
+TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing until the project has said") {
+    // ⚔ THE DEFECT: an unanswered project owner left `project_dir_` empty and the relative
+    // spelling went to the filesystem unchanged -- so `relative.cpp` opened whatever the
+    // PROCESS directory happened to hold, and a save then wrote to it. An owner that has not
+    // answered and an owner that authoritatively named no project are different facts.
+    const std::filesystem::path here = std::filesystem::current_path();
+    const std::string name = "zen-edit-w51-probe.cpp";
+    put_bytes(here / name, "process\n");
+
+    SUBCASE("no owner has answered: the spelling is refused, and the process directory is not read") {
+        EditorRig e("edit-rel-none");
+        e.open(160, 48, true, false, EditorRig::Project::kNone);
+        put_bytes(e.root / name, "project\n");
+        const SourceOpened said = e.ask_open(name);
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("relative path") != std::string::npos);
+        CHECK(said.refusal.find("full path") != std::string::npos);
+        CHECK(e.no_source());
+        CHECK(e.read("path").empty());
+        CHECK(e.read("project_known") == "false");
+        // ...AND AN ABSOLUTE PATH IS ITSELF UNDER EVERY CONDITION.
+        const SourceOpened whole = e.ask_open(spelled(e.root / name));
+        CHECK_MESSAGE(whole.accepted, whole.refusal);
+        CHECK(e.doc_row(0) == "project");
+    }
+
+    SUBCASE("the owner answers late: what was opened by full path is not retargeted, and the project's file is what a relative spelling means") {
+        EditorRig e("edit-rel-late");
+        e.open(160, 48, true, false, EditorRig::Project::kSlow);
+        REQUIRE(e.slow_project != nullptr);
+        REQUIRE(e.slow_project->held); // the pane asked at activation; the answer is held
+        put_bytes(e.root / name, "project\n");
+        // BEFORE THE ANSWER: the relative spelling means nothing, the full one means itself.
+        CHECK_FALSE(e.ask_open(name).accepted);
+        const std::string full = spelled(here / name);
+        REQUIRE(e.ask_open(full).accepted);
+        CHECK(e.doc_row(0) == "process");
+        CHECK(e.read("path") == full);
+        // THE ANSWER ARRIVES, and it does not move a document already open under another
+        // identity: the path it was opened under is the path it keeps.
+        e.project_answers();
+        CHECK(e.read("project_known") == "true");
+        CHECK(e.read("path") == full);
+        CHECK(e.doc_row(0) == "process");
+        // ...AND NOW THE RELATIVE SPELLING IS THE PROJECT'S FILE, and a save writes THERE.
+        REQUIRE(e.ask_open(name).accepted);
+        CHECK(e.read("path") == spelled(e.root / name));
+        CHECK(e.doc_row(0) == "project");
+        e.press_doc(0, 7);
+        e.type("!");
+        e.save();
+        CHECK(bytes_of(e.root / name) == "project!\n");
+        CHECK(bytes_of(here / name) == "process\n"); // untouched
+    }
+
+    SUBCASE("an owner that names no project keeps the policy it always had") {
+        EditorRig e("edit-rel-noroot");
+        e.open(160, 48, true, false, EditorRig::Project::kSlow);
+        REQUIRE(e.slow_project != nullptr);
+        e.slow_project->root.clear(); // a run that began nowhere
+        e.project_answers();
+        CHECK(e.read("project_known") == "true");
+        CHECK(e.read("project_dir").empty());
+        // The spelling is spent as the maker wrote it -- the existing law, unchanged.
+        const SourceOpened said = e.ask_open(name);
+        CHECK_MESSAGE(said.accepted, said.refusal);
+        CHECK(e.doc_row(0) == "process");
+    }
+
+    std::error_code ec;
+    std::filesystem::remove(here / name, ec);
+}
+
+TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding now") {
+    // ⚔ THE DEFECT: `snapshot()` was overridden to build the shape from the live buffer, and
+    // Loom answers `zen.PokeRead` from `state_` -- which nothing wrote. A pane holding an
+    // unsaved document answered `path` and `text` with empty strings, and a reloaded one
+    // answered with the snapshot it revived from. One truth now, read two ways.
+    EditorRig e("edit-poke");
+    e.open();
+    // NO SECRET STATE: the describe door lists every field, and every one of them reads.
+    const std::vector<std::string> fields = e.described();
+    CHECK(fields.size() == 17);
+    for (const std::string& f : fields) {
+        (void)e.read(f.c_str());
+    }
+    CHECK(std::find(fields.begin(), fields.end(), "path") != fields.end());
+    CHECK(std::find(fields.begin(), fields.end(), "saved_text") != fields.end());
+    // EMPTY IS EMPTY, and it is the truth here.
+    CHECK(e.read("path").empty());
+    CHECK(e.read("text").empty());
+
+    const std::string path = e.open_file("a.cpp", "one\ntwo\n");
+    CHECK(e.read("path") == path);
+    CHECK(e.read("text") == "one\ntwo\n");
+    CHECK(e.read("saved_text") == "one\ntwo\n");
+    CHECK(e.read("first_row") == "0");
+    // AN EDIT: `text` moves, the saved comparison does not, and dirty is the difference.
+    e.press_doc(0, 3);
+    e.type("X");
+    CHECK(e.read("text") == "oneX\ntwo\n");
+    CHECK(e.read("saved_text") == "one\ntwo\n");
+    CHECK(e.read("caret_row") == "0");
+    CHECK(e.read("caret_byte") == "4");
+    CHECK(e.dirty());
+    // A SAVE MOVES THE COMPARISON; A DISCARD MOVES THE TEXT BACK.
+    e.save();
+    CHECK(e.read("saved_text") == "oneX\ntwo\n");
+    e.type("Y");
+    CHECK(e.read("text") == "oneXY\ntwo\n");
+    e.discard();
+    CHECK(e.read("text") == "oneX\ntwo\n");
+    CHECK(e.read("saved_text") == "oneX\ntwo\n");
+    // ...AND A GESTURE THAT MOVES ONLY THE VIEW MOVES ONLY THE VIEW.
+    const std::string epoch = e.read("doc_epoch");
+    e.press_doc(1, 1);
+    CHECK(e.read("caret_row") == "1");
+    CHECK(e.read("doc_epoch") == epoch);
+    CHECK(e.read("text") == "oneX\ntwo\n");
+    // THE NOTICE AND THE PROJECT ARE DECLARED TOO, and they are what the pane is showing.
+    CHECK(e.read("project_dir") == e.r.host.project_dir);
+    CHECK(e.read("project_known") == "true");
+    e.r.text("\xc3\xa9");
+    CHECK(e.read("notice").find("nothing was inserted") != std::string::npos);
+    CHECK(e.read("notice_bad") == "true");
+}
+
+TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture keeps the geometry it was made against") {
+    // ⚔ TWO DEFECTS, BOTH ABOUT WHAT A POINTER GESTURE MEANT. Workshop takes hold of a pane
+    // whenever a press names any row of its body -- it does not read the pane's rows -- so the
+    // motions after a focus-only press arrived exactly as a real sweep's did and extended a
+    // selection from wherever the caret had been left. And a press used to clear the standing
+    // notice, moving the document up one row BETWEEN the press and a motion the same poll had
+    // already queued, so a sweep to line two selected to line three.
+    SUBCASE("a press on the status row focuses, and the motions after it sweep nothing") {
+        EditorRig e("edit-focus-drag");
+        e.open();
+        e.open_file("a.cpp", "one\ntwo\nthree\n");
+        e.press_doc(1, 1); // a real caret, somewhere to sweep from
+        REQUIRE(e.seat() != nullptr);
+        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+        e.release_doc(1, 1);
+        // ...AND NOW A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
+        press_pane(e.r, e.kind, 0, 0);
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        e.motion_doc(2, 4);
+        e.motion_doc(2, 5);
+        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+        CHECK(e.seat()->caret_row == e.chrome() + 1); // the caret did not move either
+        e.release_doc(2, 5);
+        CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
+        // A REAL SWEEP STILL SWEEPS, from a press that named a document row.
+        e.press_doc(0, 0);
+        e.motion_doc(1, 3);
+        CHECK(e.seat()->sel_begin_row == e.chrome());
+        CHECK(e.seat()->sel_end_row == e.chrome() + 1);
+    }
+
+    SUBCASE("a press and the motion behind it in one poll mean the picture the maker saw") {
+        EditorRig e("edit-one-poll");
+        e.open();
+        e.open_file("a.cpp", "one\ntwo\nthree\n");
+        REQUIRE(e.chrome() == 2); // "editing ..." is standing, and it is a row
+        // ONE POLL: the press, then the motion, both measured against the rows on screen.
+        e.enqueue_press_doc(0, 1);
+        e.enqueue_motion_doc(1, 2);
+        e.settle();
+        REQUIRE(e.seat() != nullptr);
+        CHECK(e.seat()->sel_begin_col == 1);
+        CHECK(e.seat()->sel_end_col == 2);
+        // THE RANGE IS LINE ONE TO LINE TWO, and typing over it proves which lines they were.
+        e.release_doc(1, 2);
+        e.type("_");
+        CHECK(e.doc_row(0) == "o_o");
+        CHECK(e.doc_row(1) == "three");
+    }
+}
+
+TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
+    // ⚔ THE DEFECT: installing another document advanced the epoch and left `awaiting` set.
+    // The answer could never have landed -- and never did -- but the quit handler reads that
+    // flag, so a CLEAN new document refused every exit for the rest of the session.
+    EditorRig e("edit-paste-retire");
+    e.open(160, 48, true, /*slow_skin=*/true);
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(e.slow->held); // the answer is on its way to a document that is about to go
+    CHECK_FALSE(e.quit_by_key()); // while THAT document stands, the quit is refused
+    CHECK(e.r.session().notice.find("clipboard answer") != std::string::npos);
+    // ANOTHER DOCUMENT, CLEAN.
+    put_bytes(e.root / "b.cpp", "two\n");
+    REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
+    CHECK(e.clean());
+    CHECK(e.quit_by_key()); // ...and it may end
+    // ...AND THE OLD ANSWER, ARRIVING NOW, INSERTS NOTHING AND SETTLES NOTHING.
+    e.answer_now();
+    CHECK(e.doc_row(0) == "two");
+    CHECK(e.clean());
+    CHECK(e.read("text") == "two\n");
+}
+
+TEST_CASE("EDIT-W55: a dirty document with no paste in flight still refuses the exit") {
+    // THE GUARD THE RETIREMENT MUST NOT HAVE WEAKENED, asked the other way round.
+    EditorRig e("edit-paste-retire-dirty");
+    e.open(160, 48, true, /*slow_skin=*/true);
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(e.slow->held);
+    put_bytes(e.root / "b.cpp", "two\n");
+    REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
+    e.press_doc(0, 3);
+    e.type("Z");
+    REQUIRE(e.dirty());
+    CHECK_FALSE(e.quit_by_key());
+    CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
+    // ...AND A PASTE ASKED FOR BY THE DOCUMENT THAT IS STILL HERE REFUSES IT TOO. (The quit
+    // above handed the keys to the desk; `^s` is the object document's there.)
+    e.focus();
+    e.save();
+    e.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(e.slow->held);
+    CHECK_FALSE(e.quit_by_key());
+    CHECK(e.r.session().notice.find("clipboard answer") != std::string::npos);
+}
+
+TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second document") {
+    // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a maker can type
+    // into the document while it decides: a room that was free when the question was asked is
+    // not permission to replace a document that is dirty now.
+    SUBCASE("an edit that races the answer keeps its document, and the requester is told") {
+        EditorRig e("edit-open-race");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        // ONE POLL: the request, then a keystroke behind it. The pane judges `b.cpp`, asks the
+        // desk, and the text is delivered before the desk's answer.
+        e.press_doc(0, 3);
+        e.asker->next = [&e](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
+        };
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        e.enqueue_text("Z");
+        e.settle();
+        REQUIRE_FALSE(e.asker->opens.empty());
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        CHECK(e.read("path").find("a.cpp") != std::string::npos);
+        CHECK(e.doc_row(0) == "oneZ");
+    }
+
+    SUBCASE("a second request while one is in flight is refused in words a maker can act on") {
+        EditorRig e("edit-open-twice");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        put_bytes(e.root / "c.cpp", "three\n");
+        e.asker->next = [&e](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
+            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "c.cpp")});
+        };
+        const std::size_t before = e.asker->opens.size();
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        e.settle();
+        // TWO ANSWERS, AND THE ORDER IS THE PROTOCOL'S: the refusal is immediate, the
+        // acquisition's own answer waits for the desk. They are told apart by what they say.
+        REQUIRE(e.asker->opens.size() == before + 2);
+        int accepted = 0;
+        int still_opening = 0;
+        for (std::size_t i = before; i < e.asker->opens.size(); ++i) {
+            accepted += e.asker->opens[i].accepted ? 1 : 0;
+            still_opening +=
+                e.asker->opens[i].refusal.find("still opening") != std::string::npos ? 1 : 0;
+        }
+        CHECK(accepted == 1);
+        CHECK(still_opening == 1);
+        CHECK(e.doc_row(0) == "two");
+        // ...AND THE PANE IS NOT WEDGED: the next request takes.
+        const SourceOpened again = e.ask_open(spelled(e.root / "c.cpp"));
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.doc_row(0) == "three");
+    }
+
+    SUBCASE("a reveal answer for a flight that already ended decides nothing") {
+        EditorRig e("edit-open-stale");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        // A FORGED ANSWER, with no ask behind it: the pane is waiting for nothing.
+        e.asker_says([](DoorAsker&, loom::Mail& mail) {
+            (void)mail.as_role(kDoorAskerOffice)
+                .send_to_role(pane::kEditorPaneRole,
+                              PaneRevealAnswered{pane::kEditorPane, true, std::string()});
+        });
+        CHECK(e.doc_row(0) == "one");
+        CHECK(e.read("path").find("a.cpp") != std::string::npos);
+    }
+}
+
+TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
+    // FILES' RETURN AND THE BUILDER'S `e` REACH THE SAME DOOR, and both learn the same thing
+    // about a screen that cannot show the result: the answer they get is the refusal.
+    EditorRig e("edit-routes");
+    e.open(160, 48, /*pick_it=*/false);
+    put_bytes(e.root / "r.cpp", "recipe\n");
+    // THE BUILDER'S ROUTE: the project door resolves the recipe, then the Editor's door opens.
+    e.next_source = HostContext::RecipeSource{true, "single_source",
+                                              (e.root / "r.cpp").generic_string()};
+    RecipeSourceSaid said;
+    e.asker_says([&said](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kProjectRole, RecipeSourceRequested{"demo"});
+    });
+    REQUIRE_FALSE(e.asker->sources.empty());
+    said = e.asker->sources.back();
+    REQUIRE_MESSAGE(said.accepted, said.refusal);
+    const SourceOpened opened = e.ask_open(said.source);
+    CHECK_MESSAGE(opened.accepted, opened.refusal);
+    CHECK(e.doc_row(0) == "recipe");
+    CHECK(e.r.session().panels.has(e.kind)); // and the desk shows it
 }

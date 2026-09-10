@@ -85,9 +85,13 @@ std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
     }
     bool above = false;
     for (const ActionRow& row : kActionCatalog) {
-        const bool is_class =
-            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText;
-        if (!is_class || !active_in(row.context, ctx)) {
+        const bool is_class = row.context == KeyContext::kGlobal ||
+                              row.context == KeyContext::kNoText ||
+                              row.context == KeyContext::kUnlessOwned;
+        // ...AND A ROW THE FOCUSED PANE OWNS IS NOT LISTED ABOVE THE MODES, because it is
+        // not requestable there: the pane's own row for the same operation is two groups
+        // up, spelled with the key that really runs (WL-KEY-15).
+        if (!is_class || !k.row_active(row, ctx, keyboard_pane(s.panels))) {
             continue;
         }
         if (!above) {

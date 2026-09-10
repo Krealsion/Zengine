@@ -47,12 +47,14 @@
 namespace {
 
 PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
-                       std::int64_t modifiers = input::mod::kNone) {
+                       std::int64_t modifiers = input::mod::kNone,
+                       const char* supersedes = "") {
     PaneActionRow row;
     row.id = id;
     row.label = label;
     row.scancode = scancode;
     row.modifiers = modifiers;
+    row.supersedes = supersedes;
     return row;
 }
 
@@ -125,7 +127,7 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
     REQUIRE(row != nullptr);
     CHECK(row->name() == "PaneActionRow");
     CHECK(row->version() == 1u);
-    REQUIRE(row->fields().size() == 4);
+    REQUIRE(row->fields().size() == 5);
     CHECK(row->fields()[0].name == "id");
     CHECK(row->fields()[0].type.kind == loom::Kind::Text);
     CHECK(row->fields()[1].name == "label");
@@ -262,13 +264,28 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         const Gesture hotkeys = k.gesture_of(Act::kHotkeys);
         CHECK(refused({declared("x.k", "keys", hotkeys.scancode, hotkeys.modifiers)}) ==
               collision_sentence(hotkeys, "workshop.hotkeys", "x.k"));
-        // ⚠ `document.save` (^s) USED TO BE REFUSED HERE TOO, as a `kNoEditor` row active in a
-        // pane. It is `kNoText` now (VD-25): the Editor is a pane that declares `editor.save`
-        // on that very chord, so the host row yields wherever a pane holds the keys, and a
-        // pane may declare it -- which is the whole reason the Editor's rows admit at all.
+        // ⭐ `document.save` (^s) IS REFUSED HERE AGAIN, AND ONE DECLARATION BUYS IT (VD-26).
+        // The row is active while a pane holds the keys, so a pane taking its chord for an
+        // unrelated operation really would be two meanings on one gesture -- unless the pane
+        // says the row is standing in for it, which is one meaning in two scopes.
         const Gesture save = k.gesture_of(Act::kSaveDocument);
-        const Keymap with_save = accepted({declared("x.s", "save", save.scancode, save.modifiers)});
-        CHECK(with_save.pane_rows(kSomePane) != nullptr);
+        CHECK(refused({declared("x.s", "save", save.scancode, save.modifiers)}) ==
+              collision_sentence(save, "document.save", "x.s"));
+        const Keymap with_save = accepted(
+            {declared("x.s", "save", save.scancode, save.modifiers, kOwnableDocumentSave)});
+        REQUIRE(with_save.pane_rows(kSomePane) != nullptr);
+        CHECK(with_save.pane_supersedes(kSomePane, kOwnableDocumentSave));
+        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                          kSomePane) == Act::kNone);
+        // ...AND ANOTHER PANE'S KEYS ARE NOT THIS ONE'S DECLARATION.
+        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                          kSomePane + 1) == Act::kSaveDocument);
+        // AN ID WORKSHOP DOES NOT DECLARE, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
+        CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
+                  .find("not one of Workshop's action ids") != std::string::npos);
+        CHECK(refused({declared("x.o", "o", input::scan::kUnknown, input::mod::kNone,
+                                "document.open")})
+                  .find("not an action a pane may own") != std::string::npos);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
         // holds the keys (WL-FOCUS-09): a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);
@@ -700,8 +717,9 @@ TEST_CASE("the band's legend and the hotkey view print the pane's rows while it 
               std::string::npos);
         // THE PANE'S OWN ROWS FIRST, then the chorded survivors; an unbound row teaches
         // no key (WL-KEY-13).
-        // (`^s save` was in this row while `document.save` was active in a pane; VD-25.)
-        CHECK(lines[1] == "up row up | m mark | ^o open | ^k hotkeys");
+        // (`^s save` is back in this row: `document.save` is requestable while a pane that
+        // did not declare it owns the keys; VD-26.)
+        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^k hotkeys");
     }
     // THE HOTKEY VIEW: the rows, then the ownership sentence for everything else.
     r.key(input::scan::kK, input::mod::kCtrl);
@@ -735,7 +753,7 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^o open | ^k hotkeys"); // no `^s save` since VD-25
+    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys"); // `^s` is back (VD-26)
     r.key(input::scan::kK, input::mod::kCtrl);
     const std::string view = hotkeys_text(r);
     CHECK(view.find("every ordinary key and character goes to the pane") != std::string::npos);
