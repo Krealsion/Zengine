@@ -21,7 +21,11 @@
 //                                   `workshop_panes` suite (seam, window, input,
 //                                   introspection, sampling); see tests/CMakeLists.txt
 //   test_workshop_persistence.cpp   what survives a process
-//   test_workshop_editor.cpp        the built-in source editor and its document
+//
+// `test_workshop_editor.cpp` USED TO BE SERVED HERE AND IS GONE (VD-25): the source editor
+// is a weave. Its buffer is `tests/test_editor.cpp`'s (a pure suite over
+// `editor-pane/editor.hpp`), and the pane, its document custody and its doors are
+// `test_workshop_panes_editor.cpp`'s, under `workshop_panes`, over the real loaded image.
 //
 // `test_workshop_load.cpp` — which artifacts are in the room at all — carries its own
 // rigs and does not include this file: its cases own a Switchboard and a Kernel each and
@@ -730,6 +734,51 @@ struct InteractionClock {
 /// A live Workshop: the real weave on a real bus, driven only by published
 /// input messages. Nothing here reaches past the message boundary except to
 /// READ the result.
+// ============================================================================
+// THE STACK'S STAND-IN: a runtime pane every `Live` admits first
+// ============================================================================
+//
+// ⭐ THE EDITOR WAS THE STACK'S STAND-IN, AND THE EDITOR IS A WEAVE NOW (VD-25). Since the
+// Builder panel became a weave, every case that needed "an ordinary overlay-stack pane" --
+// to seat, arrange, select, occlude, persist, remove and bring back -- opened the built-in
+// Editor, because it was the one stack built-in that took the keyboard like a runtime pane
+// does. With it gone, the stack's ordinary pane IS a runtime pane, so the stand-in is one:
+// a pane offered under a test office, admitted through the same `admit_pane_offer` the
+// seam handler spends after its office check, with no provider behind it.
+//
+// ITS HANDLE IS `kFirstRuntimeKind` BY THE MINT'S OWN LAW, because `Live` admits it before
+// anything else can be offered -- so a case can name it as a constant the way it named
+// `panel::kEditor`. A pure case that builds its own `Panels` admits it itself
+// (`admit_stock`), first, and gets the same handle for the same reason. `PaneRig` does NOT
+// pre-admit it: the seam suites mint their own handles and count on the order.
+//
+// WHAT IT IS NOT: a provider. Nobody holds `zengine.test.stack`, so the room Workshop
+// grants it is refused on the tap and its body shows the host's own waiting sentence. Every
+// case that pressed into the Editor to give it the keys and then typed COMMAND letters
+// relied on an EMPTY editor leaving the keys to command mode; a runtime pane takes them the
+// moment it is pressed (WL-FOCUS-01), which is why `release_keys` exists below.
+namespace stock {
+inline constexpr const char* kOffice = "zengine.test.stack";
+inline constexpr const char* kPane = "stack";
+inline constexpr const char* kName = "Stack";
+inline constexpr const char* kSummary = "a stack pane with nobody behind it";
+inline constexpr std::int64_t kKind = kFirstRuntimeKind;
+} // namespace stock
+
+inline PaneRef stock_ref() { return PaneRef{stock::kOffice, stock::kPane}; }
+
+/// ADMIT THE STAND-IN INTO A CATALOG, first -- and prove it took the handle every case
+/// spells. Idempotent: a refreshed offer keeps the handle it already had.
+inline void admit_stock(Panels& panels) {
+    const Admission took = admit_pane_offer(panels.runtime, stock::kOffice,
+                                            PaneOffered{stock::kPane, stock::kName, stock::kSummary});
+    REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
+    const RuntimePane* row = panels.runtime.find(stock::kOffice, stock::kPane);
+    REQUIRE(row != nullptr);
+    REQUIRE_MESSAGE(row->kind == stock::kKind,
+                    "the stand-in must be the first pane this catalog admits");
+}
+
 struct Live {
     loom::Switchboard bus;
     InteractionClock clock;
@@ -765,6 +814,9 @@ struct Live {
         workshop_id = id;
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
                                    said_transcripts);
+        // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
+        // spends, before any offer a case might make, so its handle is the constant.
+        admit_stock(const_cast<Session&>(w->session()).panels);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -1306,15 +1358,18 @@ inline std::string stack_text(const surface::SurfaceCanvas& c) {
                                                           kMinScreen)));
 }
 
-/// Where a kind sits in the catalog, so a case names a KIND rather than a row
-/// number that a later catalog entry would silently invalidate.
-inline std::size_t catalog_at(std::int64_t kind) {
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        if (kPanelCatalog[i].kind == kind) {
+/// Where a kind sits in the picker's population, so a case names a KIND rather than a row
+/// number that a later catalog entry would silently invalidate. The population is the
+/// combined one -- built-ins, then the maker's pane, then the admitted runtime panes --
+/// because that is the list the picker walks (WL-CAT-05).
+inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
+    const std::vector<CatalogRow> rows = combined_catalog(panels);
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].kind == kind) {
             return i;
         }
     }
-    return kPanelKinds; // walked off the end: the case that used it will fail loudly
+    return rows.size(); // walked off the end: the case that used it will fail loudly
 }
 
 /// SELECT A KIND IN THE PICKER, the way a maker does: `p`, down to it, Return.
@@ -1323,8 +1378,8 @@ inline std::size_t catalog_at(std::int64_t kind) {
 /// both directions: what this does to a closed kind is open it, and what it does
 /// to an open kind is remove it.
 inline void pick(Live& t, std::int64_t kind) {
-    const std::size_t at = catalog_at(kind);
-    REQUIRE(at < kPanelKinds);
+    const std::size_t at = catalog_at(t.session().panels, kind);
+    REQUIRE(at < combined_catalog(t.session().panels).size());
     t.key(input::scan::kP);
     for (std::size_t i = 0; i < at; ++i) {
         t.key(input::scan::kDown);
@@ -1332,19 +1387,28 @@ inline void pick(Live& t, std::int64_t kind) {
     t.key(input::scan::kReturn);
 }
 
-/// Open the Editor pane the way a maker does -- the stack's ordinary stand-in since the
-/// Builder panel became a weave and stopped being a built-in this rig can pick.
-inline void open_editor_pane(Live& t) { pick(t, panel::kEditor); }
+/// Open the stack's stand-in pane the way a maker does (see `stock`).
+inline void open_stock_pane(Live& t) { pick(t, stock::kKind); }
 
-/// THE EDITOR IS IN THE STACK'S FIRST SLOT, asked through the placement path and read off
+/// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds
+/// the keyboard from the press that pointed at it until a press elsewhere; a case that
+/// pressed into the stand-in and then wants COMMAND letters answered would otherwise be
+/// typing into a pane nobody is behind. The empty Editor used to leave the keys to command
+/// mode by itself, and that is the one behaviour the stand-in cannot reproduce.
+inline void release_keys(Live& t) {
+    const_cast<Session&>(t.session()).panels.keyboard = kNoPaneKind;
+}
+
+/// THE STAND-IN IS IN THE STACK'S FIRST SLOT, asked through the placement path and read off
 /// the canvas at the answer -- so the case cannot agree with the screen by both of them
-/// holding the same constant.
-inline bool first_slot_shows_editor(Live& t) {
+/// holding the same constant. What the slot shows is the host's own header for a runtime
+/// pane, which names the pane.
+inline bool first_slot_shows_stock(Live& t) {
     const Screen sc = screen_of(t.session());
-    const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc);
     const ui::Rect cells = pane_body_cells(at.rect);
     return at.open && at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)) &&
-           label_at(t.canvases.back(), cells.x, cells.y).find("Editor") != std::string::npos;
+           label_at(t.canvases.back(), cells.x, cells.y).find(stock::kName) != std::string::npos;
 }
 
 /// EVERYTHING A PANEL IS SHOWING, top to bottom, ASKED BY KIND. It replaces `info_text`,
@@ -1384,7 +1448,12 @@ inline Sample panel_of(std::size_t n, std::size_t at, std::int64_t w, std::int64
 
 /// The reference a built-in kind is spelled with, as a case says it -- through
 /// the catalog, never as a literal, so a case cannot agree with a typo.
-inline PaneRef ref_of(std::int64_t kind) { return pane_ref_of(kind); }
+inline PaneRef ref_of(std::int64_t kind) {
+    if (kind == stock::kKind) {
+        return stock_ref(); // the stand-in has no catalog row to derive one from
+    }
+    return pane_ref_of(kind);
+}
 
 /// A reference to a pane no build of this Workshop has ever had. The
 /// third-party entry every unresolved case is built on.
@@ -1761,11 +1830,13 @@ struct DoorAskerState {
 class DoorAsker
     : public loom::WeaveBase<DoorAsker, DoorAskerState,
                              loom::Accept<ProjectRoot, ProjectFrontierSaid, PlanNames,
-                                          RecipeOutcome, PlanRowWritten, SourceOpened, SeatDo>,
+                                          RecipeOutcome, PlanRowWritten, SourceOpened,
+                                          RecipeSourceSaid, SeatDo>,
                              loom::Emit<ProjectRootRequested, ProjectFrontierRequested,
                                         PlanNamesRequested, RecipeUseRequested,
                                         RecipeAuthorRequested, PlanRowRequested,
-                                        OpenSourceRequested, RecipeSourceRequested>> {
+                                        OpenSourceRequested, RecipeSourceRequested,
+                                        PaneRevealRequested, PaneQuitAnswered>> {
 public:
     explicit DoorAsker(std::string office) : office_(std::move(office)) {}
 
@@ -1780,6 +1851,7 @@ public:
     std::vector<RecipeOutcome> outcomes;
     std::vector<PlanRowWritten> rows;
     std::vector<SourceOpened> opens;
+    std::vector<RecipeSourceSaid> sources;
     /// Whether the last ask was authored as an office at all -- the canary lever for the
     /// rule every door keeps.
     bool personally = false;
@@ -1816,6 +1888,10 @@ public:
     void on(const SourceOpened& said, loom::Mail&) {
         ++state_.answers;
         opens.push_back(said);
+    }
+    void on(const RecipeSourceSaid& said, loom::Mail&) {
+        ++state_.answers;
+        sources.push_back(said);
     }
 
     template <class Shape>
@@ -1870,31 +1946,34 @@ inline void asker_do(Live& t, DoorAsker* asker,
     t.bus.drain_until_idle();
 }
 
-/// ASK THE EDITOR DOOR TO OPEN ONE PATH, and hand back what it answered. This is the whole
-/// of what a Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half),
-/// so a host case that needs a file open in the editor makes it happen the way the product
-/// does rather than reaching into the session.
+/// ASK THE EDITOR'S DOOR TO OPEN ONE PATH, and hand back what it answered. This is the whole
+/// of what a Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half).
+///
+/// ⚠ THE DOOR IS AT `zengine.editor` NOW (VD-25), so a rig that holds no Editor weave gets
+/// no answer at all -- the ask is refused on the tap, and this helper fails loudly rather
+/// than inventing one. A case about the document goes where the document is:
+/// `test_workshop_panes_editor.cpp`, over the real image.
 inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::string& path) {
     const std::size_t before = asker->opens.size();
     asker_do(t, asker, [path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kWorkshopProvider, OpenSourceRequested{path});
+        a.ask(mail, kEditorRole, OpenSourceRequested{path});
     });
     REQUIRE(asker->opens.size() == before + 1);
     return asker->opens.back();
 }
 
-/// ASK THE SAME DOOR BY A RECIPE'S NAME, and hand back what it answered. This is what the
-/// Builder pane's `builder.edit-source` crosses as: the pane holds a recipe name and never a
-/// path, so the host resolves it against the catalog IT owns and opens the result through
-/// the one Editor door.
-inline SourceOpened edit_source_through_door(Live& t, DoorAsker* asker,
-                                            const std::string& recipe) {
-    const std::size_t before = asker->opens.size();
+/// ASK THE PROJECT DOOR WHICH FILE A RECIPE NAMES, and hand back what it answered. This is
+/// the first of the two doors the Builder pane's `builder.edit-source` walks: the pane holds a
+/// recipe name and never a path, the host's read-only office resolves it against the catalog
+/// IT owns (`RecipeSourceSaid`), and the pane then asks the Editor's own door to open it.
+inline RecipeSourceSaid edit_source_through_door(Live& t, DoorAsker* asker,
+                                                 const std::string& recipe) {
+    const std::size_t before = asker->sources.size();
     asker_do(t, asker, [recipe](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kWorkshopProvider, RecipeSourceRequested{recipe});
+        a.ask(mail, kProjectRole, RecipeSourceRequested{recipe});
     });
-    REQUIRE(asker->opens.size() == before + 1);
-    return asker->opens.back();
+    REQUIRE(asker->sources.size() == before + 1);
+    return asker->sources.back();
 }
 
 struct SeatState {
@@ -2312,8 +2391,11 @@ struct PaneRig {
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-        // The Editor door's answer, exactly as workshop.cpp grants it.
-        speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+        // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
+        // Editor door's answer used to be granted here and is not: the door is the Editor
+        // weave's now, and this host answers nothing about a source.
+        speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
+        speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
         // ...and what is currently true, said to whoever presents it -- the arc's one new
         // host-to-pane sentence, granted here exactly as workshop.cpp grants it. A rig that
         // left it out would make the Attention pane look like a pane that never hears
@@ -2535,6 +2617,12 @@ struct PaneRig {
         publish(loom::to_value(input::PointerButton{1, false, cx, cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
     }
+    /// THE HAND MOVING AT A CANVAS CELL, as the terminal medium reports it -- what a sweep
+    /// is made of between its press and its release (`PaneDragged`'s own instrument).
+    void motion_cell(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerMoved{cx, cy + surface::kTuiCanvasTopRow, 0, 0,
+                                                   input::space::kCells, input::mod::kNone}));
+    }
 
     /// Walk the picker to the row naming this reference and press Return.
     void pick(const PaneRef& ref) {
@@ -2594,6 +2682,11 @@ struct PaneRig {
 #ifdef WORKSHOP_SO_TERMINAL_PANE
         if (stem == "zengine-terminal-pane") {
             return WORKSHOP_SO_TERMINAL_PANE;
+        }
+#endif
+#ifdef WORKSHOP_SO_EDITOR_PANE
+        if (stem == "zengine-editor-pane") {
+            return WORKSHOP_SO_EDITOR_PANE;
         }
 #endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
@@ -2781,14 +2874,15 @@ inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
 /// The setup a WIND-2 case starts from: two overlay panes, at a screen with room for two stack
 /// slots. Built through the doors, so the ranks are the identity permutation `add_pane` assigns.
 ///
-/// ⭐ IT WAS THE EDITOR AND INFO, and Info is a weave now: a setup row naming it resolves to
-/// nothing unless a provider is in the room, which would turn every case built on this into a
-/// case about an unresolved row. The Pane Manager is the second built-in this host still
-/// compiles, and the name this helper always had is what it now is.
+/// ⭐ IT WAS THE EDITOR AND INFO, and both are weaves now: a setup row naming a weave's
+/// pane resolves to nothing unless a provider is in the room, which would turn every case
+/// built on this into a case about an unresolved row. The two it names are the stack's
+/// stand-in (`stock`, admitted by every `Live`) and the Pane Manager, the one built-in this
+/// host still compiles into the stack; the name this helper always had is what it now is.
 inline Setup two_overlays() {
     Setup s;
     s.name = "Arranged";
-    REQUIRE(add_pane(s, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(s, stock_ref()));
     REQUIRE(add_pane(s, ref_of(panel::kPaneEditor)));
     return s;
 }

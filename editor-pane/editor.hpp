@@ -1,16 +1,27 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_EDITOR_HPP
-#define ZENGINE_WORKSHOP_EDITOR_HPP
+#ifndef ZENGINE_EDITOR_PANE_EDITOR_HPP
+#define ZENGINE_EDITOR_PANE_EDITOR_HPP
 
 // THE SOURCE EDITOR'S OWN MACHINERY: a multiline buffer, the caret and selection in it,
 // the source-byte law, and the tab geometry -- everything about editing a source document
 // that is not presentation and not file custody.
+//
+// IT LEFT THE HOST WITH THE EDITOR (`Zengine/editor-pane/`). The namespace is still
+// `zengine::workshop`, for `files/files.hpp`'s reason: the pure half of a pane keeps the
+// vocabulary its laws are written in, and nothing here names a bus, a room or a pane. The
+// Workshop host compiles none of it -- `workshop/screen.hpp` stopped including this header the
+// day the document stopped being session state -- and the suite that pins these values
+// includes it exactly as the pane does.
+//
+// THE EXTRACTION TRIGGER IS UNCHANGED: a second multiline consumer, two simultaneous views,
+// or a replaceable backend is what turns this file into a component. Until then it is one
+// pane's machinery, replaceable as one unit (WL-EDIT-02).
 // Workshop law: agents/workshop/editor.md
 
 #include "component/text_box.hpp" // the word/character helpers and the owner-held Clipboard
-#include "property.hpp"           // Written -- the one refusal-with-reason shape here
+#include "workshop/property.hpp"  // Written -- the one refusal-with-reason shape here
 #include "input/vocabulary.hpp"   // scan/mod names for the editor's own key vocabulary
 
 #include <cstddef>
@@ -627,6 +638,22 @@ public:
         settle();
     }
 
+    /// PUT BACK A CARET AND AN ANCHOR THAT WERE TAKEN OFF THIS DOCUMENT -- the reload's
+    /// door, and the one setter of both ends at once. Clamped into the document exactly as
+    /// `settle` clamps everything; a pair that named rows the text does not have lands at the
+    /// nearest place the text does, which is the honest answer for a position carried across
+    /// an image that may have read the bytes differently. No history entry: a restored
+    /// position is not an edit.
+    void restore_selection(std::size_t anchor_row, std::size_t anchor_byte, std::size_t row,
+                           std::size_t byte) noexcept {
+        anchor_ = EditorPos{anchor_row, anchor_byte};
+        caret_ = EditorPos{row, byte};
+        preferred_ = -1;
+        last_edit_ = EditKind::kNone;
+        ++revision_;
+        settle();
+    }
+
     /// PUT THE CARET WHERE A PRESS RESOLVED -- clamped into the document, collapsing any
     /// selection (a press is the gesture that STARTS one; the drag extends from here).
     void place(std::size_t row, std::size_t byte) noexcept {
@@ -1014,4 +1041,4 @@ struct EditorState {
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_EDITOR_HPP
+#endif // ZENGINE_EDITOR_PANE_EDITOR_HPP

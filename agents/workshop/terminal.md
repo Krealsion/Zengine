@@ -142,13 +142,14 @@ PROVEN BY — `terminal-pane/CMakeLists.txt`; `terminal-pane/pane.cpp` `Terminal
 cannot reach one"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
-## WL-TERM-09 — A press in the pane is the pane's, and there is no sweep
+## WL-TERM-09 — A press in the pane is the pane's, and the Terminal asks for no sweep
 
 LAW — A press on the input row places the caret through the same window the row was drawn with; a press on a candidate row chooses it; a press elsewhere in the pane changes nothing.
 
-DOES NOT MEAN — that a selection can be swept by pointer. A pane is sent a press and is sent no
-motion and no release, so the drag the overlay performed across its own line is GONE: a second
-press in the same word selects it, and shift with the caret keys sweeps by keyboard.
+DOES NOT MEAN — that this pane sweeps a selection by pointer. The seam carries a motion now
+(`PaneDragged`, WL-TEXT-14) and the Editor spends it; the Terminal ignores it, so the drag the
+overlay performed across its own line is still gone here: a second press in the same word selects
+it, and shift with the caret keys sweeps by keyboard.
 
 PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `say_caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;

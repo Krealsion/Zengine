@@ -154,9 +154,9 @@ SEEN — nowhere yet
 METHOD — Before widening a key's fallthrough, grep the suites for cases that pin the key as a NO-OP and read them as law; a place a maker types into keeps the key while it holds the keys.
 BECAUSE — two shipped cases went red the moment Escape's fallthrough widened to every context:
 an editor case pinning Escape as nothing, and a seam case that types after it.
-SEEN — `tests/test_workshop_editor.cpp` case `"EDIT-0: Escape means nothing in the editor -- no
-mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real
-Composer's fields speak the vocabulary across the seam"`.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29: Escape means nothing in the
+Editor -- no mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the
+real Composer's fields speak the vocabulary across the seam"`.
 
 ## VM-FIX-20 — A historical content id is pinned with its provenance
 
@@ -202,6 +202,21 @@ rig doors; the batch is deterministic and needs no thread.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
 and a submit is"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real Composer's fields
 speak the vocabulary across the seam"`.
+
+## VM-FIX-26 — A custodian's reload is witnessed at the bound, with the exit asked after
+
+METHOD — When a weave's state is a maker's work, reload it over the real Kernel with that work at its admitted bound aboard, read the reloaded rows, and ask the exit question.
+BECAUSE — a pinned shape says nothing of the decode budget a reload spends; the exit is where
+a stale answer costs.
+SEEN — `tests/test_workshop_load.cpp` case `"RELOAD-1/VD-25: a four-megabyte dirty document
+rides a reload in place, and the reloaded pane still refuses the quit"`.
+
+## VM-FIX-27 — A retired built-in's stand-in is what replaced it
+
+METHOD — When a built-in every suite used as its ordinary pane becomes a weave, its stand-in is what an ordinary pane now IS: a runtime pane admitted first, so its handle is a constant.
+BECAUSE — a built-in kept for the suites would be a product nobody ships; the difference is
+worth a helper that says so.
+SEEN — `tests/workshop_support.hpp` `stock`, `admit_stock`, `release_keys`.
 
 ## VM-FIX-25 — A loop's shape is not a bound on what a maker can produce
 

@@ -5,18 +5,32 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// four times since. Eleven shapes.
+// five times since. Sixteen shapes.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
 //     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
+//     PaneCaret              provider  ->  Workshop   "...and here is where I am typing in it."
 //     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
+//     PaneDragged            Workshop  ->  provider   "...and their hand is here now, still down."
 //     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
 //     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
 //     PaneWheel              Workshop  ->  provider   "the wheel turned over that room."
 //     PaneActionRequested    Workshop  ->  provider   "a maker asked for this action of yours."
+//     PaneRevealRequested    provider  ->  Workshop   "put my pane where the maker can see it."
+//     PaneQuitRequested      Workshop  ->  everyone   "may this Workshop end?"
+//     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
+//
+// THE LAST FOUR ARE THE EDITOR'S MIGRATION, and each is a contract a built-in had and a pane
+// could not say. A drag swept a selection across a document (`PaneDragged`); opening a
+// source put the Editor on the desk and pointed the keys at it (`PaneRevealRequested`); and
+// an orderly quit read the buffer's dirty state before it stopped the bus -- which it cannot
+// read across a seam, so it ASKS (`PaneQuitRequested`), and every pane that accepts the
+// question answers it (`PaneQuitAnswered`). None of the four names the Editor: a pane that
+// wants a sweep, a reveal or a say in the exit accepts the shape, and one that does not is
+// unchanged and never hears it.
 //
 // THE NINTH, TENTH AND ELEVENTH ARE ONE ACTION TRUTH REACHING ACROSS THE SEAM. Inside
 // the host an action is a stable id, a label and a default gesture in one catalog; a
@@ -111,14 +125,16 @@
 //
 // ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
 //
-// No key RELEASE, no focus-changed notification, no capture, no hover and no drag
-// shape of any kind; no `consumed`, reply or disposition for any of the five inbound
-// gestures; no `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives
-// Workshop no participant-visible provider-unload event, and manufacturing one out of
-// silence is the exact dishonesty a research pass was corrected for); no
-// `PaneInstance`, because one `PaneRef` is one presentation; no `PaneConfig`, because
-// no consumer has asked; no generic request/response envelope, because eleven named
-// shapes are eleven readable sentences and an envelope is a framework.
+// No key RELEASE, no pointer RELEASE, no focus-changed notification, no capture and no
+// hover; no `consumed`, reply or disposition for any of the six inbound gestures; no
+// `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives Workshop no
+// participant-visible provider-unload event, and manufacturing one out of silence is the
+// exact dishonesty a research pass was corrected for); no `PaneInstance`, because one
+// `PaneRef` is one presentation; no `PaneConfig`, because no consumer has asked; no
+// generic request/response envelope, because sixteen named shapes are sixteen readable
+// sentences and an envelope is a framework. A drag crosses (`PaneDragged`) and its END
+// does not: every drag is a whole statement about where the hand is, so the one consumer
+// needs no release, and a pane that would need one is the consumer that earns it.
 //
 // AND NO SHAPE IN WHICH A PROVIDER SAYS IT WANTS KEYS. Workshop does not ask and
 // is not told: a press into a pane's room points the keyboard at it, and a
@@ -459,6 +475,138 @@ struct PaneCaret {
     ZEN_SHAPE(PaneCaret, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
               ZEN_FIELD(sel_end_col));
+};
+
+/// THE MAKER'S HAND MOVED WHILE THE BUTTON WAS STILL DOWN, after a press that landed in a
+/// row of this pane's room -- and this is where it is now, in the SAME lattice the press
+/// named, deliberately unclamped.
+///
+/// ---- WHAT IT IS ---------------------------------------------------------------
+///
+/// `PanePressed`'s gesture, continued. Workshop remembers which pane took a press that named
+/// a row (`Session::text_drag`, place `kExternalPane`) and, for every pointer motion until
+/// the button comes up, resolves the position against THAT pane's current body -- the same
+/// `external_body_place` and `prose_at` the press spent -- and sends it here. Physical
+/// routing stays the host's: which pane, whether it still has a room, and where its body is
+/// this instant are all Workshop's answers, and a pane in front of the dragged one takes
+/// nothing, because a drag is the press's pane's until the hand lets go.
+///
+/// ---- WHY IT IS NOT CLAMPED --------------------------------------------------------
+///
+/// `row` and `column` may lie OUTSIDE `[0, rows) x [0, columns)`: a hand that has left the
+/// body still means something to a document -- the built-in Editor stepped its caret one row
+/// past the edge per motion and scrolled after it, which is how a selection is swept out of
+/// the window -- and only the pane knows what past-the-edge means for what it is showing.
+/// A row that is a clamped guess would hand the pane a position it never wrote to; a signed
+/// offset says exactly where the hand is and lets the pane decide. The press is different:
+/// a press outside the body is not sent at all, because a press names a row and a row that
+/// is not there is not a row (`PanePressed`).
+///
+/// ---- WHEN IT STOPS ------------------------------------------------------------------
+///
+/// On the button-1 release, with nothing sent: every drag is a complete sentence ("extend
+/// to here"), so a pane needs no ending to act on the last one it heard. When the pane
+/// loses its room (the desk closed it, a shrink lost its slot), the record is dropped and
+/// nothing more is sent. When the pane's body CHANGES under the hand (a re-grant), the next
+/// motion is resolved against the new body -- the hand did not move, the room did, and the
+/// pane's own rule decides what that row means now. A pane that kept drag state of its own
+/// would need to hear the release; the one consumer keeps none, and the release shape is
+/// named as absent rather than added for nobody.
+///
+/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PanePressed`'s reason exactly. A pane that
+/// does not accept the shape has every motion refused at Loom's gate and is unchanged,
+/// which is `PaneWheel`'s posture for a pane with nothing to scroll.
+struct PaneDragged {
+    std::string pane;
+    std::int64_t row = 0;    ///< a prose row of the granted BODY; may be < 0 or >= rows
+    std::int64_t column = 0; ///< a prose column of the same region; may be < 0 or >= columns
+    ZEN_SHAPE(PaneDragged, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
+};
+
+/// PUT THIS PANE WHERE THE MAKER CAN SEE IT, AND POINT THE KEYS AT IT -- said by the pane's
+/// own office, about a pane it offered, at the end of an act a maker asked for.
+///
+/// ---- WHAT WORKSHOP DOES WITH IT ------------------------------------------------------
+///
+/// Exactly what it did for the built-in Editor when a source was opened: seat the pane on
+/// the active desk if it is not there (through `add_pane`, the picker's own membership door,
+/// with the picker's own trial seat and the picker's own refusal when the screen has no slot
+/// for it), select it, and point the keyboard at it. A reveal is a statement about the DESK
+/// -- membership, selection, keys -- and touches no file, no provider and no other pane's
+/// rows.
+///
+/// ---- WHY A PANE MAY SAY IT AT ALL ----------------------------------------------------
+///
+/// `PaneOffered` puts a pane in the LIST and never on the screen, and that stays true: this
+/// shape is refused for a pane the office never offered, and it is honoured through the
+/// ordinary door a maker's own picker press goes through. What it buys is the half of "open
+/// a source" that lived in the host while the host held the document: a Files row pressed
+/// by a maker asks the Editor to open; the Editor installs the document and asks to be
+/// shown. Without it a source opened from Files would be open in a weave nobody could see.
+/// The abuse is named rather than assumed away: an office that asked for this on every
+/// beat would keep pulling its pane in front and taking the keys, and Workshop says on the
+/// notice line which pane asked, every time, so the maker can read who did it and remove
+/// the pane. Nothing here stops that office; a bound on how often is a later seam.
+///
+/// ---- WHAT IT IS NOT ------------------------------------------------------------------
+///
+/// Not an offer (the pane must already be in the catalog), not a room grant (the room
+/// follows the seat on the next repaint, as it always has), not focus authority (the keys
+/// are pointed the way a press points them, and the next press elsewhere takes them away),
+/// and not an answer to anything: a pane says it and hears nothing back. If the screen has
+/// no slot, Workshop refuses in the picker's own words and the pane is exactly as it was --
+/// with its document, if it holds one, still open.
+struct PaneRevealRequested {
+    std::string pane;
+    ZEN_SHAPE(PaneRevealRequested, 1, ZEN_FIELD(pane));
+};
+
+/// MAY THIS WORKSHOP END? -- asked of everyone that can hold a maker's unsaved work, before
+/// an orderly quit stops the bus.
+///
+/// ---- WHY IT IS A PUBLICATION, AND WHY THE COUNT IS THE INSTRUMENT ---------------------
+///
+/// The built-in Editor's dirty buffer was session state, so `quit()` read it and refused
+/// synchronously. A document that lives in a weave cannot be read; it can be asked. And a
+/// host must not name the one pane it thinks holds work -- that would be the Editor compiled
+/// back into it by address -- so it asks the ROOM: an office-authored publication, whose
+/// fan-out count Loom hands back is exactly how many parties accept the question. Zero
+/// accepters is an authoritative "nobody holds anything": the quit proceeds. N accepters is
+/// N answers Workshop waits for, and it quits only when every one permitted it.
+///
+/// ---- THE OBLIGATION ------------------------------------------------------------------
+///
+/// A pane that accepts this shape MUST answer it (`mail.answer`, with `PaneQuitAnswered`),
+/// promptly and truthfully, on the delivery that asked: an accepter that stays silent holds
+/// the quit open, and Workshop says so on the notice line rather than guessing. "Permitted"
+/// means the pane holds nothing an orderly end would lose; a refusal names what stands in
+/// the way and what the maker can do about it, in the pane's own words. A PENDING operation
+/// whose answer could still change the answer -- a paste in flight -- is a refusal ("quit
+/// again"), never a permission: the question is about the instant of the answer, and an
+/// answer that a queued message could falsify is not an answer.
+///
+/// ---- WHAT WORKSHOP DOES BETWEEN THE ASK AND THE LAST ANSWER --------------------------
+///
+/// It holds every input gesture it receives -- key, text, press, motion, wheel -- rather
+/// than routing it, so no keystroke can reach a pane after that pane answered "clean" and
+/// before the bus stops. On a refusal the held gestures are replayed in order, so a maker
+/// who typed through a refused quit loses nothing; on a permission they are dropped, which
+/// is what a process that has ended does with keys typed after it. The whole exchange is
+/// one drain of the bus; a maker sees the refusal or the exit, and not the wait.
+struct PaneQuitRequested {
+    ZEN_SHAPE(PaneQuitRequested, 1);
+};
+
+/// ONE PANE'S ANSWER TO `PaneQuitRequested`. `permitted` with an empty `refusal`, or the
+/// pane's own sentence naming what an orderly end would lose and how to settle it. `pane` is
+/// the key the answering office offered, so a refusal reads as somebody's; the office itself
+/// is not on the wire (an answer is personal speech) and is not needed -- the sentence is
+/// written to stand alone.
+struct PaneQuitAnswered {
+    std::string pane;
+    bool permitted = false;
+    std::string refusal;
+    ZEN_SHAPE(PaneQuitAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(permitted), ZEN_FIELD(refusal));
 };
 
 } // namespace zengine::workshop

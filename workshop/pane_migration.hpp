@@ -110,6 +110,17 @@ inline constexpr const char* kInfoProvider = "zengine.info";
 /// THE PANE KEY, WHICH DID NOT MOVE.
 inline constexpr const char* kInfoPane = "info";
 
+/// THE OFFICE THE SOURCE EDITOR USED TO BE OFFERED FROM, and the one it is offered from now
+/// -- the fourth pair, spelled for `kFilesProvider`'s reasons on both sides, and the last of
+/// the arc: `editor-pane/vocabulary.hpp` is the weave's own header, this host does not link
+/// the weave, and a case checks the two spellings against each other.
+inline constexpr const char* kRetiredEditorProvider = "zengine.workshop";
+inline constexpr const char* kEditorProvider = "zengine.editor";
+
+/// THE PANE KEY, WHICH DID NOT MOVE. Its place is the overlay stack on both sides, so the
+/// row's `default` goes on meaning what it always meant and nothing is written.
+inline constexpr const char* kEditorPane = "editor";
+
 // ---- THE TABLE, AT THE THRESHOLD THIS FILE NAMED FOR ONE --------------------------------
 //
 // ⚠ THE THIRD PAIR IS THE ONE THAT BOUGHT THE TABLE, AND FOR THE REASON WRITTEN ABOVE RATHER
@@ -138,6 +149,7 @@ inline constexpr Retired kRetired[] = {
     {kRetiredFilesProvider, kFilesPane, kFilesProvider, kFilesPane, pane_unit::kDefault},
     {kRetiredBuilderProvider, kBuilderPane, kBuilderProvider, kBuilderPane, pane_unit::kDefault},
     {kRetiredInfoProvider, kInfoPane, kInfoProvider, kInfoPane, pane_unit::kRightColumn},
+    {kRetiredEditorProvider, kEditorPane, kEditorProvider, kEditorPane, pane_unit::kDefault},
 };
 
 inline constexpr std::size_t kRetiredCount = sizeof(kRetired) / sizeof(kRetired[0]);
@@ -155,6 +167,11 @@ inline bool names_the_retired_builder(const PaneRef& ref) {
 /// Is this the reference a saved file wrote for the built-in Info panel?
 inline bool names_the_retired_info(const PaneRef& ref) {
     return ref.provider == kRetiredInfoProvider && ref.pane == kInfoPane;
+}
+
+/// Is this the reference a saved file wrote for the built-in source Editor?
+inline bool names_the_retired_editor(const PaneRef& ref) {
+    return ref.provider == kRetiredEditorProvider && ref.pane == kEditorPane;
 }
 
 /// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted per table row, because the sentence a

@@ -39,7 +39,10 @@ namespace panel {
 // 1 IS RETIRED. It was the Info panel's kind until that pane became a weave
 // (`Zengine/info-pane/`), for 3's reason exactly. It was also the only kind that ever
 // declared `placement::kSideRegion`, which is why `kinds_placed_in` now counts zero there.
-inline constexpr std::int64_t kEditor = 2;
+// 2 IS RETIRED. It was the source Editor's kind until that pane became a weave
+// (`Zengine/editor-pane/`), for 3's reason exactly -- and with the document it presented,
+// which was `Session::editor` and is the weave's own now. It was the last built-in that
+// took the keyboard by declaration; the one below still does.
 // 3 IS RETIRED. It was the project browser's kind until that pane became a weave
 // (`Zengine/files/`); the number is left unused rather than reassigned, because a kind is a
 // session-local handle and renumbering the two below would buy nothing and move two values
@@ -132,8 +135,8 @@ struct PanelKind {
 /// setup that loads as unresolved.
 namespace pane_key {
 // `info` IS RETIRED HERE AND LIVES IN `info-pane/vocabulary.hpp` NOW. It stays spelled in
-// `pane_migration.hpp`, once, as a historical fact about files already written.
-inline constexpr const char* kEditor = "editor";
+// `pane_migration.hpp`, once, as a historical fact about files already written. `editor`
+// went the same way one migration later, to `editor-pane/vocabulary.hpp`.
 inline constexpr const char* kLayouts = "layouts";
 inline constexpr const char* kPaneEditor = "pane-editor";
 } // namespace pane_key
@@ -144,14 +147,11 @@ inline constexpr const char* kPaneEditor = "pane-editor";
 // WL-PED-01 -- agents/workshop/pane-manager.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr PanelKind kPanelCatalog[] = {
-    // THE SOURCE EDITOR'S PRESENTATION, AND ONLY ITS PRESENTATION. The document -- the
-    // path, the buffer, the saved copy, the dirty answer -- is Session state
-    // (`Session::editor`), which is exactly what makes removing, hiding or rearranging
-    // this pane unable to lose one byte of unsaved source: a panel is a presentation,
-    // and closing one destroys a presentation. The shape the Info panel had, when it was one:
-    // a presentation holding a document instead of holding nothing.
-    {panel::kEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kEditor, "Editor",
-     "edit a source file", true},
+    // ⭐ THE SOURCE EDITOR'S ROW WAS FIRST HERE AND IS GONE. Its presentation AND its document
+    // are `Zengine/editor-pane/`'s now: the weave holds the one open source, and a maker's
+    // desk names it as `zengine.editor/editor` (converted from the built-in's spelling at
+    // load, `pane_migration.hpp`). What this catalog keeps is exactly what the host still
+    // presents itself: its own standing identity, and the manager of every pane.
     // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW. Until this row existed
     // the layout run, the Setup association and the workspace fact were painted by `paint`
     // into a rectangle nothing could name: not in the picker, not in a setup file, not in
@@ -548,7 +548,7 @@ struct Panels {
     // WL-PANE-03, WL-PANE-10 -- agents/workshop/panes-and-windows.md
     std::vector<std::int64_t> waiting_for_room;
     /// WHICH KEYBOARD-TAKING PANE A MAKER LAST POINTED THE KEYS AT -- an external
-    /// pane, or the built-in Editor -- the keyboard's CANDIDATE, and emphatically not
+    /// pane, or the Pane Manager -- the keyboard's CANDIDATE, and emphatically not
     /// its answer.
     // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
@@ -666,12 +666,12 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
             // no copy of anything, because what it presents is the document and the
             // session, and both of those outlive it and belong to somebody else.
             //
-            // THE EDITOR HAS NOTHING TO FORGET EITHER, AND THAT ABSENCE IS LOAD-BEARING:
-            // the source document -- path, buffer, unsaved edits, caret, viewport --
-            // is `Session::editor`, so closing this presentation can lose none of it
-            // and reopening the pane shows the same document exactly where it was.
-            // A dirty buffer disappearing because a pane was removed is the defect
-            // this placement exists to make unsayable.
+            // THE EDITOR HAD NOTHING TO FORGET EITHER, AND THAT ABSENCE IS STILL
+            // LOAD-BEARING one seam further out: the source document -- path, buffer,
+            // unsaved edits, caret, viewport -- is the Editor WEAVE's own, so closing its
+            // presentation destroys a copy of rows and reopening the pane shows the same
+            // document exactly where it was. A dirty buffer disappearing because a pane
+            // was removed is the defect this arrangement exists to make unsayable.
             //
             // AND AN EXTERNAL PANE FORGETS EVERYTHING IT WAS SHOWING:
             // its granted room, its copy of the provider's rows, whether it had

@@ -112,8 +112,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     const auto take = [&](bool concrete) {
         for (const ActionRow& row : kActionCatalog) {
             const bool is_concrete = row.context != KeyContext::kGlobal &&
-                                     row.context != KeyContext::kNoText &&
-                                     row.context != KeyContext::kNoEditor;
+                                     row.context != KeyContext::kNoText;
             if (is_concrete != concrete || !active_in(row.context, ctx)) {
                 continue;
             }

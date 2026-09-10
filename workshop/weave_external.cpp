@@ -61,13 +61,13 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
 }
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
-void WorkshopWeave::external_press(std::int64_t kind, const zengine::input::PointerButton& b,
+bool WorkshopWeave::external_press(std::int64_t kind, const zengine::input::PointerButton& b,
                                    loom::Mail& mail) {
     const ExternalPressAt at =
         external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
                           session_.pane_titles, b.space, b.x, b.y);
     if (!at.named) {
-        return;
+        return false;
     }
     const RuntimePane* row = session_.panels.runtime.of_kind(kind);
     const ExternalPane* pane = session_.panels.external_pane(kind);
@@ -76,10 +76,42 @@ void WorkshopWeave::external_press(std::int64_t kind, const zengine::input::Poin
     // grants it -- and a press in that beat would be a position in a room the provider
     // has never been told about.
     if (row == nullptr || pane == nullptr || !pane->granted) {
-        return;
+        return false;
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+    return true;
+}
+
+// WL-TEXT-14 -- agents/workshop/text-box.md
+void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::PointerMoved& m,
+                                  loom::Mail& mail) {
+    const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+    const ExternalPane* pane = session_.panels.external_pane(kind);
+    if (row == nullptr || pane == nullptr || !pane->granted || !session_.panels.has(kind)) {
+        session_.text_drag = TextDrag{}; // the pane the press began in is gone: the sweep ends
+        return;
+    }
+    // THE SAME MEASURER THE PRESS SPENT, resolved at THIS motion against the body the pane
+    // has now -- and then NOT clamped: a row above the body is negative, a row below it is
+    // past `rows`, and what either means is the pane's (`PaneDragged`).
+    const Screen sc = screen_of(session_);
+    const PanelBounds where = bounds_of(session_.panels, session_.setup.active, kind, sc);
+    if (!where.open) {
+        session_.text_drag = TextDrag{};
+        return;
+    }
+    const ExternalBodyPlace body = external_body_place(
+        where.rect, sc, external_title_rows(session_.panels, kind, session_.pane_titles));
+    if (!body.present) {
+        return; // a room too small for a row: the sweep waits for one, and sends nothing
+    }
+    const ProseAt at = prose_at(m.space, m.x, m.y, body.region_x, body.region_y, body.fit);
+    if (!at.understood) {
+        return;
+    }
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(row->provider, PaneDragged{row->pane, at.row - body.header_rows, at.column});
 }
 
 // WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md

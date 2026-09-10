@@ -235,10 +235,21 @@ void WorkshopWeave::on(const zengine::surface::SurfacePlacement& p, loom::Mail&)
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md
-void WorkshopWeave::on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&) { quit(); }
+void WorkshopWeave::on(const zengine::surface::SurfaceCloseRequested&, loom::Mail& mail) {
+    quit(mail);
+}
 
 // WL-KEY-03, WL-KEY-05, WL-KEY-12 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    // WHILE THE ROOM IS BEING ASKED WHETHER THIS WORKSHOP MAY END, NOTHING IS ROUTED. Held,
+    // and replayed if the answer is no (`quit`).
+    if (quitting_) {
+        HeldInput held;
+        held.kind = HeldInput::Kind::kKey;
+        held.key = k;
+        (void)hold_input(std::move(held));
+        return;
+    }
     // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
     // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a
     // dispatch arm opens cannot change what THIS keystroke meant.
@@ -266,10 +277,10 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // ahead of it.
     switch (session_.keymap.above_mode_action(ctx, k.scancode, k.modifiers)) {
     case Act::kQuit:
-        // A quit REFUSED for unsaved source says so on the notice line, which has to
-        // be painted to be read; a quit that proceeded publishes one last unchanged
-        // frame on its way out, which costs nothing anybody sees.
-        quit();
+        // A quit REFUSED says so on the notice line, which has to be painted to be read;
+        // a quit that proceeded publishes one last unchanged frame on its way out, which
+        // costs nothing anybody sees; a quit that is ASKING paints the desk as it is.
+        quit(mail);
         repaint(mail);
         return;
     case Act::kSaveDocument:
@@ -330,7 +341,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kPicker: picker_key(k, mail); break;
     case KeyContext::kContext: context_key(k, mail); break;
     case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
-    case KeyContext::kEditor: editor_key(k); break;
     case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
     case KeyContext::kDraft: editing_key(k, mail); break;
     default: command(k, mail); break;
@@ -348,8 +358,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // provider state, no file.
     //
     // A PLACE A MAKER TYPES INTO KEEPS ESCAPE WHILE IT HOLDS THE KEYS
-    // (`escape_may_shed_selection`). The source editor's Escape is a pinned no-op
-    // -- a maker's habitual Esc must not hand the next `d` to command mode. A
+    // (`escape_may_shed_selection`). The Editor pane's Escape is a pinned no-op in its own
+    // image -- a maker's habitual Esc must not hand the next `d` to command mode. A
     // focused external pane has already been sent the key and Workshop cannot see
     // whether it spent it: the seam carries no `consumed`, by design, and the
     // shipped Composer does spend it (its form goes back to its catalog and the maker

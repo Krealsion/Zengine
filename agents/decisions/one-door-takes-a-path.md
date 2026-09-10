@@ -26,5 +26,4 @@ Where the overlay stack has no slot left the door refuses and names the remedy.
 disagree about which file the dirty refusal is protecting. `HostContext::recipe_source` is a
 function spent at the gesture and stored nowhere. A third referrer is a call, not a policy.
 
-**Laws supported.** [WL-EDIT-05](../workshop/editor.md), [WL-EDIT-06](../workshop/editor.md),
-[WL-EDIT-13](../workshop/editor.md).
+**Laws supported.** [WL-EDIT-05](../workshop/editor.md), [WL-EDIT-06](../workshop/editor.md).

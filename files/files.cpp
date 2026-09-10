@@ -9,8 +9,10 @@
 // Timer, and everything it once read straight off `HostContext` -- where this run began,
 // the file its marks live in, whether a file is a recipe catalog, one path to open in the
 // Editor -- it ASKS for, through the four doors `workshop/pane_seam_vocabulary.hpp`
-// spells. What crosses the seam is values; the browser owns its listing, its marks and its
-// two modes, and holds no reference to anything in the host.
+// spells. Three of them are the host's; the fourth is the Editor weave's own
+// (`zengine.editor`), since the Editor stopped being the host's built-in. What crosses the
+// seam is values; the browser owns its listing, its marks and its two modes, and holds no
+// reference to anything in the host.
 //
 // THE PURE HALF DID NOT MOVE ITS MEANING. `files.hpp`'s `Listing`, `marks.hpp`'s
 // `LocationMarks`, `marks_persist.hpp` and `path_admission.hpp` are the same files this
@@ -774,11 +776,14 @@ private:
             say(mail);
             return;
         }
-        // A FILE: ask the Editor door to open it. The answer says whether it took.
+        // A FILE: ask the Editor's door to open it. The answer says whether it took; the
+        // Editor asks Workshop to show its pane itself. The door is at `zengine.editor` now
+        // (`ws::kEditorRole`) -- it was at the host's office while the host held the
+        // document, and only the address moved.
         open_.pending = ++asked_;
         open_.awaiting = true;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kEditorRole,
                           OpenSourceRequested{ws::persist::resolved_against(state_.current_dir, row->name)},
                           open_.pending);
     }
