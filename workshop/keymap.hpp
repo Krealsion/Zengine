@@ -1160,10 +1160,23 @@ struct Keymap {
         return false;
     }
 
+    /// WHICH PANE ACTUALLY OWNS INPUT IN THIS CONTEXT, or `kNoPaneKind` (VD-27). Workshop
+    /// REMEMBERS which pane the keyboard was last pointed at, and that memory outlives the
+    /// mode: a maker who opens the contextual menu over a pane is typing into the MENU, not
+    /// into the pane, and a source editor that still held the memory suppressed the object
+    /// document's save from a context that has always offered it -- MEASURED. Ownership is
+    /// the resolved context and the remembered pane together, and this is the only place the
+    /// two are combined.
+    // WL-KEY-15 -- agents/workshop/keyboard.md
+    static constexpr std::int64_t owner_of(KeyContext current,
+                                           std::int64_t keyboard_pane) noexcept {
+        return current == KeyContext::kPane ? keyboard_pane : -1;
+    }
+
     /// IS THIS DECLARED ROW REQUESTABLE AT THIS MOMENT? The context class says which modes
-    /// it lives in; the pane holding the keyboard says whether it has stood down for that
-    /// pane's own row. The one answer every resolver and every view spends, so a legend
-    /// cannot advertise a key the chain will not run.
+    /// it lives in; the pane that OWNS input says whether it has stood down for that pane's
+    /// own row. The one answer every resolver and every view spends, so a legend cannot
+    /// advertise a key the chain will not run.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     bool row_active(const ActionRow& row, KeyContext current,
                     std::int64_t keyboard_pane) const noexcept {
@@ -1173,7 +1186,7 @@ struct Keymap {
         if (row.context != KeyContext::kUnlessOwned) {
             return true;
         }
-        return !pane_supersedes(keyboard_pane, row.id);
+        return !pane_supersedes(owner_of(current, keyboard_pane), row.id);
     }
 
     /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone. `keyboard_pane` is the
@@ -1381,6 +1394,18 @@ inline Written check_pane_action_text(const std::string& text, const char* which
     return Written::ok();
 }
 
+/// DOES ANY ROW OF THIS ONE DECLARATION STAND IN FOR THIS HOST ACTION? The collision law's
+/// question, asked of the pane rather than of a row, because that is the scope dispatch uses.
+// WL-KEY-15 -- agents/workshop/keyboard.md
+inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string& action_id) {
+    for (const PaneRow& row : rows) {
+        if (!row.supersedes.empty() && row.supersedes == action_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// JOIN ONE PANE'S DECLARED ROWS INTO A KEYMAP, or say why not -- the pane's half of
 /// admission, over a VALUE, so a suite can ask it with no bus.
 ///
@@ -1399,7 +1424,8 @@ inline Written check_pane_action_text(const std::string& text, const char* which
 /// ATOMIC: a refusal writes nothing, so the pane's previous rows stand; acceptance
 /// replaces them whole.
 // WL-KEY-15 -- agents/workshop/keyboard.md
-inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<PaneActionRow>& declared) {
+inline Written join_pane_rows(Keymap& k, std::int64_t pane,
+                              const std::vector<v2::PaneActionRow>& declared) {
     if (declared.size() > kMaxPaneActionRows) {
         return Written::no("a pane declares at most " + std::to_string(kMaxPaneActionRows) +
                            " actions -- this one declared " + std::to_string(declared.size()));
@@ -1407,7 +1433,7 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<Pa
     constexpr std::int64_t kKnownModifiers = mod::kCtrl | mod::kShift | mod::kAlt | mod::kSuper;
     std::vector<PaneRow> rows;
     rows.reserve(declared.size());
-    for (const PaneActionRow& d : declared) {
+    for (const v2::PaneActionRow& d : declared) {
         const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
         if (!id.accepted) {
             return id;
@@ -1483,10 +1509,13 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane, const std::vector<Pa
             if (!contexts_intersect(host.context, KeyContext::kPane)) {
                 continue;
             }
-            // ...EXCEPT THE ONE THIS ROW STANDS IN FOR. A superseded row is not active
-            // while this pane holds the keys, so the two are never both requestable and
-            // the gesture still names exactly one action (WL-KEY-15).
-            if (!rows[i].supersedes.empty() && rows[i].supersedes == host.id) {
+            // ...EXCEPT THE ONES THIS PANE STANDS IN FOR. A superseded row is not
+            // requestable ANYWHERE in this pane -- dispatch suppresses it for the pane, not
+            // for one row of it -- so no row of this declaration can collide with it. Judging
+            // that per row instead refused a pane that put `editor.save` on `ctrl+e` and
+            // `editor.newline` on `ctrl+s`, which the keymap before all this accepted, and a
+            // rejoin then dropped the pane's whole action set (VD-27).
+            if (superseded_here(rows, host.id)) {
                 continue;
             }
             if (k.row_gesture(host) == rows[i].gesture) {

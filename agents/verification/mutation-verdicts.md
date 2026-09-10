@@ -92,10 +92,10 @@ SEEN — nowhere yet
 
 ## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
 
-METHOD — For a correction, mutate the FIX back and require the new case to go red; and when an existing expectation moves, say in the case whether the behaviour was restored, changed or newly claimed.
-BECAUSE — a phase that only reports a green suite cannot tell a repair from a surrender: the
-suite agreed with the defect first, and eight cases had been rewritten to accept a narrowed law
-that the maker had not accepted.
+METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart, and when an expectation moves say whether it was restored, changed or new.
+BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
+and eight cases had been rewritten to a narrowed law the maker had not accepted. And a reverted
+fix is not the old tree, so what it shows is the case's reach, not the release's behaviour.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
 save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
 opens nothing, and the requester is told why"`.

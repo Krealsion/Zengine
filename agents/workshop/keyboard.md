@@ -231,36 +231,37 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
 
-LAW — A pane declares rows of the one catalog beside its offer; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
+LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
 
 MEANS
-- a pane's context is its runtime handle: active while it holds the keys, never another pane's;
-- a refused shape keeps the previous rows; the file's load re-joins every pane, and the file wins;
-- a row may name one `kUnlessOwned` action it STANDS IN FOR, by id: that row is then inactive.
+- input's OWNER is the pane's handle only while the resolved context is that pane's;
+- a v2 row may name one `kUnlessOwned` action it owns: it is inactive throughout the pane;
+- a refusal keeps the previous rows; a file's load re-joins every pane, and the file wins.
 
 DOES NOT MEAN
 - that a pane says it wants keys: a declaration points no keyboard at it and holds none;
-- that rebinding either row moves either meaning, or that a global row can be stood in for.
+- that rebinding either row moves either meaning, or that a global row can be owned.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `PaneActionRequested`; `workshop/keymap.hpp` `PaneRow`, `PaneRows`, `kMaxPaneActionRows`,
 `collision_sentence`, `Keymap::panes`, `Keymap::pane_action_for`, `check_pane_action_text`,
 `join_pane_rows`, `drop_pane_rows`, `PaneRow::supersedes`, `Keymap::pane_supersedes`,
-`Keymap::row_active`; `workshop/pane_vocabulary.hpp` `PaneActionRow::supersedes`,
-`kOwnableDocumentSave`; `workshop/panel.hpp` `RuntimePane::actions`;
+`Keymap::row_active`, `Keymap::owner_of`, `superseded_here`;
+`workshop/pane_vocabulary.hpp` `v2::PaneActionRow`, `v2::PaneActions`, `kOwnableDocumentSave`;
+`workshop/weave.hpp` `declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`;
+`workshop/panel.hpp` `RuntimePane::actions`;
 `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
 `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
 `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
 `workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `hotkeys_rows`;
 `tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order,
-and a refusal writes nothing"`, case `"a row colliding with a chord answered above every mode
-refuses the whole shape and keeps the previous rows"`, case `"a declared gesture arrives as the
-resolved id and an undeclared one as the key; typing still crosses raw"`, case `"an override
-authored before the pane arrives is applied when it does, and one loaded after the pane
-declared is applied at the load"`, case `"the keymap file wins: a pane whose rows its bindings
-collide with is refused in words, in both orders"`, case `"a maker's override moves a Powers
-action, and the key it left no longer acts"`; `tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W50: supersession is by name, so moving either key moves neither meaning"`.
+and a refusal writes nothing"`, case `"a declared gesture arrives as the resolved id and an
+undeclared one as the key; typing still crosses raw"`, case `"the keymap file wins: a pane whose
+rows its bindings collide with is refused in words, in both orders"`, case `"a pane built against
+the published version one still registers, declares and dispatches"`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W62: the object document's save belongs to
+every context that is not the pane's own"`, case `"EDIT-W63: a pane that owns one action may put
+its other rows on that action's key"`.
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## Do not assume

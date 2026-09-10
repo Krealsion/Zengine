@@ -101,13 +101,25 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 /// reloaded. So this pane mirrors its live document into `state_` at each composition instead,
 /// and `snapshot()` is Loom's own: one truth, read two ways.
 ///
-/// WHAT THAT COSTS, MEASURED RATHER THAN HIDDEN: the two Text fields are rebuilt only when the
-/// buffer's revision or the saved comparison actually moved, so navigating, scrolling,
-/// selecting, resizing and focusing pay nothing at all; an EDIT pays one `source_text` of the
-/// document it just changed. At the admitted bound (`kMaxSourceBytes`, four megabytes) that is
-/// one reserve and one copy per keystroke, which is the price of a read surface that cannot
-/// lie. A cheaper one needs a substrate hook that lets a weave refresh its state before a poke
-/// is answered; there is none to call.
+/// WHAT THAT COSTS, COUNTED RATHER THAN CLAIMED (VD-27). `text` is rebuilt when the BYTES move
+/// -- `EditorBuffer::content_revision`, which the buffer bumps at `set_lines`, at every mutation
+/// and at the two history doors -- and `saved_text` when the saved comparison is written. So
+/// navigating, pointing, sweeping, scrolling, resizing and focusing rebuild NEITHER, and
+/// `text_builds` below is the pane's own count of the times it did, readable by anybody who
+/// wants to check that sentence instead of believing it.
+///
+/// ⚠ THE FIRST WRITING OF THIS KEYED ON `EditorBuffer::revision`, AND THAT WAS THE WRONG
+/// QUESTION: that revision moves when the CARET moves, because a pending paste must notice that
+/// its position went stale (WL-EDIT-11). A four-megabyte mirror keyed on it was replaced whole
+/// by an arrow key, a press and every motion of a drag, with every byte identical -- measured,
+/// and reported at the time as costing nothing. Two questions, two counters.
+///
+/// WHAT AN EDIT STILL PAYS: one `source_text` of the document it just changed, which at the
+/// admitted bound (`kMaxSourceBytes`, four megabytes) is one reserve and one copy. That is the
+/// standing price of a read surface that cannot lie, beside the buffer's own per-edit work (a
+/// bounded undo snapshot of the same document, which the history has always taken). A cheaper
+/// mirror needs a substrate hook that lets a weave refresh its state before a poke is answered;
+/// there is none to call, and asking for one is a decision of its own rather than a premise.
 struct EditorPaneState {
     std::string path;       ///< the normalized source identity; empty = no source open
     std::string text;       ///< the document as file bytes (`source_text`)
@@ -135,12 +147,18 @@ struct EditorPaneState {
     /// that authoritatively named no project are different facts (WL-EDIT-06).
     std::string project_dir;
     bool project_known = false;
+    /// HOW MANY TIMES THIS PANE HAS MATERIALIZED ITS DOCUMENT into `text` -- the mirror's own
+    /// cost, counted rather than claimed (VD-27). It rises when the BYTES move and at no other
+    /// time, so a maker, a probe or a case can ask what a gesture actually cost instead of
+    /// taking a comment's word for it. An `Int` that only grows; it is not part of the
+    /// document and a reload carries it for continuity of the count alone.
+    std::int64_t text_builds = 0;
     ZEN_SHAPE(EditorPaneState, 1, ZEN_FIELD(path), ZEN_FIELD(text), ZEN_FIELD(saved_text),
               ZEN_FIELD(convention), ZEN_FIELD(doc_epoch), ZEN_FIELD(caret_row),
               ZEN_FIELD(caret_byte), ZEN_FIELD(anchor_row), ZEN_FIELD(anchor_byte),
               ZEN_FIELD(first_row), ZEN_FIELD(first_col), ZEN_FIELD(last_rows),
               ZEN_FIELD(last_cols), ZEN_FIELD(notice), ZEN_FIELD(notice_bad),
-              ZEN_FIELD(project_dir), ZEN_FIELD(project_known));
+              ZEN_FIELD(project_dir), ZEN_FIELD(project_known), ZEN_FIELD(text_builds));
 };
 
 } // namespace zengine::editor_pane

@@ -73,8 +73,32 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     repaint(mail);
 }
 
+/// ⚠ A DECLARATION FROM A PANE BUILT BEFORE OWNERSHIP EXISTED (VD-27). `PaneActions` v1 is
+/// exactly the shape it always was, so a provider compiled against the old header registers,
+/// declares and dispatches with this host unchanged. Its rows are widened here -- one field,
+/// empty, meaning what v1 always meant: this pane stands in for nothing -- so everything
+/// below reads one population. Nothing reinterprets old bytes: the v1 shape decoded as a v1
+/// shape, and this is a copy into the host's own type.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
+    std::vector<v2::PaneActionRow> widened;
+    widened.reserve(actions.rows.size());
+    for (const PaneActionRow& row : actions.rows) {
+        widened.push_back(
+            v2::PaneActionRow{row.id, row.label, row.scancode, row.modifiers, std::string()});
+    }
+    declare_pane_actions(actions.pane, widened, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
+    declare_pane_actions(actions.pane, actions.rows, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::declare_pane_actions(const std::string& pane,
+                                         const std::vector<v2::PaneActionRow>& rows,
+                                         loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
@@ -83,14 +107,14 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
     // rows' half and the collision law, into a COPY of the effective keymap -- so a
     // refusal anywhere leaves the keymap in force, and the pane's retained declaration,
     // exactly what they were.
-    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, actions);
+    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
         say(admitted.written.refusal, true);
         repaint(mail);
         return;
     }
     Keymap candidate = session_.keymap;
-    const Written joined = join_pane_rows(candidate, admitted.kind, actions.rows);
+    const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
         const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
         say((row != nullptr ? row->name + " @" + row->provider + ": " : std::string()) +
@@ -103,7 +127,7 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
     // handle, because nothing holds a pointer into `entries` (panel.hpp).
     for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.kind == admitted.kind) {
-            row.actions = actions.rows;
+            row.actions = rows;
         }
     }
     session_.keymap = std::move(candidate);
@@ -267,43 +291,75 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return;
     }
-    // ⭐ AND THE OUTCOME IS ANSWERED, WHATEVER IT IS (VD-26). A pane asks to be shown in
-    // the middle of an act it has not finished -- the Editor asks before it installs a
-    // document -- so what the desk did is a fact it needs, not a courtesy. The answer goes
-    // out on every path below, and only after the desk has actually moved.
-    const auto answered = [&mail, &asked](bool revealed, const std::string& refusal) {
-        (void)mail.answer(PaneRevealAnswered{asked.pane, revealed, refusal});
-    };
+    // ⚠ THIS STEP ANSWERS CAPACITY AND MOVES NOTHING (VD-27). The asker is in the middle of
+    // an act it has not finished, and that act can still fail -- so a desk that authored the
+    // pane and took the keyboard here would be holding a presentation change that belongs to
+    // an operation which never happened. MEASURED as a real race. What the asker needs from
+    // this delivery is one fact: is there a place for it. The desk moves at the settle.
+    const std::int64_t kind = row->kind;
+    const std::string name = row->name;
+    const PaneRef ref{row->provider, row->pane};
+    Setup candidate = session_.setup.active;
+    (void)add_pane(candidate, ref);
+    const Seating trial =
+        seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
+    for (const std::int64_t k : trial.waiting) {
+        if (k == kind) {
+            // THE PICKER'S OWN WORDS, and the picker's own outcome: nothing is authored
+            // behind a refusal, and the asker is told why in a sentence it can pass on.
+            const std::string refusal = "no room for " + name +
+                                        " on this screen -- make the window taller, then p "
+                                        "again";
+            say(refusal, true);
+            (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
+            repaint(mail);
+            return;
+        }
+    }
+    // REMEMBERED, SO THE SETTLE IS ATTRIBUTABLE: office, pane and the correlation of this
+    // ask. It holds no seat and no capacity -- the desk is free to change before the settle,
+    // and what fits is judged again when the pane is actually seated.
+    reveal_ = PendingReveal{true, std::string(office), asked.pane, mail.correlation()};
+    (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
+}
+
+// WL-EDIT-13 -- agents/workshop/editor.md
+void WorkshopWeave::on(const PaneRevealSettled& said, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty() || !reveal_.live || reveal_.office != office ||
+        reveal_.pane != said.pane || reveal_.asked != mail.correlation()) {
+        return; // a settle for an ask this host never answered, or one already settled
+    }
+    reveal_ = PendingReveal{};
+    if (!said.committed) {
+        return; // the asker abandoned: the ask is forgotten, and nothing anywhere moved
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, said.pane);
+    if (row == nullptr) {
+        return; // the pane left the catalog while its own act was finishing
+    }
     // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
     // vector may grow under a pointer into it (panel.hpp's own warning).
     const std::int64_t kind = row->kind;
     const std::string name = row->name;
     const PaneRef ref{row->provider, row->pane};
-    // THE PICKER'S OWN MEMBERSHIP DOOR, WITH THE PICKER'S OWN TRIAL SEAT AND ITS OWN WORDS.
-    // The capacity question is asked against the setup this reveal WOULD produce, and the
-    // active setup is left untouched when the answer is no -- so a pane cannot be authored
-    // into a file behind a refusal, and a document a pane just opened is not poured into a
-    // presentation nobody can see. The document is untouched by the refusal: it is the
-    // pane's, and the pane is still there.
+    // THE PICKER'S OWN MEMBERSHIP DOOR. The capacity answer above was true when it was
+    // given; a maker may have shrunk the screen or filled the stack since, and this is
+    // exactly what happens to any pane on a screen that no longer holds it -- it is on the
+    // desk and waiting for room. The seat is what decides the keyboard, so the keys are
+    // pointed only at a pane the screen actually seated.
     Setup candidate = session_.setup.active;
-    const bool added = add_pane(candidate, ref);
-    const Seating trial =
-        seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
-    for (const std::int64_t k : trial.waiting) {
-        if (k == kind) {
-            const std::string refusal = "no room for " + name +
-                                        " on this screen -- make the window taller, then p "
-                                        "again";
-            say(refusal, true);
-            answered(false, refusal);
-            repaint(mail);
-            return;
-        }
-    }
-    if (added) {
+    if (add_pane(candidate, ref)) {
         session_.setup.active = std::move(candidate);
     }
     apply_setup(mail);
+    if (!session_.panels.has(kind)) {
+        say(name + " is on your desk, and this screen has no room to show it -- make the "
+                   "window taller",
+            true);
+        repaint(mail);
+        return;
+    }
     // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
     // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
     // still sitting behind another would put the first keystroke somewhere the maker cannot
@@ -313,7 +369,6 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     // SAID, so the sentence on the notice line is about what just happened and names who
     // asked for it -- the pane's own rows say what it is showing.
     say("showing " + name + " -- it asked to be shown, and it has the keys", false);
-    answered(true, std::string());
     repaint(mail);
 }
 

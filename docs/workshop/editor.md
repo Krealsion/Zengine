@@ -27,18 +27,23 @@ A recipe that names no single source — a `cmake_target` recipe builds a projec
 refuses in those words. There is no path argument and no multi-file session: the Editor holds
 **one** document, and asking for a different source while the current one has unsaved edits
 is refused until you save them (`Ctrl`+`s`) or deliberately discard them (`Ctrl`+`d`). Asking
-for the source that is *already* open just brings the pane and your keys back to it, edits,
-caret and selection intact — including when you ask for it the *other* way, because the two
+for the source that is *already* open just brings the pane and your keys back to it — edits,
+caret, selection **and the place you had scrolled to** all intact, because a reveal moves the
+pane and never the view. That holds when you ask for it the *other* way too, because the two
 doors resolve a file to the same identity.
 
 Opening a file is **one action, and it either happens or it does not**. The Editor reads and
-judges the file, asks Workshop to show the pane, and takes the document only if Workshop did:
-seated if it was not on your desk, selected, with your keys in it. On a screen with no room for
-another pane **nothing opens** — the document you already had, its caret and its history stand
-exactly as they were, and the refusal you get is the picker's own words (`no room for Editor on
-this screen -- make the window taller, then p again`). Make the window taller and ask again. If
-the Editor pane is not loaded at all (a load plan without it), Files and the Builder have nobody
-to ask, and their open does nothing.
+judges the file, asks Workshop whether it has a place for the pane, and takes the document only
+if it has — and only then does your desk change: the pane is seated if it was not there,
+selected, with your keys in it. On a screen with no room for another pane **nothing opens**:
+the document you already had, its caret and its history stand exactly as they were, your desk
+is untouched, and the refusal you get is the picker's own words (`no room for Editor on this
+screen -- make the window taller, then p again`). Make the window taller and ask again.
+
+The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
+cannot carry, unsaved edits in the document you have open. Nothing is added to your desk, your
+keys do not move, and whoever asked is told why. If the Editor pane is not loaded at all (a load
+plan without it), Files and the Builder have nobody to ask, and their open does nothing.
 
 ### The file you edit is the file the build reads
 

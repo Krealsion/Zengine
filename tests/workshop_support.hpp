@@ -1836,7 +1836,8 @@ class DoorAsker
                                         PlanNamesRequested, RecipeUseRequested,
                                         RecipeAuthorRequested, PlanRowRequested,
                                         OpenSourceRequested, RecipeSourceRequested,
-                                        PaneRevealRequested, PaneQuitAnswered>> {
+                                        PaneRevealRequested, PaneRevealSettled,
+                                        PaneQuitAnswered, surface::SurfaceExtent>> {
 public:
     explicit DoorAsker(std::string office) : office_(std::move(office)) {}
 
@@ -1865,9 +1866,21 @@ public:
             what(*this, mail);
         }
     }
-    void on(const ProjectRoot& said, loom::Mail&) {
+    /// ONE MORE THING TO SAY, ON THE BEAT THE PROJECT DOOR ANSWERS. It exists to put a
+    /// statement TWO deliveries behind an ask made in the same handler: the bus is FIFO, so a
+    /// case that queues an ask and a nudge together cannot land the nudge in the middle of
+    /// the ask's own conversation, and this is the shortest honest way to reach that instant
+    /// with real messages (VD-27, VM-FIX-24's ordering, one hop further out).
+    std::function<void(DoorAsker&, loom::Mail&)> then_root;
+
+    void on(const ProjectRoot& said, loom::Mail& mail) {
         ++state_.answers;
         roots.push_back(said);
+        if (then_root) {
+            auto what = then_root;
+            then_root = nullptr;
+            what(*this, mail);
+        }
     }
     void on(const ProjectFrontierSaid& said, loom::Mail&) {
         ++state_.answers;
@@ -2069,7 +2082,7 @@ class ProviderSeat
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
-                                        PaneCaret>> {
+                                        v2::PaneActions, PaneCaret>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2163,6 +2176,11 @@ public:
     }
     void declare_personally(loom::Mail& mail, const PaneActions& a) {
         (void)mail.send_to_role(kWorkshopProvider, a);
+    }
+    /// The SECOND published version of the declaration -- the one that can name an action
+    /// this pane owns. A provider built before it exists sends the shape above (VD-27).
+    void declare_v2(loom::Mail& mail, const v2::PaneActions& a) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
     }
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE (SEL-0) -- deliberately authored, and
     /// deliberately by an office that is not `zengine.workshop`. This is the sentence
@@ -2460,6 +2478,7 @@ struct PaneRig {
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
+        grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         // ...and where its caret is, which is the arc's second host-facing pane sentence.
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
@@ -3246,6 +3265,7 @@ inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pan
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
     grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
     grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
+    grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(office));
     raw->zen_set_self(id);

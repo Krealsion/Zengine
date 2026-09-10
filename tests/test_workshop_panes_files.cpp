@@ -277,10 +277,10 @@ TEST_CASE("FILES-WEAVE: the pane declares its rows with the ids a maker's keymap
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
-    const std::vector<PaneActionRow>& declared = f.row()->actions;
+    const std::vector<v2::PaneActionRow>& declared = f.row()->actions;
     REQUIRE_MESSAGE(!declared.empty(), "the pane declared no actions at all");
     std::vector<std::string> ids;
-    for (const PaneActionRow& row : declared) {
+    for (const v2::PaneActionRow& row : declared) {
         ids.push_back(row.id);
     }
     for (const char* id : {files::kActionUp, files::kActionDown, files::kActionOpen,
@@ -832,4 +832,27 @@ TEST_CASE("FILES-WEAVE: a setup naming the retired reference opens the loaded pa
     // ...AND IT IS ON THE SCREEN, listing the place this run began.
     REQUIRE(f.row() != nullptr);
     CHECK(any_row(pane_rows(f.r, f.row()->kind), "alpha.cpp"));
+}
+
+TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files says why") {
+    // ⭐ THE TRANSACTION'S FAILURE ATOMICITY, THROUGH THE REAL REQUESTER (VD-27). Files asks
+    // the Editor's door; the Editor judges the file and asks the desk for a place; the desk
+    // has none, so nothing is installed, nothing is authored, and the refusal travels back to
+    // Files as the answer to its own request -- which Files says in its own first row.
+    FilesRig f("files-noroom");
+    put_file(f.root / "alpha.cpp", "the project\n");
+    f.open(160, kMinScreen.h, /*with_editor=*/true);
+    // THE ONE STACK SLOT THIS SCREEN HAS IS FILES' OWN.
+    REQUIRE(f.r.session().panels.has(f.kind));
+    REQUIRE_FALSE(f.r.session().panels.has(f.editor_kind()));
+
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK_FALSE(has_pane(f.r.session().setup.active, PaneRef{"zengine.editor", "editor"}));
+    CHECK(f.r.session().panels.keyboard == f.kind); // the keys never left Files
+    const std::vector<std::string> rows = pane_rows(f.r, f.kind);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].find("no room for Editor") != std::string::npos);
+    CHECK(f.r.session().notice.find("no room for Editor") != std::string::npos);
 }

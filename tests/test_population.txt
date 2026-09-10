@@ -1031,7 +1031,7 @@ surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  40
-editor                            doctest           always  19
+editor                            doctest           always  20
 operator                          doctest           always  126
 composer                          doctest           always  35
 files_weave                       doctest           always  19
@@ -1557,7 +1557,7 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  425
+workshop_panes                    doctest           always  436
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  134
 workshop_files                    doctest           always  41

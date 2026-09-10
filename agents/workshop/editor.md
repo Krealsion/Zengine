@@ -13,8 +13,8 @@ MEANS
 - `EditorState` and `EditorBuffer` moved with it whole; the host holds no path and no bytes;
 - the seam carries values only: no `Session&`, no `HostContext`, no pointer of any kind.
 
-PROVEN BY — `editor-pane/editor.hpp` `EditorState`, `EditorBuffer`, `EditorState::doc_epoch`,
-`EditorBuffer::revision`, `kEditorUndoDepth`, `kEditorUndoBudgetBytes`; `editor-pane/pane.cpp`
+PROVEN BY — `editor-pane/editor.hpp` `EditorState`, `EditorBuffer`, `kEditorUndoDepth`,
+`kEditorUndoBudgetBytes`; `editor-pane/pane.cpp`
 `EditorPaneWeave`, `e_`; `editor-pane/vocabulary.hpp` `kEditorPaneRole`, `kEditorPane`;
 `workshop/default-load-plan.json`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W1: the
 Editor is an ordinary arranged pane, offered by an office"`, case `"EDIT-W48: the editor this
@@ -71,22 +71,23 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-EDIT-05 — The one door is `OpenSourceRequested` at `zengine.editor`, and it takes a path
 
-LAW — Judge with nothing moved, ask the desk to show the pane, install only if it did; a refusal at any step opens nothing and is the asker's own answer.
+LAW — Judge with nothing moved, ask the desk for a place, install only if it has one AND the document is still eligible; the desk moves LAST, so a refusal at any step opens and authors nothing.
 
 MEANS
-- the answer is deferred across the reveal; the candidate is bytes, never a second document;
-- commitment re-judges: a room free at the ask is no leave to replace a now-dirty document;
-- one acquisition at a time; Files hands a path, the Builder what `RecipeSourceSaid` named.
+- the answer is deferred across the ask; the candidate is bytes, not a second document;
+- commitment re-judges: a free place is no leave to replace a document dirty now;
+- one at a time; Files hands a path, the Builder what `RecipeSourceSaid` named.
 
 PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(PaneRevealAnswered)`,
 `judge_source`, `commit_source`, `settle`, `Pending`, `install`;
+`workshop/pane_vocabulary.hpp` `PaneRevealSettled`;
 `editor-pane/editor.hpp` `source_in`, `kMaxSourceBytes`, `EditorState`;
 `workshop/pane_seam_vocabulary.hpp` `OpenSourceRequested`, `SourceOpened`, `kEditorRole`;
 `workshop/builder_seam_vocabulary.hpp` `RecipeSourceRequested`, `RecipeSourceSaid`;
 `workshop/pane_doors.hpp` `ProjectDoor`; `tests/test_workshop_panes_editor.cpp` case
 `"EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why"`, case
-`"EDIT-W56: an opening in flight is a candidate and never a second document"`, case
-`"EDIT-W57: both acquisition routes end in one transaction"`.
+`"EDIT-W58: a refused commitment leaves the desk exactly as it was"`, case
+`"EDIT-W59: a desk that changed while the asker was committing seats what it can, and says so"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
@@ -95,11 +96,11 @@ LAW — An absolute entrant is itself; a relative one is the project's file, and
 
 MEANS
 - an unanswered owner and one that authoritatively named no root are different facts;
-- the second keeps its policy: the spelling is spent as written, then `lexically_normal`;
-- a late answer retargets nothing already open: identity is fixed where it was resolved.
+- the second keeps its policy: spent as written, then `lexically_normal`;
+- a late answer retargets nothing open: identity is fixed where it was resolved.
 
 DOES NOT MEAN
-- that case-folding and hard links are handled — they remain named residuals.
+- that case-folding and hard links are handled: named residuals.
 
 PROVEN BY — `editor-pane/pane.cpp` `resolve`, `project_dir_`, `project_known_`,
 `on(ProjectRoot)`; `workshop/persist.hpp` `resolved_against`; `editor-pane/editor.hpp`
@@ -141,12 +142,16 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-09 — The viewport reconciles once per composition
 
-LAW — `reconcile` clamps the offsets always, follows the caret when a gesture asked (`follow_caret`) or the body's room changed, and deliberately not after the wheel; it runs once, inside `say`.
+LAW — `reconcile` clamps the offsets always, follows the caret when a gesture asked (`follow_caret`) or the GRANTED ROOM changed, and deliberately not after the wheel or a reveal; it runs once, inside `say`.
+
+MEANS
+- a notice appearing or clearing changes the document's rows and is not a resize;
+- asking for the OPEN source again is a reveal: a scrolled view is the maker's.
 
 PROVEN BY — `editor-pane/pane.cpp` `reconcile`, `say`; `editor-pane/editor.hpp`
-`EditorState::follow_caret`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W40: keyboard
-navigation scrolls the window and the caret never leaves it"`, case `"EDIT-W41: a horizontal
-window follows the caret and recovers the room an erase frees"`.
+`EditorState::follow_caret`, `EditorState::last_rows`; `tests/test_workshop_panes_editor.cpp`
+case `"EDIT-W40: keyboard navigation scrolls the window and the caret never leaves it"`, case
+`"EDIT-W66: asking for the open source again moves the pane, never the view"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-11 — A paste answer lands where the maker asked or nowhere
@@ -158,7 +163,7 @@ MEANS
 
 PROVEN BY — `editor-pane/pane.cpp` `begin_paste`, `on(ClipboardText)`, `Paste`, `install`;
 `editor-pane/editor.hpp` `EditorState::doc_epoch`, `EditorBuffer::revision`,
-`EditorBuffer::set_lines`, `EditorBuffer::paste_lines`, `EditorBuffer`, `EditorState`;
+`EditorBuffer::paste_lines`, `EditorBuffer::set_lines`;
 `tests/test_workshop_panes_editor.cpp` case `"EDIT-W32: a late paste answer may not land at a
 caret that has since moved"`, case `"EDIT-W54: a paste retires with the document it was asked
 for"`, case `"EDIT-W55: a dirty document with no paste in flight still refuses the exit"`.
@@ -181,15 +186,16 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-13 — The pane asks to be shown, and no room refuses the reveal, not the document
 
-LAW — A pane asks to be shown and is ANSWERED: the host seats it by the picker's trial seat, selects it and points the keys, or refuses in the picker's words — saying either on its notice line.
+LAW — A reveal is three statements: a pane asks for a place, the desk answers whether it has one AND MOVES NOTHING, and the pane says whether its own act committed -- which is what seats it.
 
 MEANS
-- the answer is what lets an acquisition be one transaction (WL-EDIT-05);
-- a reveal naming a pane the office never offered is refused; from nobody, dropped;
-- it is the desk at the instant of the answer, never a promise about later.
+- so a refusal anywhere leaves the setup, the selection and the keyboard as they were;
+- the capacity answer is that instant's, not a lock: what fits is judged again at the seat;
+- a reveal naming a pane the office never offered is refused; from nobody, dropped.
 
-PROVEN BY — `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/pane_vocabulary.hpp`
-`PaneRevealRequested`, `PaneRevealAnswered`; `workshop/screen.hpp` `stack_slots_that_fit`;
+PROVEN BY — `workshop/weave_seam.cpp` `on(PaneRevealRequested)`, `on(PaneRevealSettled)`;
+`workshop/weave.hpp` `PendingReveal`; `workshop/pane_vocabulary.hpp` `PaneRevealRequested`,
+`PaneRevealAnswered`, `PaneRevealSettled`; `workshop/screen.hpp` `stack_slots_that_fit`;
 `editor-pane/pane.cpp` `on(PaneRevealAnswered)`; `tests/test_workshop_panes_editor.cpp` case
 `"EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why"`, case
 `"EDIT-W10: a reveal from an office that offered no such pane is dropped"`.
@@ -221,17 +227,17 @@ LAW — `EditorPaneState` is one truth: the pane mirrors its live document into 
 
 MEANS
 - every advertised field reads live; there is no hook to refresh state at a poke;
-- the two Texts are rebuilt only when the buffer's revision or the saved copy moved;
+- the Texts are rebuilt when the BYTES move (`content_revision`), never on a gesture;
 - the room last composed for rides too: an unchanged room after a reload is no resize.
 
 DOES NOT MEAN
 - that the undo history, an operation in flight or the wheel fraction ride: they do not.
 
-PROVEN BY — `editor-pane/vocabulary.hpp` `EditorPaneState`; `editor-pane/pane.cpp`
-`mirror_state`, `revive`, `restore_from_state`, `saved_stamp_`;
-`editor-pane/editor.hpp` `EditorBuffer::restore_selection`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W52: every field the pane advertises reports
-what it is holding now"`; `tests/test_workshop_load.cpp` case
+PROVEN BY — `editor-pane/vocabulary.hpp` `EditorPaneState`, `EditorPaneState::text_builds`;
+`editor-pane/pane.cpp` `mirror_state`, `revive`, `restore_from_state`, `saved_stamp_`;
+`editor-pane/editor.hpp` `EditorBuffer::restore_selection`, `EditorBuffer::content_revision`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is rebuilt when the bytes
+move and at no other time"`; `tests/test_workshop_load.cpp` case
 `"RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and the view it was scrolled
 to stands"`, case `"RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot it
 revived from"`.

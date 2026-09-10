@@ -352,25 +352,45 @@ struct EditorRig {
         return names;
     }
 
-    /// TWO POINTER GESTURES IN ONE POLL -- published without a drain between them, so the
-    /// motion is interpreted against the picture the press was measured on (VM-FIX-24).
-    void enqueue_press_doc(std::int64_t row, std::int64_t col) {
+    /// WHERE DOCUMENT ROW `row` IS ON THE CANVAS, resolved ONCE, before a batch begins.
+    ///
+    /// ⚠ AND NOTHING IN HERE ADVANCES THE SCHEDULE (VD-27, VM-FIX-24). The first writing of
+    /// these helpers called `chrome()` per gesture, and `chrome()` reads the pane's declared
+    /// notice -- which drains the bus. So the "batch" delivered its own press before the
+    /// motion was even queued, and the case that was meant to prove one-poll ordering proved
+    /// two polls. An observation helper that moves the thing it observes is not an
+    /// observation. `aim()` is called by the case BEFORE it enqueues anything, and the
+    /// enqueue helpers spend the numbers it answered.
+    struct Aim {
+        std::int64_t x = 0;
+        std::int64_t y = 0;
+        std::int64_t above = 0;
+    };
+    Aim aim() {
         const ui::Rect body = external_body_rect(r.session(), kind);
+        return Aim{body.x, body.y + kExternalHeaderRows + surface::kTuiCanvasTopRow, chrome()};
+    }
+    void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerButton{
-                1, true, body.x + col,
-                body.y + kExternalHeaderRows + chrome() + row + surface::kTuiCanvasTopRow,
-                input::space::kCells, input::mod::kNone}),
+            loom::to_value(input::PointerButton{1, true, at.x + col, at.y + at.above + row,
+                                                input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
-    void enqueue_motion_doc(std::int64_t row, std::int64_t col) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+    void enqueue_motion_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerMoved{
-                body.x + col,
-                body.y + kExternalHeaderRows + chrome() + row + surface::kTuiCanvasTopRow, 0, 0,
-                input::space::kCells, input::mod::kNone}),
+            loom::to_value(input::PointerMoved{at.x + col, at.y + at.above + row, 0, 0,
+                                               input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+    /// THE CARET WORKSHOP IS HOLDING, read WITHOUT draining -- what a case checks between
+    /// enqueueing a batch and settling it, to prove nothing was delivered in between. Both
+    /// numbers, because a press inside one row moves the column and not the row, and an
+    /// oracle that watched only the row let a draining helper through (VD-27).
+    std::pair<std::int64_t, std::int64_t> admitted_caret() {
+        const ExternalPane* seated = seat();
+        return seated == nullptr ? std::pair<std::int64_t, std::int64_t>{surface::kNoCaret, 0}
+                                 : std::pair<std::int64_t, std::int64_t>{seated->caret_row,
+                                                                         seated->caret_col};
     }
 
     void mount_slow_skin() {
@@ -403,6 +423,8 @@ struct EditorRig {
         // must reach Workshop to be dropped by it. (The first matrix found both cases vacuous:
         // the asker could not say them, so nothing was ever judged.)
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
+        grant.allow_to_any(PaneRevealSettled::zen_name, PaneRevealSettled::zen_version);
+        grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
                                                       std::string(kDoorAskerOffice));
@@ -542,7 +564,7 @@ struct EditorRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const PaneActionRow& a : one->actions) {
+        for (const v2::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -1052,7 +1074,7 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
     // because the shape is the decision.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::EditorPaneState>();
     REQUIRE(shape != nullptr);
-    REQUIRE(shape->fields().size() == 17);
+    REQUIRE(shape->fields().size() == 18);
     CHECK(shape->fields()[0].name == "path");
     CHECK(shape->fields()[0].type.kind == loom::Kind::Text);
     CHECK(shape->fields()[1].name == "text");
@@ -1874,7 +1896,7 @@ TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding 
     e.open();
     // NO SECRET STATE: the describe door lists every field, and every one of them reads.
     const std::vector<std::string> fields = e.described();
-    CHECK(fields.size() == 17);
+    CHECK(fields.size() == 18);
     for (const std::string& f : fields) {
         (void)e.read(f.c_str());
     }
@@ -1955,9 +1977,15 @@ TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture ke
         e.open();
         e.open_file("a.cpp", "one\ntwo\nthree\n");
         REQUIRE(e.chrome() == 2); // "editing ..." is standing, and it is a row
-        // ONE POLL: the press, then the motion, both measured against the rows on screen.
-        e.enqueue_press_doc(0, 1);
-        e.enqueue_motion_doc(1, 2);
+        // ONE POLL: the press, then the motion, both measured against the rows on screen --
+        // and the geometry is resolved BEFORE either is queued, because resolving it in
+        // between would drain the bus and deliver the press (VD-27).
+        const EditorRig::Aim at = e.aim();
+        const std::pair<std::int64_t, std::int64_t> caret_before = e.admitted_caret();
+        e.enqueue_press_doc(at, 0, 1);
+        e.enqueue_motion_doc(at, 1, 2);
+        // NOTHING HAS BEEN DELIVERED YET: the condition this case exists to arrange.
+        CHECK(e.admitted_caret() == caret_before);
         e.settle();
         REQUIRE(e.seat() != nullptr);
         CHECK(e.seat()->sel_begin_col == 1);
@@ -2114,4 +2142,331 @@ TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
     CHECK_MESSAGE(opened.accepted, opened.refusal);
     CHECK(e.doc_row(0) == "recipe");
     CHECK(e.r.session().panels.has(e.kind)); // and the desk shows it
+}
+
+// ============================================================================
+// PART TWO'S CORRECTIONS (VD-27): the transaction's two owners, input ownership,
+// the mirror's real cost, and the viewport a reveal must not move
+// ============================================================================
+
+TEST_CASE("EDIT-W58: a refused commitment leaves the desk exactly as it was") {
+    // ⚔ THE DEFECT, REPRODUCED WITH REAL MESSAGES. Workshop used to author the pane, select
+    // it and take the keyboard when it ANSWERED the reveal -- before the Editor had re-judged
+    // and committed. So an acquisition that then refused (a paste answer landed on the open
+    // document and dirtied it while the desk was deciding) left the desk holding a
+    // presentation change belonging to an operation that never happened.
+    EditorRig e("edit-race-refuse");
+    e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+    const std::string a_path = e.open_file("a.cpp", "one\n");
+    e.slow->text = "PASTED"; // what the platform answers with, when it is let go
+    e.press_doc(0, 3);
+    e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow Skin
+    REQUIRE(e.slow->held);
+    // THE PANE IS TAKEN OFF THE DESK: the document is the weave's and stays.
+    e.unfocus();
+    e.r.pick(editor_ref());
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    const std::int64_t selected_before = e.r.session().panels.selected;
+
+    // ONE POLL, TWO STATEMENTS: ask for b.cpp, and release the clipboard answer behind it.
+    // The bus is FIFO, so the answer lands while the reveal is in flight -- which is exactly
+    // the window the defect lived in.
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+    };
+    const std::size_t before = e.asker->opens.size();
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
+                                                loom::WeaveId{}, 0));
+    e.settle();
+
+    REQUIRE(e.asker->opens.size() == before + 1);
+    const SourceOpened said = e.asker->opens.back();
+    CHECK_FALSE(said.accepted);
+    CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+    // THE DOCUMENT THAT WAS THERE IS STILL THERE, with the pasted bytes in it.
+    CHECK(e.read("path") == a_path);
+    CHECK(e.read("text") == "onePASTED\n");
+    // ...AND THE DESK DID NOT MOVE: no authored row, no selection, no keyboard.
+    CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.selected == selected_before);
+    CHECK(e.r.session().panels.keyboard != e.kind);
+}
+
+TEST_CASE("EDIT-W59: a desk that changed while the asker was committing seats what it can, and says so") {
+    // ⚔ THE OTHER HALF OF THE SAME DEFECT: the capacity answer is a fact about an instant,
+    // and the desk can change before the asker settles. Here the screen shrinks between the
+    // Editor's commitment and Workshop's seating, driven by a real `SurfaceExtent` landing two
+    // deliveries behind the request. The commitment stands -- the document IS open, because
+    // nothing about the document failed -- the pane is on the desk, and Workshop says plainly
+    // that this screen cannot show it.
+    EditorRig e("edit-race-shrink");
+    e.open(160, 48, /*pick_it=*/false);
+    e.r.pick(ref_of(panel::kPaneEditor)); // the Pane Manager takes the stack ahead of it
+    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    put_bytes(e.root / "a.cpp", "held\n");
+    const std::string a_path = spelled(e.root / "a.cpp");
+    e.asker->next = [a_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{a_path});
+        a.ask(mail, kProjectRole, ProjectRootRequested{}); // the pacing hop, and a real ask
+    };
+    e.asker->then_root = [](DoorAsker&, loom::Mail& mail) {
+        mail.publish(surface::SurfaceExtent{160, kMinScreen.h, 0, 0});
+    };
+    const std::size_t before = e.asker->opens.size();
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    e.settle();
+
+    REQUIRE(e.asker->opens.size() == before + 1);
+    const SourceOpened said = e.asker->opens.back();
+    CHECK_MESSAGE(said.accepted, said.refusal); // the document opened: nothing about it failed
+    CHECK(e.read("path") == a_path);
+    CHECK(e.read("text") == "held\n");
+    // THE DESK AGREES WITH ITSELF: the pane is authored, the screen has no room, and the
+    // sentence says which -- the keys are NOT pointed at a pane nobody can see.
+    CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.keyboard != e.kind);
+    CHECK(e.r.session().notice.find("no room to show it") != std::string::npos);
+    // ...AND A WINDOW BIG ENOUGH SHOWS IT, WITH THE DOCUMENT IN IT, WITH NO SECOND REQUEST.
+    e.r.extent(160, 48);
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.doc_row(0) == "held");
+}
+
+TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is shown, with nothing else disturbed") {
+    // THE CONTROL FOR THE TWO RACES: the ordinary hidden-pane acquisition, uninterfered with.
+    EditorRig e("edit-hidden-open");
+    e.open(160, 48, /*pick_it=*/false);
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    const std::int64_t others = static_cast<std::int64_t>(e.r.session().setup.active.panes.size());
+    put_bytes(e.root / "a.cpp", "held\n");
+    const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
+    CHECK_MESSAGE(said.accepted, said.refusal);
+    CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.selected == e.kind);
+    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.doc_row(0) == "held");
+    CHECK(static_cast<std::int64_t>(e.r.session().setup.active.panes.size()) == others + 1);
+}
+
+TEST_CASE("EDIT-W61: an acquisition outstanding across a removal still settles, and a late answer decides nothing") {
+    EditorRig e("edit-flight-removal");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    // THE PANE LEAVES THE DESK IN THE SAME POLL THE REQUEST IS MADE IN: the request is
+    // queued first, so the flight is outstanding when the picker's Return is delivered.
+    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
+    };
+    const std::size_t before = e.asker->opens.size();
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    e.settle();
+    REQUIRE(e.asker->opens.size() == before + 1);
+    CHECK(e.asker->opens.back().accepted);
+    CHECK(e.read("path") == b_path);
+
+    // ...AND AN ANSWER TO A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
+    // one; the correlation says it belongs to nothing outstanding.
+    const std::string text_before = e.read("text");
+    e.asker_says([](DoorAsker&, loom::Mail& mail) {
+        (void)mail.as_role(kDoorAskerOffice)
+            .send_to_role(pane::kEditorPaneRole,
+                          PaneRevealAnswered{pane::kEditorPane, true, std::string()});
+    });
+    CHECK(e.read("text") == text_before);
+    CHECK(e.read("path") == b_path);
+}
+
+TEST_CASE("EDIT-W62: the object document's save belongs to every context that is not the pane's own") {
+    // ⚔ THE DEFECT: supersession consulted the REMEMBERED keyboard pane, and that memory
+    // outlives the mode. A maker with the Editor focused who opened the contextual menu was
+    // typing into the MENU -- and `^s` there wrote nothing at all, because the Editor's
+    // handle still suppressed the host's save. Ownership is the resolved context and the
+    // remembered pane together.
+    const Keymap k;
+    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kContext, 7));
+    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kNaming, 7));
+    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kPicker, 7));
+    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kDraft, 7));
+    CHECK(Keymap::owner_of(KeyContext::kPane, 7) == 7);
+    CHECK(Keymap::owner_of(KeyContext::kContext, 7) == kNoPaneKind);
+
+    // LIVE, THROUGH THE REAL PANE AND THE REAL MENU.
+    EditorRig e("edit-context-save");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    REQUIRE(e.r.session().panels.keyboard == e.kind);
+    const std::string doc_path = (e.root / "doc.json").generic_string();
+    e.r.host.document_path = doc_path;
+    // THE CONTEXTUAL MENU, OPENED OVER THE PANE THE KEYS BELONG TO.
+    e.r.right_press_cell(2, 2);
+    REQUIRE(e.r.session().context.open);
+    e.r.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(std::filesystem::exists(doc_path)); // the object document was written
+    CHECK(e.clean());                         // ...and the SOURCE was not touched
+    CHECK(e.read("text") == "one\n");
+}
+
+TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that action's key") {
+    constexpr std::int64_t kSomePane = kFirstRuntimeKind;
+    // ⚔ THE DEFECT: the collision law exempted only the superseding ROW, though dispatch
+    // suppresses the host action throughout the pane. So `editor.save` on `ctrl+e` beside
+    // `editor.newline` on `ctrl+s` -- which the keymap before all this accepted -- was
+    // refused, and a rejoin then dropped the pane's whole action set.
+    Keymap k;
+    const Gesture save = k.gesture_of(Act::kSaveDocument);
+    std::vector<v2::PaneActionRow> rows;
+    rows.push_back(v2::PaneActionRow{"x.save", "save source", input::scan::kE, input::mod::kCtrl,
+                                     std::string(kOwnableDocumentSave)});
+    rows.push_back(
+        v2::PaneActionRow{"x.newline", "newline", save.scancode, save.modifiers, std::string()});
+    const Written joined = join_pane_rows(k, kSomePane, rows);
+    CHECK_MESSAGE(joined.accepted, joined.refusal);
+    REQUIRE(k.pane_rows(kSomePane) != nullptr);
+    CHECK(k.pane_rows(kSomePane)->rows.size() == 2);
+    // BOTH ROWS RESOLVE, and the host's row is stood down for the whole pane.
+    REQUIRE(k.pane_action_for(kSomePane, save.scancode, save.modifiers) != nullptr);
+    CHECK(k.pane_action_for(kSomePane, save.scancode, save.modifiers)->id == "x.newline");
+    CHECK(k.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers, kSomePane) ==
+          Act::kNone);
+    // A GENUINE COLLISION IS STILL REFUSED: `^k` is a global row, and no pane may own it.
+    Keymap other;
+    const Gesture keys = other.gesture_of(Act::kHotkeys);
+    std::vector<v2::PaneActionRow> clash;
+    clash.push_back(v2::PaneActionRow{"x.save", "save source", input::scan::kE, input::mod::kCtrl,
+                                      std::string(kOwnableDocumentSave)});
+    clash.push_back(
+        v2::PaneActionRow{"x.keys", "keys", keys.scancode, keys.modifiers, std::string()});
+    const Written refused = join_pane_rows(other, kSomePane, clash);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == collision_sentence(keys, "workshop.hotkeys", "x.keys"));
+    CHECK(other.pane_rows(kSomePane) == nullptr); // and nothing was written
+}
+
+TEST_CASE("EDIT-W64: the mirror is rebuilt when the bytes move and at no other time") {
+    // ⚔ THE DEFECT: the mirror was invalidated by the buffer's revision, which moves when the
+    // CARET moves -- a pending paste has to notice that. So a press, a drag and an arrow key
+    // each rebuilt the whole four-megabyte string with every byte identical. The count below
+    // is the pane's own, declared and readable, so the cost is measured rather than claimed.
+    EditorRig e("edit-mirror-work");
+    e.open();
+    std::string big;
+    for (int i = 0; i < 4000; ++i) {
+        big += "line " + std::to_string(i) + " with some ordinary source on it\n";
+    }
+    e.open_file("a.cpp", big);
+    const std::int64_t after_open = std::stoll(e.read("text_builds"));
+    CHECK(after_open >= 1); // opening one materializes it once
+
+    // NAVIGATION, POINTING, SWEEPING, SCROLLING, RESIZING, FOCUSING: no bytes move.
+    e.press_doc(1, 2);
+    e.motion_doc(2, 4);
+    e.motion_doc(3, 6);
+    e.release_doc(3, 6);
+    e.key(input::scan::kRight);
+    e.key(input::scan::kDown);
+    e.key(input::scan::kEnd, input::mod::kShift);
+    e.wheel(-1.0);
+    e.wheel(1.0);
+    e.give_rows(12);
+    e.unfocus();
+    e.focus();
+    CHECK(std::stoll(e.read("text_builds")) == after_open);
+    CHECK(e.read("text") == big); // ...and it still answers the truth
+
+    // AN EDIT MOVES THE BYTES, AND PAYS FOR IT ONCE.
+    const std::string before_edit = e.read("text");
+    e.type("Z");
+    CHECK(std::stoll(e.read("text_builds")) == after_open + 1);
+    CHECK(e.read("text") != before_edit);
+    // (the shift+End above left a selection standing, so the typed byte REPLACES it -- what
+    //  matters here is that the bytes moved once and the mirror was rebuilt once.)
+    // SO DO NEWLINE, UNDO, REDO, DISCARD AND SAVE'S COMPARISON.
+    const std::int64_t before_more = std::stoll(e.read("text_builds"));
+    e.key(input::scan::kReturn);
+    e.key(input::scan::kZ, input::mod::kCtrl);
+    e.key(input::scan::kY, input::mod::kCtrl);
+    CHECK(std::stoll(e.read("text_builds")) == before_more + 3);
+}
+
+TEST_CASE("EDIT-W65: a paste that arrives after the caret moved is still refused, bytes unchanged") {
+    // THE GUARD THE CHEAPER MIRROR MUST NOT HAVE WEAKENED. The paste pins the buffer's own
+    // revision, which MOVES ON MOVEMENT -- that is why the mirror needed a different question
+    // rather than that one made cheaper.
+    EditorRig e("edit-mirror-paste");
+    e.open(160, 48, true, /*slow_skin=*/true);
+    e.open_file("a.cpp", "one\ntwo\n");
+    e.press_doc(0, 3);
+    e.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(e.slow->held);
+    const std::int64_t builds = std::stoll(e.read("text_builds"));
+    e.press_doc(1, 0); // the caret moves; not one byte does
+    CHECK(std::stoll(e.read("text_builds")) == builds);
+    e.answer_now();
+    CHECK(e.says("after the source moved"));
+    CHECK(e.read("text") == "one\ntwo\n");
+    CHECK(std::stoll(e.read("text_builds")) == builds);
+}
+
+TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the view") {
+    // ⚔ THE DEFECT: a same-path acquisition set the follow flag, so re-opening the file a
+    // maker had scrolled away from yanked the window back to the caret -- and clearing the
+    // flag alone would not have been enough, because the notice it sets changes the rows the
+    // document is given, which `reconcile` also called a resize.
+    EditorRig e("edit-samepath-view");
+    e.open();
+    std::string many;
+    for (int i = 1; i <= 40; ++i) {
+        many += "line " + std::to_string(i) + "\n";
+    }
+    const std::string path = e.open_file("a.cpp", many);
+    e.wheel(-2.0);
+    const std::string scrolled = e.read("first_row");
+    CHECK(scrolled != "0");
+    CHECK(e.read("caret_row") == "0"); // the wheel moved no caret
+
+    SUBCASE("the pane is on the desk") {
+        const SourceOpened again = e.ask_open(path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.read("first_row") == scrolled);
+        CHECK(e.read("caret_row") == "0");
+        CHECK(e.doc_row(0) == "line " + std::to_string(std::stoll(scrolled) + 1));
+    }
+    SUBCASE("the pane was taken off the desk and comes back with it") {
+        e.unfocus();
+        e.r.pick(editor_ref());
+        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        const SourceOpened again = e.ask_open(path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.read("first_row") == scrolled);
+    }
+    SUBCASE("a horizontal offset is kept too, and a genuine room change still reconciles") {
+        e.press_doc(0, 0);
+        e.key(input::scan::kEnd);
+        const std::string col = e.read("first_col");
+        (void)col;
+        e.wheel(-2.0);
+        const std::string where = e.read("first_row");
+        REQUIRE(e.ask_open(path).accepted);
+        CHECK(e.read("first_row") == where);
+        // A REAL RESIZE STILL PULLS THE CARET'S LINE INTO VIEW -- and this rig's Editor is
+        // already six rows tall, so the room has to actually change to be a resize.
+        REQUIRE(e.read("last_rows") == "6");
+        e.give_rows(12);
+        CHECK(e.read("last_rows") == "12");
+        CHECK(std::stoll(e.read("first_row")) <= std::stoll(e.read("caret_row")));
+    }
 }
