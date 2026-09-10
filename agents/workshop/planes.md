@@ -5,18 +5,18 @@ One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-FRONT-01 — The plane sequence is the layout of the screen
 
-LAW — The canvas is published in one depth order: the workspace, one plane per pane in `effective_pane_order` ascending, the affordances, the picker and overlays, the foot band, the Terminal.
+LAW — The canvas is published in one depth order: the workspace, one plane per pane in `effective_pane_order` ascending, the affordances, the picker and overlays, the foot band.
 
 MEANS
 - an overlapping pane is painted where it is hit, in both front orders;
 - a provider's text cannot bury the picker that recovers it;
-- the Terminal overlay outranks panels for the pointer too, and by a wider rule.
+- nothing outranks a pane any more: the last plane after every pane was the Terminal's.
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panels`, `band_region`;
 `workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `on_own_layer`;
 `workshop/setup.hpp` `effective_pane_order`; `tests/test_workshop_screen.cpp` case `"WIND-2a: an
-overlapping pane is painted where it is hit, in both front orders"`, case `"the terminal overlay
-outranks panels for the pointer too, and by a wider rule"`; `tests/test_workshop_panes_seam.cpp`
+overlapping pane is painted where it is hit, in both front orders"`, case `"a visible panel
+occupies the pointer space it covers"`; `tests/test_workshop_panes_seam.cpp`
 case `"WIND-2a: an external pane's own text cannot bury the surface that recovers it"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 

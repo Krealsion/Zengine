@@ -8,35 +8,34 @@ unit a face reports. One law per heading; cite by ID. Router: [`../workshop.md`]
 LAW — The geometry that draws a thing and the geometry that hits it are one resolved geometry; Workshop has no click-bounds beside a paint-bounds.
 
 MEANS
-- `terminal_input_place` is the editable line resolved once; painter, caret and press call it;
-- `completion_first_shown` is the list's one windowing, lifted out of `completion_rows`;
+- `external_body_place` grants a pane's room and locates a press in it: one call, both ways;
+- a pane's caret is merged with the same header offset a press subtracts (`WL-CARET-01`);
 - what a panel is painted at and what it occupies are one resolved truth, on both media.
 
 DOES NOT MEAN
 - that a press may not have its own inverse — it may, if the inverse reads the painter's place.
 
-PROVEN BY — `workshop/screen.hpp` `terminal_input_place`, `completion_first_shown`;
-`workshop/screen_terminal.cpp` `paint_terminal`; `workshop/weave_terminal.cpp` `terminal_press`;
-`tests/test_workshop_screen.cpp` case `"HD-3: the click reads the SAME window the rows were drawn
-with"`, case `"HD-3: hit geometry follows presentation geometry across a resize"`, case `"what a
-panel is painted at and what it occupies are one resolved truth"`.
+PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
+`tests/test_workshop_panes_terminal.cpp` case `"TERM-W12: a press on the
+input row places the caret where the maker aimed"`; `tests/test_workshop_screen.cpp` case
+`"what a panel is painted at and what it occupies are one resolved truth"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
-## WL-GEO-02 — The terminal pane's right edge is the room's
+## WL-GEO-02 — `screen_of` sizes no tool's rectangle
 
-LAW — The Terminal pane is `kTerminalWantW + (w - kScreenMinW)/2` columns wide and `terminal_x + terminal_w == room_w`: it gets the want whole, at every extent, and ends at the room's right edge.
+LAW — The screen answers the room, the bands, the right column's PLACE and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
 
 MEANS
-- the room is never narrower than the want, so `screen_of` carries no clamp to reach;
-- the room's right edge is the surface's, so the pane covers the right column, measured.
+- the four constants that sized the terminal overlay left with it (VD-24);
+- so did the six `Screen` fields that carried its corner, its extent and its interior.
 
 DOES NOT MEAN
-- that `kTerminalWantW` is a floor — it is a want, and the room used to charge eight cells.
+- that HD-10 was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `kTerminalWantW`, `kScreenMinW`,
-`Screen::room_w`, `Screen::terminal_x`, `Screen::terminal_w`; `tests/test_workshop_screen.cpp`
-case `"HD-10: the want is unchanged, and the room is no longer a ceiling"`, case `"HD-10: the
-terminal pane now covers the right column, measured"`.
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `kScreenMinW`, `Screen::room_w`,
+`Screen::panel_x`; `tests/test_workshop_screen.cpp` case `"HD-10 is over: a pane over a pane,
+and the boundary is what makes it legible"`, case `"the screen's extent is TOTAL over whatever
+a medium published"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-03 — The room is the surface, and the right column stands on it
@@ -62,17 +61,16 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 LAW — Presentations may overlap; every overlap this composition makes is measured exactly, and none of them may leave the room.
 
 MEANS
-- the completion list over the transcript, the picker over a slot, the pane over the workspace;
-- the pane over the right column and the stack's slot into it, both counted at every extent.
+- the picker over a slot, a pane over the workspace, a pane over another pane;
+- the stack's slot reaching into the right column, counted at every extent.
 
 DOES NOT MEAN
 - that a test may forbid overlap generally — it would forbid every one of them.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`,
-`kMinSide`; `tests/test_workshop_screen.cpp` case `"HD-10: what the pane DOES cover is unchanged,
-and is on purpose"`, case `"HD-10/QR-14: the pane and the overlay stack meet only at the shortest
-screens"`, case `"WIND-1: the stack/pane overlap grew by a bounded amount, and stayed in the
-room"`.
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`, `kMinSide`;
+`tests/test_workshop_screen.cpp` case `"HD-10 is over: a pane over a pane, and the boundary is
+what makes it legible"`, case `"the picker occupies the slot it opens over, and answers for it
+while it is there"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric
@@ -85,8 +83,7 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kMinScreen`, `Screen`;
 `tests/test_workshop_screen.cpp` case `"HD-10: the screen's furniture cannot see a panel, open
-or closed"`, case `"HD-10: what the pane DOES cover is unchanged, and is on purpose"`, case
-`"the pane's interior follows the metric, and its placement does not"`.
+or closed"`, case `"the screen's extent is TOTAL over whatever a medium published"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-06 — Pane rectangles are sub-units of the canvas lattice

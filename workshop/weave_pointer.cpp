@@ -177,7 +177,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kObjectNew: create_object(); break;
     case Act::kPicker: open_picker(); break;
     case Act::kArrangeDesk: open_arrange_desk(); break;
-    case Act::kTerminalToggle: toggle_terminal(); break;
     case Act::kHotkeys: toggle_hotkeys(); break;
     case Act::kSaveDocument: save_document(); break;
     case Act::kOpenDocument: load_document(); break;
@@ -263,11 +262,6 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
         repaint(mail);
         return;
     }
-    case PasteOwner::kTerminal:
-        // The line outlives the pane's visibility (shift+space hides it and keeps the
-        // draft), so an open pane is not required — the same DRAFT is.
-        box = &session_.terminal.input;
-        break;
     case PasteOwner::kNaming:
         box = naming_line();
         break;
@@ -289,9 +283,6 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
             session_.clipboard.text = a.text;
         }
         box->paste(session_.clipboard);
-        if (p.owner == PasteOwner::kTerminal) {
-            refresh_terminal();
-        }
     } else {
         return; // the draft that asked is gone; the payload is discarded, silently
     }
@@ -333,15 +324,6 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         return;
     case KeyContext::kPaneNaming:
         session_.pane_naming.line.type(t.text);
-        repaint(mail);
-        return;
-    case KeyContext::kTerminal:
-        // AT THE CARET, WHICH IS NOT ALWAYS THE END. `type` is the only
-        // door that moves the text and the caret together, so a keystroke in the
-        // middle of a line cannot leave one behind. The line changed, so what could
-        // be said next changed with it: typing IS the completion gesture.
-        session_.terminal.input.type(t.text);
-        refresh_terminal();
         repaint(mail);
         return;
     case KeyContext::kArrangePane:
@@ -398,68 +380,15 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-    // WHILE THE OVERLAY IS OPEN THE WORKSPACE GETS NOTHING, and that half is
-    // unchanged: the pane covers the bottom-right of the screen,
-    // workspace included, so a press there would take hold of an object the
-    // maker cannot see -- and a press just outside it would move the document
-    // out from under a mode they are typing in. One sentence covers both:
-    // while the terminal is open, the terminal has the input. There is no
-    // focus object, no capture and no z-order; closing it restores every
-    // gesture exactly.
-    //
-    // WHAT CHANGED IS THAT THE TERMINAL NOW DOES SOMETHING WITH IT --
-    // and only inside itself. The mode is still a MODE: it takes every
-    // pointer event anywhere, and `terminal_press` decides whether one of the
-    // regions the Terminal OWNS wants it. A press that lands on none of them
-    // is still consumed by the mode rather than falling through, which is the
-    // whole of what stops a click on the pane's empty middle from selecting
-    // an object behind it. That is the first PLACE-WITHIN-A-MODE this
-    // application has, and it is a bounds test against the Terminal's own
-    // regions rather than a widget registry: nothing below is an entity,
-    // nothing has an identity, and closing the pane removes all of it because
-    // there is nothing to remove.
-    if (session_.terminal.open) {
-        // A RELEASE STILL ENDS A DRAG THAT BEGAN ON THE WORKSPACE, and this is a
-        // repair rather than a new rule (own: "a gesture that began on the
-        // workspace owns the pointer until it ends, so its release must end it
-        // wherever the maker's hand happens to be"). Opening the pane mid-drag used
-        // to swallow the release, leaving `drag.active` true with the button up --
-        // after which closing the pane made the next bare motion drag an object
-        // nobody was holding. Occluding a release is the one thing this file already
-        // knew not to do; the overlay was doing it by arriving first.
-        //
-        // SILENTLY, WHICH IS THE ONE PLACE THIS FILE'S "SAY SO" RULE DOES NOT APPLY.
-        // `toggle_terminal` already wrote down why: the notice line is not painted
-        // while the pane covers it, so a sentence made now is one nobody can read and
-        // that would then reappear, stale, when the pane closes -- and closing writes
-        // its own notice over it anyway. The gesture is ended; there is nobody to
-        // tell.
-        if (!b.pressed && b.button == 1) {
-            // EVERY BUTTON-1 GESTURE, and not only the document's. A pane
-            // move or size begun in pane management is held in a second record, and
-            // the overlay used to swallow its release exactly as it once swallowed the
-            // document's: `pane_drag.active` stayed true with the button up, and the
-            // first bare motion after the pane closed moved a window nobody was
-            // holding. Measured -- the pane walked to the pointer.
-            (void)end_held_gestures();
-            return;
-        }
-        // AND THE BOOL BELOW IS NOT THE PRESS-CHAIN'S BOOL, which is why it is given a
-        // name here. The three handlers under `if (b.pressed)` answer whether they
-        // CONSUMED the press, and the chain stops on a true. `terminal_press` answers
-        // whether anything CHANGED, and the answer does not decide anything about routing:
-        // the mode consumed the press the moment `session_.terminal.open` was true, three
-        // lines up, and a press that lands on none of the pane's regions is consumed there
-        // just the same. Two different questions, two bools, and unifying them would put a
-        // repaint decision on the routing path or a routing decision on the repaint path.
-        if (b.pressed && b.button == 1) {
-            const bool repaint_needed = terminal_press(b);
-            if (repaint_needed) {
-                repaint(mail);
-            }
-        }
-        return;
-    }
+    // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
+    // open it took every pointer event anywhere -- a press outside its own regions was
+    // consumed rather than falling through -- because it was drawn over the room with no
+    // boundary and a press "just outside it" had no honest owner. A pane has a boundary by
+    // construction: a press inside it is the pane's through `external_press_row` like every
+    // other pane's, and a press outside it belongs to whatever is there. The release repair
+    // this branch carried (`end_held_gestures` on a button-1 release, so opening the overlay
+    // mid-drag could not strand the gesture) is not needed for a pane, because a pane does
+    // not arrive over a drag in progress.
     // ARRANGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN -- the
     // Terminal's own shape, four lines up, for the same reason. While a maker is
     // arranging, every press is about a pane: letting one fall through to the
@@ -774,29 +703,10 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         }
         return;
     }
-    if (session_.terminal.open) {
-        // THE OVERLAY HAS THE INPUT, and one motion matters inside it: a
-        // selection drag the mode's own press began on its editable line. The geometry
-        // is re-resolved from the CURRENT screen — the same two calls the press spent —
-        // and the ROW is deliberately not re-tested: a drag owns the gesture until
-        // release (`PaneGesture`'s law), so a hand that wanders off the line keeps
-        // sweeping the line by column, which is what makes the selection stable rather
-        // than flickering with the pointer's row (SC-form: stable across the region).
-        if (session_.text_drag.active &&
-            session_.text_drag.place == text_drag_place::kTerminalLine) {
-            const Screen sc = screen_of(session_);
-            const TerminalInputPlace place = terminal_input_place(sc);
-            const ProseAt at =
-                prose_at(m.space, m.x, m.y, place.region_x, place.region_y, place.fit);
-            if (at.understood) {
-                session_.terminal.input.drag_to_column(
-                    terminal_value_column(place, at.column));
-                refresh_terminal();
-                repaint(mail);
-            }
-        }
-        return;
-    }
+    // ⭐ THE TERMINAL'S MOTION BRANCH WAS HERE AND IS GONE (VD-24) -- with it the last
+    // selection drag this host resolved on behalf of a pane's editable line. A pane's own
+    // line is swept by the pane, out of the presses and motions it is already sent; what
+    // this host still resolves is the SOURCE EDITOR's, which is its own buffer.
     // AND ARRANGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
     // with no pane gesture held does nothing at all: only a PRESS begins one, which is
     // the same sentence this handler already said about the document.
@@ -888,7 +798,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
 
 // WL-EDIT-10 -- agents/workshop/editor.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
-    if (session_.terminal.open || session_.arrange.open || session_.context.open) {
+    if (session_.arrange.open || session_.context.open) {
         return;
     }
     const Screen sc = screen_of(session_);

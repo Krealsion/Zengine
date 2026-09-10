@@ -60,8 +60,8 @@ Selecting a pane also brings it **forward** for as long as it stays selected —
 [what "front" means](#what-front-means).
 
 **`Esc` puts the selected pane down.** Once nothing more specific wants the key — an open
-menu, the picker, a draft you are typing into, the arrangement, the hotkey view and the
-terminal line all answer `Esc` first, in their own way — `Esc` clears the selection: the
+menu, the picker, a draft you are typing into, the arrangement and the hotkey view all
+answer `Esc` first, in their own way — `Esc` clears the selection: the
 pane's edge goes back to ordinary, it drops back to its authored place in the order, and the
 keys return to Workshop. Nothing closes, moves or is written; it is exactly what pressing an
 empty part of the desk does, for a desk that has no empty part left. A place you **type**
@@ -142,7 +142,7 @@ aimed at that thing:
   (place / width / height), `remove`;
 - **a document object** — `delete`;
 - **the empty room** — Workshop's own doors: a new object, the picker, arrange desk, the
-  terminal, the hotkey view, save / open, the setup gestures, reset order.
+  hotkey view, save / open, the setup gestures, reset order.
 
 The menu is sized by what it has to say, and near a screen edge it shifts just enough to
 stay whole. Where a row's action has a working shortcut in the place you are returning to,

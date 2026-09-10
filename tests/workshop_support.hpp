@@ -399,49 +399,12 @@ inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc
     return inspector_row(c, 0, sc.notice_y);
 }
 
-/// THE TERMINAL PANE'S REGION on a canvas, found by the place it was drawn at.
-///
-/// BY PLACE, NOT BY POSITION (HD-6). `texts[0]` was the pane for as long as the pane was the
-/// only region this application published; the Inspector's property body is published on
-/// every paint since HD-6 and is painted BEFORE the overlay, so an index now names the
-/// Inspector. That is the same defect a second copy of any geometry is, arriving in a test
-/// helper: it would have gone on passing while asserting things about the wrong rectangle.
-///
-/// IT RETURNS A POINTER and the call sites dereference it, which is not style: GCC 13's
-/// `-Wdangling-reference` fires on a function returning a REFERENCE when any argument is a
-/// temporary, and `screen_of(t.session())` is one. The reference would have been perfectly
-/// alive -- it points into the canvas, not into the Screen -- but a heuristic that cannot know
-/// that is `-Werror` on the MinGW lane, and a pointer says the same thing without arguing.
-inline const surface::SurfaceTextRegion* pane_of(const surface::SurfaceCanvas& c, const Screen& sc) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == sc.terminal_x && r.y == sc.terminal_y) {
-                return &r;
-            }
-        }
-    }
-    FAIL("no terminal pane region on this canvas");
-    return nullptr;
-}
 
-/// The completion list on a canvas, or nullptr — the region that is neither the pane nor
-/// the Inspector's property body.
-///
-/// BY PLACE, NOT BY POSITION (HD-6). It used to be "the second region", which was true for
-/// exactly as long as the pane was the only other one; since HD-6 the Inspector publishes
-/// its property body on every paint, so an index would name the wrong region on every canvas
-/// this file paints. The pane's own x is `Screen::terminal_x` and the list sits in the same
-/// column above it, so "not the pane's top row" identifies it without a second arithmetic.
-inline const surface::SurfaceTextRegion* list_of(const surface::SurfaceCanvas& c, const Screen& sc) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == sc.terminal_x && r.y != sc.terminal_y && r.w < sc.w) {
-                return &r; // a band spans the canvas; the pane's own regions do not
-            }
-        }
-    }
-    return nullptr;
-}
+// ⭐ `pane_of` AND `list_of` WERE HERE AND ARE GONE (VD-24). Both found a region by the
+// rectangle the SCREEN reserved for the terminal overlay (`Screen::terminal_x/_y`). A pane's
+// region is where a maker's arrangement put it, so a case that wants the Terminal's rows asks
+// the pane the way every other pane's cases do -- through `panel_shown`, or through the
+// published `PaneContent` in the seam suite.
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
 /// written, because painter's order is list order and every Skin draws it that
@@ -618,15 +581,17 @@ struct SeenState {
 /// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
-                                                    StandingConditions, DocumentShown>,
+                                                    StandingConditions, DocumentShown,
+                                                    TranscriptShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
             std::vector<StandingConditions>& conditions,
-            std::vector<DocumentShown>& documents)
+            std::vector<DocumentShown>& documents,
+            std::vector<TranscriptShown>& transcripts)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
-          documents_(&documents) {}
+          documents_(&documents), transcripts_(&transcripts) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
@@ -634,12 +599,14 @@ public:
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
     void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
+    void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
     std::vector<DocumentShown>* documents_;
+    std::vector<TranscriptShown>* transcripts_;
 };
 
 
@@ -720,17 +687,6 @@ inline std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& m
     return out;
 }
 
-/// Everything the overlay is showing, as one string -- the pane's own column, top to bottom.
-inline std::string pane_text(const surface::SurfaceCanvas& c) {
-    std::string out;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (l.x == kMinScreen.terminal_x && l.y >= kMinScreen.terminal_y) {
-            out += l.text;
-            out += '\n';
-        }
-    }
-    return out;
-}
 
 /// ONE CONDITION OUT OF A PROJECTION, BY KEY -- or nothing, which is the answer a resolved
 /// condition gives. It takes the vector rather than a fixture so the two rigs share
@@ -785,6 +741,8 @@ struct Live {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `TranscriptShown` this host published, for the same reason.
+    std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -805,7 +763,8 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
+                                   said_transcripts);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
@@ -864,14 +823,6 @@ struct Live {
         return raw;
     }
 
-    /// Ctrl+T, AS THE BACKENDS ACTUALLY REPORT IT (KEY-0): the key transition and no text,
-    /// because a ctrl chord produces no character on any supported backend. The old
-    /// shift+space default is gone -- it could not arrive from the POSIX backend at all --
-    /// and a fixture that still sent it would be driving a binding that no longer exists.
-    void toggle_terminal() {
-        key(input::scan::kT, input::mod::kCtrl);
-    }
-
     /// Type a whole line into whatever is taking text, then press Return.
     void type_line(const std::string& line) {
         for (const char c : line) {
@@ -879,8 +830,6 @@ struct Live {
         }
         key(input::scan::kReturn);
     }
-
-    const TerminalPane& pane() const { return w->session().terminal; }
 
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -1410,24 +1359,6 @@ inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s
         return {}; // a closed panel says nothing, which is the answer a case wants
     }
     return panel_text(c, pane_body_cells(at.rect, screen_of(s)));
-}
-
-/// WHAT THE TERMINAL OVERLAY IS SAYING, at its own rectangle. It is a MODE and not a pane,
-/// so it wears no pane chrome and its rows begin at its own corner (WUX-5 changed nothing
-/// about it) -- and at the minimum composition that corner is column 0, which is also the
-/// overlay stack's, so a case reading it through `stack_text` would be reading the stack's
-/// INTERIOR and missing the terminal's first column.
-inline std::string terminal_text(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return panel_text(c, ui::Rect{sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h});
-}
-
-/// The cell a terminal medium would report for a prose position of the pane's own region.
-/// The inverse of `terminal_input_place`'s resolution, exactly as `pane_pixel_x` is.
-inline std::int64_t pane_cell_x(const TerminalInputPlace& p, std::int64_t column) {
-    return p.region_x + column;
-}
-inline std::int64_t pane_cell_y(const TerminalInputPlace& p, std::int64_t row) {
-    return p.region_y + row + surface::kTuiCanvasTopRow;
 }
 
 /// A document of `n` identical objects with the selection on the `at`th, and a session
@@ -2058,7 +1989,8 @@ class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions>> {
+                             loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
+                                        PaneCaret>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2135,6 +2067,14 @@ public:
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
     void say_personally(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.send_to_role(kWorkshopProvider, c);
+    }
+    /// WHERE THIS SEAT'S CARET IS -- the arc's second pane-to-host sentence, said as the
+    /// office, and personally for the refusal that is about authorship rather than lattice.
+    void caret(loom::Mail& mail, const PaneCaret& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    void caret_personally(loom::Mail& mail, const PaneCaret& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
     }
     /// Declare a pane's actions, deliberately AS this office -- and personally, from the
@@ -2316,6 +2256,8 @@ struct PaneRig {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `TranscriptShown` this host published, for the same reason.
+    std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     std::vector<std::string> loaded;
@@ -2323,7 +2265,8 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
+                                   said_transcripts);
     }
 
 
@@ -2380,11 +2323,45 @@ struct PaneRig {
         // workshop.cpp grants them.
         speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
         speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+        // ...and the terminal participant's record and the two answers its doors give,
+        // exactly as workshop.cpp grants them.
+        speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
+        speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
+        speak.allow_to_any(TerminalCompletionOffered::zen_name,
+                           TerminalCompletionOffered::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
         return w;
     }
+
+    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant,
+    /// owned by the bus, and handed to Workshop as a non-owning pointer.
+    ///
+    /// ⚠ IT IS MOUNTED HERE AND NOT IN THE PANE, which is the seam's whole shape: the pane
+    /// under test cannot construct one of these, cannot reach this one, and cannot speak as
+    /// it. Every case below drives the pane and then asks THIS object what it heard.
+    loom::TerminalSession* mount_terminal(int shapes = 0) {
+        loom::TerminalVocabulary vocab;
+        vocab.knows(loom::schema_of<surface::SurfaceText>())
+            .accepts(loom::schema_of<loom::Ack>())
+            .accepts(loom::schema_of<loom::Refused>());
+        for (int i = 0; i < shapes; ++i) {
+            vocab.knows(loom::SchemaBuilder("Extra" + std::to_string(i), 1)
+                            .field("seq", loom::Kind::Int)
+                            .build());
+        }
+        loom::Grant grant;
+        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
+                            surface::kSkinRole);
+        const loom::MountedTerminal mounted = loom::host_mount_terminal(
+            bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
+            std::move(grant));
+        host.terminal = mounted.session;
+        terminal_id = mounted.id;
+        return mounted.session;
+    }
+    loom::WeaveId terminal_id{};
 
     /// A native provider in an office of its own, granted exactly the two sentences
     /// the pane protocol has and nothing else.
@@ -2400,6 +2377,8 @@ struct PaneRig {
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
+        // ...and where its caret is, which is the arc's second host-facing pane sentence.
+        grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
         // claim under test is that a PROVIDER refuses a press it did not get from
         // Workshop -- a refusal the bus made unreachable would prove nothing.
@@ -2612,6 +2591,11 @@ struct PaneRig {
         if (stem == "zengine-info-pane") {
             return WORKSHOP_SO_INFO_PANE;
         }
+#ifdef WORKSHOP_SO_TERMINAL_PANE
+        if (stem == "zengine-terminal-pane") {
+            return WORKSHOP_SO_TERMINAL_PANE;
+        }
+#endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 

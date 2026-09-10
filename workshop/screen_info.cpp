@@ -137,13 +137,13 @@ std::int64_t property_caret_column(const Row& row) {
 }
 
 // WL-TEXT-13 -- agents/workshop/text-box.md
-TerminalSelectionSpan property_selection_columns(const Row& row,
+TextSelectionSpan property_selection_columns(const Row& row,
                                                  std::int64_t value_columns) {
     const component::TextBox::VisibleSpan vis = row.editor().visible_selection(value_columns);
     if (!vis.present()) {
-        return TerminalSelectionSpan{};
+        return TextSelectionSpan{};
     }
-    return TerminalSelectionSpan{kPropertyMarkCols + kPropertyLabelCols + vis.begin,
+    return TextSelectionSpan{kPropertyMarkCols + kPropertyLabelCols + vis.begin,
                                  kPropertyMarkCols + kPropertyLabelCols + vis.end, true};
 }
 

@@ -105,6 +105,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // `list_window` stays here: two packages carry it, it is a WINDOW rather than text, and two is
 // still a convention.
 
+using zengine::workshop::pane_text::admissible;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
@@ -542,19 +543,6 @@ private:
         draft_.row = 0;
         draft_.label.clear();
         draft_.line.clear();
-    }
-
-    /// TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, and refused
-    /// WHOLE -- the browser's own posture, one pane over: a chunk with any inadmissible byte
-    /// is declined entirely rather than silently filtered.
-    static bool admissible(const std::string& text) {
-        for (const char c : text) {
-            const unsigned char byte = static_cast<unsigned char>(c);
-            if (byte < 0x20u || byte >= 0x7Fu) {
-                return false;
-            }
-        }
-        return true;
     }
 
     bool has_target() const { return known_.selected != 0; }

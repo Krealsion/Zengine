@@ -71,7 +71,9 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"object.new", kOnRoot, ""},
     {"workshop.picker", kOnRoot, ""},
     {"workshop.manage", kOnRoot, ""},
-    {"workshop.terminal", kOnRoot, ""},
+    // ⚠ `workshop.terminal` WAS A ROW HERE and left with the overlay it opened (VD-24),
+    // for the reason written one line down: the Terminal is a pane, reached from "choose a
+    // pane", and the contextual surface gained no route a key does not have.
     // ⚠ `workshop.attention` WAS A ROW HERE and left with the overlay it opened. The
     // current-condition view is a pane now and is opened from the picker, which is already
     // on this list -- so what a maker reaches from the empty room is "choose a pane", not
