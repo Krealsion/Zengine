@@ -38,15 +38,15 @@ it could not show.
 The list is grouped by the layer that owns each row:
 
 - the current context's own keys — command mode, the picker, the two arranging scopes and
-  their reset prompt, a property being edited, the source editor, the Pane Manager, the Pane
-  Creator's name prompt, or a focused pane;
-- the keys answered above every mode (open, this view; where nothing is taking text, quit;
-  and everywhere but the source editor, the document's save — inside the editor the same
-  chord is the editor's own `save source`);
+  their reset prompt, a property being edited, the Pane Manager, the Pane Creator's name
+  prompt, or a focused pane (the Editor among them);
+- the keys answered above every mode (open, this view; and where nothing is taking text, quit
+  and the document's save — inside the Editor the same `Ctrl`+`s` is the pane's own `save
+  source` row);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
   movement, undo — shown for discovery but **not remappable**: they belong to the editing
-  component, in every box at once, and the keymap does not reach into it. The source
-  editor's own editing keys are listed the same way, from its own declared vocabulary.
+  component, in every box at once, and the keymap does not reach into it. A loaded pane's own
+  vocabulary beyond its declared rows is described as the pane's, the Editor's included.
 
 The view describes the context **beneath** it — open it over a pane holding the keyboard and
 you read that pane's declared rows — and it is modal while open: `Esc` or `Ctrl`+`k` puts it away, and
@@ -122,11 +122,12 @@ way the file is left exactly as you wrote it: Workshop never rewrites, trims or 
 
 An action that is available only **where nothing is taking text** is a different class and is
 allowed an editing chord, because in that class no text field is listening: that is exactly
-how `Ctrl`+`c` quits from command mode and copies inside a field, and how `Ctrl`+`a` opens the
-current-condition view from command mode and selects all inside one. A third class is
-available **everywhere but the source editor** — the document's save, whose `Ctrl`+`s` is the
-editor's own `save source` while your keys are in the source; because that class *is* active
-inside the other text fields, it meets the same two guards a fully global action does.
+how `Ctrl`+`c` quits from command mode and copies inside a field, how `Ctrl`+`a` opens the
+current-condition view from command mode and selects all inside one, and how `Ctrl`+`s` saves
+the document from command mode and is the Editor pane's own `save source` while your keys are
+in the source. (The document's save used to be a third class, available everywhere but the
+source editor; the Editor is a loaded pane now and declares that chord itself, so the row
+joined the where-nothing-takes-text class.)
 
 **What is kept:** an override whose action id this build does not know is preserved exactly
 as you wrote it — byte for byte, in place — not deleted and not an error. It is your intent,

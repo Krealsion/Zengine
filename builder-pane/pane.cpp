@@ -74,7 +74,9 @@ using ws::PlanRowRequested;
 using ws::PlanRowWritten;
 using ws::ProjectFrontierRequested;
 using ws::ProjectFrontierSaid;
+using ws::OpenSourceRequested;
 using ws::RecipeSourceRequested;
+using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
 /// The office Workshop holds, named as a STRING rather than reached through
@@ -161,12 +163,12 @@ class BuilderPaneWeave
           BuilderPaneWeave, pane::BuilderPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneKey, PaneTextInput,
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
-                       ProjectFrontierSaid, PlanNames, PlanRowWritten, SourceOpened,
-                       surface::ClipboardCopy, surface::ClipboardText>,
+                       ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
+                       SourceOpened, surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
-                     RecipeSourceRequested, surface::ClipboardCopy,
+                     RecipeSourceRequested, OpenSourceRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -419,11 +421,40 @@ public:
         say(mail);
     }
 
-    void on(const SourceOpened& said, loom::Mail& mail) {
+    /// THE HOST'S ANSWER TO "WHICH FILE DOES THIS RECIPE NAME" -- the first of the two doors
+    /// `e` walks. A refusal is the owner's own words and lands in this pane's row; an
+    /// accepted answer carries the one absolute path, and the pane spends it at the Editor's
+    /// door at once, in the same turn, holding nothing of it afterwards.
+    ///
+    /// ⚠ READ AGAINST THE ROW IT ASKED ABOUT. The answer echoes the recipe; if the maker's
+    /// choice has moved on since the ask (a catalog republished under the cursor), the file
+    /// it names is still the file of the recipe they pressed `e` on, which is what they
+    /// asked for -- the notice names it so the picture cannot mislead.
+    void on(const RecipeSourceSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
             return;
         }
         source_.awaiting = false;
+        if (!said.accepted) {
+            notice_ = said.refusal;
+            say(mail);
+            return;
+        }
+        open_.pending = ++asked_;
+        open_.awaiting = true;
+        (void)mail.as_role(pane::kBuilderPaneRole)
+            .send_to_role(ws::kEditorRole, OpenSourceRequested{said.source}, open_.pending);
+    }
+
+    /// THE EDITOR'S ANSWER -- the second door. An accepted open says nothing here: the Editor
+    /// asks Workshop to reveal its pane, and that is the answer a maker reads. A refusal (a
+    /// missing file, bytes the editor cannot carry, a dirty buffer) is the door's own words
+    /// and belongs beside the row it is about.
+    void on(const SourceOpened& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
+            return;
+        }
+        open_.awaiting = false;
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
@@ -794,10 +825,19 @@ private:
         say(mail);
     }
 
-    /// EDIT THE SOURCE THE CHOSEN RECIPE NAMES. The pane holds a recipe's NAME and never its
-    /// procedure, so what crosses is the name and the host resolves it -- every refusal
-    /// (an unknown id, a kind with no single source, a missing file, a dirty buffer) comes
-    /// back as this door's own sentence.
+    /// EDIT THE SOURCE THE CHOSEN RECIPE NAMES -- two doors, walked in order. The pane holds
+    /// a recipe's NAME and never its procedure, so it asks the host's read-only project office
+    /// which one file that name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), and
+    /// then asks the Editor's own office to open that file (`OpenSourceRequested` ->
+    /// `SourceOpened`). Every refusal -- an unknown id, a kind with no single source, a
+    /// missing file, a dirty buffer -- comes back as its owner's own sentence and lands in
+    /// this pane's row.
+    ///
+    /// ⚠ THE HOST USED TO DO BOTH HALVES BEHIND ONE ASK, while it held the Editor. The
+    /// document is the Editor weave's now, and a host that relayed the open onward would
+    /// have to name the Editor's office -- so the resolution stayed with the catalog's owner
+    /// and the opening went to the document's, and this pane carries one path from the one
+    /// to the other for the length of a turn.
     void edit_source(loom::Mail& mail) {
         if (!has_recipe("nothing was opened")) {
             say(mail);
@@ -806,7 +846,7 @@ private:
         source_.pending = ++asked_;
         source_.awaiting = true;
         (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kProjectRole,
                           RecipeSourceRequested{known_.recipes[cursor_row()].recipe},
                           source_.pending);
     }
@@ -1158,7 +1198,8 @@ private:
         std::string role;
         std::string recipe;
     } row_;
-    Ask source_;
+    Ask source_; ///< the resolution, at the project office
+    Ask open_;   ///< the opening, at the Editor's
 
     struct Role {
         bool open = false;

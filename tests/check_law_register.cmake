@@ -228,7 +228,7 @@ set(ZEN_VM_BECAUSE_MAX 3)
 # The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
 # same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
 # to `nowhere yet`, and nobody lowers it to make that pass.
-set(ZEN_VM_APPLIED_FLOOR 92)
+set(ZEN_VM_APPLIED_FLOOR 94)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.

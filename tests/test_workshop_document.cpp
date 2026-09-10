@@ -3265,7 +3265,7 @@ TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as r
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     s.selected = d.elements[0].id;
     refocus(d, s);
-    (void)open_panel(s.panels, panel::kEditor);
+    (void)open_panel(s.panels, stock::kKind);
     const surface::SurfaceCanvas c = paint(d, s);
 
     for (const surface::SurfaceLabel& l : all_labels(c)) {

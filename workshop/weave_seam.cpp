@@ -231,14 +231,16 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
         // the rows' own refusal rule, one shape over. It does NOT clear the rows: the
         // sentences a maker is reading were judged on their own and are still true.
         pane->clear_caret();
-    } else if (caret.row == surface::kNoCaret) {
+    } else if (caret.row == surface::kNoCaret && caret.sel_begin_row == surface::kNoSelection) {
         pane->clear_caret(); // the pane saying it has none: ordinary, and not a refusal
     } else {
+        // A SELECTION MAY STAND WITH NO CARET (WL-CARET-03): a document whose caret has
+        // scrolled out of the window still shows the range it belongs to, and the pane says
+        // exactly that -- `kNoCaret` on the row, a range beside it. `judge_caret` has
+        // already refused a range that names a row the content does not have, so this is
+        // a copy and not a second policy.
         pane->caret_row = caret.row;
-        pane->caret_col = caret.column;
-        // THE SELECTION RIDES WITH IT OR NOT AT ALL. `judge_caret` has already refused a
-        // range that names a row the content does not have, so this is a copy and not a
-        // second policy.
+        pane->caret_col = caret.row == surface::kNoCaret ? 0 : caret.column;
         pane->sel_begin_row = caret.sel_begin_row;
         pane->sel_begin_col = caret.sel_begin_col;
         pane->sel_end_row = caret.sel_end_row;
@@ -251,16 +253,63 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     }
 }
 
+// WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
+void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
+    // AN OFFICE, AND ONLY AN OFFICE -- the seam's rule for every sentence that changes the
+    // desk. And the office must have offered the pane it names: a reveal of a pane this
+    // session never admitted has no catalog row, no name for the refusal and no kind to
+    // seat, and is dropped as the stray it is.
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return;
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    if (row == nullptr) {
+        return;
+    }
+    // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
+    // vector may grow under a pointer into it (panel.hpp's own warning).
+    const std::int64_t kind = row->kind;
+    const std::string name = row->name;
+    const PaneRef ref{row->provider, row->pane};
+    // THE PICKER'S OWN MEMBERSHIP DOOR, WITH THE PICKER'S OWN TRIAL SEAT AND ITS OWN WORDS.
+    // The capacity question is asked against the setup this reveal WOULD produce, and the
+    // active setup is left untouched when the answer is no -- so a pane cannot be authored
+    // into a file behind a refusal, and a document a pane just opened is not poured into a
+    // presentation nobody can see. The document is untouched by the refusal: it is the
+    // pane's, and the pane is still there.
+    Setup candidate = session_.setup.active;
+    const bool added = add_pane(candidate, ref);
+    const Seating trial =
+        seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
+    for (const std::int64_t k : trial.waiting) {
+        if (k == kind) {
+            say("no room for " + name +
+                    " on this screen -- make the window taller, then p again",
+                true);
+            repaint(mail);
+            return;
+        }
+    }
+    if (added) {
+        session_.setup.active = std::move(candidate);
+    }
+    apply_setup(mail);
+    // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
+    // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
+    // still sitting behind another would put the first keystroke somewhere the maker cannot
+    // see. The two facts are written together everywhere they are written.
+    session_.panels.selected = kind;
+    session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+    // SAID, so the sentence on the notice line is about what just happened and names who
+    // asked for it -- the pane's own rows say what it is showing.
+    say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    repaint(mail);
+}
+
 // WL-CARET-03 -- agents/workshop/pane-caret.md
 Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& pane) {
-    if (caret.row == surface::kNoCaret) {
-        return Written::ok(); // "I have none" is a sentence, not a position
-    }
     const std::int64_t rows = static_cast<std::int64_t>(pane.shown.size());
-    if (caret.row < 0 || caret.row >= rows) {
-        return Written::no("put a caret on row " + std::to_string(caret.row) +
-                           " of a pane showing " + std::to_string(rows) + " rows");
-    }
     const auto within = [&pane](std::int64_t row, std::int64_t column) {
         const std::int64_t width =
             static_cast<std::int64_t>(pane.shown[static_cast<std::size_t>(row)].text.size());
@@ -268,9 +317,18 @@ Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& p
         // of a line, and it is the position the terminal's own caret holds most of the time.
         return column >= 0 && column <= width;
     };
-    if (!within(caret.row, caret.column)) {
-        return Written::no("put a caret at column " + std::to_string(caret.column) +
-                           " of a row that has no such place");
+    // "I HAVE NONE" IS A SENTENCE, NOT A POSITION -- and it is judged apart from the range
+    // beside it, because a caret that has scrolled out of the window and a selection that
+    // is still in it are two facts that can be true at once.
+    if (caret.row != surface::kNoCaret) {
+        if (caret.row < 0 || caret.row >= rows) {
+            return Written::no("put a caret on row " + std::to_string(caret.row) +
+                               " of a pane showing " + std::to_string(rows) + " rows");
+        }
+        if (!within(caret.row, caret.column)) {
+            return Written::no("put a caret at column " + std::to_string(caret.column) +
+                               " of a row that has no such place");
+        }
     }
     if (caret.sel_begin_row == surface::kNoSelection &&
         caret.sel_end_row == surface::kNoSelection) {
@@ -282,12 +340,20 @@ Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& p
         caret.sel_end_row == surface::kNoSelection) {
         return Written::no("named one end of a selection and not the other");
     }
+    // THE BEGIN NAMES A ROW THAT IS SHOWN. THE END MAY NAME ONE MORE: a reading-order range
+    // is begin-inclusive and end-exclusive, so `(rows, 0)` -- the start of the row after the
+    // last -- is the one position with no row that a range may honestly end at, and it is
+    // what "selected through the end of the last row" spells. Any other end names a row
+    // that is shown, at a column that row has. This is the whole of the relaxation: a
+    // multiline selection running past the window is representable, and nothing past
+    // that one exclusive-end position is admitted.
     if (caret.sel_begin_row < 0 || caret.sel_begin_row >= rows || caret.sel_end_row < 0 ||
-        caret.sel_end_row >= rows) {
+        caret.sel_end_row > rows ||
+        (caret.sel_end_row == rows && caret.sel_end_col != 0)) {
         return Written::no("selected a row this pane is not showing");
     }
     if (!within(caret.sel_begin_row, caret.sel_begin_col) ||
-        !within(caret.sel_end_row, caret.sel_end_col)) {
+        (caret.sel_end_row < rows && !within(caret.sel_end_row, caret.sel_end_col))) {
         return Written::no("selected a column a row of this pane does not have");
     }
     // READING ORDER, WHICH IS THE ONE THING `SurfaceTextRegion` ALREADY REQUIRES of a
@@ -388,7 +454,6 @@ WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     case KeyContext::kNaming:
     case KeyContext::kPaneNaming: return PasteOwner::kNaming;
     case KeyContext::kDraft: return PasteOwner::kDraft;
-    case KeyContext::kEditor: return PasteOwner::kEditor;
     default: return PasteOwner::kNone;
     }
 }
@@ -407,10 +472,6 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
         p.epoch = line->draft_epoch();
         break;
     }
-    case PasteOwner::kEditor:
-        p.editor_doc = session_.editor.doc_epoch;
-        p.editor_revision = session_.editor.buffer.revision();
-        break;
     case PasteOwner::kDraft: {
         Row* row = editing_row();
         if (row == nullptr) {

@@ -6,15 +6,15 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Editor`,
-  `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
-  screen, which is a pane like the rest of them: pick it, move it, cover it, remove it) and
-  `Pane Manager` ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places
-  and orders any of them, itself included.
+- **built-in panels** — compiled into Workshop: `Layouts` (the
+  [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the screen, which
+  is a pane like the rest of them: pick it, move it, cover it, remove it) and `Pane Manager`
+  ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places and orders any of
+  them, itself included.
 - **external panes** — offered by a loaded weave through a bounded protocol.
-  `Info`, `Builder`, `Attention`, `Files`, `Loaded`, `Project` and `Powers` arrive this way.
-  `Info` is the one your desk names for you, so it is on screen on a first run; the list of
-  built-ins above is short and getting shorter on purpose.
+  `Info`, `Builder`, `Attention`, `Files`, `Editor`, `Terminal`, `Loaded`, `Project` and
+  `Powers` arrive this way. `Info` is the one your desk names for you, so it is on screen on a
+  first run; the list of built-ins above is as short as it is going to get.
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
   made from inside the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
@@ -65,8 +65,8 @@ answer `Esc` first, in their own way — `Esc` clears the selection: the
 pane's edge goes back to ordinary, it drops back to its authored place in the order, and the
 keys return to Workshop. Nothing closes, moves or is written; it is exactly what pressing an
 empty part of the desk does, for a desk that has no empty part left. A place you **type**
-into keeps `Esc` for as long as it holds the keys: the source editor ignores it, and a pane
-such as Compose receives it as its own key (its form goes back to its catalog). To put one of
+into keeps `Esc` for as long as it holds the keys: the Editor ignores it, and a pane such
+as Compose receives it as its own key (its form goes back to its catalog). To put one of
 those down, press a pane that takes no typing — `Layouts` is always there — or the desk,
 then `Esc`.
 
@@ -74,8 +74,8 @@ then `Esc`.
 Pane Manager's two lists, the picker, a Files, Powers or Compose pane — moves its
 cursor under the wheel, and the rows follow. The wheel goes to the pane under the pointer,
 front-most first, so a pane in front never scrolls the one it covers; it does not select the
-pane and does not move the keys. The source editor scrolls its text instead, leaving the
-caret where it is.
+pane and does not move the keys. The Editor scrolls its text instead, leaving the caret
+where it is.
 
 ## Moving, resizing and ordering — Arrange
 

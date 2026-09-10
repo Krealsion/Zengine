@@ -1031,6 +1031,7 @@ surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  40
+editor                            doctest           always  19
 operator                          doctest           always  126
 composer                          doctest           always  35
 files_weave                       doctest           always  19
@@ -1495,15 +1496,71 @@ builder                           doctest           always  55
 #                               were pinned as standing alone and `paste` was not. One case,
 #                               and a mutation of `paste`'s `remember(kStructural)` to
 #                               `kTyping` reddens 7 of its 15 assertions -- measured.
+#
+# THE EDITOR SEAM moved four floors and retired one entry (VD-25), and it is the last move of
+# the arc: the built-in whose DOCUMENT was the host's, not only its presentation. The shape is
+# the Terminal's once more -- the built-in's tiers go whole and the GESTURES come back through
+# the real seam -- with one difference the floors show: the buffer and the byte law were a pure
+# tier already, and they went to a pure suite with an executable of their own.
+#
+#   workshop_editor 65 -> gone  the entry is retired. Its sixty-five cases are the two below
+#                               and the panes seam; none was deleted without a successor named
+#                               in the phase's operation map (the Editor extraction's evidence
+#                               report, kept with the phase records outside this repository).
+#
+#   editor          new, 19     `tests/test_editor.cpp`: the first tier of the retired suite,
+#                               unchanged case for case -- the buffer's mechanics, the source
+#                               byte law as an exact inverse, the tab geometry, the displayed
+#                               window, the paste flattening, and the vocabulary/consume
+#                               agreement -- over `editor-pane/editor.hpp`, with an include set
+#                               that can name nothing of the host. The floor is the count.
+#
+#   workshop_panes  368 -> 417  the seam. Forty-nine cases in one new source
+#                               (`test_workshop_panes_editor.cpp`), over the real
+#                               `zengine-editor-pane` image: the offer and the four declared
+#                               rows on the built-in's spellings; `^s` as two rows by who holds
+#                               the keys; the saved-setup conversion; the one door at its new
+#                               office, with every refusal a value the asker reads (missing,
+#                               oversized, refused bytes, no author); the reveal and its
+#                               no-room refusal in the picker's words; the same-path re-request
+#                               and the dirty refusal; save, a failed save, CRLF and tabs,
+#                               discard; presentation removed and the document whole -- undo
+#                               history included; the reload SHAPE; the exit asked of the room
+#                               (dirty refuses, clean and empty permit, no custodian quits at
+#                               once, a forged answer decides nothing, an edit RACING the ask
+#                               is held and replayed, a paste in flight refuses); text and
+#                               command letters, `^c`, `^o`, Escape, the empty pane taking
+#                               keys; copy/paste through the medium, two late answers, the
+#                               ASCII gate both ways; the press through tab geometry with the
+#                               caret published, the sweep and the release, the sweep past the
+#                               edge with the exclusive end, clipping above the window and a
+#                               range with no caret, the wheel, navigation, the horizontal
+#                               window, a resize, the two-row and one-row rooms, long and
+#                               tabbed lines, a sweep in a pane that lost its seat; two source
+#                               reads; and the dirty-buffer catalog case that moved here from
+#                               `workshop_files`. Two rigs in the Files and Builder seam
+#                               sources now load the real Editor beside their asker for the
+#                               door cases, at the same case count.
+#
+#   workshop_load   130 -> 132  the custody witness over a real Kernel and a staged image:
+#                               a four-megabyte dirty document with its caret and selection
+#                               rides a reload in place and the reloaded pane still refuses
+#                               the quit (the history does not ride, by design); an empty
+#                               Editor reloads to empty and permits it.
+#
+#   workshop_files  43 -> 41    two cases left: the dirty-buffer catalog case moved to the seam
+#                               (above), and the Editor-door case is the seam's whole subject
+#                               now. Two more were RESPELLED in place, not moved: the recipe's
+#                               file is named by the PROJECT door (`RecipeSourceSaid`), and
+#                               opening it is the Editor's.
 
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  368
+workshop_panes                    doctest           always  417
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  130
-workshop_editor                   doctest           always  65
-workshop_files                    doctest           always  43
+workshop_load                     doctest           always  132
+workshop_files                    doctest           always  41
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

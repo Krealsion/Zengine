@@ -4,10 +4,11 @@
 on. The exact contracts are [Workshop panes](../reference/workshop-panes.md); a maker's view of
 the same ground is [panes](../workshop/panes.md).
 
-Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it, an
-Info panel beside them, a source editor, and a Terminal overlay -- plus the panes its load plan
-brings, which since the pane-weave arc include the project browser and the Builder. A **tool**
-is something a maker can open from the `+ panel` picker.
+Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it and
+the panes its load plan brings -- since the pane-weave arc that is Info, the project browser,
+the Builder, Attention, the Terminal and the source Editor, every one of them a loaded weave
+beside the two built-ins Workshop still compiles (Layouts and the Pane Manager). A **tool** is
+something a maker can open from the `+ panel` picker.
 
 There are **two ways** to put one there, and current source deliberately does not merge them.
 Pick yours before you read any mechanics.

@@ -36,6 +36,7 @@
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 
+#include <algorithm>
 #include <fstream>
 
 namespace {
@@ -95,7 +96,11 @@ struct FilesRig {
     }
 
     /// Mount the two host doors, load the image, open the pane, and put the keyboard on it.
-    void open(std::int64_t width = 160, std::int64_t height = 48) {
+    ///
+    /// `with_editor` LOADS THE REAL EDITOR IMAGE BESIDE THE BROWSER, for the two cases about
+    /// the one door: the Editor is a weave (VD-25), so a Return on a source row is answered by
+    /// nobody unless its image is in the room.
+    void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false) {
         r.mount_workshop();
         mount_project_door();
         mount_recipes_door();
@@ -104,6 +109,12 @@ struct FilesRig {
         tool.stem = files::kFilesStem;
         tool.weave = load::WeaveIntent{files::kFilesRole};
         plan.artifacts.push_back(tool);
+        if (with_editor) {
+            load::ArtifactIntent editor;
+            editor.stem = "zengine-editor-pane";
+            editor.weave = load::WeaveIntent{"zengine.editor"};
+            plan.artifacts.push_back(editor);
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
@@ -120,6 +131,19 @@ struct FilesRig {
 
     const RuntimePane* row() {
         return r.session().panels.runtime.find(files::kFilesRole, files::kProjectFilesPane);
+    }
+
+    /// The Editor pane's handle, when its image was loaded beside the browser.
+    std::int64_t editor_kind() {
+        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        REQUIRE(editor != nullptr);
+        return editor->kind;
+    }
+    /// The Editor pane's first row: its status row, which carries the dirty word and the path.
+    std::string editor_status() {
+        const std::vector<std::string> rows = pane_rows(r, editor_kind());
+        REQUIRE_FALSE(rows.empty());
+        return rows[0];
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -386,47 +410,55 @@ TEST_CASE("FILES-WEAVE: the wheel moves the cursor, and a header press names no 
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: Return on a source opens it in the Editor, through the one door") {
-    // ⭐ THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and
-    // the host's one door (`open_source`, WL-EDIT-05) does everything it always did.
+    // ⭐ THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and the
+    // Editor weave's one door (`OpenSourceRequested` at `zengine.editor`, WL-EDIT-05) does
+    // everything the built-in's did -- and then asks Workshop to show the pane it filled.
     FilesRig f("files-open");
     put_file(f.root / "alpha.cpp", "the project\n");
-    f.open();
+    f.open(160, 48, /*with_editor=*/true);
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    REQUIRE(f.r.session().editor.open_document());
-    CHECK(f.r.session().editor.path ==
-          (f.root / "alpha.cpp").lexically_normal().generic_string());
-    CHECK(f.r.session().editor.buffer.line(0) == "the project");
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.r.session().panels.keyboard == editor);
+    CHECK(f.editor_status().rfind("saved L1:C1/2", 0) == 0);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos); // the path keeps its end
+    const std::vector<std::string> rows = pane_rows(f.r, editor);
+    CHECK(std::find(rows.begin(), rows.end(), "the project") != rows.end());
 }
 
 TEST_CASE("FILES-WEAVE: a dirty Editor's refusal comes back and the pane says it") {
-    // ⭐ THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS. The door
-    // refuses; the refusal travels back as a value; the pane says it in its own first row.
-    // Nothing about the maker's unsaved work moved.
+    // ⭐ THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a
+    // document that is not in this process either. The Editor weave refuses; the refusal
+    // travels back as a value; the browser says it in its own first row. Nothing about the
+    // maker's unsaved work moved.
     FilesRig f("files-dirty");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
-    f.open();
+    f.open(160, 48, /*with_editor=*/true);
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    REQUIRE(f.r.session().editor.open_document());
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    REQUIRE(f.r.session().panels.keyboard == editor); // the reveal pointed the keys here
+    press_pane(f.r, editor, 1, 0);                   // the first document row
     f.r.text("x");
-    REQUIRE(f.r.session().editor.dirty());
+    REQUIRE(f.editor_status().rfind("UNSAVED", 0) == 0);
 
-    // Back to the pane, and ask for a different source.
+    // Back to the browser, and ask for a different source.
     press_pane(f.r, f.kind, 1, 0);
     f.point_at("beta.cpp");
     f.r.key(input::scan::kReturn);
     // THE PANE LEADS WITH THE REFUSAL rather than with its header, which is how a maker sees
     // that something was said. The refusal's WORDS are the door's and are asserted as a value
-    // where the door is (`workshop_files`, PANE-DOOR); a pane's row is fitted to the room it
-    // was granted, and a temporary directory's path is long enough on Windows to cut them.
+    // where the door is (`test_workshop_panes_editor.cpp`); a pane's row is fitted to the room
+    // it was granted, and a temporary directory's path is long enough on Windows to cut them.
     CHECK(f.first().rfind("Files ", 0) != 0);
-    CHECK(f.r.session().editor.path ==
-          (f.root / "alpha.cpp").lexically_normal().generic_string());
-    CHECK(f.r.session().editor.dirty());
+    CHECK(f.editor_status().rfind("UNSAVED", 0) == 0);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+    CHECK(f.editor_status().find("beta.cpp") == std::string::npos);
 }
 
 TEST_CASE("FILES-WEAVE: `u` moves the recipe catalog, and the pane says which and how much") {

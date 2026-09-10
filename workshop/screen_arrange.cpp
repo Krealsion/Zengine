@@ -106,16 +106,11 @@ ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
     return ClickMemory{true, place, epoch, word.begin, word.end, now_ms};
 }
 
-// WL-FOCUS-01, WL-FOCUS-02 -- agents/workshop/focus.md
-bool editor_has_keyboard(const Session& s) {
-    if (s.panels.keyboard != panel::kEditor || !s.editor.open_document() ||
-        !s.panels.has(panel::kEditor)) {
-        return false;
-    }
-    const FineRect where =
-        bounds_of(s.panels, s.setup.active, panel::kEditor, screen_of(s)).rect;
-    return where.w > 0 && where.h > 0;
-}
+// ⭐ `editor_has_keyboard` WAS HERE AND IS GONE: the Editor is a pane, and a pane's readiness
+// is `keyboard_pane`'s one answer -- open, runtime kind, room granted -- resolved fresh at
+// every spend like every other pane's. The "needs a document open" clause that made the
+// built-in a candidate that could decline the keys is the Editor weave's own now: an empty
+// Editor takes the keys as any pane does and does nothing with them.
 
 // WL-FOCUS-01 -- agents/workshop/focus.md; WL-PED-07 -- agents/workshop/pane-manager.md
 bool pane_editor_has_keyboard(const Session& s) {
@@ -162,14 +157,9 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (is_runtime_kind(keyboard_pane(s.panels))) {
         return KeyContext::kPane;
     }
-    // THE SOURCE EDITOR IS A PLACE IN THE FOCUSED PANE'S FAMILY: the candidate is the
-    // same last-pressed memory an external pane rides, so the two cannot both be the
-    // answer, and whichever the maker pointed the keys at LAST is the one that speaks --
-    // own symmetry, with the same resolved-fresh discipline behind it.
-    if (editor_has_keyboard(s)) {
-        return KeyContext::kEditor;
-    }
-    // AND THE PANE EDITOR IS THE THIRD MEMBER, on the same candidate field and
+    // ⭐ THE SOURCE EDITOR WAS A BRANCH HERE, between the focused pane and the Pane Manager,
+    // and it is gone: the Editor is a runtime pane and the branch above answers for it.
+    // AND THE PANE EDITOR IS THE SECOND MEMBER, on the same candidate field and
     // the same terms. A draft open on one of ITS rows takes the keys as text exactly as the
     // Info panel's draft does one branch down -- `kDraft` is one context whichever inspector
     // the row belongs to, and `editing_key` asks which by asking this chain.

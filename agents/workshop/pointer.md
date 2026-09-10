@@ -30,7 +30,7 @@ MEANS
 
 DOES NOT MEAN
 - that the Editor's multiline machinery or the Composer's fields were taught it — neither was;
-- that a PANE gets it: a pane is sent a press and no motion, so it cannot sweep (WL-TERM-09).
+- that a PANE gets it: a pane sweeps from the positions it is sent (WL-TEXT-14), never a word.
 
 **The live witness went with the Terminal's line, and is not replaced.** It was driven over
 the terminal overlay's own row; the Pane Manager's draft spends the same call and has no

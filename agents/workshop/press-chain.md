@@ -15,10 +15,10 @@ DOES NOT MEAN
 - that a `Disposition`, `InteractionResult` or target enum is wanted on the routing path.
 
 MEANS
-- ⭐ its three handlers left with the Info panel; the Editor's arm answers now, and a pane's.
+- ⭐ Info's and the Editor's arms are gone; a pane's press says whether it named a row.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`, `take_hold`;
-`workshop/weave_editor.cpp` `editor_press`; `workshop/weave_pane_editor.cpp`
+`workshop/weave_external.cpp` `external_press`; `workshop/weave_pane_editor.cpp`
 `pane_editor_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets
 first refusal, and a mode takes the press whole"`; `tests/test_workshop_screen.cpp` case `"a
 press that lands on a panel begins nothing, so a hand that leaves it drags nothing"`.
@@ -74,8 +74,9 @@ LAW — The tab inverse is spent only once occupancy has named the Layouts pane,
 
 PROVEN BY — `workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_layouts.cpp`
 `band_tab_at`, `band_status`, `layouts_body`; `workshop/panel.hpp` `kLayouts`;
-`workshop/weave_editor.cpp` `layouts_press`; `tests/test_workshop_screen.cpp` case `"WUX-9/SC-9: a
-press answers a painted tab and nothing else on the band"`, case `"WUX-9/SC-8+SC-9: an omitted tab
+`workshop/weave_pointer.cpp` `layouts_press`; `tests/test_workshop_screen.cpp` case
+`"WUX-9/SC-9: a press answers a painted tab and nothing else on the band"`, case
+`"WUX-9/SC-8+SC-9: an omitted tab
 has no span and cannot be pressed"`, case `"QR-14/SC-5: no press outside the painted run reaches a
 layout"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`

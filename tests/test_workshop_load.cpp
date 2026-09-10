@@ -49,12 +49,15 @@
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/load_plan.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/recipes.hpp"
 #include "workshop/staging.hpp"
 
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
+#include "editor-pane/editor.hpp"
+#include "editor-pane/vocabulary.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/kernel/control.hpp>
@@ -116,6 +119,11 @@ struct Stage {
         put("zengine-timer", TIMER_SO);
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
+#ifdef EDITOR_PANE_SO
+        // VD-25's custody witness: the real Editor image, so a reload can be driven with a
+        // maker's document aboard.
+        put("zengine-editor-pane", EDITOR_PANE_SO);
+#endif
         put("zengine-stale-provider", PROVIDER_ABI_SO);
         put("zengine-broken-consumer", BROKEN_CONSUMER_SO);
         // INTR-1's genericity witness: three powers no projection in this repository
@@ -1102,7 +1110,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 12); // ...and the Terminal pane joined them
+    REQUIRE(p.artifacts.size() == 13); // ...and the Editor pane joined them (VD-25)
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1149,6 +1157,12 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[11].weave.has_value());
     CHECK(p.artifacts[11].weave->role == "zengine.terminal");
     CHECK_FALSE(p.artifacts[11].provider.has_value());
+    // ...AND THE EDITOR PANE, thirteenth and last of the migrations: the image that holds a
+    // maker's source document, a weave in the room like every other pane's.
+    CHECK(p.artifacts[12].stem == "zengine-editor-pane");
+    REQUIRE(p.artifacts[12].weave.has_value());
+    CHECK(p.artifacts[12].weave->role == "zengine.editor");
+    CHECK_FALSE(p.artifacts[12].provider.has_value());
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row
@@ -5181,4 +5195,287 @@ TEST_CASE("the writer says where the frontier row's product is, through the stag
                                           &rig.executor, nullptr};
     CHECK(blind.staging == nullptr);
     rig.drain(8);
+}
+
+// ============================================================================
+// Tier 9c -- VD-25: the document a replaceable pane holds rides a reload
+// ============================================================================
+//
+// ⭐ THE EDITOR IS THE FIRST PANE WHOSE STATE IS A MAKER'S WORK. Every earlier image kept a
+// cursor or a line across a reload; this one keeps the source document -- path, bytes, the
+// saved comparison, the caret and the anchor, the window -- because the alternative is a
+// maker who rebuilt the Editor losing what they were editing with it. What is driven here is
+// the whole act, over a real Kernel, a real Manager and a staged image: open a document at
+// the admitted bound, edit it, reload the image in place, and ask the reloaded pane both
+// what it shows and whether the process may end.
+//
+// ⚠ THE HOST IS NOT IN THIS RIG, AND THAT IS THE MEASUREMENT. The Editor pane speaks to one
+// office, `zengine.workshop`, and a seat holding that office with five sentences of its own
+// is the whole of what the pane needs from a host: a room, keys, text, a source request and
+// the quit ask. Nothing of Workshop's session, screen or weave is linked.
+
+namespace {
+
+struct HostSeatState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(HostSeatState, 1, ZEN_FIELD(heard));
+};
+
+class HostSeat
+    : public loom::WeaveBase<
+          HostSeat, HostSeatState,
+          loom::Accept<workshop::PaneOffered, workshop::PaneActions, workshop::PaneContent,
+                       workshop::PaneCaret, workshop::PaneRevealRequested, workshop::SourceOpened,
+                       workshop::PaneQuitAnswered, Nudge>,
+          loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
+                     workshop::PaneTextInput, workshop::OpenSourceRequested,
+                     workshop::PaneQuitRequested>> {
+public:
+    static constexpr const char* kOffice = "zengine.workshop";
+    std::vector<workshop::PaneOffered> offers;
+    std::vector<workshop::PaneContent> contents;
+    std::vector<workshop::PaneCaret> carets;
+    std::vector<workshop::SourceOpened> opens;
+    std::vector<workshop::PaneQuitAnswered> quits;
+    int reveals = 0;
+    std::function<void(HostSeat&, loom::Mail&)> next;
+
+    void on(const workshop::PaneOffered& o, loom::Mail&) {
+        ++state_.heard;
+        offers.push_back(o);
+    }
+    void on(const workshop::PaneActions&, loom::Mail&) {}
+    void on(const workshop::PaneContent& c, loom::Mail&) { contents.push_back(c); }
+    void on(const workshop::PaneCaret& c, loom::Mail&) { carets.push_back(c); }
+    void on(const workshop::PaneRevealRequested&, loom::Mail&) { ++reveals; }
+    void on(const workshop::SourceOpened& s, loom::Mail&) { opens.push_back(s); }
+    void on(const workshop::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }
+    void on(const Nudge&, loom::Mail& mail) {
+        if (next) {
+            auto what = next;
+            next = nullptr;
+            what(*this, mail);
+        }
+    }
+
+    /// The last row set the pane published, as plain text.
+    std::vector<std::string> rows() const {
+        std::vector<std::string> out;
+        if (contents.empty()) {
+            return out;
+        }
+        for (const auto& r : contents.back().rows) {
+            out.push_back(r.text);
+        }
+        return out;
+    }
+};
+
+struct EditorReloadRig {
+    ReloadRig rig;
+    HostSeat* host = nullptr;
+    loom::WeaveId host_id{};
+    loom::WeaveId editor{};
+    std::filesystem::path file;
+
+    EditorReloadRig() {
+        auto seat = std::make_unique<HostSeat>();
+        host = seat.get();
+        loom::Grant say;
+        say.allow_to_any(workshop::PaneCatalogRequested::zen_name,
+                         workshop::PaneCatalogRequested::zen_version);
+        say.allow_to_any(workshop::PaneRoom::zen_name, workshop::PaneRoom::zen_version);
+        say.allow_to_any(workshop::PaneKey::zen_name, workshop::PaneKey::zen_version);
+        say.allow_to_any(workshop::PaneTextInput::zen_name, workshop::PaneTextInput::zen_version);
+        say.allow_to_any(workshop::OpenSourceRequested::zen_name,
+                         workshop::OpenSourceRequested::zen_version);
+        say.allow_to_any(workshop::PaneQuitRequested::zen_name,
+                         workshop::PaneQuitRequested::zen_version);
+        host_id = rig.bus.register_weave(std::move(seat), std::move(say),
+                                         std::string(HostSeat::kOffice));
+        host->zen_set_self(host_id);
+        file = rig.products() / "witness.txt";
+    }
+
+    void drive(std::function<void(HostSeat&, loom::Mail&)> what) {
+        host->next = std::move(what);
+        (void)rig.bus.send(host_id, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+        rig.drain(16);
+    }
+
+    void load_editor() {
+        REQUIRE(rig.realize(plan_of({weaves("zengine-editor-pane", "zengine.editor")})).ok);
+        editor = rig.kernel.weave_id("zengine-editor-pane");
+        REQUIRE(editor.value != 0);
+        // THE PANE OFFERED ITSELF AT ACTIVATION, to an office that answered; ask the room
+        // once more the way the host does at boot, and grant it a room.
+        drive([](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneCatalogRequested{});
+        });
+        REQUIRE_FALSE(host->offers.empty());
+        CHECK(host->offers.back().pane == "editor");
+        room(8, 60);
+    }
+
+    void room(std::int64_t rows, std::int64_t columns) {
+        drive([rows, columns](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice)
+                .send_to_role("zengine.editor", workshop::PaneRoom{"editor", rows, columns});
+        });
+    }
+
+    workshop::SourceOpened open(const std::string& path) {
+        const std::size_t before = host->opens.size();
+        drive([path](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice)
+                .send_to_role("zengine.editor", workshop::OpenSourceRequested{path});
+        });
+        REQUIRE(host->opens.size() == before + 1);
+        return host->opens.back();
+    }
+
+    void type(const std::string& text) {
+        drive([text](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice)
+                .send_to_role("zengine.editor", workshop::PaneTextInput{"editor", text});
+        });
+    }
+
+    void key(std::int64_t sc, std::int64_t mods = 0) {
+        drive([sc, mods](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice)
+                .send_to_role("zengine.editor", workshop::PaneKey{"editor", sc, mods});
+        });
+    }
+
+    workshop::PaneQuitAnswered ask_quit() {
+        const std::size_t before = host->quits.size();
+        drive([](HostSeat&, loom::Mail& m) {
+            (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneQuitRequested{});
+        });
+        REQUIRE(host->quits.size() == before + 1);
+        return host->quits.back();
+    }
+
+    std::string status() const {
+        const std::vector<std::string> rows = host->rows();
+        REQUIRE_FALSE(rows.empty());
+        return rows[0];
+    }
+
+    /// The pane's snapshot, admitted against its own declared shape -- the bytes a reload
+    /// carries, read the way Loom reads them.
+    loom::Value snapshot() const {
+        const loom::Unverified claim = loom::parse(rig.bus.snapshot_bytes(editor));
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<zengine::editor_pane::EditorPaneState>());
+        REQUIRE_MESSAGE(admitted.ok(), "the Editor's snapshot did not admit as EditorPaneState: ",
+                        admitted.first_error().message());
+        return admitted.value();
+    }
+};
+
+} // namespace
+
+TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in place, and the reloaded pane still refuses the quit") {
+#ifndef EDITOR_PANE_SO
+    MESSAGE("no Editor image was built for this tree");
+#else
+    EditorReloadRig w;
+    w.load_editor();
+    // A DOCUMENT AT THE ADMITTED BOUND: `kMaxSourceBytes` bytes exactly, as one line of
+    // `y` and a final newline -- the largest source the Editor will hold, and the largest
+    // snapshot a reload of it has to carry.
+    {
+        std::ofstream out(w.file, std::ios::binary | std::ios::trunc);
+        REQUIRE(out.good());
+        const std::string line(static_cast<std::size_t>(workshop::kMaxSourceBytes) - 1, 'y');
+        out.write(line.data(), static_cast<std::streamsize>(line.size()));
+        out.put('\n');
+    }
+    const workshop::SourceOpened opened = w.open(w.file.generic_string());
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    CHECK(w.host->reveals == 1);
+    REQUIRE(w.status().rfind("saved L1:C1/2", 0) == 0);
+
+    // EDIT IT, AND MOVE: a typed byte at the start, then the caret two places right and a
+    // selection of one -- caret, anchor, dirty and a fresh revision all in one incarnation.
+    w.type("Z");
+    w.key(zengine::input::scan::kRight);
+    w.key(zengine::input::scan::kRight, zengine::input::mod::kShift);
+    REQUIRE(w.status().rfind("UNSAVED L1:C4/2", 0) == 0);
+
+    // THE SNAPSHOT IS THE DOCUMENT: two Texts of four megabytes apiece, and nine Ints -- so
+    // the decode budget's COUNT (65,536 cells, one per field) is spent eleven times over
+    // however large the source is. That is the whole reason the shape carries the bytes and
+    // not the lines.
+    const loom::Value snap = w.snapshot();
+    CHECK(snap.get("text")->as_text().size() == static_cast<std::size_t>(workshop::kMaxSourceBytes) + 1);
+    CHECK(snap.get("saved_text")->as_text().size() == static_cast<std::size_t>(workshop::kMaxSourceBytes));
+    CHECK(snap.get("caret_byte")->as_int() == 3);
+    CHECK(snap.get("anchor_byte")->as_int() == 2);
+    CHECK(snap.get("path")->as_text() == w.file.generic_string());
+
+    // "THE MAKER REBUILT THE EDITOR": the product is a copy of the same image, in `products/`.
+    const loom::WeaveId before = w.editor;
+    w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
+    w.rig.offer("zengine-editor-pane");
+    CHECK(w.rig.kernel.is_loaded("zengine-editor-pane"));
+    CHECK(w.rig.kernel.weave_id("zengine-editor-pane") == before);
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    CHECK(w.rig.ears->answers[0].realized);
+    CHECK(w.rig.ears->answers[0].detail.find("reloaded in place") != std::string::npos);
+
+    // THE RELOADED INCARNATION RE-OFFERED ITSELF (the control door's activation), and its
+    // room is not in the state: grant it one, and the rows it composes are the document as
+    // it stood -- dirty, at the same caret, with the same selection.
+    REQUIRE(w.host->offers.size() >= 2);
+    w.room(8, 60);
+    CHECK(w.status().rfind("UNSAVED L1:C4/2", 0) == 0);
+    CHECK(w.status().find("witness.txt") != std::string::npos);
+    REQUIRE(w.host->rows().size() >= 2);
+    CHECK(w.host->rows()[1].rfind("Zyy", 0) == 0);
+    REQUIRE_FALSE(w.host->carets.empty());
+    CHECK(w.host->carets.back().column == 3);
+    CHECK(w.host->carets.back().sel_begin_col == 2);
+    CHECK(w.host->carets.back().sel_end_col == 3);
+    // ...AND THE HISTORY DID NOT RIDE: an undo after the reload has nothing to take back,
+    // which is the decision the shape records by omission.
+    w.key(zengine::input::scan::kZ, zengine::input::mod::kCtrl);
+    CHECK(w.host->rows()[1].rfind("Zyy", 0) == 0);
+    CHECK(w.status().rfind("UNSAVED", 0) == 0);
+    // AND THE EXIT IS STILL JUDGED ON THE DOCUMENT THAT SURVIVED.
+    const workshop::PaneQuitAnswered no = w.ask_quit();
+    CHECK_FALSE(no.permitted);
+    CHECK(no.refusal.find("unsaved changes") != std::string::npos);
+    CHECK(no.refusal.find("witness.txt") != std::string::npos);
+    // The snapshot after the reload is the same document again -- the second reload would
+    // carry what the first one did.
+    const loom::Value again = w.snapshot();
+    CHECK(again.get("text")->as_text() == snap.get("text")->as_text());
+    CHECK(again.get("doc_epoch")->as_int() == snap.get("doc_epoch")->as_int());
+#endif
+}
+
+TEST_CASE("RELOAD-1/VD-25: an Editor with no document reloads to no document, and permits the quit") {
+#ifndef EDITOR_PANE_SO
+    MESSAGE("no Editor image was built for this tree");
+#else
+    EditorReloadRig w;
+    w.load_editor();
+    CHECK(w.status().rfind("no source open", 0) == 0);
+    const loom::Value snap = w.snapshot();
+    CHECK(snap.get("path")->as_text().empty());
+    CHECK(snap.get("text")->as_text().empty());
+    w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
+    w.rig.offer("zengine-editor-pane");
+    REQUIRE(w.rig.ears->answers.size() == 1);
+    CHECK(w.rig.ears->answers[0].realized);
+    w.room(8, 60);
+    CHECK(w.status().rfind("no source open", 0) == 0);
+    const workshop::PaneQuitAnswered yes = w.ask_quit();
+    CHECK(yes.permitted);
+    CHECK(yes.refusal.empty());
+#endif
 }

@@ -262,10 +262,13 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         const Gesture hotkeys = k.gesture_of(Act::kHotkeys);
         CHECK(refused({declared("x.k", "keys", hotkeys.scancode, hotkeys.modifiers)}) ==
               collision_sentence(hotkeys, "workshop.hotkeys", "x.k"));
-        // A NO-EDITOR ROW (`document.save`, ^s) is active in a pane too: refused.
+        // ⚠ `document.save` (^s) USED TO BE REFUSED HERE TOO, as a `kNoEditor` row active in a
+        // pane. It is `kNoText` now (VD-25): the Editor is a pane that declares `editor.save`
+        // on that very chord, so the host row yields wherever a pane holds the keys, and a
+        // pane may declare it -- which is the whole reason the Editor's rows admit at all.
         const Gesture save = k.gesture_of(Act::kSaveDocument);
-        CHECK(refused({declared("x.s", "save", save.scancode, save.modifiers)}) ==
-              collision_sentence(save, "document.save", "x.s"));
+        const Keymap with_save = accepted({declared("x.s", "save", save.scancode, save.modifiers)});
+        CHECK(with_save.pane_rows(kSomePane) != nullptr);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
         // holds the keys (WL-FOCUS-09): a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);
@@ -697,7 +700,8 @@ TEST_CASE("the band's legend and the hotkey view print the pane's rows while it 
               std::string::npos);
         // THE PANE'S OWN ROWS FIRST, then the chorded survivors; an unbound row teaches
         // no key (WL-KEY-13).
-        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^k hotkeys");
+        // (`^s save` was in this row while `document.save` was active in a pane; VD-25.)
+        CHECK(lines[1] == "up row up | m mark | ^o open | ^k hotkeys");
     }
     // THE HOTKEY VIEW: the rows, then the ownership sentence for everything else.
     r.key(input::scan::kK, input::mod::kCtrl);
@@ -731,7 +735,7 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys");
+    CHECK(band_lines(r).at(1) == "^o open | ^k hotkeys"); // no `^s save` since VD-25
     r.key(input::scan::kK, input::mod::kCtrl);
     const std::string view = hotkeys_text(r);
     CHECK(view.find("every ordinary key and character goes to the pane") != std::string::npos);

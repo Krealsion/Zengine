@@ -119,6 +119,35 @@ and every older one is byte-identical.
   it would retarget the Composer by looking. Its `... N more` therefore still counts what no
   gesture reaches; what it would need is a list origin of its own — a recorded seam.
 
+## The sweep, the reveal and the quit cross as four more shapes (VD-25)
+
+The Editor's extraction added four shapes and no powers, all in `workshop/pane_vocabulary.hpp`
+beside the twelve before them, and each is an ordinary optional capability any pane may spend:
+
+- **`PaneDragged v1` `{pane, row, column}`**, Workshop → provider: the hand moved with the button
+  down, in the pane a press named a row of. The position is the granted lattice's, resolved
+  against the pane's body AT THIS MOTION through the same measurer the press spent, and
+  deliberately NOT clamped — a row above the body is negative, one below it is past the granted
+  count, and what either means is the pane's. There is no release shape: the host ends its own
+  record on release, or when the pane loses its seat or its room, and sends nothing; a pane
+  resolves a sweep from the positions it was given. The Terminal ignores it; the Editor steps its
+  window on it.
+- **`PaneRevealRequested v1` `{pane}`**, provider → Workshop, as the office that offered the pane:
+  seat me, select me, point the keys at me. The host walks the picker's own membership door with
+  its trial seat, refuses no room in the picker's words, and says which pane asked. A reveal from
+  an office that offered no such pane, or from nobody, is dropped. A pane that has just installed
+  a document sends it AFTER answering the asker, so a refused reveal leaves the document open in
+  the weave for the picker to bring back.
+- **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
+  **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
+  that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
+  accepters at the publication, ends the process at once when nobody accepted, and otherwise holds
+  every gesture until the last answer, refuses on any refusal (saying it, and replaying the held
+  gestures), and proceeds on all permissions. A pane with an answer still owed to it — a paste in
+  flight — refuses rather than waits, so one clipboard read cannot hold every other pane's exit.
+  What is NOT solved: an accepter that never answers holds the quit open, and that is named
+  rather than timed out.
+
 ## A pane declares its actions, and the host dispatches the resolved id
 
 `PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
@@ -135,9 +164,8 @@ Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 - **Judged whole under the office stamp, exactly as the offer is.** An empty office retains
   nothing; a pane this office never offered is refused by name; the rows meet a bound
   (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
-  Workshop's own) and the collision law over the effective map — the globals and the no-editor
-  rows, which are what is active while a text-taking pane holds the keys, and the pane's own
-  rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
+  Workshop's own) and the collision law over the effective map — the globals, which are what is
+  active while a text-taking pane holds the keys, and the pane's own rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
   one replaces them. Two panes declaring one bare key are two contexts, keyed by handle, and
   never meet.
 - **The maker's file reaches the pane.** An override for an id nobody has declared is preserved
@@ -424,8 +452,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   those is a fact about the host.
 - **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
   `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
-  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the editor's
-  own paste posture. Every road into the query passes that one door: typing, a mirrored
+  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the Editor
+  pane's own paste posture. Every road into the query passes that one door: typing, a mirrored
   `ClipboardCopy`, and the answer to a paste ask. ⚠ **The shipped Composer has the same latent
   exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
   candidate.

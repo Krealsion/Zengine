@@ -26,7 +26,6 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kArrangeDesk: return "arranging the desk";
     case KeyContext::kArrangeReset: return "arranging -- reset";
     case KeyContext::kDraft: return "editing a property";
-    case KeyContext::kEditor: return "the source editor";
     case KeyContext::kPaneEditor: return "the Pane Manager";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
@@ -87,8 +86,7 @@ std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
     bool above = false;
     for (const ActionRow& row : kActionCatalog) {
         const bool is_class =
-            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText ||
-            row.context == KeyContext::kNoEditor;
+            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText;
         if (!is_class || !active_in(row.context, ctx)) {
             continue;
         }
@@ -105,15 +103,13 @@ std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
             entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
         }
     }
-    // THE EDITOR'S OWN MECHANICS, from its declaration rows (editor.hpp) exactly as the
-    // component's come from theirs: shown for discovery, marked not remappable, their
-    // executable truth being `EditorBuffer::consume` and never this keymap.
-    if (ctx == KeyContext::kEditor) {
-        group("the editor's own keys (not remappable)");
-        for (const component::EditingGesture& g : kEditorVocabulary) {
-            entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
-        }
-    }
+    // ⭐ THE EDITOR'S OWN MECHANICS WERE LISTED HERE AND ARE NOT, AND THAT IS A NAMED LOSS.
+    // The built-in's declaration rows (`kEditorVocabulary`) were shown for discovery, marked
+    // not remappable, exactly as the component's are above. The Editor is a pane, its
+    // vocabulary is its own image's, and this host cannot list what it cannot see: the pane
+    // is described as ownership plus its four declared rows, like every other pane. A pane
+    // that could publish its unremappable keys for a legend is a protocol sentence nobody
+    // has asked for yet.
     return rows;
 }
 

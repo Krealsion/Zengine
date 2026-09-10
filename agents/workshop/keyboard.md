@@ -49,9 +49,10 @@ PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context`, `keyboard_contex
 `workshop/keymap.hpp` `context_takes_text`, `KeyContext`; `workshop/weave_seam.cpp`
 `paste_owner_now`; `workshop/weave_handlers.cpp` `on(KeyPressed)`; `workshop/weave_pointer.cpp`
 `on(TextEntered)`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every Workshop mode owns
-the keyboard above a focused pane"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the editor
-context takes text, and its class algebra is exact"`; `tests/test_workshop_document.cpp` case
-`"KEY-0: the view lists the context beneath it, and three contexts differ"`.
+the keyboard above a focused pane"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one
+physical ^s is the document's save or the source's, by who holds the keys"`;
+`tests/test_workshop_document.cpp` case `"KEY-0: the view lists the context beneath it, and three
+contexts differ"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-04 — Matching is exact
@@ -64,25 +65,26 @@ aliases no longer fire"`, case `"KEY-0: a known backend gap is accepted and said
 silently rewritten"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-05 — Three declaration-only activity classes
+## WL-KEY-05 — Two declaration-only activity classes
 
-LAW — Three declaration-only classes: global rows above every mode, no-text rows exactly where no editable text has the keys, no-editor rows everywhere but the editor; nothing else answers above a mode.
+LAW — Two declaration-only classes: global rows above every mode, and no-text rows exactly where no editable text has the keys; nothing else answers above a mode.
 
 MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
-- `workshop.quit` (`^c`) is `kNoText`; it is the only row of that class left;
-- `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
+- `workshop.quit` (`^c`) and `document.save` (`^s`) are `kNoText`;
+- the Editor pane's own `editor.save` row answers `^s` while it holds the keys (WL-EDIT-04).
 
 DOES NOT MEAN
-- that a pane's row is a fourth class: it meets the global and no-editor rows only (WL-KEY-15).
+- that a pane's row is a third class: it meets the global rows only (WL-KEY-15).
+- ⚠ `kNoEditor` was the third class until the Editor became a pane (VD-25); it is gone.
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`,
-`document.save`, `editor.save`; `workshop/weave_handlers.cpp` `on(KeyPressed)`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save or
-the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
-exactly where nothing takes text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys
-that mean the same thing in every mode still outrank a pane"`.
+`Keymap::above_mode_action`, `workshop.quit`, `document.save`; `workshop/weave_handlers.cpp`
+`on(KeyPressed)`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the
+document's save or the source's, by who holds the keys"`; `tests/test_workshop_document.cpp`
+case `"TEXT-0: ^c still quits exactly where nothing takes text"`;
+`tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys that mean the same thing in every
+mode still outrank a pane"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
@@ -182,8 +184,7 @@ PROVEN BY — `workshop/screen_hotkeys.cpp` `paint_hotkeys`, `hotkeys_rows`,
 `tests/test_workshop_document.cpp` case `"KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k
 close it"`, case `"KEY-0: the view is keys-modal -- a maker reading a binding is not executing
 it"`; `tests/test_workshop_screen.cpp` case `"QR-17/SC-6,7: the compact view owns no pointer space
-and moves no reservation"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the hotkey view
-answers for the editor with its own unremappable keys"`.
+and moves no reservation"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-KEY-12 — The printable-trigger swallow is derived from the binding

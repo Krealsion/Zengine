@@ -72,12 +72,14 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
 
-LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which saves the session before it stops the bus; no autosave, no dirty tracking, no background writer.
+LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which asks the room and then saves the session before it stops the bus; no autosave, no background writer.
 
 MEANS
-- crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
+- crash durability is not claimed: `write_file` does not fsync; a killed run loses its session;
+- `finish_quit` is the one place the desk is written and the bus stopped.
 
-PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_session.cpp` `save_last_session`;
+PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`; `workshop/weave_session.cpp`
+`save_last_session`;
 `workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;

@@ -16,7 +16,6 @@
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "document.hpp"
-#include "editor.hpp" // the source editor's buffer, byte law and tab geometry
 #include "keymap.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -780,18 +779,26 @@ struct PaneGesture {
 // WL-TEXT-14 -- agents/workshop/text-box.md
 namespace text_drag_place {
 inline constexpr std::int64_t kNone = 0;
-// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24) -- the Terminal's line is a pane's now, and a
-// pane sweeps its own selection out of the presses and motions it is already sent. The
-// remaining values keep their numbers: they are a session's live routing and never durable,
-// but renumbering them would be a diff nobody could read for no gain anybody could measure.
+// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24), and `kEditorBody` WAS 3 AND IS GONE with the
+// Editor: both lines are a pane's now. The remaining values keep their numbers: they are a
+// session's live routing and never durable, but renumbering them would be a diff nobody
+// could read for no gain anybody could measure.
 inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
-inline constexpr std::int64_t kEditorBody = 3;    ///< the source editor's document body
 inline constexpr std::int64_t kPaneEditorDraft = 4; /// < the Pane Editor's live draft row
+/// AN EXTERNAL PANE'S BODY: the press named a row of a pane's granted room, and every motion
+/// until the release crosses the seam as `PaneDragged`, resolved against that pane's body
+/// as it is at each motion. Which pane is `TextDrag::kind`.
+// WL-TEXT-14 -- agents/workshop/text-box.md
+inline constexpr std::int64_t kExternalPane = 5;
 } // namespace text_drag_place
 
 struct TextDrag {
     bool active = false;
     std::int64_t place = text_drag_place::kNone;
+    /// The pane a `kExternalPane` sweep belongs to -- the press's pane, held by handle for
+    /// the length of the gesture, and re-checked at every motion (a pane that lost its room
+    /// or its seat ends the sweep with nothing sent).
+    std::int64_t kind = kNoPaneKind;
 };
 
 /// HOW LONG A DOUBLE-CLICK MAY TAKE.
@@ -918,11 +925,14 @@ struct Session {
     /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
     /// layout-name editor's for the same reason: a maker's hand halfway through a word.
     PaneNaming pane_naming;
-    /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
-    /// buffer with its caret/selection/history, the saved copy the dirty answer derives
-    /// from, and the viewport. Session and not pane state, emphatically: the Editor PANE
-    // WL-EDIT-01 -- agents/workshop/editor.md
-    EditorState editor;
+    // ⭐ `Session::editor` WAS HERE AND IS GONE. The source document -- the path, the
+    // multiline buffer with its caret/selection/history, the saved copy the dirty answer
+    // derived from, the viewport -- was session state so that the Editor PANE could be
+    // removed without losing a byte. It is the Editor WEAVE's own now
+    // (`Zengine/editor-pane/`), which keeps that promise one seam further out: the pane is
+    // still a presentation, the document still outlives it, and the host holds no copy of
+    // either. What the host asks the document's owner is exactly one thing, at the exit
+    // (`PaneQuitRequested`).
     /// ...and the text selection their pointer is sweeping, if any. The third
     /// gesture record, for the two records' own reason; see `TextDrag`.
     TextDrag text_drag;
@@ -955,9 +965,6 @@ struct Session {
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px);
 }
-
-/// DOES THE SOURCE EDITOR HAVE THE KEYBOARD RIGHT NOW?
-bool editor_has_keyboard(const Session& s);
 
 /// IS THE PANE EDITOR THE PANE A MAKER LAST PRESSED INTO, WITH SOMETHING TO SHOW?
 bool pane_editor_has_keyboard(const Session& s);
@@ -1842,63 +1849,20 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
                            const FineRect& b, const Screen& sc, bool titles,
                            std::int64_t chrome = kPaneChrome);
 
-// ---- THE SOURCE EDITOR'S PANE: one document, projected through a viewport ---------------
-// WL-EDIT-12 -- agents/workshop/editor.md
-
-inline constexpr std::int64_t kEditorHeaderRows = 1;
-
-/// ONE COLUMN OF EVERY BODY ROW THE TEXT MAY NOT USE -- the caret's own column, for
-/// its reason.
-// WL-EDIT-08 -- agents/workshop/editor.md
-inline constexpr std::int64_t kEditorCaretCols = 1;
-
-/// The editor body's resolved place on this screen: the pane's rectangle less its header,
-/// as prose. Absent whenever the pane is closed, off-room, or too small for one row.
-ExternalBodyPlace editor_body(const Session& s, const Screen& sc);
-
-/// The columns of the body a LINE may spend -- the body's columns less the caret's one.
-inline constexpr std::int64_t editor_text_columns(const ExternalBodyPlace& body) noexcept {
-    const std::int64_t text = body.columns - kEditorCaretCols;
-    return text > 0 ? text : 0;
-}
-
-/// THE HEADER: whether the buffer matches the file, where the caret is, and what is
-/// being edited -- in the order the facts must survive `detail::fit`'s TAIL cut.
-std::string editor_header(const EditorState& e, bool typing);
-
-/// KEEP THE VIEWPORT TRUE AGAINST THE ROOM AND THE DOCUMENT IT HAS NOW -- the editor's
-/// member of the once-per-repaint reconcile family (`refresh_editor`'s argument, two
-void reconcile_editor_view(Session& s);
-
-/// WHERE A PRESS LANDED IN THE EDITOR'S BODY -- `external_press_at`'s shape for the one
-/// built-in whose body is a document.
-// WL-EDIT-08 -- agents/workshop/editor.md
-struct EditorPressAt {
-    bool named = false;
-    std::int64_t row = 0;    ///< a prose row of the BODY: 0 is the row under the header
-    std::int64_t column = 0; ///< a displayed column of the viewport's window
-};
-
-EditorPressAt editor_press_at(const Session& s, const Screen& sc, std::int64_t space,
-                                     std::int64_t x, std::int64_t y);
-
-/// IS THIS POSITION OVER THE EDITOR'S TEXT BODY -- the wheel's one question. The header
-/// row is not the body; the column is not asked, because a wheel aimed at the pane's
-/// body is aimed at the document however far right of its last character it sits.
-bool over_editor_body(const Session& s, const Screen& sc, std::int64_t space,
-                             std::int64_t x, std::int64_t y);
-
-/// THE EDITOR, PAINTED: the frame, the header, and the document through the viewport --
-/// one region, so the caret and the selection are the REGION's and each medium answers
-/// in cells).
-void paint_editor(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
-                         const Screen& sc, std::int64_t chrome = kPaneChrome);
+// ⭐ THE SOURCE EDITOR'S PANE WAS DECLARED HERE AND IS GONE. `kEditorHeaderRows`,
+// `kEditorCaretCols`, `editor_body`, `editor_text_columns`, `editor_header`,
+// `reconcile_editor_view`, `EditorPressAt`, `editor_press_at`, `over_editor_body` and
+// `paint_editor` were one document projected through a viewport by this host; the
+// projection, the viewport and the document are `Zengine/editor-pane/`'s now, and its rows
+// and caret cross as `PaneContent` and `PaneCaret` like every other pane's. What is left of
+// the editor on this side is the one measurer every external pane already spends
+// (`external_body_place`) and the drag the seam gained for it (`PaneDragged`).
 
 // ---- A cursor-windowed list's wheel ------------------------------------------------------
 
-/// How many rows the wheel is worth in a cursor-windowed list -- the editor's number, for
-/// its reason. Spent by the Editor, the Pane Manager and the picker; the browser that
-/// introduced it takes its own copy across the seam now.
+/// How many rows the wheel is worth in a cursor-windowed list -- the desktop convention,
+/// three. Spent by the Pane Manager and the picker; the browser and the editor that spent it
+/// as built-ins each take their own copy across the seam now.
 // WL-EDIT-10 -- agents/workshop/editor.md
 inline constexpr std::int64_t kListWheelRows = 3;
 
@@ -2227,7 +2191,7 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
 
 /// THE PANE CREATOR'S NAME PROMPT, as the Pane Manager's heading spells it while a name is
 /// being typed, and the columns the typed line may spend beside it (the prompt, then the
-/// caret's own column reserved, `kTerminalCaretCols`' rule).
+/// caret's own column reserved, `kPropertyCaretCols`' rule).
 inline constexpr const char* kPaneNamePrompt = "new pane> ";
 std::int64_t pane_name_columns(std::int64_t heading_columns);
 

@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The bodies of `weave.hpp`'s section -- the run: the frontier and the clock read alive, the
-// repaint that publishes the slots and then the picture, the one quit that writes the desk on the
-// way out, and the draft-first sentence -- compiled once into `zengine-workshop-logic` and linked
-// by the host and every suite; the declarations, the constants and the constexpr functions stay
-// in the header.
+// repaint that publishes the slots and then the picture, the one quit that asks the room and
+// writes the desk on the way out, and the draft-first sentence -- compiled once into
+// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
+// constants and the constexpr functions stay in the header.
 // Workshop law: agents/workshop/attention.md (+5 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -27,7 +27,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     refresh_inspector(); // and a draft's window is only true against the room it has now
     refresh_setup_name(); // ...and so is the name editor's, against the same room
     refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading
-    refresh_editor();     // ...and the source viewport, against the body it has now
     refresh_external_rooms(mail); // ...and an external pane's room, against the same one
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
@@ -98,33 +97,127 @@ void WorkshopWeave::say_document(loom::Mail& mail) {
 // WL-EDIT-03 -- agents/workshop/editor.md
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 // WL-SESSION-13 -- agents/workshop/session.md
-void WorkshopWeave::quit() {
-    // THE UNSAVED-LOSS FLOOR AT THE ONE EXIT: dirty source may leave this process
-    // only by the maker's own deliberate act. All three arrival doors -- `q`, the
-    // ctrl chord, a native close box -- meet the same refusal, which names the two
-    // real ways out; there is no confirmation surface and no armed second press,
-    // because a maker who has saved or discarded simply quits. The OBJECT document
-    // keeps its recorded policy (its UNSAVED marker is its statement); the source
-    // buffer is the one draft in this application whose loss is a file's worth of
-    // work, which is why it alone holds the door.
-    if (session_.editor.dirty()) {
-        say("the source editor has unsaved changes -- " + hotkey(Act::kEditorSave) +
-                " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
-                " discards them; Workshop stays open",
+void WorkshopWeave::quit(loom::Mail& mail) {
+    if (quitting_) {
+        say("quitting -- waiting for " + std::to_string(quit_outstanding_) +
+                " pane(s) to answer",
             true);
         return;
     }
-    // AND A MAKER-MADE PANE HOLDS THE DOOR THE SAME WAY: a definition that
-    // differs from its file is a maker's authored truth, and it may leave this process
-    // only by their own save or their own discard.
+    // A MAKER-MADE PANE HOLDS THE DOOR SYNCHRONOUSLY, AS IT ALWAYS DID: a definition that
+    // differs from its file is a maker's authored truth this host still holds, and it may
+    // leave this process only by their own save or their own discard.
     if (session_.panels.maker.dirty()) {
         say(maker_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }
+    // THE UNSAVED-LOSS FLOOR AT THE ONE EXIT, ASKED OF THE ROOM. The source document used
+    // to be session state this line could read; it is the Editor weave's, and any pane
+    // that holds a maker's unsaved work accepts the question. All three arrival doors --
+    // `q`, the ctrl chord, a native close box -- meet the same ask, the fan-out count Loom
+    // hands back is exactly how many answers are owed, and zero owed is the authoritative
+    // "nobody holds anything": the exit proceeds now. Otherwise the room is being asked,
+    // every gesture is held until the last answer (`hold_input`), and the answer handler
+    // finishes or refuses. There is no confirmation surface and no armed second press: a
+    // maker who has saved or discarded simply quits.
+    // ONE SEQUENCE PER ASKER (`loom::AskBook::mint_correlation`): a number the paste book is
+    // not already waiting on, so an answer to this ask can never settle a paste.
+    quit_ask_ = paste_asks_.mint_correlation();
+    const loom::OfficePublication asked =
+        mail.as_role(kWorkshopProvider).publish(PaneQuitRequested{}, quit_ask_);
+    if (!asked.authored) {
+        // THIS WEAVE DOES NOT HOLD ITS OWN OFFICE, so it cannot ask and cannot know. A host
+        // composed that way is a defect worth reading, not a reason to lose a maker's work.
+        say("Workshop could not ask its panes whether they hold unsaved work -- it does not "
+            "hold its own office; Workshop stays open",
+            true);
+        return;
+    }
+    if (asked.recipients == 0) {
+        finish_quit();
+        return;
+    }
+    quitting_ = true;
+    quit_outstanding_ = asked.recipients;
+    quit_refusals_.clear();
+    held_input_.clear();
+    held_dropped_ = 0;
+}
+
+// WL-SESSION-13 -- agents/workshop/session.md
+void WorkshopWeave::finish_quit() {
+    quitting_ = false;
+    held_input_.clear();
     save_last_session();
     host_->quit = true;
     if (host_->request_stop) {
         host_->request_stop();
+    }
+}
+
+// WL-EDIT-03 -- agents/workshop/editor.md
+void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
+    if (!mail.answers_ask() || !quitting_ || mail.correlation() != quit_ask_) {
+        return; // not Loom's answer to the ask this host is waiting on
+    }
+    if (!said.permitted) {
+        quit_refusals_.push_back(said.refusal.empty()
+                                     ? said.pane + " refused the quit and gave no reason"
+                                     : said.refusal);
+    }
+    if (quit_outstanding_ > 0) {
+        --quit_outstanding_;
+    }
+    if (quit_outstanding_ > 0) {
+        return; // more answers are owed, and the decision waits for the last of them
+    }
+    quitting_ = false;
+    if (quit_refusals_.empty()) {
+        finish_quit();
+        return;
+    }
+    std::string why;
+    for (const std::string& one : quit_refusals_) {
+        if (!why.empty()) {
+            why += "; ";
+        }
+        why += one;
+    }
+    if (held_dropped_ > 0) {
+        why += " (" + std::to_string(held_dropped_) +
+               " gesture(s) that arrived while the quit was pending were dropped)";
+    }
+    say(why, true);
+    // AND THE MAKER'S HANDS GET BACK WHAT THEY DID MEANWHILE, in order, through the same
+    // handlers -- a refused quit costs no keystroke.
+    replay_held(mail);
+    repaint(mail);
+}
+
+bool WorkshopWeave::hold_input(HeldInput held) {
+    if (!quitting_) {
+        return false;
+    }
+    if (held_input_.size() >= kMaxHeldInput) {
+        ++held_dropped_;
+        return true;
+    }
+    held_input_.push_back(std::move(held));
+    return true;
+}
+
+void WorkshopWeave::replay_held(loom::Mail& mail) {
+    std::vector<HeldInput> replay;
+    replay.swap(held_input_);
+    held_dropped_ = 0;
+    for (const HeldInput& held : replay) {
+        switch (held.kind) {
+        case HeldInput::Kind::kKey: on(held.key, mail); break;
+        case HeldInput::Kind::kText: on(held.text, mail); break;
+        case HeldInput::Kind::kButton: on(held.button, mail); break;
+        case HeldInput::Kind::kMoved: on(held.moved, mail); break;
+        case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
+        }
     }
 }
 

@@ -167,7 +167,7 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
 | **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
-| **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
+| **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The Builder asks the project which file the recipe names, then asks the Editor to open it; the [Files](files.md) pane opens any project file through the same Editor door |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 
 The pane shows the office it presents and the catalog in force, the chosen recipe and what it

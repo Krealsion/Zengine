@@ -41,6 +41,7 @@
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
 
+#include <algorithm>
 #include <fstream>
 
 namespace {
@@ -152,7 +153,10 @@ struct BuilderRig {
         mount_tool_office();
     }
 
-    void open(std::int64_t width = 160, std::int64_t height = 48) {
+    /// `with_editor` LOADS THE REAL EDITOR IMAGE BESIDE THE BUILDER, for the cases about `e`:
+    /// the Editor is a weave (VD-25), so the second of the two doors `e` walks is answered by
+    /// nobody unless its image is in the room.
+    void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false) {
         r.mount_workshop();
         mount_doors();
         load::LoadPlan plan;
@@ -160,6 +164,12 @@ struct BuilderRig {
         seat.stem = pane::kBuilderPaneStem;
         seat.weave = load::WeaveIntent{pane::kBuilderPaneRole};
         plan.artifacts.push_back(seat);
+        if (with_editor) {
+            load::ArtifactIntent editor;
+            editor.stem = "zengine-editor-pane";
+            editor.weave = load::WeaveIntent{"zengine.editor"};
+            plan.artifacts.push_back(editor);
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
@@ -187,6 +197,18 @@ struct BuilderRig {
 
     const RuntimePane* row() {
         return r.session().panels.runtime.find(pane::kBuilderPaneRole, pane::kBuilderPane);
+    }
+
+    /// The Editor pane's handle, when its image was loaded beside the Builder.
+    std::int64_t editor_kind() {
+        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        REQUIRE(editor != nullptr);
+        return editor->kind;
+    }
+    std::string editor_status() {
+        const std::vector<std::string> rows = pane_rows(r, editor_kind());
+        REQUIRE_FALSE(rows.empty());
+        return rows[0];
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -255,12 +277,13 @@ struct BuilderRig {
         r.host.recipe_source = [this](const std::string&) { return next_source; };
 
         auto project = std::make_unique<ProjectDoor>(r.host.project_dir, marks_, r.host.frontier,
-                                                     r.host.plan_names);
+                                                     r.host.plan_names, r.host.recipe_source);
         ProjectDoor* praw = project.get();
         loom::Grant say_project;
         say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
         say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
+        say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
         const loom::WeaveId pid = r.bus.register_weave(std::move(project), std::move(say_project),
                                                        std::string(kProjectRole));
         praw->zen_set_self(pid);
@@ -756,9 +779,10 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the 
 
 TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host") {
     // ⭐ THE PANE NAMES A RECIPE AND NEVER A PATH. `RecipeSummary` is `{recipe, artifact}` on
-    // purpose, so the sentence that crosses is the recipe's own name and the host resolves it
-    // against the catalog IT owns -- a pane that could spell the path would already have been
-    // handed the build procedure.
+    // purpose, so the sentence that crosses is the recipe's own name and the host's read-only
+    // project office resolves it against the catalog IT owns -- a pane that could spell the
+    // path would already have been handed the build procedure. The pane then carries the one
+    // path the door named to the Editor's own door, and the Editor asks to be shown.
     BuilderRig b("bld-edit");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     const std::string src = (b.root / "snake.cpp").generic_string();
@@ -768,23 +792,52 @@ TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host
     b.next_source.known = true;
     b.next_source.kind = "single_source";
     b.next_source.source = src;
-    b.open();
+    b.open(160, 48, /*with_editor=*/true);
 
     b.letter(input::scan::kE, "e");
-    CHECK(b.r.session().editor.open_document());
-    CHECK(b.r.session().editor.path == src);
+    const std::int64_t editor = b.editor_kind();
+    REQUIRE(b.r.session().panels.has(editor));
+    CHECK(b.r.session().panels.keyboard == editor);
+    CHECK(b.editor_status().rfind("saved L1:C1/2", 0) == 0);
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    const std::vector<std::string> rows = pane_rows(b.r, editor);
+    CHECK(std::find(rows.begin(), rows.end(), "int main() {}") != rows.end());
 }
 
-TEST_CASE("BLD-WEAVE: a refusal from the Editor door is said in the pane's own row") {
+TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row") {
+    // THE FIRST DOOR'S REFUSAL: a kind with no single source, in the recipe file's own words.
     BuilderRig b("bld-edit-refuse");
     b.tool->catalog = catalog_of({{"block", "zen-block"}});
     b.next_source.known = true;
     b.next_source.kind = "cmake_target"; // no single source to edit
-    b.open();
+    b.open(160, 48, /*with_editor=*/true);
 
     b.letter(input::scan::kE, "e");
-    CHECK_FALSE(b.r.session().editor.open_document());
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
     CHECK(b.text().find("names no single source") != std::string::npos);
+
+    // THE SECOND DOOR'S REFUSAL: a file that is not there, in the Editor's own words.
+    BuilderRig c("bld-edit-missing");
+    c.tool->catalog = catalog_of({{"gone", "zen-gone"}});
+    c.next_source.known = true;
+    c.next_source.kind = "single_source";
+    c.next_source.source = (c.root / "absent.cpp").generic_string();
+    c.open(160, 48, /*with_editor=*/true);
+    c.letter(input::scan::kE, "e");
+    CHECK_FALSE(c.r.session().panels.has(c.editor_kind()));
+    CHECK(c.text().find("cannot read") != std::string::npos); // the reader's own words
+
+    // ...AND A HOST WITH NO EDITOR IN THE ROOM: the second ask reaches nobody, and the pane
+    // is left exactly as it was -- no answer is not a refusal it can say.
+    BuilderRig d("bld-edit-nobody");
+    d.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    d.next_source.known = true;
+    d.next_source.kind = "single_source";
+    d.next_source.source = (d.root / "snake.cpp").generic_string();
+    d.open();
+    const std::string before = d.text();
+    d.letter(input::scan::kE, "e");
+    CHECK(d.text() == before);
 }
 
 // ============================================================================
