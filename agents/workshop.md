@@ -1,6 +1,7 @@
 # Agent law — Workshop (router)
 
-Routed behind [`../AGENTS.md`](../AGENTS.md), for tasks touching `workshop/` and `component/`.
+Routed behind [`../AGENTS.md`](../AGENTS.md), for `workshop/`, `component/`, and the extracted
+pane implementations named there. Behavioral ownership follows the component when its code moves.
 Workshop's law lives in the registers under [`workshop/`](workshop/): one law per `##`, a
 `WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
@@ -8,7 +9,8 @@ decision record under `decisions/`. Authority when they disagree: tests > code >
 decision record. The whole of the law in one screen is `grep -h '^LAW' agents/workshop/*.md`.
 
 What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
-vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's side only.
+vocabulary is [`surface.md`](surface.md). These registers hold Workshop behavior and the
+consumer-specific behavior of its extracted panes; the shared protocol stays in `panes.md`.
 
 ## Where the law is
 
@@ -68,5 +70,5 @@ which register each witnesses.
   reintroduced into registers, decision records or source comments.
 - That docking exists — it is still absent and still refused.
 - That a seam law is stated here. A room grant, a pressed row, a key or a wheel crossing to a
-  provider is the protocol's law; a Workshop register states only Workshop's conformance.
+  provider is the protocol's law; a Workshop register states the host or pane consumer's behavior.
 - That a law without a witness is hidden. Each register lists its own under `## Do not assume`.
