@@ -36,6 +36,7 @@
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 
+#include <algorithm>
 #include <fstream>
 
 namespace {
@@ -95,8 +96,21 @@ struct FilesRig {
     }
 
     /// Mount the two host doors, load the image, open the pane, and put the keyboard on it.
-    void open(std::int64_t width = 160, std::int64_t height = 48) {
+    ///
+    /// `with_editor` LOADS THE REAL EDITOR IMAGE BESIDE THE BROWSER, for the two cases about
+    /// the one door: the Editor is a weave (VD-25), so a Return on a source row is answered by
+    /// nobody unless its image is in the room.
+    /// `with_manager` MOUNTS THE OPENING MANAGER BESIDE WORKSHOP, as the host does: the host
+    /// names the managed pane before Workshop is mounted, and the manager's office is what
+    /// the pane's Return asks (WL-OPEN-01). Without it the ask reaches nobody, which is the
+    /// refusal-at-dispatch cases' whole subject.
+    void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
+              bool with_manager = true) {
+        r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
+        if (with_manager) {
+            r.mount_opening();
+        }
         mount_project_door();
         mount_recipes_door();
         load::LoadPlan plan;
@@ -104,6 +118,12 @@ struct FilesRig {
         tool.stem = files::kFilesStem;
         tool.weave = load::WeaveIntent{files::kFilesRole};
         plan.artifacts.push_back(tool);
+        if (with_editor) {
+            load::ArtifactIntent editor;
+            editor.stem = "zengine-editor-pane";
+            editor.weave = load::WeaveIntent{"zengine.editor"};
+            plan.artifacts.push_back(editor);
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
@@ -120,6 +140,19 @@ struct FilesRig {
 
     const RuntimePane* row() {
         return r.session().panels.runtime.find(files::kFilesRole, files::kProjectFilesPane);
+    }
+
+    /// The Editor pane's handle, when its image was loaded beside the browser.
+    std::int64_t editor_kind() {
+        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        REQUIRE(editor != nullptr);
+        return editor->kind;
+    }
+    /// The Editor pane's first row: its status row, which carries the dirty word and the path.
+    std::string editor_status() {
+        const std::vector<std::string> rows = pane_rows(r, editor_kind());
+        REQUIRE_FALSE(rows.empty());
+        return rows[0];
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -166,6 +199,44 @@ struct FilesRig {
             r.key(input::scan::kDown);
         }
         REQUIRE_MESSAGE(at_cursor().rfind(name, 0) == 0, "no row called ", name);
+    }
+
+    /// A KEY QUEUED AND NOT DRAINED, so a case can place a real message at an exact interval
+    /// of the conversation the key begins; the case pumps.
+    void enqueue_key(std::int64_t sc) {
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::KeyPressed{sc, "", input::mod::kNone}), loom::WeaveId{},
+            loom::WeaveId{}, 0));
+    }
+
+    /// A STRANGER THAT CAN SAY `zen.DispatchRefused` AS A SHAPE -- granted so the forgery
+    /// case proves the PANE's refusal to act on ordinary speech, not the bus's grant refusal.
+    DoorAsker* stranger = nullptr;
+    loom::WeaveId stranger_id{};
+    void mount_stranger() {
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        stranger = held.get();
+        loom::Grant grant;
+        grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
+        stranger_id = r.bus.register_weave(std::move(held), std::move(grant),
+                                           std::string(kDoorAskerOffice));
+        stranger->zen_set_self(stranger_id);
+        stranger->id = stranger_id;
+    }
+    /// Queue a forged refusal notice to the browser naming `attempt`; nothing is drained.
+    void forge_refusal(loom::WeaveId to, std::uint64_t attempt) {
+        REQUIRE(stranger != nullptr);
+        stranger->next = [to, attempt](DoorAsker&, loom::Mail& mail) {
+            loom::DispatchRefused forged;
+            forged.attempt = std::to_string(attempt);
+            forged.role = kOpeningRole;
+            forged.shape = OpenSourceRequested::zen_name;
+            forged.version = OpenSourceRequested::zen_version;
+            forged.reason = "NoSuchTarget";
+            (void)mail.as_role(kDoorAskerOffice).send(to, forged);
+        };
+        (void)r.bus.send(stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
     }
 
     /// A bare-letter gesture, as a backend really reports one: the key transition AND the
@@ -253,10 +324,10 @@ TEST_CASE("FILES-WEAVE: the pane declares its rows with the ids a maker's keymap
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
-    const std::vector<PaneActionRow>& declared = f.row()->actions;
+    const std::vector<v2::PaneActionRow>& declared = f.row()->actions;
     REQUIRE_MESSAGE(!declared.empty(), "the pane declared no actions at all");
     std::vector<std::string> ids;
-    for (const PaneActionRow& row : declared) {
+    for (const v2::PaneActionRow& row : declared) {
         ids.push_back(row.id);
     }
     for (const char* id : {files::kActionUp, files::kActionDown, files::kActionOpen,
@@ -386,47 +457,55 @@ TEST_CASE("FILES-WEAVE: the wheel moves the cursor, and a header press names no 
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: Return on a source opens it in the Editor, through the one door") {
-    // ⭐ THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and
-    // the host's one door (`open_source`, WL-EDIT-05) does everything it always did.
+    // ⭐ THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and the
+    // Editor weave's one door (`OpenSourceRequested` at `zengine.editor`, WL-EDIT-05) does
+    // everything the built-in's did -- and then asks Workshop to show the pane it filled.
     FilesRig f("files-open");
     put_file(f.root / "alpha.cpp", "the project\n");
-    f.open();
+    f.open(160, 48, /*with_editor=*/true);
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    REQUIRE(f.r.session().editor.open_document());
-    CHECK(f.r.session().editor.path ==
-          (f.root / "alpha.cpp").lexically_normal().generic_string());
-    CHECK(f.r.session().editor.buffer.line(0) == "the project");
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.r.session().panels.keyboard == editor);
+    CHECK(f.editor_status().rfind("saved L1:C1/2", 0) == 0);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos); // the path keeps its end
+    const std::vector<std::string> rows = pane_rows(f.r, editor);
+    CHECK(std::find(rows.begin(), rows.end(), "the project") != rows.end());
 }
 
 TEST_CASE("FILES-WEAVE: a dirty Editor's refusal comes back and the pane says it") {
-    // ⭐ THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS. The door
-    // refuses; the refusal travels back as a value; the pane says it in its own first row.
-    // Nothing about the maker's unsaved work moved.
+    // ⭐ THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a
+    // document that is not in this process either. The Editor weave refuses; the refusal
+    // travels back as a value; the browser says it in its own first row. Nothing about the
+    // maker's unsaved work moved.
     FilesRig f("files-dirty");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
-    f.open();
+    f.open(160, 48, /*with_editor=*/true);
 
     f.point_at("alpha.cpp");
     f.r.key(input::scan::kReturn);
-    REQUIRE(f.r.session().editor.open_document());
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    REQUIRE(f.r.session().panels.keyboard == editor); // the reveal pointed the keys here
+    press_pane(f.r, editor, 1, 0);                   // the first document row
     f.r.text("x");
-    REQUIRE(f.r.session().editor.dirty());
+    REQUIRE(f.editor_status().rfind("UNSAVED", 0) == 0);
 
-    // Back to the pane, and ask for a different source.
+    // Back to the browser, and ask for a different source.
     press_pane(f.r, f.kind, 1, 0);
     f.point_at("beta.cpp");
     f.r.key(input::scan::kReturn);
     // THE PANE LEADS WITH THE REFUSAL rather than with its header, which is how a maker sees
     // that something was said. The refusal's WORDS are the door's and are asserted as a value
-    // where the door is (`workshop_files`, PANE-DOOR); a pane's row is fitted to the room it
-    // was granted, and a temporary directory's path is long enough on Windows to cut them.
+    // where the door is (`test_workshop_panes_editor.cpp`); a pane's row is fitted to the room
+    // it was granted, and a temporary directory's path is long enough on Windows to cut them.
     CHECK(f.first().rfind("Files ", 0) != 0);
-    CHECK(f.r.session().editor.path ==
-          (f.root / "alpha.cpp").lexically_normal().generic_string());
-    CHECK(f.r.session().editor.dirty());
+    CHECK(f.editor_status().rfind("UNSAVED", 0) == 0);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+    CHECK(f.editor_status().find("beta.cpp") == std::string::npos);
 }
 
 TEST_CASE("FILES-WEAVE: `u` moves the recipe catalog, and the pane says which and how much") {
@@ -800,4 +879,109 @@ TEST_CASE("FILES-WEAVE: a setup naming the retired reference opens the loaded pa
     // ...AND IT IS ON THE SCREEN, listing the place this run began.
     REQUIRE(f.row() != nullptr);
     CHECK(any_row(pane_rows(f.r, f.row()->kind), "alpha.cpp"));
+}
+
+TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files says why") {
+    // ⭐ THE TRANSACTION'S FAILURE ATOMICITY, THROUGH THE REAL REQUESTER (VD-27). Files asks
+    // the Editor's door; the Editor judges the file and asks the desk for a place; the desk
+    // has none, so nothing is installed, nothing is authored, and the refusal travels back to
+    // Files as the answer to its own request -- which Files says in its own first row.
+    FilesRig f("files-noroom");
+    put_file(f.root / "alpha.cpp", "the project\n");
+    f.open(160, kMinScreen.h, /*with_editor=*/true);
+    // THE ONE STACK SLOT THIS SCREEN HAS IS FILES' OWN.
+    REQUIRE(f.r.session().panels.has(f.kind));
+    REQUIRE_FALSE(f.r.session().panels.has(f.editor_kind()));
+
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK_FALSE(has_pane(f.r.session().setup.active, PaneRef{"zengine.editor", "editor"}));
+    CHECK(f.r.session().panels.keyboard == f.kind); // the keys never left Files
+    const std::vector<std::string> rows = pane_rows(f.r, f.kind);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].find("no room for Editor") != std::string::npos);
+    CHECK(f.r.session().notice.find("no room for Editor") != std::string::npos);
+}
+
+// ============================================================================
+// FILES-WEAVE -- the open's refusal at dispatch, consumed by exact attempt (WL-OPEN-07)
+// ============================================================================
+
+TEST_CASE("FILES-WEAVE: an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once an opening office is present") {
+    // NO OPENING OFFICE IS HELD: the pane's ask is queued, and Loom refuses it before any
+    // handler ran -- `NoSuchTarget`, said back to the exact attempt as `zen.DispatchRefused`.
+    // The pane names the request that failed in its own row, clears only that ask, moves
+    // nothing on the desk and keeps the keys.
+    FilesRig f("files-open-refused");
+    put_file(f.root / "alpha.cpp", "the project\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK(f.r.session().panels.keyboard == f.kind);
+    CHECK_MESSAGE(f.first().find("alpha.cpp") != std::string::npos, f.first());
+    CHECK_MESSAGE(f.first().find("could not reach") != std::string::npos, f.first());
+    CHECK_MESSAGE(f.first().find("NoSuchTarget") != std::string::npos, f.first());
+    const std::string refused = f.first();
+    // A LATE COPY OF THE NOTICE -- the shape, from a stranger, after the ask has settled --
+    // is ordinary speech about nothing this pane is waiting on: the row stands.
+    const loom::WeaveId files_id = f.r.kernel.weave_id(files::kFilesStem);
+    REQUIRE(files_id.value != 0);
+    f.mount_stranger();
+    f.forge_refusal(files_id, 1);
+    f.r.bus.drain_until_idle();
+    CHECK(f.first() == refused);
+    // ...AND A FRESH ATTEMPT TAKES once the office is held: the open reaches the manager, the
+    // Editor is seated with the file, and the keys move to it.
+    f.r.mount_opening();
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.r.session().panels.keyboard == editor);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+}
+
+TEST_CASE("FILES-WEAVE: a forged refusal naming the pane's own live attempt settles nothing, and the open completes") {
+    // THE PROVENANCE IS THE FACT, THE SHAPE IS SPEECH. While the pane's ask is genuinely
+    // outstanding at the manager, a stranger says `zen.DispatchRefused` with the RIGHT attempt
+    // number -- read off the bus's own tap when the ask was delivered -- and the pane must not
+    // settle its request on it: the open goes on to complete, and the row never says refused.
+    FilesRig f("files-open-forged");
+    put_file(f.root / "alpha.cpp", "the project\n");
+    f.open(160, 48, /*with_editor=*/true);
+    const loom::WeaveId files_id = f.r.kernel.weave_id(files::kFilesStem);
+    REQUIRE(files_id.value != 0);
+    f.mount_stranger();
+    std::uint64_t attempt = 0;
+    const loom::ObserverId tap =
+        f.r.bus.add_observer([&attempt, files_id](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.sender == files_id &&
+                ev.schema_name == OpenSourceRequested::zen_name) {
+                attempt = ev.seq;
+            }
+        });
+    f.point_at("alpha.cpp");
+    f.enqueue_key(input::scan::kReturn);
+    // TURN BY TURN, until the ask has been delivered to the manager: the pane is awaiting.
+    int turns = 0;
+    while (attempt == 0) {
+        REQUIRE(++turns < 8);
+        REQUIRE(f.r.bus.pump_pending() > 0);
+    }
+    f.r.bus.remove_observer(tap);
+    CHECK(f.r.opening->state().op != 0); // the manager holds the flight
+    // THE FORGERY, delivered while the ask is outstanding.
+    f.forge_refusal(files_id, attempt);
+    (void)f.r.bus.pump_pending();
+    (void)f.r.bus.pump_pending();
+    CHECK(f.first().find("could not reach") == std::string::npos);
+    // ...AND THE OPEN COMPLETES: the real answer settles the ask, the Editor is seated.
+    f.r.bus.drain_until_idle();
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.r.session().panels.keyboard == editor);
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+    CHECK(f.first().find("could not reach") == std::string::npos);
 }

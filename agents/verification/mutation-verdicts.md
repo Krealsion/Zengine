@@ -90,6 +90,25 @@ a suite whose fixture never reaches it; the diagnosis turned up a third mutation
 written, because the multiply beside it had none.
 SEEN — nowhere yet
 
+## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
+
+METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart; say whether a moved expectation was restored, changed or new; retire one that pins a rejected outcome.
+BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
+and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
+for a choice the maker then rejected stayed green and changed nothing about the disposition.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
+save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
+opens nothing, and the requester is told why"`, case `"EDIT-W68: a resize after the commitment
+is an ordinary presentation change"`.
+
+## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
+
+METHOD — A case that forges a message proves the guard only when the forging weave is granted to say that shape; read the grant before believing the green, and let a mutation of the guard show the case reaches it.
+BECAUSE — two forgery cases of a twelve-mutation matrix stayed green under their mutants: the
+asker's grant lacked the forged shape, so the bus refused the forgery before the host ever saw
+it; with the grant added both went red, and one gained an in-flight forgery on the way.
+SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), EDIT-W10, EDIT-W23.
+
 ## VM-MUT-23 — A crashing mutation needs a separate semantic pin
 
 METHOD — A crashing mutation needs a separate semantic pin — the focused suite and the sanitizer, reported together — and a canary must be surgical and non-crashing.

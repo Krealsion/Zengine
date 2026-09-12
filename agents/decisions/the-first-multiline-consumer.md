@@ -39,7 +39,6 @@ and no crash recovery is claimed. Every list's wheel moves its cursor by `kListW
 because a list derives its window from it; `... N more` is reachable by wheel everywhere but the
 Loaded pane, which holds no cursor. The Composer's fields were not touched.
 
-**Laws supported.** [WL-EDIT-01](../workshop/editor.md), [WL-EDIT-02](../workshop/editor.md),
-[WL-EDIT-03](../workshop/editor.md), [WL-EDIT-07](../workshop/editor.md),
+**Laws supported.** [WL-EDIT-02](../workshop/editor.md), [WL-EDIT-07](../workshop/editor.md),
 [WL-EDIT-08](../workshop/editor.md), [WL-EDIT-09](../workshop/editor.md),
-[WL-EDIT-10](../workshop/editor.md), [WL-EDIT-12](../workshop/editor.md).
+[WL-PTR-10](../workshop/pointer.md).

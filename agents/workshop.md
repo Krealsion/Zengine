@@ -1,14 +1,18 @@
 # Agent law — Workshop (router)
 
-Routed behind [`../AGENTS.md`](../AGENTS.md), for tasks touching `workshop/` and `component/`.
+Routed behind [`../AGENTS.md`](../AGENTS.md), for `workshop/`, `component/`, and the extracted
+pane implementations named there. Behavioral ownership follows the component when its code moves.
 Workshop's law lives in the registers under [`workshop/`](workshop/): one law per `##`, a
 `WL-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN`, a
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
-decision record under `decisions/`. Authority when they disagree: tests > code > register >
-decision record. The whole of the law in one screen is `grep -h '^LAW' agents/workshop/*.md`.
+decision record under `decisions/`. Disagreements follow
+[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit):
+passing tests do not automatically overrule intended contracts. The whole of the law in one
+screen is `grep -h '^LAW' agents/workshop/*.md`.
 
 What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
-vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's side only.
+vocabulary is [`surface.md`](surface.md). These registers hold Workshop behavior and the
+consumer-specific behavior of its extracted panes; the shared protocol stays in `panes.md`.
 
 ## Where the law is
 
@@ -22,7 +26,8 @@ vocabulary is [`surface.md`](surface.md). Workshop's registers hold Workshop's s
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its controls, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a panel, the Builder's rows, the foot band, a name on material | [regions](workshop/regions.md) `WL-RGN` |
-| the source editor, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
+| the Editor pane weave and its document, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
+| opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
@@ -52,8 +57,9 @@ which register each witnesses.
 4. A phase that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
    the same commit, and lists the ids re-verified in the commit message. The evidence trail is
    Git history.
-5. Tests > code > register > decision. Fix downward, never upward: a register entry that
-   contradicts a passing test is the thing that is wrong.
+5. Trace both intended contract and observed behavior when they disagree. Code, test, or register
+   may need correction; never weaken a law merely to match a passing test. Apply the architectural
+   review in `AGENTS.md` to the complete change and its consequences for known next work.
 6. Law ids are permanent; a retired law keeps its number and one line.
 7. `witness: none` is written where it is true and repeated under the register's `## Do not
    assume`; a law witnessed except one clause writes `UNWITNESSED — <clause>` after PROVEN BY,
@@ -68,5 +74,5 @@ which register each witnesses.
   reintroduced into registers, decision records or source comments.
 - That docking exists — it is still absent and still refused.
 - That a seam law is stated here. A room grant, a pressed row, a key or a wheel crossing to a
-  provider is the protocol's law; a Workshop register states only Workshop's conformance.
+  provider is the protocol's law; a Workshop register states the host or pane consumer's behavior.
 - That a law without a witness is hidden. Each register lists its own under `## Do not assume`.

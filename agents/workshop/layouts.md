@@ -80,7 +80,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 LAW — Participation, authored place, extent, front order and the name are per-layout; everything else is one Workshop-global truth a switch does not copy, clear or revalidate.
 
 MEANS
-- the catalog, providers and their state, the Editor's document, the browser's location, marks;
+- the catalog, providers and their state (the Editor's document among them), the marks;
 - recipes, the project anchor, the clipboard, the keymap, the window, selection and keyboard.
 
 PROVEN BY — `workshop/setup.hpp` `Setup`; `workshop/weave_session.cpp` `switch_layout`;

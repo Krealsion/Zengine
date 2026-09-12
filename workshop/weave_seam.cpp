@@ -73,8 +73,32 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     repaint(mail);
 }
 
+/// ⚠ A DECLARATION FROM A PANE BUILT BEFORE OWNERSHIP EXISTED (VD-27). `PaneActions` v1 is
+/// exactly the shape it always was, so a provider compiled against the old header registers,
+/// declares and dispatches with this host unchanged. Its rows are widened here -- one field,
+/// empty, meaning what v1 always meant: this pane stands in for nothing -- so everything
+/// below reads one population. Nothing reinterprets old bytes: the v1 shape decoded as a v1
+/// shape, and this is a copy into the host's own type.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
+    std::vector<v2::PaneActionRow> widened;
+    widened.reserve(actions.rows.size());
+    for (const PaneActionRow& row : actions.rows) {
+        widened.push_back(
+            v2::PaneActionRow{row.id, row.label, row.scancode, row.modifiers, std::string()});
+    }
+    declare_pane_actions(actions.pane, widened, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
+    declare_pane_actions(actions.pane, actions.rows, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::declare_pane_actions(const std::string& pane,
+                                         const std::vector<v2::PaneActionRow>& rows,
+                                         loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
@@ -83,14 +107,14 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
     // rows' half and the collision law, into a COPY of the effective keymap -- so a
     // refusal anywhere leaves the keymap in force, and the pane's retained declaration,
     // exactly what they were.
-    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, actions);
+    const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
         say(admitted.written.refusal, true);
         repaint(mail);
         return;
     }
     Keymap candidate = session_.keymap;
-    const Written joined = join_pane_rows(candidate, admitted.kind, actions.rows);
+    const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
         const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
         say((row != nullptr ? row->name + " @" + row->provider + ": " : std::string()) +
@@ -103,7 +127,7 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
     // handle, because nothing holds a pointer into `entries` (panel.hpp).
     for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.kind == admitted.kind) {
-            row.actions = actions.rows;
+            row.actions = rows;
         }
     }
     session_.keymap = std::move(candidate);
@@ -130,7 +154,17 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
 }
 
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
+    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, mail);
+}
+
+// Content naming its generation (WL-OPEN-03).
+void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
+    admit_content(mail.authored_role(), content.pane, content.rows, content.generation, mail);
+}
+
+void WorkshopWeave::admit_content(std::string_view office, const std::string& pane_key,
+                                  const std::vector<surface::SurfaceTextRow>& rows,
+                                  std::optional<std::int64_t> generation, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -142,7 +176,7 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     // nothing, which is the same answer the built-in-first `resolve_pane` gave --
     // admission refuses a runtime offer that would shadow a built-in, so no
     // built-in reference can be a row here to find.
-    const RuntimePane* row = session_.panels.runtime.find(office, content.pane);
+    const RuntimePane* row = session_.panels.runtime.find(office, pane_key);
     if (row == nullptr) {
         return; // an office speaking about a pane it never offered, or about a built-in
     }
@@ -156,6 +190,15 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
         // by talking about it, which is what keeps discovery and presentation two doors.
         return;
     }
+    // A PROJECTION OF A GENERATION THIS PANE HAS ALREADY MOVED PAST IS NOT
+    // ADMITTED. It was composed for a document that has since been replaced under a
+    // commitment; painting it here would show the old document over the new one's admitted
+    // rows. Dropped, not refused: it is not wrong, it is late, and the pane's next
+    // composition of the current document is on its way behind it.
+    if (generation.has_value() && *generation < pane->content_generation) {
+        return;
+    }
+    const PaneContent content{pane_key, rows};
     const Written judged = judge_content(content, *pane);
     if (!judged.accepted) {
         // THE OLD ROWS GO WITH THE REFUSAL. Leaving them would present a previous
@@ -183,6 +226,9 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     pane->heard = true;
     pane->awaiting = false;
     pane->clear_refusal();
+    if (generation.has_value()) {
+        pane->content_generation = *generation;
+    }
     // ⚠ AND THE CARET IS RE-JUDGED AGAINST THE ROWS THAT JUST ARRIVED. A pane sends its
     // content and its caret as two messages, in that order, so between them there is one
     // instant where a caret admitted against the PREVIOUS rows is held against these. If
@@ -203,7 +249,19 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
 
 // WL-CARET-01, WL-CARET-03 -- agents/workshop/pane-caret.md
 void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
+    admit_caret(mail.authored_role(), caret, std::nullopt, mail);
+}
+
+// A caret naming its generation (WL-OPEN-03).
+void WorkshopWeave::on(const v2::PaneCaret& caret, loom::Mail& mail) {
+    admit_caret(mail.authored_role(),
+                PaneCaret{caret.pane, caret.row, caret.column, caret.sel_begin_row,
+                          caret.sel_begin_col, caret.sel_end_row, caret.sel_end_col},
+                caret.generation, mail);
+}
+
+void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
+                                std::optional<std::int64_t> generation, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech, `on(PaneContent)`'s own first rule
     }
@@ -214,6 +272,9 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     ExternalPane* pane = session_.panels.external_pane(row->kind);
     if (pane == nullptr || !pane->granted) {
         return; // a caret for a closed pane opens nothing, exactly as content does not
+    }
+    if (generation.has_value() && *generation < pane->content_generation) {
+        return; // a caret of a document this pane has moved past (see content)
     }
     // WHAT IT WAS, BEFORE ANYTHING IS WRITTEN -- so this handler can repaint on a caret
     // that MOVED with no content behind it (an arrow key) and stay silent on one that
@@ -231,14 +292,16 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
         // the rows' own refusal rule, one shape over. It does NOT clear the rows: the
         // sentences a maker is reading were judged on their own and are still true.
         pane->clear_caret();
-    } else if (caret.row == surface::kNoCaret) {
+    } else if (caret.row == surface::kNoCaret && caret.sel_begin_row == surface::kNoSelection) {
         pane->clear_caret(); // the pane saying it has none: ordinary, and not a refusal
     } else {
+        // A SELECTION MAY STAND WITH NO CARET (WL-CARET-03): a document whose caret has
+        // scrolled out of the window still shows the range it belongs to, and the pane says
+        // exactly that -- `kNoCaret` on the row, a range beside it. `judge_caret` has
+        // already refused a range that names a row the content does not have, so this is
+        // a copy and not a second policy.
         pane->caret_row = caret.row;
-        pane->caret_col = caret.column;
-        // THE SELECTION RIDES WITH IT OR NOT AT ALL. `judge_caret` has already refused a
-        // range that names a row the content does not have, so this is a copy and not a
-        // second policy.
+        pane->caret_col = caret.row == surface::kNoCaret ? 0 : caret.column;
         pane->sel_begin_row = caret.sel_begin_row;
         pane->sel_begin_col = caret.sel_begin_col;
         pane->sel_end_row = caret.sel_end_row;
@@ -251,16 +314,88 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     }
 }
 
+// WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
+void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
+    // AN OFFICE, AND ONLY AN OFFICE -- the seam's rule for every sentence that changes the
+    // desk. And the office must have offered the pane it names: a reveal of a pane this
+    // session never admitted has no catalog row, no name for the refusal and no kind to
+    // seat, and is dropped as the stray it is.
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return;
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    if (row == nullptr) {
+        return;
+    }
+    // COPIED OUT BEFORE THE DESK MOVES: `apply_setup` may re-ask providers and the catalog
+    // vector may grow under a pointer into it (panel.hpp's own warning).
+    const std::int64_t kind = row->kind;
+    const std::string name = row->name;
+    const PaneRef ref{row->provider, row->pane};
+    // ⚠ THIS DELIVERY IS THE COMMITMENT POINT, AND IT IS ONE DELIVERY ON PURPOSE. The asker
+    // has frozen its own eligibility until it hears back (pane_vocabulary.hpp says how), so
+    // the one instant at which its fact and this desk's fact both hold is the instant this
+    // desk makes the presentation true. Judged first, through the picker's own trial seat, on
+    // a COPY of the setup; written only if the seat is real. MEASURED, twice, the other ways:
+    // seating at an answer the asker then refused, and answering capacity the asker spent
+    // later, after the seat was gone.
+    Setup candidate = session_.setup.active;
+    const bool added = add_pane(candidate, ref);
+    const Seating trial =
+        seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
+    for (const std::int64_t k : trial.waiting) {
+        if (k == kind) {
+            // THE PICKER'S OWN WORDS, and the picker's own outcome: nothing is authored
+            // behind a refusal, and the asker is told why in a sentence it can pass on. A
+            // screen the maker shrank before this arrived is exactly this case -- the pane
+            // is waiting for room, so there is no seat to commit to.
+            const std::string refusal = "no room for " + name +
+                                        " on this screen -- make the window taller, then p "
+                                        "again";
+            say(refusal, true);
+            (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
+            repaint(mail);
+            return;
+        }
+    }
+    if (added) {
+        session_.setup.active = std::move(candidate);
+    }
+    apply_setup(mail);
+    if (!session_.panels.has(kind)) {
+        // THE BELT UNDER THE TRIAL. `apply_setup` seats through the same `seat_panes` over
+        // the same capacity, so a trial that said yes and a seat that did not happen is a
+        // defect in one of them. Answered as a refusal rather than as a seat, with the row
+        // this delivery authored taken back, because "seated" is the one word the asker
+        // acts on and it must never be said of a pane the screen does not show.
+        if (added) {
+            (void)remove_pane(session_.setup.active, ref);
+            apply_setup(mail);
+        }
+        const std::string refusal = "no room for " + name + " on this screen";
+        say(refusal, true);
+        (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
+        repaint(mail);
+        return;
+    }
+    // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
+    // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
+    // still sitting behind another would put the first keystroke somewhere the maker cannot
+    // see. The two facts are written together everywhere they are written.
+    session_.panels.selected = kind;
+    session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+    // SAID, so the sentence on the notice line is about what just happened and names who
+    // asked for it -- the pane's own rows say what it is showing. Said and written BEFORE the
+    // answer leaves, so what the asker hears is a fact about this desk and not a promise.
+    say("showing " + name + " -- it asked to be shown, and it has the keys", false);
+    (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
+    repaint(mail);
+}
+
 // WL-CARET-03 -- agents/workshop/pane-caret.md
 Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& pane) {
-    if (caret.row == surface::kNoCaret) {
-        return Written::ok(); // "I have none" is a sentence, not a position
-    }
     const std::int64_t rows = static_cast<std::int64_t>(pane.shown.size());
-    if (caret.row < 0 || caret.row >= rows) {
-        return Written::no("put a caret on row " + std::to_string(caret.row) +
-                           " of a pane showing " + std::to_string(rows) + " rows");
-    }
     const auto within = [&pane](std::int64_t row, std::int64_t column) {
         const std::int64_t width =
             static_cast<std::int64_t>(pane.shown[static_cast<std::size_t>(row)].text.size());
@@ -268,9 +403,18 @@ Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& p
         // of a line, and it is the position the terminal's own caret holds most of the time.
         return column >= 0 && column <= width;
     };
-    if (!within(caret.row, caret.column)) {
-        return Written::no("put a caret at column " + std::to_string(caret.column) +
-                           " of a row that has no such place");
+    // "I HAVE NONE" IS A SENTENCE, NOT A POSITION -- and it is judged apart from the range
+    // beside it, because a caret that has scrolled out of the window and a selection that
+    // is still in it are two facts that can be true at once.
+    if (caret.row != surface::kNoCaret) {
+        if (caret.row < 0 || caret.row >= rows) {
+            return Written::no("put a caret on row " + std::to_string(caret.row) +
+                               " of a pane showing " + std::to_string(rows) + " rows");
+        }
+        if (!within(caret.row, caret.column)) {
+            return Written::no("put a caret at column " + std::to_string(caret.column) +
+                               " of a row that has no such place");
+        }
     }
     if (caret.sel_begin_row == surface::kNoSelection &&
         caret.sel_end_row == surface::kNoSelection) {
@@ -282,12 +426,20 @@ Written WorkshopWeave::judge_caret(const PaneCaret& caret, const ExternalPane& p
         caret.sel_end_row == surface::kNoSelection) {
         return Written::no("named one end of a selection and not the other");
     }
+    // THE BEGIN NAMES A ROW THAT IS SHOWN. THE END MAY NAME ONE MORE: a reading-order range
+    // is begin-inclusive and end-exclusive, so `(rows, 0)` -- the start of the row after the
+    // last -- is the one position with no row that a range may honestly end at, and it is
+    // what "selected through the end of the last row" spells. Any other end names a row
+    // that is shown, at a column that row has. This is the whole of the relaxation: a
+    // multiline selection running past the window is representable, and nothing past
+    // that one exclusive-end position is admitted.
     if (caret.sel_begin_row < 0 || caret.sel_begin_row >= rows || caret.sel_end_row < 0 ||
-        caret.sel_end_row >= rows) {
+        caret.sel_end_row > rows ||
+        (caret.sel_end_row == rows && caret.sel_end_col != 0)) {
         return Written::no("selected a row this pane is not showing");
     }
     if (!within(caret.sel_begin_row, caret.sel_begin_col) ||
-        !within(caret.sel_end_row, caret.sel_end_col)) {
+        (caret.sel_end_row < rows && !within(caret.sel_end_row, caret.sel_end_col))) {
         return Written::no("selected a column a row of this pane does not have");
     }
     // READING ORDER, WHICH IS THE ONE THING `SurfaceTextRegion` ALREADY REQUIRES of a
@@ -388,7 +540,6 @@ WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     case KeyContext::kNaming:
     case KeyContext::kPaneNaming: return PasteOwner::kNaming;
     case KeyContext::kDraft: return PasteOwner::kDraft;
-    case KeyContext::kEditor: return PasteOwner::kEditor;
     default: return PasteOwner::kNone;
     }
 }
@@ -407,10 +558,6 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
         p.epoch = line->draft_epoch();
         break;
     }
-    case PasteOwner::kEditor:
-        p.editor_doc = session_.editor.doc_epoch;
-        p.editor_revision = session_.editor.buffer.revision();
-        break;
     case PasteOwner::kDraft: {
         Row* row = editing_row();
         if (row == nullptr) {

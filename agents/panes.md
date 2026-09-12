@@ -119,6 +119,101 @@ and every older one is byte-identical.
   it would retarget the Composer by looking. Its `... N more` therefore still counts what no
   gesture reaches; what it would need is a list origin of its own — a recorded seam.
 
+## The sweep, the reveal and the quit cross as five more shapes (VD-25, VD-26)
+
+The Editor's extraction added five shapes and no powers, all in `workshop/pane_vocabulary.hpp`
+beside the twelve before them, and each is an ordinary optional capability any pane may spend:
+
+- **`PaneDragged v1` `{pane, row, column}`**, Workshop → provider: the hand moved with the button
+  down, in the pane a press named a row of. The position is the granted lattice's, resolved
+  against the pane's body AT THIS MOTION through the same measurer the press spent, and
+  deliberately NOT clamped — a row above the body is negative, one below it is past the granted
+  count, and what either means is the pane's. There is no release shape: the host ends its own
+  record on release, or when the pane loses its seat or its room, and sends nothing; a pane
+  resolves a sweep from the positions it was given. The Terminal ignores it; the Editor steps its
+  window on it.
+  **Workshop arms its record from geometry alone** — a press that named ANY body row takes hold
+  of the pane, because the host does not read a provider's rows to learn what they mean. So a
+  drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
+  as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
+  Editor pins it (VD-26).
+- **The reveal is one ask and one answer** (VD-26): **`PaneRevealRequested v1` `{pane}`**
+  (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
+  more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
+  delivery that asked, about what that delivery DID — the pane is seated, selected and has the
+  keys, or nothing moved and here is the picker's sentence). Judged first, through the picker's
+  own trial seat on a copy of the setup; written only if the seat is real. A refusal moved
+  nothing; a screen that shrank before the ask arrived refuses it in the picker's words; a
+  shrink after the answer is an ordinary presentation change to a pane on the desk. Workshop
+  holds nothing between deliveries — no record, no reservation — so two offices' asks are two
+  seats judged in order. A reveal naming a pane the office never offered is refused; one from
+  nobody is dropped unanswered.
+  **It is an ordinary pane's door, and no longer the Editor's open.** A pane whose act needs a
+  seat and nothing else asks for one. An act that changes a DOCUMENT and its presentation
+  together — opening a source — is the managed opening below, because the two facts live in
+  two weaves and FIFO dispatch lets either change between two deliveries: the reveal-as-
+  commitment shape held the asker's gestures to a bound and dropped the rest, and no bound
+  repairs that.
+- **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
+  **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
+  that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
+  accepters at the publication, ends the process at once when nobody accepted, and otherwise holds
+  every gesture until the last answer, refuses on any refusal (saying it, and replaying the held
+  gestures), and proceeds on all permissions. A pane with an answer still owed to it — a paste in
+  flight — refuses rather than waits, so one clipboard read cannot hold every other pane's exit.
+  What is NOT solved: an accepter that never answers holds the quit open, and that is named
+  rather than timed out.
+
+## Opening a source is a managed opening, jointly published (WL-OPEN)
+
+The Editor's document and Workshop's presentation of its pane change TOGETHER, at one
+published boundary, coordinated by the native opening manager the host mounts in
+`zengine.opening`. The law is [`workshop/opening.md`](workshop/opening.md) (`WL-OPEN`); the
+Editor's half is [`workshop/editor.md`](workshop/editor.md) (WL-EDIT-05, WL-EDIT-13); the
+substrate — joint publication of latest claims, the showing, the record's lifetime — is Loom's
+joint-publication reference page, never restated here. What crosses, all in
+`workshop/open_seam_vocabulary.hpp` unless named otherwise:
+
+```text
+OpenSourceRequested v1 {path}   requester -> zengine.opening   (pane_seam_vocabulary.hpp; also
+                                                                 zengine.editor, which RELAYS)
+SourceOpened v1 {accepted, refusal}   the answer: published AND applied by both owners, or why not
+PresentationTrialRequested v1 / PresentationTrial v1      manager -> desk: would it seat, what room
+PrepareSourceRequested v1 / SourcePrepared v1             manager -> Editor: prepare B for that room
+PresentationAdmitRequested v1 / PresentationAdmitted v1   manager -> desk: admit B's rows, offer
+ManagedOpenProgress v1                                    manager -> desk (and both owners at
+                                                           `apply`): what is awaited, or retracted
+ManagedOpenSettled v1                                     manager -> both owners, afterwards
+EditorDocument v1, PanePresentation v1                    the two latest claims, published jointly
+v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) rows and caret
+                                                           naming the document's generation
+```
+
+- **The two claims are identities, never documents.** `EditorDocument` carries the path, the
+  epoch, the convention, the content revision and the dirty flag; `PanePresentation` the seat,
+  selection, keys, room, admitted generation, the count of inputs routed to the pane, the stack
+  capacity and the setup digest. Each owner derives its claim from its own state at the end of
+  every delivery and claims only when it moved (`after_delivery`), so an edit to A, a routed
+  input, a resize or an authored change moves a claim and aborts a preparation bound to the
+  previous revision. Nothing is held.
+- **`v2::PaneContent` and `v2::PaneCaret` ADD a `generation` field beside the untouched v1
+  doors** (GATE-04's reason: a published `(name, version)` is frozen). Workshop admits a v2
+  projection unless it names a generation older than the one the pane holds — a picture of a
+  document that has since been replaced, dropped rather than painted over the admitted rows. A
+  v1 content carries none and is admitted as it always was; every pane that never commits
+  jointly is unchanged and unrebuilt, and the separately built legacy provider still speaks v1.
+- **Every managed sentence is judged under the office stamp.** The trial, the admission and
+  the settlement are taken only from `zengine.opening`; a preparation only from the manager;
+  a forged settlement, preparation or admission reaches its party and is dropped by it. The
+  manager's own answers are matched by Loom's `answers_ask()` plus its correlation and stage.
+- **The requesters keep their tickets.** Files' open, the Builder's recipe-source lookup and
+  its open, and the Editor's relay each keep the send ticket and clear only the ask whose
+  exact attempt Loom's `zen.DispatchRefused` names; an enqueue that queued nothing is refused
+  at once, in words (WL-OPEN-07).
+- **Not in this contract:** a document-only open, a queue of intents, a timeout, a retry, a
+  rollback after publication, or a loaded manager. A host that replaces its manager mints
+  its authority again (WL-OPEN-08).
+
 ## A pane declares its actions, and the host dispatches the resolved id
 
 `PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
@@ -127,6 +222,27 @@ provider. They ADDED to the protocol and revised nothing: eleven shapes, and eve
 byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
 Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 
+**And there is a second published version, beside v1 and not instead of it** (VD-27):
+`v2::PaneActions v2` of `v2::PaneActionRow v2`, which is v1's four fields plus `supersedes`.
+The field was first added to v1 in place, and that was wrong for a reason the substrate states:
+a published `(name, version)` is frozen and identity across a `.so` seam is the content-id
+derived from the shape, so adding a field changed the identity of `PaneActionRow` v1 AND of the
+`PaneActions` v1 that encloses it — a provider built against the old header and a host built
+against the new one could no longer both register
+([Loom GATE-04](https://github.com/Krealsion/Loom/blob/main/docs/laws/admission-laws.md)).
+Measured, with an ordinary Registry, as `SchemaConflict`. Workshop accepts both doors and joins
+them into one admitted row set; a v1 declaration means what it always meant — this pane owns no
+host action — and nothing reinterprets old bytes.
+
+- **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`, VD-26),
+  and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
+  input the host's row is not requestable and no legend spells it, and the pane's rows may take
+  its gesture without colliding: the two are one meaning in two scopes, and the exemption is the
+  pane's, not one row's (VD-27). Supersession is by ID, so a maker who rebinds either row moves
+  neither row's meaning. It is how a pane that holds a document of its own makes `^s` mean ITS
+  save without the host naming that pane anywhere. **Owning input is not being remembered:** the
+  pane's handle counts only while the resolved context is that pane's, so a contextual menu
+  opened over a pane is the menu's, and the host's row is the maker's key there.
 - **A row is the host's own catalog row minus `Act` and minus `KeyContext`.** The id is in the
   pane's namespace and is what a maker's keymap file names, so it is durable the way a pane key
   is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,
@@ -135,9 +251,8 @@ Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 - **Judged whole under the office stamp, exactly as the offer is.** An empty office retains
   nothing; a pane this office never offered is refused by name; the rows meet a bound
   (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
-  Workshop's own) and the collision law over the effective map — the globals and the no-editor
-  rows, which are what is active while a text-taking pane holds the keys, and the pane's own
-  rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
+  Workshop's own) and the collision law over the effective map — the globals, which are what is
+  active while a text-taking pane holds the keys, and the pane's own rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
   one replaces them. Two panes declaring one bare key are two contexts, keyed by handle, and
   never meet.
 - **The maker's file reaches the pane.** An override for an id nobody has declared is preserved
@@ -424,8 +539,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   those is a fact about the host.
 - **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
   `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
-  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the editor's
-  own paste posture. Every road into the query passes that one door: typing, a mirrored
+  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the Editor
+  pane's own paste posture. Every road into the query passes that one door: typing, a mirrored
   `ClipboardCopy`, and the answer to a paste ask. ⚠ **The shipped Composer has the same latent
   exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
   candidate.

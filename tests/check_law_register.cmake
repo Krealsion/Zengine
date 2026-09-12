@@ -228,7 +228,7 @@ set(ZEN_VM_BECAUSE_MAX 3)
 # The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
 # same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
 # to `nowhere yet`, and nobody lowers it to make that pass.
-set(ZEN_VM_APPLIED_FLOOR 92)
+set(ZEN_VM_APPLIED_FLOOR 98)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
@@ -2243,9 +2243,10 @@ if(NOT problems STREQUAL "")
     message(FATAL_ERROR
         "law-register FAILED: ${problem_count} problem(s).\n"
         "${problems}\n\n"
-        "  A register entry that contradicts a passing test is the thing that is wrong: fix "
-        "downward (tests > code > register > decision record), never upward. The form is the "
-        "routers' (${ZEN_LAW_ROUTERS}, Ongoing rules).")
+        "  This check validates register form and references, not intended behavior or "
+        "architectural fitness. Trace disagreements before changing code, tests, or law; "
+        "passing tests do not automatically overrule a contract. See AGENTS.md, Intent, "
+        "evidence, and architectural fit, and the routers (${ZEN_LAW_ROUTERS}, Ongoing rules).")
 endif()
 
 message(STATUS "law-register: PASSED -- every register is well-formed and every name it makes resolves"

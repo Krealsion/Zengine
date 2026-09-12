@@ -224,7 +224,7 @@ WHY — `agents/decisions/files-is-a-weave.md`
 
 ## WL-FILES-17 — Three doors, and what crosses them is a value
 
-LAW — The four facts the browser used to read off `HostContext` cross as asks to offices and answers back: where this run began, which file the recipes come from, one authored row, one source opened.
+LAW — The four facts the browser read off `HostContext` cross as asks to offices and answers back: where this run began, which file the recipes come from, one authored row, one source opened (the Editor's).
 
 MEANS
 - every field on the wire is Text, Int, Bool or a List: no reference of any kind crosses;
@@ -233,12 +233,13 @@ MEANS
 
 PROVEN BY — `workshop/pane_seam_vocabulary.hpp` `ProjectRootRequested`, `ProjectRoot`,
 `RecipeUseRequested`, `RecipeAuthorRequested`, `RecipeOutcome`, `OpenSourceRequested`,
-`SourceOpened`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
-`workshop/weave_pane_editor.cpp` `open_source`; `tests/test_workshop_files.cpp` case
+`SourceOpened`, `kEditorRole`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
+`editor-pane/pane.cpp` `on(OpenSourceRequested)`; `tests/test_workshop_files.cpp` case
 `"PANE-DOOR: the project door answers the weave that asked, and nobody else"`, case `"PANE-DOOR:
 a door answers an office, and refuses speech with no author"`, case `"PANE-DOOR: the recipes
-door spends this host's one writer and re-words nothing"`, case `"PANE-DOOR: the Editor door is
-the one door, and its refusal reaches the asker"`.
+door spends this host's one writer and re-words nothing"`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W8: the door refuses speech with no author,
+and answers nobody"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 
 ## Do not assume

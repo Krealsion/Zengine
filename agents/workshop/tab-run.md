@@ -117,8 +117,8 @@ MEANS
 - the status, the blank between and an omitted tab answer nothing.
 
 PROVEN BY — `workshop/screen_layouts.cpp` `band_tab_at`; `workshop/screen_chrome.cpp`
-`occupied_at`; `workshop/screen.hpp` `LayoutTabPress`; `workshop/weave_pointer.cpp` `take_hold`;
-`workshop/weave_editor.cpp` `layouts_press`; `tests/test_workshop_panels.cpp` case
+`occupied_at`; `workshop/screen.hpp` `LayoutTabPress`; `workshop/weave_pointer.cpp` `take_hold`,
+`layouts_press`; `tests/test_workshop_panels.cpp` case
 `"WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches"`, case
 `"WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not"`;
 `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane

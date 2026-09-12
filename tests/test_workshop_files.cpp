@@ -221,6 +221,21 @@ struct ProjectRig {
     }
 };
 
+/// THE PROJECT DOOR WITH THE RECIPE SEAM WIRED, mounted the way `workshop.cpp` mounts it --
+/// after `host.recipe_source` is set, because the door captures it by value.
+inline void mount_project_door_with_source(ProjectRig& r) {
+    const std::string marks = (r.root / "workshop-marks.json").generic_string();
+    auto door = std::make_unique<ProjectDoor>(r.t.host.project_dir, marks, ProjectDoor::Frontier{},
+                                              ProjectDoor::Names{}, r.t.host.recipe_source);
+    ProjectDoor* raw = door.get();
+    loom::Grant grant;
+    grant.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+    grant.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    const loom::WeaveId id =
+        r.t.bus.register_weave(std::move(door), std::move(grant), std::string(kProjectRole));
+    raw->zen_set_self(id);
+}
+
 /// CHOOSE A CATALOG THE WAY THE RECIPES DOOR DOES: the one install seam
 /// (`HostContext::use_recipes`, WL-PROJ-04), then the republish the Files weave asks the
 /// Builder for after an accepted one. Two acts, exactly as `RecipesDoor` and the weave
@@ -420,10 +435,12 @@ TEST_CASE("EDIT-1: a relative recipe source is the PROJECT's file, in the editor
     CHECK(refused.trouble.find(resolved) != std::string::npos);
 }
 
-TEST_CASE("EDIT-1: the editor opens the file that recipe's build would compile") {
-    // THE OTHER END OF THE SAME SENTENCE, driven through the real weave: the maker presses
-    // Builder's edit-source gesture on a recipe whose source is spelled relatively, and the
-    // BYTES they get are the project's -- not the workspace decoy's.
+TEST_CASE("EDIT-1: the project door names the file that recipe's build would compile") {
+    // THE OTHER END OF THE SAME SENTENCE, driven through the real door: the Builder pane's
+    // edit-source gesture asks `zengine.project` which one file a recipe whose source is
+    // spelled relatively names, and the PATH it gets is the project's -- not the workspace
+    // decoy's. (Opening it is the Editor weave's, one door on: `test_workshop_panes_editor.cpp`
+    // and the Builder seam suite drive that half.)
     ProjectRig r("editbuild");
     const std::filesystem::path workspace = r.root / "build-workspace" / "one";
     std::filesystem::create_directories(r.root / "src");
@@ -453,21 +470,18 @@ TEST_CASE("EDIT-1: the editor opens the file that recipe's build would compile")
         }
         return out;
     };
-    // ⭐ THE GESTURE CROSSES AS A SENTENCE NOW. `builder.edit-source` is the Builder PANE'S
-    // row, so what reaches this host is `RecipeSourceRequested{recipe}` at `zengine.workshop`
-    // -- a recipe NAME, never a path -- and the host resolves it against the catalog it owns
-    // and opens the result through the one Editor door.
-    ToolSeat* tool = mount_tool(r.t, "one");
-    (void)tool;
+    // ⭐ THE GESTURE CROSSES AS A SENTENCE. `builder.edit-source` is the Builder PANE'S row,
+    // so what reaches the project office is `RecipeSourceRequested{recipe}` -- a recipe NAME,
+    // never a path -- and the door resolves it against the catalog the host owns.
+    mount_project_door_with_source(r);
     DoorAsker* asker = mount_door_asker(r.t);
-    CHECK(edit_source_through_door(r.t, asker, "one").accepted);
-    REQUIRE(r.session().editor.open_document());
-    CHECK(r.session().editor.path ==
-          (r.root / "src" / "example.cpp").lexically_normal().generic_string());
-    CHECK(r.session().editor.buffer.line(0) == "the project");
+    const RecipeSourceSaid said = edit_source_through_door(r.t, asker, "one");
+    CHECK(said.accepted);
+    CHECK(said.recipe == "one");
+    CHECK(said.source == completed);
+    CHECK(said.source == (r.root / "src" / "example.cpp").lexically_normal().generic_string());
     // AND THE GENERATED PROJECT, FROM THE SAME VALUE, NAMES THE SAME FILE.
-    CHECK(zengine::builder::generated_project(all[0]).find(r.session().editor.path) !=
-          std::string::npos);
+    CHECK(zengine::builder::generated_project(all[0]).find(said.source) != std::string::npos);
 }
 
 // ============================================================================
@@ -639,11 +653,11 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     CHECK(named.source.empty());
 }
 
-TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names") {
+TEST_CASE("PROJ-0: the project door names the file the OWNER's completed recipe names") {
     // EDIT-1'S SENTENCE, RE-PROVEN OVER THE NEW CUSTODY. The two-base decoy is arranged
     // exactly as it is above -- the project and the generated workspace both holding
     // `src/example.cpp` with different bytes -- and the only thing that changed is who
-    // holds the completed value the editor's answer comes from. A green here with the
+    // holds the completed value the door's answer comes from. A green here with the
     // decoy absent would prove nothing, which is why the decoy is written first.
     ProjectRig r("ownerdoor");
     const std::filesystem::path workspace = r.root / "build-workspace" / "one";
@@ -668,29 +682,26 @@ TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names"
     owner.hold("/project/recipes.json", std::move(all), &HostContext::so_in);
     r.t.host.recipe_source = host_recipe_source(owner);
 
-    // ⭐ THE GESTURE CROSSES AS A SENTENCE NOW. `builder.edit-source` is the Builder PANE'S
-    // row, so what reaches this host is `RecipeSourceRequested{recipe}` at `zengine.workshop`
-    // -- a recipe NAME, never a path -- and the host resolves it against the catalog it owns
-    // and opens the result through the one Editor door.
-    ToolSeat* tool = mount_tool(r.t, "one");
-    (void)tool;
+    mount_project_door_with_source(r);
     DoorAsker* asker = mount_door_asker(r.t);
-    CHECK(edit_source_through_door(r.t, asker, "one").accepted);
-    REQUIRE(r.session().editor.open_document());
-    CHECK(r.session().editor.path ==
-          (r.root / "src" / "example.cpp").lexically_normal().generic_string());
-    CHECK(r.session().editor.buffer.line(0) == "the project");
+    const RecipeSourceSaid said = edit_source_through_door(r.t, asker, "one");
+    CHECK(said.accepted);
+    CHECK(said.source == (r.root / "src" / "example.cpp").lexically_normal().generic_string());
     // AND THE GENERATED PROJECT, FROM THE OWNER'S OWN ROW, NAMES THE SAME FILE -- which
     // is the whole of "the file you edit is the file the build compiles", now carried by
     // one object instead of by three parties agreeing.
     REQUIRE(owner.all().size() == 1);
-    CHECK(zengine::builder::generated_project(owner.all()[0]).find(r.session().editor.path) !=
+    CHECK(zengine::builder::generated_project(owner.all()[0]).find(said.source) !=
           std::string::npos);
     // ...AND THE ARTIFACT LOOKUP READS THE SAME ROW: one view, whose path is the
     // completed artifact directory and the stem, spelled by the host's one rule.
     REQUIRE(owner.views().size() == 1);
     CHECK(owner.views()[0].path ==
           HostContext::so_in(owner.all()[0].artifact_dir, owner.all()[0].artifact));
+    // ...AND A RECIPE THE OWNER DOES NOT HOLD IS REFUSED IN THE CATALOG'S OWN WORDS.
+    const RecipeSourceSaid unknown = edit_source_through_door(r.t, asker, "two");
+    CHECK_FALSE(unknown.accepted);
+    CHECK(unknown.refusal.find("do not hold `two`") != std::string::npos);
 }
 
 TEST_CASE("PROJ-0/PROJ-1: one completed catalog, installed through one seam") {
@@ -1188,62 +1199,6 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
     CHECK(r.session().panels.has(panel::kLayouts));
 }
 
-TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved editor buffer") {
-    // ⭐ THE DURABLE-AUTHORSHIP CLAIM. The same path can be open in the editor and pointed
-    // at in the browser, and the two are answering different questions: what a maker is
-    // WRITING, and what this session currently MEANS. Joining them -- consuming the buffer,
-    // or saving it first -- would make an unsaved draft into build procedure.
-    CurrentRecipes owner;
-    ProjectRig r("dirtycat");
-    DoorAsker* asker = mount_door_asker(r.t);
-    put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
-                                            r.t.host.project_dir);
-    REQUIRE(r.t.host.use_recipes((r.root / "b.json").generic_string()).accepted);
-    const std::string durable = bytes_of(r.root / "b.json");
-
-    // OPEN THE CATALOG IN THE EDITOR AND MAKE THE BUFFER DIFFER. One character at the
-    // caret is enough, and it is deliberately one that makes the BUFFER unreadable as a
-    // catalog: if the buffer were ever consumed, the install below could not succeed.
-    //
-    // The open goes through the EDITOR DOOR, which is what a Return on a source row in the
-    // Files pane crosses as now -- one `OpenSourceRequested` from an office, answered.
-    REQUIRE(open_through_door(r.t, asker, (r.root / "b.json").generic_string()).accepted);
-    REQUIRE(r.session().editor.open_document());
-    REQUIRE(r.session().editor.path == (r.root / "b.json").lexically_normal().generic_string());
-    REQUIRE(keyboard_context(r.session()) == KeyContext::kEditor);
-    r.t.text("x");
-    REQUIRE(r.session().editor.dirty());
-
-    // THE DURABLE FILE IS WHAT IS READ.
-    REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
-    REQUIRE(owner.all().size() == 1);
-    CHECK(owner.all()[0].id == "beta");
-    // NOTHING WAS SAVED ON THE MAKER'S BEHALF, and the draft is still theirs.
-    CHECK(bytes_of(r.root / "b.json") == durable);
-    CHECK(r.session().editor.dirty());
-
-    // AND WHEN THEY DO SAVE, THE RELOAD READS WHAT THEY SAVED. The saved bytes are the
-    // buffer's, which is not a catalog -- so the refusal here IS the proof that the file on
-    // disk is the input, and that a same-path reload is a real read rather than a cached
-    // answer. `editor.save` is the editor's own row, so the keys go back to the editor the
-    // way they came: asking the door for the source it ALREADY has open reveals it and
-    // destroys nothing (WL-EDIT-05's re-request arm), dirty buffer and all.
-    REQUIRE(open_through_door(r.t, asker, (r.root / "b.json").generic_string()).accepted);
-    CHECK(r.session().editor.dirty());
-    REQUIRE(keyboard_context(r.session()) == KeyContext::kEditor);
-    r.t.key(input::scan::kS, input::mod::kCtrl);
-    REQUIRE_FALSE(r.session().editor.dirty());
-    CHECK(bytes_of(r.root / "b.json") != durable);
-
-    const Held before = held_by(owner);
-    const HostContext::RecipeSwap reread =
-        choose_catalog(r.t, (r.root / "b.json").generic_string());
-    CHECK_FALSE(reread.accepted);
-    CHECK_FALSE(reread.refusal.empty());
-    CHECK(held_by(owner) == before);
-}
-
 TEST_CASE("PROJ-1: the republish is the ask a presentation already sends, once") {
     // ⭐ THE ROUTE, COUNTED. A live catalog projection needs a push when the catalog moves --
     // so a replacement has to push it, and the only honest question is WHAT it pushes with.
@@ -1684,51 +1639,6 @@ TEST_CASE("PANE-DOOR: a host that holds no such office answers nothing, and that
         a.ask(mail, kProjectRole, ProjectRootRequested{});
     });
     CHECK(files->roots.empty());
-}
-
-TEST_CASE("PANE-DOOR: the Editor door is the one door, and its refusal reaches the asker") {
-    // ⭐ WL-EDIT-05 ACROSS THE SEAM. The pane no longer calls `open_source`; it asks for it.
-    // Everything that door has always judged it still judges -- and the sentence a maker
-    // needs to read is now a VALUE travelling back to the party that will say it.
-    ProjectRig r("editordoor");
-    DoorAsker* files = mount_door_asker(r.t, "zengine.test.files");
-    put_file(r.root / "one.cpp", "int one;\n");
-    put_file(r.root / "two.cpp", "int two;\n");
-
-    const SourceOpened first = open_through_door(r.t, files, (r.root / "one.cpp").generic_string());
-    CHECK(first.accepted);
-    CHECK(first.refusal.empty());
-    REQUIRE(r.session().editor.open_document());
-    CHECK(r.session().editor.path == (r.root / "one.cpp").lexically_normal().generic_string());
-
-    // A FILE THAT IS NOT THERE IS REFUSED IN THE DOOR'S OWN WORDS, and nothing moved.
-    const SourceOpened missing =
-        open_through_door(r.t, files, (r.root / "absent.cpp").generic_string());
-    CHECK_FALSE(missing.accepted);
-    CHECK_FALSE(missing.refusal.empty());
-    CHECK(r.session().editor.path == (r.root / "one.cpp").lexically_normal().generic_string());
-
-    // ...AND A DIRTY BUFFER REFUSES A DIFFERENT SOURCE, naming the two ways out. This is
-    // the no-silent-loss floor, reaching a pane that is no longer inside this process.
-    r.t.text("x");
-    REQUIRE(r.session().editor.dirty());
-    const SourceOpened refused =
-        open_through_door(r.t, files, (r.root / "two.cpp").generic_string());
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal.find("unsaved changes") != std::string::npos);
-    CHECK(refused.refusal.find("one.cpp") != std::string::npos);
-    CHECK(r.session().editor.path == (r.root / "one.cpp").lexically_normal().generic_string());
-    CHECK(r.session().editor.dirty());
-
-    // AND THE HOST REFUSES AN ANONYMOUS OPEN, the two doors next door's rule: opening a
-    // maker's source for speech with no author would be acting on nobody's sentence.
-    const std::size_t heard = files->opens.size();
-    files->personally = true;
-    asker_do(r.t, files, [&r](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kWorkshopProvider, OpenSourceRequested{(r.root / "two.cpp").generic_string()});
-    });
-    CHECK(files->opens.size() == heard);
-    CHECK(r.session().editor.path == (r.root / "one.cpp").lexically_normal().generic_string());
 }
 
 // ============================================================================

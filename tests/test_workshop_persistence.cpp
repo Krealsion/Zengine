@@ -1008,8 +1008,8 @@ TEST_CASE("a pane reference is two strings, and the pair is the identity") {
 }
 
 TEST_CASE("two setups are the same setup when they name the same panes in the same order") {
-    const Setup a = setup_of("Build", {panel::kPaneEditor, panel::kEditor});
-    Setup b = setup_of("Build", {panel::kPaneEditor, panel::kEditor});
+    const Setup a = setup_of("Build", {panel::kPaneEditor, stock::kKind});
+    Setup b = setup_of("Build", {panel::kPaneEditor, stock::kKind});
     CHECK(a == b);
 
     // THE NAME IS PART OF IT: renaming a setup makes it a different setup, which
@@ -1021,7 +1021,7 @@ TEST_CASE("two setups are the same setup when they name the same panes in the sa
     // the order changes no rectangle; the value still distinguishes them,
     // because the day a second kind is placed in the stack the order IS which
     // slot each one takes (`bounds_of`).
-    const Setup other_way = setup_of("Build", {panel::kEditor, panel::kPaneEditor});
+    const Setup other_way = setup_of("Build", {stock::kKind, panel::kPaneEditor});
     CHECK_FALSE(a == other_way);
 }
 
@@ -1097,7 +1097,7 @@ TEST_CASE("every catalog row carries a durable reference that resolves back to i
 
     // The built-ins are spelled the way the phase promised a maker could read.
     CHECK(ref_text(info_ref()) == "zengine.info/info");
-    CHECK(ref_text(ref_of(panel::kEditor)) == "zengine.workshop/editor");
+    CHECK(ref_text(ref_of(stock::kKind)) == "zengine.test.stack/stack");
 }
 
 TEST_CASE("an unknown reference resolves to NOTHING, and never to the catalog's first row") {
@@ -1206,15 +1206,15 @@ TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list")
     // A DUPLICATE IS NOT. A kind is open or it is not; a file naming one twice
     // was written by somebody who believed in a policy this application does not
     // have, and silently keeping one of the two would hide that.
-    Setup twice = setup_of("Twice", {panel::kEditor});
+    Setup twice = setup_of("Twice", {stock::kKind});
     // FORGED PAST THE DOOR ON PURPOSE: `add_pane` refuses a duplicate, so a case
     // about what `check_setup` says of one has to build it by hand -- with a rank
     // that is otherwise legal, so the refusal below is about the DUPLICATE and not
     // about the permutation.
-    twice.panes.push_back(SetupPane{ref_of(panel::kEditor), {}, {}, {}, 1});
+    twice.panes.push_back(SetupPane{ref_of(stock::kKind), {}, {}, {}, 1});
     CHECK_FALSE(check_setup(twice).accepted);
     CHECK(check_setup(twice).refusal.find("twice") != std::string::npos);
-    CHECK(check_setup(twice).refusal.find("zengine.workshop/editor") != std::string::npos);
+    CHECK(check_setup(twice).refusal.find("zengine.test.stack/stack") != std::string::npos);
 
     // ...and neither is more than a setup may hold. THE BOUND IS NOT THE
     // CATALOG'S POPULATION, deliberately: a setup must be able to retain
@@ -1245,11 +1245,11 @@ TEST_CASE("adding and removing a pane preserves order and never duplicates") {
     Setup s;
     s.name = "Work";
     CHECK(add_pane(s, info_ref()));
-    CHECK(add_pane(s, ref_of(panel::kEditor)));
+    CHECK(add_pane(s, ref_of(stock::kKind)));
     CHECK_FALSE(add_pane(s, info_ref())); // already there, and it says so
     REQUIRE(s.panes.size() == 2);
     CHECK(s.panes[0].ref == info_ref());
-    CHECK(s.panes[1].ref == ref_of(panel::kEditor));
+    CHECK(s.panes[1].ref == ref_of(stock::kKind));
     CHECK(check_setup(s).accepted);
 
     // ADDED AT THE END, which is where `open_panel` has always put a newly
@@ -1257,7 +1257,7 @@ TEST_CASE("adding and removing a pane preserves order and never duplicates") {
     // maker was already watching.
     CHECK(remove_pane(s, info_ref()));
     REQUIRE(s.panes.size() == 1);
-    CHECK(s.panes[0].ref == ref_of(panel::kEditor));
+    CHECK(s.panes[0].ref == ref_of(stock::kKind));
     CHECK_FALSE(remove_pane(s, info_ref()));
 
     // An unresolved reference is an ordinary member: it can be added, found and
@@ -1274,9 +1274,11 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
     REQUIRE(add_pane(s, ref_of(panel::kPaneEditor)));
     REQUIRE(add_pane(s, stranger()));
     REQUIRE(add_pane(s, PaneRef{"other.tools", "graph"}));
-    REQUIRE(add_pane(s, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(s, ref_of(stock::kKind)));
 
-    const std::vector<PaneRef> waiting = unresolved_panes(s, no_providers());
+    Panels with_stock; // the stand-in is a runtime pane: it resolves where it was offered
+    admit_stock(with_stock);
+    const std::vector<PaneRef> waiting = unresolved_panes(s, with_stock);
     REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == stranger());
     CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
@@ -1292,31 +1294,34 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
 
 TEST_CASE("reconciling opens what the setup names, in the setup's order") {
     Panels panels;
+    admit_stock(panels); // the stand-in, first (stock)
     REQUIRE(open_kinds(panels) == std::vector<std::int64_t>{panel::kLayouts});
 
     const Reconciled done = reconcile(
-        panels, setup_of("Both", {panel::kEditor, panel::kPaneEditor, panel::kLayouts}),
+        panels, setup_of("Both", {stock::kKind, panel::kPaneEditor, panel::kLayouts}),
         two_slot_room());
-    CHECK(done.opened == std::vector<std::int64_t>{panel::kEditor, panel::kPaneEditor});
+    CHECK(done.opened == std::vector<std::int64_t>{stock::kKind, panel::kPaneEditor});
     CHECK(done.closed.empty());
     CHECK(done.unresolved == 0);
     // THE ORDER IS THE SETUP'S, not the order things happened to be opened in.
     CHECK(open_kinds(panels) ==
-          std::vector<std::int64_t>{panel::kEditor, panel::kPaneEditor, panel::kLayouts});
+          std::vector<std::int64_t>{stock::kKind, panel::kPaneEditor, panel::kLayouts});
 
     // The other way round, from the same starting point, produces the other order.
     Panels again;
-    (void)reconcile(again, setup_of("Both", {panel::kPaneEditor, panel::kEditor}), two_slot_room());
-    CHECK(open_kinds(again) == std::vector<std::int64_t>{panel::kPaneEditor, panel::kEditor});
+    admit_stock(again); // the stand-in, first (stock)
+    (void)reconcile(again, setup_of("Both", {panel::kPaneEditor, stock::kKind}), two_slot_room());
+    CHECK(open_kinds(again) == std::vector<std::int64_t>{panel::kPaneEditor, stock::kKind});
 }
 
 TEST_CASE("reconciling closes what the setup does not name, through the existing door") {
     Panels panels;
-    REQUIRE(open_panel(panels, panel::kEditor));
+    admit_stock(panels); // the stand-in, first (stock)
+    REQUIRE(open_panel(panels, stock::kKind));
 
     const Reconciled done = reconcile(
         panels, setup_of("Panes and layouts", {panel::kPaneEditor, panel::kLayouts}), min_room());
-    CHECK(done.closed == std::vector<std::int64_t>{panel::kEditor});
+    CHECK(done.closed == std::vector<std::int64_t>{stock::kKind});
     CHECK(done.opened == std::vector<std::int64_t>{panel::kPaneEditor});
     CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kPaneEditor, panel::kLayouts});
 
@@ -1325,36 +1330,38 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     // be visible as the Builder panel's copied status being forgotten; no built-in holds a
     // per-kind view any more, so what is left to read is that the door was spent: the
     // presentation is gone from `open` and the setup that named it is untouched.
-    CHECK_FALSE(panels.has(panel::kEditor));
+    CHECK_FALSE(panels.has(stock::kKind));
 }
 
 TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing") {
     // OPEN BEFORE, OPEN AFTER -- the case that says a reconcile is not a rebuild.
     // Restoring the setup you are already in must not be a visible event.
     Panels panels;
-    REQUIRE(open_panel(panels, panel::kEditor));
+    admit_stock(panels); // the stand-in, first (stock)
+    REQUIRE(open_panel(panels, stock::kKind));
 
     // OPENED FIRST, so the second reconcile below is the one this case is about: a fresh
     // `Panels` has only the Layouts pane on it now, and the Pane Manager arrives with the
     // setup rather than with the boot.
-    const Setup same = setup_of("Both", {panel::kPaneEditor, panel::kEditor, panel::kLayouts});
+    const Setup same = setup_of("Both", {panel::kPaneEditor, stock::kKind, panel::kLayouts});
     (void)reconcile(panels, same, two_slot_room());
     const Reconciled done = reconcile(panels, same, two_slot_room());
     CHECK(done.opened.empty());
     CHECK(done.closed.empty());
     CHECK(open_kinds(panels) ==
-          std::vector<std::int64_t>{panel::kPaneEditor, panel::kEditor, panel::kLayouts});
+          std::vector<std::int64_t>{panel::kPaneEditor, stock::kKind, panel::kLayouts});
 
     // ...and doing it a second time changes nothing at all.
     const Reconciled twice = reconcile(panels, same, two_slot_room());
     CHECK(twice.opened.empty());
     CHECK(twice.closed.empty());
     CHECK(open_kinds(panels) ==
-          std::vector<std::int64_t>{panel::kPaneEditor, panel::kEditor, panel::kLayouts});
+          std::vector<std::int64_t>{panel::kPaneEditor, stock::kKind, panel::kLayouts});
 }
 
 TEST_CASE("an unresolved reference is counted, and produces no panel of any kind") {
     Panels panels;
+    admit_stock(panels); // the stand-in, first (stock)
     Setup s = setup_of("Mixed", {panel::kPaneEditor});
     REQUIRE(add_pane(s, stranger()));
     REQUIRE(add_pane(s, PaneRef{"other.tools", "graph"}));
@@ -1365,7 +1372,7 @@ TEST_CASE("an unresolved reference is counted, and produces no panel of any kind
     // available to paint an unknown pane with is the Builder, which is exactly
     // why the resolution had to be fallible before this line could be written.
     CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kPaneEditor});
-    CHECK_FALSE(panels.has(panel::kEditor));
+    CHECK_FALSE(panels.has(stock::kKind));
     // And the setup still holds all three: reconciling takes it by const
     // reference and could not drop one if it wanted to.
     CHECK(s.panes.size() == 3);
@@ -1374,7 +1381,8 @@ TEST_CASE("an unresolved reference is counted, and produces no panel of any kind
 
 TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
     Panels panels;
-    REQUIRE(open_panel(panels, panel::kEditor));
+    admit_stock(panels); // the stand-in, first (stock)
+    REQUIRE(open_panel(panels, stock::kKind));
     Setup nothing;
     nothing.name = "Nothing";
 
@@ -1389,16 +1397,17 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
 
     // And back again from empty, which is the case that proves `opened` names
     // every kind rather than only the ones that were never open.
-    const Reconciled back = reconcile(panels, setup_of("Both", {panel::kPaneEditor, panel::kEditor}), two_slot_room());
+    const Reconciled back = reconcile(panels, setup_of("Both", {panel::kPaneEditor, stock::kKind}), two_slot_room());
     CHECK(back.opened.size() == 2);
-    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kPaneEditor, panel::kEditor});
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kPaneEditor, stock::kKind});
 }
 
 TEST_CASE("reconciling touches the picker, the document and the screen not at all") {
     Panels panels;
+    admit_stock(panels); // the stand-in, first (stock)
     panels.picker.open = true;
     panels.picker.cursor = 1;
-    (void)reconcile(panels, setup_of("Builder", {panel::kEditor}), min_room());
+    (void)reconcile(panels, setup_of("Builder", {stock::kKind}), min_room());
     // The picker is INTERACTION STATE. It is not setup intent, it is not in the
     // file, and reconciling is not a reason to open or close it.
     CHECK(panels.picker.open);
@@ -1439,11 +1448,11 @@ TEST_CASE("every shape of setup survives a round trip through its file") {
     };
     std::vector<Case> cases;
     cases.push_back({"the default, Info only", default_setup()});
-    cases.push_back({"Builder only", setup_of("Build", {panel::kEditor})});
+    cases.push_back({"Builder only", setup_of("Build", {stock::kKind})});
     cases.push_back({"both, in a deliberate order",
-                     setup_of("Everything", {panel::kEditor, panel::kPaneEditor})});
+                     setup_of("Everything", {stock::kKind, panel::kPaneEditor})});
     cases.push_back({"both, in the other order",
-                     setup_of("Everything", {panel::kPaneEditor, panel::kEditor})});
+                     setup_of("Everything", {panel::kPaneEditor, stock::kKind})});
     Setup nothing;
     nothing.name = "Nothing at all";
     cases.push_back({"an empty pane list", nothing});
@@ -1452,7 +1461,7 @@ TEST_CASE("every shape of setup survives a round trip through its file") {
                      setup_of(std::string(kMaxSetupNameLen, 'n'), {panel::kPaneEditor})});
     Setup mixed = setup_of("Mixed", {panel::kPaneEditor});
     REQUIRE(add_pane(mixed, stranger()));
-    REQUIRE(add_pane(mixed, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(mixed, ref_of(stock::kKind)));
     cases.push_back({"a reference this build cannot resolve, between two it can", mixed});
 
     for (const Case& c : cases) {
@@ -1475,14 +1484,14 @@ TEST_CASE("saving never sorts, normalises, resolves or drops a reference") {
     // catalog's, containing an entry this build cannot present, in the middle.
     Setup s;
     s.name = "Deliberate";
-    REQUIRE(add_pane(s, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(s, ref_of(stock::kKind)));
     REQUIRE(add_pane(s, stranger()));
     REQUIRE(add_pane(s, info_ref()));
 
     const setup_persist::LoadedSetup read = setup_persist::from_text(setup_persist::to_text(s));
     REQUIRE(read.outcome.accepted);
     REQUIRE(read.setup.panes.size() == 3);
-    CHECK(read.setup.panes[0].ref == ref_of(panel::kEditor));
+    CHECK(read.setup.panes[0].ref == ref_of(stock::kKind));
     CHECK(read.setup.panes[1].ref == stranger());
     CHECK(read.setup.panes[2].ref == info_ref());
 
@@ -1495,7 +1504,7 @@ TEST_CASE("saving never sorts, normalises, resolves or drops a reference") {
 TEST_CASE("a malformed setup file is refused, and the live setup is untouched") {
     // The claim is not "the parser returned an error". It is that the setup a
     // maker is in is exactly what it was.
-    const Setup good = setup_of("Everything", {panel::kPaneEditor, panel::kEditor});
+    const Setup good = setup_of("Everything", {panel::kPaneEditor, stock::kKind});
     const std::string valid = setup_persist::to_text(good);
 
     struct Case {
@@ -1544,7 +1553,8 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
     cases.push_back({"a pane key with a space in it",
                      forged_setup(good, "\"pane\":\"pane-editor\"", "\"pane\":\"two words\"")});
     cases.push_back({"the same pane named twice",
-                     forged_setup(good, "\"pane\":\"editor\"", "\"pane\":\"pane-editor\"")});
+                     forged_setup(good, "\"provider\":\"zengine.test.stack\",\"pane\":\"stack\"",
+                                  "\"provider\":\"zengine.workshop\",\"pane\":\"pane-editor\"")});
 
     // ...and one that has to be built rather than forged: more panes than a
     // setup may hold.
@@ -1576,7 +1586,7 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
 TEST_CASE("a setup file on disk is the setup read back from it") {
     TempDir dir("setup-roundtrip");
     const std::string path = dir.file("setup.json");
-    const Setup original = setup_of("Everything", {panel::kEditor, panel::kPaneEditor});
+    const Setup original = setup_of("Everything", {stock::kKind, panel::kPaneEditor});
     REQUIRE(setup_persist::save_file(path, original).accepted);
 
     const setup_persist::LoadedSetup read = setup_persist::load_file(path);
@@ -1636,7 +1646,7 @@ TEST_CASE("a detected setup write failure leaves the last good setup file untouc
     // writer must use is occupied by a DIRECTORY, so the write cannot open.
     std::filesystem::create_directories(persist::pending_path(path));
 
-    const Setup second = setup_of("Better", {panel::kEditor, panel::kPaneEditor});
+    const Setup second = setup_of("Better", {stock::kKind, panel::kPaneEditor});
     const Written refused = setup_persist::save_file(path, second);
     CHECK_FALSE(refused.accepted);
     CHECK_FALSE(refused.refusal.empty());
@@ -1670,7 +1680,7 @@ TEST_CASE("the document's file and the setup's file cannot be mistaken for each 
     // And writing one leaves the other's bytes alone -- which is what "two
     // artifacts" is worth, said in the only way that could fail.
     const std::string doc_bytes = slurp(doc_path);
-    REQUIRE(setup_persist::save_file(setup_path, setup_of("Other", {panel::kEditor})).accepted);
+    REQUIRE(setup_persist::save_file(setup_path, setup_of("Other", {stock::kKind})).accepted);
     CHECK(slurp(doc_path) == doc_bytes);
 }
 
@@ -1692,22 +1702,22 @@ TEST_CASE("opening a panel through the picker moves the setup's intent, not only
     // the screen had stopped showing the moment a maker pressed `p`.
     Live t;
     (void)mount_tool(t, "zengine-snake");
-    open_editor_pane(t);
+    open_stock_pane(t);
 
-    REQUIRE(t.session().panels.has(panel::kEditor));
-    CHECK(has_pane(t.session().setup.active, ref_of(panel::kEditor)));
+    REQUIRE(t.session().panels.has(stock::kKind));
+    CHECK(has_pane(t.session().setup.active, ref_of(stock::kKind)));
     // At the END of the authored order, which is where the screen put it -- behind the
     // Layouts pane a fresh Workshop already had (WUX-12), because the door appends.
     REQUIRE(t.session().setup.active.panes.size() == 3);
-    CHECK(t.session().setup.active.panes[2].ref == ref_of(panel::kEditor));
+    CHECK(t.session().setup.active.panes[2].ref == ref_of(stock::kKind));
     // ...and the resolved open order agrees with the resolved order of the refs.
     CHECK(open_kinds(t.session().panels) ==
-          std::vector<std::int64_t>{panel::kLayouts, panel::kEditor});
+          std::vector<std::int64_t>{panel::kLayouts, stock::kKind});
 
     // Removing it takes the reference back out.
-    pick(t, panel::kEditor);
-    CHECK_FALSE(t.session().panels.has(panel::kEditor));
-    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kEditor)));
+    pick(t, stock::kKind);
+    CHECK_FALSE(t.session().panels.has(stock::kKind));
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
 
     // (REMOVING INFO USED TO BE ASKED HERE. Info is a weave and is not open in this rig, so
     // what is left to remove is the Layouts pane -- and that it goes through the ordinary door
@@ -1735,13 +1745,13 @@ TEST_CASE("a panel change makes the setup UNSAVED, and changing it back makes it
     CHECK(t.session().setup.active.name == "Working");
     CHECK(t.notice().find("saved setup \"Working\"") == 0);
 
-    open_editor_pane(t);
+    open_stock_pane(t);
     CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
 
     // OPENING THEN CLOSING BACK TO THE SAVED INTENT SAYS SAVED AGAIN, which is
     // what a comparison buys and a dirty flag could not: there is no hand to
     // forget to unset.
-    pick(t, panel::kEditor);
+    pick(t, stock::kKind);
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
 
     // A rename with no pane moved is still a change, because the name is part of
@@ -1847,14 +1857,14 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     t.host.setup_path = dir.file("setup.json");
     (void)mount_tool(t, "zengine-snake");
 
-    open_editor_pane(t);
+    open_stock_pane(t);
     pick(t, panel::kPaneEditor); // Builder open, Info removed
     name_setup(t, "Build only");
     REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     // Wander away from it.
     pick(t, panel::kPaneEditor);
-    pick(t, panel::kEditor);
+    pick(t, stock::kKind);
     REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
     REQUIRE(open_kinds(t.session().panels) ==
             std::vector<std::int64_t>{panel::kLayouts});
@@ -1862,7 +1872,7 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     t.key(input::scan::kR);
     CHECK(t.session().setup.active.name == "Build only");
     CHECK(open_kinds(t.session().panels) ==
-          std::vector<std::int64_t>{panel::kLayouts, panel::kEditor});
+          std::vector<std::int64_t>{panel::kLayouts, stock::kKind});
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(t.notice().find("restored setup \"Build only\"") == 0);
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
@@ -1874,7 +1884,7 @@ TEST_CASE("a malformed setup file is refused without closing a single panel") {
     t.host.setup_path = dir.file("setup.json");
     ToolSeat* tool = mount_tool(t, "zengine-snake");
 
-    open_editor_pane(t);
+    open_stock_pane(t);
     name_setup(t, "Good");
     const Setup saved = t.session().setup.active;
     const std::vector<std::int64_t> panels_before = open_kinds(t.session().panels);
@@ -1884,7 +1894,7 @@ TEST_CASE("a malformed setup file is refused without closing a single panel") {
     // A file whose LAST field is the broken one, so a loader that acted as it
     // read would already have closed something by the time it noticed.
     spillout(t.host.setup_path,
-             forged_setup(saved, "\"pane\":\"editor\"", "\"pane\":\"two words\""));
+             forged_setup(saved, "\"pane\":\"stack\"", "\"pane\":\"two words\""));
     t.key(input::scan::kR);
 
     CHECK(t.session().notice_is_bad);
@@ -1951,7 +1961,7 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     authored.name = "Future";
     REQUIRE(add_pane(authored, info_ref()));
     REQUIRE(add_pane(authored, stranger()));
-    REQUIRE(add_pane(authored, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(authored, ref_of(stock::kKind)));
     // ...AND THE LAYOUTS PANE, because the row this case reads the count off lives in it
     // now (WUX-12). A desk that does not name it has no identity row for anything to be
     // counted onto -- which is itself the honest answer, and is the case below this one.
@@ -1971,14 +1981,14 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
 
     // The three that resolve are open, in file order relative to each other.
     CHECK(open_kinds(t.session().panels) ==
-          std::vector<std::int64_t>{panel::kEditor, panel::kLayouts});
+          std::vector<std::int64_t>{stock::kKind, panel::kLayouts});
 
     // AND NOTHING WAS PAINTED ON THE UNKNOWN REFERENCE'S BEHALF. The only kind
     // available to paint an unknown pane with is the Builder, and there is
     // exactly one Builder, in the stack's FIRST slot -- the second slot, where a
     // placeholder would have gone, is empty.
     const Screen sc = screen_of(t.session());
-    const PanelBounds builder_at = bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, sc);
+    const PanelBounds builder_at = bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc);
     REQUIRE(builder_at.open);
     CHECK(builder_at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
     CHECK(t.session().panels.open.size() == 2);
@@ -2018,7 +2028,7 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     CHECK(slurp(t.host.setup_path).find("third.party.tools") != std::string::npos);
 
     // ...and it survives a picker gesture on either built-in.
-    pick(t, panel::kEditor);
+    pick(t, stock::kKind);
     CHECK(has_pane(t.session().setup.active, stranger()));
     pick(t, panel::kLayouts);
     CHECK(has_pane(t.session().setup.active, stranger()));
@@ -2042,7 +2052,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     // the two extents this case compares has to hold two stack slots or the picker
     // refuses the second for room and the case would be measuring one pane twice.
     t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 0, 0}));
-    open_editor_pane(t);
+    open_stock_pane(t);
     open_pane(t, ref_of(panel::kPaneEditor));
     REQUIRE(t.session().panels.has(panel::kPaneEditor));
     name_setup(t, "Both");
@@ -2054,7 +2064,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     const ui::Rect info_small =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, small).rect);
     const ui::Rect builder_small =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, small).rect);
+cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind, small).rect);
 
     t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0}));
 
@@ -2062,7 +2072,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEd
     const ui::Rect info_large =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, large).rect);
     const ui::Rect builder_large =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kEditor, large).rect);
+cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind, large).rect);
 
     // THE RESOLVED GEOMETRY MOVED...
     CHECK(large.w != small.w);
@@ -2136,13 +2146,13 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         REQUIRE(open_kinds(a.session().panels) ==
                 std::vector<std::int64_t>{panel::kLayouts});
 
-        open_editor_pane(a);
+        open_stock_pane(a);
         pick(a, panel::kPaneEditor);
         name_setup(a, "Morning build");
 
         REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
         REQUIRE(open_kinds(a.session().panels) ==
-                std::vector<std::int64_t>{panel::kLayouts, panel::kEditor});
+                std::vector<std::int64_t>{panel::kLayouts, stock::kKind});
         bytes = slurp(path);
         REQUIRE_FALSE(bytes.empty());
     }
@@ -2162,7 +2172,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         b.key(input::scan::kR);
 
         CHECK(b.session().setup.active.name == "Morning build");
-        CHECK(b.session().panels.has(panel::kEditor));
+        CHECK(b.session().panels.has(stock::kKind));
         CHECK_FALSE(b.session().panels.has(panel::kPaneEditor));
         CHECK((live_status(b.session().setup) == setup_link::kCurrent));
 
@@ -2194,7 +2204,7 @@ TEST_CASE("saving and restoring a setup does not touch the document or its saved
     const std::string document_bytes = slurp(t.host.document_path);
     const WorkshopDoc document = t.doc();
 
-    open_editor_pane(t);
+    open_stock_pane(t);
     name_setup(t, "Build");
     t.key(input::scan::kR);
 
@@ -2242,7 +2252,7 @@ TEST_CASE("WUX-11/SC-7: the top row says the ACTIVE layout's Setup association")
     CHECK(saved.find("| current") != std::string::npos);
 
     // ...AND MUTATING THE DESK MAKES IT `modified`, DERIVED rather than flagged.
-    pick(t, panel::kEditor);
+    pick(t, stock::kKind);
     const std::string moved = setup_row(t.canvases.back(), sc);
     INFO(moved);
     CHECK(moved.find("| modified") != std::string::npos);
@@ -2327,10 +2337,16 @@ TEST_CASE("the name editor takes the keys, and the picker and the document keep 
     CHECK_FALSE(t.host.quit);
     CHECK(t.session().setup.naming.line.text() == "Defaultpq");
 
-    // The two commands that mean the same thing in every mode still do: `^s`
-    // saves the DOCUMENT, from inside the setup-name editor, and says so.
+    // ⭐ `^s` STILL SAVES THE DOCUMENT FROM INSIDE THIS NAME LINE (VD-26). `document.save` is
+    // `kUnlessOwned`: the one thing that takes it away is the pane holding the keyboard having
+    // DECLARED that it stands in for it, and a name line is not a pane. So the chord means here
+    // exactly what it means on the bare desk, which is what it meant before the Editor moved
+    // out of this host -- and the line keeps its text, because a binding consumed is not a
+    // character entered.
+    const std::string notice_before = t.notice();
     t.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(t.notice().find("no document file") == 0);
+    CHECK(t.notice() != notice_before); // the document's save ran, and said so
+    CHECK(t.session().setup.naming.line.text() == "Defaultpq");
 
     // The picker and the name editor cannot both be open: `s` is a command, and
     // the picker takes the keys before command mode is reached.
@@ -2734,7 +2750,7 @@ TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is sti
 TEST_CASE("WS-0a: a name carrying a quote and a backslash survives its file exactly") {
     TempDir dir("ws0a-persist");
     const std::string authored = "Ops \"A\\B\"";
-    const Setup s = setup_of(authored, {panel::kPaneEditor, panel::kEditor});
+    const Setup s = setup_of(authored, {panel::kPaneEditor, stock::kKind});
     REQUIRE(check_setup(s).accepted);
 
     // THE FORMAT WORD IS UNCHANGED AND THE VERSION IS NOT (WIND-2, then WUX-2). WS-0a's
@@ -2834,9 +2850,9 @@ namespace {
 
 /// A desk worth wanting back: two panes, one of them moved and resized by hand.
 Setup arranged_desk(const char* name) {
-    Setup s = setup_of(name, {panel::kPaneEditor, panel::kEditor});
-    REQUIRE(author_pane_place(s, ref_of(panel::kEditor), subs(6), subs(5)).accepted);
-    REQUIRE(author_pane_size(s, ref_of(panel::kEditor), PaneSize{pane_unit::kSubcells, subs(40)},
+    Setup s = setup_of(name, {panel::kPaneEditor, stock::kKind});
+    REQUIRE(author_pane_place(s, ref_of(stock::kKind), subs(6), subs(5)).accepted);
+    REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kSubcells, subs(40)},
                              PaneSize{pane_unit::kSubcells, subs(12)})
                 .accepted);
     return s;
@@ -2903,7 +2919,7 @@ TEST_CASE("WUX-0 A: the desk and the room come back, with no gesture at all") {
     // THE DESK, whole: the same panes, the same authored geometry, the same order.
     CHECK(back.session().setup.active == desk);
     CHECK(back.session().panels.has(panel::kPaneEditor));
-    CHECK(back.session().panels.has(panel::kEditor));
+    CHECK(back.session().panels.has(stock::kKind));
     // THE ROOM.
     CHECK(back.session().screen_w == 120);
     CHECK(back.session().screen_h == 44);
@@ -2951,7 +2967,7 @@ TEST_CASE("WUX-0: the room is taken back only ONCE, however often a surface says
     REQUIRE(back.session().setup.active.name == "First");
 
     // the maker changes their mind about the desk, and a Skin is replaced under them
-    pick(back, panel::kEditor); // remove the Builder the restored desk brought
+    pick(back, stock::kKind); // remove the Builder the restored desk brought
     const Setup after = back.session().setup.active;
     REQUIRE_FALSE(after == arranged_desk("First"));
     back.publish(loom::to_value(surface::SurfaceReady{}));
@@ -2999,7 +3015,7 @@ TEST_CASE("WUX-0 B: the second session replaces the first, room and desk both") 
     CHECK(back.session().setup.active == second);
     CHECK(back.session().screen_w == 140);
     CHECK(back.session().screen_h == 50);
-    CHECK_FALSE(back.session().panels.has(panel::kEditor));
+    CHECK_FALSE(back.session().panels.has(stock::kKind));
 }
 
 // ---- Witness C: there is no previous session ---------------------------------
@@ -3053,9 +3069,9 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"pane\":\"editor\"");
+             const std::size_t at = text.find("\"pane\":\"stack\"");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"pane\":\"editor\"").size(),
+             text.replace(at, std::string("\"pane\":\"stack\"").size(),
                           "\"pane\":\"two words\"");
              return text;
          }()},
@@ -3206,7 +3222,7 @@ TEST_CASE("WUX-0 F: an automatic save never touches the file a maker named") {
 
     t.publish(loom::to_value(surface::SurfaceReady{}));
     t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
-    pick(t, panel::kEditor); // arrange something the named setup does not have
+    pick(t, stock::kKind); // arrange something the named setup does not have
     t.key(input::scan::kQ);
 
     REQUIRE(std::filesystem::exists(t.host.session_path));
@@ -3289,7 +3305,7 @@ TEST_CASE("WUX-0: a session file holds the desk and the room, and nothing runtim
                                                       session_persist::Placement{});
     // THE DESK IS THE SETUP'S OWN REPRESENTATION, not a paraphrase of it: every pane
     // row a setup file would have written is in here, spelled the same way.
-    for (const char* fragment : {"\"provider\":\"zengine.workshop\"", "\"pane\":\"editor\"",
+    for (const char* fragment : {"\"provider\":\"zengine.workshop\"", "\"pane\":\"stack\"",
                                  "\"pane\":\"pane-editor\"", "\"mode\":\"subcells\"",
                                  "\"front\":", "\"format\":\"zengine-workshop-setup\""}) {
         CHECK_MESSAGE(text.find(fragment) != std::string::npos, fragment);
@@ -3345,7 +3361,7 @@ TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default 
     // theirs.
     TempDir dir("wux0-order");
     const std::string session = dir.file("session.json");
-    Setup two = setup_of("Two", {panel::kEditor});
+    Setup two = setup_of("Two", {stock::kKind});
     REQUIRE(add_pane(two, hello_ref()));
     REQUIRE(session_persist::save_file(session, one_layout(two), 0, 120, 60, session_persist::Placement{})
                 .accepted);
@@ -3356,6 +3372,7 @@ TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default 
     PaneRig r;
     r.host.session_path = session;
     r.mount_workshop();
+    admit_stock(r.session().panels); // the stand-in, first, as a `Live` would have it
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     // The provider announces itself before the surface does, so the reference in the
     // session resolves at the moment the desk is applied -- the load order WP-0 says
@@ -3366,7 +3383,7 @@ TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default 
     CHECK(r.w->session().screen_w == 120);
     CHECK(r.w->session().screen_h == 60);
     CHECK(r.w->session().panels.open.size() == 2);
-    CHECK(r.w->session().panels.has(panel::kEditor));
+    CHECK(r.w->session().panels.has(stock::kKind));
     CHECK(unresolved_panes(r.w->session().setup.active, r.w->session().panels).empty());
 }
 
@@ -3959,10 +3976,10 @@ static_assert(kHostileHeight % surface::kCellSubs != 0, "must not divide evenly"
 inline Setup hostile_desk() {
     Setup s;
     s.name = "Hostile";
-    REQUIRE(add_pane(s, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(s, ref_of(stock::kKind)));
     REQUIRE(
-        author_pane_place(s, ref_of(panel::kEditor), kHostilePlaceX, kHostilePlaceY).accepted);
-    REQUIRE(author_pane_size(s, ref_of(panel::kEditor),
+        author_pane_place(s, ref_of(stock::kKind), kHostilePlaceX, kHostilePlaceY).accepted);
+    REQUIRE(author_pane_size(s, ref_of(stock::kKind),
                              PaneSize{pane_unit::kSubcells, kHostileWidth},
                              PaneSize{pane_unit::kSubcells, kHostileHeight})
                 .accepted);
@@ -4002,10 +4019,10 @@ TEST_CASE("WUX-6/SC-4: a read-only visit through the other medium writes the SAM
 
         // LOOK AT IT IN CELLS. Every number is a projection this medium cannot say.
         enter_arrange_desk(t);
-        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kEditor); ++i) {
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
         }
-        REQUIRE(t.session().arrange.pane == ref_of(panel::kEditor));
+        REQUIRE(t.session().arrange.pane == ref_of(stock::kKind));
         INFO(t.notice());
         CHECK(t.notice().find("~34x~19 cells") != std::string::npos);
         CHECK(t.notice().find("(~ projected)") != std::string::npos);
@@ -4015,7 +4032,7 @@ TEST_CASE("WUX-6/SC-4: a read-only visit through the other medium writes the SAM
         t.publish(loom::to_value(
             surface::SurfaceExtent{140, 44, 8, 18, surface::kCanvasCellPx}));
         t.key(input::scan::kTab);
-        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kEditor); ++i) {
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
         }
         INFO(t.notice());
@@ -4025,7 +4042,7 @@ TEST_CASE("WUX-6/SC-4: a read-only visit through the other medium writes the SAM
         // ...AND BACK, which is the direction that would show a write having happened.
         t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
         t.key(input::scan::kTab);
-        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kEditor); ++i) {
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
         }
         CHECK(t.notice().find("~34x~19 cells") != std::string::npos);
@@ -4039,7 +4056,7 @@ TEST_CASE("WUX-6/SC-4: a read-only visit through the other medium writes the SAM
     // files that were both wrong the same way would prove nothing.
     const session_persist::LoadedSession read = session_persist::load_file(crossed);
     REQUIRE(read.outcome.accepted);
-    const SetupPane* row = pane_of(live_layout(read), ref_of(panel::kEditor));
+    const SetupPane* row = pane_of(live_layout(read), ref_of(stock::kKind));
     REQUIRE(row != nullptr);
     CHECK(row->place.x == kHostilePlaceX);
     CHECK(row->place.y == kHostilePlaceY);
@@ -4144,7 +4161,7 @@ TEST_CASE("WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone") 
     t.host.setup_path = dir.file("s.json");
 
     layout_new(t);
-    REQUIRE(add_pane(live(t).setup.active, ref_of(panel::kEditor)));
+    REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
     REQUIRE(layout_count(t.session().setup) == 2);
     const std::vector<Setup> before = shelf_of(t);
 
@@ -4157,7 +4174,7 @@ TEST_CASE("WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone") 
     REQUIRE(written.outcome.accepted);
     CHECK(written.setup == t.session().setup.active);
     CHECK(written.setup.name == "Second");
-    CHECK(has_pane(written.setup, ref_of(panel::kEditor)));
+    CHECK(has_pane(written.setup, ref_of(stock::kKind)));
     // ...AND THE SHELF IS BYTE-FOR-BYTE WHAT IT WAS, name included.
     const std::vector<Setup> after = shelf_of(t);
     REQUIRE(after.size() == before.size());
@@ -4173,7 +4190,7 @@ TEST_CASE("WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone") 
 
 TEST_CASE("WUX-9/SC-12: `r` restores into the live layout and clears no shelf") {
     TempDir dir("wux9-restore");
-    const Setup named = setup_of("From file", {panel::kPaneEditor, panel::kEditor});
+    const Setup named = setup_of("From file", {panel::kPaneEditor, stock::kKind});
     REQUIRE(setup_persist::save_file(dir.file("s.json"), named).accepted);
 
     Live t;
@@ -4225,7 +4242,7 @@ TEST_CASE("WUX-10/SC-13: the whole layout run rides the session, and comes back"
         live(t).setup.active.name = "First";
         layout_new(t);
         live(t).setup.active.name = "Second";
-        REQUIRE(add_pane(live(t).setup.active, ref_of(panel::kEditor)));
+        REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
         layout_new(t);
         live(t).setup.active.name = "Third";
         REQUIRE(layout_count(t.session().setup) == 3);
@@ -4251,8 +4268,8 @@ TEST_CASE("WUX-10/SC-13: the whole layout run rides the session, and comes back"
     CHECK(read.layouts[1].desk.name == "Second");
     CHECK(read.layouts[2].desk.name == "Third");
     CHECK(live_layout(read) == second_authored);
-    CHECK(has_pane(read.layouts[1].desk, ref_of(panel::kEditor)));
-    CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(panel::kEditor)));
+    CHECK(has_pane(read.layouts[1].desk, ref_of(stock::kKind)));
+    CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(stock::kKind)));
     CHECK(slurp(session).find("\"version\":6") != std::string::npos);
     CHECK(slurp(session).find("\"layouts\":") != std::string::npos);
 
@@ -4271,7 +4288,7 @@ TEST_CASE("WUX-10/SC-13: the whole layout run rides the session, and comes back"
     CHECK(back.notice().find("(2 of 3 layouts)") != std::string::npos);
     // THE LIVE LAYOUT IS THE ONE THE PANELS AGREE WITH -- `apply_setup` is still the one
     // membership door, and a dormant layout opened nothing.
-    CHECK(back.session().panels.has(panel::kEditor));
+    CHECK(back.session().panels.has(stock::kKind));
     CHECK(back.session().setup.active_at == 1);
 }
 
@@ -4641,7 +4658,7 @@ TEST_CASE("MIG-0/SC-6: with the conversion mounted, the desk comes back through 
     // once that office has offered. With no such office in this rig the row is retained and
     // unresolved, which is exactly what a saved reference to an absent provider has always
     // meant -- and is why the desk is otherwise byte-for-byte the file's.
-    CHECK_FALSE(t.session().panels.has(panel::kEditor));
+    CHECK_FALSE(t.session().panels.has(stock::kKind));
     CHECK(has_pane(t.session().setup.active,
                    PaneRef{"zengine.builder-pane", "builder"}));
 }
@@ -4734,9 +4751,9 @@ TEST_CASE("MIG-0/SC-5: nothing but a historical claim of THIS shape asks for a c
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"pane\":\"editor\"");
+             const std::size_t at = text.find("\"pane\":\"stack\"");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"pane\":\"editor\"").size(),
+             text.replace(at, std::string("\"pane\":\"stack\"").size(),
                           "\"pane\":\"two words\"");
              return text;
          }()},
@@ -4972,14 +4989,14 @@ Setup layout_of(const std::string& name, std::int64_t nudge) {
     // session, where a maker's own desk would name the Layouts pane. The second kind says
     // `materialized(layout_of(...))` at its own call site, so which vintage a fixture means
     // is written where the fixture is used rather than guessed here.
-    Setup s = setup_of(name, {panel::kPaneEditor, panel::kEditor});
+    Setup s = setup_of(name, {panel::kPaneEditor, stock::kKind});
     REQUIRE(author_pane_place(s, ref_of(panel::kPaneEditor), subs(3) + nudge, subs(2) + nudge)
                 .accepted);
     REQUIRE(author_pane_size(s, ref_of(panel::kPaneEditor),
                              PaneSize{pane_unit::kSubcells, subs(30) + nudge},
                              PaneSize{pane_unit::kSubcells, subs(9) + nudge})
                 .accepted);
-    REQUIRE(author_pane_place(s, ref_of(panel::kEditor), subs(9) + nudge, subs(6)).accepted);
+    REQUIRE(author_pane_place(s, ref_of(stock::kKind), subs(9) + nudge, subs(6)).accepted);
     return s;
 }
 
@@ -5484,7 +5501,7 @@ TEST_CASE("WUX-10/SC-13: three layouts, closed on the middle, come back and stay
         REQUIRE(send_to_front(live(t).setup.active, ref_of(panel::kPaneEditor)));
         layout_new(t);
         live(t).setup.active = materialized(layout_of("Art", 31));
-        REQUIRE(remove_pane(live(t).setup.active, ref_of(panel::kEditor)));
+        REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
         REQUIRE(layout_count(t.session().setup) == 3);
         layout_next(t);
         layout_next(t);
@@ -5696,7 +5713,7 @@ TEST_CASE("WUX-11/SC-9: `s` establishes the association only after a successful 
     CHECK(t.session().setup.active_link.known == t.session().setup.active);
 
     // MUTATING THE DESK MAKES IT `modified`, DERIVED and never flagged...
-    pick(t, panel::kEditor);
+    pick(t, stock::kKind);
     CHECK(live_status(t.session().setup) == setup_link::kModified);
     // ...and saving again re-establishes `current` on the SAME artifact.
     save_setup(t);
@@ -5760,7 +5777,7 @@ TEST_CASE("WUX-11/SC-12: two layouts sharing one artifact cannot both claim `cur
     // A SECOND LAYOUT ON THE SAME FILE: made blank, then saved to the same configured path.
     layout_new(t);
     REQUIRE(live_status(t.session().setup) == setup_link::kNone);
-    pick(t, panel::kEditor); // make it a genuinely different desk
+    pick(t, stock::kKind); // make it a genuinely different desk
     save_setup(t);
     REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
     REQUIRE(layout_count(t.session().setup) == 2);
@@ -5838,7 +5855,7 @@ TEST_CASE("WUX-11/SC-14: the whole run and every association come back after a r
 
         layout_new(t);
         rename_live_layout(t, "Code");
-        pick(t, panel::kEditor); // a genuinely different desk
+        pick(t, stock::kKind); // a genuinely different desk
         save_setup(t); // Code: associated and current; Home: associated and MODIFIED
         REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
         REQUIRE(link_status(layout_at(t.session().setup, 0),
@@ -6453,7 +6470,7 @@ TEST_CASE("PANE-MIG: a saved setup naming the built-in browser opens as the load
 TEST_CASE("PANE-MIG: a setup that names no retired pane is not touched, and says so") {
     // THE OTHER HALF OF A MEASUREMENT. A converter that reported work it did not do would
     // make the transition note appear for every maker in the world, forever.
-    const Setup ordinary = setup_of("Ordinary", {panel::kPaneEditor, panel::kEditor});
+    const Setup ordinary = setup_of("Ordinary", {panel::kPaneEditor, stock::kKind});
     const std::string wrote = setup_persist::to_text(ordinary);
     const setup_persist::LoadedSetup read = setup_persist::from_text(wrote);
     REQUIRE(read.outcome.accepted);

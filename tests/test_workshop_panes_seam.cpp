@@ -260,16 +260,17 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
                            PaneOffered{pane_key::kLayouts, "Not Layouts", "a forgery"})
               .written.refusal == "`zengine.workshop/layouts` is a built-in pane");
     CHECK(admit_pane_offer(cat, kWorkshopProvider,
-                           PaneOffered{pane_key::kEditor, "Not Editor", "a forgery"})
+                           PaneOffered{pane_key::kPaneEditor, "Not Pane Manager", "a forgery"})
               .written.accepted == false);
     CHECK(cat.entries.empty());
     // ...and the built-ins still resolve to themselves.
-    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kEditor}, panels).value_or(-1) ==
-          panel::kEditor);
+    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kPaneEditor}, panels).value_or(-1) ==
+          panel::kPaneEditor);
 
     // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
     // admitted normally -- the `PaneRef` is the PAIR.
-    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kEditor, "Editor", "theirs"})
+    CHECK(admit_pane_offer(cat, kHelloOffice,
+                           PaneOffered{pane_key::kPaneEditor, "Pane Manager", "theirs"})
               .written.accepted);
     REQUIRE(cat.entries.size() == 1);
     CHECK(is_runtime_kind(cat.entries[0].kind));
@@ -470,22 +471,22 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     // what changed is that a runtime handle never gets there.
     //
     // ⚠ WHICH ROW THAT IS, IS AN ACCIDENT OF ORDER AND IS ASSERTED AS ONE. It was the
-    // Builder while the Builder was first; the Builder pane is a weave now and the row is
-    // the Editor, which is placed in the OVERLAY STACK -- so the fall-through's placement is
-    // the same one a runtime kind gets, and the two lines below say so separately rather than
-    // agreeing by luck. (It was Info at the right column until Info became a weave, which made
-    // this a sharper control; the control that survives is that `placement_of` branches on
-    // `is_runtime_kind` BEFORE it reaches `panel_kind` at all.)
+    // Builder while the Builder was first, then the Editor; both are weaves now and the row
+    // is Layouts, which is placed in the TOP BAND -- so the fall-through's placement is NOT
+    // the one a runtime kind gets, and the two lines below disagree on purpose: a
+    // `placement_of` that reached `panel_kind` for a runtime handle would put a stranger's
+    // pane in the band. (The control that survives every reordering is that `placement_of`
+    // branches on `is_runtime_kind` BEFORE it reaches `panel_kind` at all.)
     CHECK(panel_kind(hello).kind == kPanelCatalog[0].kind); // the fall-through, still total
-    CHECK(panel_kind(hello).placed_in == placement::kOverlayStack);
+    CHECK(panel_kind(hello).placed_in == placement::kTopBand);
     CHECK(placement_of(hello) == placement::kOverlayStack); // ...and a runtime kind never gets there
     // ⭐ AND NO KIND ANSWERS `kSideRegion` NOW. Info was the one that did and Info is a weave,
-    // so the fall-through row above is the Editor's and the right column is a place a DESK
-    // names rather than a kind's default (`kinds_placed_in(kSideRegion) == 0`, panel.hpp).
-    CHECK(placement_of(panel::kEditor) == placement::kOverlayStack);
+    // so the fall-through row above is the Pane Manager's and the right column is a place a
+    // DESK names rather than a kind's default (`kinds_placed_in(kSideRegion) == 0`, panel.hpp).
+    CHECK(placement_of(panel::kPaneEditor) == placement::kOverlayStack);
     // ...and the NAME a maker reads is the offered one rather than the fall-through's.
     CHECK(kind_name(panels, hello) == "Hello");
-    CHECK(kind_name(panels, panel::kEditor) == "Editor");
+    CHECK(kind_name(panels, panel::kPaneEditor) == "Pane Manager");
     CHECK(kind_name(panels, 9999).empty());
 }
 
@@ -765,7 +766,8 @@ TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
                  before.keymap);
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
-    CHECK(shown.find(detail::pad("Editor", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(shown.find(detail::pad("Pane Manager", kPickerNameCols) + "closed") !=
+          std::string::npos);
     CHECK(shown.find(detail::pad("Layouts", kPickerNameCols) + "open") != std::string::npos);
     CHECK(shown.find("... ") == std::string::npos); // no omission marker at this population
 }
@@ -1104,15 +1106,17 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
     REQUIRE(r.session().panels.has(hello));
     const Setup before = r.session().setup.active;
 
-    // The Builder is placed in the same stack, and there is room for one slot.
-    r.pick(ref_of(panel::kEditor));
-    CHECK_FALSE(r.session().panels.has(panel::kEditor));
+    // The Pane Manager is placed in the same stack, and there is room for one slot. (It was
+    // the Editor until the Editor became a weave; the Pane Manager is the stack built-in
+    // this host still compiles.)
+    r.pick(ref_of(panel::kPaneEditor));
+    CHECK_FALSE(r.session().panels.has(panel::kPaneEditor));
     // THE REFUSAL IS VISIBLE...
-    CHECK(r.last_notice().find("no room for Editor") != std::string::npos);
+    CHECK(r.last_notice().find("no room for Pane Manager") != std::string::npos);
     // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A picker that added first and read
     // `waiting` afterwards would have authored a pane the maker never saw.
     CHECK(r.session().setup.active == before);
-    CHECK_FALSE(has_pane(r.session().setup.active, ref_of(panel::kEditor)));
+    CHECK_FALSE(has_pane(r.session().setup.active, ref_of(stock::kKind)));
     // NO PANEL INTERSECTS THE SETUP ROW OR THE BOTTOM BAND.
     const Screen sc = screen_of(r.session());
     for (const Panel& p : r.session().panels.open) {
@@ -1134,7 +1138,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     // pane it could not seat). The offer's own admission runs the ONE reconciliation
     // path, so nothing here reaches past a message boundary to open anything.
     Setup both = r.session().setup.active;
-    (void)add_pane(both, ref_of(panel::kEditor));
+    (void)add_pane(both, ref_of(panel::kPaneEditor)); // the stack built-in this host still has
     (void)add_pane(both, hello_ref());
     r.session().setup.active = both;
     r.session().setup.active_link = SetupLink{"setup.json", both};
@@ -1143,7 +1147,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
     const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
-    CHECK(r.session().panels.has(panel::kEditor));  // first come, first served
+    CHECK(r.session().panels.has(panel::kPaneEditor)); // first come, first served
     CHECK_FALSE(r.session().panels.has(hello));
     CHECK(r.session().panels.waiting(hello));
     // NOT UNRESOLVED: this build knows exactly what it would draw. (The shipped desk's Info
@@ -1162,7 +1166,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     // the six-row window shows each: the first with the cursor at the top, the seventh
     // with the cursor on it.
     r.key(input::scan::kP);
-    CHECK(stack_text(r.last_canvas()).find(detail::pad("Editor", kPickerNameCols) + "open") !=
+    CHECK(stack_text(r.last_canvas()).find(detail::pad("Pane Manager", kPickerNameCols) + "open") !=
           std::string::npos);
     picker_onto(r, hello_ref());
     const std::string shown = stack_text(r.last_canvas());
@@ -1192,7 +1196,7 @@ TEST_CASE("selecting a waiting row removes the intent, exactly as selecting an o
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     Setup both = r.session().setup.active;
-    (void)add_pane(both, ref_of(panel::kEditor));
+    (void)add_pane(both, ref_of(panel::kPaneEditor));
     (void)add_pane(both, hello_ref());
     r.session().setup.active = both;
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
@@ -1975,12 +1979,12 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     CHECK(r.session().panels.has(panel::kLayouts));
     const std::size_t said_before = static_cast<std::size_t>(seat->said);
 
-    r.pick(ref_of(panel::kEditor));
-    CHECK(r.session().panels.has(panel::kEditor));
-    CHECK(r.last_notice().find("opened Editor") != std::string::npos);
-    r.pick(ref_of(panel::kEditor));
-    CHECK_FALSE(r.session().panels.has(panel::kEditor));
-    CHECK(r.last_notice().find("removed Editor") != std::string::npos);
+    r.pick(ref_of(panel::kPaneEditor));
+    CHECK(r.session().panels.has(panel::kPaneEditor));
+    CHECK(r.last_notice().find("opened Pane Manager") != std::string::npos);
+    r.pick(ref_of(panel::kPaneEditor));
+    CHECK_FALSE(r.session().panels.has(panel::kPaneEditor));
+    CHECK(r.last_notice().find("removed Pane Manager") != std::string::npos);
 
     // NOTHING THE BUILT-INS DID REACHED THE PROVIDER.
     CHECK(static_cast<std::size_t>(seat->said) == said_before);

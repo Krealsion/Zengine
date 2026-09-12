@@ -27,6 +27,7 @@
 #include "builder-pane/vocabulary.hpp"
 
 #include "workshop/builder_seam_vocabulary.hpp"
+#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -74,7 +75,9 @@ using ws::PlanRowRequested;
 using ws::PlanRowWritten;
 using ws::ProjectFrontierRequested;
 using ws::ProjectFrontierSaid;
+using ws::OpenSourceRequested;
 using ws::RecipeSourceRequested;
+using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
 /// The office Workshop holds, named as a STRING rather than reached through
@@ -161,12 +164,13 @@ class BuilderPaneWeave
           BuilderPaneWeave, pane::BuilderPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneKey, PaneTextInput,
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
-                       ProjectFrontierSaid, PlanNames, PlanRowWritten, SourceOpened,
-                       surface::ClipboardCopy, surface::ClipboardText>,
+                       ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
+                       SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
+                       surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
-                     RecipeSourceRequested, surface::ClipboardCopy,
+                     RecipeSourceRequested, OpenSourceRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -419,11 +423,84 @@ public:
         say(mail);
     }
 
-    void on(const SourceOpened& said, loom::Mail& mail) {
+    /// THE HOST'S ANSWER TO "WHICH FILE DOES THIS RECIPE NAME" -- the first of the two doors
+    /// `e` walks. A refusal is the owner's own words and lands in this pane's row; an
+    /// accepted answer carries the one absolute path, and the pane spends it at the Editor's
+    /// door at once, in the same turn, holding nothing of it afterwards.
+    ///
+    /// ⚠ READ AGAINST THE ROW IT ASKED ABOUT. The answer echoes the recipe; if the maker's
+    /// choice has moved on since the ask (a catalog republished under the cursor), the file
+    /// it names is still the file of the recipe they pressed `e` on, which is what they
+    /// asked for -- the notice names it so the picture cannot mislead.
+    void on(const RecipeSourceSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
             return;
         }
-        source_.awaiting = false;
+        const std::string recipe = source_.subject;
+        source_ = Ask{};
+        if (!said.accepted) {
+            notice_ = said.refusal;
+            say(mail);
+            return;
+        }
+        // THE SECOND DOOR: the opening office, which arranges the document and the desk
+        // together (WL-OPEN-01). The ticket is kept for the bus's later word that exactly this
+        // attempt was refused (WL-OPEN-07); nothing queued is refused now, in words.
+        open_.pending = ++asked_;
+        open_.awaiting = true;
+        open_.subject = recipe;
+        open_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                            .send_to_role(ws::kOpeningRole, OpenSourceRequested{said.source},
+                                          open_.pending);
+        if (!open_.attempt.valid()) {
+            open_ = Ask{};
+            notice_ = "`" + recipe + "`: the source was not opened -- nothing was queued to the "
+                      "opening office";
+            say(mail);
+        }
+    }
+
+    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
+    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). Provenance first -- the shape alone is
+    /// speech -- then the exact attempt against the two asks `e` walks, each at its own
+    /// stage: the recipe-source lookup at the project office, and the open at the opening
+    /// office. Only the matched ask is cleared, and the maker is told which request and
+    /// which stage failed. A forged, stale, duplicate or mismatched notice settles nothing;
+    /// delivered silence is not a refusal and stays awaited.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        const loom::Ticket attempt = refused.refused_attempt();
+        if (!attempt.valid()) {
+            return;
+        }
+        if (source_.awaiting && source_.attempt.valid() && attempt.seq == source_.attempt.seq) {
+            const std::string recipe = source_.subject;
+            source_ = Ask{};
+            notice_ = "`" + recipe + "`: the source could not be looked up -- it could not reach " +
+                      ws::kProjectRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (open_.awaiting && open_.attempt.valid() && attempt.seq == open_.attempt.seq) {
+            const std::string recipe = open_.subject;
+            open_ = Ask{};
+            notice_ = "`" + recipe + "`: the source was not opened -- the open could not reach " +
+                      ws::kOpeningRole + " (" + refused.reason + ")";
+            say(mail);
+        }
+    }
+
+    /// THE EDITOR'S ANSWER -- the second door. An accepted open says nothing here: the Editor
+    /// asks Workshop to reveal its pane, and that is the answer a maker reads. A refusal (a
+    /// missing file, bytes the editor cannot carry, a dirty buffer) is the door's own words
+    /// and belongs beside the row it is about.
+    void on(const SourceOpened& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
+            return;
+        }
+        open_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
@@ -523,6 +600,10 @@ private:
     struct Ask {
         std::uint64_t pending = 0;
         bool awaiting = false;
+        /// THE QUEUED ATTEMPT (Loom's sequence), kept so the bus's later word that exactly
+        /// this send was refused before any handler ran is matched to it, and only to it.
+        loom::Ticket attempt{};
+        std::string subject; ///< the recipe the ask was about, for the sentence a refusal needs
     };
 
     void ask_status(loom::Mail& mail) {
@@ -794,21 +875,39 @@ private:
         say(mail);
     }
 
-    /// EDIT THE SOURCE THE CHOSEN RECIPE NAMES. The pane holds a recipe's NAME and never its
-    /// procedure, so what crosses is the name and the host resolves it -- every refusal
-    /// (an unknown id, a kind with no single source, a missing file, a dirty buffer) comes
-    /// back as this door's own sentence.
+    /// EDIT THE SOURCE THE CHOSEN RECIPE NAMES -- two doors, walked in order. The pane holds
+    /// a recipe's NAME and never its procedure, so it asks the host's read-only project office
+    /// which one file that name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), and
+    /// then asks the Editor's own office to open that file (`OpenSourceRequested` ->
+    /// `SourceOpened`). Every refusal -- an unknown id, a kind with no single source, a
+    /// missing file, a dirty buffer -- comes back as its owner's own sentence and lands in
+    /// this pane's row.
+    ///
+    /// ⚠ THE HOST USED TO DO BOTH HALVES BEHIND ONE ASK, while it held the Editor. The
+    /// document is the Editor weave's now, and a host that relayed the open onward would
+    /// have to name the Editor's office -- so the resolution stayed with the catalog's owner
+    /// and the opening went to the document's, and this pane carries one path from the one
+    /// to the other for the length of a turn.
     void edit_source(loom::Mail& mail) {
         if (!has_recipe("nothing was opened")) {
             say(mail);
             return;
         }
+        // THE FIRST DOOR, ITS TICKET KEPT (WL-OPEN-07): the bus's later word that this exact
+        // attempt was refused is matched to it, and nothing queued is refused now, in words.
+        const std::string recipe = known_.recipes[cursor_row()].recipe;
         source_.pending = ++asked_;
         source_.awaiting = true;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole,
-                          RecipeSourceRequested{known_.recipes[cursor_row()].recipe},
-                          source_.pending);
+        source_.subject = recipe;
+        source_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                              .send_to_role(ws::kProjectRole, RecipeSourceRequested{recipe},
+                                            source_.pending);
+        if (!source_.attempt.valid()) {
+            source_ = Ask{};
+            notice_ = "`" + recipe + "`: the source could not be looked up -- nothing was queued "
+                      "to " + ws::kProjectRole;
+            say(mail);
+        }
     }
 
     void begin_paste(loom::Mail& mail) {
@@ -1158,7 +1257,8 @@ private:
         std::string role;
         std::string recipe;
     } row_;
-    Ask source_;
+    Ask source_; ///< the resolution, at the project office
+    Ask open_;   ///< the opening, at the Editor's
 
     struct Role {
         bool open = false;

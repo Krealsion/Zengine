@@ -159,7 +159,6 @@ add_library(zengine-workshop-logic STATIC
     screen_bindings.cpp
     screen_chrome.cpp
     screen_compose.cpp
-    screen_editor.cpp
     screen_external.cpp
     screen_gestures.cpp
     screen_hotkeys.cpp
@@ -171,7 +170,6 @@ add_library(zengine-workshop-logic STATIC
     screen_terminal.cpp
     weave_arrange.cpp
     weave_document.cpp
-    weave_editor.cpp
     weave_external.cpp
     weave_handlers.cpp
     weave_pane_editor.cpp
@@ -182,6 +180,11 @@ add_library(zengine-workshop-logic STATIC
     weave_seam.cpp
     weave_session.cpp
     weave_terminal.cpp
+    # The presentation owner's half of a managed opening, the opening manager itself, and
+    # the host's turn of the bus (the pump seam a native showing failure reaches).
+    weave_managed.cpp
+    weave_opening.cpp
+    host_pump.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
@@ -404,16 +407,26 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # them. That is the one new sentence in the whole arc
 # (`workshop/attention_seam_vocabulary.hpp`), and it is why this line exists.
 #
-# `zengine-terminal-pane` is the twelfth, and it is the last of the built-ins this arc set out
-# to move. It was not a pane and it was not chrome: it was a MODE -- an overlay that owned the
-# keyboard and the pointer whole while it was open, drawn on a plane after every pane so
-# nothing a maker arranged could stand in front of it. What the migration found is that the
-# only part of it that could not move is the part that speaks as a Loom identity, and that
-# part is about forty lines; everything else was presentation, and it is in `terminal-pane/`.
+# `zengine-terminal-pane` is the twelfth. It was not a pane and it was not chrome: it was a
+# MODE -- an overlay that owned the keyboard and the pointer whole while it was open, drawn
+# on a plane after every pane so nothing a maker arranged could stand in front of it. What
+# the migration found is that the only part of it that could not move is the part that
+# speaks as a Loom identity, and that part is about forty lines; everything else was
+# presentation, and it is in `terminal-pane/`.
+#
+# `zengine-editor-pane` is the thirteenth, and it is the last of the built-ins this arc set
+# out to move -- and the one that was never a presentation over a fact the host held: the
+# host held the DOCUMENT. A maker's unsaved source lived in the session beside the setup and
+# the object document, which is why the exit checked it, the paste pinned it and the Files
+# and Builder asks landed at this host's own office. What the migration found is that a
+# document has one custodian and the pane is it: the buffer, its history, its file and its
+# clean/dirty truth are in `editor-pane/`, the open door is at that weave's office, and the
+# host asks the room whether it may quit instead of reading a field (`PaneQuitRequested`).
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-info-pane zengine-terminal-pane
+                               zengine-editor-pane
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)

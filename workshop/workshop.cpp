@@ -18,6 +18,9 @@
 #include "staging.hpp"
 #include "user_paths.hpp"
 #include "weave.hpp"
+#include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
+#include "opening.hpp"        // the opening manager this host mounts
+#include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -307,6 +310,11 @@ int main(int argc, char** argv) {
     // refuses in words and which the banner below states once. No fallback is invented for
     // either, deliberately.
     host.project_dir = launch_project_dir();
+    // THE ONE PANE whose presentation this host
+    // claims and can commit jointly with its document -- spelled through the conversion
+    // table, which is the one host-side file that names the reference, and not by this host
+    // knowing a pane (EDIT-W48's rule).
+    host.managed_pane = PaneRef{pane_migration::kEditorProvider, pane_migration::kEditorPane};
     host.document_path = args.document;
     host.setup_path = args.setup;
     // THE PANE-DEFINITION FILE IS RESOLVED AGAINST THE PROJECT, ONCE. A relative
@@ -562,9 +570,11 @@ int main(int argc, char** argv) {
     //
     // The host is the one party holding the completed recipes -- the same value the
     // runner builds from -- so the host answers which source file a recipe names,
-    // verbatim, and the editor cannot come to open a subtly different join of the
+    // verbatim, and the Editor cannot come to open a subtly different join of the
     // same bytes. The kind words are the recipe FILE's own, so a refusal downstream
-    // speaks the vocabulary the maker authored in.
+    // speaks the vocabulary the maker authored in. It is spent by the read-only project
+    // door (`RecipeSourceRequested` -> `RecipeSourceSaid`); the Builder pane carries the
+    // path it names to the Editor's own door.
     //
     // ⚠ IT ASKS THE OWNER AT THE MOMENT OF THE GESTURE. This closure used to
     // capture a private copy of three fields per recipe -- a third session-long store
@@ -1080,6 +1090,18 @@ int main(int argc, char** argv) {
     //                         catalog row. It carries an id that pane itself declared, and
     //                         it is sent INSTEAD of `PaneKey` for that one keystroke.
     //
+    // THE EDITOR'S EXTRACTION ADDED AN EIGHTH AND A NINTH (VD-25):
+    //
+    //   PaneDragged           the destination is the office that offered the pane a maker
+    //                         pressed into and is now sweeping across, resolved at each
+    //                         motion out of the same runtime catalog row. It carries a row
+    //                         and a column of the room Workshop granted, unclamped.
+    //   PaneQuitRequested     a PUBLICATION, for `PaneCatalogRequested`'s reason: which
+    //                         offices hold a maker's unsaved work is the very thing it is
+    //                         asking, and there is no role to scope it to until somebody
+    //                         has answered. It asks; the count of accepters Loom hands back
+    //                         is the count of answers this host then waits for.
+    //
     // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
     // carries a row and a column of a room Workshop itself granted -- or, a key
     // a maker pressed while looking at that room; it commands nothing, asks nothing and
@@ -1139,10 +1161,21 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-    // ...AND THE ONE ANSWER THIS HOST OWES ACROSS THE SEAM: what opening a source came to.
-    // `to_any` for `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the
-    // weave that asked, and no rule written here at boot could name it.
-    speak.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
+    speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
+    // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition
+    // this host owns, so a pane can leave itself consistent with a refused presentation
+    // (VD-26).
+    speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
+    // The two answers this host gives the opening
+    // manager -- whether a pane would seat and with what room, and whether the trial's
+    // content was admitted. `to_any` for `PaneRoom`'s reason: Loom picks the recipient of
+    // an answer.
+    speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
+    speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
+    // ⭐ `SourceOpened` WAS GRANTED HERE AND IS NOT (VD-25): the one answer this host owed
+    // across the seam was what opening a source came to, and the source is the Editor
+    // weave's now -- the answer is its, at its own office.
     // ...AND THE ONE THING THIS HOST NOW SAYS WITHOUT BEING ASKED: what is currently true
     // and worth a maker's attention. `to_any` because the party that presents it is named by
     // the load plan and not by this line -- a host that addressed the Attention pane's
@@ -1154,7 +1187,8 @@ int main(int argc, char** argv) {
     // is already reading off the workspace beside it.
     speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
     // ...and the answer to the one act the document has a door for. `to_any` for
-    // `SourceOpened`'s reason -- Loom picks the recipient of an answer.
+    // `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the weave that
+    // asked, and no rule written here at boot could name it.
     speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
     // ...AND WHAT THE TERMINAL PARTICIPANT'S RECORD HOLDS, on the same terms again. It is a
     // reading of a participant THIS PROCESS mounted and holds a pointer to; publishing it
@@ -1162,12 +1196,54 @@ int main(int argc, char** argv) {
     // weave is mounted, and this host's own is the one it says this with.
     speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
     // ...and the answers to the two things the terminal has doors for: authoring one line,
-    // and asking what could be said next. `to_any` for `SourceOpened`'s reason -- Loom picks
-    // the recipient of an answer.
+    // and asking what could be said next. `to_any` for `DocumentActed`'s reason -- Loom
+    // picks the recipient of an answer.
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
     speak.allow_to_any(TerminalCompletionOffered::zen_name,
                        TerminalCompletionOffered::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+
+    // ---- THE OPENING MANAGER (WL-OPEN-01, WL-OPEN-08) --------------------------------------
+    //
+    // One focused owner for the open operation, mounted beside Workshop in its own office
+    // and granted exactly the conversation it carries: it asks the desk for a trial and an
+    // admission, asks the document owner to prepare, tells both what came of it, keeps the
+    // desk told what it is waiting on, and answers whoever asked. The authority to commit a
+    // joint publication over those two offices is minted by THIS host for the manager's own
+    // id, and by nobody else: holding a `Bus&` cannot mint it, and a manager reloaded or
+    // replaced at the same address commits nothing it did not begin.
+    loom::Grant arrange_openings;
+    arrange_openings.allow_to_role(PresentationTrialRequested::zen_name,
+                                   PresentationTrialRequested::zen_version, kWorkshopProvider);
+    arrange_openings.allow_to_role(PresentationAdmitRequested::zen_name,
+                                   PresentationAdmitRequested::zen_version, kWorkshopProvider);
+    arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
+                                   kWorkshopProvider);
+    arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
+                                   kWorkshopProvider);
+    arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
+                                   kEditorRole);
+    // ...and the `apply` word to the Editor too:
+    // the delivery that shows the Editor its published claim.
+    arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
+                                   kEditorRole);
+    arrange_openings.allow_to_role(PrepareSourceRequested::zen_name,
+                                   PrepareSourceRequested::zen_version, kEditorRole);
+    arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    // ...AND IT ANSWERS POKES: the operation, its stage and the office it waits on are
+    // readable through `zen.PokeRead` of its declared record, the steward's own precedent.
+    loom::allow_poke_answers(arrange_openings);
+    {
+        auto opener = std::make_unique<OpeningManager>(std::string(kEditorRole),
+                                                       std::string(kWorkshopProvider),
+                                                       host.managed_pane);
+        OpeningManager* raw = opener.get();
+        const loom::WeaveId opening = bus.register_weave(
+            std::move(opener), std::move(arrange_openings), std::string(kOpeningRole));
+        raw->zen_set_self(opening);
+        raw->set_authority(bus.mint_joint_authority(
+            opening, {std::string(kEditorRole), std::string(kWorkshopProvider)}));
+    }
 
     // ---- THE PLAN, PERFORMED -------------------------------------------------
     //
@@ -1541,15 +1617,20 @@ int main(int argc, char** argv) {
     // that was. Both are wired a few hundred lines above, over the realization owner and the
     // plan author this host holds for the run.
     //
-    // The last doors are not here: Workshop's own weave holds the Editor, so
-    // `OpenSourceRequested` and `RecipeSourceRequested` are answered where `open_source`
-    // lives, at this host's own office.
+    // ...AND `host.recipe_source` FOR THE SAME REASON: the read-only door answers which one
+    // file a recipe names (`RecipeSourceSaid`), spending the catalog this host holds at the
+    // moment of the ask. The door that OPENS a source is not here and not this host's: the
+    // Editor is a weave (`editor-pane/`), `OpenSourceRequested` is answered at its office,
+    // and this host's only part in an opened source is seating the pane that asks to be
+    // shown (`PaneRevealRequested`, in Workshop's own weave).
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
     say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
+    say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
     mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path, host.frontier, host.plan_names);
+                                 marks_path, host.frontier, host.plan_names,
+                                 host.recipe_source);
 
     loom::Grant say_recipes;
     say_recipes.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
@@ -1590,8 +1671,20 @@ int main(int argc, char** argv) {
     // IT IS ALSO WHAT REALIZES THE PROJECT NOW, without being told: the first
     // artifact's load answer is an ordinary delivery like any other, and so is every
     // fact that follows it.
+    //
+    // ONE SEAM IS THE HOST'S AT THIS LOOP (workshop/host_pump.hpp): a native owner whose
+    // showing of a jointly published claim throws is recorded by Loom, held, and its own
+    // exception re-raised here. This host reads the turn's facts, names the held owner in the
+    // journal and on the console, and serves on -- the record protects the weave, the opening
+    // manager settles the open in words, and the repair is the owner's reload or removal. An
+    // exception those facts do not explain propagates exactly as it always did.
     while (!host.quit) {
-        bus.drain_until_idle();
+        const ServedTurn served = serve_until_idle(bus, [&journal](const std::string& said) {
+            journal.info("zengine.workshop", said);
+            std::printf("zengine-workshop - %s\n", said.c_str());
+            std::fflush(stdout);
+        });
+        (void)served;
         if (!host.quit && bus.pending() == 0) {
             std::printf("zengine-workshop - the bus went quiet without a quit "
                         "(no timer service deployed?): exiting.\n");

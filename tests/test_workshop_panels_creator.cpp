@@ -645,9 +645,10 @@ TEST_CASE("WUX-14/SC-1+SC-3+SC-9: `n` in the Pane Manager makes a named pane fro
     CHECK(region_value(t, "X") == "0 cells");
     CHECK(region_value(t, "Width") == "24 cells");
     CHECK(region_value(t, "Height") == "2 cells");
-    // THE PANE IS PAINTED, AND THE PICKER'S POPULATION GREW BY ONE ROW AND NOTHING ELSE.
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 1);
-    CHECK(s.panels.runtime.entries.empty());
+    // THE PANE IS PAINTED, AND THE PICKER'S POPULATION GREW BY ONE ROW AND NOTHING ELSE: the
+    // built-ins, the stand-in every `Live` admits (one runtime row), and now the maker's.
+    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 2);
+    CHECK(s.panels.runtime.entries.size() == 1);
     CHECK(s.panels.external.empty());
     // A PRESS INTO IT SELECTS IT AND POINTS NO KEYS (it takes none), like Info or Layouts.
     t.press_canvas(cells.x + 2, cells.y + 2);
@@ -1077,9 +1078,11 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
         bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc).rect, sc);
     CHECK(capture.find(fine_rect_text(place.inside, 0)) != std::string::npos);
     CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
-    // A CLOSED PANE: not presented, and said so.
-    choose_by_keys(t, ref_of(panel::kEditor));
-    CHECK(region_value(t, "Interior") == "code-backed -- not presented; no authored interior");
+    // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
+    // is the runtime stand-in, whose interior is its provider's (the last closed BUILT-IN was
+    // the Editor, and it is a weave now).
+    choose_by_keys(t, ref_of(stock::kKind));
+    CHECK(region_value(t, "Interior") == "a provider's own -- not presented; no authored interior");
     // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
     REQUIRE(add_pane(live(t).setup.active, stranger()));
     choose_by_keys(t, stranger());
@@ -1360,7 +1363,7 @@ TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and
         t.publish(loom::to_value(surface::SurfaceExtent{132 + i, 46, 0, 0}));
     }
     CHECK(ears->heard() == 0);
-    CHECK(t.session().panels.runtime.entries.empty());
+    CHECK(t.session().panels.runtime.entries.size() == 1); // the stand-in, admitted by `Live`
     CHECK(t.session().panels.external.empty());
     CHECK(t.session().panels.keyboard == kNoPaneKind);
 }
@@ -1443,10 +1446,10 @@ TEST_CASE("WUX-14/SC-19: a run with no maker pane is the run it always was") {
     const Session& s = t.session();
     CHECK_FALSE(s.panels.maker.open());
     CHECK_FALSE(s.panels.maker.dirty());
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds);
+    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 1); // ...plus the stand-in
     // THE INVENTORY IS ONE LONGER THAN THE CATALOG, and the extra row is not a maker pane:
     // it is the desk's Info weave, authored by `default_setup` and offered by nobody here.
-    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 1);
+    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 2);
     CHECK(has_pane(s.setup.active, info_ref()));
     CHECK_FALSE(resolve_pane(kMine, s.panels).has_value());
     CHECK(kind_name(s.panels, kMakerPaneKind).empty());
