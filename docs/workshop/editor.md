@@ -33,22 +33,43 @@ pane and never the view. That holds when you ask for it the *other* way too, bec
 doors resolve a file to the same identity.
 
 Opening a file is **one action, and it either happens or it does not**. The Editor reads and
-judges the file, holds anything you type or paste into it while it asks Workshop for a seat, and
-takes the document only on Workshop's word that the pane is seated — and that word is given in
-the same instant your desk changes: the pane seated if it was not there, selected, with your
-keys in it. On a screen with no room for another pane **nothing opens**: the document you
-already had, its caret and its history stand exactly as they were, your desk is untouched, and
-the refusal you get is the picker's own words (`no room for Editor on this screen -- make the
-window taller, then p again`). Make the window taller and ask again. A window you shrink
-*after* the open has taken hides the pane the way it hides any other, with the new file in it;
-grow it back and the file is there.
+judges the file and prepares it beside the document you have; Workshop checks that the pane
+would have a seat and room; and then the two change together, in one step: the new document is
+the Editor's and the pane is seated, selected, with your keys in it. Until that step the
+document you already had is the one you are looking at and typing into — nothing you type or
+paste is held back or moved somewhere else — and if you edit it, move its caret or change your
+desk while the open is on its way, the open is **refused** rather than allowed to replace what
+you just did; your work is where you put it, and you simply ask again. On a screen with no
+room for another pane **nothing opens**: the document you already had, its caret and its
+history stand exactly as they were, your desk is untouched, and the refusal you get is the
+picker's own words (`no room for Editor on this screen -- make the window taller, then p
+again`). Make the window taller and ask again. A window you shrink *after* the open has taken
+hides the pane the way it hides any other, with the new file in it; grow it back and the file
+is there.
 
 The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
-cannot carry, unsaved edits in the document you have open. Nothing is added to your desk, your
-keys do not move, and whoever asked is told why. Keys you typed while the open was on its way
-land in whichever document the open leaves you with — the new one if it took, the old one if it
-did not — and never in both. If the Editor pane is not loaded at all (a load plan without it),
-Files and the Builder have nobody to ask, and their open does nothing.
+cannot carry, unsaved edits in the document you have open, a paste of yours still on its way.
+Nothing is added to your desk, your keys do not move, and whoever asked is told why in the
+Files pane's or the Builder's own row. If the Editor pane is not loaded at all (a load plan
+without it), Files and the Builder are told so at once — `no Editor and desk are present to
+open <file>` — and nothing waits. Every refusal leads with its reason and ends with the file,
+so a narrow pane cuts the path, never the reason.
+
+### While an open is on its way, and if it stalls
+
+An open takes a few turns of Workshop's bus, and while it is on its way the Attention pane
+shows a standing condition for it — `opening <file>`, and which side it is waiting for. A
+second request while the first is still being prepared replaces it: the first is refused as
+superseded, naming the newer file, and the newer one goes on. If a side never answers (a
+broken Editor image, for instance), the open stays pending and says so; nothing times out,
+nothing is retried behind your back, every other pane keeps working, and your next open
+replaces it.
+
+Rarely, an open can be **published but not applied**: the two facts changed together, and then
+one side could not take up its half — a defect in that side's code. You are told which side,
+and that side is held until it is reloaded or removed (rebuild the Editor and load the new
+image, or remove the pane); the other side keeps what it applied. A fresh open after the
+repair is a new fact, not a replay of the old one.
 
 ### The file you edit is the file the build reads
 

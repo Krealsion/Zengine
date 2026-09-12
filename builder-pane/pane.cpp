@@ -27,7 +27,7 @@
 #include "builder-pane/vocabulary.hpp"
 
 #include "workshop/builder_seam_vocabulary.hpp"
-#include "workshop/open_seam_vocabulary.hpp" // EXPERIMENTAL: the managed door
+#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -165,7 +165,8 @@ class BuilderPaneWeave
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneKey, PaneTextInput,
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
-                       SourceOpened, surface::ClipboardCopy, surface::ClipboardText>,
+                       SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
+                       surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -435,17 +436,60 @@ public:
         if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
             return;
         }
-        source_.awaiting = false;
+        const std::string recipe = source_.subject;
+        source_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
             return;
         }
+        // THE SECOND DOOR: the opening office, which arranges the document and the desk
+        // together (WL-OPEN-01). The ticket is kept for the bus's later word that exactly this
+        // attempt was refused (WL-OPEN-07); nothing queued is refused now, in words.
         open_.pending = ++asked_;
         open_.awaiting = true;
-        // EXPERIMENTAL (editor-managed-open-slice): the managed door (see files.cpp).
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kOpeningRole, OpenSourceRequested{said.source}, open_.pending);
+        open_.subject = recipe;
+        open_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                            .send_to_role(ws::kOpeningRole, OpenSourceRequested{said.source},
+                                          open_.pending);
+        if (!open_.attempt.valid()) {
+            open_ = Ask{};
+            notice_ = "`" + recipe + "`: the source was not opened -- nothing was queued to the "
+                      "opening office";
+            say(mail);
+        }
+    }
+
+    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
+    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). Provenance first -- the shape alone is
+    /// speech -- then the exact attempt against the two asks `e` walks, each at its own
+    /// stage: the recipe-source lookup at the project office, and the open at the opening
+    /// office. Only the matched ask is cleared, and the maker is told which request and
+    /// which stage failed. A forged, stale, duplicate or mismatched notice settles nothing;
+    /// delivered silence is not a refusal and stays awaited.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        const loom::Ticket attempt = refused.refused_attempt();
+        if (!attempt.valid()) {
+            return;
+        }
+        if (source_.awaiting && source_.attempt.valid() && attempt.seq == source_.attempt.seq) {
+            const std::string recipe = source_.subject;
+            source_ = Ask{};
+            notice_ = "`" + recipe + "`: the source could not be looked up -- it could not reach " +
+                      ws::kProjectRole + " (" + refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (open_.awaiting && open_.attempt.valid() && attempt.seq == open_.attempt.seq) {
+            const std::string recipe = open_.subject;
+            open_ = Ask{};
+            notice_ = "`" + recipe + "`: the source was not opened -- the open could not reach " +
+                      ws::kOpeningRole + " (" + refused.reason + ")";
+            say(mail);
+        }
     }
 
     /// THE EDITOR'S ANSWER -- the second door. An accepted open says nothing here: the Editor
@@ -456,7 +500,7 @@ public:
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
             return;
         }
-        open_.awaiting = false;
+        open_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
@@ -556,6 +600,10 @@ private:
     struct Ask {
         std::uint64_t pending = 0;
         bool awaiting = false;
+        /// THE QUEUED ATTEMPT (Loom's sequence), kept so the bus's later word that exactly
+        /// this send was refused before any handler ran is matched to it, and only to it.
+        loom::Ticket attempt{};
+        std::string subject; ///< the recipe the ask was about, for the sentence a refusal needs
     };
 
     void ask_status(loom::Mail& mail) {
@@ -845,12 +893,21 @@ private:
             say(mail);
             return;
         }
+        // THE FIRST DOOR, ITS TICKET KEPT (WL-OPEN-07): the bus's later word that this exact
+        // attempt was refused is matched to it, and nothing queued is refused now, in words.
+        const std::string recipe = known_.recipes[cursor_row()].recipe;
         source_.pending = ++asked_;
         source_.awaiting = true;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kProjectRole,
-                          RecipeSourceRequested{known_.recipes[cursor_row()].recipe},
-                          source_.pending);
+        source_.subject = recipe;
+        source_.attempt = mail.as_role(pane::kBuilderPaneRole)
+                              .send_to_role(ws::kProjectRole, RecipeSourceRequested{recipe},
+                                            source_.pending);
+        if (!source_.attempt.valid()) {
+            source_ = Ask{};
+            notice_ = "`" + recipe + "`: the source could not be looked up -- nothing was queued "
+                      "to " + ws::kProjectRole;
+            say(mail);
+        }
     }
 
     void begin_paste(loom::Mail& mail) {

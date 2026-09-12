@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_OPEN_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_OPEN_SEAM_VOCABULARY_HPP
 
-// EXPERIMENTAL (editor-managed-open-slice, 2026-09-11) — THE MANAGED OPENING'S CONVERSATION.
+// THE MANAGED OPENING'S CONVERSATION (WL-OPEN, agents/workshop/opening.md).
 //
 // Opening a source B while A is current has ONE observable commitment boundary. Before it,
 // A is the current readable/editable document and B — with its trial presentation — is a
@@ -39,7 +39,7 @@
 // value before that owner runs again. The heavy state never crosses and never doubles:
 // the identity in the claim is what the native state is DERIVED FROM after commitment.
 //
-// PUBLICATION IS NOT APPLICATION (editor-managed-open-slice-corrections). The commitment
+// PUBLICATION IS NOT APPLICATION. The commitment
 // publishes both identities; each owner is then SHOWN its published claim by the bus before
 // it runs again, and what that showing came to is a second fact the bus records and tells
 // the manager (`zen.JointApplied`). The manager answers the requester only from that fact:
@@ -221,8 +221,6 @@ struct SourcePrepared {
 /// every owner was shown its published claim and completed the showing -- both were shown
 /// before this arrived, so this is bookkeeping and a sentence, never the commitment. A
 /// refusal, and a commitment an owner could not apply, carry the reason a maker reads.
-/// (`applied` was added by editor-managed-open-slice-corrections to this still-unpublished
-/// experimental shape; nothing outside the experiment ever admitted version 1.)
 struct ManagedOpenSettled {
     std::int64_t op = 0;
     bool committed = false;

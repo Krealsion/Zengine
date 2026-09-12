@@ -473,7 +473,7 @@ struct ExternalPane {
     std::int64_t sel_end_row = surface::kNoSelection;
     std::int64_t sel_end_col = 0;
 
-    /// EXPERIMENTAL (editor-managed-open-slice): THE GENERATION OF THE ROWS ADMITTED HERE,
+    /// THE GENERATION OF THE ROWS ADMITTED HERE,
     /// as a `v2::PaneContent` named it -- 0 for a pane that never said one. A projection
     /// naming an OLDER generation is refused rather than admitted, so a queued picture of a
     /// document that has since been replaced cannot repaint the one that replaced it.

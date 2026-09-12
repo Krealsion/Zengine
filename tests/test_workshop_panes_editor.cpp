@@ -196,7 +196,7 @@ public:
 /// mounted BEFORE the plan runs, because the pane asks `zengine.project` where this run began
 /// on the very beat it is activated -- a door mounted afterwards would be absent exactly when
 /// the only ask that matters is made.
-/// STAND-INS FOR A BROKEN EDITOR (EXPERIMENTAL, editor-managed-open-slice; test
+/// STAND-INS FOR A BROKEN EDITOR (test
 /// instrumentation, labeled as such). Each holds `zengine.editor` in place of the real image,
 /// offers the pane so the desk has a row, and claims an (empty) document identity so an
 /// operation can bind it -- the least a participant must do to be ASKED -- and then fails to
@@ -284,7 +284,7 @@ struct EditorRig {
             write_keymap_file(path, keymap_file_text("full", overrides));
             r.host.keymap_path = path;
         }
-        // EXPERIMENTAL (editor-managed-open-slice): the host names the managed pane before
+        // The host names the managed pane before
         // Workshop is mounted, and mounts the opening manager beside it.
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
@@ -484,7 +484,7 @@ struct EditorRig {
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
         grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
-        // EXPERIMENTAL (editor-managed-open-slice): ...and the managed opening's own
+        // ...and the managed opening's own
         // sentences, for the same reason -- a forged settlement, a forged preparation, a
         // forged admission and a forged dispatch refusal must reach their parties to be
         // dropped by them.
@@ -506,7 +506,7 @@ struct EditorRig {
     }
 
     /// ASK THE MANAGED DOOR TO OPEN ONE PATH -- what a Return on a source row in Files
-    /// crosses as -- and hand back what it answered. (EXPERIMENTAL: the door is the opening
+    /// crosses as -- and hand back what it answered. (the door is the opening
     /// manager's office; the Editor's own office is the direct, presentation-less door.)
     SourceOpened ask_open(const std::string& path) {
         const std::size_t before = asker->opens.size();
@@ -531,7 +531,7 @@ struct EditorRig {
     /// waits on -- as a case reads it off the weave the rig mounted.
     const OpeningState& opening() { return r.opening->state(); }
 
-    // ---- EXPERIMENTAL (editor-managed-open-slice): STAGING A MANAGED OPEN TURN BY TURN ----
+    // ---- STAGING A MANAGED OPEN TURN BY TURN ----------------------------------------------
     //
     // A managed open is a conversation of nine deliveries (request; trial asked; trial
     // answered; prepare asked; prepared; admit asked; admitted; THE COMMITMENT; the owners
@@ -548,7 +548,7 @@ struct EditorRig {
         (void)r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
     }
-    /// ...and the same at the OLD door (editor-managed-open-slice-corrections).
+    /// ...and the same at the OLD door.
     void enqueue_open_direct(const std::string& path) {
         asker->next = [path](DoorAsker& a, loom::Mail& mail) {
             a.ask(mail, kEditorRole, OpenSourceRequested{path});
@@ -617,7 +617,7 @@ struct EditorRig {
     }
 
     /// THE EDITOR'S SNAPSHOT, admitted against its declared shape -- the bytes a reload
-    /// carries, read the way Loom reads them (and, EXPERIMENTAL, shown any publication of
+    /// carries, read the way Loom reads them (and shown any publication of
     /// its own first).
     loom::Value snapshot() {
         const loom::Unverified claim = loom::parse(r.bus.snapshot_bytes(image));
@@ -628,7 +628,7 @@ struct EditorRig {
         return admitted.value();
     }
 
-    /// A BROKEN EDITOR IN PLACE OF THE IMAGE (EXPERIMENTAL): the desk, the manager, the
+    /// A BROKEN EDITOR IN PLACE OF THE IMAGE: the desk, the manager, the
     /// project door and the asker are the real ones; the Editor's role is held by a stand-in
     /// that offers, claims and then fails to prepare (see `BrokenEditor`, `DeafEditor`).
     BrokenEditor* broken = nullptr;
@@ -667,8 +667,7 @@ struct EditorRig {
         mount_asker();
     }
 
-    /// THE IMAGE LOADED UNDER A ROLE THAT IS NOT ITS OWN (editor-managed-open-slice-
-    /// corrections): everything the Editor says AS `zengine.editor` is then refused at the
+    /// THE IMAGE LOADED UNDER A ROLE THAT IS NOT ITS OWN: everything the Editor says AS `zengine.editor` is then refused at the
     /// authorship -- its offer, its project ask, and the relay it would make for an open
     /// asked of it directly. No pane is offered, so nothing here requires a row.
     void open_under_role(const char* role) {
@@ -705,7 +704,7 @@ struct EditorRig {
         r.enqueue_reload(stem, copy.generic_string());
     }
 
-    /// ...AND A REBUILD THAT CHANGES THE CODE (editor-managed-open-slice-corrections-2): the
+    /// ...AND A REBUILD THAT CHANGES THE CODE: the
     /// record loaded as `record` is reloaded in place from a copy of ANOTHER image, `image`,
     /// through the same door -- the repair of an owner whose image could not apply a claim,
     /// by the maker's corrected build of it.
@@ -1336,9 +1335,9 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
     // against Loom's budget of 65,536 rather than a list of a hundred thousand lines. What is
     // NOT in it is said by its absence: no undo history (a reload is a new incarnation, and
     // the history is the old one's), no paste in flight (its answer is correlated to an
-    // incarnation that is gone), no candidate (EXPERIMENTAL: a preparation is the old
+    // incarnation that is gone), no candidate (a preparation is the old
     // incarnation's conversation), no wheel fraction, no follow flag. `opened_by`
-    // (EXPERIMENTAL, one Int) names the managed operation that installed the document.
+    // (one Int) names the managed operation that installed the document.
     //
     // ⚠ THE RELOAD ITSELF IS WITNESSED IN `test_workshop_load.cpp`, over a real Kernel, a
     // real Manager and a staged image, document and all. What is pinned here is the shape,
@@ -1622,7 +1621,7 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
 }
 
 TEST_CASE("EDIT-W33: a paste still arriving refuses another source, and its answer lands where it was asked") {
-    // RETARGETED (EXPERIMENTAL, editor-managed-open-slice). This case pinned "a late answer
+    // RETARGETED for the managed opening. This case pinned "a late answer
     // for a replaced document is discarded whole": the open replaced A under the maker's own
     // paste, and the answer was stranded, silently. The founder's guarantee names admitted
     // input that must not be dropped, and the paste is the maker's -- so the open now waits
@@ -2295,7 +2294,7 @@ TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
     // The answer could never have landed -- and never did -- but the quit handler reads that
     // flag, so a CLEAN new document refused every exit for the rest of the session.
     //
-    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice): an open no longer replaces a
+    // RESTAGED for the managed opening: an open no longer replaces a
     // document under its own paste (WL-EDIT-05) -- it is refused in words until the answer
     // is consumed -- so the flight retires the way it is spent, by its answer, cleared before
     // the payload is judged; `install` still clears it as the belt under that.
@@ -2332,7 +2331,7 @@ TEST_CASE("EDIT-W55: a dirty document with no paste in flight still refuses the 
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     put_bytes(e.root / "b.cpp", "two\n");
-    // EXPERIMENTAL: the open waits for the paste (WL-EDIT-05), which pastes nothing here.
+    // The open waits for the paste (WL-OPEN-03), which pastes nothing here.
     CHECK_FALSE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
     e.answer_now();
     REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
@@ -2356,7 +2355,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
     SUBCASE("a keystroke queued behind a request at the OLD door lands in the current document, and the open is refused for it") {
-        // THE OLD DOOR KEEPS THE MANAGED MEANING (editor-managed-open-slice-corrections):
+        // THE OLD DOOR KEEPS THE MANAGED MEANING:
         // `OpenSourceRequested` at `zengine.editor` is relayed to the opening manager, so a
         // keystroke queued behind the request is admitted A work exactly as it is behind a
         // managed request -- A is dirty when the Editor is asked to prepare B, the open is
@@ -2413,8 +2412,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
         CHECK(said.refusal.find("unsaved changes") != std::string::npos);
         CHECK(e.read("path").find("a.cpp") != std::string::npos);
         CHECK(e.doc_row(0) == "oneZ");
-        // THE DESK SAYS WHY, as it does for the managed door (editor-managed-open-slice-
-        // corrections: the old door relays; the desk was asked for a trial, which moves
+        // THE DESK SAYS WHY, as it does for the managed door (the old door relays; the desk was asked for a trial, which moves
         // nothing, and the judge's refusal reached it through the manager's settlement).
         CHECK(e.r.session().notice == said.refusal);
         CHECK(e.r.session().notice != notice);
@@ -2422,7 +2420,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 
     SUBCASE("a keystroke queued behind a MANAGED request lands in the current document, and the open is refused for it") {
-        // THE MANAGED DOOR HOLDS NOTHING EITHER (EXPERIMENTAL, WL-EDIT-05/13): input applies
+        // THE MANAGED DOOR HOLDS NOTHING EITHER (WL-OPEN-03): input applies
         // to the current document at once, and what it changed is what the open is judged
         // against. The Z is admitted A work, so A is dirty when the Editor is asked to
         // prepare B; the open is refused in the floor's own words, and the desk did not move.
@@ -2449,7 +2447,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 
     SUBCASE("a second request while one is in flight supersedes it, and both requesters are told") {
-        // RETARGETED (EXPERIMENTAL): the manager owns supersession. The newer intent ends the
+        // RETARGETED: the manager owns supersession. The newer intent ends the
         // older one -- the bus releases its offers, both owners hear it ended -- the first
         // requester is told so in words naming the newer request, and the newer one takes.
         // There is no queue of intents and no retry.
@@ -2491,7 +2489,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 
     SUBCASE("a settlement forged by a stranger, or one for a flight that already ended, decides nothing") {
-        // RETARGETED (EXPERIMENTAL): the reveal answer is gone; what a stranger might forge
+        // RETARGETED: the reveal answer is gone; what a stranger might forge
         // now is the manager's `ManagedOpenSettled` -- which both owners take only from the
         // manager's office -- or an answer to the manager, which Loom's provenance says
         // answers nothing it asked.
@@ -2556,7 +2554,7 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and 
     // so an acquisition that then refused left the desk holding a presentation change for an
     // operation that never happened.
     //
-    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice): the commitment is the bus's joint
+    // RESTAGED for the managed opening: the commitment is the bus's joint
     // publication, and nothing is held. A clipboard answer for A lands in A the moment it is
     // delivered, wherever that falls in B's arrangement; what changes with WHEN is only which
     // party refuses -- the Editor's judge (A is dirty, or its paste is still arriving) or the
@@ -2680,7 +2678,7 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     // stands, the requester is told the picker's words, and the desk did not move for this
     // operation -- the seat the Editor lost, it lost to the maker's own shrink.
     //
-    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice) at the managed door: the shrink lands
+    // RESTAGED for the managed opening, at the managed door: the shrink lands
     // between the manager's binding of the desk and the desk's trial, so the trial finds no
     // seat and refuses with the picker's words; nothing was offered and nothing published.
     EditorRig e("edit-shrink-before");
@@ -2732,7 +2730,7 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
 
 TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation change") {
     // THE CONTROL THE FOUNDER'S GUARANTEE NAMES: legitimate maker actions after a successful
-    // commitment may change presentation. RESTAGED (EXPERIMENTAL, editor-managed-open-slice):
+    // commitment may change presentation. RESTAGED for the managed opening:
     // the commitment is the bus's joint publication, made inside the manager's delivery of the
     // desk's admission; each owner is shown its published claim before it runs again, and the
     // desk applies the presentation whole in that showing. A real `SurfaceExtent` delivered
@@ -2850,7 +2848,7 @@ TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is sho
 TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes") {
     // A PERMISSION GIVEN WHILE AN OPEN IS BETWEEN ITS PREPARATION AND ITS COMMITMENT is one
     // the commitment could falsify -- the paste's rule, one operation over. RESTAGED
-    // (EXPERIMENTAL, editor-managed-open-slice): the quit ask lands after the Editor has
+    // for the managed opening: the quit ask lands after the Editor has
     // prepared B and before the manager commits; the Editor refuses it naming the source it
     // is still opening, the host stays, and the open completes. (Before the preparation the
     // Editor knows nothing of the flight and answers about its document alone; after the
@@ -2890,8 +2888,8 @@ TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in wo
 }
 
 TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
-    // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT. RESTAGED (EXPERIMENTAL,
-    // editor-managed-open-slice): the picker's removal is queued behind the request, so one
+    // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT. RESTAGED for the managed
+    // opening: the picker's removal is queued behind the request, so one
     // turn has the manager bind the desk as it is and then the picker take the Editor off
     // it. The desk the operation bound is not the desk any more: its offer is refused by the
     // bus, the operation ends with nothing published, the requester is told, and the maker's
@@ -3153,7 +3151,7 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
 }
 
 // ============================================================================
-// THE MANAGED OPENING'S OWN WITNESSES (EXPERIMENTAL, editor-managed-open-slice)
+// THE MANAGED OPENING'S OWN WITNESSES (WL-OPEN, agents/workshop/opening.md)
 // ============================================================================
 //
 // Seven observations the founder's guarantees name, each staged with real messages at exact
@@ -3209,7 +3207,7 @@ TEST_CASE("EDIT-W70: a managed open has one commitment -- the published claims, 
     e.r.session().notice.clear();
     REQUIRE(e.r.bus.pump_pending() >= 1);
     CHECK(e.answered(poked_before) == a_path); // answered before it: A
-    // PUBLISHED, NOT YET APPLIED (editor-managed-open-slice-corrections): the manager holds
+    // PUBLISHED, NOT YET APPLIED: the manager holds
     // the flight at `apply` until the bus says what the owners' showings came to, and has
     // established nothing yet -- the claims say B, the application is owed.
     CHECK(e.opening().committed == committed);
@@ -3455,7 +3453,7 @@ TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three
 }
 
 TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives") {
-    // RETARGETED (editor-managed-open-slice-corrections): the old door relays to the same
+    // RETARGETED: the old door relays to the same
     // manager, so a competing request there is a newer intent at the manager -- it supersedes
     // B (the bus releases B's offers, B's requester is told which request did it) and C
     // opens through the one commitment. The Step 1 slice's document-only install, which won
@@ -3864,9 +3862,9 @@ TEST_CASE("EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload c
 }
 
 // ============================================================================
-// MEASUREMENT (EXPERIMENTAL, editor-managed-open-slice): the cost of the changed paths
+// MEASUREMENT: the cost of the changed paths
 // ============================================================================
-// THE CORRECTIONS (editor-managed-open-slice-corrections): the old door's promise, and a
+// THE CORRECTIONS: the old door's promise, and a
 // loaded owner that cannot apply what was published
 // ============================================================================
 
@@ -4161,7 +4159,7 @@ TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is hel
     // THE REPAIR: a real reload through the control door. The successor is shown the
     // published value at its first delivery (its own activation), applies it, and the bus
     // tells the manager -- which re-reads the record it RETAINED for exactly this late word
-    // (editor-managed-open-slice-corrections-2), records it, and releases the record.
+    //, records it, and releases the record.
     CHECK(e.opening().retained == op);
     e.enqueue_reload("zengine-failing-editor");
     e.settle();
@@ -4180,7 +4178,7 @@ TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is hel
 
 // ============================================================================
 //
-// TEST-LOCAL COORDINATORS (editor-managed-open-slice-corrections-2). Two instruments for two
+// TEST-LOCAL COORDINATORS. Two instruments for two
 // questions the real manager cannot be made to ask: what the REAL desk answers when it is
 // shown a presentation it holds no trial for, and whether the real manager's outcome survives
 // an UNRELATED coordination begun on the same bus before its notice was consumed. Neither is
@@ -4516,7 +4514,7 @@ TEST_CASE("EDIT-W81: the real manager's outcome survives an unrelated coordinati
 }
 
 TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied") {
-    // THE START REPRODUCTION (editor-managed-open-slice-corrections-2). The image is the exact
+    // THE START REPRODUCTION. The image is the exact
     // real Editor source built once more with one deliberate throw at the start of its showing
     // hook, for a published path ending in `/b.cpp` and nothing else (`zengine-editor-throwing`,
     // tests/CMakeLists.txt). Opening a.cpp through it is an ordinary open; publishing b.cpp
@@ -4583,7 +4581,7 @@ TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could 
     CHECK(e.r.session().notice.find("could not apply") != std::string::npos);
     // THE REPAIR: the record loaded from the throwing image is reloaded in place from a copy
     // of the normal image, through the real control door. The manager RETAINS the record for
-    // the late word about this repair (editor-managed-open-slice-corrections-2).
+    // the late word about this repair.
     CHECK(e.opening().retained == op);
     e.enqueue_reload_into("zengine-editor-throwing", pane::kEditorPaneStem);
     // TURN BY TURN, until the successor has been shown: its first delivery (the activation
@@ -4757,7 +4755,7 @@ TEST_CASE("EDIT-M1: measurement -- the edit and open paths on a small and a near
 }
 
 TEST_CASE("EDIT-M2: measurement -- what the managed open retains and how many turns it takes (no timing assertions)") {
-    // THE EXPERIMENTAL TREE'S OWN NUMBERS: the size of the two published identities, the bytes
+    // THE MANAGED OPENING'S OWN NUMBERS: the size of the two published identities, the bytes
     // the bus retains while an open is prepared, the number of latest claims the room holds,
     // and the number of bus turns from a requester's ask to the terminal answer.
     for (const std::size_t bytes : {std::size_t{256},

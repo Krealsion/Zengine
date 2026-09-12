@@ -158,7 +158,9 @@ the directory lists normally, and browsing is never interrupted by a name.
 decides whether it can edit it and says so in its own words, which the Files pane repeats in
 its first row (see [the editor's byte rules](editor.md)). So a `.png` or a binary opens *at*
 the Editor and is refused *by* it, which is where the real answer lives. If no Editor pane is
-loaded, `Return` on a file asks nobody and nothing happens.
+loaded, `Return` on a file is refused at once, in the pane's first row, saying so; if the
+open cannot even be sent — no opening office is present in this Workshop — the row says that
+instead, and a later `Return` is a fresh attempt.
 
 ## Refreshing
 

@@ -52,7 +52,7 @@
 //   only by this weave). It never installs a document without the presentation, and a
 //   relay that cannot be made is refused in words. The opening office may not ask it.
 //
-//   THE MANAGED DOOR (EXPERIMENTAL, editor-managed-open-slice): a requester asks the opening
+//   THE MANAGED DOOR (WL-OPEN-01): a requester asks the opening
 //   manager (`zengine.opening`), which asks THIS weave to PREPARE the source for the room the
 //   desk's trial would grant (`PrepareSourceRequested`). This weave judges and admits the
 //   file, builds a WHOLE candidate document beside the current one, composes it for that
@@ -309,7 +309,7 @@ public:
     // ---- THE TWO DOORS: open a source directly, or prepare it for a managed opening ------
 
     /// THE OLD DOOR, AND ITS PROMISE KEPT (`OpenSourceRequested` at `zengine.editor`;
-    /// editor-managed-open-slice-corrections). This is the address every requester used
+    /// WL-EDIT-05, WL-OPEN-07). This is the address every requester used
     /// before an opening manager existed, and what it promised was the document AND its
     /// presentation -- seated, selected, holding the keys -- or a truthful refusal. It
     /// still promises exactly that. This weave does not arrange the desk; the opening
@@ -332,14 +332,15 @@ public:
         }
         if (mail.authored_from_role(ws::kOpeningRole)) {
             (void)mail.answer(SourceOpened{
-                false, asked.path + " was not opened -- the opening office asks the Editor to "
-                                    "prepare a source, not to open one; nothing was relayed"});
+                false, "the opening office asks the Editor to prepare a source, not to open "
+                       "one -- nothing was relayed for " +
+                           asked.path});
             return;
         }
         if (relays_.size() >= kMaxRelays) {
             (void)mail.answer(SourceOpened{
-                false, asked.path + " was not opened -- too many opens are already being "
-                                    "relayed through the Editor; try again"});
+                false, "too many opens are already being relayed through the Editor -- " +
+                           asked.path + " was not opened; try again"});
             return;
         }
         const std::uint64_t correlation = ++asked_;
@@ -351,8 +352,8 @@ public:
             // Refused now, in words: never silence, and never a document-only success
             // standing in for the presentation the requester asked for.
             (void)mail.answer(SourceOpened{
-                false, asked.path + " was not opened -- the Editor could not ask the opening "
-                                    "office to show it (nothing was queued)"});
+                false, "nothing was queued: the Editor could not ask the opening office to show " +
+                           asked.path});
             return;
         }
         Relay relay;
@@ -398,15 +399,16 @@ public:
             if (it->attempt.seq == attempt.seq) {
                 (void)loom::answer_deferred(
                     it->answer, mail,
-                    SourceOpened{false, it->path + " was not opened -- " + ws::kOpeningRole +
-                                            " could not be reached (" + refused.reason + ")"});
+                    SourceOpened{false, std::string(ws::kOpeningRole) + " could not be reached (" +
+                                            refused.reason + ") -- " + it->path +
+                                            " was not opened"});
                 relays_.erase(it);
                 return;
             }
         }
     }
 
-    /// THE `apply` WORD (editor-managed-open-slice-corrections): the delivery in which the
+    /// THE `apply` WORD: the delivery in which the
     /// bus showed this weave its published claim, before this handler -- the hook below
     /// did the work, and the end of this delivery says the rows. Nothing to do here.
     void on(const ManagedOpenProgress& said, loom::Mail& mail) {
@@ -414,7 +416,7 @@ public:
         (void)mail;
     }
 
-    /// THE MANAGED DOOR (EXPERIMENTAL): PREPARE this source for the room the desk's trial
+    /// THE MANAGED DOOR (WL-OPEN-01, WL-OPEN-03): PREPARE this source for the room the desk's trial
     /// would grant, and OFFER the document's identity for the exact operation. Judged with
     /// nothing moved, exactly as the direct door judges; the candidate is a whole document
     /// built beside the current one, composed for `rows` x `columns`, and the composition
@@ -523,7 +525,7 @@ public:
         say(mail);
     }
 
-    /// THE HOOK (EXPERIMENTAL; Loom's `Weave::claim_published`): the bus published THIS
+    /// THE HOOK (WL-OPEN-02; Loom's `Weave::claim_published`): the bus published THIS
     /// weave's document claim by a joint operation, and this weave has not run since. Called
     /// before the next delivery and before the next snapshot, with no Mail: the candidate the
     /// published identity names becomes the document HERE, and the mirror is rebuilt HERE,
@@ -536,14 +538,14 @@ public:
     /// the publication is shown it with no candidate to install. The honest answer is to
     /// keep what this weave holds, say so, re-claim that truth at the end of the next
     /// delivery -- never to fabricate a document from an identity -- and to ANSWER `false`
-    /// (editor-managed-open-slice-corrections-2): the bus records Declined against this
+    ///: the bus records Declined against this
     /// participant and publication, holds nothing, and the manager records "not applied
     /// after repair". A successor that survives with A is a repaired owner and not an
     /// applied operation; returning normally from this branch used to say the opposite.
     bool on_claim_published(const EditorDocument& published) {
 #ifdef ZENGINE_EDITOR_TEST_THROW_ON_B_CPP
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-throwing` (tests/CMakeLists.txt;
-        // editor-managed-open-slice-corrections-2): this exact source plus one deliberate throw
+        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-throwing` (tests/CMakeLists.txt):
+        // this exact source plus one deliberate throw
         // before anything is activated, for a published path ending in `/b.cpp` and for nothing
         // else -- a real owner whose image cannot complete a showing. The normal image never
         // defines this and compiles none of it.
@@ -566,13 +568,13 @@ public:
             return true;
         }
         // A PUBLICATION THIS INCARNATION DID NOT PREPARE -- a successor reloaded over a
-        // predecessor that could not apply it (editor-managed-open-slice-corrections). The
+        // predecessor that could not apply it. The
         // document this weave holds is kept and re-claimed at the end of the next delivery.
         // Its GENERATION moves past the published one first: the desk keeps the rows it
         // admitted for the publication and drops any projection of an older generation, so
         // rows said for this document under its old epoch would never repaint the desk.
         // A paste pinned to the old epoch retires with it, as at any install. And the
-        // answer is DECLINED (editor-managed-open-slice-corrections-2): not applied, not
+        // answer is DECLINED: not applied, not
         // broken.
         const std::uint64_t published_epoch =
             published.doc_epoch < 0 ? 0 : static_cast<std::uint64_t>(published.doc_epoch);
@@ -587,7 +589,7 @@ public:
         return false;
     }
 
-    /// THE END OF EVERY DELIVERY (EXPERIMENTAL; Loom's `after_delivery`): say what a
+    /// THE END OF EVERY DELIVERY (WL-OPEN-03; Loom's `after_delivery`): say what a
     /// publication owes, mirror the live document into the read surface, and claim the
     /// document's identity if it moved. One place, mechanically, so no handler can forget
     /// and no read can find the mirror stale.
@@ -1008,7 +1010,7 @@ private:
         return plan;
     }
 
-    // THERE IS NO `install` HERE ANY MORE (editor-managed-open-slice-corrections). The Step 1
+    // THERE IS NO `install` HERE ANY MORE. The Step 1
     // slice kept a document-only install behind the old door; that door relays now, and a
     // document becomes this weave's only inside `activate`, in the showing hook, from a
     // candidate a managed operation published. A dead installer with the old meaning would
@@ -1175,7 +1177,7 @@ private:
         notice_bad_ = bad;
     }
 
-    // ---- The document's latest claim (EXPERIMENTAL) ----------------------------------------
+    // ---- The document's latest claim (WL-OPEN-03) ------------------------------------------
 
     /// THE DOCUMENT'S IDENTITY AS THIS WEAVE CLAIMS IT: the durable facts a commitment is
     /// about, and the ones any edit moves. `dirty` is recomputed only when the bytes or the
@@ -1454,7 +1456,7 @@ private:
     /// THE PANE, SAID: the live document composed for the granted room, its viewport moved
     /// as the composition moved it, and the rows and the caret published beside each other,
     /// each naming the document's generation so a projection of a document that is gone can
-    /// never repaint the one that replaced it (EXPERIMENTAL: `v2::PaneContent`).
+    /// never repaint the one that replaced it (`v2::PaneContent`).
     void say(loom::Mail& mail) {
         if (!granted_) {
             return; // no room has been sent: nothing this pane could truthfully fill
@@ -1543,7 +1545,7 @@ private:
     Candidate candidate_;
     Drag drag_;
 
-    /// AN OPEN RELAYED THROUGH THE OLD DOOR (editor-managed-open-slice-corrections): the
+    /// AN OPEN RELAYED THROUGH THE OLD DOOR: the
     /// requester's kept answer right, and this weave's own conversation with the manager
     /// -- its correlation and its exact attempt -- so the manager's answer, or the bus's
     /// refusal of the attempt, finds the requester it was for. Bounded, and not in the

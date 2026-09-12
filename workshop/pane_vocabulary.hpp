@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// six times since. Nineteen shapes, two of them a second version of one declaration.
+// seven times since. Twenty-one shapes, four of them a second version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
@@ -13,7 +13,9 @@
 //     v2::PaneActions        provider  ->  Workshop   "...and this row of mine stands in for one of yours."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
+//     v2::PaneContent        provider  ->  Workshop   "...of this generation of my subject."
 //     PaneCaret              provider  ->  Workshop   "...and here is where I am typing in it."
+//     v2::PaneCaret          provider  ->  Workshop   "...in that generation."
 //     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 //     PaneDragged            Workshop  ->  provider   "...and their hand is here now, still down."
 //     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
@@ -26,13 +28,16 @@
 //     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
 //
 // THE EDITOR'S MIGRATION ADDED FIVE, and each is a contract a built-in had and a pane
-// could not say. A drag swept a selection across a document (`PaneDragged`); opening a
-// source put the Editor on the desk and pointed the keys at it (`PaneRevealRequested`); and
-// an orderly quit read the buffer's dirty state before it stopped the bus -- which it cannot
-// read across a seam, so it ASKS (`PaneQuitRequested`), and every pane that accepts the
-// question answers it (`PaneQuitAnswered`). None of the five names the Editor: a pane that
-// wants a sweep, a reveal or a say in the exit accepts the shape, and one that does not is
-// unchanged and never hears it.
+// could not say. A drag swept a selection across a document (`PaneDragged`); a pane whose act
+// needs a seat and nothing more asks for one (`PaneRevealRequested`); and an orderly quit read
+// the buffer's dirty state before it stopped the bus -- which it cannot read across a seam,
+// so it ASKS (`PaneQuitRequested`), and every pane that accepts the question answers it
+// (`PaneQuitAnswered`). None of the five names the Editor: a pane that wants a sweep, a
+// reveal or a say in the exit accepts the shape, and one that does not is unchanged and
+// never hears it. OPENING A SOURCE is not a reveal any more: the document and its
+// presentation are published together by the managed opening (open_seam_vocabulary.hpp,
+// agents/workshop/opening.md), and the two `v2` doors let the Editor's rows and caret name
+// the generation of the document they project.
 //
 // THE NINTH, TENTH AND ELEVENTH ARE ONE ACTION TRUTH REACHING ACROSS THE SEAM. Inside
 // the host an action is a stable id, a label and a default gesture in one catalog; a
@@ -209,7 +214,7 @@ struct PaneContent {
     ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// EXPERIMENTAL (editor-managed-open-slice): CONTENT AND CARET THAT NAME THEIR GENERATION.
+/// CONTENT AND CARET THAT NAME THEIR GENERATION.
 ///
 /// A pane whose presentation can be committed JOINTLY with its document (the Editor) says
 /// which generation of its subject its rows are a projection of, so a projection of the
@@ -567,7 +572,7 @@ struct PaneCaret {
               ZEN_FIELD(sel_end_col));
 };
 
-/// EXPERIMENTAL (editor-managed-open-slice): `PaneCaret` naming its generation, for
+/// `PaneCaret` naming its generation, for
 /// `v2::PaneContent`'s reason and under the same admission rule.
 namespace v2 {
 

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_OPENING_HPP
 #define ZENGINE_WORKSHOP_OPENING_HPP
 
-// EXPERIMENTAL (editor-managed-open-slice, 2026-09-11) — THE OPENING MANAGER.
+// THE OPENING MANAGER (WL-OPEN, agents/workshop/opening.md).
 //
 // One focused owner for the OPEN OPERATION, and nothing else: it carries a requester's
 // intent through the two owners' preparation, commits the joint publication, and reports
@@ -48,8 +48,7 @@
 // and the outcome loses its answer right; the manager counts the loss and the published
 // facts stand. Losing the answer is a fact about the requester, not about the open.
 //
-// ⚠ THE RECORD IS KEPT UNTIL THIS MANAGER RELEASES IT (editor-managed-open-slice-
-// corrections-2). The bus keeps an operation's record -- committed with its application,
+// ⚠ THE RECORD IS KEPT UNTIL THIS MANAGER RELEASES IT (WL-OPEN-06). The bus keeps an operation's record -- committed with its application,
 // aborted with its reason -- until its operator releases it, so the notice that wakes this
 // manager always finds the record it names, and an unrelated coordination begun meanwhile
 // takes nothing from it (publication is not the end of an outcome's lifetime; a queued
@@ -93,8 +92,7 @@ struct OpeningState {
     std::int64_t unapplied = 0;  ///< commitments an owner did not apply (failed, declined, lost)
     std::int64_t refused = 0;
     std::int64_t answers_lost = 0; ///< outcomes a replaced requester never heard
-    /// THE ONE RECORD THIS MANAGER STILL HOLDS AFTER SETTLING (editor-managed-open-slice-
-    /// corrections-2): a commitment an owner could not apply, kept at the bus for the late
+    /// THE ONE RECORD THIS MANAGER STILL HOLDS AFTER SETTLING (WL-OPEN-06): a commitment an owner could not apply, kept at the bus for the late
     /// word about that owner's repair, or 0. Every other settled record is released at once;
     /// this one when the repair re-settles it, or when a newer request settles.
     std::int64_t retained = 0;
@@ -155,6 +153,10 @@ private:
     /// publication; `applied` is every owner's application of it; the answer is both.
     void settle(bool committed, bool applied, const std::string& refusal, loom::Mail& mail,
                 loom::JointApplication application = loom::JointApplication::None);
+    /// Every newer terminal outcome that takes this manager's public result retires the one
+    /// retained record, unless it is the operation settling now (`settling`; 0 for an
+    /// immediate refusal that settles nothing).
+    void retire(loom::Mail& mail, std::uint64_t settling);
     /// Release the one retained record, if any: its late word was recorded, or can no
     /// longer be reported.
     void release_retained(loom::Mail& mail);

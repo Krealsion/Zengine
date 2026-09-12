@@ -208,8 +208,8 @@ target_link_libraries(zengine-legacy-pane
     PRIVATE zengine-surface-vocabulary zengine-input-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
-# A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation,
-# editor-managed-open-slice-corrections). It holds `zengine.editor`, offers the pane, claims
+# A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation;
+# WL-OPEN-02). It holds `zengine.editor`, offers the pane, claims
 # a document identity, prepares and offers like the real image -- and, when armed through
 # its exposed state, fails the showing of its published claim exactly once. What it exists to
 # prove is what the REAL manager and the REAL Workshop do when a real loaded owner fails
@@ -220,8 +220,8 @@ target_link_libraries(zengine-failing-editor
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
-# THE REAL EDITOR, BUILT ONCE MORE WITH ONE DELIBERATE THROW (test instrumentation,
-# editor-managed-open-slice-corrections-2). The exact source of `editor-pane/pane.cpp`, under
+# THE REAL EDITOR, BUILT ONCE MORE WITH ONE DELIBERATE THROW (test instrumentation;
+# WL-OPEN-02). The exact source of `editor-pane/pane.cpp`, under
 # the same reloadable-weave build contract as the product image, with
 # ZENGINE_EDITOR_TEST_THROW_ON_B_CPP defined: its showing hook throws once, before anything is
 # activated, for a published path ending in `/b.cpp` and for nothing else. It stands in for a
@@ -991,10 +991,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # case reads to check that the current vocabulary is nowhere in it.
     "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
     "LEGACY_PANE_SOURCE=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/legacy_pane.cpp\""
-    # ...AND THE LOADED STAND-IN THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation,
-    # editor-managed-open-slice-corrections), resolved by stem like every other image.
+    # ...AND THE LOADED STAND-IN THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation),
+    # resolved by stem like every other image.
     "WORKSHOP_SO_FAILING_EDITOR=\"$<TARGET_FILE:zengine-failing-editor>\""
-    # ...and the real Editor built with one deliberate throw (editor-managed-open-slice-corrections-2).
+    # ...and the real Editor built with one deliberate throw.
     "WORKSHOP_SO_EDITOR_THROWING=\"$<TARGET_FILE:zengine-editor-throwing>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
@@ -1143,6 +1143,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_info.cpp
             test_workshop_panes_terminal.cpp
             test_workshop_panes_editor.cpp
+            test_workshop_panes_opening.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

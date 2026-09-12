@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM -- test
-// instrumentation, labeled as such (editor-managed-open-slice-corrections).
+// instrumentation, labeled as such.
 //
 // It holds `zengine.editor` in place of the real image, offers the pane so the desk has a
 // row, claims a document identity so an operation can bind it, prepares and OFFERS like the

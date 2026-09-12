@@ -15,7 +15,7 @@
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
-#include "open_seam_vocabulary.hpp"  // EXPERIMENTAL: the managed opening's conversation
+#include "open_seam_vocabulary.hpp"  // the managed opening's conversation
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -176,7 +176,7 @@ struct HostContext {
     // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
-    /// EXPERIMENTAL (editor-managed-open-slice): THE ONE PANE WHOSE PRESENTATION THIS HOST
+    /// THE ONE PANE WHOSE PRESENTATION THIS HOST
     /// CLAIMS AND CAN COMMIT JOINTLY WITH ITS DOCUMENT -- host wiring, spelled by the host
     /// from the durable reference it already converts, never by this weave. Empty means no
     /// pane is managed: Workshop claims nothing and the managed doors answer nobody.
@@ -271,7 +271,7 @@ class WorkshopWeave
                                         zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::PresentationTrial,
                                         zengine::workshop::PresentationAdmitted>,
-                             // EXPERIMENTAL (editor-managed-open-slice): the one latest claim
+                             // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
 public:
@@ -581,7 +581,7 @@ public:
     /// at the end of a line.
     static Written judge_caret(const PaneCaret& caret, const ExternalPane& pane);
 
-    // ---- EXPERIMENTAL (editor-managed-open-slice): the presentation owner's half ----------
+    // ---- The presentation owner's half of a managed opening (WL-OPEN) --------------------
     //
     // Bodies in weave_managed.cpp. Content and caret that name their generation; the
     // trial, the admission and the settlement of a managed opening; the publication hook;
@@ -614,7 +614,7 @@ public:
     const WorkshopDoc& document() const;
 
 private:
-    // ---- EXPERIMENTAL (editor-managed-open-slice): the managed pane's bookkeeping ---------
+    // ---- The managed pane's bookkeeping ---------------------------------------------------
 
     /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its
     /// body would get, and -- once admitted -- the rows and caret it will show.

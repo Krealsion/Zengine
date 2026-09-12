@@ -157,7 +157,7 @@ struct EditorPaneState {
     /// taking a comment's word for it. An `Int` that only grows; it is not part of the
     /// document and a reload carries it for continuity of the count alone.
     std::int64_t text_builds = 0;
-    /// EXPERIMENTAL (editor-managed-open-slice): THE MANAGED OPERATION THAT INSTALLED THE
+    /// THE MANAGED OPERATION THAT INSTALLED THE
     /// CURRENT DOCUMENT, or 0 for a direct open or none. Carried so the document's latest
     /// claim (`EditorDocument`, workshop/open_seam_vocabulary.hpp) reads the same after a
     /// reload as before it; it is bookkeeping, never authority.

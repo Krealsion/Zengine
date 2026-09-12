@@ -23,7 +23,7 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
-#include "workshop/open_seam_vocabulary.hpp" // EXPERIMENTAL: the managed door
+#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
@@ -234,8 +234,8 @@ class FilesWeave
           FilesWeave, files::FilesState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, ProjectRoot, RecipeOutcome,
-                       SourceOpened, zengine::builder::BuildStatus, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       SourceOpened, loom::DispatchRefused, zengine::builder::BuildStatus,
+                       surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, surface::ClipboardCopy,
@@ -494,11 +494,33 @@ public:
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
             return;
         }
-        open_.awaiting = false;
+        open_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
         }
+    }
+
+    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
+    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). The shape alone is ordinary speech, so
+    /// Loom's provenance is checked first; then the exact attempt is matched against the one
+    /// ask this pane can still be waiting on, and only that ask is cleared. A forged, stale,
+    /// duplicate or mismatched notice settles nothing. Delivered silence is not a refusal and
+    /// is not ended here: the ask stays awaited, and the next Return is a fresh attempt.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        const loom::Ticket attempt = refused.refused_attempt();
+        if (!attempt.valid() || !open_.awaiting || !open_.attempt.valid() ||
+            attempt.seq != open_.attempt.seq) {
+            return;
+        }
+        const std::string subject = open_.subject;
+        open_ = Ask{};
+        notice_ = "`" + ws::shown_name(subject) + "` was not opened -- the open could not reach " +
+                  ws::kOpeningRole + " (" + refused.reason + ")";
+        say(mail);
     }
 
     /// A BUILD THIS PROCESS RAN HAS FINISHED (published `to_any`), so what is on disk may
@@ -638,6 +660,10 @@ private:
     struct Ask {
         std::uint64_t pending = 0;
         bool awaiting = false;
+        /// THE QUEUED ATTEMPT (Loom's sequence), kept so the bus's later word that exactly
+        /// this send was refused before any handler ran can be matched to it -- and only it.
+        loom::Ticket attempt{};
+        std::string subject; ///< what the ask was about, for the sentence a refusal needs
     };
 
     void ask_project_root(loom::Mail& mail) {
@@ -777,20 +803,34 @@ private:
             say(mail);
             return;
         }
-        // A FILE: ask the Editor's door to open it. The answer says whether it took; the
-        // Editor asks Workshop to show its pane itself. The door is at `zengine.editor` now
-        // (`ws::kEditorRole`) -- it was at the host's office while the host held the
-        // document, and only the address moved.
+        // A FILE: ask the opening office to open it. The answer says whether it took: the
+        // opening manager arranges the document and the desk together (WL-OPEN-01), and an
+        // accepted answer is a source the maker can see. The door used to be the host's, then
+        // the Editor's own office (which still relays to the same manager); only the address
+        // moved, and every refusal still lands in this pane's own row.
+        //
+        // ⚠ THE TICKET IS KEPT, NOT DISCARDED (WL-OPEN-07). A valid ticket says the send was
+        // queued and nothing more; the bus's later, authenticated word that exactly this
+        // attempt was refused before any handler ran -- no opening office is held, or it is
+        // held behind a claim it could not apply -- reaches `on(loom::DispatchRefused)` and is
+        // matched to this attempt, and only this one. A ticket that is not valid means nothing
+        // was queued at all, and that is refused now, in words, rather than awaited forever.
         open_.pending = ++asked_;
         open_.awaiting = true;
-        // EXPERIMENTAL (editor-managed-open-slice): the managed door. The opening manager
-        // arranges the document and the desk together; the Editor's own office is the direct
-        // door, for a host with no desk.
-        (void)mail.as_role(files::kFilesRole)
-            .send_to_role(ws::kOpeningRole,
-                          OpenSourceRequested{ws::persist::resolved_against(state_.current_dir, row->name)},
-                          open_.pending);
+        open_.subject = row->name;
+        open_.attempt = mail.as_role(files::kFilesRole)
+                            .send_to_role(ws::kOpeningRole,
+                                          OpenSourceRequested{ws::persist::resolved_against(
+                                              state_.current_dir, row->name)},
+                                          open_.pending);
+        if (!open_.attempt.valid()) {
+            open_ = Ask{};
+            notice_ = "`" + ws::shown_name(row->name) +
+                      "` was not opened -- nothing was queued to the opening office";
+            say(mail);
+        }
     }
+
 
     void mark(loom::Mail& mail) {
         if (state_.current_dir.empty()) {

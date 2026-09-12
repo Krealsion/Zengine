@@ -95,6 +95,12 @@ it stands in for it.
 - *A host relay from `RecipeSourceRequested` to the Editor's office* — refused: the host would
   have to name a pane's office, which is the coupling the extraction exists to remove.
 
+**Superseded in part.** The reveal-as-commitment shape of the open, and the gestures the pane
+held for it, were replaced by the managed opening: one joint publication of the document and the
+desk, coordinated by the opening manager
+([document-and-desk-publish-together](document-and-desk-publish-together.md)). The reveal shapes
+remain an ordinary pane's door; the Editor's open no longer spends them, and holds nothing.
+
 **Consequences.** The host's presentation sources name no Editor identifier (pinned by a source
 read). The empty Editor takes the keys, as every runtime pane does. A pointer gesture composes
 no new rows, so the picture a press was measured against survives the motions behind it. Asking
@@ -110,6 +116,5 @@ the quit answer, the project-root ask, the paste ask, the copy — are the next 
 and none of them is answered here beyond what Loom already reports.
 
 **Laws supported.** [WL-EDIT-01](../workshop/editor.md), [WL-EDIT-03](../workshop/editor.md),
-[WL-EDIT-12](../workshop/editor.md), [WL-EDIT-13](../workshop/editor.md),
-[WL-EDIT-14](../workshop/editor.md), [WL-EDIT-15](../workshop/editor.md),
-[WL-EDIT-16](../workshop/editor.md).
+[WL-EDIT-12](../workshop/editor.md), [WL-EDIT-14](../workshop/editor.md),
+[WL-EDIT-15](../workshop/editor.md), [WL-EDIT-16](../workshop/editor.md).

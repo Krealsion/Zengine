@@ -5247,7 +5247,7 @@ class HostSeat
           loom::Accept<workshop::PaneOffered, workshop::PaneActions, workshop::PaneContent,
                        workshop::PaneCaret, workshop::PaneRevealRequested, workshop::SourceOpened,
                        workshop::PaneQuitAnswered, Nudge,
-                       // EXPERIMENTAL (editor-managed-open-slice): the Editor says its rows
+                       // The Editor says its rows
                        // and caret with their generation now (pane protocol v2); this seat
                        // records either spelling the same way.
                        workshop::v2::PaneContent, workshop::v2::PaneCaret,
@@ -5456,8 +5456,7 @@ struct EditorReloadRig {
         poke_id = rig.bus.register_weave(std::move(reader), loom::Grant{}, std::string());
         poker->zen_set_self(poke_id);
         file = rig.products() / "witness.txt";
-        // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (editor-managed-open-slice-
-        // corrections): the old door this rig asks relays to it, and it coordinates the
+        // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (WL-OPEN-01): the old door this rig asks relays to it, and it coordinates the
         // real Editor with this stand-in desk. Its authority is minted by this rig's bus
         // over exactly the two offices, as `workshop.cpp` mints it.
         drive([](HostSeat& h, loom::Mail& m) { h.claim_desk(m); });
@@ -5502,7 +5501,7 @@ struct EditorReloadRig {
         rig.drain(16);
     }
 
-    /// EXPERIMENTAL (editor-managed-open-slice): the Skin stand-in, in `zengine.skin`.
+    /// The Skin stand-in, in `zengine.skin`.
     void mount_skin() {
         auto seat = std::make_unique<SkinStandIn>();
         skin = seat.get();
@@ -5637,7 +5636,7 @@ TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in plac
     }
     const workshop::SourceOpened opened = w.open(w.file.generic_string());
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
-    // THE OLD DOOR, RELAYED (editor-managed-open-slice-corrections): the document AND its
+    // THE OLD DOOR, RELAYED: the document AND its
     // presentation, arranged by the real opening manager with this stand-in desk -- one
     // trial, one admission, one showing; the reveal protocol is gone. The real Workshop's
     // side is witnessed in `test_workshop_panes_editor.cpp`.
@@ -5809,8 +5808,8 @@ TEST_CASE("RELOAD-4: a paste outstanding across a reload of the Editor's image -
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
-    // ⭐ REAL LOADED-IMAGE REPLACEMENT WITH A CONVERSATION OUTSTANDING (EXPERIMENTAL,
-    // editor-managed-open-slice). Retargeted: the reveal this case used to hold no longer
+    // ⭐ REAL LOADED-IMAGE REPLACEMENT WITH A CONVERSATION OUTSTANDING (retargeted for the
+    // managed opening): the reveal this case used to hold no longer
     // exists (the managed opening is a joint publication, witnessed over the real Workshop in
     // `test_workshop_panes_editor.cpp`); what is outstanding here is the pane's own ask of
     // the platform -- a paste -- which the same laws decide: an answer belongs to the exact
