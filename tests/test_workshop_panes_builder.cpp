@@ -157,7 +157,12 @@ struct BuilderRig {
     /// the Editor is a weave (VD-25), so the second of the two doors `e` walks is answered by
     /// nobody unless its image is in the room.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false) {
+        // EXPERIMENTAL (editor-managed-open-slice): the host names the managed pane before
+        // Workshop is mounted, and mounts the opening manager beside it -- the office the
+        // pane's Return / `e` now asks.
+        r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
+        r.mount_opening();
         mount_doors();
         load::LoadPlan plan;
         load::ArtifactIntent seat;
@@ -827,8 +832,10 @@ TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row")
     CHECK_FALSE(c.r.session().panels.has(c.editor_kind()));
     CHECK(c.text().find("cannot read") != std::string::npos); // the reader's own words
 
-    // ...AND A HOST WITH NO EDITOR IN THE ROOM: the second ask reaches nobody, and the pane
-    // is left exactly as it was -- no answer is not a refusal it can say.
+    // ...AND A HOST WITH NO EDITOR IN THE ROOM. RETARGETED (EXPERIMENTAL,
+    // editor-managed-open-slice): the second ask reaches the opening manager, which finds no
+    // Editor to bind and REFUSES IN WORDS at once -- an immediate refusal, never silence and
+    // never a standalone mode inferred from it -- and the pane says those words.
     BuilderRig d("bld-edit-nobody");
     d.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     d.next_source.known = true;
@@ -837,7 +844,8 @@ TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row")
     d.open();
     const std::string before = d.text();
     d.letter(input::scan::kE, "e");
-    CHECK(d.text() == before);
+    CHECK(d.text() != before);
+    CHECK(d.text().find("no Editor") != std::string::npos);
 }
 
 // ============================================================================

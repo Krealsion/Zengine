@@ -15,6 +15,7 @@
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
+#include "open_seam_vocabulary.hpp"  // EXPERIMENTAL: the managed opening's conversation
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -175,6 +176,12 @@ struct HostContext {
     // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
+    /// EXPERIMENTAL (editor-managed-open-slice): THE ONE PANE WHOSE PRESENTATION THIS HOST
+    /// CLAIMS AND CAN COMMIT JOINTLY WITH ITS DOCUMENT -- host wiring, spelled by the host
+    /// from the durable reference it already converts, never by this weave. Empty means no
+    /// pane is managed: Workshop claims nothing and the managed doors answer nobody.
+    PaneRef managed_pane;
+
     /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::vector<Condition> standing_conditions;
@@ -230,11 +237,17 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
+                                          zengine::workshop::v2::PaneContent,
+                                          zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::TerminalActRequested,
-                                          zengine::workshop::TerminalCompletionRequested>,
+                                          zengine::workshop::TerminalCompletionRequested,
+                                          zengine::workshop::PresentationTrialRequested,
+                                          zengine::workshop::PresentationAdmitRequested,
+                                          zengine::workshop::ManagedOpenSettled,
+                                          zengine::workshop::ManagedOpenProgress>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
@@ -255,7 +268,12 @@ class WorkshopWeave
                                         zengine::workshop::DocumentActed,
                                         zengine::workshop::TranscriptShown,
                                         zengine::workshop::TerminalActed,
-                                        zengine::workshop::TerminalCompletionOffered>> {
+                                        zengine::workshop::TerminalCompletionOffered,
+                                        zengine::workshop::PresentationTrial,
+                                        zengine::workshop::PresentationAdmitted>,
+                             // EXPERIMENTAL (editor-managed-open-slice): the one latest claim
+                             // this host makes -- the managed pane's presentation.
+                             loom::Claims<zengine::workshop::PanePresentation>> {
 public:
     explicit WorkshopWeave(HostContext& host);
 
@@ -563,12 +581,97 @@ public:
     /// at the end of a line.
     static Written judge_caret(const PaneCaret& caret, const ExternalPane& pane);
 
+    // ---- EXPERIMENTAL (editor-managed-open-slice): the presentation owner's half ----------
+    //
+    // Bodies in weave_managed.cpp. Content and caret that name their generation; the
+    // trial, the admission and the settlement of a managed opening; the publication hook;
+    // and the end-of-delivery mirror that keeps this host's latest claim true.
+
+    /// CONTENT NAMING ITS GENERATION: admitted as `PaneContent` is, unless it names a
+    /// generation older than the one this pane holds -- a projection of a document that
+    /// has since been replaced, refused rather than painted over its replacement.
+    void on(const v2::PaneContent& content, loom::Mail& mail);
+    void on(const v2::PaneCaret& caret, loom::Mail& mail);
+    /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
+    void on(const PresentationTrialRequested& asked, loom::Mail& mail);
+    /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation.
+    void on(const PresentationAdmitRequested& asked, loom::Mail& mail);
+    /// THE OPERATION ENDED, said afterwards; the commitment already happened or did not.
+    void on(const ManagedOpenSettled& said, loom::Mail& mail);
+    /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a maker can read.
+    void on(const ManagedOpenProgress& said, loom::Mail& mail);
+    /// THE PUBLICATION HOOK: the trial becomes the desk, all at once, before any observer --
+    /// `true`; or `false`, DECLINED: a presentation this desk did not prepare, or one it
+    /// could not seat, is not applied and never reported as applied; the desk keeps what it
+    /// has and re-claims its own truth at the end of its next delivery.
+    bool on_claim_published(const PanePresentation& published);
+    /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved.
+    void after_delivery(loom::Mail& mail);
+
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
     const Session& session() const;
     const WorkshopDoc& document() const;
 
 private:
+    // ---- EXPERIMENTAL (editor-managed-open-slice): the managed pane's bookkeeping ---------
+
+    /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its
+    /// body would get, and -- once admitted -- the rows and caret it will show.
+    struct Trial {
+        bool live = false;
+        std::uint64_t op = 0;
+        PaneRef ref;
+        std::int64_t kind = kNoPaneKind;
+        std::string name;
+        std::string path;
+        Setup candidate;
+        std::int64_t room_rows = 0;
+        std::int64_t room_columns = 0;
+        std::vector<surface::SurfaceTextRow> rows;
+        std::int64_t generation = 0;
+        bool caret_ok = false;
+        std::int64_t caret_row = surface::kNoCaret;
+        std::int64_t caret_col = 0;
+        std::int64_t sel_begin_row = surface::kNoSelection;
+        std::int64_t sel_begin_col = 0;
+        std::int64_t sel_end_row = surface::kNoSelection;
+        std::int64_t sel_end_col = 0;
+    };
+    struct TrialRoom {
+        bool ok = false;
+        std::string refusal;
+        std::int64_t rows = 0;
+        std::int64_t columns = 0;
+    };
+    /// The kind the managed reference resolves to right now, or `kNoPaneKind`.
+    std::int64_t managed_kind() const;
+    /// ONE MORE INPUT ROUTED TO THIS PANE -- the admission counter the claim carries.
+    void note_routed(std::int64_t kind);
+    /// The managed pane's presentation, derived from the live session.
+    PanePresentation derive_presentation() const;
+    /// Claim it if it moved.
+    void mirror_presentation(loom::Mail& mail);
+    /// The room the pane's body would have after seating on `candidate`, or why not.
+    TrialRoom trial_room(const Setup& candidate, std::int64_t kind, const std::string& name) const;
+    /// The shared admission of content, generation-aware; the v1 door passes none.
+    void admit_content(std::string_view office, const std::string& pane_key,
+                       const std::vector<surface::SurfaceTextRow>& rows,
+                       std::optional<std::int64_t> generation, loom::Mail& mail);
+    void admit_caret(std::string_view office, const PaneCaret& caret,
+                     std::optional<std::int64_t> generation, loom::Mail& mail);
+
+    Trial trial_;
+    PanePresentation claimed_presentation_;
+    bool presentation_claimed_ = false;
+    std::int64_t routed_ = 0;
+    std::uint64_t shown_by_ = 0;
+    bool repaint_owed_ = false;
+    /// ...and the room grant the publication owes the pane it seated: said at the end of the
+    /// delivery, through the one door every room goes through, so the pane's own record of
+    /// its room agrees with the desk's (the refresh would stay silent, the room being equal).
+    bool room_owed_ = false;
+
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);
 
@@ -701,6 +804,8 @@ private:
     /// MAKE THE OPEN PANELS BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
     /// the only thing in this file that opens or closes a panel.
     void apply_setup(loom::Mail& mail);
+    /// The same, from a place that has no delivery to speak from (the publication hook).
+    void apply_setup_now();
 
     /// OPEN THE ONE-LINE NAME EDITOR ON THE LAYOUT AT `at`.
     void open_layout_rename(std::size_t at);

@@ -180,6 +180,10 @@ add_library(zengine-workshop-logic STATIC
     weave_seam.cpp
     weave_session.cpp
     weave_terminal.cpp
+    # EXPERIMENTAL (editor-managed-open-slice): the presentation owner's half of a
+    # managed opening, and the opening manager itself.
+    weave_managed.cpp
+    weave_opening.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)

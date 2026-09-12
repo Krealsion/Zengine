@@ -80,6 +80,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const zengine::input::Poin
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+    note_routed(kind); // EXPERIMENTAL: admitted work, not yet delivered
     return true;
 }
 
@@ -112,6 +113,7 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneDragged{row->pane, at.row - body.header_rows, at.column});
+    note_routed(kind);
 }
 
 // WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md
@@ -133,10 +135,12 @@ void WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
             session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PaneActionRequested{row->pane, action->id});
+        note_routed(kind);
         return;
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers});
+    note_routed(kind);
 }
 
 void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
@@ -154,6 +158,7 @@ void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::Poin
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneWheel{row->pane, w.dx, w.dy});
+    note_routed(kind);
 }
 
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
@@ -174,6 +179,7 @@ void WorkshopWeave::external_text(std::int64_t kind, const zengine::input::TextE
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneTextInput{row->pane, t.text});
+    note_routed(kind);
 }
 
 } // namespace zengine::workshop

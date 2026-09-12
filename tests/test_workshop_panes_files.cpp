@@ -101,7 +101,12 @@ struct FilesRig {
     /// the one door: the Editor is a weave (VD-25), so a Return on a source row is answered by
     /// nobody unless its image is in the room.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false) {
+        // EXPERIMENTAL (editor-managed-open-slice): the host names the managed pane before
+        // Workshop is mounted, and mounts the opening manager beside it -- the office the
+        // pane's Return / `e` now asks.
+        r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
+        r.mount_opening();
         mount_project_door();
         mount_recipes_door();
         load::LoadPlan plan;

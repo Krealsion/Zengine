@@ -154,7 +154,17 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
 }
 
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
+    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, mail);
+}
+
+// EXPERIMENTAL (editor-managed-open-slice): content naming its generation.
+void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
+    admit_content(mail.authored_role(), content.pane, content.rows, content.generation, mail);
+}
+
+void WorkshopWeave::admit_content(std::string_view office, const std::string& pane_key,
+                                  const std::vector<surface::SurfaceTextRow>& rows,
+                                  std::optional<std::int64_t> generation, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -166,7 +176,7 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     // nothing, which is the same answer the built-in-first `resolve_pane` gave --
     // admission refuses a runtime offer that would shadow a built-in, so no
     // built-in reference can be a row here to find.
-    const RuntimePane* row = session_.panels.runtime.find(office, content.pane);
+    const RuntimePane* row = session_.panels.runtime.find(office, pane_key);
     if (row == nullptr) {
         return; // an office speaking about a pane it never offered, or about a built-in
     }
@@ -180,6 +190,15 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
         // by talking about it, which is what keeps discovery and presentation two doors.
         return;
     }
+    // EXPERIMENTAL: A PROJECTION OF A GENERATION THIS PANE HAS ALREADY MOVED PAST IS NOT
+    // ADMITTED. It was composed for a document that has since been replaced under a
+    // commitment; painting it here would show the old document over the new one's admitted
+    // rows. Dropped, not refused: it is not wrong, it is late, and the pane's next
+    // composition of the current document is on its way behind it.
+    if (generation.has_value() && *generation < pane->content_generation) {
+        return;
+    }
+    const PaneContent content{pane_key, rows};
     const Written judged = judge_content(content, *pane);
     if (!judged.accepted) {
         // THE OLD ROWS GO WITH THE REFUSAL. Leaving them would present a previous
@@ -207,6 +226,9 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     pane->heard = true;
     pane->awaiting = false;
     pane->clear_refusal();
+    if (generation.has_value()) {
+        pane->content_generation = *generation;
+    }
     // ⚠ AND THE CARET IS RE-JUDGED AGAINST THE ROWS THAT JUST ARRIVED. A pane sends its
     // content and its caret as two messages, in that order, so between them there is one
     // instant where a caret admitted against the PREVIOUS rows is held against these. If
@@ -227,7 +249,19 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
 
 // WL-CARET-01, WL-CARET-03 -- agents/workshop/pane-caret.md
 void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
+    admit_caret(mail.authored_role(), caret, std::nullopt, mail);
+}
+
+// EXPERIMENTAL (editor-managed-open-slice): a caret naming its generation.
+void WorkshopWeave::on(const v2::PaneCaret& caret, loom::Mail& mail) {
+    admit_caret(mail.authored_role(),
+                PaneCaret{caret.pane, caret.row, caret.column, caret.sel_begin_row,
+                          caret.sel_begin_col, caret.sel_end_row, caret.sel_end_col},
+                caret.generation, mail);
+}
+
+void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
+                                std::optional<std::int64_t> generation, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech, `on(PaneContent)`'s own first rule
     }
@@ -238,6 +272,9 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     ExternalPane* pane = session_.panels.external_pane(row->kind);
     if (pane == nullptr || !pane->granted) {
         return; // a caret for a closed pane opens nothing, exactly as content does not
+    }
+    if (generation.has_value() && *generation < pane->content_generation) {
+        return; // EXPERIMENTAL: a caret of a document this pane has moved past (see content)
     }
     // WHAT IT WAS, BEFORE ANYTHING IS WRITTEN -- so this handler can repaint on a caret
     // that MOVED with no content behind it (an arrow key) and stay silent on one that

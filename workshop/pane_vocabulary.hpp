@@ -209,6 +209,27 @@ struct PaneContent {
     ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
+/// EXPERIMENTAL (editor-managed-open-slice): CONTENT AND CARET THAT NAME THEIR GENERATION.
+///
+/// A pane whose presentation can be committed JOINTLY with its document (the Editor) says
+/// which generation of its subject its rows are a projection of, so a projection of the
+/// previous document, still queued when the next one was committed, cannot repaint the
+/// admitted rows of the new one. Workshop admits a `v2` content only if its generation is
+/// not older than the generation it holds for that pane; a v1 content carries none and is
+/// admitted as it always was, so every pane that never commits jointly is unchanged and
+/// unrebuilt. A second published version rather than a field, for `v2::PaneActions`'
+/// reason (Loom GATE-04): a published `(name, version)` is frozen.
+namespace v2 {
+
+struct PaneContent {
+    std::string pane;
+    std::vector<surface::SurfaceTextRow> rows;
+    std::int64_t generation = 0; ///< the subject's generation these rows project
+    ZEN_SHAPE(PaneContent, 2, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation));
+};
+
+} // namespace v2
+
 /// A MAKER PRESSED INSIDE THE ROOM THIS PANE WAS GRANTED -- which pane, and where.
 ///
 /// `row` AND `column` ARE THE `PaneRoom` LATTICE, AND NOTHING ELSE IS. Row 0 is the
@@ -545,6 +566,26 @@ struct PaneCaret {
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
               ZEN_FIELD(sel_end_col));
 };
+
+/// EXPERIMENTAL (editor-managed-open-slice): `PaneCaret` naming its generation, for
+/// `v2::PaneContent`'s reason and under the same admission rule.
+namespace v2 {
+
+struct PaneCaret {
+    std::string pane;
+    std::int64_t row = -1;
+    std::int64_t column = 0;
+    std::int64_t sel_begin_row = -1;
+    std::int64_t sel_begin_col = 0;
+    std::int64_t sel_end_row = -1;
+    std::int64_t sel_end_col = 0;
+    std::int64_t generation = 0;
+    ZEN_SHAPE(PaneCaret, 2, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
+              ZEN_FIELD(sel_end_col), ZEN_FIELD(generation));
+};
+
+} // namespace v2
 
 /// THE MAKER'S HAND MOVED WHILE THE BUTTON WAS STILL DOWN, after a press that landed in a
 /// row of this pane's room -- and this is where it is now, in the SAME lattice the press

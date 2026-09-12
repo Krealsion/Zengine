@@ -27,6 +27,7 @@
 #include "builder-pane/vocabulary.hpp"
 
 #include "workshop/builder_seam_vocabulary.hpp"
+#include "workshop/open_seam_vocabulary.hpp" // EXPERIMENTAL: the managed door
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -442,8 +443,9 @@ public:
         }
         open_.pending = ++asked_;
         open_.awaiting = true;
+        // EXPERIMENTAL (editor-managed-open-slice): the managed door (see files.cpp).
         (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(ws::kEditorRole, OpenSourceRequested{said.source}, open_.pending);
+            .send_to_role(ws::kOpeningRole, OpenSourceRequested{said.source}, open_.pending);
     }
 
     /// THE EDITOR'S ANSWER -- the second door. An accepted open says nothing here: the Editor
