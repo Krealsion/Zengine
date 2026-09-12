@@ -53,6 +53,7 @@
 #include "workshop/prefs_persist.hpp"
 #include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
+#include "workshop/opening.hpp" // EXPERIMENTAL: the opening manager the host mounts
 #include "workshop/vocabulary.hpp"
 // ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree.
 // It used to borrow the browser's own `leaves_the_tree`; the browser is a weave in another
@@ -1837,7 +1838,13 @@ class DoorAsker
                                         RecipeAuthorRequested, PlanRowRequested,
                                         OpenSourceRequested, RecipeSourceRequested,
                                         PaneRevealRequested, PaneQuitAnswered,
-                                        surface::SurfaceExtent>> {
+                                        surface::SurfaceExtent,
+                                        // EXPERIMENTAL (editor-managed-open-slice): the four
+                                        // sentences a stranger might forge at the managed
+                                        // opening's three parties, so the forgery cases prove
+                                        // the parties' refusals and not the bus's.
+                                        ManagedOpenSettled, SourcePrepared, PresentationAdmitted,
+                                        loom::DispatchRefused>> {
 public:
     explicit DoorAsker(std::string office) : office_(std::move(office)) {}
 
@@ -1852,6 +1859,7 @@ public:
     std::vector<RecipeOutcome> outcomes;
     std::vector<PlanRowWritten> rows;
     std::vector<SourceOpened> opens;
+    std::vector<bool> opens_authentic; ///< beside `opens`: Loom's word that it answered our ask
     std::vector<RecipeSourceSaid> sources;
     /// Whether the last ask was authored as an office at all -- the canary lever for the
     /// rule every door keeps.
@@ -1898,9 +1906,13 @@ public:
         ++state_.answers;
         rows.push_back(said);
     }
-    void on(const SourceOpened& said, loom::Mail&) {
+    void on(const SourceOpened& said, loom::Mail& mail) {
         ++state_.answers;
         opens.push_back(said);
+        // WHETHER LOOM SAYS THIS ANSWERS AN ASK OF THIS WEAVE'S -- the provenance a relayed
+        // answer must still carry for the ORIGINAL requester (editor-managed-open-slice-
+        // corrections): the Editor spends the requester's own kept right, so this is true.
+        opens_authentic.push_back(mail.answers_ask());
     }
     void on(const RecipeSourceSaid& said, loom::Mail&) {
         ++state_.answers;
@@ -2300,6 +2312,29 @@ private:
     std::vector<std::string>* no_;
 };
 
+/// EXPERIMENTAL (editor-managed-open-slice): A SEAT AT THE CONTROL DOOR FOR A RELOAD OR AN
+/// UNLOAD, with a state shape of its own (see `PaneRig::enqueue_reload`).
+struct ControlSeatState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(ControlSeatState, 1, ZEN_FIELD(n));
+};
+
+class ControlSeat
+    : public loom::WeaveBase<ControlSeat, ControlSeatState,
+                             loom::Accept<loom::Result, loom::Ack, loom::Refused>,
+                             loom::Emit<loom::ReloadLibrary, loom::UnloadLibrary>> {
+public:
+    ControlSeat(std::vector<std::string>& ok, std::vector<std::string>& no)
+        : ok_(&ok), no_(&no) {}
+    void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
+    void on(const loom::Ack&, loom::Mail&) {}
+    void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
+
+private:
+    std::vector<std::string>* ok_;
+    std::vector<std::string>* no_;
+};
+
 /// A live Workshop that can be handed providers -- native ones always, and the real
 /// dynamic Hello when a case asks for it.
 ///
@@ -2430,10 +2465,52 @@ struct PaneRig {
         speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
         speak.allow_to_any(TerminalCompletionOffered::zen_name,
                            TerminalCompletionOffered::zen_version);
+        // EXPERIMENTAL (editor-managed-open-slice): the two answers this host gives the
+        // opening manager, exactly as workshop.cpp grants them.
+        speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
+        speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
         return w;
+    }
+
+    /// EXPERIMENTAL (editor-managed-open-slice): THE OPENING MANAGER, MOUNTED THE WAY THE
+    /// HOST MOUNTS IT -- the production grant spelled by hand (`mount_workshop`'s
+    /// discipline, for its reason), and the authority to commit a joint publication minted
+    /// by this rig's own bus for the manager's own id, over exactly the two offices the host
+    /// names. A case that wants the managed door mounts this beside Workshop; one that
+    /// wants the direct door alone does not.
+    OpeningManager* opening = nullptr;
+    loom::WeaveId opening_id{};
+
+    OpeningManager* mount_opening() {
+        auto opener = std::make_unique<OpeningManager>(
+            std::string(kEditorRole), std::string(kWorkshopProvider), host.managed_pane);
+        opening = opener.get();
+        loom::Grant arrange;
+        arrange.allow_to_role(PresentationTrialRequested::zen_name,
+                              PresentationTrialRequested::zen_version, kWorkshopProvider);
+        arrange.allow_to_role(PresentationAdmitRequested::zen_name,
+                              PresentationAdmitRequested::zen_version, kWorkshopProvider);
+        arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
+                              kWorkshopProvider);
+        arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
+                              kWorkshopProvider);
+        arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
+                              kEditorRole);
+        arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
+                              kEditorRole); // the `apply` word, as workshop.cpp grants it
+        arrange.allow_to_role(PrepareSourceRequested::zen_name,
+                              PrepareSourceRequested::zen_version, kEditorRole);
+        arrange.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+        loom::allow_poke_answers(arrange); // inspectable, as the host mounts it
+        opening_id = bus.register_weave(std::move(opener), std::move(arrange),
+                                        std::string(kOpeningRole));
+        opening->zen_set_self(opening_id);
+        opening->set_authority(bus.mint_joint_authority(
+            opening_id, {std::string(kEditorRole), std::string(kWorkshopProvider)}));
+        return opening;
     }
 
     /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant,
@@ -2544,6 +2621,31 @@ struct PaneRig {
                     loom::Message(loom::to_value(loom::UnloadLibrary{name}), booter, booter, 0));
         bus.drain_until_idle();
         return load_refusals.size() == before;
+    }
+
+    /// EXPERIMENTAL (editor-managed-open-slice): RELOAD A REAL LIBRARY IN PLACE THROUGH THE
+    /// REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op the Weave Manager itself spends when a
+    /// maker's rebuilt product is offered; the Kernel snapshots the live weave, opens the new
+    /// image, and revives the new incarnation at the same id (the load suite drives the same
+    /// op through the staging path). QUEUED, NOT DRAINED: the door hears it in FIFO order
+    /// with whatever else a case has queued, so a reload can be placed at an exact interval
+    /// of an operation in flight; the case pumps. `load_refusals` says whether it was refused.
+    ///
+    /// The seat is `ControlSeat`, not `Booter`: a rig that realized a plan already published
+    /// the plan booter's `BootState`, and a second shape under that name is refused.
+    void enqueue_reload(const char* name, const std::string& path) {
+        const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
+            bus, loom::load_capability(control), loaded, load_refusals);
+        bus.send_as(seat, control,
+                    loom::Message(loom::to_value(loom::ReloadLibrary{name, path}), seat, seat,
+                                  0));
+    }
+    /// ...and the same, queued: the unload lands at its place in the burst.
+    void enqueue_unload(const char* name) {
+        const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
+            bus, loom::load_capability(control), loaded, load_refusals);
+        bus.send_as(seat, control,
+                    loom::Message(loom::to_value(loom::UnloadLibrary{name}), seat, seat, 0));
     }
 
 
@@ -2722,6 +2824,16 @@ struct PaneRig {
 #ifdef WORKSHOP_SO_LEGACY_PANE
         if (stem == "zengine-legacy-pane") {
             return WORKSHOP_SO_LEGACY_PANE;
+        }
+#endif
+#ifdef WORKSHOP_SO_FAILING_EDITOR
+        if (stem == "zengine-failing-editor") {
+            return WORKSHOP_SO_FAILING_EDITOR;
+        }
+#endif
+#ifdef WORKSHOP_SO_EDITOR_THROWING
+        if (stem == "zengine-editor-throwing") {
+            return WORKSHOP_SO_EDITOR_THROWING;
         }
 #endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name

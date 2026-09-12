@@ -58,6 +58,9 @@
 #include "builder/vocabulary.hpp"
 #include "editor-pane/editor.hpp"
 #include "editor-pane/vocabulary.hpp"
+#include "surface/vocabulary.hpp"
+#include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/opening.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/kernel/control.hpp>
@@ -5243,13 +5246,70 @@ class HostSeat
           HostSeat, HostSeatState,
           loom::Accept<workshop::PaneOffered, workshop::PaneActions, workshop::PaneContent,
                        workshop::PaneCaret, workshop::PaneRevealRequested, workshop::SourceOpened,
-                       workshop::PaneQuitAnswered, Nudge>,
+                       workshop::PaneQuitAnswered, Nudge,
+                       // EXPERIMENTAL (editor-managed-open-slice): the Editor says its rows
+                       // and caret with their generation now (pane protocol v2); this seat
+                       // records either spelling the same way.
+                       workshop::v2::PaneContent, workshop::v2::PaneCaret,
+                       // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING (editor-
+                       // managed-open-slice-corrections): the old door relays to the opening
+                       // manager, which asks the desk for a trial and an admission -- so this
+                       // stand-in desk answers both, offers its presentation, and is shown it.
+                       workshop::PresentationTrialRequested, workshop::PresentationAdmitRequested,
+                       workshop::ManagedOpenProgress, workshop::ManagedOpenSettled>,
           loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
                      workshop::PaneTextInput, workshop::OpenSourceRequested,
                      workshop::PaneQuitRequested, workshop::PaneRevealAnswered,
-                     workshop::PaneWheel, workshop::PaneActionRequested>> {
+                     workshop::PaneWheel, workshop::PaneActionRequested,
+                     workshop::PresentationTrial, workshop::PresentationAdmitted>,
+          loom::Claims<workshop::PanePresentation>> {
 public:
     static constexpr const char* kOffice = "zengine.workshop";
+    /// THE STAND-IN DESK'S BOOK: trials and admissions answered, showings received, the
+    /// rows admitted for the trial, and the room it grants every trial.
+    int trials = 0;
+    int admits = 0;
+    int shown = 0;
+    std::vector<workshop::ManagedOpenSettled> settled;
+    workshop::PanePresentation presentation;
+    std::int64_t trial_rows = 8;
+    std::int64_t trial_columns = 60;
+    /// The desk's own claim, made from inside a delivery so an operation can bind it.
+    void claim_desk(loom::Mail& mail) {
+        workshop::PanePresentation now;
+        now.provider = "zengine.editor";
+        now.pane = "editor";
+        (void)mail.claim(now);
+    }
+    void on(const workshop::PresentationTrialRequested& asked, loom::Mail& mail) {
+        ++trials;
+        (void)mail.answer(workshop::PresentationTrial{asked.op, true, std::string(), trial_rows,
+                                                      trial_columns});
+    }
+    void on(const workshop::PresentationAdmitRequested& asked, loom::Mail& mail) {
+        ++admits;
+        contents.push_back(workshop::PaneContent{asked.pane, asked.rows});
+        workshop::PanePresentation offered;
+        offered.provider = asked.provider;
+        offered.pane = asked.pane;
+        offered.member = true;
+        offered.seated = true;
+        offered.selected = true;
+        offered.keyboard = true;
+        offered.rows = trial_rows;
+        offered.columns = trial_columns;
+        offered.content_generation = asked.generation;
+        offered.shown_by = asked.op;
+        const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
+        (void)mail.answer(workshop::PresentationAdmitted{
+            asked.op, r.ok, r.ok ? std::string() : std::string(loom::name_of(r.why))});
+    }
+    void on_claim_published(const workshop::PanePresentation& published) {
+        ++shown;
+        presentation = published;
+    }
+    void on(const workshop::ManagedOpenProgress&, loom::Mail&) {}
+    void on(const workshop::ManagedOpenSettled& said, loom::Mail&) { settled.push_back(said); }
     std::vector<workshop::PaneOffered> offers;
     std::vector<workshop::PaneActions> declared;
     std::vector<workshop::PaneContent> contents;
@@ -5277,6 +5337,13 @@ public:
     void on(const workshop::PaneActions& a, loom::Mail&) { declared.push_back(a); }
     void on(const workshop::PaneContent& c, loom::Mail&) { contents.push_back(c); }
     void on(const workshop::PaneCaret& c, loom::Mail&) { carets.push_back(c); }
+    void on(const workshop::v2::PaneContent& c, loom::Mail&) {
+        contents.push_back(workshop::PaneContent{c.pane, c.rows});
+    }
+    void on(const workshop::v2::PaneCaret& c, loom::Mail&) {
+        carets.push_back(workshop::PaneCaret{c.pane, c.row, c.column, c.sel_begin_row,
+                                             c.sel_begin_col, c.sel_end_row, c.sel_end_col});
+    }
     void on(const workshop::PaneRevealRequested& asked, loom::Mail& mail) {
         ++reveals;
         if (answer_later) {
@@ -5317,10 +5384,42 @@ public:
     }
 };
 
+/// A SKIN STAND-IN THAT TAKES THE CLIPBOARD ANSWER AWAY WITH IT (test instrumentation,
+/// labeled as such: it stands in for the platform medium and does nothing a production
+/// participant would not -- it answers, later, exactly one ask). `defer_answer()` binds the
+/// right to the exact incarnation that asked (ANS-02/03), which is the fact the reload case
+/// below reads off the bus.
+class SkinStandIn : public loom::WeaveBase<SkinStandIn, HostSeatState,
+                                           loom::Accept<zengine::surface::ClipboardTextRequested,
+                                                        Nudge>,
+                                           loom::Emit<zengine::surface::ClipboardText>> {
+public:
+    std::string text;
+    bool held = false;
+    int asked = 0;
+    loom::DeferredAnswer answer;
+    loom::Ticket spent{};
+
+    void on(const zengine::surface::ClipboardTextRequested&, loom::Mail& mail) {
+        ++asked;
+        answer = mail.defer_answer();
+        held = answer.valid();
+    }
+    void on(const Nudge&, loom::Mail& mail) {
+        if (!held) {
+            return;
+        }
+        held = false;
+        spent = loom::answer_deferred(answer, mail, zengine::surface::ClipboardText{true, text});
+    }
+};
+
 struct EditorReloadRig {
     ReloadRig rig;
     HostSeat* host = nullptr;
     loom::WeaveId host_id{};
+    SkinStandIn* skin = nullptr;
+    loom::WeaveId skin_id{};
     loom::WeaveId editor{};
     LoadPokeSeat* poker = nullptr;
     loom::WeaveId poke_id{};
@@ -5345,6 +5444,10 @@ struct EditorReloadRig {
         say.allow_to_any(workshop::PaneWheel::zen_name, workshop::PaneWheel::zen_version);
         say.allow_to_any(workshop::PaneActionRequested::zen_name,
                          workshop::PaneActionRequested::zen_version);
+        say.allow_to_any(workshop::PresentationTrial::zen_name,
+                         workshop::PresentationTrial::zen_version);
+        say.allow_to_any(workshop::PresentationAdmitted::zen_name,
+                         workshop::PresentationAdmitted::zen_version);
         host_id = rig.bus.register_weave(std::move(seat), std::move(say),
                                          std::string(HostSeat::kOffice));
         host->zen_set_self(host_id);
@@ -5353,6 +5456,43 @@ struct EditorReloadRig {
         poke_id = rig.bus.register_weave(std::move(reader), loom::Grant{}, std::string());
         poker->zen_set_self(poke_id);
         file = rig.products() / "witness.txt";
+        // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (editor-managed-open-slice-
+        // corrections): the old door this rig asks relays to it, and it coordinates the
+        // real Editor with this stand-in desk. Its authority is minted by this rig's bus
+        // over exactly the two offices, as `workshop.cpp` mints it.
+        drive([](HostSeat& h, loom::Mail& m) { h.claim_desk(m); });
+        mount_opening();
+    }
+
+    workshop::OpeningManager* opening = nullptr;
+    loom::WeaveId opening_id{};
+    void mount_opening() {
+        auto opener = std::make_unique<workshop::OpeningManager>(
+            std::string(workshop::kEditorRole), std::string(HostSeat::kOffice),
+            workshop::PaneRef{"zengine.editor", "editor"});
+        opening = opener.get();
+        loom::Grant arrange;
+        arrange.allow_to_role(workshop::PresentationTrialRequested::zen_name,
+                              workshop::PresentationTrialRequested::zen_version, HostSeat::kOffice);
+        arrange.allow_to_role(workshop::PresentationAdmitRequested::zen_name,
+                              workshop::PresentationAdmitRequested::zen_version, HostSeat::kOffice);
+        arrange.allow_to_role(workshop::ManagedOpenProgress::zen_name,
+                              workshop::ManagedOpenProgress::zen_version, HostSeat::kOffice);
+        arrange.allow_to_role(workshop::ManagedOpenSettled::zen_name,
+                              workshop::ManagedOpenSettled::zen_version, HostSeat::kOffice);
+        arrange.allow_to_role(workshop::ManagedOpenSettled::zen_name,
+                              workshop::ManagedOpenSettled::zen_version, workshop::kEditorRole);
+        arrange.allow_to_role(workshop::ManagedOpenProgress::zen_name,
+                              workshop::ManagedOpenProgress::zen_version, workshop::kEditorRole);
+        arrange.allow_to_role(workshop::PrepareSourceRequested::zen_name,
+                              workshop::PrepareSourceRequested::zen_version, workshop::kEditorRole);
+        arrange.allow_to_any(workshop::SourceOpened::zen_name, workshop::SourceOpened::zen_version);
+        loom::allow_poke_answers(arrange);
+        opening_id = rig.bus.register_weave(std::move(opener), std::move(arrange),
+                                            std::string(workshop::kOpeningRole));
+        opening->zen_set_self(opening_id);
+        opening->set_authority(rig.bus.mint_joint_authority(
+            opening_id, {std::string(workshop::kEditorRole), std::string(HostSeat::kOffice)}));
     }
 
     void drive(std::function<void(HostSeat&, loom::Mail&)> what) {
@@ -5360,6 +5500,27 @@ struct EditorReloadRig {
         (void)rig.bus.send(host_id, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
         rig.drain(16);
+    }
+
+    /// EXPERIMENTAL (editor-managed-open-slice): the Skin stand-in, in `zengine.skin`.
+    void mount_skin() {
+        auto seat = std::make_unique<SkinStandIn>();
+        skin = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(zengine::surface::ClipboardText::zen_name,
+                           zengine::surface::ClipboardText::zen_version);
+        skin_id = rig.bus.register_weave(std::move(seat), std::move(grant),
+                                         std::string(zengine::surface::kSkinRole));
+        skin->zen_set_self(skin_id);
+    }
+
+    /// Let the held clipboard answer go, and hand back the ticket its spend returned.
+    loom::Ticket skin_answers() {
+        REQUIRE(skin != nullptr);
+        (void)rig.bus.send(skin_id, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+        rig.drain(16);
+        return skin->spent;
     }
 
     void load_editor() {
@@ -5446,7 +5607,7 @@ struct EditorReloadRig {
 
     /// The pane's snapshot, admitted against its own declared shape -- the bytes a reload
     /// carries, read the way Loom reads them.
-    loom::Value snapshot() const {
+    loom::Value snapshot() {
         const loom::Unverified claim = loom::parse(rig.bus.snapshot_bytes(editor));
         const loom::Admission admitted =
             loom::admit(claim, loom::schema_of<zengine::editor_pane::EditorPaneState>());
@@ -5476,7 +5637,15 @@ TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in plac
     }
     const workshop::SourceOpened opened = w.open(w.file.generic_string());
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
-    CHECK(w.host->reveals == 1);
+    // THE OLD DOOR, RELAYED (editor-managed-open-slice-corrections): the document AND its
+    // presentation, arranged by the real opening manager with this stand-in desk -- one
+    // trial, one admission, one showing; the reveal protocol is gone. The real Workshop's
+    // side is witnessed in `test_workshop_panes_editor.cpp`.
+    CHECK(w.host->reveals == 0);
+    CHECK(w.host->trials == 1);
+    CHECK(w.host->admits == 1);
+    CHECK(w.host->shown == 1);
+    CHECK(w.host->presentation.seated);
     REQUIRE(w.status().rfind("saved L1:C1/2", 0) == 0);
 
     // EDIT IT, AND MOVE: a typed byte at the start, then the caret two places right and a
@@ -5636,19 +5805,22 @@ TEST_CASE("RELOAD-1/VD-25: an Editor with no document reloads to no document, an
 #endif
 }
 
-TEST_CASE("RELOAD-4: an acquisition outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, the reloaded pane keeps its document, and the requester is never told") {
+TEST_CASE("RELOAD-4: a paste outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, no pending flag rides, and a fresh open takes") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
-    // ⭐ REAL LOADED-IMAGE REPLACEMENT DURING AN OUTSTANDING ACQUISITION. The pane judged B,
-    // asked the desk to seat it and is holding its own gestures; the desk holds its answer;
-    // the maker rebuilds the Editor. Loom's laws decide the rest, and this case observes
-    // them rather than assuming: an answer belongs to the exact incarnation that asked
-    // (ANS-03), a deferred right does not survive the incarnation that earned it (ANS-02), and
-    // the requester is told nothing, because there is no cancellation vocabulary to tell it
-    // with. What the seat did on its own side is the seat's; here the seat is a stand-in.
+    // ⭐ REAL LOADED-IMAGE REPLACEMENT WITH A CONVERSATION OUTSTANDING (EXPERIMENTAL,
+    // editor-managed-open-slice). Retargeted: the reveal this case used to hold no longer
+    // exists (the managed opening is a joint publication, witnessed over the real Workshop in
+    // `test_workshop_panes_editor.cpp`); what is outstanding here is the pane's own ask of
+    // the platform -- a paste -- which the same laws decide: an answer belongs to the exact
+    // incarnation that asked (ANS-03), a deferred right does not survive the incarnation that
+    // earned it (ANS-02), and the reloaded incarnation carries NO pending-paste flag, so it
+    // refuses no quit and no open for a conversation it never had. Nothing here performs the
+    // Editor's duties: the Skin stand-in answers one ask, later, and the seat reads.
     EditorReloadRig w;
     w.load_editor();
+    w.mount_skin();
     const std::filesystem::path a = w.rig.products() / "a.txt";
     const std::filesystem::path b = w.rig.products() / "b.txt";
     {
@@ -5660,19 +5832,21 @@ TEST_CASE("RELOAD-4: an acquisition outstanding across a reload of the Editor's 
         out << "two\n";
     }
     REQUIRE(w.open(a.generic_string()).accepted);
-    REQUIRE(w.host->reveals == 1);
-    // THE ASK THE DESK HOLDS: the pane judged B and is waiting; the requester (this seat, as
-    // Files would be) has no answer yet.
-    w.host->answer_later = true;
+    // THE ASK THE SKIN HOLDS: a paste, asked for by THIS incarnation.
+    w.skin->text = "PASTED";
+    w.key(zengine::input::scan::kV, zengine::input::mod::kCtrl);
+    REQUIRE(w.skin->held);
+    CHECK(w.skin->asked == 1);
+    // WHILE IT IS OUTSTANDING, THE DOCUMENT'S CONVERSATION IS OPEN: the quit is refused in
+    // words, and so is another source (the open would strand the maker's own paste).
+    const workshop::PaneQuitAnswered busy = w.ask_quit();
+    CHECK_FALSE(busy.permitted);
+    CHECK(busy.refusal.find("clipboard answer") != std::string::npos);
     const std::string b_path = b.generic_string();
-    w.drive([b_path](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice)
-            .send_to_role("zengine.editor", workshop::OpenSourceRequested{b_path});
-    });
-    REQUIRE(w.host->reveals == 2);
-    REQUIRE(w.host->held.valid());
-    CHECK(w.host->opens.size() == 1);
-    CHECK(w.read("path") == a.generic_string()); // the candidate is not a document
+    const workshop::SourceOpened waited = w.open(b_path);
+    CHECK_FALSE(waited.accepted);
+    CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
+    CHECK(w.read("path") == a.generic_string());
 
     // "THE MAKER REBUILT THE EDITOR" with the ask outstanding: same id, new incarnation.
     const loom::WeaveId before = w.editor;
@@ -5683,16 +5857,17 @@ TEST_CASE("RELOAD-4: an acquisition outstanding across a reload of the Editor's 
     CHECK(w.rig.kernel.weave_id("zengine-editor-pane") == before);
     w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
     w.room(8, 60);
-    // THE RELOADED INCARNATION HOLDS THE DOCUMENT IT HAD, WHOLE, AND NO FLIGHT: the state shape
-    // carries no open in flight, deliberately.
+    // THE RELOADED INCARNATION HOLDS THE DOCUMENT IT HAD, WHOLE, AND NO FLIGHT: the state
+    // shape carries no paste in flight, deliberately (WL-EDIT-15).
     CHECK(w.read("path") == a.generic_string());
     CHECK(w.read("text") == "one\n");
     CHECK(w.status().rfind("saved", 0) == 0);
+    const workshop::PaneQuitAnswered free = w.ask_quit();
+    CHECK_MESSAGE(free.permitted, free.refusal); // no orphan flag refuses the exit
 
-    // THE DESK'S LATE ANSWER. Loom refuses to deliver it: the requester at that id is not the
+    // THE SKIN'S LATE ANSWER. Loom refuses to deliver it: the pane at that id is not the
     // incarnation that asked. Read off the bus's own journal, by the ticket the spend returned.
-    loom::Ticket late;
-    w.drive([&late](HostSeat& h, loom::Mail& m) { late = h.answer_held(m, true); });
+    const loom::Ticket late = w.skin_answers();
     const loom::DeliveryOutcome fate = w.rig.bus.outcome(late);
     INFO("ticket valid=", late.valid(), " disposition=", static_cast<int>(fate.disposition),
          " reason=", static_cast<int>(fate.refusal.reason));
@@ -5702,13 +5877,11 @@ TEST_CASE("RELOAD-4: an acquisition outstanding across a reload of the Editor's 
     if (late.valid() && fate.disposition == loom::Disposition::Refused) {
         CHECK(fate.refusal.reason == loom::RefusalReason::AnswerTargetChanged);
     }
-    // ...SO NOTHING MOVED IN THE PANE, AND THE REQUESTER IS STILL WAITING -- the terminal
-    // outcome it lacks is sender fate's, not this transaction's.
-    CHECK(w.read("path") == a.generic_string());
+    // ...SO NOTHING WAS PASTED, and the document is exactly as it rode across.
     CHECK(w.read("text") == "one\n");
-    CHECK(w.host->opens.size() == 1);
-    // ...AND THE RELOADED PANE IS NOT WEDGED: the next open, answered at once, takes.
-    w.host->answer_later = false;
+    CHECK(w.status().rfind("saved", 0) == 0);
+    // ...AND A FRESH OPEN IS ELIGIBLE AT ONCE: the flag that would have refused it is gone
+    // with the conversation it represented.
     const workshop::SourceOpened next = w.open(b_path);
     CHECK_MESSAGE(next.accepted, next.refusal);
     CHECK(w.read("path") == b_path);

@@ -208,6 +208,31 @@ target_link_libraries(zengine-legacy-pane
     PRIVATE zengine-surface-vocabulary zengine-input-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
+# A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation,
+# editor-managed-open-slice-corrections). It holds `zengine.editor`, offers the pane, claims
+# a document identity, prepares and offers like the real image -- and, when armed through
+# its exposed state, fails the showing of its published claim exactly once. What it exists to
+# prove is what the REAL manager and the REAL Workshop do when a real loaded owner fails
+# through the real ABI: nothing here is a document, and the real Editor's own cases stand
+# beside it untouched.
+zengine_weave(zengine-failing-editor weavelib/failing_editor.cpp)
+target_link_libraries(zengine-failing-editor
+    PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
+            zengine-warnings zengine-sanitize)
+
+# THE REAL EDITOR, BUILT ONCE MORE WITH ONE DELIBERATE THROW (test instrumentation,
+# editor-managed-open-slice-corrections-2). The exact source of `editor-pane/pane.cpp`, under
+# the same reloadable-weave build contract as the product image, with
+# ZENGINE_EDITOR_TEST_THROW_ON_B_CPP defined: its showing hook throws once, before anything is
+# activated, for a published path ending in `/b.cpp` and for nothing else. It stands in for a
+# real owner whose image cannot complete a showing; a reload of its record into the normal
+# image is the repair the cases witness. The normal image defines nothing and compiles none of
+# it. Loaded by one suite, named in no host's boot list, never installed.
+zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_THROW_ON_B_CPP=1)
+target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
+                                                     zengine-input-vocabulary zengine-activation)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -966,6 +991,11 @@ set(ZENGINE_WORKSHOP_DEFS
     # case reads to check that the current vocabulary is nowhere in it.
     "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
     "LEGACY_PANE_SOURCE=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/legacy_pane.cpp\""
+    # ...AND THE LOADED STAND-IN THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation,
+    # editor-managed-open-slice-corrections), resolved by stem like every other image.
+    "WORKSHOP_SO_FAILING_EDITOR=\"$<TARGET_FILE:zengine-failing-editor>\""
+    # ...and the real Editor built with one deliberate throw (editor-managed-open-slice-corrections-2).
+    "WORKSHOP_SO_EDITOR_THROWING=\"$<TARGET_FILE:zengine-editor-throwing>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -987,6 +1017,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-terminal-pane zengine-legacy-pane
+    zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 

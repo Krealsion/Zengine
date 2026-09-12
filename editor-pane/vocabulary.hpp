@@ -157,12 +157,18 @@ struct EditorPaneState {
     /// taking a comment's word for it. An `Int` that only grows; it is not part of the
     /// document and a reload carries it for continuity of the count alone.
     std::int64_t text_builds = 0;
+    /// EXPERIMENTAL (editor-managed-open-slice): THE MANAGED OPERATION THAT INSTALLED THE
+    /// CURRENT DOCUMENT, or 0 for a direct open or none. Carried so the document's latest
+    /// claim (`EditorDocument`, workshop/open_seam_vocabulary.hpp) reads the same after a
+    /// reload as before it; it is bookkeeping, never authority.
+    std::int64_t opened_by = 0;
     ZEN_SHAPE(EditorPaneState, 1, ZEN_FIELD(path), ZEN_FIELD(text), ZEN_FIELD(saved_text),
               ZEN_FIELD(convention), ZEN_FIELD(doc_epoch), ZEN_FIELD(caret_row),
               ZEN_FIELD(caret_byte), ZEN_FIELD(anchor_row), ZEN_FIELD(anchor_byte),
               ZEN_FIELD(first_row), ZEN_FIELD(first_col), ZEN_FIELD(last_rows),
               ZEN_FIELD(last_cols), ZEN_FIELD(notice), ZEN_FIELD(notice_bad),
-              ZEN_FIELD(project_dir), ZEN_FIELD(project_known), ZEN_FIELD(text_builds));
+              ZEN_FIELD(project_dir), ZEN_FIELD(project_known), ZEN_FIELD(text_builds),
+              ZEN_FIELD(opened_by));
 };
 
 } // namespace zengine::editor_pane

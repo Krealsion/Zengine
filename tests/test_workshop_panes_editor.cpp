@@ -45,9 +45,15 @@
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
 
+#include <zen/admission.hpp>
+#include <zen/serialize.hpp>
+
 #include <algorithm>
+#include <chrono>
 #include <fstream>
+#include <optional>
 #include <sstream>
+#include <stdexcept>
 
 namespace {
 
@@ -190,6 +196,52 @@ public:
 /// mounted BEFORE the plan runs, because the pane asks `zengine.project` where this run began
 /// on the very beat it is activated -- a door mounted afterwards would be absent exactly when
 /// the only ask that matters is made.
+/// STAND-INS FOR A BROKEN EDITOR (EXPERIMENTAL, editor-managed-open-slice; test
+/// instrumentation, labeled as such). Each holds `zengine.editor` in place of the real image,
+/// offers the pane so the desk has a row, and claims an (empty) document identity so an
+/// operation can bind it -- the least a participant must do to be ASKED -- and then fails to
+/// prepare in one of three ways: silently (never answers), abnormally (the handler throws),
+/// or deafly (does not accept the ask at all). Nothing here publishes a document, routes an
+/// input or seats a pane; what these prove is what the manager and the desk do when a real
+/// participant does not do its part.
+class BrokenEditor
+    : public loom::WeaveBase<BrokenEditor, SeenState,
+                             loom::Accept<PaneCatalogRequested, PrepareSourceRequested,
+                                          ManagedOpenSettled, SeatDo>,
+                             loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
+public:
+    bool throws = false;
+    int asked = 0;
+    int settled = 0;
+    void on(const PaneCatalogRequested&, loom::Mail& mail) {
+        (void)mail.as_role(pane::kEditorPaneRole)
+            .send_to_role(kWorkshopProvider,
+                          PaneOffered{pane::kEditorPane, "Editor", "a stand-in that cannot prepare"});
+    }
+    void on(const PrepareSourceRequested&, loom::Mail&) {
+        ++asked;
+        if (throws) {
+            throw std::runtime_error("the stand-in's preparation failed abnormally");
+        }
+    }
+    void on(const ManagedOpenSettled&, loom::Mail&) { ++settled; }
+    void on(const SeatDo&, loom::Mail& mail) { (void)mail.claim(EditorDocument{}); }
+};
+
+/// ...and one that does not even accept the ask: the bus refuses the manager's attempt at
+/// dispatch, and says so to the manager alone (an authenticated `zen.DispatchRefused`).
+class DeafEditor : public loom::WeaveBase<DeafEditor, SeenState,
+                                          loom::Accept<PaneCatalogRequested, SeatDo>,
+                                          loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
+public:
+    void on(const PaneCatalogRequested&, loom::Mail& mail) {
+        (void)mail.as_role(pane::kEditorPaneRole)
+            .send_to_role(kWorkshopProvider,
+                          PaneOffered{pane::kEditorPane, "Editor", "a stand-in that hears nothing"});
+    }
+    void on(const SeatDo&, loom::Mail& mail) { (void)mail.claim(EditorDocument{}); }
+};
+
 struct EditorRig {
     TempDir dir;
     std::filesystem::path root;
@@ -225,13 +277,20 @@ struct EditorRig {
     enum class Project { kDoor, kSlow, kNone };
 
     void open(std::int64_t width = 160, std::int64_t height = 48, bool pick_it = true,
-              bool slow_skin = false, Project project = Project::kDoor) {
+              bool slow_skin = false, Project project = Project::kDoor,
+              bool with_manager = true, const char* stem = pane::kEditorPaneStem) {
         if (!overrides.empty()) {
             const std::string path = (root / "keymap.json").generic_string();
             write_keymap_file(path, keymap_file_text("full", overrides));
             r.host.keymap_path = path;
         }
+        // EXPERIMENTAL (editor-managed-open-slice): the host names the managed pane before
+        // Workshop is mounted, and mounts the opening manager beside it.
+        r.host.managed_pane = editor_ref();
         r.mount_workshop();
+        if (with_manager) {
+            r.mount_opening();
+        }
         if (project == Project::kDoor) {
             mount_project_door();
         } else if (project == Project::kSlow) {
@@ -244,12 +303,12 @@ struct EditorRig {
         }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
-        seat.stem = pane::kEditorPaneStem;
+        seat.stem = stem;
         seat.weave = load::WeaveIntent{pane::kEditorPaneRole};
         plan.artifacts.push_back(seat);
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
-        image = r.kernel.weave_id(pane::kEditorPaneStem);
+        image = r.kernel.weave_id(stem);
         REQUIRE(image.value != 0);
         mount_poke_seat();
         r.ready();
@@ -425,6 +484,14 @@ struct EditorRig {
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
         grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
+        // EXPERIMENTAL (editor-managed-open-slice): ...and the managed opening's own
+        // sentences, for the same reason -- a forged settlement, a forged preparation, a
+        // forged admission and a forged dispatch refusal must reach their parties to be
+        // dropped by them.
+        grant.allow_to_any(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version);
+        grant.allow_to_any(SourcePrepared::zen_name, SourcePrepared::zen_version);
+        grant.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
+        grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
                                                       std::string(kDoorAskerOffice));
         asker->zen_set_self(id);
@@ -438,15 +505,218 @@ struct EditorRig {
         r.bus.drain_until_idle();
     }
 
-    /// ASK THE EDITOR'S DOOR TO OPEN ONE PATH -- what a Return on a source row in Files
-    /// crosses as -- and hand back what it answered.
+    /// ASK THE MANAGED DOOR TO OPEN ONE PATH -- what a Return on a source row in Files
+    /// crosses as -- and hand back what it answered. (EXPERIMENTAL: the door is the opening
+    /// manager's office; the Editor's own office is the direct, presentation-less door.)
     SourceOpened ask_open(const std::string& path) {
+        const std::size_t before = asker->opens.size();
+        asker_says([path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kOpeningRole, OpenSourceRequested{path});
+        });
+        REQUIRE(asker->opens.size() == before + 1);
+        return asker->opens.back();
+    }
+
+    /// ...and the DIRECT door, for the cases about the document act alone.
+    SourceOpened ask_open_direct(const std::string& path) {
         const std::size_t before = asker->opens.size();
         asker_says([path](DoorAsker& a, loom::Mail& mail) {
             a.ask(mail, kEditorRole, OpenSourceRequested{path});
         });
         REQUIRE(asker->opens.size() == before + 1);
         return asker->opens.back();
+    }
+
+    /// The manager's own readable record -- which open is pending, its stage and who it
+    /// waits on -- as a case reads it off the weave the rig mounted.
+    const OpeningState& opening() { return r.opening->state(); }
+
+    // ---- EXPERIMENTAL (editor-managed-open-slice): STAGING A MANAGED OPEN TURN BY TURN ----
+    //
+    // A managed open is a conversation of nine deliveries (request; trial asked; trial
+    // answered; prepare asked; prepared; admit asked; admitted; THE COMMITMENT; the owners
+    // and the requester told). `pump_pending` is one turn -- exactly the backlog that was
+    // waiting -- so a case can put a real message at an exact interval of the flight and
+    // watch what each party does with it. Nothing here performs a party's duty.
+
+    /// QUEUE A MANAGED OPEN WITHOUT DRAINING: the asker's nudge is the next delivery, and
+    /// the request is queued by it; the case pumps.
+    void enqueue_open(const std::string& path) {
+        asker->next = [path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kOpeningRole, OpenSourceRequested{path});
+        };
+        (void)r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    }
+    /// ...and the same at the OLD door (editor-managed-open-slice-corrections).
+    void enqueue_open_direct(const std::string& path) {
+        asker->next = [path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{path});
+        };
+        (void)r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    }
+
+    /// PUMP ONE TURN AT A TIME UNTIL THE MANAGER SAYS IT STANDS AT `stage` -- its own record,
+    /// which is what `zen.PokeRead` of it answers. `stage` is the ask the manager has just
+    /// QUEUED: at "prepare" the Editor has not yet heard; at "admit" it has prepared and the
+    /// desk has not yet admitted. Fails visibly if the stage never comes.
+    void pump_until_stage(const char* stage, int turns = 16) {
+        for (int i = 0; i < turns; ++i) {
+            if (opening().stage == stage) {
+                return;
+            }
+            (void)r.bus.pump_pending();
+        }
+        REQUIRE_MESSAGE(opening().stage == stage, "the opening never reached stage `", stage,
+                        "`; it stands at `", opening().stage, "` awaiting `",
+                        opening().awaiting, "` (", opening().last_outcome, ")");
+    }
+
+    /// A POKE THAT DOES NOT DRAIN: queued, so it is answered in the turn a case chooses.
+    std::uint64_t enqueue_read(const char* field, loom::WeaveId of) {
+        const std::uint64_t corr = ++poke_corr;
+        (void)r.bus.send(of, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
+                                           poke_id, corr));
+        return corr;
+    }
+    std::optional<std::string> answered(std::uint64_t corr) {
+        for (const std::pair<std::uint64_t, std::string>& one : poke->answers) {
+            if (one.first == corr) {
+                return one.second;
+            }
+        }
+        return std::nullopt;
+    }
+    /// The manager's declared record, read the way a maker's probe would: `zen.PokeRead`.
+    std::string read_opening(const char* field) {
+        const std::uint64_t corr = enqueue_read(field, r.opening_id);
+        r.bus.drain_until_idle();
+        const std::optional<std::string> got = answered(corr);
+        REQUIRE_MESSAGE(got.has_value(), "the manager never answered `", field, "`");
+        return *got;
+    }
+
+    /// THE TWO PUBLISHED CLAIMS, read off the bus's latest-claim store -- what any weave
+    /// observing the Editor or the desk would be answered with at this instant.
+    std::optional<EditorDocument> document_claim() {
+        const loom::SenseReading got =
+            r.bus.observe(image, EditorDocument::zen_name, EditorDocument::zen_version);
+        if (!got.value) {
+            return std::nullopt;
+        }
+        return loom::from_value<EditorDocument>(*got.value);
+    }
+    std::optional<PanePresentation> presentation_claim() {
+        const loom::SenseReading got = r.bus.observe(r.workshop_id, PanePresentation::zen_name,
+                                                     PanePresentation::zen_version);
+        if (!got.value) {
+            return std::nullopt;
+        }
+        return loom::from_value<PanePresentation>(*got.value);
+    }
+
+    /// THE EDITOR'S SNAPSHOT, admitted against its declared shape -- the bytes a reload
+    /// carries, read the way Loom reads them (and, EXPERIMENTAL, shown any publication of
+    /// its own first).
+    loom::Value snapshot() {
+        const loom::Unverified claim = loom::parse(r.bus.snapshot_bytes(image));
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<pane::EditorPaneState>());
+        REQUIRE_MESSAGE(admitted.ok(), "the Editor's snapshot did not admit as EditorPaneState: ",
+                        admitted.first_error().message());
+        return admitted.value();
+    }
+
+    /// A BROKEN EDITOR IN PLACE OF THE IMAGE (EXPERIMENTAL): the desk, the manager, the
+    /// project door and the asker are the real ones; the Editor's role is held by a stand-in
+    /// that offers, claims and then fails to prepare (see `BrokenEditor`, `DeafEditor`).
+    BrokenEditor* broken = nullptr;
+    loom::WeaveId broken_id{};
+    void open_with_stand_in(bool throws, bool deaf) {
+        r.host.managed_pane = editor_ref();
+        r.mount_workshop();
+        r.mount_opening();
+        mount_project_door();
+        skin = r.mount_skin_seat();
+        loom::Grant offer;
+        offer.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+        if (deaf) {
+            auto seat = std::make_unique<DeafEditor>();
+            DeafEditor* raw = seat.get();
+            broken_id = r.bus.register_weave(std::move(seat), std::move(offer),
+                                             std::string(pane::kEditorPaneRole));
+            raw->zen_set_self(broken_id);
+        } else {
+            auto seat = std::make_unique<BrokenEditor>();
+            broken = seat.get();
+            broken->throws = throws;
+            broken_id = r.bus.register_weave(std::move(seat), std::move(offer),
+                                             std::string(pane::kEditorPaneRole));
+            broken->zen_set_self(broken_id);
+        }
+        mount_poke_seat();
+        r.ready();
+        r.extent(160, 48);
+        REQUIRE_MESSAGE(row() != nullptr, "the stand-in offered no `editor` pane");
+        kind = row()->kind;
+        // THE STAND-IN CLAIMS ITS (EMPTY) DOCUMENT IDENTITY, so an operation can bind it.
+        (void)r.bus.send(broken_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+        mount_asker();
+    }
+
+    /// THE IMAGE LOADED UNDER A ROLE THAT IS NOT ITS OWN (editor-managed-open-slice-
+    /// corrections): everything the Editor says AS `zengine.editor` is then refused at the
+    /// authorship -- its offer, its project ask, and the relay it would make for an open
+    /// asked of it directly. No pane is offered, so nothing here requires a row.
+    void open_under_role(const char* role) {
+        r.host.managed_pane = editor_ref();
+        r.mount_workshop();
+        r.mount_opening();
+        mount_project_door();
+        skin = r.mount_skin_seat();
+        load::LoadPlan plan;
+        load::ArtifactIntent seat;
+        seat.stem = pane::kEditorPaneStem;
+        seat.weave = load::WeaveIntent{role};
+        plan.artifacts.push_back(seat);
+        const load::Executed done = r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
+        image = r.kernel.weave_id(pane::kEditorPaneStem);
+        REQUIRE(image.value != 0);
+        mount_poke_seat();
+        r.ready();
+        r.extent(160, 48);
+        mount_asker();
+    }
+
+    /// "THE MAKER REBUILT THE EDITOR": a copy of the same image, reloaded in place through the
+    /// real control door at its place in the queue (see `PaneRig::enqueue_reload`).
+    int reloads = 0;
+    void enqueue_reload(const char* stem = pane::kEditorPaneStem) {
+        const std::filesystem::path copy =
+            root / ("editor-rebuilt-" + std::to_string(++reloads) + ".so");
+        std::error_code ec;
+        std::filesystem::copy_file(PaneRig::artifact_path(stem), copy,
+                                   std::filesystem::copy_options::overwrite_existing, ec);
+        REQUIRE_MESSAGE(!ec, "cannot copy the image: ", ec.message());
+        r.enqueue_reload(stem, copy.generic_string());
+    }
+
+    /// ...AND A REBUILD THAT CHANGES THE CODE (editor-managed-open-slice-corrections-2): the
+    /// record loaded as `record` is reloaded in place from a copy of ANOTHER image, `image`,
+    /// through the same door -- the repair of an owner whose image could not apply a claim,
+    /// by the maker's corrected build of it.
+    void enqueue_reload_into(const char* record, const char* image_stem) {
+        const std::filesystem::path copy =
+            root / ("editor-rebuilt-" + std::to_string(++reloads) + ".so");
+        std::error_code ec;
+        std::filesystem::copy_file(PaneRig::artifact_path(image_stem), copy,
+                                   std::filesystem::copy_options::overwrite_existing, ec);
+        REQUIRE_MESSAGE(!ec, "cannot copy the image: ", ec.message());
+        r.enqueue_reload(record, copy.generic_string());
     }
 
     /// OPEN A FILE AND REQUIRE THAT IT TOOK: the ordinary beginning of a case.
@@ -1066,14 +1336,16 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
     // against Loom's budget of 65,536 rather than a list of a hundred thousand lines. What is
     // NOT in it is said by its absence: no undo history (a reload is a new incarnation, and
     // the history is the old one's), no paste in flight (its answer is correlated to an
-    // incarnation that is gone), no wheel fraction, no follow flag.
+    // incarnation that is gone), no candidate (EXPERIMENTAL: a preparation is the old
+    // incarnation's conversation), no wheel fraction, no follow flag. `opened_by`
+    // (EXPERIMENTAL, one Int) names the managed operation that installed the document.
     //
     // ⚠ THE RELOAD ITSELF IS WITNESSED IN `test_workshop_load.cpp`, over a real Kernel, a
     // real Manager and a staged image, document and all. What is pinned here is the shape,
     // because the shape is the decision.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::EditorPaneState>();
     REQUIRE(shape != nullptr);
-    REQUIRE(shape->fields().size() == 18);
+    REQUIRE(shape->fields().size() == 19);
     CHECK(shape->fields()[0].name == "path");
     CHECK(shape->fields()[0].type.kind == loom::Kind::Text);
     CHECK(shape->fields()[1].name == "text");
@@ -1349,21 +1621,42 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
     CHECK(e.doc_row(1) == "LATEtwo");
 }
 
-TEST_CASE("EDIT-W33: a late answer for a replaced document is discarded whole") {
+TEST_CASE("EDIT-W33: a paste still arriving refuses another source, and its answer lands where it was asked") {
+    // RETARGETED (EXPERIMENTAL, editor-managed-open-slice). This case pinned "a late answer
+    // for a replaced document is discarded whole": the open replaced A under the maker's own
+    // paste, and the answer was stranded, silently. The founder's guarantee names admitted
+    // input that must not be dropped, and the paste is the maker's -- so the open now waits
+    // for it, in words (the quit's rule, WL-EDIT-14, one operation over), and the answer
+    // lands in the document that asked. The stranding law still holds for the one way a
+    // document can be replaced under a paste: a reload (`test_workshop_load.cpp`, RELOAD-4).
     EditorRig e("edit-paste-replaced");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
-    e.open_file("a.cpp", "one\n");
+    const std::string a_path = e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "bee\n");
     e.press_doc(0, 3);
     e.slow->text = "STRAY";
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
-    REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted); // the document that asked is gone
+    const SourceOpened waited = e.ask_open(spelled(e.root / "b.cpp"));
+    CHECK_FALSE(waited.accepted);
+    CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
+    CHECK(e.r.session().notice == waited.refusal); // the desk says why
+    CHECK(e.read("path") == a_path);              // the document that asked is still here
     e.answer_now();
+    CHECK(e.doc_row(0) == "oneSTRAY"); // ...and its paste landed in it
+    CHECK(e.dirty());
+    // THE OPEN IS ELIGIBLE AGAIN THE MOMENT THE ANSWER IS CONSUMED: refused now for the
+    // unsaved paste, which is the floor and not the flight; a discard opens the way.
+    const SourceOpened dirty = e.ask_open(spelled(e.root / "b.cpp"));
+    CHECK_FALSE(dirty.accepted);
+    CHECK(dirty.refusal.find("unsaved changes") != std::string::npos);
+    e.focus();
+    e.discard();
+    REQUIRE(e.clean());
+    const SourceOpened opened = e.ask_open(spelled(e.root / "b.cpp"));
+    CHECK_MESSAGE(opened.accepted, opened.refusal);
     CHECK(e.doc_row(0) == "bee");
-    CHECK(e.clean());
     CHECK_FALSE(e.says("STRAY"));
-    CHECK_FALSE(e.says("after the source moved")); // silence: the dead draft's own fate
 }
 
 TEST_CASE("EDIT-W34: a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence") {
@@ -1895,7 +2188,7 @@ TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding 
     e.open();
     // NO SECRET STATE: the describe door lists every field, and every one of them reads.
     const std::vector<std::string> fields = e.described();
-    CHECK(fields.size() == 18);
+    CHECK(fields.size() == 19);
     for (const std::string& f : fields) {
         (void)e.read(f.c_str());
     }
@@ -2001,23 +2294,32 @@ TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
     // ⚔ THE DEFECT: installing another document advanced the epoch and left `awaiting` set.
     // The answer could never have landed -- and never did -- but the quit handler reads that
     // flag, so a CLEAN new document refused every exit for the rest of the session.
+    //
+    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice): an open no longer replaces a
+    // document under its own paste (WL-EDIT-05) -- it is refused in words until the answer
+    // is consumed -- so the flight retires the way it is spent, by its answer, cleared before
+    // the payload is judged; `install` still clears it as the belt under that.
     EditorRig e("edit-paste-retire");
     e.open(160, 48, true, /*slow_skin=*/true);
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
     e.key(input::scan::kV, input::mod::kCtrl);
-    REQUIRE(e.slow->held); // the answer is on its way to a document that is about to go
-    CHECK_FALSE(e.quit_by_key()); // while THAT document stands, the quit is refused
+    REQUIRE(e.slow->held); // the answer is on its way
+    CHECK_FALSE(e.quit_by_key()); // while THAT paste is outstanding, the quit is refused...
     CHECK(e.r.session().notice.find("clipboard answer") != std::string::npos);
-    // ANOTHER DOCUMENT, CLEAN.
     put_bytes(e.root / "b.cpp", "two\n");
-    REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
-    CHECK(e.clean());
-    CHECK(e.quit_by_key()); // ...and it may end
-    // ...AND THE OLD ANSWER, ARRIVING NOW, INSERTS NOTHING AND SETTLES NOTHING.
+    const SourceOpened waited = e.ask_open(spelled(e.root / "b.cpp"));
+    CHECK_FALSE(waited.accepted); // ...and so is another document
+    CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
+    // THE ANSWER ARRIVES -- an empty clipboard, which pastes nothing -- and retires the flight.
     e.answer_now();
+    CHECK(e.doc_row(0) == "one");
+    CHECK(e.clean());
+    // A CLEAN DOCUMENT WITH NO PASTE IN FLIGHT: the open takes, and the exit may end.
+    REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
     CHECK(e.doc_row(0) == "two");
     CHECK(e.clean());
+    CHECK(e.quit_by_key());
     CHECK(e.read("text") == "two\n");
 }
 
@@ -2030,6 +2332,9 @@ TEST_CASE("EDIT-W55: a dirty document with no paste in flight still refuses the 
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     put_bytes(e.root / "b.cpp", "two\n");
+    // EXPERIMENTAL: the open waits for the paste (WL-EDIT-05), which pastes nothing here.
+    CHECK_FALSE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
+    e.answer_now();
     REQUIRE(e.ask_open(spelled(e.root / "b.cpp")).accepted);
     e.press_doc(0, 3);
     e.type("Z");
@@ -2050,19 +2355,20 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a maker can type
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
-    SUBCASE("a keystroke queued behind the request lands in the document the open produces") {
-        // THE ASK IS THE PANE'S COMMIT DECISION. A keystroke delivered after it is HELD, not
-        // applied -- what was judged stays true until the desk answers -- and replayed into
-        // the document the answer leaves open: B here, which is exactly where the built-in
-        // put a keystroke queued behind its synchronous open. (Retargeted from "refused as
-        // dirty": the refusal belongs to a keystroke AHEAD of the ask, the next subcase.)
+    SUBCASE("a keystroke queued behind a request at the OLD door lands in the current document, and the open is refused for it") {
+        // THE OLD DOOR KEEPS THE MANAGED MEANING (editor-managed-open-slice-corrections):
+        // `OpenSourceRequested` at `zengine.editor` is relayed to the opening manager, so a
+        // keystroke queued behind the request is admitted A work exactly as it is behind a
+        // managed request -- A is dirty when the Editor is asked to prepare B, the open is
+        // refused in the floor's own words, nothing is held, and the desk did not move. (The
+        // Step 1 slice made this door a document-only install that put the keystroke into
+        // B; that weaker meaning is gone.)
         EditorRig e("edit-open-race");
         e.open();
-        e.open_file("a.cpp", "one\n");
+        const std::string a_path = e.open_file("a.cpp", "one\n");
         put_bytes(e.root / "b.cpp", "two\n");
-        // ONE POLL: the request, then a keystroke behind it. The pane judges `b.cpp`, asks the
-        // desk, and the text is delivered before the desk's answer.
         e.press_doc(0, 3);
+        const std::size_t before = e.asker->opens.size();
         e.asker->next = [&e](DoorAsker& a, loom::Mail& mail) {
             a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
         };
@@ -2070,19 +2376,24 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
                                                       loom::WeaveId{}, 0));
         e.enqueue_text("Z");
         e.settle();
-        REQUIRE_FALSE(e.asker->opens.empty());
+        REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
-        CHECK_MESSAGE(said.accepted, said.refusal);
-        CHECK(e.read("path").find("b.cpp") != std::string::npos);
-        CHECK(e.read("text") == "Ztwo\n");           // replayed after the install, at B's caret
-        CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A was never touched
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "oneZ\n");
+        CHECK(e.dirty());
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A's file was never touched
         CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.opening().last_outcome == "refused");
+        CHECK(e.opening().stage == "idle");
     }
 
     SUBCASE("a keystroke ahead of the request dirties the document, and the request is refused at the judge") {
         // THE OTHER SIDE OF THE SAME BOUNDARY: a keystroke the pane applied BEFORE it judged
-        // made the document dirty, so the judge refuses and nothing is sent to the desk --
-        // no ask, no seat, no change to the notice line.
+        // made the document dirty, so the judge refuses when the Editor is asked to prepare
+        // -- no seat, no keys, no candidate; the desk's trial moved nothing and the desk says
+        // the refusal, as it does for the managed door the old door now relays to.
         EditorRig e("edit-open-race-before");
         e.open();
         e.open_file("a.cpp", "one\n");
@@ -2102,54 +2413,113 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
         CHECK(said.refusal.find("unsaved changes") != std::string::npos);
         CHECK(e.read("path").find("a.cpp") != std::string::npos);
         CHECK(e.doc_row(0) == "oneZ");
-        CHECK(e.r.session().notice == notice); // the desk was never asked
+        // THE DESK SAYS WHY, as it does for the managed door (editor-managed-open-slice-
+        // corrections: the old door relays; the desk was asked for a trial, which moves
+        // nothing, and the judge's refusal reached it through the manager's settlement).
+        CHECK(e.r.session().notice == said.refusal);
+        CHECK(e.r.session().notice != notice);
+        CHECK(e.r.session().panels.keyboard == e.kind);
     }
 
-    SUBCASE("a second request while one is in flight is refused in words a maker can act on") {
+    SUBCASE("a keystroke queued behind a MANAGED request lands in the current document, and the open is refused for it") {
+        // THE MANAGED DOOR HOLDS NOTHING EITHER (EXPERIMENTAL, WL-EDIT-05/13): input applies
+        // to the current document at once, and what it changed is what the open is judged
+        // against. The Z is admitted A work, so A is dirty when the Editor is asked to
+        // prepare B; the open is refused in the floor's own words, and the desk did not move.
+        EditorRig e("edit-open-race-managed");
+        e.open();
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        e.press_doc(0, 3);
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(spelled(e.root / "b.cpp"));
+        e.enqueue_text("Z");
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "oneZ\n");
+        CHECK(e.dirty());
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n");
+        CHECK(e.opening().last_outcome == "refused");
+        CHECK(e.opening().stage == "idle");
+    }
+
+    SUBCASE("a second request while one is in flight supersedes it, and both requesters are told") {
+        // RETARGETED (EXPERIMENTAL): the manager owns supersession. The newer intent ends the
+        // older one -- the bus releases its offers, both owners hear it ended -- the first
+        // requester is told so in words naming the newer request, and the newer one takes.
+        // There is no queue of intents and no retry.
         EditorRig e("edit-open-twice");
         e.open();
         e.open_file("a.cpp", "one\n");
         put_bytes(e.root / "b.cpp", "two\n");
         put_bytes(e.root / "c.cpp", "three\n");
         e.asker->next = [&e](DoorAsker& a, loom::Mail& mail) {
-            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
-            a.ask(mail, kEditorRole, OpenSourceRequested{spelled(e.root / "c.cpp")});
+            a.ask(mail, kOpeningRole, OpenSourceRequested{spelled(e.root / "b.cpp")});
+            a.ask(mail, kOpeningRole, OpenSourceRequested{spelled(e.root / "c.cpp")});
         };
         const std::size_t before = e.asker->opens.size();
+        const std::int64_t committed = e.opening().committed;
         (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                       loom::WeaveId{}, 0));
         e.settle();
-        // TWO ANSWERS, AND THE ORDER IS THE PROTOCOL'S: the refusal is immediate, the
-        // acquisition's own answer waits for the desk. They are told apart by what they say.
+        // TWO ANSWERS, TOLD APART BY WHAT THEY SAY: the superseded one names its successor.
         REQUIRE(e.asker->opens.size() == before + 2);
         int accepted = 0;
-        int still_opening = 0;
+        int superseded = 0;
         for (std::size_t i = before; i < e.asker->opens.size(); ++i) {
             accepted += e.asker->opens[i].accepted ? 1 : 0;
-            still_opening +=
-                e.asker->opens[i].refusal.find("still opening") != std::string::npos ? 1 : 0;
+            superseded += (e.asker->opens[i].refusal.find("superseded") != std::string::npos &&
+                           e.asker->opens[i].refusal.find("c.cpp") != std::string::npos)
+                              ? 1
+                              : 0;
         }
         CHECK(accepted == 1);
-        CHECK(still_opening == 1);
-        CHECK(e.doc_row(0) == "two");
-        // ...AND THE PANE IS NOT WEDGED: the next request takes.
-        const SourceOpened again = e.ask_open(spelled(e.root / "c.cpp"));
-        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(superseded == 1);
         CHECK(e.doc_row(0) == "three");
+        CHECK(e.opening().committed == committed + 1);
+        CHECK(e.opening().stage == "idle");
+        CHECK(e.r.bus.joint_pending() == 0); // the superseded operation's offers are released
+        // ...AND THE PANE IS NOT WEDGED: the next request takes.
+        const SourceOpened again = e.ask_open(spelled(e.root / "b.cpp"));
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.doc_row(0) == "two");
     }
 
-    SUBCASE("a reveal answer for a flight that already ended decides nothing") {
+    SUBCASE("a settlement forged by a stranger, or one for a flight that already ended, decides nothing") {
+        // RETARGETED (EXPERIMENTAL): the reveal answer is gone; what a stranger might forge
+        // now is the manager's `ManagedOpenSettled` -- which both owners take only from the
+        // manager's office -- or an answer to the manager, which Loom's provenance says
+        // answers nothing it asked.
         EditorRig e("edit-open-stale");
         e.open();
-        e.open_file("a.cpp", "one\n");
-        // A FORGED ANSWER, with no ask behind it: the pane is waiting for nothing.
-        e.asker_says([](DoorAsker&, loom::Mail& mail) {
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        const std::int64_t op = std::stoll(e.read("opened_by")); // the operation that installed A
+        REQUIRE(op != 0);
+        const std::string notice = e.r.session().notice;
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.asker_says([op, b_path](DoorAsker&, loom::Mail& mail) {
             (void)mail.as_role(kDoorAskerOffice)
                 .send_to_role(pane::kEditorPaneRole,
-                              PaneRevealAnswered{pane::kEditorPane, true, std::string()});
+                              ManagedOpenSettled{op + 1, true, true, std::string(), b_path});
+            (void)mail.as_role(kDoorAskerOffice)
+                .send_to_role(kWorkshopProvider,
+                              ManagedOpenSettled{op + 1, false, false, "forged refusal", b_path});
+            SourcePrepared forged;
+            forged.op = op + 1;
+            forged.ok = true;
+            (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
         });
         CHECK(e.doc_row(0) == "one");
-        CHECK(e.read("path").find("a.cpp") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.r.session().notice == notice);
+        CHECK(e.opening().stage == "idle");
+        CHECK(e.opening().refused == 0);
     }
 }
 
@@ -2180,14 +2550,19 @@ TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
 // the mirror's real cost, and the viewport a reveal must not move
 // ============================================================================
 
-TEST_CASE("EDIT-W58: a clipboard answer refuses the open only if it lands before the ask") {
+TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste") {
     // ⚔ THE DEFECT PART TWO REPRODUCED WITH REAL MESSAGES: Workshop authored the pane, selected
     // it and took the keyboard when it ANSWERED the reveal, before the Editor had re-judged --
     // so an acquisition that then refused left the desk holding a presentation change for an
-    // operation that never happened. The commitment point is now the desk's delivery of the
-    // pane's ask, and the pane holds everything that could change what it judged until it
-    // hears back. So the same clipboard answer means two different things by WHEN it lands.
-    SUBCASE("before the ask: the document is dirty at the judge, the open is refused, the desk never moves") {
+    // operation that never happened.
+    //
+    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice): the commitment is the bus's joint
+    // publication, and nothing is held. A clipboard answer for A lands in A the moment it is
+    // delivered, wherever that falls in B's arrangement; what changes with WHEN is only which
+    // party refuses -- the Editor's judge (A is dirty, or its paste is still arriving) or the
+    // bus (A's claim moved after the operation bound it). In every interleaving the paste is
+    // in A, B is not opened, and the desk did not move for the operation.
+    SUBCASE("before the request: the document is dirty at the judge, the open is refused, the desk never moves") {
         EditorRig e("edit-race-refuse");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2201,19 +2576,14 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open only if it lands before
         REQUIRE_FALSE(e.r.session().panels.has(e.kind));
         REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
         const std::int64_t selected_before = e.r.session().panels.selected;
-        const std::string notice_before = e.r.session().notice;
         // ONE POLL, TWO STATEMENTS, THE ANSWER FIRST: the clipboard answer lands on the open
-        // document and dirties it, THEN the request for b.cpp reaches the pane.
+        // document and dirties it, THEN the request for b.cpp reaches the manager.
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
-        e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-            a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-        };
         const std::size_t before = e.asker->opens.size();
         (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
-        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                      loom::WeaveId{}, 0));
+        e.enqueue_open(b_path);
         e.settle();
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
@@ -2222,19 +2592,19 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open only if it lands before
         // THE DOCUMENT THAT WAS THERE IS STILL THERE, with the pasted bytes in it.
         CHECK(e.read("path") == a_path);
         CHECK(e.read("text") == "onePASTED\n");
-        // ...AND THE DESK DID NOT MOVE: no authored row, no selection, no keyboard, no ask.
+        // ...AND THE DESK DID NOT MOVE: no authored row, no seat, no selection, no keyboard --
+        // the refusal is said, and that is all that is said.
         CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
         CHECK_FALSE(e.r.session().panels.has(e.kind));
         CHECK(e.r.session().panels.selected == selected_before);
         CHECK(e.r.session().panels.keyboard != e.kind);
-        CHECK(e.r.session().notice == notice_before);
+        CHECK(e.r.session().notice == said.refusal);
     }
-    SUBCASE("after the ask: held until the desk answers, and stranded with the document it was for") {
+    SUBCASE("behind the request: the answer lands in A while B is being arranged, and B is refused for it") {
         // THE ORDER PART TWO STAGED: the request first, the clipboard answer behind it. The
-        // answer is delivered while the desk is deciding, so it is HELD; the desk seats the
-        // pane; the pane installs B; and the replayed answer meets a document epoch that is
-        // gone -- stranded silently, WL-EDIT-11's law for a replaced document, which is what
-        // the synchronous built-in did with a paste answered after its open.
+        // answer is delivered while the desk is answering the trial -- into A, at once, as
+        // any input is -- so the Editor, asked to prepare B one turn later, finds A dirty and
+        // refuses. The paste is the maker's and it is where the maker asked for it.
         EditorRig e("edit-race-held");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2245,29 +2615,51 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open only if it lands before
         e.unfocus();
         e.r.pick(editor_ref());
         REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        const std::int64_t selected_before = e.r.session().panels.selected;
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
-        e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-            a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-        };
         const std::size_t before = e.asker->opens.size();
-        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                      loom::WeaveId{}, 0));
+        e.enqueue_open(b_path);
         (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
         e.settle();
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
-        CHECK_MESSAGE(said.accepted, said.refusal);
-        CHECK(e.read("path") == b_path);
-        CHECK(e.read("text") == "two\n");              // the paste landed nowhere
-        CHECK(bytes_of(e.root / "a.cpp") == "one\n");  // ...and A's bytes were never touched
-        CHECK(e.clean());
-        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(e.r.session().panels.keyboard == e.kind);
-        CHECK_FALSE(e.says("pasted")); // no sentence claims the paste happened
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "onePASTED\n");      // the paste landed where it was asked
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A's bytes were never touched
+        CHECK(e.read("text") != e.read("saved_text")); // dirty, read off the pane it is not showing on
+        CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+        CHECK_FALSE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == selected_before);
+        CHECK(e.r.session().panels.keyboard != e.kind);
+        CHECK(e.opening().last_outcome == "refused");
+    }
+    SUBCASE("still arriving when the Editor is asked: refused in words, and eligible once it lands") {
+        // THE THIRD PLACE THE ANSWER CAN BE: not yet delivered when the Editor is asked to
+        // prepare. The judge refuses for the paste itself (WL-EDIT-05), the answer then lands
+        // in A, and the same request is eligible again -- refused now for the unsaved paste,
+        // which is the floor.
+        EditorRig e("edit-race-arriving");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        e.slow->text = "PASTED";
+        e.press_doc(0, 3);
+        e.key(input::scan::kV, input::mod::kCtrl);
+        REQUIRE(e.slow->held);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const SourceOpened waited = e.ask_open(spelled(e.root / "b.cpp"));
+        CHECK_FALSE(waited.accepted);
+        CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
+        CHECK(e.read("text") == "one\n");
+        e.answer_now();
+        CHECK(e.read("text") == "onePASTED\n");
+        CHECK(e.read("path") == a_path);
+        const SourceOpened dirty = e.ask_open(spelled(e.root / "b.cpp"));
+        CHECK_FALSE(dirty.accepted);
+        CHECK(dirty.refusal.find("unsaved changes") != std::string::npos);
     }
 }
 
@@ -2287,6 +2679,10 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     // room, so the trial seat has nothing to commit to and refuses. The document that was open
     // stands, the requester is told the picker's words, and the desk did not move for this
     // operation -- the seat the Editor lost, it lost to the maker's own shrink.
+    //
+    // RESTAGED (EXPERIMENTAL, editor-managed-open-slice) at the managed door: the shrink lands
+    // between the manager's binding of the desk and the desk's trial, so the trial finds no
+    // seat and refuses with the picker's words; nothing was offered and nothing published.
     EditorRig e("edit-shrink-before");
     e.open(160, 48, /*pick_it=*/false);
     e.r.pick(ref_of(panel::kPaneEditor)); // the Pane Manager takes the stack ahead of it
@@ -2295,12 +2691,8 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     REQUIRE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
-    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-    };
     const std::size_t before = e.asker->opens.size();
-    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
+    e.enqueue_open(b_path);
     // MILESTONE 1: the asker spoke; the request is queued and nothing has been judged.
     REQUIRE(e.r.bus.pump_pending() == 1);
     // THE SHRINK, queued behind the request -- and therefore AHEAD of the ask the pane will
@@ -2308,16 +2700,20 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     (void)e.r.bus.publish(loom::Message(
         loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
         loom::WeaveId{}, 0));
-    // MILESTONE 2: one turn delivers the request (the pane judges B and asks) and then the
-    // shrink (the Editor, authored behind the Manager, loses its seat). The pane's ask is
-    // queued behind both, so this is the state the desk will judge it against.
+    // MILESTONE 2: one turn delivers the request (the manager binds the Editor and the desk as
+    // they are, and asks the desk for a trial) and then the shrink (the Editor, authored
+    // behind the Manager, loses its seat). The trial is queued behind both, so this is the
+    // desk it will be judged on.
     (void)e.r.bus.pump_pending();
     REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));           // room lost...
     CHECK(has_pane(e.r.session().setup.active, editor_ref())); // ...by the shrink; the row stands
     CHECK(e.asker->opens.size() == before);                    // ...with the open still in flight
-    // MILESTONE 3: the attempted commitment -- the desk's delivery of the ask -- finds no seat.
+    CHECK(e.opening().stage == "trial");
+    // MILESTONE 3: the trial finds no seat; the operation ends with nothing published.
     e.settle();
+    CHECK(e.opening().stage == "idle");
+    CHECK(e.opening().last_outcome == "refused");
     REQUIRE(e.asker->opens.size() == before + 1);
     const SourceOpened said = e.asker->opens.back();
     CHECK_FALSE(said.accepted);
@@ -2336,11 +2732,13 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
 
 TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation change") {
     // THE CONTROL THE FOUNDER'S GUARANTEE NAMES: legitimate maker actions after a successful
-    // commitment may change presentation. The desk seats, selects and focuses the pane in the
-    // delivery that answers the ask; a real `SurfaceExtent` delivered after that unseats the
-    // Editor the way a shrink unseats any pane, and the open still completes with B in a pane
-    // that is on the desk and waiting for room. Two interleavings, because the reviewer's ran
-    // the shrink between the desk's step and the pane's answer.
+    // commitment may change presentation. RESTAGED (EXPERIMENTAL, editor-managed-open-slice):
+    // the commitment is the bus's joint publication, made inside the manager's delivery of the
+    // desk's admission; each owner is shown its published claim before it runs again, and the
+    // desk applies the presentation whole in that showing. A real `SurfaceExtent` delivered
+    // after the commitment unseats the Editor the way a shrink unseats any pane, and the open
+    // still completes with B in a pane that is on the desk and waiting for room. Two
+    // interleavings, because the reviewer's ran the shrink between the two owners' showings.
     EditorRig e("edit-shrink-after");
     e.open(160, 48, /*pick_it=*/false);
     e.r.pick(ref_of(panel::kPaneEditor));
@@ -2349,19 +2747,19 @@ TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation c
     REQUIRE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
-    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-    };
     const std::size_t before = e.asker->opens.size();
+    const std::int64_t committed = e.opening().committed;
     const auto shrink = [&e] {
         (void)e.r.bus.publish(loom::Message(
             loom::to_value(surface::SurfaceExtent{160, kMinScreen.h, 0, 0}), loom::WeaveId{},
             loom::WeaveId{}, 0));
     };
-    const auto after = [&e, &before, &b_path, &a_path] {
+    const auto after = [&e, &before, &b_path, &a_path, &committed] {
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
         CHECK_MESSAGE(said.accepted, said.refusal);
+        CHECK(e.opening().committed == committed + 1); // established once both owners applied
+        CHECK(e.opening().stage == "idle");
         CHECK(e.read("path") == b_path);
         CHECK(e.read("text") == "two\n");
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
@@ -2373,31 +2771,59 @@ TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation c
         CHECK(e.doc_row(0) == "two");
         CHECK(e.doc_row(0) != a_path);
     };
-    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
-    REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
-    REQUIRE(e.r.bus.pump_pending() == 1); // the pane judged B and asked; the ask is queued
+    e.enqueue_open(b_path);
+    e.pump_until_stage("admit");          // the Editor holds B as a candidate; the desk is asked
+    REQUIRE(e.r.bus.pump_pending() >= 1); // ...and admits: its offer stands, its answer is queued
+    const std::int64_t op = e.opening().op;
+    REQUIRE(op != 0);
 
-    SUBCASE("the shrink lands after the desk's seat and before the pane hears of it") {
-        shrink();
-        // ONE TURN DELIVERS THE ASK, THEN THE SHRINK: the desk committed and then lost the seat
-        // to the maker's shrink; the pane has not heard yet.
+    SUBCASE("the shrink lands after the commitment and before either owner is shown it") {
+        shrink(); // queued behind the desk's admission answer
+        e.r.session().notice.clear();
+        // ONE TURN: the manager commits (THE COMMITMENT), then the shrink reaches the desk --
+        // which is shown its published presentation first (seat, selection, keys, rows) and
+        // then loses the seat to the maker's shrink, as any pane would.
         (void)e.r.bus.pump_pending();
+        CHECK(e.opening().stage == "apply"); // published; the owners' applications are owed
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+              loom::JointState::Committed);
         CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
         CHECK_FALSE(e.r.session().panels.has(e.kind));
-        CHECK(e.asker->opens.size() == before);
+        CHECK(e.asker->opens.size() == before); // the terminal answer follows the application
         e.settle();
         after();
     }
-    SUBCASE("the seat is the milestone, observed on its own, and the shrink lands after the install") {
+    SUBCASE("the commitment is the milestone, observed on its own, and the shrink lands after the owners heard") {
         e.r.session().notice.clear(); // the host's own record of what it last said, blanked
-        REQUIRE(e.r.bus.pump_pending() == 1); // the ask alone: THE COMMITMENT
-        CHECK(e.r.session().notice == "showing Editor -- it asked to be shown, and it has the keys");
+        REQUIRE(e.r.bus.pump_pending() >= 1); // the manager's delivery alone: THE COMMITMENT
+        CHECK(e.opening().committed == committed); // published, not yet applied: nothing established
+        CHECK(e.opening().stage == "apply");
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+              loom::JointState::Committed);
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+              loom::JointApplication::Pending);
+        // AT THE COMMITMENT, BEFORE EITHER OWNER RAN AGAIN, BOTH PUBLISHED CLAIMS AGREE: the
+        // Editor's says B, opened by this operation; the desk's says seated, selected, keyed,
+        // shown by the same operation, with B's rows admitted.
+        const std::optional<EditorDocument> doc = e.document_claim();
+        REQUIRE(doc.has_value());
+        CHECK(doc->path == b_path);
+        CHECK(doc->opened_by == op);
+        const std::optional<PanePresentation> desk = e.presentation_claim();
+        REQUIRE(desk.has_value());
+        CHECK(desk->seated);
+        CHECK(desk->selected);
+        CHECK(desk->keyboard);
+        CHECK(desk->shown_by == op);
+        CHECK(desk->content_generation == doc->doc_epoch);
+        CHECK(e.asker->opens.size() == before); // said and written before anyone is told
+        // ...AND EACH OWNER'S OWN PICTURE IS THE PUBLISHED ONE AT ITS NEXT OBSERVATION.
+        (void)e.r.bus.pump_pending();
+        CHECK(e.r.session().notice == "showing Editor -- it opened b.cpp, and it has the keys");
         CHECK(e.r.session().panels.has(e.kind));
         CHECK(e.r.session().panels.selected == e.kind);
         CHECK(keyboard_pane(e.r.session().panels) == e.kind);
-        CHECK(e.asker->opens.size() == before); // said and written before the pane hears
         shrink();
         e.settle();
         after();
@@ -2422,31 +2848,37 @@ TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is sho
 }
 
 TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes") {
-    // THE HELD GESTURES MAY CARRY EDITS NOBODY HAS APPLIED, so a permission given while an open
-    // is between its ask and the desk's answer is one a queued message could falsify -- the
-    // paste's rule, one operation over. The quit ask lands after the pane's ask and before the
-    // desk's answer; the pane refuses it, the host stays, and the open completes.
+    // A PERMISSION GIVEN WHILE AN OPEN IS BETWEEN ITS PREPARATION AND ITS COMMITMENT is one
+    // the commitment could falsify -- the paste's rule, one operation over. RESTAGED
+    // (EXPERIMENTAL, editor-managed-open-slice): the quit ask lands after the Editor has
+    // prepared B and before the manager commits; the Editor refuses it naming the source it
+    // is still opening, the host stays, and the open completes. (Before the preparation the
+    // Editor knows nothing of the flight and answers about its document alone; after the
+    // commitment, about B.)
     EditorRig e("edit-quit-while-opening");
     e.open();
     e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     e.unfocus(); // `q` is command mode's
-    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-    };
     const std::size_t before = e.asker->opens.size();
-    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
-    REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
-    e.enqueue_key(input::scan::kQ);       // ...and the quit behind it
-    // ONE TURN: the pane judges B and asks; the host asks the room whether it may end. The
-    // pane's ask and the host's question are both queued, in that order.
-    (void)e.r.bus.pump_pending();
+    e.enqueue_open(b_path);
+    e.pump_until_stage("prepare"); // the Editor is about to be asked to prepare B
+    e.enqueue_key(input::scan::kQ); // ...and the quit is queued behind that ask
+    // ONE TURN: the Editor prepares B (a candidate, offered); the host asks the room whether
+    // it may end. THE NEXT: the Editor, holding a candidate, refuses in words. THE NEXT: the
+    // host hears the refusal, says it, and stays -- three turns, before the commitment.
+    int turns = 0;
+    while (e.r.session().notice.find("still opening") == std::string::npos) {
+        REQUIRE(++turns <= 3);
+        REQUIRE(e.r.bus.pump_pending() > 0);
+    }
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.r.session().notice.find("still opening") != std::string::npos);
+    CHECK(e.r.session().notice.find("b.cpp") != std::string::npos);
     CHECK(e.asker->opens.size() == before);
     e.settle();
     CHECK_FALSE(e.r.host.quit);
-    CHECK(e.r.session().notice.find("still opening") != std::string::npos);
     REQUIRE(e.asker->opens.size() == before + 1);
     CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
     CHECK(e.read("path") == b_path);
@@ -2458,14 +2890,16 @@ TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in wo
 }
 
 TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
-    // THE PANE LEAVES THE DESK WHILE ITS ASK IS ON ITS WAY. The picker's removal is queued
-    // behind the request and ahead of the pane's ask, so one turn has the pane judge B and
-    // ask, then the picker take the Editor off the desk -- and the ask is still queued. The
-    // desk's delivery of it is the commitment: it seats the pane that asked to be shown,
-    // exactly as the built-in re-added itself for an opened source.
+    // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT. RESTAGED (EXPERIMENTAL,
+    // editor-managed-open-slice): the picker's removal is queued behind the request, so one
+    // turn has the manager bind the desk as it is and then the picker take the Editor off
+    // it. The desk the operation bound is not the desk any more: its offer is refused by the
+    // bus, the operation ends with nothing published, the requester is told, and the maker's
+    // removal stands -- a stale preparation cannot undo newer intent. Asked again, the same
+    // request seats the pane with B.
     EditorRig e("edit-flight-removal");
     e.open();
-    e.open_file("a.cpp", "one\n");
+    const std::string a_path = e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     e.unfocus(); // the picker is command mode's row
@@ -2476,12 +2910,8 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
             want = i;
         }
     }
-    e.asker->next = [b_path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{b_path});
-    };
     const std::size_t before = e.asker->opens.size();
-    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
+    e.enqueue_open(b_path);
     REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
     // THE REMOVAL, QUEUED BEHIND THE REQUEST: the picker opens, walks to the Editor's row, and
     // Return removes it. None of it drains; it is one poll's burst.
@@ -2490,32 +2920,45 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
         e.enqueue_key(input::scan::kDown);
     }
     e.enqueue_key(input::scan::kReturn);
-    // ONE TURN: the pane judges B and asks (its ask lands behind these keys), then the picker
-    // removes the Editor. The flight is outstanding across the removal.
+    // ONE TURN: the manager binds the Editor and the desk and asks for a trial; then the
+    // picker removes the Editor. The flight is outstanding across the removal.
     (void)e.r.bus.pump_pending();
     REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
     CHECK(e.asker->opens.size() == before);
-    // THE COMMITMENT, AND THE END OF THE FLIGHT.
+    CHECK(e.opening().op != 0);
+    // THE END OF THE FLIGHT: refused, in words, with A standing and the removal standing.
     e.settle();
     REQUIRE(e.asker->opens.size() == before + 1);
-    CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
-    CHECK(e.read("path") == b_path);
+    const SourceOpened said = e.asker->opens.back();
+    CHECK_FALSE(said.accepted);
+    CHECK(said.refusal.find("changed while opening") != std::string::npos);
+    CHECK(e.read("path") == a_path);
+    CHECK(e.read("text") == "one\n");
+    CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.bus.joint_pending() == 0);
+    // ...AND THE SAME REQUEST, MADE AGAIN, SEATS THE PANE WITH B.
+    const SourceOpened again = e.ask_open(b_path);
+    CHECK_MESSAGE(again.accepted, again.refusal);
     CHECK(has_pane(e.r.session().setup.active, editor_ref()));
     REQUIRE(e.r.session().panels.has(e.kind));
     CHECK(e.r.session().panels.keyboard == e.kind);
     CHECK(e.doc_row(0) == "two");
 
-    // ...AND AN ANSWER TO A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
-    // one; Loom's provenance says it answers nothing this pane asked.
+    // ...AND A SETTLEMENT FOR A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
+    // one; both owners take it from the manager's office alone.
     const std::string text_before = e.read("text");
-    e.asker_says([](DoorAsker&, loom::Mail& mail) {
+    const std::int64_t op = std::stoll(e.read("opened_by"));
+    e.asker_says([op, a_path](DoorAsker&, loom::Mail& mail) {
         (void)mail.as_role(kDoorAskerOffice)
-            .send_to_role(pane::kEditorPaneRole,
-                          PaneRevealAnswered{pane::kEditorPane, true, std::string()});
+            .send_to_role(pane::kEditorPaneRole, ManagedOpenSettled{op, false, false, "forged", a_path});
+        (void)mail.as_role(kDoorAskerOffice)
+            .send_to_role(kWorkshopProvider, ManagedOpenSettled{op, false, false, "forged", a_path});
     });
     CHECK(e.read("text") == text_before);
     CHECK(e.read("path") == b_path);
+    CHECK(e.r.session().notice.find("forged") == std::string::npos);
 }
 
 TEST_CASE("EDIT-W62: the object document's save belongs to every context that is not the pane's own") {
@@ -2706,5 +3149,1653 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
         e.give_rows(12);
         CHECK(e.read("last_rows") == "12");
         CHECK(std::stoll(e.read("first_row")) <= std::stoll(e.read("caret_row")));
+    }
+}
+
+// ============================================================================
+// THE MANAGED OPENING'S OWN WITNESSES (EXPERIMENTAL, editor-managed-open-slice)
+// ============================================================================
+//
+// Seven observations the founder's guarantees name, each staged with real messages at exact
+// intervals of the nine-delivery conversation (see `EditorRig::pump_until_stage`), over the
+// real loaded Editor image, the real Workshop and the real bus. Test code here controls
+// scheduling and observes; it performs no party's publication, routing or lifecycle duty.
+
+TEST_CASE("EDIT-W70: a managed open has one commitment -- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it") {
+    EditorRig e("edit-commitment");
+    e.open();
+    const std::string a_path = e.open_file("a.cpp", "one\n");
+    put_bytes(e.root / "b.cpp", "two\nthree\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    const std::size_t before = e.asker->opens.size();
+    const std::int64_t committed = e.opening().committed;
+    const std::int64_t a_epoch = std::stoll(e.read("doc_epoch"));
+    e.enqueue_open(b_path);
+    e.pump_until_stage("admit");
+    const std::int64_t op = e.opening().op;
+    REQUIRE(op != 0);
+    // BEFORE THE COMMITMENT: A is the document every reader is answered with, and B is a
+    // candidate nobody can read -- the Editor's claim, its snapshot, a poke, the desk's rows.
+    {
+        const std::optional<EditorDocument> doc = e.document_claim();
+        REQUIRE(doc.has_value());
+        CHECK(doc->path == a_path);
+        CHECK(doc->opened_by != op);
+        const loom::Value snap = e.snapshot();
+        CHECK(snap.get("path")->as_text() == a_path);
+        CHECK(snap.get("text")->as_text() == "one\n");
+        const std::vector<std::string> rows = e.shown();
+        CHECK(std::find(rows.begin(), rows.end(), "one") != rows.end());
+        CHECK(std::find(rows.begin(), rows.end(), "two") == rows.end());
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+              loom::JointState::Preparing);
+        CHECK(e.r.bus.joint_pending() == 1);
+        CHECK(e.opening().stage == "admit");
+        CHECK(e.opening().awaiting == kWorkshopProvider);
+        // ...AND A MAKER CAN READ THAT ON THE DESK: the standing condition names the wait
+        // (the desk's picture is the last progress it was told -- one delivery behind the
+        // manager's own record, which is what "afterwards" means).
+        const Condition* pending =
+            e.r.session().conditions.find("opening:" + std::to_string(op));
+        REQUIRE(pending != nullptr);
+        CHECK(pending->compact.find("opening b.cpp") != std::string::npos);
+        CHECK(pending->detail.find("waiting for zengine.") != std::string::npos);
+    }
+    // A POKE QUEUED NOW IS ANSWERED BEHIND THE DESK'S ADMISSION, before the commitment.
+    const std::uint64_t poked_before = e.enqueue_read("path", e.image);
+    REQUIRE(e.r.bus.pump_pending() >= 1); // the desk admits B's rows and offers
+    CHECK(e.r.bus.joint_retained_bytes() > 0); // two offers stand, bounded
+    // THE COMMITMENT: one delivery of the manager's, and nothing else runs in it.
+    e.r.session().notice.clear();
+    REQUIRE(e.r.bus.pump_pending() >= 1);
+    CHECK(e.answered(poked_before) == a_path); // answered before it: A
+    // PUBLISHED, NOT YET APPLIED (editor-managed-open-slice-corrections): the manager holds
+    // the flight at `apply` until the bus says what the owners' showings came to, and has
+    // established nothing yet -- the claims say B, the application is owed.
+    CHECK(e.opening().committed == committed);
+    CHECK(e.opening().stage == "apply");
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+          loom::JointState::Committed);
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+          loom::JointApplication::Pending);
+    CHECK(e.r.bus.joint_pending() == 0);
+    CHECK(e.r.bus.joint_retained_bytes() == 0); // the offers were released at the commitment
+    // BOTH PUBLISHED CLAIMS SAY B, TOGETHER, AND NEITHER OWNER HAS RUN SINCE.
+    const std::optional<EditorDocument> doc = e.document_claim();
+    REQUIRE(doc.has_value());
+    CHECK(doc->path == b_path);
+    CHECK(doc->opened_by == op);
+    CHECK(doc->doc_epoch == a_epoch + 1);
+    CHECK_FALSE(doc->dirty);
+    const std::optional<PanePresentation> desk = e.presentation_claim();
+    REQUIRE(desk.has_value());
+    CHECK(desk->seated);
+    CHECK(desk->selected);
+    CHECK(desk->keyboard);
+    CHECK(desk->shown_by == op);
+    CHECK(desk->content_generation == doc->doc_epoch);
+    CHECK(e.r.bus.has_unobserved_publication(e.image));
+    CHECK(e.r.bus.has_unobserved_publication(e.r.workshop_id));
+    CHECK(e.asker->opens.size() == before); // the terminal answer FOLLOWS the commitment
+    CHECK(e.r.session().notice.empty());    // ...and so does every sentence about it
+    // THE SNAPSHOT, TAKEN NOW, IS B: the bytes a reload would carry agree with what the bus
+    // published, because the showing happens before the snapshot.
+    const loom::Value snap = e.snapshot();
+    CHECK(snap.get("path")->as_text() == b_path);
+    CHECK(snap.get("text")->as_text() == "two\nthree\n");
+    CHECK(snap.get("opened_by")->as_int() == op);
+    CHECK_FALSE(e.r.bus.has_unobserved_publication(e.image)); // shown, once
+    // THE NEXT TURN: each owner's own picture is the published one -- the manager's `apply`
+    // word is the delivery that shows each its claim before it runs -- and the bus records
+    // both applications. The requester is answered from that record, afterwards.
+    (void)e.r.bus.pump_pending();
+    CHECK(e.r.session().notice == "showing Editor -- it opened b.cpp, and it has the keys");
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.selected == e.kind);
+    CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+    REQUIRE(e.seat() != nullptr);
+    CHECK(e.seat()->content_generation == doc->doc_epoch);
+    CHECK(e.seat()->rows == desk->rows);
+    {
+        // THE ADMITTED ROWS ARE B'S NOW; the painted canvas follows on the next turn, which
+        // is physical display timing and not admitted presentation state.
+        std::vector<std::string> admitted;
+        for (const surface::SurfaceTextRow& row : e.seat()->shown) {
+            admitted.push_back(row.text);
+        }
+        CHECK(std::find(admitted.begin(), admitted.end(), "two") != admitted.end());
+        CHECK(std::find(admitted.begin(), admitted.end(), "one") == admitted.end());
+    }
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+          loom::JointApplication::Applied);
+    CHECK_FALSE(e.r.bus.has_unobserved_publication(e.r.workshop_id));
+    CHECK(e.asker->opens.size() == before); // not yet: the answer follows the application
+    // THE TURN AFTER: the bus's word (`zen.JointApplied`) reaches the manager, which settles
+    // from its own re-read of the record; the turn after that, the requester hears.
+    (void)e.r.bus.pump_pending();
+    CHECK(e.opening().committed == committed + 1);
+    CHECK(e.opening().stage == "idle");
+    CHECK(e.opening().last_outcome == "committed");
+    (void)e.r.bus.pump_pending();
+    REQUIRE(e.asker->opens.size() == before + 1);
+    CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+    CHECK(e.r.session().conditions.find("opening:" + std::to_string(op)) == nullptr);
+    // ...AND A POKE AGREES WITH ALL OF IT.
+    CHECK(e.read("path") == b_path);
+    CHECK(e.read("opened_by") == std::to_string(op));
+    CHECK(e.read("text") == "two\nthree\n");
+    CHECK(e.doc_row(0) == "two");
+    CHECK(e.status().rfind("saved L1:C1/3", 0) == 0);
+}
+
+TEST_CASE("EDIT-W71: legitimate A input while B is being arranged is admitted to A, and B is refused without moving the desk") {
+    SUBCASE("a caret key routed while the desk is admitting B aborts the open at the desk's offer") {
+        // THE ADMISSION GUARD: an input the desk routed to the Editor is admitted A work
+        // whether or not it has been delivered yet, so the desk's claim moves for it and its
+        // offer for the operation is refused -- conservatively, for a key that changed no
+        // byte. The key itself is applied to A, and the desk does not move.
+        EditorRig e("edit-key-while-preparing");
+        e.open();
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.press_doc(0, 0);
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.pump_until_stage("prepare");
+        e.enqueue_key(input::scan::kRight); // routed to the Editor behind its preparation
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("the desk changed while opening Editor") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("caret_byte") == "1"); // the key was applied to A
+        CHECK(e.clean());
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.bus.joint_pending() == 0);
+        CHECK(e.r.session().notice == said.refusal);
+    }
+    SUBCASE("a paste asked while the desk is admitting B lands in A afterwards, and B is refused") {
+        // THE FOUNDER'S NAMED WITNESS: a legitimate clipboard reply for A while B prepares.
+        // The paste is asked by a routed key (the guard above), the platform answers later,
+        // the answer lands in A -- never held, never retargeted -- and B was refused.
+        EditorRig e("edit-paste-while-preparing");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.press_doc(0, 3);
+        e.slow->text = "PASTED";
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.pump_until_stage("prepare");
+        e.enqueue_key(input::scan::kV, input::mod::kCtrl); // the maker's paste, behind the preparation
+        int turns = 0;
+        while (!e.slow->held) { // turn by turn, until the platform holds the pane's ask
+            REQUIRE(e.r.bus.pump_pending() > 0);
+            REQUIRE(++turns < 20);
+        }
+        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("the desk changed while opening Editor") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "onePASTED\n"); // the legitimate edit remains in A
+        CHECK(bytes_of(e.root / "a.cpp") == "one\n");
+        CHECK(e.dirty());
+        CHECK(has_pane(e.r.session().setup.active, editor_ref()));
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        // ...AND ASKED AGAIN, B IS REFUSED FOR THE PASTE, WHICH IS THE FLOOR.
+        const SourceOpened again = e.ask_open(b_path);
+        CHECK_FALSE(again.accepted);
+        CHECK(again.refusal.find("unsaved changes") != std::string::npos);
+    }
+    SUBCASE("an edit that leaves A clean still moves its claim, and the Editor's own offer is refused for it") {
+        // THE EDITOR'S SIDE OF THE SAME LAW: a typed byte and its undo leave A exactly as
+        // judged, but the document's revision moved after the operation bound it, so the
+        // Editor's offer is refused by the bus and the Editor answers in words.
+        EditorRig e("edit-clean-edit-while-preparing");
+        e.open();
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.press_doc(0, 3);
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
+        (void)e.r.bus.pump_pending();          // the manager binds A's claim as it is, asks the desk
+        e.enqueue_text("Z");
+        e.enqueue_key(input::scan::kZ, input::mod::kCtrl);
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("the document changed while opening") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "one\n");
+        CHECK(e.clean());
+        CHECK(e.r.bus.joint_pending() == 0);
+    }
+}
+
+TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three producers, are admitted in order with nothing held and nothing dropped") {
+    // THE DEFECT THE INVESTIGATION FOUND: the built-in held input while an open was in flight,
+    // and its hold had a cap (`kMaxHeldInput`, 256 -- the quit's, borrowed), past which the
+    // 257th event was dropped. The managed open holds nothing: every event is admitted to A
+    // as it arrives, in order, and the open is refused for the work -- no larger cap is a
+    // repair, and none is here.
+    EditorRig e("edit-many-events");
+    e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+    const std::string a_path = e.open_file("a.cpp", "\n");
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    e.slow->text = "|P|";
+    const EditorRig::Aim at = e.aim(); // resolved before anything is queued (VD-27)
+    const std::size_t before = e.asker->opens.size();
+    e.enqueue_open(b_path);
+    e.pump_until_stage("prepare");
+    // THREE PRODUCERS, ONE BURST, QUEUED BEHIND THE EDITOR'S PREPARATION: the pointer (a press
+    // that places the caret), the keyboard (257 typed characters), and the platform (the
+    // answer to the paste the last key asks for).
+    e.enqueue_press_doc(at, 0, 0);
+    std::string typed;
+    for (int i = 0; i < 257; ++i) {
+        const char c = static_cast<char>('a' + (i % 26));
+        typed.push_back(c);
+        e.enqueue_text(std::string(1, c));
+    }
+    e.enqueue_key(input::scan::kV, input::mod::kCtrl);
+    // DELAYED DELIVERY: one turn at a time, the answer let go the turn after the platform
+    // holds the pane's ask.
+    int turns = 0;
+    bool answered = false;
+    for (;;) {
+        const std::size_t delivered = e.r.bus.pump_pending();
+        ++turns;
+        REQUIRE(turns < 4000);
+        if (!answered && e.slow->held) {
+            answered = true;
+            (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}),
+                                                        loom::WeaveId{}, loom::WeaveId{}, 0));
+            continue;
+        }
+        if (delivered == 0) {
+            break;
+        }
+    }
+    CHECK(answered);
+    CHECK(turns >= 6);
+    // EVERY EVENT LANDED, IN A, IN ORDER: the press placed the caret, the run was typed, the
+    // paste followed it. 257 typed bytes, one more than the old hold could carry.
+    CHECK(e.read("path") == a_path);
+    CHECK(e.read("text") == typed + "|P|\n");
+    CHECK(typed.size() == 257);
+    // THE OPEN WAS REFUSED, in words, and the desk did not move for it.
+    REQUIRE(e.asker->opens.size() == before + 1);
+    CHECK_FALSE(e.asker->opens.back().accepted);
+    CHECK(e.asker->opens.back().refusal.find("changed while opening") != std::string::npos);
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.selected == e.kind);
+    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.bus.joint_pending() == 0);
+    // ...AND UNRELATED PANE INTERACTION PROGRESSES: the picker seats the Pane Manager.
+    e.unfocus();
+    e.r.pick(ref_of(panel::kPaneEditor));
+    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    CHECK(e.read("text") == typed + "|P|\n"); // ...and A is untouched by it
+}
+
+TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives") {
+    // RETARGETED (editor-managed-open-slice-corrections): the old door relays to the same
+    // manager, so a competing request there is a newer intent at the manager -- it supersedes
+    // B (the bus releases B's offers, B's requester is told which request did it) and C
+    // opens through the one commitment. The Step 1 slice's document-only install, which won
+    // by racing the manager, is gone.
+    EditorRig e("edit-competing-open");
+    e.open();
+    const std::string a_path = e.open_file("a.cpp", "one\n");
+    put_bytes(e.root / "b.cpp", "two\n");
+    put_bytes(e.root / "c.cpp", "three\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    const std::string c_path = spelled(e.root / "c.cpp");
+    const std::size_t before = e.asker->opens.size();
+    const std::int64_t committed = e.opening().committed;
+    e.enqueue_open(b_path);
+    e.pump_until_stage("prepare"); // the Editor is about to prepare B
+    // THE COMPETING INTENT: the old door, for C, queued behind the preparation.
+    e.asker->next = [c_path](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kEditorRole, OpenSourceRequested{c_path});
+    };
+    (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    e.settle();
+    // TWO ANSWERS: C's open took; B's was superseded by it, naming C.
+    REQUIRE(e.asker->opens.size() == before + 2);
+    int accepted = 0;
+    std::string refusal;
+    for (std::size_t i = before; i < e.asker->opens.size(); ++i) {
+        if (e.asker->opens[i].accepted) {
+            ++accepted;
+        } else {
+            refusal = e.asker->opens[i].refusal;
+        }
+    }
+    CHECK(accepted == 1);
+    CHECK(refusal.find("superseded") != std::string::npos);
+    CHECK(refusal.find("c.cpp") != std::string::npos);
+    CHECK(e.read("path") == c_path);
+    CHECK(e.doc_row(0) == "three");
+    CHECK(e.r.bus.joint_pending() == 0);
+    CHECK(e.opening().committed == committed + 1);
+    CHECK(e.opening().last_outcome == "committed");
+    // A LATER, INDEPENDENT SETUP CHANGE SURVIVES: the Pane Manager is seated; B, asked again,
+    // opens beside it and undoes nothing.
+    e.unfocus();
+    e.r.pick(ref_of(panel::kPaneEditor));
+    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    const std::size_t panes = e.r.session().setup.active.panes.size();
+    const SourceOpened again = e.ask_open(b_path);
+    CHECK_MESSAGE(again.accepted, again.refusal);
+    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    CHECK(e.r.session().setup.active.panes.size() == panes);
+    CHECK(e.doc_row(0) == "two");
+}
+
+TEST_CASE("EDIT-W74: a real reload or removal of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and reclaims what the operation held") {
+    SUBCASE("reload after the preparation: the bus ends the operation, the new incarnation holds A, and a fresh open takes") {
+        EditorRig e("edit-reload-prepared");
+        e.open();
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.pump_until_stage("prepare");
+        const std::int64_t op = e.opening().op;
+        REQUIRE(op != 0);
+        e.enqueue_reload(); // queued behind the Editor's preparation
+        // ONE TURN: the Editor prepares B and offers; then the maker's rebuilt image replaces
+        // it in place -- same id, new incarnation, the document carried, no candidate.
+        (void)e.r.bus.pump_pending();
+        REQUIRE_MESSAGE(e.r.load_refusals.empty(),
+                        "the reload was refused: ", e.r.load_refusals.back());
+        CHECK(e.r.kernel.weave_id(pane::kEditorPaneStem) == e.image);
+        const loom::JointStatus status = e.r.bus.joint_status(static_cast<std::uint64_t>(op));
+        CHECK(status.state == loom::JointState::Aborted);
+        CHECK(status.reason == loom::JointRefusal::ParticipantChanged);
+        CHECK(e.r.bus.joint_retained_bytes() == 0); // the offer went with the incarnation
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("replaced while opening") != std::string::npos);
+        CHECK(e.opening().stage == "idle");
+        // THE NEW INCARNATION HOLDS A -- no candidate rode -- and the desk is as it was.
+        REQUIRE(e.row() != nullptr);
+        e.kind = e.row()->kind;
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "one\n");
+        CHECK(e.r.session().panels.has(e.kind));
+        // ...AND A FRESH OPEN BINDS THE NEW INCARNATION AND TAKES.
+        const SourceOpened again = e.ask_open(b_path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.doc_row(0) == "two");
+        CHECK(e.read("opened_by") != "0");
+    }
+    SUBCASE("reload between the commitment and the owners' showing: the snapshot carries the published document") {
+        EditorRig e("edit-reload-committed");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.pump_until_stage("admit");
+        (void)e.r.bus.pump_pending(); // the desk admits and offers
+        const std::int64_t op = e.opening().op;
+        e.enqueue_reload(); // queued behind the desk's admission answer
+        // ONE TURN: the manager commits; then the reload snapshots the Editor -- which is
+        // shown its published claim FIRST, so the snapshot carries B -- and revives the new
+        // incarnation from it.
+        (void)e.r.bus.pump_pending();
+        REQUIRE_MESSAGE(e.r.load_refusals.empty(),
+                        "the reload was refused: ", e.r.load_refusals.back());
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+              loom::JointState::Committed);
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+        REQUIRE(e.row() != nullptr);
+        e.kind = e.row()->kind;
+        CHECK(e.read("path") == b_path);
+        CHECK(e.read("text") == "two\n");
+        CHECK(e.read("opened_by") == std::to_string(op));
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+        CHECK(e.doc_row(0) == "two");
+    }
+    SUBCASE("removal after the preparation: the operation ends, the requester is told, the room's claims are reclaimed, and a later open is refused in words until an Editor is loaded again") {
+        EditorRig e("edit-unload-prepared");
+        e.open();
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.pump_until_stage("prepare");
+        const std::int64_t op = e.opening().op;
+        const std::size_t claims_before = e.r.bus.retained_claim_count();
+        e.r.enqueue_unload(pane::kEditorPaneStem); // queued behind the Editor's preparation
+        (void)e.r.bus.pump_pending();               // prepared, offered, then gone
+        REQUIRE_MESSAGE(e.r.load_refusals.empty(),
+                        "the unload was refused: ", e.r.load_refusals.back());
+        CHECK_FALSE(e.r.kernel.is_loaded(pane::kEditorPaneStem));
+        const loom::JointStatus status = e.r.bus.joint_status(static_cast<std::uint64_t>(op));
+        CHECK(status.state == loom::JointState::Aborted);
+        CHECK(status.reason == loom::JointRefusal::ParticipantChanged);
+        CHECK(e.r.bus.joint_retained_bytes() == 0);
+        CHECK(e.r.bus.retained_claim_count() < claims_before); // the removed Editor's claim is gone
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_FALSE(e.asker->opens.back().accepted);
+        CHECK(e.asker->opens.back().refusal.find("replaced while opening") != std::string::npos);
+        CHECK(e.opening().stage == "idle");
+        // NO EDITOR: the next request is refused at once, in words; nothing is pending.
+        const SourceOpened nobody = e.ask_open(b_path);
+        CHECK_FALSE(nobody.accepted);
+        CHECK(nobody.refusal.find("no Editor") != std::string::npos);
+        CHECK(e.opening().stage == "idle");
+        CHECK(e.r.bus.joint_pending() == 0);
+        // ...AND WITH THE IMAGE LOADED AGAIN, THE SAME REQUEST TAKES.
+        load::LoadPlan plan;
+        load::ArtifactIntent seat;
+        seat.stem = pane::kEditorPaneStem;
+        seat.weave = load::WeaveIntent{pane::kEditorPaneRole};
+        plan.artifacts.push_back(seat);
+        const load::Executed done = e.r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
+        e.image = e.r.kernel.weave_id(pane::kEditorPaneStem);
+        REQUIRE(e.image.value != 0);
+        e.settle();
+        REQUIRE(e.row() != nullptr);
+        e.kind = e.row()->kind;
+        const SourceOpened again = e.ask_open(b_path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.read("path") == b_path);
+        CHECK(e.doc_row(0) == "two");
+        (void)a_path;
+    }
+}
+
+TEST_CASE("EDIT-W75: a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides anything") {
+    SUBCASE("a silent Editor leaves the open pending -- bounded, attributable, superseded by the next request -- and nothing else is blocked") {
+        EditorRig e("edit-silent-prep");
+        e.open_with_stand_in(/*throws=*/false, /*deaf=*/false);
+        put_bytes(e.root / "b.cpp", "two\n");
+        put_bytes(e.root / "c.cpp", "three\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::string c_path = spelled(e.root / "c.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.settle();
+        CHECK(e.asker->opens.size() == before); // no answer: not a refusal, not a success
+        CHECK(e.broken->asked == 1);
+        // PENDING, AND IT SAYS SO -- the manager's own record, read the way a probe reads it.
+        CHECK(e.read_opening("stage") == "prepare");
+        CHECK(e.read_opening("awaiting") == kEditorRole);
+        CHECK(e.read_opening("path") == b_path);
+        CHECK(e.read_opening("last_outcome").empty());
+        CHECK(e.read_opening("attempt") != "0");
+        const std::string op = e.read_opening("op");
+        CHECK(op != "0");
+        CHECK(e.r.bus.joint_pending() == 1);
+        // ...AND ON THE DESK: a standing condition names the office it waits on.
+        const Condition* pending = e.r.session().conditions.find("opening:" + op);
+        REQUIRE(pending != nullptr);
+        CHECK(pending->detail.find(kEditorRole) != std::string::npos);
+        CHECK(pending->detail.find("prepare") != std::string::npos);
+        // UNRELATED WORK IS NOT BLOCKED: the picker seats the Pane Manager.
+        e.r.pick(ref_of(panel::kPaneEditor));
+        CHECK(e.r.session().panels.has(panel::kPaneEditor));
+        // A NEW REQUEST SUPERSEDES THE PENDING ONE: the first requester is told; the second is
+        // pending in turn; nothing was ever fabricated.
+        e.enqueue_open(c_path);
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_FALSE(e.asker->opens.back().accepted);
+        CHECK(e.asker->opens.back().refusal.find("superseded") != std::string::npos);
+        CHECK(e.read_opening("path") == c_path);
+        CHECK(e.read_opening("stage") == "prepare");
+        CHECK(e.r.bus.joint_pending() == 1);
+        CHECK(e.read_opening("committed") == "0");
+        CHECK(e.broken->settled == 1); // the superseded one was ended for its owner too
+    }
+    SUBCASE("a preparation that fails abnormally leaves the open pending the same way, and the failure is Loom's to surface") {
+        EditorRig e("edit-failing-prep");
+        e.open_with_stand_in(/*throws=*/true, /*deaf=*/false);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        // THE THROW SURFACES AT THE HOST'S LOOP -- caught, made a fact, rethrown (MSG-10) --
+        // and the bus stays consistent: the turns after it deliver.
+        bool threw = false;
+        for (int i = 0; i < 12; ++i) {
+            try {
+                if (e.r.bus.pump_pending() == 0) {
+                    break;
+                }
+            } catch (const std::exception&) {
+                threw = true;
+            }
+        }
+        CHECK(threw);
+        CHECK(e.broken->asked == 1);
+        CHECK(e.asker->opens.size() == before);
+        CHECK(e.read_opening("stage") == "prepare");
+        CHECK(e.read_opening("awaiting") == kEditorRole);
+        CHECK(e.r.bus.joint_pending() == 1);
+        CHECK(e.read_opening("committed") == "0");
+    }
+    SUBCASE("an Editor that does not accept the ask is refused at dispatch, and the refusal is attributed to the attempt") {
+        EditorRig e("edit-deaf-prep");
+        e.open_with_stand_in(/*throws=*/false, /*deaf=*/true);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("could not be") != std::string::npos);
+        MESSAGE("attribution: ", said.refusal);
+        CHECK(e.read_opening("stage") == "idle");
+        CHECK(e.read_opening("last_outcome") == "refused");
+        CHECK(e.r.bus.joint_pending() == 0);
+    }
+    SUBCASE("a requester replaced between its ask and the outcome loses only its answer: the open stands, counted as heard by nobody") {
+        EditorRig e("edit-lost-answer");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        put_bytes(e.root / "c.cpp", "three\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::int64_t committed = e.opening().committed;
+        e.enqueue_open(b_path);
+        e.pump_until_stage("admit");
+        // THE REQUESTER LEAVES: its weave is removed from the bus (a reload of Files, an unload).
+        (void)e.r.bus.unregister_weave(e.asker->id);
+        e.asker = nullptr;
+        e.settle();
+        CHECK(e.opening().committed == committed + 1);
+        CHECK(e.opening().answers_lost == 1);
+        CHECK(e.opening().last_outcome == "committed, answer lost");
+        CHECK(e.read("path") == b_path);
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.doc_row(0) == "two");
+        // ...AND THE NEXT REQUESTER IS ANSWERED AS EVER.
+        e.mount_asker();
+        const SourceOpened next = e.ask_open(spelled(e.root / "c.cpp"));
+        CHECK_MESSAGE(next.accepted, next.refusal);
+        CHECK(e.doc_row(0) == "three");
+    }
+    SUBCASE("a forged authority begins, commits and cancels nothing; a forged answer or refusal decides nothing") {
+        EditorRig e("edit-forged-authority");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        const std::int64_t committed = e.opening().committed;
+        e.enqueue_open(b_path);
+        e.pump_until_stage("admit");
+        const std::uint64_t op = static_cast<std::uint64_t>(e.opening().op);
+        const std::int64_t attempt = e.opening().attempt;
+        REQUIRE(op != 0);
+        // A STRANGER WITH A DEFAULT-CONSTRUCTED AUTHORITY: every verb is refused by name...
+        loom::JointBegin begun;
+        loom::JointResult committed_by_stranger;
+        loom::JointResult cancelled_by_stranger;
+        e.asker->next = [&](DoorAsker&, loom::Mail& mail) {
+            begun = mail.begin_joint(
+                loom::JointAuthority{},
+                {loom::claim_key<EditorDocument>(std::string_view(kEditorRole)),
+                 loom::claim_key<PanePresentation>(std::string_view(kWorkshopProvider))});
+            committed_by_stranger = mail.commit_joint(loom::JointAuthority{}, op);
+            cancelled_by_stranger = mail.cancel_joint(loom::JointAuthority{}, op);
+            // ...AND FORGED ANSWERS: an admission with the right operation number but no ask
+            // behind it, and a dispatch refusal with the right attempt spelled as speech.
+            (void)mail.as_role(kDoorAskerOffice)
+                .send_to_role(kOpeningRole, PresentationAdmitted{static_cast<std::int64_t>(op),
+                                                                 false, "forged"});
+            loom::DispatchRefused forged;
+            forged.attempt = std::to_string(attempt);
+            forged.role = kWorkshopProvider;
+            forged.shape = PresentationAdmitRequested::zen_name;
+            forged.version = PresentationAdmitRequested::zen_version;
+            forged.reason = "NoSuchTarget";
+            (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
+        };
+        (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                      loom::WeaveId{}, 0));
+        (void)e.r.bus.pump_pending(); // the desk admits; the stranger speaks behind it
+        CHECK_FALSE(begun.ok);
+        CHECK(begun.why == loom::JointRefusal::ForeignAuthority);
+        CHECK_FALSE(committed_by_stranger.ok);
+        CHECK(committed_by_stranger.why == loom::JointRefusal::ForeignAuthority);
+        CHECK_FALSE(cancelled_by_stranger.ok);
+        CHECK(e.r.bus.joint_status(op).state == loom::JointState::Preparing);
+        // ...AND THE FLIGHT COMPLETES AS IF NONE OF IT WAS SAID.
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+        CHECK(e.opening().committed == committed + 1);
+        CHECK(e.opening().refused == 0);
+        CHECK(e.read("path") == b_path);
+        CHECK(e.doc_row(0) == "two");
+    }
+}
+
+TEST_CASE("EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload carries none, and a fresh open is eligible after each") {
+    SUBCASE("after an edit: the answer is refused in words, the flight is cleared, and the open takes") {
+        EditorRig e("edit-stale-paste");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.press_doc(0, 3);
+        e.slow->text = "PASTED";
+        e.key(input::scan::kV, input::mod::kCtrl);
+        REQUIRE(e.slow->held);
+        e.key(input::scan::kLeft); // the source moved under the ask
+        CHECK_FALSE(e.ask_open(b_path).accepted); // still arriving: refused in words
+        e.answer_now();
+        CHECK(e.read("text") == "one\n");
+        CHECK(e.says("after the source moved")); // the answer's own fate, said
+        CHECK(e.clean());
+        // THE BOOKKEEPING IS CLEARED WITH THE ANSWER, before its payload was judged: the same
+        // request is eligible at once, and the exit is not refused for a paste.
+        const SourceOpened opened = e.ask_open(b_path);
+        CHECK_MESSAGE(opened.accepted, opened.refusal);
+        CHECK(e.doc_row(0) == "two");
+        CHECK(e.quit_by_key());
+    }
+    SUBCASE("across a reload: the new incarnation carries no paste in flight, the late answer reaches no incarnation that asked, and the open takes") {
+        EditorRig e("edit-paste-reload");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        const std::string a_path = e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        e.press_doc(0, 3);
+        e.slow->text = "PASTED";
+        e.key(input::scan::kV, input::mod::kCtrl);
+        REQUIRE(e.slow->held);
+        CHECK_FALSE(e.ask_open(b_path).accepted); // waits for the maker's paste
+        e.enqueue_reload();
+        e.settle();
+        REQUIRE_MESSAGE(e.r.load_refusals.empty(),
+                        "the reload was refused: ", e.r.load_refusals.back());
+        REQUIRE(e.row() != nullptr);
+        e.kind = e.row()->kind;
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "one\n");
+        // THE LATE ANSWER REACHES NO INCARNATION THAT ASKED: nothing is pasted, nothing said.
+        e.answer_now();
+        CHECK_FALSE(e.slow->held);
+        CHECK(e.read("text") == "one\n");
+        CHECK_FALSE(e.says("pasted"));
+        // ...AND THE OPEN IS ELIGIBLE: no orphan flag refuses it.
+        const SourceOpened opened = e.ask_open(b_path);
+        CHECK_MESSAGE(opened.accepted, opened.refusal);
+        CHECK(e.doc_row(0) == "two");
+    }
+}
+
+// ============================================================================
+// MEASUREMENT (EXPERIMENTAL, editor-managed-open-slice): the cost of the changed paths
+// ============================================================================
+// THE CORRECTIONS (editor-managed-open-slice-corrections): the old door's promise, and a
+// loaded owner that cannot apply what was published
+// ============================================================================
+
+TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right") {
+    SUBCASE("a successful open: seated, selected, keyed, and answered by Loom's own word to the asker's ask") {
+        EditorRig e("edit-old-door-opens");
+        e.open(160, 48, /*pick_it=*/false);
+        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        const SourceOpened said = e.ask_open_direct(a_path);
+        CHECK_MESSAGE(said.accepted, said.refusal);
+        // THE ANSWER'S PROVENANCE IS THE REQUESTER'S OWN: the Editor spent the requester's
+        // kept right, so Loom says this answers the asker's ask -- not the Editor's relay.
+        REQUIRE_FALSE(e.asker->opens_authentic.empty());
+        CHECK(e.asker->opens_authentic.back());
+        // THE WHOLE PROMISE: the document, and the presentation, and the keys.
+        REQUIRE(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panels.selected == e.kind);
+        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
+        CHECK(e.doc_row(0) == "one");
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("opened_by") != "0"); // installed by the managed operation, not alone
+        // THE MANAGER'S CONVERSATION WAS THE EDITOR'S, NOT THE ASKER'S: its requester of
+        // record is the Editor's weave, and the flight settled applied.
+        CHECK(e.opening().requester == static_cast<std::int64_t>(e.image.value));
+        CHECK(e.opening().committed == 1);
+        CHECK(e.opening().last_outcome == "committed");
+    }
+    SUBCASE("no room refuses the open in the picker's words, and nothing is authored or moved") {
+        EditorRig e("edit-old-door-noroom");
+        e.open(160, kMinScreen.h, /*pick_it=*/false);
+        put_bytes(e.root / "first.cpp", "first\n");
+        REQUIRE(e.ask_open_direct(spelled(e.root / "first.cpp")).accepted);
+        REQUIRE(e.r.session().panels.has(e.kind));
+        e.unfocus();
+        e.r.pick(editor_ref()); // the picker's other direction: it removes the open pane
+        e.r.pick(ref_of(panel::kPaneEditor));
+        REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        put_bytes(e.root / "a.cpp", "held\n");
+        const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
+                              "then p again");
+        CHECK(e.asker->opens_authentic.back());
+        CHECK(e.r.session().notice == said.refusal);
+        CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+        CHECK(e.read("path").find("first.cpp") != std::string::npos);
+        CHECK(e.read("text") == "first\n");
+    }
+    SUBCASE("a dirty document refuses a different source, in the judge's words") {
+        EditorRig e("edit-old-door-dirty");
+        e.open();
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        REQUIRE(e.ask_open_direct(a_path).accepted);
+        e.press_doc(0, 3);
+        e.type("Z");
+        REQUIRE(e.dirty());
+        put_bytes(e.root / "b.cpp", "two\n");
+        const SourceOpened said = e.ask_open_direct(spelled(e.root / "b.cpp"));
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("unsaved changes") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "oneZ\n");
+        CHECK(e.r.session().panels.keyboard == e.kind);
+    }
+    SUBCASE("a paste still arriving refuses the open, and the answer lands in A") {
+        EditorRig e("edit-old-door-paste");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        REQUIRE(e.ask_open_direct(a_path).accepted);
+        put_bytes(e.root / "b.cpp", "bee\n");
+        e.press_doc(0, 3);
+        e.slow->text = "STRAY";
+        e.key(input::scan::kV, input::mod::kCtrl);
+        REQUIRE(e.slow->held);
+        const SourceOpened waited = e.ask_open_direct(spelled(e.root / "b.cpp"));
+        CHECK_FALSE(waited.accepted);
+        CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
+        CHECK(e.read("path") == a_path);
+        e.answer_now();
+        CHECK(e.doc_row(0) == "oneSTRAY");
+        CHECK(e.dirty());
+    }
+    SUBCASE("no opening office is held: the relay's attempt is refused at dispatch, and the requester is told by that attempt -- never a document-only success") {
+        EditorRig e("edit-old-door-no-manager");
+        e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/false, EditorRig::Project::kDoor,
+               /*with_manager=*/false);
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string notice = e.r.session().notice;
+        const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("could not be reached") != std::string::npos);
+        CHECK(said.refusal.find("NoSuchTarget") != std::string::npos);
+        CHECK(e.asker->opens_authentic.back());
+        CHECK(e.no_source()); // nothing was installed in the presentation's absence
+        CHECK(e.r.session().notice == notice);
+    }
+    SUBCASE("a relay that cannot be authored is refused at once, in words: nothing was queued") {
+        // THE ONE IMMEDIATE ENQUEUE FAILURE THE RELAY CAN MEET: the Editor speaks to the
+        // opening office AS its own office, and an image loaded under a different role cannot
+        // author that -- Loom refuses the authorship at the enqueue (RoleAuthorshipDenied),
+        // no attempt exists, and the Editor answers the requester now rather than installing
+        // a document in the presentation's place.
+        EditorRig e("edit-old-door-unauthored");
+        e.open_under_role("zengine.editor-elsewhere");
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.asker_says([&e, a_path](DoorAsker&, loom::Mail& mail) {
+            (void)mail.as_role(kDoorAskerOffice).send(e.image, OpenSourceRequested{a_path});
+        });
+        REQUIRE(e.asker->opens.size() == before + 1);
+        const SourceOpened said = e.asker->opens.back();
+        CHECK_FALSE(said.accepted);
+        CHECK(said.refusal.find("nothing was queued") != std::string::npos);
+        CHECK(e.asker->opens_authentic.back());
+        CHECK(e.read("path").empty());
+        CHECK(e.opening().stage == "idle"); // the manager never heard of it
+        CHECK(e.opening().refused == 0);
+    }
+    SUBCASE("the opening office may not ask the old door: the loop is refused by name") {
+        EditorRig e("edit-old-door-loop");
+        e.open();
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        // A stranger holding the opening office's spelling cannot author as it; the real
+        // manager can, and the Editor refuses exactly that authorship at its public door.
+        // Said through the manager's own office by a seat that holds it in the manager's
+        // place: the manager is removed, and the asker takes the role.
+        REQUIRE(e.r.bus.unregister_weave(e.r.opening_id) != nullptr);
+        e.r.opening = nullptr;
+        auto seat = std::make_unique<DoorAsker>(std::string(kOpeningRole));
+        DoorAsker* opening = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
+        const loom::WeaveId id =
+            e.r.bus.register_weave(std::move(seat), std::move(grant), std::string(kOpeningRole));
+        opening->zen_set_self(id);
+        opening->id = id;
+        opening->next = [a_path](DoorAsker& a, loom::Mail& mail) {
+            a.ask(mail, kEditorRole, OpenSourceRequested{a_path});
+        };
+        (void)e.r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                             loom::WeaveId{}, 0));
+        e.settle();
+        REQUIRE(opening->opens.size() == 1);
+        CHECK_FALSE(opening->opens.back().accepted);
+        CHECK(opening->opens.back().refusal.find("nothing was relayed") != std::string::npos);
+        CHECK(e.read("path").empty());
+    }
+    SUBCASE("the manager is removed while a relay is outstanding: no answer is invented, and a new manager serves the next ask") {
+        EditorRig e("edit-old-door-manager-gone");
+        e.open();
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        REQUIRE(e.ask_open_direct(a_path).accepted);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open_direct(b_path);
+        e.pump_until_stage("prepare");
+        REQUIRE(e.r.bus.unregister_weave(e.r.opening_id) != nullptr);
+        e.r.opening = nullptr;
+        e.settle();
+        // SILENCE, TRUTHFULLY: the party that owed the relay's answer is gone, its right went
+        // with it, and the Editor fabricates nothing for the requester.
+        CHECK(e.asker->opens.size() == before);
+        CHECK(e.read("path") == a_path);
+        CHECK(e.doc_row(0) == "one");
+        // A NEW MANAGER, AND THE NEXT ASK AT THE OLD DOOR TAKES.
+        e.r.mount_opening();
+        const SourceOpened again = e.ask_open_direct(b_path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.doc_row(0) == "two");
+        CHECK(e.asker->opens_authentic.back());
+    }
+    SUBCASE("the Editor is reloaded while relaying: the old incarnation's rights die with it, the manager counts the lost answer, and the successor serves the next ask") {
+        EditorRig e("edit-old-door-editor-reloaded");
+        e.open();
+        put_bytes(e.root / "a.cpp", "one\n");
+        const std::string a_path = spelled(e.root / "a.cpp");
+        REQUIRE(e.ask_open_direct(a_path).accepted);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open_direct(b_path);
+        e.pump_until_stage("prepare");
+        e.enqueue_reload(); // queued behind the Editor's preparation
+        (void)e.r.bus.pump_pending();
+        REQUIRE_MESSAGE(e.r.load_refusals.empty(),
+                        "the reload was refused: ", e.r.load_refusals.back());
+        e.settle();
+        // THE MANAGER'S ANSWER TO THE RELAY REACHED NO INCARNATION THAT ASKED: counted as a
+        // lost answer at the manager, and the requester heard nothing false.
+        CHECK(e.asker->opens.size() == before);
+        CHECK(e.opening().answers_lost == 1);
+        CHECK(e.opening().last_outcome.find("answer lost") != std::string::npos);
+        REQUIRE(e.row() != nullptr);
+        e.kind = e.row()->kind;
+        CHECK(e.read("path") == a_path);
+        CHECK(e.read("text") == "one\n");
+        const SourceOpened again = e.ask_open_direct(b_path);
+        CHECK_MESSAGE(again.accepted, again.refusal);
+        CHECK(e.doc_row(0) == "two");
+    }
+}
+
+TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is held, named, and reloaded") {
+    EditorRig e("edit-loaded-failing-owner");
+    e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
+           /*with_manager=*/true, "zengine-failing-editor");
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    // ARMED THROUGH THE SUBSTRATE'S OWN WRITE DOOR: the stand-in's next showing will fail.
+    (void)e.r.bus.send(e.image, loom::Message(loom::to_value(loom::PokeWrite{"fail_next", "1"}),
+                                              loom::WeaveId{}, e.poke_id, ++e.poke_corr));
+    e.settle();
+    REQUIRE(e.read("fail_next") == "1");
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    const std::size_t before = e.asker->opens.size();
+    e.enqueue_open(b_path);
+    e.pump_until_stage("apply");
+    const std::int64_t op = e.opening().op;
+    REQUIRE(op != 0);
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state == loom::JointState::Committed);
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+          loom::JointApplication::Pending);
+    e.settle();
+    // THE TERMINAL ANSWER IS TRUTHFUL: published, not applied, naming the owner that failed.
+    REQUIRE(e.asker->opens.size() == before + 1);
+    const SourceOpened said = e.asker->opens.back();
+    CHECK_FALSE(said.accepted);
+    CHECK(said.refusal.find("could not apply") != std::string::npos);
+    CHECK(said.refusal.find(kEditorRole) != std::string::npos);
+    CHECK(said.refusal.find("published") != std::string::npos);
+    CHECK(e.opening().last_outcome == "committed, application failed");
+    CHECK(e.opening().unapplied == 1);
+    CHECK(e.opening().committed == 0);
+    CHECK(e.opening().stage == "idle");
+    CHECK(e.opening().last_refusal == said.refusal);
+    // THE BUS'S RECORD: this participant, this operation, held.
+    {
+        const loom::JointStatus status = e.r.bus.joint_status(static_cast<std::uint64_t>(op));
+        CHECK(status.state == loom::JointState::Committed);
+        CHECK(status.application == loom::JointApplication::Failed);
+        CHECK(status.failed == e.image);
+        CHECK(status.failed_role == kEditorRole);
+    }
+    CHECK(e.r.bus.has_failed_application(e.image));
+    // THE CLAIMS SAY B -- the commitment stands -- and the desk applied its own half: seated,
+    // keyed, with the words a maker needs.
+    {
+        const std::optional<EditorDocument> doc = e.document_claim();
+        REQUIRE(doc.has_value());
+        CHECK(doc->path == b_path);
+        CHECK(doc->opened_by == op);
+    }
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().notice.find("could not apply") != std::string::npos);
+    CHECK(e.r.session().conditions.find("opening:" + std::to_string(op)) == nullptr);
+    // THE HELD OWNER: a delivery to it is refused by exact attempt, and nothing is retried
+    // -- the diagnostic read, which runs nothing, shows the one attempt and no application.
+    const loom::Ticket poke = e.r.bus.send(
+        e.image, loom::Message(loom::to_value(loom::PokeRead{"applied"}), loom::WeaveId{},
+                               e.poke_id, ++e.poke_corr));
+    e.settle();
+    CHECK(e.r.bus.outcome(poke).disposition == loom::Disposition::Refused);
+    CHECK(e.r.bus.outcome(poke).refusal.reason == loom::RefusalReason::ApplicationFailed);
+    {
+        const std::shared_ptr<const loom::Schema> shape =
+            e.r.bus.resolve_schema("FailingEditorState", 1);
+        REQUIRE(shape != nullptr);
+        const loom::Admission a = loom::admit(
+            loom::parse(e.r.bus.snapshot_bytes(e.image, loom::Switchboard::SnapshotAccess::Diagnostic)),
+            shape);
+        REQUIRE(a.ok());
+        CHECK(a.value().get("published_seen")->as_int() == 1);
+        CHECK(a.value().get("applied")->as_int() == 0);
+        CHECK(a.value().get("fail_next")->as_int() == 0);
+        CHECK(e.r.bus.has_failed_application(e.image)); // the read changed nothing
+    }
+    // UNRELATED WORK GOES ON: the picker seats the Pane Manager.
+    e.unfocus();
+    e.r.pick(ref_of(panel::kPaneEditor));
+    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    // THE REPAIR: a real reload through the control door. The successor is shown the
+    // published value at its first delivery (its own activation), applies it, and the bus
+    // tells the manager -- which re-reads the record it RETAINED for exactly this late word
+    // (editor-managed-open-slice-corrections-2), records it, and releases the record.
+    CHECK(e.opening().retained == op);
+    e.enqueue_reload("zengine-failing-editor");
+    e.settle();
+    REQUIRE_MESSAGE(e.r.load_refusals.empty(), "the reload was refused: ", e.r.load_refusals.back());
+    CHECK(e.r.kernel.weave_id("zengine-failing-editor") == e.image);
+    CHECK_FALSE(e.r.bus.has_failed_application(e.image));
+    CHECK(e.read("applied") == "1");
+    CHECK(e.read("published_seen") == "2"); // the predecessor's attempt rode; the successor's applied
+    CHECK(e.read("path") == b_path);
+    CHECK(e.opening().last_outcome == "committed, applied after repair");
+    CHECK(e.opening().retained == 0);
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
+          loom::JointState::Missing); // consumed for the late word, then released
+    CHECK(e.r.bus.joint_records() == 0);
+}
+
+// ============================================================================
+//
+// TEST-LOCAL COORDINATORS (editor-managed-open-slice-corrections-2). Two instruments for two
+// questions the real manager cannot be made to ask: what the REAL desk answers when it is
+// shown a presentation it holds no trial for, and whether the real manager's outcome survives
+// an UNRELATED coordination begun on the same bus before its notice was consumed. Neither is
+// a product; both hold real authorities minted by the rig's bus and speak through real doors.
+
+namespace {
+
+struct CoordinatorState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(CoordinatorState, 1, ZEN_FIELD(n));
+};
+
+/// AN OPERATOR IN THE OPENING OFFICE THAT ARRANGES THE DESK'S HALF ALONE -- a trial, an
+/// admission with one row -- then tells the desk the operation did NOT commit (the desk drops
+/// its trial, as it must), and only THEN commits the publication the desk had offered. The
+/// real desk is shown a presentation it no longer holds a trial for: the fallback branch of
+/// its hook, reachable by no mechanism but this instrumentation.
+class DeskOnlyOperator
+    : public loom::WeaveBase<DeskOnlyOperator, CoordinatorState,
+                             loom::Accept<SeatDo, PresentationTrial, PresentationAdmitted,
+                                          loom::JointApplied>,
+                             loom::Emit<PresentationTrialRequested, PresentationAdmitRequested,
+                                        ManagedOpenSettled>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (step == 0) {
+            begun = mail.begin_joint(
+                authority, {loom::claim_key<PanePresentation>(std::string_view(kWorkshopProvider))});
+            if (begun.ok) {
+                op = begun.op;
+                (void)mail.as_role(kOpeningRole)
+                    .send_to_role(kWorkshopProvider,
+                                  PresentationTrialRequested{static_cast<std::int64_t>(op),
+                                                             pane.provider, pane.pane},
+                                  op);
+            }
+            step = 1;
+        } else if (step == 2) {
+            committed = mail.commit_joint(authority, op);
+            step = 3;
+        } else if (step == 3) {
+            released = mail.release_joint(authority, op);
+        }
+    }
+    void on(const PresentationTrial& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        trial = said;
+        if (!said.ok) {
+            return;
+        }
+        PresentationAdmitRequested admit;
+        admit.op = static_cast<std::int64_t>(op);
+        admit.provider = pane.provider;
+        admit.pane = pane.pane;
+        admit.generation = 1;
+        surface::SurfaceTextRow row;
+        row.text = "x";
+        admit.rows.push_back(row);
+        admit.caret_row = 0;
+        admit.caret_col = 0;
+        (void)mail.as_role(kOpeningRole).send_to_role(kWorkshopProvider, admit, op);
+    }
+    void on(const PresentationAdmitted& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        admitted = said;
+        if (!said.ok) {
+            return;
+        }
+        // THE INSTRUMENT: the desk is told the operation did not commit -- it drops its
+        // trial -- while the offer it made still stands at the bus, unrevoked.
+        (void)mail.as_role(kOpeningRole)
+            .send_to_role(kWorkshopProvider,
+                          ManagedOpenSettled{static_cast<std::int64_t>(op), false, false,
+                                             std::string(), std::string()});
+        step = 2;
+    }
+    void on(const loom::JointApplied& said, loom::Mail& mail) {
+        applied.push_back(said);
+        applied_status.push_back(mail.joint_status(authority, said.applied_op()));
+    }
+    loom::JointAuthority authority;
+    PaneRef pane;
+    int step = 0;
+    std::uint64_t op = 0;
+    loom::JointBegin begun{};
+    loom::JointResult committed{};
+    loom::JointResult released{};
+    PresentationTrial trial{};
+    PresentationAdmitted admitted{};
+    std::vector<loom::JointApplied> applied;
+    std::vector<loom::JointStatus> applied_status;
+};
+
+/// A FACT NOBODY IN THE OPENING KNOWS, and two owners of it in offices of their own.
+struct TestFact {
+    std::string v;
+    ZEN_SHAPE(TestFact, 1, ZEN_FIELD(v));
+};
+struct FactState {
+    std::string v = "a";
+    ZEN_SHAPE(FactState, 1, ZEN_FIELD(v));
+};
+class FactOwner : public loom::WeaveBase<FactOwner, FactState, loom::Accept<SeatDo>, loom::Emit<>,
+                                         loom::Claims<TestFact>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) { claimed = mail.claim(TestFact{state_.v}); }
+    loom::SenseClaimResult claimed{};
+};
+
+/// AN UNRELATED COORDINATOR: begins one operation over the two facts and nothing else. On
+/// the START slice its begin took the slot of the manager's committed operation.
+class UnrelatedCoordinator
+    : public loom::WeaveBase<UnrelatedCoordinator, CoordinatorState, loom::Accept<SeatDo>,
+                             loom::Emit<>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        begun = mail.begin_joint(authority, {loom::claim_key<TestFact>(a), loom::claim_key<TestFact>(b)});
+    }
+    loom::JointAuthority authority;
+    loom::WeaveId a{};
+    loom::WeaveId b{};
+    loom::JointBegin begun{};
+};
+
+/// The unrelated coordination, mounted on a rig's bus: two owners that have claimed, and the
+/// coordinator ready to begin when nudged.
+struct Unrelated {
+    loom::WeaveId a{};
+    loom::WeaveId b{};
+    loom::WeaveId coordinator_id{};
+    UnrelatedCoordinator* coordinator = nullptr;
+
+    explicit Unrelated(PaneRig& r) {
+        auto owner_a = std::make_unique<FactOwner>();
+        FactOwner* raw_a = owner_a.get();
+        a = r.bus.register_weave(std::move(owner_a), loom::Grant{}, std::string("test.fact.a"));
+        raw_a->zen_set_self(a);
+        auto owner_b = std::make_unique<FactOwner>();
+        FactOwner* raw_b = owner_b.get();
+        b = r.bus.register_weave(std::move(owner_b), loom::Grant{}, std::string("test.fact.b"));
+        raw_b->zen_set_self(b);
+        auto c = std::make_unique<UnrelatedCoordinator>();
+        coordinator = c.get();
+        coordinator_id =
+            r.bus.register_weave(std::move(c), loom::Grant{}, std::string("test.coordinator"));
+        coordinator->zen_set_self(coordinator_id);
+        coordinator->authority =
+            r.bus.mint_joint_authority(coordinator_id, {"test.fact.a", "test.fact.b"});
+        coordinator->a = a;
+        coordinator->b = b;
+        (void)r.bus.send(a, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        (void)r.bus.send(b, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+        REQUIRE(raw_a->claimed.accepted);
+        REQUIRE(raw_b->claimed.accepted);
+    }
+    /// QUEUE THE BEGIN, undrained: the case decides the turn it lands in.
+    void enqueue_begin(PaneRig& r) {
+        (void)r.bus.send(coordinator_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                       loom::WeaveId{}, 0));
+    }
+};
+
+} // namespace
+
+TEST_CASE("EDIT-W80: the real desk, shown a presentation it holds no trial for, answers that it did not apply it -- Declined, not held, named, and re-claiming its own truth") {
+    EditorRig e("edit-desk-declines");
+    e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
+           /*with_manager=*/false);
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    // THE INSTRUMENT, IN THE OPENING OFFICE, with the grants the host gives the manager for
+    // exactly this conversation and an authority over the desk's office alone.
+    auto seat = std::make_unique<DeskOnlyOperator>();
+    DeskOnlyOperator* op = seat.get();
+    op->pane = editor_ref();
+    loom::Grant arrange;
+    arrange.allow_to_role(PresentationTrialRequested::zen_name, PresentationTrialRequested::zen_version,
+                          kWorkshopProvider);
+    arrange.allow_to_role(PresentationAdmitRequested::zen_name, PresentationAdmitRequested::zen_version,
+                          kWorkshopProvider);
+    arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
+                          kWorkshopProvider);
+    const loom::WeaveId op_id =
+        e.r.bus.register_weave(std::move(seat), std::move(arrange), std::string(kOpeningRole));
+    op->zen_set_self(op_id);
+    op->authority = e.r.bus.mint_joint_authority(op_id, {std::string(kWorkshopProvider)});
+    const auto nudge = [&] {
+        (void)e.r.bus.send(op_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                loom::WeaveId{}, 0));
+        e.settle();
+    };
+    // THE DESK'S HALF: bound, tried, admitted, offered -- then told the operation did not
+    // commit, so it dropped its trial.
+    nudge();
+    REQUIRE_MESSAGE(op->begun.ok, loom::name_of(op->begun.why));
+    REQUIRE_MESSAGE(op->trial.ok, op->trial.refusal);
+    REQUIRE_MESSAGE(op->admitted.ok, op->admitted.refusal);
+    CHECK(e.r.bus.joint_status(op->op).state == loom::JointState::Preparing);
+    CHECK(e.r.bus.joint_retained_bytes() > 0); // the desk's offer still stands
+    // THE COMMITMENT, on an offer whose trial is gone: the claim says seated, selected, keyed.
+    nudge();
+    REQUIRE_MESSAGE(op->committed.ok, loom::name_of(op->committed.why));
+    CHECK(e.r.bus.has_unobserved_publication(e.r.workshop_id));
+    {
+        const std::optional<PanePresentation> claim = e.presentation_claim();
+        REQUIRE(claim.has_value());
+        CHECK(claim->seated);
+        CHECK(claim->shown_by == static_cast<std::int64_t>(op->op));
+    }
+    // THE SHOWING, through the ordinary snapshot: the real desk's hook finds no trial, keeps
+    // the desk as it is, says so -- and answers Declined. The snapshot is SERVED; nothing is
+    // held; the pane is not on the desk.
+    CHECK_NOTHROW((void)e.r.bus.snapshot_bytes(e.r.workshop_id));
+    CHECK_FALSE(e.r.bus.has_failed_application(e.r.workshop_id));
+    CHECK_FALSE(e.r.bus.has_unobserved_publication(e.r.workshop_id));
+    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().notice.find("did not prepare") != std::string::npos);
+    {
+        const loom::JointStatus status = e.r.bus.joint_status(op->op);
+        CHECK(status.state == loom::JointState::Committed);
+        CHECK(status.application == loom::JointApplication::Declined);
+        CHECK(status.failed == e.r.workshop_id);
+        CHECK(status.failed_role == kWorkshopProvider);
+    }
+    // THE OPERATOR IS TOLD ONCE, naming the desk, with the reason Declined.
+    e.settle();
+    REQUIRE(op->applied.size() == 1);
+    CHECK_FALSE(op->applied[0].applied);
+    CHECK(op->applied[0].reason == std::string(loom::name_of(loom::JointApplication::Declined)));
+    CHECK(op->applied[0].failed_claimant() == e.r.workshop_id);
+    CHECK(op->applied[0].role == kWorkshopProvider);
+    CHECK(op->applied_status[0].application == loom::JointApplication::Declined);
+    // THE DESK WORKS ON, and at the end of its next delivery re-claims its own truth: not
+    // seated, shown by nobody; the claim record owes nothing; the operation keeps its word.
+    e.unfocus();
+    {
+        const std::optional<PanePresentation> claim = e.presentation_claim();
+        REQUIRE(claim.has_value());
+        CHECK_FALSE(claim->seated);
+        CHECK(claim->shown_by == 0);
+    }
+    CHECK(e.r.bus.application_of(e.r.workshop_id) == loom::JointApplication::None);
+    CHECK(e.r.bus.joint_status(op->op).application == loom::JointApplication::Declined);
+    CHECK(op->applied.size() == 1);
+    // ...AND THE OPERATOR RELEASES THE RECORD IT CONSUMED.
+    nudge();
+    CHECK(op->released.ok);
+    CHECK(e.r.bus.joint_status(op->op).state == loom::JointState::Missing);
+    // The ordinary door still works afterwards: a real open through the old door seats the pane.
+    put_bytes(e.root / "a.cpp", "one\n");
+    const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
+    CHECK_FALSE(said.accepted); // no manager is mounted in this rig: refused in words, not silence
+    CHECK(said.refusal.find("could not be reached") != std::string::npos);
+}
+
+TEST_CASE("EDIT-W81: the real manager's outcome survives an unrelated coordination begun on the same bus before its application notice was consumed") {
+    SUBCASE("begun before the owners are shown") {
+        EditorRig e("edit-unrelated-before-showing");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        Unrelated other(e.r);
+        const std::size_t before = e.asker->opens.size();
+        const std::int64_t committed = e.opening().committed;
+        e.enqueue_open(b_path);
+        e.pump_until_stage("admit");
+        (void)e.r.bus.pump_pending(); // the desk admits and offers; its answer is queued
+        const std::int64_t op = e.opening().op;
+        REQUIRE(op != 0);
+        // THE UNRELATED BEGIN, queued behind that answer: the next turn commits the open and
+        // then begins the unrelated operation -- before either owner has been shown.
+        other.enqueue_begin(e.r);
+        (void)e.r.bus.pump_pending();
+        REQUIRE_MESSAGE(other.coordinator->begun.ok, loom::name_of(other.coordinator->begun.why));
+        CHECK(e.opening().stage == "apply");
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state == loom::JointState::Committed);
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+              loom::JointApplication::Pending);
+        CHECK(e.r.bus.joint_records() == 2);
+        // THE REST: the owners are shown and apply, the bus tells the manager, the manager
+        // re-reads the record -- still there -- and answers the requester: opened.
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+        CHECK(e.opening().last_outcome == "committed");
+        CHECK(e.opening().committed == committed + 1);
+        CHECK(e.opening().stage == "idle");
+        CHECK(e.read("path") == b_path);
+        CHECK(e.doc_row(0) == "two");
+        // CONSUMED AND RELEASED: the manager's record is Missing; the unrelated one untouched.
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state == loom::JointState::Missing);
+        CHECK(e.r.bus.joint_status(other.coordinator->begun.op).state == loom::JointState::Preparing);
+        CHECK(e.r.bus.joint_records() == 1);
+    }
+    SUBCASE("begun while the application notice is queued") {
+        EditorRig e("edit-unrelated-notice-queued");
+        e.open();
+        e.open_file("a.cpp", "one\n");
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        Unrelated other(e.r);
+        const std::size_t before = e.asker->opens.size();
+        const std::int64_t committed = e.opening().committed;
+        e.enqueue_open(b_path);
+        e.pump_until_stage("apply"); // committed; the `apply` words to both owners are queued
+        const std::int64_t op = e.opening().op;
+        REQUIRE(op != 0);
+        // THE UNRELATED BEGIN, queued behind the apply words: the next turn shows both owners
+        // (the application settles and the manager's notice is queued), then begins the
+        // unrelated operation -- before the notice is consumed.
+        other.enqueue_begin(e.r);
+        (void)e.r.bus.pump_pending();
+        REQUIRE_MESSAGE(other.coordinator->begun.ok, loom::name_of(other.coordinator->begun.why));
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
+              loom::JointApplication::Applied);
+        CHECK(e.opening().stage == "apply"); // settled at the bus, not yet consumed
+        CHECK(e.r.bus.joint_records() == 2);
+        e.settle();
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
+        CHECK(e.opening().last_outcome == "committed");
+        CHECK(e.opening().committed == committed + 1);
+        CHECK(e.read("path") == b_path);
+        CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state == loom::JointState::Missing);
+        CHECK(e.r.bus.joint_status(other.coordinator->begun.op).state == loom::JointState::Preparing);
+        CHECK(e.r.bus.joint_records() == 1);
+    }
+}
+
+TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied") {
+    // THE START REPRODUCTION (editor-managed-open-slice-corrections-2). The image is the exact
+    // real Editor source built once more with one deliberate throw at the start of its showing
+    // hook, for a published path ending in `/b.cpp` and nothing else (`zengine-editor-throwing`,
+    // tests/CMakeLists.txt). Opening a.cpp through it is an ordinary open; publishing b.cpp
+    // reaches the real hook and fails there. The repair is a real reload through the real
+    // control door into the UNCHANGED normal image -- the maker's corrected build -- whose
+    // successor holds a.cpp, because the candidate deliberately does not ride a reload.
+    EditorRig e("edit-real-repair");
+    e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
+           /*with_manager=*/true, "zengine-editor-throwing");
+    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    const std::string a_path = e.open_file("a.cpp", "one\n");
+    CHECK(e.read("text") == "one\n");
+    put_bytes(e.root / "b.cpp", "two\n");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    const std::size_t before = e.asker->opens.size();
+    const std::int64_t a_epoch = std::stoll(e.read("doc_epoch"));
+    e.enqueue_open(b_path);
+    e.pump_until_stage("apply");
+    const std::int64_t op = e.opening().op;
+    REQUIRE(op != 0);
+    e.settle();
+    // PUBLISHED, NOT APPLIED: the real hook threw, contained at the seam; the answer is
+    // truthful and names the owner; the owner is held.
+    REQUIRE(e.asker->opens.size() == before + 1);
+    CHECK_FALSE(e.asker->opens.back().accepted);
+    CHECK(e.asker->opens.back().refusal.find("could not apply") != std::string::npos);
+    CHECK(e.asker->opens.back().refusal.find(kEditorRole) != std::string::npos);
+    CHECK(e.opening().last_outcome == "committed, application failed");
+    CHECK(e.opening().unapplied == 1);
+    CHECK(e.opening().committed == 1); // a.cpp
+    {
+        const loom::JointStatus status = e.r.bus.joint_status(static_cast<std::uint64_t>(op));
+        CHECK(status.state == loom::JointState::Committed);
+        CHECK(status.application == loom::JointApplication::Failed);
+        CHECK(status.failed == e.image);
+        CHECK(status.failed_role == kEditorRole);
+    }
+    CHECK(e.r.bus.has_failed_application(e.image));
+    {
+        const std::optional<EditorDocument> doc = e.document_claim();
+        REQUIRE(doc.has_value());
+        CHECK(doc->path == b_path); // the commitment stands
+        CHECK(doc->opened_by == op);
+    }
+    // THE HOLD: a poke is refused by exact attempt; the diagnostic read shows a.cpp as it is.
+    const loom::Ticket poke = e.r.bus.send(
+        e.image, loom::Message(loom::to_value(loom::PokeRead{"path"}), loom::WeaveId{},
+                               e.poke_id, ++e.poke_corr));
+    e.settle();
+    CHECK(e.r.bus.outcome(poke).disposition == loom::Disposition::Refused);
+    CHECK(e.r.bus.outcome(poke).refusal.reason == loom::RefusalReason::ApplicationFailed);
+    {
+        const loom::Unverified claim = loom::parse(e.r.bus.snapshot_bytes(
+            e.image, loom::Switchboard::SnapshotAccess::Diagnostic));
+        const loom::Admission held = loom::admit(claim, loom::schema_of<pane::EditorPaneState>());
+        REQUIRE(held.ok());
+        CHECK(held.value().get("path")->as_text() == a_path);
+        CHECK(held.value().get("text")->as_text() == "one\n");
+        CHECK(e.r.bus.has_failed_application(e.image)); // the read changed nothing
+    }
+    // THE DESK APPLIED ITS OWN HALF, and says which owner is held.
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().notice.find("could not apply") != std::string::npos);
+    // THE REPAIR: the record loaded from the throwing image is reloaded in place from a copy
+    // of the normal image, through the real control door. The manager RETAINS the record for
+    // the late word about this repair (editor-managed-open-slice-corrections-2).
+    CHECK(e.opening().retained == op);
+    e.enqueue_reload_into("zengine-editor-throwing", pane::kEditorPaneStem);
+    // TURN BY TURN, until the successor has been shown: its first delivery (the activation
+    // the control door announces) shows it B, which it did not prepare -- and it ANSWERS SO.
+    for (int i = 0; i < 8 && e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application !=
+                                 loom::JointApplication::Declined;
+         ++i) {
+        (void)e.r.bus.pump_pending();
+    }
+    REQUIRE_MESSAGE(e.r.load_refusals.empty(), "the reload was refused: ", e.r.load_refusals.back());
+    CHECK(e.r.kernel.weave_id("zengine-editor-throwing") == e.image);
+    CHECK_FALSE(e.r.bus.has_failed_application(e.image));
+    {
+        // THE BUS'S RECORD: this publication was DECLINED by exactly this owner -- not applied,
+        // not failed, nothing held -- and the record is still there for the manager to read.
+        const loom::JointStatus status = e.r.bus.joint_status(static_cast<std::uint64_t>(op));
+        CHECK(status.state == loom::JointState::Committed);
+        CHECK(status.application == loom::JointApplication::Declined);
+        CHECK(status.failed == e.image);
+        CHECK(status.failed_role == kEditorRole);
+    }
+    CHECK(e.opening().retained == op); // the late word is not consumed yet
+    CHECK(e.opening().last_outcome == "committed, application failed");
+    // THE SUCCESSOR HOLDS A -- the candidate did not ride -- and ordinary access resumed on it.
+    e.settle();
+    CHECK(e.read("path") == a_path);
+    CHECK(e.read("text") == "one\n");
+    CHECK(std::stoll(e.read("doc_epoch")) > a_epoch); // the generation moved past the publication
+    REQUIRE(e.row() != nullptr);
+    e.kind = e.row()->kind;
+    // ...SO THE HISTORICAL PUBLICATION OF B WAS NOT APPLIED, and every record says so: the
+    // manager's outcome in words, its counts, and the bus's record -- consumed for the late
+    // word, then released. A repaired owner is not proof that its old operation applied.
+    CHECK(e.opening().last_outcome == std::string("committed, not applied after repair -- ") +
+                                          kEditorRole + " kept its own state");
+    CHECK(e.opening().last_refusal.find("did not apply") != std::string::npos);
+    CHECK(e.opening().retained == 0);
+    CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state == loom::JointState::Missing);
+    CHECK(e.opening().committed == 1);
+    CHECK(e.opening().unapplied == 1);
+    CHECK(e.asker->opens.size() == before + 1); // the requester's earlier answer stands
+    // THE EDITOR'S OWN CLAIM IS a.cpp AGAIN -- the owner spoke, and its claim record owes
+    // nothing -- and the desk shows a.cpp.
+    {
+        const std::optional<EditorDocument> doc = e.document_claim();
+        REQUIRE(doc.has_value());
+        CHECK(doc->path == a_path);
+    }
+    CHECK(e.r.bus.application_of(e.image) == loom::JointApplication::None);
+    CHECK(e.doc_row(0) == "one");
+    // ...AND THE REPAIRED EDITOR OPENS b.cpp WHEN ASKED AGAIN: a new fact, distinct from the
+    // historical publication that was not applied.
+    const SourceOpened again = e.ask_open(b_path);
+    CHECK_MESSAGE(again.accepted, again.refusal);
+    CHECK(e.read("path") == b_path);
+    CHECK(e.doc_row(0) == "two");
+    CHECK(e.opening().committed == 2);
+    CHECK(e.opening().last_outcome == "committed");
+}
+
+// ============================================================================
+//
+// NOT A TEST OF SPEED: no timing is asserted. What is asserted is only that each measured
+// step did what it says; the numbers go to the log as MESSAGEs, to be read against the same
+// case compiled on the baseline tree. Wall time per step, in microseconds, over the whole
+// round trip a maker's gesture takes on this rig (publish, route, edit, compose, admit, paint).
+
+namespace {
+
+struct Stopwatch {
+    std::chrono::steady_clock::time_point at = std::chrono::steady_clock::now();
+    double lap_us() {
+        const auto now = std::chrono::steady_clock::now();
+        const double us = std::chrono::duration<double, std::micro>(now - at).count();
+        at = now;
+        return us;
+    }
+};
+
+struct Stats {
+    double min = 0, mean = 0, max = 0;
+};
+inline Stats stats_of(const std::vector<double>& v) {
+    Stats s;
+    if (v.empty()) {
+        return s;
+    }
+    s.min = v[0];
+    s.max = v[0];
+    double sum = 0;
+    for (const double x : v) {
+        s.min = std::min(s.min, x);
+        s.max = std::max(s.max, x);
+        sum += x;
+    }
+    s.mean = sum / static_cast<double>(v.size());
+    return s;
+}
+
+/// A source of about `bytes` bytes: many short lines, the way a real file is shaped (one
+/// four-megabyte line would measure line arithmetic, not the mechanism).
+inline std::string lines_of(std::size_t bytes) {
+    static const char* kLine = "int value_of_the_line_here = 1234567;\n"; // 38 bytes
+    std::string out;
+    out.reserve(bytes + 64);
+    while (out.size() + 38 <= bytes) {
+        out += kLine;
+    }
+    return out;
+}
+
+inline void measure_document(const char* label, std::size_t bytes) {
+    EditorRig e(label);
+    e.open();
+    put_bytes(e.root / "a.cpp", lines_of(bytes));
+    put_bytes(e.root / "b.cpp", lines_of(bytes));
+    const std::string a_path = spelled(e.root / "a.cpp");
+    const std::string b_path = spelled(e.root / "b.cpp");
+    Stopwatch w;
+    const SourceOpened first = e.ask_open(a_path);
+    const double open_us = w.lap_us();
+    REQUIRE_MESSAGE(first.accepted, first.refusal);
+    e.press_doc(0, 0);
+    w.lap_us();
+    std::vector<double> keys;
+    for (int i = 0; i < 40; ++i) {
+        e.type("x");
+        keys.push_back(w.lap_us());
+    }
+    REQUIRE(e.read("text").rfind(std::string(40, 'x'), 0) == 0);
+    std::vector<double> undos;
+    for (int i = 0; i < 10; ++i) {
+        e.key(input::scan::kZ, input::mod::kCtrl);
+        undos.push_back(w.lap_us());
+    }
+    // A CARET MOVE: the cheapest gesture, for what the mirror does NOT rebuild.
+    std::vector<double> moves;
+    for (int i = 0; i < 10; ++i) {
+        e.key(input::scan::kRight);
+        moves.push_back(w.lap_us());
+    }
+    // THE OPEN PATH WITH A DOCUMENT ALREADY THERE (clean): B replaces A.
+    e.key(input::scan::kZ, input::mod::kCtrl); // ...after taking the rest of the typing back
+    for (int i = 0; i < 40; ++i) {
+        if (e.clean()) {
+            break;
+        }
+        e.key(input::scan::kZ, input::mod::kCtrl);
+    }
+    REQUIRE(e.clean());
+    w.lap_us();
+    const SourceOpened second = e.ask_open(b_path);
+    const double reopen_us = w.lap_us();
+    REQUIRE_MESSAGE(second.accepted, second.refusal);
+    REQUIRE(e.read("path") == b_path);
+    const Stats k = stats_of(keys);
+    const Stats u = stats_of(undos);
+    const Stats m = stats_of(moves);
+    MESSAGE("MEASURE ", label, " bytes=", bytes, " open_us=", open_us, " reopen_us=", reopen_us,
+            " key_us(min/mean/max)=", k.min, "/", k.mean, "/", k.max,
+            " undo_us(min/mean/max)=", u.min, "/", u.mean, "/", u.max,
+            " move_us(min/mean/max)=", m.min, "/", m.mean, "/", m.max);
+}
+
+} // namespace
+
+TEST_CASE("EDIT-M1: measurement -- the edit and open paths on a small and a near-bound document (no timing assertions)") {
+    measure_document("measure-small", 256);
+    measure_document("measure-near-bound",
+                     static_cast<std::size_t>(zengine::workshop::kMaxSourceBytes) - 4096);
+}
+
+TEST_CASE("EDIT-M2: measurement -- what the managed open retains and how many turns it takes (no timing assertions)") {
+    // THE EXPERIMENTAL TREE'S OWN NUMBERS: the size of the two published identities, the bytes
+    // the bus retains while an open is prepared, the number of latest claims the room holds,
+    // and the number of bus turns from a requester's ask to the terminal answer.
+    for (const std::size_t bytes : {std::size_t{256},
+                                    static_cast<std::size_t>(zengine::workshop::kMaxSourceBytes) - 4096}) {
+        EditorRig e(bytes < 1024 ? "measure-managed-small" : "measure-managed-near-bound");
+        e.open();
+        put_bytes(e.root / "a.cpp", lines_of(bytes));
+        put_bytes(e.root / "b.cpp", lines_of(bytes));
+        REQUIRE(e.ask_open(spelled(e.root / "a.cpp")).accepted);
+        const std::size_t claims_idle = e.r.bus.retained_claim_count();
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(spelled(e.root / "b.cpp"));
+        e.pump_until_stage("admit");
+        (void)e.r.bus.pump_pending(); // the desk admits and offers: both offers stand
+        const std::size_t retained = e.r.bus.joint_retained_bytes();
+        int turns = 2; // the request and the turns pump_until_stage took are counted below
+        turns = 0;
+        Stopwatch w;
+        while (e.asker->opens.size() == before) {
+            REQUIRE(e.r.bus.pump_pending() > 0);
+            ++turns;
+        }
+        const double commit_to_answer_us = w.lap_us();
+        REQUIRE(e.asker->opens.back().accepted);
+        const std::optional<EditorDocument> doc = e.document_claim();
+        const std::optional<PanePresentation> desk = e.presentation_claim();
+        REQUIRE(doc.has_value());
+        REQUIRE(desk.has_value());
+        const std::size_t doc_bytes = loom::serialize(loom::to_value(*doc)).size();
+        const std::size_t desk_bytes = loom::serialize(loom::to_value(*desk)).size();
+        MESSAGE("MEASURE managed bytes=", bytes, " document_claim_bytes=", doc_bytes,
+                " presentation_claim_bytes=", desk_bytes,
+                " joint_retained_bytes_while_prepared=", retained,
+                " retained_claims_idle=", claims_idle,
+                " retained_claims_after=", e.r.bus.retained_claim_count(),
+                " joint_retained_bytes_after=", e.r.bus.joint_retained_bytes(),
+                " turns_from_admission_to_answer=", turns,
+                " admission_to_answer_us=", commit_to_answer_us);
+        CHECK(e.r.bus.joint_retained_bytes() == 0);
     }
 }

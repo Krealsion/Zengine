@@ -23,6 +23,7 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
+#include "workshop/open_seam_vocabulary.hpp" // EXPERIMENTAL: the managed door
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
@@ -782,8 +783,11 @@ private:
         // document, and only the address moved.
         open_.pending = ++asked_;
         open_.awaiting = true;
+        // EXPERIMENTAL (editor-managed-open-slice): the managed door. The opening manager
+        // arranges the document and the desk together; the Editor's own office is the direct
+        // door, for a host with no desk.
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(ws::kEditorRole,
+            .send_to_role(ws::kOpeningRole,
                           OpenSourceRequested{ws::persist::resolved_against(state_.current_dir, row->name)},
                           open_.pending);
     }
