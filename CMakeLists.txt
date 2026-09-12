@@ -45,12 +45,10 @@ option(ZEN_LOOM_DEV
 if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
     # A dependency's proof rides its version: Zengine's lane does not re-run the Loom's suite,
-    # so the sibling build contributes its libraries and nothing else. ZEN_SDL is silenced for
-    # the same reason — that option builds the Loom's SDL2 UI-tree renderer (zen-ui-sdl, a
-    # port still to come); Zengine's own SDL skin lives in surface/ and fetches its own SDL3.
+    # so the sibling build contributes its libraries and nothing else. Zengine's own SDL skin
+    # lives in surface/ and fetches its own SDL3; the Loom declares no SDL option of its own.
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(ZEN_SDL            OFF CACHE BOOL "" FORCE)
     if(WIN32)
         # The demos need the kernel, and on Windows the kernel exists only as the Loom's
         # explicit development/demo backend (no isolation — the Loom prints its banner and

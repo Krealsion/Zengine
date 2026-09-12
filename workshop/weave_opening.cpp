@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// EXPERIMENTAL (editor-managed-open-slice): the bodies of `opening.hpp`, compiled once into
+// The bodies of `opening.hpp`, compiled once into
 // `zengine-workshop-logic` beside Workshop's own, and linked by the host and the suites.
 
 #include "opening.hpp"
@@ -12,29 +12,32 @@ namespace {
 
 /// THE MAKER'S WORDS FOR A REFUSAL THE BUS DECIDED. `name_of` is a diagnostic spelling; a
 /// maker reads what happened to their work.
+///
+/// THE REASON COMES FIRST AND THE PATH LAST, in every sentence this manager says: a pane's row
+/// is cut at its width from the end, and a path is the part of a sentence a maker can lose
+/// (they know which file they asked for) while the reason is not. Measured on the Windows lane,
+/// where a temporary directory's spelling pushed "no Editor" off the Builder's row.
 std::string refusal_words(const std::string& path, loom::JointRefusal why) {
     switch (why) {
     case loom::JointRefusal::StaleRevision:
     case loom::JointRefusal::ParticipantChanged:
     case loom::JointRefusal::WrongState:
-        return path + " was not opened; your work is kept -- the room or the document "
-                      "changed while opening; try again";
+        return "the room or the document changed while opening " + path +
+               " -- your work is kept; try again";
     case loom::JointRefusal::NoClaim:
-        return path + " was not opened -- no Editor and desk are present to open it";
+        return "no Editor and desk are present to open " + path;
     case loom::JointRefusal::Exhausted:
-        // THE BUS'S BOUND ON RECORDS NOBODY RELEASED (editor-managed-open-slice-corrections-2):
+        // THE BUS'S BOUND ON RECORDS NOBODY RELEASED:
         // this manager releases every record it consumes, so meeting it means another
         // operator on this bus is keeping its records; said as the limit it is.
-        return path + " was not opened -- too many opens on this bus are still unsettled; "
-                      "try again";
+        return "too many opens on this bus are still unsettled -- " + path +
+               " was not opened; try again";
     default:
-        return path + " was not opened -- the opening could not be arranged (" +
-               loom::name_of(why) + ")";
+        return "the opening of " + path + " could not be arranged (" + loom::name_of(why) + ")";
     }
 }
 
-/// THE MAKER'S WORDS FOR A COMMITMENT AN OWNER DID NOT APPLY (editor-managed-open-slice-
-/// corrections; the declined word, editor-managed-open-slice-corrections-2): the publication
+/// THE MAKER'S WORDS FOR A COMMITMENT AN OWNER DID NOT APPLY (WL-OPEN-02): the publication
 /// stands, the owner is named, and what happens next is said -- a held owner waits for a
 /// reload or a removal; an owner that DECLINED is fine and kept what it had, so the maker
 /// simply asks again.
@@ -42,15 +45,14 @@ std::string unapplied_words(const std::string& path, const loom::JointStatus& st
     const std::string who = status.failed_role.empty() ? std::string("one of its owners")
                                                        : status.failed_role;
     if (status.application == loom::JointApplication::Lost) {
-        return path + " was published but " + who +
-               " was removed before it could apply it -- open it again once an owner is "
-               "present";
+        return who + " was removed before it could apply " + path +
+               " after it was published -- open it again once an owner is present";
     }
     if (status.application == loom::JointApplication::Declined) {
-        return path + " was published but " + who +
-               " did not apply it -- it kept what it had; open it again";
+        return who + " did not apply " + path +
+               " after it was published -- it kept what it had; open it again";
     }
-    return path + " was published but " + who + " could not apply it (" +
+    return who + " could not apply " + path + " after it was published (" +
            loom::name_of(status.application) +
            ") -- it is held until it is reloaded or removed; the desk shows what it applied";
 }
@@ -103,8 +105,8 @@ std::string OpeningManager::refusal_of(const std::string& said, loom::Mail& mail
     const loom::JointStatus status = mail.joint_status(authority_, flight_.op);
     if (status.state == loom::JointState::Aborted &&
         status.reason == loom::JointRefusal::ParticipantChanged) {
-        return flight_.path +
-               " was not opened -- the Editor or the desk was replaced while opening; try again";
+        return "the Editor or the desk was replaced while opening " + flight_.path +
+               " -- try again";
     }
     return said;
 }
@@ -129,15 +131,14 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         // waits its turn: refused now, in words, rather than queued.
         if (flight_.stage == "apply") {
             (void)mail.answer(SourceOpened{
-                false, asked.path + " was not opened -- " + flight_.path +
-                           " was just published and its owners are still applying it; "
-                           "try again"});
+                false, "the desk and the Editor are still applying " + flight_.path +
+                           " -- " + asked.path + " was not opened; try again"});
             return;
         }
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false,
-               flight_.path + " was not opened -- superseded by a newer request to open " +
-                   asked.path,
+               "superseded by a newer request to open " + asked.path + " -- " + flight_.path +
+                   " was not opened",
                mail);
         state_.last_outcome = "superseded";
     }
@@ -145,6 +146,12 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         authority_, {loom::claim_key<EditorDocument>(std::string_view(editor_office_)),
                      loom::claim_key<PanePresentation>(std::string_view(presentation_office_))});
     if (!begun.ok) {
+        // AN IMMEDIATE TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT, so it retires
+        // an older retained record exactly as a settlement does (`retire`): `last_outcome`
+        // describes this refusal from here, and a late word about the older repair could no
+        // longer be reported truthfully -- it would overwrite this refusal with the old path.
+        // Releasing that record also frees its slot, which is what `Exhausted` was about.
+        retire(mail, 0);
         ++state_.refused;
         state_.last_outcome = "refused";
         state_.last_refusal = refusal_words(asked.path, begun.why);
@@ -170,8 +177,7 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         // now, in words. (An unheld desk office is a DISPATCH refusal, heard later through
         // `zen.DispatchRefused`; `begin_joint` already refused it as NoClaim before this.)
         (void)mail.cancel_joint(authority_, flight_.op);
-        settle(false, false,
-               asked.path + " was not opened -- the desk could not be asked to show it", mail);
+        settle(false, false, "the desk could not be asked to show " + asked.path, mail);
         return;
     }
     progress(mail, true);
@@ -191,9 +197,7 @@ void OpeningManager::on(const PresentationTrial& said, loom::Mail& mail) {
                                     said.rows, said.columns},
              "prepare")) {
         (void)mail.cancel_joint(authority_, flight_.op);
-        settle(false, false,
-               flight_.path + " was not opened -- the Editor could not be asked to prepare it",
-               mail);
+        settle(false, false, "the Editor could not be asked to prepare " + flight_.path, mail);
         return;
     }
     progress(mail, true);
@@ -223,8 +227,7 @@ void OpeningManager::on(const SourcePrepared& said, loom::Mail& mail) {
     admit.sel_end_col = said.sel_end_col;
     if (!ask(mail, presentation_office_, admit, "admit")) {
         (void)mail.cancel_joint(authority_, flight_.op);
-        settle(false, false,
-               flight_.path + " was not opened -- the desk could not be asked to admit it", mail);
+        settle(false, false, "the desk could not be asked to admit " + flight_.path, mail);
         return;
     }
     progress(mail, true);
@@ -252,8 +255,7 @@ void OpeningManager::on(const PresentationAdmitted& said, loom::Mail& mail) {
     // establishes when it shows each its published claim -- before that owner's next
     // delivery -- and tells this manager (`zen.JointApplied`). The one delivery each owner
     // needs is this progress word, said to both; the requester is answered from the bus's
-    // record, afterwards, and never from the commit alone (editor-managed-open-slice-
-    // corrections).
+    // record, afterwards, and never from the commit alone (WL-OPEN-02).
     flight_.stage = "apply";
     flight_.awaiting = editor_office_ + " and " + presentation_office_;
     flight_.attempt = loom::Ticket{};
@@ -274,8 +276,7 @@ void OpeningManager::on(const loom::JointApplied& said, loom::Mail& mail) {
         return;
     }
     if (!flight_.live || op != flight_.op) {
-        // A LATE WORD ABOUT AN OPERATION THAT ALREADY SETTLED (editor-managed-open-slice-
-        // corrections-2): the record this manager RETAINED for a commitment an owner could
+        // A LATE WORD ABOUT AN OPERATION THAT ALREADY SETTLED (WL-OPEN-06): the record this manager RETAINED for a commitment an owner could
         // not apply has re-settled -- the held owner was reloaded and its successor was shown
         // the value. What the successor ANSWERED is the fact, re-read from the record this
         // manager kept for exactly this word: applied after repair, or NOT applied after
@@ -351,8 +352,8 @@ void OpeningManager::on(const loom::DispatchRefused& refused, loom::Mail& mail) 
     }
     (void)mail.cancel_joint(authority_, flight_.op);
     settle(false, false,
-           flight_.path + " was not opened -- " + flight_.awaiting +
-               " could not be reached (" + refused.reason + ")",
+           flight_.awaiting + " could not be reached (" + refused.reason + ") -- " + flight_.path +
+               " was not opened",
            mail);
 }
 
@@ -369,8 +370,7 @@ void OpeningManager::on(const loom::JointEnded& ended, loom::Mail& mail) {
     }
     settle(false, false,
            status.reason == loom::JointRefusal::ParticipantChanged
-               ? flight_.path +
-                     " was not opened -- the Editor or the desk was replaced while opening; try again"
+               ? "the Editor or the desk was replaced while opening " + flight_.path + " -- try again"
                : refusal_words(flight_.path, status.reason),
            mail);
 }
@@ -390,12 +390,8 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
     (void)mail.as_role(kOpeningRole).send_to_role(editor_office_, outcome);
     (void)mail.as_role(kOpeningRole).send_to_role(presentation_office_, outcome);
     progress(mail, false);
-    // A NEWER REQUEST SETTLING RETIRES THE RECORD KEPT FOR AN OLDER ONE'S LATE WORD:
-    // `last_outcome` describes this flight from here, so the older repair could no longer
-    // be reported truthfully. The bound, said as one: at most one record is retained.
-    if (retained_ != 0 && retained_ != op) {
-        release_retained(mail);
-    }
+    // A NEWER REQUEST SETTLING RETIRES THE RECORD KEPT FOR AN OLDER ONE'S LATE WORD (WL-OPEN-06).
+    retire(mail, op);
     state_.last_op = static_cast<std::int64_t>(op);
     if (committed && applied) {
         ++state_.committed;
@@ -426,7 +422,7 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
     state_.stage = "idle";
     state_.awaiting.clear();
     state_.attempt = 0;
-    // THE RECORD (editor-managed-open-slice-corrections-2): consumed here, so released
+    // THE RECORD: consumed here, so released
     // here -- unless an owner is HELD under it. That record is retained, at most one, for
     // the late word about the owner's repair; nothing else is promised about it.
     if (committed && application == loom::JointApplication::Failed) {
@@ -435,6 +431,20 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
         state_.retained = static_cast<std::int64_t>(op);
     } else {
         (void)mail.release_joint(authority_, op);
+    }
+}
+
+// WL-OPEN-06 -- agents/workshop/opening.md
+void OpeningManager::retire(loom::Mail& mail, std::uint64_t settling) {
+    // EVERY NEWER TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT -- a settlement, or
+    // an immediate refusal at `begin` -- retires the one record retained for an older
+    // commitment's repair: `last_outcome` describes the newer outcome from here, so the late
+    // word about the older repair could no longer be reported truthfully, and reporting it
+    // anyway would overwrite the newer result with the old operation's path. The record that
+    // is settling now is not retired here: `settle` decides whether to retain it. Releasing a
+    // record lifts no hold and repairs nothing -- the claimant's facts stay on its claim record.
+    if (retained_ != 0 && retained_ != settling) {
+        release_retained(mail);
     }
 }
 

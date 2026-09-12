@@ -71,12 +71,15 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-EDIT-05 — One promise at two doors: `zengine.opening` and `zengine.editor`
 
-LAW — EXPERIMENTAL: a managed open prepares a whole candidate beside the current document and offers its identity; the bus publishes both claims together; the old door relays, keeping the requester's right.
+LAW — Asked to prepare, the Editor judges with nothing moved, builds a candidate beside the document and offers its identity; the candidate becomes the document only in the showing hook; the old door relays.
 
 MEANS
 - the current document stays editable; an edit moves its claim and aborts the operation;
-- one candidate, made the document inside the hook; a refusal drops it; a paste in flight refuses;
+- a refusal drops the candidate; a paste in flight, or a dirty document, refuses;
 - the old door installs nothing alone; its relay is refused in words or matched by attempt.
+
+DOES NOT MEAN
+- that a candidate rides a reload: a successor shown what it did not prepare declines.
 
 PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(SourceOpened)`,
 `on(PrepareSourceRequested)`, `on_claim_published`, `judge_source`, `Candidate`, `Relay`,
@@ -86,7 +89,7 @@ PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(SourceOpened
 `tests/test_workshop_panes_editor.cpp` case
 `"EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste"`, case
 `"EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right"`.
-WHY — `agents/decisions/one-door-takes-a-path.md`
+WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
 
@@ -182,26 +185,23 @@ is clipped, and one wholly out of it is not said"`, case `"EDIT-W43: in a room t
 both, the document keeps its rows and a notice stands in for the status row"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-13 — Document and presentation change together, at one published boundary
+## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied whole
 
-LAW — EXPERIMENTAL: the desk judges a trial seat, admits the candidate's rows, offers its presentation and applies the published claim whole in the hook; the manager answers from the bus's record of it.
+LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the rows and offers its presentation; shown the publication, it applies seat, keys, room and rows.
 
 MEANS
-- a refusal or abort moves nothing; routed input or a setup or room change aborts a pending open;
-- the manager releases each record it consumed, retaining a held owner's for the late word;
-- a failed showing holds the owner, named; a kept state is Declined, unheld, never "applied".
+- a resize, an authored change or a routed input between the trial and the commitment aborts it;
+- a presentation it holds no trial for is Declined, said, and re-claimed from the live desk.
 
 PROVEN BY — `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
-`on(PresentationAdmitRequested)`, `on(ManagedOpenSettled)`, `on_claim_published`, `note_routed`,
-`trial_room`; `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
+`on(PresentationAdmitRequested)`, `on(ManagedOpenSettled)`, `on_claim_published`, `trial_room`;
+`workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
 `stack_slots_that_fit`; `workshop/open_seam_vocabulary.hpp` `PanePresentation`,
-`ManagedOpenSettled`; `workshop/weave_opening.cpp` `settle`, `release_retained`;
-`tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W78: a loaded owner that cannot apply the published claim is held, named, and reloaded"`,
-case `"EDIT-W79: the real Editor, held behind a publication its image could not apply, is
-reloaded into the normal image -- the successor keeps A, and the record says B was never
-applied"`.
-WHY — `agents/decisions/the-editor-is-the-custodian.md`
+`ManagedOpenSettled`; `tests/test_workshop_panes_editor.cpp` case
+`"EDIT-W68: a resize after the commitment is an ordinary presentation change"`, case
+`"EDIT-W80: the real desk, shown a presentation it holds no trial for, answers that it did not
+apply it -- Declined, not held, named, and re-claiming its own truth"`.
+WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
 

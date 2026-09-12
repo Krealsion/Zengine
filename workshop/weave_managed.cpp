@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// EXPERIMENTAL (editor-managed-open-slice, 2026-09-11) — THE PRESENTATION OWNER'S HALF OF A
+// THE PRESENTATION OWNER'S HALF OF A
 // MANAGED OPENING, compiled once into `zengine-workshop-logic` beside Workshop's own bodies.
 //
 // Workshop is the presentation owner today. What it owns in this conversation: the trial
@@ -320,7 +320,7 @@ bool WorkshopWeave::on_claim_published(const PanePresentation& published) {
         // NOT A PRESENTATION THIS DESK PREPARED. By the mechanism this cannot happen (the
         // operation bound this exact incarnation and its trial); if it does, the desk keeps
         // what it has, says so, re-claims its own truth at the end of the next delivery --
-        // and ANSWERS THAT IT DID NOT APPLY IT (editor-managed-open-slice-corrections-2). A
+        // and ANSWERS THAT IT DID NOT APPLY IT. A
         // warning followed by an ordinary return used to count as Applied; the bus now
         // records Declined against this desk and this publication, holds nothing, and the
         // manager says "not applied" rather than "opened".
@@ -345,7 +345,7 @@ bool WorkshopWeave::on_claim_published(const PanePresentation& published) {
         // THE BELT UNDER THE TRIAL: the same seating over the same capacity said yes at the
         // admission and the operation revalidated every fact since. A seat that did not
         // happen here is a defect in one of the two, and it is said as one -- and it is NOT
-        // an application (editor-managed-open-slice-corrections-2): the published claim says
+        // an application: the published claim says
         // seated, selected and keyed, and this desk cannot stand behind it, so it answers
         // Declined, keeps the desk as the reconcile left it (nothing is rolled back: a
         // published claim is not this desk's to unpublish, and the membership it adopted is
@@ -410,7 +410,7 @@ void WorkshopWeave::on(const ManagedOpenSettled& said, loom::Mail& mail) {
             say(said.refusal, true);
         }
     } else if (!said.applied) {
-        // PUBLISHED, AND AN OWNER COULD NOT APPLY IT (editor-managed-open-slice-corrections).
+        // PUBLISHED, AND AN OWNER COULD NOT APPLY IT.
         // This desk applied its own half in the hook -- the seat, the keys, the admitted
         // rows -- and a published claim is not this desk's to unpublish, so nothing here
         // moves back. The maker reads which owner is held and what ends that.

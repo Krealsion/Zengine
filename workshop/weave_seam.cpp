@@ -157,7 +157,7 @@ void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
     admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, mail);
 }
 
-// EXPERIMENTAL (editor-managed-open-slice): content naming its generation.
+// Content naming its generation (WL-OPEN-03).
 void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
     admit_content(mail.authored_role(), content.pane, content.rows, content.generation, mail);
 }
@@ -190,7 +190,7 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
         // by talking about it, which is what keeps discovery and presentation two doors.
         return;
     }
-    // EXPERIMENTAL: A PROJECTION OF A GENERATION THIS PANE HAS ALREADY MOVED PAST IS NOT
+    // A PROJECTION OF A GENERATION THIS PANE HAS ALREADY MOVED PAST IS NOT
     // ADMITTED. It was composed for a document that has since been replaced under a
     // commitment; painting it here would show the old document over the new one's admitted
     // rows. Dropped, not refused: it is not wrong, it is late, and the pane's next
@@ -252,7 +252,7 @@ void WorkshopWeave::on(const PaneCaret& caret, loom::Mail& mail) {
     admit_caret(mail.authored_role(), caret, std::nullopt, mail);
 }
 
-// EXPERIMENTAL (editor-managed-open-slice): a caret naming its generation.
+// A caret naming its generation (WL-OPEN-03).
 void WorkshopWeave::on(const v2::PaneCaret& caret, loom::Mail& mail) {
     admit_caret(mail.authored_role(),
                 PaneCaret{caret.pane, caret.row, caret.column, caret.sel_begin_row,
@@ -274,7 +274,7 @@ void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
         return; // a caret for a closed pane opens nothing, exactly as content does not
     }
     if (generation.has_value() && *generation < pane->content_generation) {
-        return; // EXPERIMENTAL: a caret of a document this pane has moved past (see content)
+        return; // a caret of a document this pane has moved past (see content)
     }
     // WHAT IT WAS, BEFORE ANYTHING IS WRITTEN -- so this handler can repaint on a caret
     // that MOVED with no content behind it (an arrow key) and stay silent on one that

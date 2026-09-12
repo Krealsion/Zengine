@@ -137,29 +137,23 @@ beside the twelve before them, and each is an ordinary optional capability any p
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
   Editor pins it (VD-26).
-- **The reveal is one ask and one answer** (VD-26, corrected twice since), because an
-  acquisition that ends in a presentation is one transaction whose two facts live in two weaves:
-  **`PaneRevealRequested v1` `{pane}`** (provider → Workshop, as the office that offered the
-  pane: seat me now, my act needs nothing more) and **`PaneRevealAnswered v1` `{pane, seated,
-  refusal}`** (Workshop's answer, on the delivery that asked, about what that delivery DID —
-  the pane is seated, selected and has the keys, or nothing moved and here is the picker's
-  sentence).
-  **Why the ask is the commitment.** The asker's eligibility and the desk's seat are two facts
-  in two weaves, and FIFO dispatch lets either change between two deliveries. Seating at the
-  answer and re-judging afterwards lost a held paste (the desk moved for an operation that then
-  refused); judging first and seating at a later settle lost a seat (a document replaced in a
-  pane the screen no longer showed); a further statement moves the race. So the asker freezes
-  its own fact — it holds every gesture and clipboard answer from its ask to the answer,
-  Workshop's quit discipline one seam over — and the desk makes its fact TRUE in the delivery
-  that answers. That delivery is the commitment point: the asker completes its own half on the
-  answer without judging again, and a seat is not something it may then decline.
-  **What a refusal and a later change mean.** A refusal moved nothing. A screen that shrank
-  before the ask arrived left the pane waiting for room, so the trial seat refuses: the maker's
-  own shrink, before the commitment, is a refused open. A shrink after the answer is an
-  ordinary presentation change to a pane that is on the desk. Workshop holds nothing between
-  deliveries — no record, no reservation — so two offices' asks are two seats judged in order,
-  and a screen with room for one refuses the second before admission. A reveal naming a pane
-  the office never offered is refused; one from nobody is dropped unanswered.
+- **The reveal is one ask and one answer** (VD-26): **`PaneRevealRequested v1` `{pane}`**
+  (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
+  more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
+  delivery that asked, about what that delivery DID — the pane is seated, selected and has the
+  keys, or nothing moved and here is the picker's sentence). Judged first, through the picker's
+  own trial seat on a copy of the setup; written only if the seat is real. A refusal moved
+  nothing; a screen that shrank before the ask arrived refuses it in the picker's words; a
+  shrink after the answer is an ordinary presentation change to a pane on the desk. Workshop
+  holds nothing between deliveries — no record, no reservation — so two offices' asks are two
+  seats judged in order. A reveal naming a pane the office never offered is refused; one from
+  nobody is dropped unanswered.
+  **It is an ordinary pane's door, and no longer the Editor's open.** A pane whose act needs a
+  seat and nothing else asks for one. An act that changes a DOCUMENT and its presentation
+  together — opening a source — is the managed opening below, because the two facts live in
+  two weaves and FIFO dispatch lets either change between two deliveries: the reveal-as-
+  commitment shape held the asker's gestures to a bound and dropped the rest, and no bound
+  repairs that.
 - **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
   **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
   that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
@@ -169,6 +163,56 @@ beside the twelve before them, and each is an ordinary optional capability any p
   flight — refuses rather than waits, so one clipboard read cannot hold every other pane's exit.
   What is NOT solved: an accepter that never answers holds the quit open, and that is named
   rather than timed out.
+
+## Opening a source is a managed opening, jointly published (WL-OPEN)
+
+The Editor's document and Workshop's presentation of its pane change TOGETHER, at one
+published boundary, coordinated by the native opening manager the host mounts in
+`zengine.opening`. The law is [`workshop/opening.md`](workshop/opening.md) (`WL-OPEN`); the
+Editor's half is [`workshop/editor.md`](workshop/editor.md) (WL-EDIT-05, WL-EDIT-13); the
+substrate — joint publication of latest claims, the showing, the record's lifetime — is Loom's
+joint-publication reference page, never restated here. What crosses, all in
+`workshop/open_seam_vocabulary.hpp` unless named otherwise:
+
+```text
+OpenSourceRequested v1 {path}   requester -> zengine.opening   (pane_seam_vocabulary.hpp; also
+                                                                 zengine.editor, which RELAYS)
+SourceOpened v1 {accepted, refusal}   the answer: published AND applied by both owners, or why not
+PresentationTrialRequested v1 / PresentationTrial v1      manager -> desk: would it seat, what room
+PrepareSourceRequested v1 / SourcePrepared v1             manager -> Editor: prepare B for that room
+PresentationAdmitRequested v1 / PresentationAdmitted v1   manager -> desk: admit B's rows, offer
+ManagedOpenProgress v1                                    manager -> desk (and both owners at
+                                                           `apply`): what is awaited, or retracted
+ManagedOpenSettled v1                                     manager -> both owners, afterwards
+EditorDocument v1, PanePresentation v1                    the two latest claims, published jointly
+v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) rows and caret
+                                                           naming the document's generation
+```
+
+- **The two claims are identities, never documents.** `EditorDocument` carries the path, the
+  epoch, the convention, the content revision and the dirty flag; `PanePresentation` the seat,
+  selection, keys, room, admitted generation, the count of inputs routed to the pane, the stack
+  capacity and the setup digest. Each owner derives its claim from its own state at the end of
+  every delivery and claims only when it moved (`after_delivery`), so an edit to A, a routed
+  input, a resize or an authored change moves a claim and aborts a preparation bound to the
+  previous revision. Nothing is held.
+- **`v2::PaneContent` and `v2::PaneCaret` ADD a `generation` field beside the untouched v1
+  doors** (GATE-04's reason: a published `(name, version)` is frozen). Workshop admits a v2
+  projection unless it names a generation older than the one the pane holds — a picture of a
+  document that has since been replaced, dropped rather than painted over the admitted rows. A
+  v1 content carries none and is admitted as it always was; every pane that never commits
+  jointly is unchanged and unrebuilt, and the separately built legacy provider still speaks v1.
+- **Every managed sentence is judged under the office stamp.** The trial, the admission and
+  the settlement are taken only from `zengine.opening`; a preparation only from the manager;
+  a forged settlement, preparation or admission reaches its party and is dropped by it. The
+  manager's own answers are matched by Loom's `answers_ask()` plus its correlation and stage.
+- **The requesters keep their tickets.** Files' open, the Builder's recipe-source lookup and
+  its open, and the Editor's relay each keep the send ticket and clear only the ask whose
+  exact attempt Loom's `zen.DispatchRefused` names; an enqueue that queued nothing is refused
+  at once, in words (WL-OPEN-07).
+- **Not in this contract:** a document-only open, a queue of intents, a timeout, a retry, a
+  rollback after publication, or a loaded manager. A host that replaces its manager mints
+  its authority again (WL-OPEN-08).
 
 ## A pane declares its actions, and the host dispatches the resolved id
 

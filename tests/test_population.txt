@@ -1557,7 +1557,7 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  101
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  440
+workshop_panes                    doctest           always  461
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  136
 workshop_files                    doctest           always  41

@@ -53,7 +53,7 @@
 #include "workshop/prefs_persist.hpp"
 #include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
-#include "workshop/opening.hpp" // EXPERIMENTAL: the opening manager the host mounts
+#include "workshop/opening.hpp" // the opening manager the host mounts
 #include "workshop/vocabulary.hpp"
 // ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree.
 // It used to borrow the browser's own `leaves_the_tree`; the browser is a weave in another
@@ -1839,7 +1839,7 @@ class DoorAsker
                                         OpenSourceRequested, RecipeSourceRequested,
                                         PaneRevealRequested, PaneQuitAnswered,
                                         surface::SurfaceExtent,
-                                        // EXPERIMENTAL (editor-managed-open-slice): the four
+                                        // ...and the four
                                         // sentences a stranger might forge at the managed
                                         // opening's three parties, so the forgery cases prove
                                         // the parties' refusals and not the bus's.
@@ -1910,8 +1910,7 @@ public:
         ++state_.answers;
         opens.push_back(said);
         // WHETHER LOOM SAYS THIS ANSWERS AN ASK OF THIS WEAVE'S -- the provenance a relayed
-        // answer must still carry for the ORIGINAL requester (editor-managed-open-slice-
-        // corrections): the Editor spends the requester's own kept right, so this is true.
+        // answer must still carry for the ORIGINAL requester (WL-OPEN-07): the Editor spends the requester's own kept right, so this is true.
         opens_authentic.push_back(mail.answers_ask());
     }
     void on(const RecipeSourceSaid& said, loom::Mail&) {
@@ -2312,7 +2311,7 @@ private:
     std::vector<std::string>* no_;
 };
 
-/// EXPERIMENTAL (editor-managed-open-slice): A SEAT AT THE CONTROL DOOR FOR A RELOAD OR AN
+/// A SEAT AT THE CONTROL DOOR FOR A RELOAD OR AN
 /// UNLOAD, with a state shape of its own (see `PaneRig::enqueue_reload`).
 struct ControlSeatState {
     std::int64_t n = 0;
@@ -2465,7 +2464,7 @@ struct PaneRig {
         speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
         speak.allow_to_any(TerminalCompletionOffered::zen_name,
                            TerminalCompletionOffered::zen_version);
-        // EXPERIMENTAL (editor-managed-open-slice): the two answers this host gives the
+        // The two answers this host gives the
         // opening manager, exactly as workshop.cpp grants them.
         speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
         speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
@@ -2475,7 +2474,7 @@ struct PaneRig {
         return w;
     }
 
-    /// EXPERIMENTAL (editor-managed-open-slice): THE OPENING MANAGER, MOUNTED THE WAY THE
+    /// THE OPENING MANAGER, MOUNTED THE WAY THE
     /// HOST MOUNTS IT -- the production grant spelled by hand (`mount_workshop`'s
     /// discipline, for its reason), and the authority to commit a joint publication minted
     /// by this rig's own bus for the manager's own id, over exactly the two offices the host
@@ -2623,7 +2622,7 @@ struct PaneRig {
         return load_refusals.size() == before;
     }
 
-    /// EXPERIMENTAL (editor-managed-open-slice): RELOAD A REAL LIBRARY IN PLACE THROUGH THE
+    /// RELOAD A REAL LIBRARY IN PLACE THROUGH THE
     /// REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op the Weave Manager itself spends when a
     /// maker's rebuilt product is offered; the Kernel snapshots the live weave, opens the new
     /// image, and revives the new incarnation at the same id (the load suite drives the same

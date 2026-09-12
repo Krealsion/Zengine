@@ -80,7 +80,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const zengine::input::Poin
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
-    note_routed(kind); // EXPERIMENTAL: admitted work, not yet delivered
+    note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }
 

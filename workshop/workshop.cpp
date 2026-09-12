@@ -18,7 +18,8 @@
 #include "staging.hpp"
 #include "user_paths.hpp"
 #include "weave.hpp"
-#include "opening.hpp"        // EXPERIMENTAL: the opening manager this host mounts
+#include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
+#include "opening.hpp"        // the opening manager this host mounts
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 
 #include "builder/runner.hpp"
@@ -309,7 +310,7 @@ int main(int argc, char** argv) {
     // refuses in words and which the banner below states once. No fallback is invented for
     // either, deliberately.
     host.project_dir = launch_project_dir();
-    // EXPERIMENTAL (editor-managed-open-slice): the one pane whose presentation this host
+    // THE ONE PANE whose presentation this host
     // claims and can commit jointly with its document -- spelled through the conversion
     // table, which is the one host-side file that names the reference, and not by this host
     // knowing a pane (EDIT-W48's rule).
@@ -1166,7 +1167,7 @@ int main(int argc, char** argv) {
     // this host owns, so a pane can leave itself consistent with a refused presentation
     // (VD-26).
     speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
-    // EXPERIMENTAL (editor-managed-open-slice): the two answers this host gives the opening
+    // The two answers this host gives the opening
     // manager -- whether a pane would seat and with what room, and whether the trial's
     // content was admitted. `to_any` for `PaneRoom`'s reason: Loom picks the recipient of
     // an answer.
@@ -1202,7 +1203,7 @@ int main(int argc, char** argv) {
                        TerminalCompletionOffered::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
-    // ---- EXPERIMENTAL (editor-managed-open-slice): THE OPENING MANAGER ---------------------
+    // ---- THE OPENING MANAGER (WL-OPEN-01, WL-OPEN-08) --------------------------------------
     //
     // One focused owner for the open operation, mounted beside Workshop in its own office
     // and granted exactly the conversation it carries: it asks the desk for a trial and an
@@ -1222,7 +1223,7 @@ int main(int argc, char** argv) {
                                    kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
                                    kEditorRole);
-    // ...and the `apply` word to the Editor too (editor-managed-open-slice-corrections):
+    // ...and the `apply` word to the Editor too:
     // the delivery that shows the Editor its published claim.
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kEditorRole);
@@ -1670,8 +1671,20 @@ int main(int argc, char** argv) {
     // IT IS ALSO WHAT REALIZES THE PROJECT NOW, without being told: the first
     // artifact's load answer is an ordinary delivery like any other, and so is every
     // fact that follows it.
+    //
+    // ONE SEAM IS THE HOST'S AT THIS LOOP (workshop/host_pump.hpp): a native owner whose
+    // showing of a jointly published claim throws is recorded by Loom, held, and its own
+    // exception re-raised here. This host reads the turn's facts, names the held owner in the
+    // journal and on the console, and serves on -- the record protects the weave, the opening
+    // manager settles the open in words, and the repair is the owner's reload or removal. An
+    // exception those facts do not explain propagates exactly as it always did.
     while (!host.quit) {
-        bus.drain_until_idle();
+        const ServedTurn served = serve_until_idle(bus, [&journal](const std::string& said) {
+            journal.info("zengine.workshop", said);
+            std::printf("zengine-workshop - %s\n", said.c_str());
+            std::fflush(stdout);
+        });
+        (void)served;
         if (!host.quit && bus.pending() == 0) {
             std::printf("zengine-workshop - the bus went quiet without a quit "
                         "(no timer service deployed?): exiting.\n");
