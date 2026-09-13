@@ -12,33 +12,43 @@ that spelling became a disjunction somebody must remember to extend (`5a302ae`).
 **Decision.** `Panels::keyboard` is a pointing's memory, and `keyboard_pane` resolves fresh at
 every spend. Candidacy is declared on the catalog row (`takes_keyboard`); readiness is resolved
 live and stored nowhere. One reading at the top of the pressed branch decides the selection and
-the candidate. The press that points the keys is not an act in the pane. The candidate is never
+the candidate. The press that points the keys is not an act in the pane, and Workshop tells the
+pane, on the press, whether ordinary keys were already reaching it. The candidate is never
 cleared and the target never stored. The modes above never reach that line. The pane gets every
 bare key, `q` included. `^c` follows the keyboard. The screen says where typing goes in two
 places, in characters. Pane titles are a preference, and the keyboard's pane always keeps its
 title.
 
-**Alternatives considered.**
-- *A focus framework or registration* — none; the declaration moved to the catalog row.
-- *Activating a Files row on the first press* — rejected: a maker aiming at a cold pane whose
-  cursor rests on the pointed row would open a file, or meet the dirty refusal, having done
-  nothing but look; two presses from cold is the price, and a double-click was not available
-  because the wire carries no click count; pinned by case `"EDIT-1: the first press into a cold
-  pane selects and never activates"`.
-- *Deciding the candidate in the routing arms* — rejected: four decisions about one fact, and
-  the fourth is the one nobody adds.
+**Alternatives tried.**
+- *A pane-local memory of having had the keys* (`had_keyboard_`, `d4815cc`) — retired: Files
+  hears nothing when the keys leave it by a press into the Editor, and an arrow arrives as an id,
+  so it opened on a press from the Editor and only selected after a title press; pinned by case
+  `"the keys leave Files by a press into the Editor and Files is told nothing, so only Workshop
+  can say a later press on Files' selected row came from elsewhere"`.
+- *Reading the keys, or the pressed row, after the press wrote the keyboard* — measured by
+  mutation: a press back into Files read as already there, and a hidden-titles press named the
+  row under a title that was not painted.
 - *A hand-kept mirror predicate for the `^c` gate* — replaced by
   `context_takes_text(keyboard_context(...))` (`7b64b73`).
 - *Hiding the keyboard's pane's title with the preference* — refused: it would recreate the
   measured lie; pinned by case `"WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's
   pane keeps its own"`.
-- *Bare printables as globals* — rejected: admission refuses a bare printable on a global row,
-  which is why typing `p` into a field does not open the picker.
+
+**Alternatives argued.**
+- *A focus framework, a registration, or a focus-changed notification* — none: a notice would
+  fire at every write and every change in resolution, and a missed one activates.
+- *Activating a Files row on the first press* — rejected: a maker aiming at a cold pane whose
+  cursor rests on the pointed row would open a file, or meet the dirty refusal, having done
+  nothing but look; the wire carries no click count.
+- *Choosing the press's version by refusal, by sending both, or from a provider's list* — a
+  fallback reorders gestures, both is two presses, a list is a second accept-set.
+- *Deciding the candidate in the routing arms* — rejected: four decisions about one fact.
+- *Bare printables as globals* — rejected: admission refuses a bare printable on a global row.
 
 **Consequences.** A pane that closes, stops resolving or loses its room stops being the answer
-with nothing to clear, and gets the keyboard back when it returns. The band's typing-goes-to row
-is generated from the keymap's global rows, so the chords it advertises are the ones that work. A
-hidden title returns its row to the provider through the ordinary grant door.
+with nothing to clear, and gets the keyboard back when it returns. A press is refused, not
+repeated, when its office changes holder before delivery. The band's typing row is generated
+from the keymap's global rows. A hidden title returns its row to the provider through the grant.
 
 **Laws supported.** [WL-FOCUS-01](../workshop/focus.md), [WL-FOCUS-02](../workshop/focus.md),
 [WL-FOCUS-03](../workshop/focus.md), [WL-FOCUS-04](../workshop/focus.md),

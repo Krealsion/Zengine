@@ -1689,6 +1689,242 @@ TEST_CASE("MSG-0: a pane with no room granted is not typed into") {
     CHECK(seat->keys.size() == before);
 }
 
+// ---- A press says where the keys went, in the one version the office's holder accepts -------
+
+namespace {
+
+inline constexpr const char* kPressOffice = "zengine.test.press-reader";
+inline constexpr const char* kPressPane = "reader";
+
+/// A NATIVE PROVIDER THAT ACCEPTS BOTH PUBLISHED VERSIONS OF A PRESS, and records which one each
+/// press crossed in, the routing fact a second version carries, and who authored it. Like
+/// `ProviderSeat` it interprets nothing: a case asserts what Workshop sent.
+class PressSeat
+    : public loom::WeaveBase<PressSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed,
+                                          v2::PanePressed, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent>> {
+public:
+    struct Heard {
+        std::uint32_t version = 0;
+        std::string pane;
+        std::int64_t row = 0;
+        bool keys_went_here = false;
+        std::string author;
+    };
+
+    void on(const PaneCatalogRequested&, loom::Mail&) { ++state_.said; }
+    void on(const PaneRoom&, loom::Mail&) { ++state_.said; }
+    void on(const PanePressed& p, loom::Mail& mail) {
+        ++state_.said;
+        presses.push_back(Heard{1, p.pane, p.row, false, std::string(mail.authored_role())});
+    }
+    void on(const v2::PanePressed& p, loom::Mail& mail) {
+        ++state_.said;
+        presses.push_back(
+            Heard{2, p.pane, p.row, p.keys_went_here, std::string(mail.authored_role())});
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.as_role(kPressOffice)
+            .send_to_role(kWorkshopProvider, PaneOffered{kPressPane, "Reader", "reads presses"});
+    }
+
+    std::vector<Heard> presses;
+};
+
+/// Mount the reader in its office, have it offer its pane as that office, and open the pane.
+inline std::int64_t press_seat_open(PaneRig& r, PressSeat*& seat, loom::WeaveId& id) {
+    auto held = std::make_unique<PressSeat>();
+    seat = held.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    id = r.bus.register_weave(std::move(held), std::move(grant), std::string(kPressOffice));
+    seat->zen_set_self(id);
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    r.pick(PaneRef{kPressOffice, kPressPane});
+    const RuntimePane* row = r.session().panels.runtime.find(kPressOffice, kPressPane);
+    return row == nullptr ? kNoPaneKind : row->kind;
+}
+
+/// ONE `PanePressed` ATTEMPT OF EITHER VERSION, as the bus's tap recorded it.
+struct PressAttempt {
+    loom::EventKind kind = loom::EventKind::Delivered;
+    std::uint32_t version = 0;
+    loom::WeaveId sender{};
+    loom::WeaveId target{};
+    std::string authored;
+    std::string addressed;
+    loom::RefusalReason reason = loom::RefusalReason::None;
+    std::uint64_t parent = 0;
+};
+
+} // namespace
+
+TEST_CASE("v2::PanePressed is v1's place and one routing fact, published beside a v1 that did not move") {
+    const std::shared_ptr<const loom::Schema> one = loom::schema_of<PanePressed>();
+    const std::shared_ptr<const loom::Schema> two = loom::schema_of<v2::PanePressed>();
+    REQUIRE(one != nullptr);
+    REQUIRE(two != nullptr);
+    CHECK(two->name() == one->name());
+    CHECK(two->version() == 2u);
+    REQUIRE(two->fields().size() == 4);
+    REQUIRE(one->fields().size() == 3);
+    for (std::size_t i = 0; i < 3; ++i) {
+        CHECK(two->fields()[i].name == one->fields()[i].name);
+        CHECK(two->fields()[i].type.kind == one->fields()[i].type.kind);
+    }
+    CHECK(two->fields()[3].name == "keys_went_here");
+    CHECK(two->fields()[3].type.kind == loom::Kind::Bool);
+    CHECK(one->version() == 1u);
+    // TWO IDENTITIES, ONE REGISTRY: a provider built against v1 alone and a host that also
+    // publishes v2 register side by side, which a field added to v1 in place would not.
+    CHECK_FALSE(loom::same_identity(*one, *two));
+    loom::Registry vocabulary;
+    CHECK_NOTHROW((void)vocabulary.claim({one, two}));
+}
+
+TEST_CASE("a press crosses once: as v2 to a pane whose office's holder accepts it, and as the unchanged v1 to one that accepts only v1") {
+    // ONE GESTURE, ONE SENTENCE, IN THE VERSION THE RECIPIENT HAS A DOOR FOR. The host's answer is
+    // read off the bus's own role table and accept-sets, for these two NATIVE seats exactly as
+    // for a loaded image; a pane that never heard of the second version is sent the first and
+    // nothing is refused.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(120, 60); // two stack slots
+    ProviderSeat* old = r.mount_provider(kHelloOffice);
+    const std::int64_t old_kind = seat_pane_open(r, old, kHelloOffice, kHelloPane);
+    PressSeat* reader = nullptr;
+    loom::WeaveId reader_id{};
+    const std::int64_t new_kind = press_seat_open(r, reader, reader_id);
+    REQUIRE(is_runtime_kind(old_kind));
+    REQUIRE(is_runtime_kind(new_kind));
+    CHECK_FALSE(holder_accepts_on(r.bus, kHelloOffice, *loom::schema_of<v2::PanePressed>()));
+    CHECK(holder_accepts_on(r.bus, kPressOffice, *loom::schema_of<v2::PanePressed>()));
+    CHECK_FALSE(holder_accepts_on(r.bus, "zengine.test.nobody", *loom::schema_of<PanePressed>()));
+
+    std::vector<PressAttempt> attempts;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.schema_name == PanePressed::zen_name &&
+            (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
+            attempts.push_back(PressAttempt{ev.kind, ev.schema_version, ev.sender, ev.target,
+                                            ev.authored_role, ev.addressed_role,
+                                            ev.refusal.reason, ev.dispatch_parent});
+        }
+    });
+    const std::size_t old_before = old->presses.size();
+    press_body(r, old_kind); // the keys were Workshop's
+    press_body(r, old_kind); // ...and now the old pane's
+    press_body(r, new_kind); // ...and now the reader's is pressed from the old pane
+    press_body(r, new_kind); // ...and again, holding the keys
+    r.bus.remove_observer(tap);
+
+    REQUIRE(attempts.size() == 4);
+    for (const PressAttempt& a : attempts) {
+        CHECK(a.kind == loom::EventKind::Delivered);
+        CHECK(a.sender == r.workshop_id);
+        CHECK(a.authored == std::string(kWorkshopProvider));
+    }
+    CHECK(attempts[0].version == 1u);
+    CHECK(attempts[1].version == 1u);
+    CHECK(attempts[0].addressed == std::string(kHelloOffice));
+    CHECK(attempts[2].version == 2u);
+    CHECK(attempts[3].version == 2u);
+    CHECK(attempts[2].target == reader_id);
+    CHECK(attempts[2].addressed == std::string(kPressOffice));
+    REQUIRE(old->presses.size() == old_before + 2);
+    CHECK(old->press_authors.back() == std::string(kWorkshopProvider));
+    CHECK(old->presses.back().pane == std::string(kHelloPane));
+    REQUIRE(reader->presses.size() == 2);
+    CHECK(reader->presses[0].version == 2u);
+    CHECK_FALSE(reader->presses[0].keys_went_here);
+    CHECK(reader->presses[1].keys_went_here);
+    CHECK(reader->presses[1].pane == std::string(kPressPane));
+    CHECK(reader->presses[1].author == std::string(kWorkshopProvider));
+}
+
+TEST_CASE("a holder replaced between the version choice and the delivery refuses that one v2 press, attributed to its gesture, author and office, and nothing is sent again") {
+    // INSPECTION IS NOT DELIVERY. Workshop chooses the version from the office's holder when it
+    // handles the press, and the bus resolves the office again when it dispatches. Between the
+    // two, the reader that accepts v2 is removed and the office is taken by a seat that accepts
+    // only v1 -- through the bus's own lifecycle doors, between two turns, nothing mocked. The
+    // chosen press is refused once, and Loom's record of the refusal names which gesture it came
+    // from, who said it as which office, where it was addressed and who refused it. No second
+    // version follows it: a retry would be a gesture delivered after whatever the maker did next.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(120, 60);
+    PressSeat* reader = nullptr;
+    loom::WeaveId reader_id{};
+    const std::int64_t kind = press_seat_open(r, reader, reader_id);
+    REQUIRE(is_runtime_kind(kind));
+
+    std::vector<PressAttempt> attempts;
+    std::vector<std::uint64_t> gestures; // each pointer button Workshop handled, by its delivery
+    const loom::WeaveId workshop = r.workshop_id;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.target == workshop &&
+            ev.schema_name == input::PointerButton::zen_name) {
+            gestures.push_back(ev.seq);
+        }
+        if (ev.schema_name == PanePressed::zen_name &&
+            (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
+            attempts.push_back(PressAttempt{ev.kind, ev.schema_version, ev.sender, ev.target,
+                                            ev.authored_role, ev.addressed_role,
+                                            ev.refusal.reason, ev.dispatch_parent});
+        }
+    });
+
+    // THE PRESS, HANDLED IN A TURN OF ITS OWN: the version is chosen and the sentence queued.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    (void)r.bus.publish(loom::Message(
+        loom::to_value(input::PointerButton{1, true, body.x + 1,
+                                            body.y + kExternalHeaderRows + surface::kTuiCanvasTopRow,
+                                            input::space::kCells, input::mod::kNone}),
+        loom::WeaveId{}, loom::WeaveId{}, 0));
+    REQUIRE(r.bus.pump_pending() >= 1);
+    REQUIRE(gestures.size() == 1);
+    REQUIRE(attempts.empty());
+    REQUIRE(reader->presses.empty());
+
+    // THE TURNOVER: the office released, and held by a seat with only the first version's door.
+    std::unique_ptr<loom::Weave> removed = r.bus.unregister_weave(reader_id);
+    REQUIRE(removed != nullptr);
+    reader = nullptr;
+    ProviderSeat* successor = r.mount_provider(kPressOffice);
+    const loom::WeaveId successor_id = r.seat_ids.back();
+    REQUIRE(r.bus.role_holder(kPressOffice) == successor_id);
+    REQUIRE_FALSE(holder_accepts_on(r.bus, kPressOffice, *loom::schema_of<v2::PanePressed>()));
+
+    // THE DELIVERY: refused once, and attributed.
+    r.bus.drain_until_idle();
+    REQUIRE(attempts.size() == 1);
+    CHECK(attempts[0].kind == loom::EventKind::Refused);
+    CHECK(attempts[0].reason == loom::RefusalReason::NotAccepted);
+    CHECK(attempts[0].version == 2u);
+    CHECK(attempts[0].parent == gestures[0]);
+    CHECK(attempts[0].sender == workshop);
+    CHECK(attempts[0].authored == std::string(kWorkshopProvider));
+    CHECK(attempts[0].addressed == std::string(kPressOffice));
+    CHECK(attempts[0].target == successor_id);
+    CHECK(successor->presses.empty());
+
+    // THE NEXT GESTURE IS CHOSEN AFRESH, and crosses once, as the version the holder accepts.
+    press_body(r, kind);
+    r.bus.remove_observer(tap);
+    REQUIRE(attempts.size() == 2);
+    REQUIRE(gestures.size() == 2);
+    CHECK(attempts[1].kind == loom::EventKind::Delivered);
+    CHECK(attempts[1].version == 1u);
+    CHECK(attempts[1].target == successor_id);
+    CHECK(attempts[1].parent == gestures[1]);
+    REQUIRE(successor->presses.size() == 1);
+    CHECK(successor->press_authors[0] == std::string(kWorkshopProvider));
+}
+
 // ---- Tier two: the real Composer, the real Timer, and a real stranger --------------
 
 namespace {

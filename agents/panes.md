@@ -16,10 +16,13 @@ screen.
 
 ```text
 occupied_at   -> Occupancy{occupied, what, kind}     ONE geometry walk, topmost first
+typing_pane(session) == kind -> keys_went_here     } both read BEFORE the press writes
+external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels::keyboard
+                  titles, space, x, y) -> ExternalPressAt{named, row, column}
+                 bounds_of -> external_body_place -> prose_at -> minus the resolved title rows
                  is_runtime_kind(kind)?              -> external_press, and Workshop says NOTHING
-external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{named, row, column}
-                 bounds_of -> external_body_place -> prose_at -> minus kExternalHeaderRows
                  named == false  =>  no sentence. The press was still the pane's.
+                 holder_accepts(office, v2)?  =>  v2::PanePressed, else PanePressed v1 -- once
 ```
 
 - **`Occupancy` carries the KIND it met, and that is the same answer rather than a second
@@ -48,17 +51,42 @@ external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{n
   pane-title preference, with the keyboard-holding pane always keeping its title — resolved
   once and carried on `ExternalBodyPlace::header_rows`; the painter, the press path and the
   room grant spend that one answer, and a hidden title RETURNS its row to the provider's
-  budget through the ordinary grant-on-change door.
+  budget through the ordinary grant-on-change door. **The press path spends the answer the
+  PRESSED picture had**, read before the press moves the keyboard: a hidden-titles pane wears
+  its title exactly while it has the keys, so the press that brings them names the row painted
+  where it landed, and the smaller room the returning title takes is granted right behind it.
+  A provider must not let that grant undo what the press selected (Files keeps its selection
+  by name across a same-place re-listing).
 - **A row that fits no prose is not a row.** Anything outside `[0, rows) × [0, columns)` — the
   header, the pixel remainder under the last prose line of a graphical medium, an unrecognised
   `space` — is refused rather than clamped. Rounding to a nearest row hands a provider a press
   at a place it never wrote to.
-- **Workshop holds no selection, no focus and no memory of the press.** No
-  `Workshop::selected_*`, no pane focus, no capture, no record of which pane a maker touched
-  last, and no repaint on the forwarding path: Workshop's picture did not change, and if the
-  provider answers, its own handler repaints. Nothing here reads `ExternalPane::shown` and
-  nothing may — the moment Workshop looks at a provider's rows to decide what a press means,
-  the seam has stopped being one.
+- **Workshop holds no selection INSIDE a pane and no memory of the press.** What it holds is
+  which PANE: the desk's selection and the keyboard's candidate (`Panels::selected`,
+  `Panels::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). No row identity,
+  no capture, no record of a press once it is sent, and no repaint on the forwarding path:
+  Workshop's picture did not change, and if the provider answers, its own handler repaints.
+  Nothing here reads `ExternalPane::shown` and nothing may — the moment Workshop looks at a
+  provider's rows to decide what a press means, the seam has stopped being one.
+- **A press crosses ONCE, in the version the office's holder accepts.** `PanePressed v1`
+  `{pane, row, column}` is frozen; `v2::PanePressed` adds `keys_went_here` — ordinary keys
+  reached this pane just before the press (`typing_pane`: a pane's context and no hotkey view,
+  so a pane that is only the candidate under an open picker is "not here"). Workshop sends v2
+  exactly when `HostContext::holder_accepts` answers that the office's current holder has that
+  door — the host's `holder_accepts_on`, over the bus's role table and accept-sets, native and
+  loaded holders alike — and v1 otherwise, so every older pane is unchanged. It is a fact, not
+  an instruction: what it means for a row is the pane's, and a v1 press states NO fact, so a
+  pane must not read it as "the keys were here" (Files selects on it; Return still opens).
+- **Choosing the version is an inspection, not a delivery.** The office is resolved again at
+  dispatch; a holder that changed in between and has no v2 door refuses the press
+  `NotAccepted`, and that refusal is the press's outcome. Nothing is retried and no v1 follows
+  — a second attempt would be a gesture delivered after whatever the maker did next — and
+  Workshop accepts no `zen.DispatchRefused` for it: the attribution is Loom's tap, whose
+  refused event names the attempt, `PanePressed` v2, Workshop as sender and `zengine.workshop`
+  as author, the addressed office, the holder that refused, and the pointer delivery it was
+  authored from (`dispatch_parent`). A reload that ADDS the v2 door changes the image's
+  accepted schemas, which Loom refuses to reload in place: a pane that gains it arrives with a
+  restarted Workshop.
 - **A provider interprets the press against what it is CURRENTLY SHOWING.** `project_loaded`
   returns the row-to-entry map beside the rows it built (the one-measurer rule reaching
   interaction), the provider retains that value and drops it on every room grant, and a press
