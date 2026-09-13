@@ -120,6 +120,10 @@ void WorkshopWeave::quit(loom::Mail& mail) {
     // every gesture is held until the last answer (`hold_input`), and the answer handler
     // finishes or refuses. There is no confirmation surface and no armed second press: a
     // maker who has saved or discarded simply quits.
+    // ...AND AN ANSWER THAT CAN NEVER COME DOES NOT HOLD THE HANDS: a delivery of this ask Loom
+    // refuses runs no handler, the host's watch writes the refusal in its book and wakes this
+    // weave (`quit_delivery.hpp`), and the quit is refused then, without waiting on anyone else.
+    // A delivered question nobody answers is not that, and still waits.
     // ONE SEQUENCE PER ASKER (`loom::AskBook::mint_correlation`): a number the paste book is
     // not already waiting on, so an answer to this ask can never settle a paste.
     quit_ask_ = paste_asks_.mint_correlation();
@@ -171,8 +175,8 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     if (quit_outstanding_ > 0) {
         return; // more answers are owed, and the decision waits for the last of them
     }
-    quitting_ = false;
     if (quit_refusals_.empty()) {
+        quitting_ = false;
         finish_quit();
         return;
     }
@@ -183,11 +187,53 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
         }
         why += one;
     }
+    refuse_quit(std::move(why), mail);
+}
+
+// WL-SESSION-19 -- agents/workshop/session.md
+void WorkshopWeave::on(const QuitDeliveryRefusalNoted&, loom::Mail& mail) {
+    // THE BOOK IS TAKEN WHOLE, EVERY TIME, so nothing in it outlives the wake-up that followed it:
+    // an entry for an ask that already ended -- refused, or answered -- is discarded here, and
+    // one written while no quit is in flight means nothing to this weave.
+    const std::vector<UndeliveredQuit> noted = host_->undelivered_quits.take();
+    if (!quitting_) {
+        return;
+    }
+    std::string undelivered;
+    for (const UndeliveredQuit& one : noted) {
+        // THE ASK IS THIS WEAVE'S OWN NUMBER (`paste_asks_.mint_correlation`), and the watch took
+        // the entry only from a refusal the bus stamped as this weave's -- so an equal number is
+        // this quit's delivery and nothing else's. An older quit's late fact carries an older one.
+        if (one.ask != quit_ask_) {
+            continue;
+        }
+        undelivered += (undelivered.empty() ? "the quit could not ask " : "; nor ") +
+                       undelivered_quit_words(one);
+    }
+    if (undelivered.empty()) {
+        return;
+    }
+    // ONE KNOWN REFUSAL MAKES THIS QUIT IMPOSSIBLE, so it ends now: an answer still owed by
+    // another pane cannot turn it back into an exit, and waiting for it would hold the maker's
+    // hands for nothing. What panes already refused is said too, in their own words.
+    std::string why = undelivered + "; Workshop stays open, and a quit after the repair asks again";
+    for (const std::string& one : quit_refusals_) {
+        why += "; " + one;
+    }
+    refuse_quit(std::move(why), mail);
+}
+
+// WL-SESSION-19 -- agents/workshop/session.md
+void WorkshopWeave::refuse_quit(std::string why, loom::Mail& mail) {
+    quitting_ = false;
+    quit_ask_ = 0;
+    quit_outstanding_ = 0;
+    quit_refusals_.clear();
     if (held_dropped_ > 0) {
         why += " (" + std::to_string(held_dropped_) +
                " gesture(s) that arrived while the quit was pending were dropped)";
     }
-    say(why, true);
+    say(std::move(why), true);
     // AND THE MAKER'S HANDS GET BACK WHAT THEY DID MEANWHILE, in order, through the same
     // handlers -- a refused quit costs no keystroke.
     replay_held(mail);

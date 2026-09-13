@@ -13,6 +13,7 @@
 
 #include "persist.hpp"
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
+#include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
@@ -187,6 +188,11 @@ struct HostContext {
     /// weave's publication hook keeps its own words here, and the host's turn tells them.
     ShowingFailures showings;
 
+    /// THE BOOK A QUIT DELIVERY LOOM REFUSED IS WRITTEN IN (`quit_delivery.hpp`): the host's
+    /// watch writes what the tap said, and this weave reads it when the watch wakes it.
+    // WL-SESSION-19 -- agents/workshop/session.md
+    UndeliveredQuits undelivered_quits;
+
     /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::vector<Condition> standing_conditions;
@@ -246,6 +252,7 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::PaneQuitAnswered,
+                                          zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
@@ -509,6 +516,11 @@ public:
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
     /// says why, and replays the gestures held while the room was being asked.
     void on(const PaneQuitAnswered& said, loom::Mail& mail);
+
+    /// THE HOST'S WAKE-UP: a delivery of a quit question was refused, and the book says which.
+    /// The wake-up carries nothing and decides nothing; an entry for the quit in flight refuses
+    /// it, naming who could not be asked and why, and every other entry is discarded.
+    void on(const QuitDeliveryRefusalNoted& noted, loom::Mail& mail);
 
     /// THE OBJECT DOCUMENT'S ONE ACTING DOOR: select, create, delete, commit one property.
     /// Answered at this host's own office, because the party that owns the document is the
@@ -1244,6 +1256,12 @@ private:
     /// THE EXIT ITSELF: write down the desk, then stop the bus. The one place both happen.
     void finish_quit();
 
+    /// THE QUIT IN FLIGHT ENDS WITHOUT AN EXIT, for whatever made it impossible -- a pane's
+    /// refusal, or a question Loom could not deliver. One cleanup for both: its bookkeeping is
+    /// retired, `why` is said with the count of gestures the hold dropped, the held gestures are
+    /// replayed in order, and the desk is repainted. Nothing is saved and the bus keeps running.
+    void refuse_quit(std::string why, loom::Mail& mail);
+
     /// ONE INPUT GESTURE HELD WHILE A QUIT IS PENDING -- key, text, press, motion or wheel,
     /// whichever arrived, kept whole so a refused quit can replay it exactly.
     struct HeldInput {
@@ -1300,7 +1318,8 @@ private:
 
     /// THE QUIT IN FLIGHT: whether the room has been asked and not yet fully answered, which
     /// ask (its correlation), how many answers are still owed, what the refusals said, and
-    /// the gestures held meanwhile. None of it is durable and none of it survives the answer.
+    /// the gestures held meanwhile. None of it is durable and none of it survives the quit:
+    /// the last answer, or a delivery Loom refused, ends it (`refuse_quit`, `finish_quit`).
     bool quitting_ = false;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;

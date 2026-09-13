@@ -205,11 +205,12 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
 
-LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero ends the process now; otherwise every gesture is held until the last `PaneQuitAnswered`, and a refusal replays them and stays.
+LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero ends the process now; otherwise every gesture is held while the room is asked, and a refusal replays them and stays.
 
 MEANS
 - a pane answers about the instant; a paste still arriving, or an open being seated, refuses;
-- a maker-made pane's dirty definition still refuses synchronously, before the ask.
+- a maker-made pane's dirty definition still refuses synchronously, before the ask;
+- a delivery Loom refused ends the quit as a refusal; the process stays open (WL-SESSION-19).
 
 DOES NOT MEAN
 - that an accepter which never answers is handled: the quit stays open, named so.

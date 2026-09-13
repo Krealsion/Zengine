@@ -304,9 +304,16 @@ public:
         if (!row_of_body_row(press.row, which)) {
             return; // the header, a marker row, or blank space names no entry
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds, too
+        // (`on(PaneActionRequested)` says why an open needs the saying).
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
         if (had_keyboard_ && which == static_cast<std::size_t>(state_.cursor)) {
             open(mail); // a press on the already-selected row activates it (WL-FOCUS-04)
+            if (spent && published_ == published) {
+                say(mail);
+            }
             return;
         }
         state_.cursor = static_cast<std::int64_t>(which);
@@ -325,12 +332,12 @@ public:
         if (!authoring_.open) {
             return;
         }
-        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!authoring_.line.consume(key.scancode, key.modifiers, clip_)) {
-            return;
+            return; // a key that means nothing to the line is no act: the notice stands, unsaid
         }
+        notice_.clear();
         if (clip_.writes != copied_before) {
             mail.publish(surface::ClipboardCopy{clip_.text});
         }
@@ -380,7 +387,23 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
             return;
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
+        // one whose answer is still on its way (an open at the opening office, a catalog at the
+        // recipes office) or that meant nothing says none, and the spent notice would stand
+        // painted beside the act that spent it. So when a notice stood and the act published
+        // nothing, the rows are said here, once, without it.
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        act(asked, mail);
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
+
+    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`).
+    void act(const PaneActionRequested& asked, loom::Mail& mail) {
         // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
         // (`files.open`) commits a chooser row or an authoring field; Escape
         // (`files.cancel`) backs out whole; the browser's other verbs mean nothing until the
@@ -1111,6 +1134,7 @@ private:
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        ++published_;
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(out)});
     }
@@ -1232,6 +1256,9 @@ private:
     Listing listing_;
     double wheel_accum_ = 0.0;
     std::string notice_;
+    /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
+    /// can tell whether the act it ran already said its rows.
+    std::uint64_t published_ = 0;
 
     Ask root_;
     Ask open_;

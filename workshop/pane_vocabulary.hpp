@@ -754,6 +754,14 @@ struct PaneRevealAnswered {
 /// who typed through a refused quit loses nothing; on a permission they are dropped, which
 /// is what a process that has ended does with keys typed after it. The whole exchange is
 /// one drain of the bus; a maker sees the refusal or the exit, and not the wait.
+///
+/// ---- A QUESTION LOOM COULD NOT DELIVER --------------------------------------------------
+///
+/// A participant Loom refuses to deliver this to -- held, dead, gone, no longer accepting it --
+/// cannot answer, so its refusal is the quit's answer: the host reads it off its tap
+/// (`quit_delivery.hpp`) and Workshop refuses the quit in flight, naming who and why. A pane
+/// accepting this shape does nothing more for that. Only a delivered question left unanswered
+/// holds the quit open.
 struct PaneQuitRequested {
     ZEN_SHAPE(PaneQuitRequested, 1);
 };

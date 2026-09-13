@@ -837,6 +837,23 @@ TEST_CASE("FILES-WEAVE: the authoring line takes raw keys, and Escape abandons i
     CHECK(f.recipes.all().empty());
 }
 
+TEST_CASE("a key the Files authoring line does not take is no act: the notice stands through a repaint, and a key it takes spends it") {
+    // WHAT IS NOT AN ACT SPENDS NOTHING. The line refuses keys it has no meaning for; a refused
+    // key used to clear the notice privately and say no rows, so the next unrelated repaint
+    // dropped the line's own instructions.
+    FilesRig f("files-notice-unspent");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    f.open();
+    f.letter(input::scan::kA, "a");
+    f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
+    REQUIRE(any_row(f.shown(), "Return commits a field"));
+    f.r.key(input::scan::kDown); // a key the line has no meaning for
+    f.r.extent(150, 44);         // an unrelated repaint: the room is granted again
+    CHECK(any_row(f.shown(), "Return commits a field"));
+    f.r.key(input::scan::kLeft); // a key the line takes
+    CHECK_FALSE(any_row(f.shown(), "Return commits a field"));
+}
+
 // ============================================================================
 // FILES-WEAVE — what a maker's saved desk means now
 // ============================================================================
@@ -941,6 +958,59 @@ TEST_CASE("FILES-WEAVE: an open refused at dispatch is said by that exact attemp
     REQUIRE(f.r.session().panels.has(editor));
     CHECK(f.r.session().panels.keyboard == editor);
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+}
+
+TEST_CASE("a refused open's row leaves Files' published rows at the next Return on it, while that open is still on its way, and stays gone once the source opens") {
+    // THE SAME RETURN, ON THE SAME ROW, WITH NOTHING BETWEEN: no cursor step spends the refusal
+    // first, so the only act that can is the open itself -- and an open says nothing of its own
+    // until its answer, several turns later. The pane's rows are said at the act, without the
+    // spent notice; what is checked is the row Workshop admitted, turn by turn.
+    FilesRig f("files-notice-spent");
+    put_file(f.root / "alpha.cpp", "the project\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
+    f.point_at("alpha.cpp");
+    f.r.key(input::scan::kReturn);
+    // (Each row is read into a local before it is a message: `first()` asserts, and an assertion
+    // evaluated inside doctest's own report of another deadlocks its reporter under `-s`.)
+    const std::string refused = f.first();
+    REQUIRE_MESSAGE(refused.find("could not reach") != std::string::npos, refused);
+    f.r.mount_opening();
+    const loom::WeaveId files_id = f.r.kernel.weave_id(files::kFilesStem);
+    REQUIRE(files_id.value != 0);
+    loom::Switchboard& bus = f.r.bus;
+    bool heard = false;
+    const loom::ObserverId tap = bus.add_observer([&heard, &bus, files_id](const loom::BusEvent& ev) {
+        if (!heard && ev.kind == loom::EventKind::Delivered && ev.target == files_id &&
+            ev.schema_name == PaneActionRequested::zen_name) {
+            heard = true; // the turn ends where the pane has acted: its open is queued
+            bus.stop();
+        }
+    });
+    f.enqueue_key(input::scan::kReturn);
+    for (int turns = 0; turns < 8 && !heard; ++turns) {
+        (void)bus.pump_pending();
+    }
+    bus.remove_observer(tap);
+    REQUIRE(heard);
+    // TURN BY TURN, until the picture Workshop paints for the pane stops saying the refusal --
+    // its content is admitted a turn after the act and painted a turn after that -- which must
+    // happen while that open is still on its way, with nothing seated.
+    std::string pending = f.first();
+    for (int turns = 0; turns < 16 && pending.find("could not reach") != std::string::npos &&
+                        !f.r.session().panels.has(f.editor_kind());
+         ++turns) {
+        (void)bus.pump_pending();
+        pending = f.first();
+    }
+    CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK(f.r.opening->state().op != 0);
+    CHECK_MESSAGE(pending.find("could not reach") == std::string::npos, pending);
+    // THE OPEN COMPLETES, and the row stays clean.
+    bus.drain_until_idle();
+    REQUIRE(f.r.session().panels.has(f.editor_kind()));
+    CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
+    const std::string opened = f.first();
+    CHECK_MESSAGE(opened.find("could not reach") == std::string::npos, opened);
 }
 
 TEST_CASE("FILES-WEAVE: a forged refusal naming the pane's own live attempt settles nothing, and the open completes") {

@@ -185,6 +185,8 @@ add_library(zengine-workshop-logic STATIC
     weave_managed.cpp
     weave_opening.cpp
     host_pump.cpp
+    # The host's watch over the quit question's deliveries, and the book Workshop reads.
+    quit_delivery.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)

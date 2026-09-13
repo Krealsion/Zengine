@@ -87,9 +87,17 @@ repairs nothing — it takes the pane off your desk, and the Editor behind it, i
 its hold stay exactly as they were — and Workshop has no way to unload the Editor while it
 runs. The reloaded Editor still has the document it had before the open, and nothing of the
 file it could not apply: open that file again, a new open rather than a replay of the old one.
-Reload it **before** you quit. An orderly quit asks the Editor about unsaved work, a held
-Editor cannot answer, and Workshop goes on waiting, holding your keys, even after the reload —
-a quit asked while the Editor is held can only be ended from outside Workshop.
+
+**A quit while the Editor is held is refused.** An orderly quit asks the Editor about unsaved
+work, and a held Editor cannot be asked, so Workshop says so at once —
+`the quit could not ask zengine.editor (weave 7) -- it is held until it is reloaded or removed
+(ApplicationFailed); Workshop stays open, and a quit after the repair asks again` — and stays open
+with nothing saved and nothing closed. Your keys are yours again straight away, and whatever you
+pressed while the quit was asking is replayed in order. Reload the Editor as above, then quit
+again: that is a fresh quit, and the reloaded Editor answers it. The same is true of any other
+part of Workshop that takes part in the quit and cannot be asked, whether or not it shows a pane;
+it is named the same way. A part that is asked and simply never answers still keeps the quit
+waiting — pressing the close box then says what it is waiting for.
 
 If the side that could not apply is **Workshop's own desk**, nothing inside the running
 Workshop repairs it: Workshop cannot reload its own desk, and a held desk takes none of your
@@ -191,8 +199,8 @@ Nothing ordinary can throw dirty source away:
   the picker and the document, its caret and its undo history are exactly where they were;
 - an orderly **quit** (`q`, `Ctrl`+`c` where nothing takes text, the close box) **asks** the
   Editor first and is refused while source is unsaved, with the two ways out named — save, or
-  discard — and proceeds the moment the buffer is clean (a *held* Editor cannot answer it:
-  [reload it first](#while-an-open-is-on-its-way-and-if-it-stalls));
+  discard — and proceeds the moment the buffer is clean (a *held* Editor cannot be asked, so the
+  quit is refused until you [reload it](#while-an-open-is-on-its-way-and-if-it-stalls));
 - a **reload** of the Editor's own image (a rebuild of `zengine-editor-pane` loaded in place)
   carries the document across whole: bytes, unsaved edits, caret, selection and scroll
   position. What does not survive a reload is the undo history and a paste still on its way.

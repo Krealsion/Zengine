@@ -1201,7 +1201,18 @@ int main(int argc, char** argv) {
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
     speak.allow_to_any(TerminalCompletionOffered::zen_name,
                        TerminalCompletionOffered::zen_version);
-    mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+    const loom::WeaveId workshop_id =
+        mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+
+    // ---- THE QUIT'S UNDELIVERABLE QUESTIONS (WL-SESSION-19) --------------------------------
+    //
+    // Workshop's quit is a publication, and Loom's refusal notice does not reach a publication's
+    // author (`quit_delivery.hpp`): a participant held, dead or gone when the question arrives
+    // would leave the quit waiting on an answer that cannot come. THIS HOST watches its own tap
+    // for exactly those refusals and writes them in the book Workshop reads -- the observation
+    // is the host's and stays here. Declared after the bus and the `HostContext` it writes into,
+    // so it is removed before either goes.
+    const QuitDeliveryWatch quit_watch(bus, workshop_id, host.undelivered_quits);
 
     // ---- THE OPENING MANAGER (WL-OPEN-01, WL-OPEN-08) --------------------------------------
     //
