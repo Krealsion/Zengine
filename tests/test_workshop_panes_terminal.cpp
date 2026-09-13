@@ -882,6 +882,14 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     CHECK(t.input_text() == line);
     CHECK(t.seat()->caret_col == caret);
 
+    // THE RAW-KEY PATH ALREADY ASKED THE LINE FIRST, AND IT IS THE CONTROL: a chord the line never
+    // takes (an Alt chord, by `TextBox::consume`'s own rule) crosses as `PaneKey` and spends
+    // nothing either, through a new room as well.
+    t.r.key(input::scan::kLeft, input::mod::kAlt);
+    t.regrant();
+    CHECK(t.text().find("nothing was authored") != std::string::npos);
+    CHECK(t.seat()->caret_col == caret);
+
     // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT, and spends it -- so the provenance was never
     // the reason for the silence above.
     const PaneRig::OfficeAction up =
