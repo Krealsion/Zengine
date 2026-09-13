@@ -1201,6 +1201,82 @@ TEST_CASE("BLD-WEAVE: a lookup queued to the project office and refused at dispa
     REQUIRE(b.r.session().panels.has(b.editor_kind()));
     CHECK(b.r.session().panels.keyboard == b.editor_kind());
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    // ...AND THE REFUSAL IT SPENT IS GONE FROM THE PANE'S PUBLISHED ROWS -- the rows Workshop holds
+    // for it, which are the rows a maker reads beside the opened source.
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+}
+
+TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e while that lookup is still unanswered, stays gone once the source opens, and a new refusal stands through a repaint until the act after it") {
+    // A PRIVATE STATE CHANGE IS COMPLETE WHEN THE PUBLISHED PICTURE SAYS IT. The pane clears its
+    // notice where the maker acts; an act whose answer is still on its way publishes nothing of
+    // its own, so the rows Workshop holds must be said again at that act -- not at the answer,
+    // which may be a while, and never inside `say`, which would lose a new refusal on the first
+    // unrelated repaint. Every row checked here is the pane's PUBLISHED row, as Workshop admitted it.
+    BuilderRig b("bld-notice-spent");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    const std::string src = (b.root / "snake.cpp").generic_string();
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
+    // A STANDING REFUSAL: `e` with no project office, so nothing could be queued.
+    b.letter(input::scan::kE, "e");
+    REQUIRE_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
+    // ...AND A REPAINT THE MAKER DID NOT MAKE KEEPS IT: the tool republishes, the pane says again.
+    b.tool_says();
+    CHECK_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
+    // THE OFFICE ARRIVES HOLDING ITS ANSWER, and the maker presses `e` again.
+    auto held = std::make_unique<HeldLookupOffice>();
+    HeldLookupOffice* office = held.get();
+    office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
+    loom::Grant say;
+    say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    const loom::WeaveId office_id =
+        b.r.bus.register_weave(std::move(held), std::move(say), std::string(kProjectRole));
+    office->zen_set_self(office_id);
+    const auto release = [&b, office_id] {
+        (void)b.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        b.r.bus.drain_until_idle();
+    };
+    b.letter(input::scan::kE, "e");
+    // THE LOOKUP IS UNANSWERED -- and the refusal it spent is already gone from the rows.
+    REQUIRE(office->held.valid());
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+    // THE ANSWER, released: the source opens, and the rows stay clean.
+    release();
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+    // A NEW REFUSAL, from the office's own words, stands through an unrelated repaint...
+    b.focus();
+    office->answer_with = RecipeSourceSaid{"snake", false, "`snake` names no file here", ""};
+    b.letter(input::scan::kE, "e");
+    REQUIRE(office->held.valid());
+    release();
+    REQUIRE_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
+    b.tool_says();
+    CHECK_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
+    // ...until the maker's next act, which says its own.
+    b.letter(input::scan::kC, "c");
+    CHECK_MESSAGE(b.text().find("`snake` names no file here") == std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("build recipe: snake") != std::string::npos, b.text());
+}
+
+TEST_CASE("a key the Builder's role line does not take is no act: the notice stands through a repaint, and a key it takes spends it") {
+    // THE OTHER HALF OF "SPENT MEANS PUBLISHED": what is not an act spends nothing. The line
+    // consumes its editing keys and refuses the rest; a refused key used to clear the notice
+    // privately and say no rows, so the next unrelated repaint dropped a sentence the maker
+    // had done nothing to.
+    BuilderRig b("bld-notice-unspent");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    b.letter(input::scan::kO, "o");
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    b.r.key(input::scan::kDown); // a key the line has no meaning for
+    b.tool_says();               // an unrelated repaint
+    CHECK_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    b.r.key(input::scan::kLeft); // a key the line takes
+    CHECK_MESSAGE(b.text().find("type the role it holds") == std::string::npos, b.text());
 }
 
 TEST_CASE("BLD-WEAVE: a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes") {

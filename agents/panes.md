@@ -161,8 +161,17 @@ beside the twelve before them, and each is an ordinary optional capability any p
   every gesture until the last answer, refuses on any refusal (saying it, and replaying the held
   gestures), and proceeds on all permissions. A pane with an answer still owed to it — a paste in
   flight — refuses rather than waits, so one clipboard read cannot hold every other pane's exit.
-  What is NOT solved: an accepter that never answers holds the quit open, and that is named
-  rather than timed out.
+  **A delivery Loom refuses ends the quit as a refusal** (WL-SESSION-19): the participant is held,
+  dead, gone or no longer takes the question, so no answer can come for it. Loom's
+  `zen.DispatchRefused` never reaches a PUBLICATION's author — `fanout` captures no refusal
+  recipient — so the host reads the refusal off its own tap (`QuitDeliveryWatch`,
+  `workshop/quit_delivery.hpp`): a `Refused` event under Workshop's sender stamp for this shape is
+  written into a book Workshop reads, and Workshop is woken by a delivery that carries nothing.
+  Workshop refuses the quit in flight on an entry for its own ask, naming the office, the weave and
+  Loom's reason, even with another answer still owed; the next quit asks afresh. A pane author
+  registers nothing, and a participant that shows no pane is counted like any other. What is NOT
+  solved: an accepter that IS delivered the question and never answers holds the quit open, and
+  that is named rather than timed out.
 
 ## Opening a source is a managed opening, jointly published (WL-OPEN)
 
@@ -280,6 +289,13 @@ host action — and nothing reinterprets old bytes.
   down: `u` on a catalog produced no visible row (the project browser's whole-loop witness),
   and the Builder's seam suite caught the same class one pane over. `files/files.cpp` and
   `builder-pane/pane.cpp` both spell it.
+  **AND SPENT MEANS GONE FROM THE PUBLISHED ROWS.** A private clear is complete only when the
+  picture Workshop holds says it: an act whose answer is still on its way — the Builder's `e`
+  lookup, Files' open — says nothing of its own, so a spent refusal stood painted beside the
+  source that act then opened (measured in both panes). The handler that clears a standing
+  notice therefore says the rows itself when the act it ran published none (`published_`); a
+  key that means nothing to a line is no act and spends nothing. Other panes that clear a notice
+  where the maker acts carry the same obligation.
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).

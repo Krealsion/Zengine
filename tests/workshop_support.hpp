@@ -796,6 +796,10 @@ struct Live {
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
+    /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted beside Workshop as `workshop.cpp`
+    /// mounts it (WL-SESSION-19). Declared after the bus and the `HostContext` whose book it
+    /// writes, so it is removed first.
+    std::unique_ptr<QuitDeliveryWatch> quit_watch;
 
     Live() {
         host.interaction_now = [this] { return clock.read(); };
@@ -813,6 +817,7 @@ struct Live {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
+        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
                                    said_transcripts);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
@@ -2391,6 +2396,11 @@ struct PaneRig {
     std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
+    /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted with Workshop exactly as
+    /// `workshop.cpp` mounts it (WL-SESSION-19) -- a rig without it would be a Workshop whose
+    /// quit waits on questions Loom refused to deliver, which no shipped host is. Declared after
+    /// the bus and the `HostContext` whose book it writes, so it is removed first.
+    std::unique_ptr<QuitDeliveryWatch> quit_watch;
     std::vector<std::string> loaded;
     std::vector<std::string> load_refusals;
 
@@ -2471,6 +2481,7 @@ struct PaneRig {
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
+        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, workshop_id, host.undelivered_quits);
         return w;
     }
 

@@ -219,12 +219,12 @@ public:
         if (!role_.open) {
             return;
         }
-        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!role_.line.consume(key.scancode, key.modifiers, clip_)) {
-            return;
+            return; // a key that means nothing to the line is no act: the notice stands, unsaid
         }
+        notice_.clear();
         if (clip_.writes != copied_before) {
             mail.publish(surface::ClipboardCopy{clip_.text});
         }
@@ -253,8 +253,23 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
             return;
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
+        // one whose answer is still on its way (`e`'s lookup, `f`'s frontier, `o`'s plan names)
+        // or that meant nothing says none, and the spent notice would stand painted beside the
+        // act that spent it. So when a notice stood and the act published nothing, the rows are
+        // said here, once, without it.
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        act(asked, mail);
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
 
+    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`).
+    void act(const PaneActionRequested& asked, loom::Mail& mail) {
         // THE MODE OWNS THE PANE'S ACTIONS FIRST. While the role line has the keyboard the
         // pane declares two rows and no more, so nothing else can arrive here -- but the
         // declaration and the keystroke race across two messages, and a stale id must mean
@@ -975,6 +990,7 @@ private:
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        ++published_;
         (void)mail.as_role(pane::kBuilderPaneRole)
             .send_to_role(kWorkshopRole, PaneContent{pane::kBuilderPane, std::move(out)});
     }
@@ -1244,6 +1260,9 @@ private:
     std::int64_t frontier_blocked_ = 0;
 
     std::string notice_;
+    /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
+    /// can tell whether the act it ran already said its rows.
+    std::uint64_t published_ = 0;
     std::uint64_t asked_ = 0;
 
     struct FrontierAsk : Ask {

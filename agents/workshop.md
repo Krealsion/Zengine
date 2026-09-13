@@ -30,7 +30,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
-| several desks, the tab run, the durable files and the session, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
+| several desks, the tab run, the durable files and the session, the orderly quit and a question it could not deliver, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the Pane Manager, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, the seam its pane presents it across, the completer | [terminal](workshop/terminal.md) `WL-TERM` |
