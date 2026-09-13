@@ -75,6 +75,86 @@ inline zengine::builder::Recipe authored_recipe(const std::string& id,
     return r;
 }
 
+/// THE INDEX OF THE FIRST ROW THAT BEGINS WITH `head`, or -1. A row is located by what it says
+/// at its start, as a maker reads it: a refusal that quotes a file's name contains that name,
+/// and is never that file's row.
+inline std::int64_t row_beginning(const std::vector<std::string>& rows, const std::string& head) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].rfind(head, 0) == 0) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
+}
+
+/// A PICTURE, ONE NUMBERED ROW PER LINE -- what a failed press case prints, so a reader sees the
+/// rows the press was aimed at.
+inline std::string picture(const std::vector<std::string>& rows) {
+    std::string out;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        out += std::to_string(i) + "| " + rows[i] + "\n";
+    }
+    return out;
+}
+
+/// A LONG LISTING WHOSE NAMES ARE THEIR ORDER: `entry-07.txt` is the eighth row of the listing.
+inline constexpr std::int64_t kLongListing = 40;
+inline std::string entry_name(std::int64_t i) {
+    return std::string("entry-") + (i < 10 ? "0" : "") + std::to_string(i) + ".txt";
+}
+
+/// WHICH ENTRY A PAINTED ROW SHOWS, or -1 for a row that shows none -- the notice, the header, a
+/// count of entries not shown, a blank. Only the long listing's names are read.
+inline std::int64_t entry_shown(const std::string& row) {
+    if (row.rfind("> entry-", 0) != 0 && row.rfind("  entry-", 0) != 0) {
+        return -1;
+    }
+    return std::stoll(row.substr(8, 2));
+}
+
+/// WHERE THE CURSOR IS, as the pane's own header counts it (`Files 21/40 ...` is entry 20). Read
+/// off the header because a small room can cut the cursor's own row away and still count it.
+inline std::int64_t cursor_said(const std::vector<std::string>& rows) {
+    const std::int64_t at = row_beginning(rows, "Files ");
+    REQUIRE(at >= 0);
+    const std::string& header = rows[static_cast<std::size_t>(at)];
+    const std::size_t slash = header.find('/');
+    REQUIRE(slash != std::string::npos);
+    return std::stoll(header.substr(6, slash - 6)) - 1;
+}
+
+/// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: the row each `PanePressed` delivered to the
+/// browser carried, how many opens the browser attempted -- delivered, or refused at dispatch --
+/// and the exact path of each one delivered. A case states the provider row it aimed at and the
+/// file an activation asked for, rather than inferring either from the pane's answer.
+struct SeamTap {
+    loom::Switchboard& bus;
+    loom::WeaveId browser;
+    loom::ObserverId id{};
+    std::vector<std::int64_t> pressed;
+    std::size_t attempts = 0;
+    std::vector<std::string> requested;
+
+    SeamTap(loom::Switchboard& b, loom::WeaveId weave) : bus(b), browser(weave) {
+        id = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.target == browser &&
+                ev.schema_name == PanePressed::zen_name && ev.payload != nullptr) {
+                pressed.push_back(loom::from_value<PanePressed>(*ev.payload).row);
+            }
+            if (ev.sender == browser && ev.schema_name == OpenSourceRequested::zen_name &&
+                (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
+                ++attempts;
+                if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
+                    requested.push_back(loom::from_value<OpenSourceRequested>(*ev.payload).path);
+                }
+            }
+        });
+    }
+    ~SeamTap() { bus.remove_observer(id); }
+    SeamTap(const SeamTap&) = delete;
+    SeamTap& operator=(const SeamTap&) = delete;
+};
+
 /// A LIVE WORKSHOP WITH THE REAL BROWSER LOADED INTO IT.
 ///
 /// The order is the host's, and it is the whole arrangement under test: the doors are
@@ -131,9 +211,10 @@ struct FilesRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `project-files` pane");
         r.pick(files_ref());
         kind = row()->kind;
-        // A PRESS ON THE HEADER POINTS THE KEYS AT THE PANE AND SELECTS NOTHING: row 0 of
-        // the room is the pane's own header, which names no entry, so this is the one
-        // gesture that focuses without also activating (the pane's own two-press promise).
+        // A PRESS ON WORKSHOP'S TITLE ROW POINTS THE KEYS AT THE PANE AND SELECTS NOTHING: the
+        // title sits above every row the pane was granted, so the pane is sent no press at all,
+        // and this is the one gesture that focuses without also selecting or activating. A
+        // provider row -- the pane's own header is its row 0 -- is reached through `press_pane`.
         r.press_cell(external_body_rect(r.session(), kind).x,
                      external_body_rect(r.session(), kind).y);
     }
@@ -244,6 +325,106 @@ struct FilesRig {
     void letter(std::int64_t scancode, const char* typed) {
         r.key(scancode);
         r.text(typed);
+    }
+
+    /// The browser's weave, for a tap that reads what crosses its seam.
+    loom::WeaveId files_id() {
+        const loom::WeaveId id = r.kernel.weave_id(files::kFilesStem);
+        REQUIRE(id.value != 0);
+        return id;
+    }
+
+    /// GIVE THE PANE AN AUTHORED HEIGHT, in canvas cells of the pane's whole window, and repaint
+    /// at a new extent -- a room grant, which also takes the listing again and puts the cursor
+    /// back on its first row.
+    void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
+        const Written wrote = author_pane_size(r.session().setup.active, files_ref(), PaneSize{},
+                                               PaneSize{pane_unit::kSubcells, subs(cells)});
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        r.extent(width, height);
+    }
+
+    /// HOW MANY ROWS THE PANE WAS GRANTED, read through the body geometry `press_pane` spends. The
+    /// picture can be shorter: a pane publishes the rows it has, and the rest of its room is blank.
+    std::int64_t granted_rows() {
+        return external_body_rect(r.session(), kind).h - kExternalHeaderRows;
+    }
+
+    /// PUT THE LONG LISTING'S CURSOR ON ENTRY `at`, SPEND WHATEVER NOTICE STANDS, AND -- when
+    /// asked -- LEAD WITH A REFUSAL. Every step is a maker's key: an arrow is an act, so it spends
+    /// a standing notice, and Return on a file with no opening office held is refused, which gives
+    /// the pane a notice naming that file without moving its cursor.
+    void settle(std::int64_t at, bool refusal_leads) {
+        std::int64_t cursor = cursor_said(shown());
+        r.key(cursor > 0 ? input::scan::kUp : input::scan::kDown);
+        r.key(cursor > 0 ? input::scan::kDown : input::scan::kUp);
+        for (; cursor < at; ++cursor) {
+            r.key(input::scan::kDown);
+        }
+        for (; cursor > at; --cursor) {
+            r.key(input::scan::kUp);
+        }
+        if (refusal_leads) {
+            r.key(input::scan::kReturn);
+        }
+        const std::vector<std::string> rows = shown();
+        const std::string seen = picture(rows);
+        INFO("settled on entry ", at, " as\n", seen);
+        REQUIRE(cursor_said(rows) == at);
+        REQUIRE(row_beginning(rows, "Files ") == (refusal_leads ? 1 : 0));
+        if (refusal_leads) {
+            REQUIRE(rows[0].rfind("`" + entry_name(at) + "` was not opened", 0) == 0);
+        }
+    }
+
+    /// PRESS ONE PAINTED ROW AND JUDGE THE PRESS BY WHAT THAT ROW SAID. An entry the cursor is not
+    /// on is selected; the cursor's own entry is opened, because the pane already holds the keys;
+    /// the notice, the header, a count of entries not shown and a blank are no act, so nothing is
+    /// selected, nothing is asked and the picture does not move.
+    void press_and_judge(SeamTap& tap, std::int64_t row) {
+        const std::vector<std::string> before = shown();
+        const std::string seen = picture(before);
+        const std::int64_t cursor = cursor_said(before);
+        const std::string said =
+            row < static_cast<std::int64_t>(before.size()) ? before[static_cast<std::size_t>(row)]
+                                                           : std::string();
+        const std::int64_t entry = entry_shown(said);
+        const std::size_t presses = tap.pressed.size();
+        const std::size_t attempts = tap.attempts;
+        press_pane(r, kind, row, 0);
+        const std::vector<std::string> after = shown();
+        const std::string now = picture(after);
+        INFO("pressed row ", row, " of\n", seen, "and the pane then showed\n", now);
+        REQUIRE(tap.pressed.size() == presses + 1);
+        CHECK(tap.pressed.back() == row);
+        if (entry >= 0 && said.rfind("> ", 0) == 0) {
+            CHECK(tap.attempts == attempts + 1);
+            CHECK(cursor_said(after) == cursor);
+            CHECK(after[0].rfind("`" + entry_name(entry) + "` was not opened", 0) == 0);
+        } else if (entry >= 0) {
+            CHECK(tap.attempts == attempts);
+            CHECK(cursor_said(after) == entry);
+            CHECK(row_beginning(after, "Files ") == 0);
+        } else {
+            CHECK(tap.attempts == attempts);
+            CHECK(after == before);
+        }
+    }
+
+    /// EVERY ROW THE ROOM HOLDS, PRESSED ONCE FROM THE SAME PICTURE: the cursor on `at`, with a
+    /// refusal leading or not, settled again before each press because a press can change it.
+    /// First, a maker's press on the cursor's own row: arrows arrive as action ids, and the press
+    /// is what takes the pane's keys, so a later press on that row is the activation gesture.
+    void sweep(std::int64_t at, bool refusal_leads) {
+        settle(at, false);
+        const std::int64_t mine = row_beginning(shown(), "> ");
+        REQUIRE(mine >= 0);
+        press_pane(r, kind, mine, 0);
+        SeamTap tap(r.bus, files_id());
+        for (std::int64_t row = 0; row < granted_rows(); ++row) {
+            settle(at, refusal_leads);
+            press_and_judge(tap, row);
+        }
     }
 
     void mount_project_door() {
@@ -427,7 +608,7 @@ TEST_CASE("FILES-WEAVE: a press selects, and a second press on the same row acti
     put_file(f.root / "zulu.cpp", "int z;\n");
     f.open();
 
-    // Row 0 of the body is the first entry under the pane's header.
+    // Row 0 is the pane's own header; row 1 is the first entry under it.
     press_pane(f.r, f.kind, 1, 0);
     CHECK(f.at_cursor().rfind("src/", 0) == 0);
     press_pane(f.r, f.kind, 1, 0);
@@ -445,11 +626,160 @@ TEST_CASE("FILES-WEAVE: the wheel moves the cursor, and a header press names no 
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
     f.r.wheel_cell(-1.0, body.x + 1, body.y + 2);
     CHECK(f.at_cursor() != was);
-    // ...AND THE PANE'S OWN HEADER ROW SELECTS NOTHING, which is what makes the focus press
-    // in `open()` a focus press rather than a hidden selection.
+    // ...AND A HEADER PRESS SELECTS NOTHING, in both places a header is. Workshop's title row sits
+    // above every row the pane was granted, so a press there reaches the pane as nothing at all --
+    // which is what makes the focus press in `open()` a focus press rather than a hidden
+    // selection. The pane's own header is its row 0, located in the picture, and names no entry.
     const std::string now = f.at_cursor();
+    SeamTap tap(f.r.bus, f.files_id());
     f.r.press_cell(body.x, body.y);
+    CHECK(tap.pressed.empty());
     CHECK(f.at_cursor() == now);
+    const std::int64_t header = row_beginning(f.shown(), "Files ");
+    REQUIRE(header == 0);
+    press_pane(f.r, f.kind, header, 0);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.pressed[0] == header);
+    CHECK(f.at_cursor() == now);
+}
+
+// ============================================================================
+// A press names the entry the pane painted -- whatever leads the room, and however it is cut
+// ============================================================================
+
+TEST_CASE("a press on Files' painted header while a refusal leads selects nothing and opens nothing") {
+    // THE HEADER MOVES DOWN A ROW WHEN A NOTICE LEADS, and a press is read against the picture it
+    // was aimed at. The refusal here is an open no opening office could take, so the cursor stays
+    // on the file it names; the header is found in the rows Workshop painted, not assumed at 0.
+    FilesRig f("files-press-header");
+    put_file(f.root / "alpha.cpp", "int a;\n");
+    put_file(f.root / "beta.cpp", "int b;\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
+    f.point_at("beta.cpp");
+    f.r.key(input::scan::kReturn);
+    const std::vector<std::string> before = f.shown();
+    const std::string seen = picture(before);
+    INFO("the pane showed\n", seen);
+    REQUIRE(before[0].find("could not reach") != std::string::npos);
+    const std::int64_t header = row_beginning(before, "Files ");
+    REQUIRE(header == 1);
+
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, header, 0);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.pressed[0] == header);
+    const std::vector<std::string> after = f.shown();
+    const std::string now = picture(after);
+    INFO("after the header press the pane showed\n", now);
+    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
+    CHECK(tap.attempts == 0);
+    CHECK(after == before); // no act: the refusal still leads, and nothing else moved
+
+    // ...AND THE BLANK ROOM UNDER THE LISTING IS THE SAME NOTHING: the pane published fewer rows
+    // than it was granted, and its last granted row shows nothing. Read again first, in case the
+    // press above changed the picture.
+    const std::vector<std::string> ahead = f.shown();
+    const std::int64_t blank = f.granted_rows() - 1;
+    REQUIRE(blank >= static_cast<std::int64_t>(ahead.size()));
+    press_pane(f.r, f.kind, blank, 0);
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.pressed[1] == blank);
+    CHECK(tap.attempts == 0);
+    CHECK(f.shown() == ahead);
+}
+
+TEST_CASE("a press on Files' painted selected row while a refusal leads opens exactly that row's file") {
+    // THE TWO-PRESS PROMISE, UNDER A NOTICE. The maker's first press on `alpha.cpp` selects it and
+    // takes the pane's keys; Return's open is refused for want of an opening office, and the
+    // refusal leads. The office is then held, so the press on the row marked `>` is the activation
+    // gesture -- and it must open the file that row shows, not the row below it. What it asked for
+    // and what the Editor then holds are both read as exact paths.
+    FilesRig f("files-press-selected");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
+    const std::int64_t first = row_beginning(f.shown(), "> alpha.cpp");
+    REQUIRE(first == 1);
+    press_pane(f.r, f.kind, first, 0);
+    f.r.key(input::scan::kReturn);
+    f.r.mount_opening();
+    const std::vector<std::string> before = f.shown();
+    const std::string seen = picture(before);
+    INFO("the pane showed\n", seen);
+    REQUIRE(before[0].find("could not reach") != std::string::npos);
+    const std::int64_t selected = row_beginning(before, "> alpha.cpp");
+    REQUIRE(selected == 2);
+
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, selected, 0);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.pressed[0] == selected);
+    const std::vector<std::string> after = f.shown();
+    const std::string now = picture(after);
+    INFO("after the press the pane showed\n", now);
+    CHECK(row_beginning(after, "> alpha.cpp") >= 0); // the selection did not move to its neighbour
+    const std::string alpha = (f.root / "alpha.cpp").lexically_normal().generic_string();
+    CHECK(tap.attempts == 1);
+    REQUIRE(tap.requested.size() == 1);
+    CHECK(tap.requested[0] == alpha);
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.r.session().panels.keyboard == editor);
+    const loom::SenseReading held = f.r.bus.observe(f.r.kernel.weave_id("zengine-editor-pane"),
+                                                    EditorDocument::zen_name,
+                                                    EditorDocument::zen_version);
+    REQUIRE(held.value);
+    CHECK(loom::from_value<EditorDocument>(*held.value).path == alpha);
+    const std::vector<std::string> source = pane_rows(f.r, editor);
+    CHECK(std::find(source.begin(), source.end(), "the alpha source") != source.end());
+}
+
+TEST_CASE("every row Files paints names only what it shows, at the head of a long listing and scrolled into it, with a notice leading and without") {
+    // THE WINDOW SEATS FEWER ENTRIES THAN IT HAS ROWS: a `... N earlier` and a `... N more` take
+    // rows of their own, a notice takes one above the header, and the cursor sits wherever the
+    // window centred it. Each painted row is pressed from the same settled picture, and judged by
+    // what that row said.
+    FilesRig f("files-press-window");
+    for (std::int64_t i = 0; i < kLongListing; ++i) {
+        put_file(f.root / entry_name(i), "x\n");
+    }
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/false);
+    REQUIRE(f.granted_rows() >= 6); // room for a notice, the header, both markers and two entries
+    REQUIRE(f.granted_rows() < kLongListing);
+
+    SUBCASE("at the head, with nothing leading") {
+        f.sweep(0, false);
+    }
+    SUBCASE("at the head, with a refusal leading") {
+        f.sweep(0, true);
+    }
+    SUBCASE("scrolled into the middle, with nothing leading") {
+        f.sweep(kLongListing / 2, false);
+    }
+    SUBCASE("scrolled into the middle, with a refusal leading") {
+        f.sweep(kLongListing / 2, true);
+    }
+}
+
+TEST_CASE("in a room too small for the window Files composes, a press names only a row that was painted") {
+    // THE COMPOSITION CAN OUTGROW ITS ROOM: one entry is always seated with both its markers, and
+    // a notice is put in front before the whole picture is cut to the room. Three rows scrolled
+    // into a long listing paint the header, `... N earlier` and the cursor's own entry -- or, with
+    // a refusal leading, no entry at all. A press may name nothing the cut took away.
+    FilesRig f("files-press-small");
+    for (std::int64_t i = 0; i < kLongListing; ++i) {
+        put_file(f.root / entry_name(i), "x\n");
+    }
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/false);
+    f.author_height(6, 160, 47);
+    REQUIRE(f.granted_rows() == 3);
+
+    SUBCASE("with nothing leading") {
+        f.sweep(kLongListing / 2, false);
+    }
+    SUBCASE("with a refusal leading") {
+        f.sweep(kLongListing / 2, true);
+    }
 }
 
 // ============================================================================
