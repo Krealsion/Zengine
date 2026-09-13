@@ -54,7 +54,9 @@ PROVEN BY — `info-pane/pane.cpp` `Availability`, `action_availability`, `press
 `available`; `workshop/document_seam_vocabulary.hpp` `DocumentActed::refusal`;
 `workshop/document.hpp` `remove`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a live
 draft holds both controls back, and the reason is the maker's"`, case `"INFO-WEAVE: the two
-controls are the last rows of the body, and say their own availability in characters"`.
+controls are the last rows of the body, and say their own availability in characters"`, case
+`"an Info act with nothing to act on still spends the notice before it, and a refusal the
+document gives a press stands until the act after it"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — Unavailable is said in characters

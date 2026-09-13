@@ -436,6 +436,12 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kTerminalPane) {
             return;
         }
+        // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: not
+        // the notice, and not the memory that lets a second press in a word select it. Every id
+        // the pane does declare says its rows below, so what an act spends is always published.
+        if (!answers(asked.id)) {
+            return;
+        }
         word_press_ = false;
         notice_.clear();
         if (asked.id == pane::kActionSubmit) {
@@ -574,15 +580,32 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kTerminalPane;
-        const auto row = [&actions](const char* id, const char* label, std::int64_t sc) {
-            actions.rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone});
+        actions.rows = action_rows();
+        (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE FIVE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
+    /// acts on and what it said it acts on are one list.
+    static std::vector<PaneActionRow> action_rows() {
+        std::vector<PaneActionRow> rows;
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc) {
+            rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone});
         };
         row(pane::kActionSubmit, "run the line", input::scan::kReturn);
         row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab);
         row(pane::kActionUp, "completion up", input::scan::kUp);
         row(pane::kActionDown, "completion down", input::scan::kDown);
         row(pane::kActionBack, "dismiss list / clear line", input::scan::kEscape);
-        (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, actions);
+        return rows;
+    }
+
+    static bool answers(const std::string& id) {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- The one act and the one read ----------------------------------------------------

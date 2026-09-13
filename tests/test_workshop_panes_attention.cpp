@@ -117,6 +117,23 @@ struct AttentionRig {
         r.key(scancode);
         r.text(typed);
     }
+
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
+    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
+    /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
+    void regrant() {
+        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        const std::int64_t rows = seat->rows;
+        const std::int64_t columns = seat->columns;
+        wide_ = !wide_;
+        r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
+        const ExternalPane* after = r.session().panels.external_pane(kind);
+        REQUIRE(after != nullptr);
+        REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
+                        "the surface changed and the pane's room did not");
+    }
+    bool wide_ = true;
 };
 
 inline Condition thing(const char* key, const char* compact, const char* detail,
@@ -314,6 +331,61 @@ TEST_CASE("ATTN-WEAVE: a dismissal does not outlive the condition it was about")
     CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
     f.establish(thing("test.wall", "a wall", "why"));
     CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+}
+
+TEST_CASE("an id the Attention pane never declared is no act: the notice, the hiding and both conditions stand through a new room, and spending the notice un-says nothing true") {
+    // THE THREE ROWS NEVER CHANGE, so no keystroke resolves an id this pane did not declare, and
+    // the one way to hand it one is Workshop's own office with no key behind it. The pane spent
+    // its notice before it asked what the id meant, so `hidden -- ... is still true` stood
+    // painted over a private clear until the next room said the rows without it.
+    //
+    // TWO LIFETIMES ARE ASKED APART HERE. The notice is an utterance about a gesture and ends at
+    // the maker's next act; the hiding is the maker's and ends with its condition; the condition
+    // is the host's and ends when its owner retracts it. An ignored id ends none of the three,
+    // and the act that ends the first ends neither of the others.
+    AttentionRig f;
+    f.open();
+    f.unfocus(); // `establish` repaints with a key, which must not be this pane's
+    f.establish(thing("a.one", "the first thing", "why the first"));
+    f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
+    f.focus();
+    REQUIRE(f.text().find("ATTENTION -- 2 conditions") != std::string::npos);
+    f.letter(input::scan::kD, "d"); // the loudest, where the cursor rests
+    REQUIRE(f.text().find("hidden -- the first thing is still true") != std::string::npos);
+    REQUIRE(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+
+    const PaneRig::OfficeAction unknown = f.r.workshop_action(
+        pane::kAttentionPaneRole, pane::kAttentionPane, "attention.no-such-action");
+    REQUIRE(unknown.authored);
+    REQUIRE(unknown.delivered);
+    CHECK(unknown.author == kWorkshopProvider);
+    CHECK(f.text().find("hidden -- the first thing is still true") != std::string::npos);
+    f.regrant();
+    CHECK(f.text().find("hidden -- the first thing is still true") != std::string::npos);
+    // ...AND IT HID NOTHING AND RESOLVED NOTHING: the second is still shown with its explanation,
+    // the first is still hidden, and the host holds both.
+    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    CHECK(f.text().find("> the second thing") != std::string::npos);
+    CHECK(f.text().find("why the second") != std::string::npos);
+    CHECK(f.r.session().conditions.holds("a.one"));
+    CHECK(f.r.session().conditions.holds("b.two"));
+
+    // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT, and spends the notice -- so the provenance
+    // was never the reason for the silence above.
+    const PaneRig::OfficeAction up =
+        f.r.workshop_action(pane::kAttentionPaneRole, pane::kAttentionPane, pane::kActionUp);
+    REQUIRE(up.delivered);
+    CHECK(f.text().find("hidden -- the first thing") == std::string::npos);
+    // SPENDING THE SENTENCE UN-SAYS NOTHING TRUE. The hiding stands, through a new room as well;
+    // the condition stands; and the host still says it, on the compact chip and across the seam.
+    f.regrant();
+    CHECK(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    CHECK(f.text().find("the first thing") == std::string::npos);
+    CHECK(f.r.session().conditions.holds("a.one"));
+    CHECK(attention_conditions(f.r.session()).size() == 2);
+    CHECK(f.r.attention_note().find("the first thing") != std::string::npos);
+    REQUIRE_FALSE(f.r.said_conditions.empty());
+    CHECK(f.r.said_conditions.back().rows.size() == 2);
 }
 
 TEST_CASE("ATTN-WEAVE: the pane's keys act only after the maker has pressed into it") {

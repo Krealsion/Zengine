@@ -291,8 +291,11 @@ public:
     }
 
     /// WHAT THE DOCUMENT MADE OF THE LAST ASK. An accepted act says nothing here -- the host
-    /// says it on the band, as it always did, and the new picture arrives on the same drain.
-    /// A refusal is the document's own words and belongs beside the field it is about.
+    /// says it on the band, as it always did; a picture it changed arrives as `DocumentShown`,
+    /// and the notice the ask spent was already said away where the maker acted
+    /// (`on(PanePressed)`, `on(PaneActionRequested)`), so an accepted select of the object
+    /// already selected, which changes no picture, leaves nothing to say. A refusal is the
+    /// document's own words and belongs beside the field it is about.
     void on(const DocumentActed& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !awaiting_ || mail.correlation() != pending_) {
             return;
@@ -321,17 +324,18 @@ public:
         if (at.what == Placed::kNothing) {
             return; // a heading, a marker, a blank row, or space below the last control
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
-        if (at.what == Placed::kObject) {
-            ask_select(known_.objects[at.index].identity, mail);
-            return;
-        }
-        if (at.what == Placed::kProperty) {
-            state_.cursor = static_cast<std::int64_t>(at.index);
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds (`agents/panes.md`). A select and a control's act are asks whose
+        // answer is still on its way, and an accepted select of the object already selected
+        // brings no new picture at all, so when a notice stood and the act published nothing the
+        // rows are said here, once, without it.
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        press_placed(at, mail);
+        if (spent && published_ == published) {
             say(mail);
-            return;
         }
-        press_action(at.index, mail);
     }
 
     /// ONLY THE DRAFT READS RAW KEYS. Everything else this pane does arrives as a resolved
@@ -343,12 +347,12 @@ public:
         if (!draft_.open) {
             return;
         }
-        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!draft_.line.consume(key.scancode, key.modifiers, clip_)) {
-            return;
+            return; // a key that means nothing to the line is no act: the notice stands, unsaid
         }
+        notice_.clear();
         if (clip_.writes != copied_before) {
             mail.publish(surface::ClipboardCopy{clip_.text});
         }
@@ -374,11 +378,52 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kInfoPane) {
             return;
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
-        // THE MODE OWNS THE PANE'S ACTIONS FIRST. While a draft is open this pane declares
-        // two rows and no more, so nothing else can arrive here -- but the declaration and
-        // the keystroke race across two messages, and a stale id must mean nothing rather
-        // than commit something.
+        // THE MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT.
+        // While a draft is open this pane declares two rows and no more -- but the declaration
+        // and the keystroke race across two messages (Escape and Return in one poll resolve to a
+        // cancel and a commit, and the commit arrives after the cancel closed the draft), so a
+        // stale id, or one nobody declared, must mean nothing: no commit, and no notice spent.
+        if (!answers(asked.id)) {
+            return;
+        }
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
+        // too: a commit whose answer is on its way, or an edit with nothing to edit, says nothing
+        // of its own (`on(PanePressed)` says why).
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        act(asked, mail);
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
+
+    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+        // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
+        // it is a mirror rather than a second store: a paste answers with this.
+        clip_.text = said.text;
+    }
+
+    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+        if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
+            return;
+        }
+        paste_.awaiting = false;
+        if (!draft_.open) {
+            return;
+        }
+        const std::string text = a.readable ? a.text : clip_.text;
+        if (text.empty() || !admissible(text)) {
+            return;
+        }
+        draft_.line.type(text);
+        say(mail);
+    }
+
+private:
+    /// WHAT ONE DECLARED ACTION DOES, BY ID -- with the notice already spent
+    /// (`on(PaneActionRequested)`), and only for an id `answers` admitted in this mode.
+    void act(const PaneActionRequested& asked, loom::Mail& mail) {
         if (draft_.open) {
             if (asked.id == pane::kActionCommit) {
                 ask_commit(mail);
@@ -407,29 +452,6 @@ public:
         say(mail);
     }
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
-        // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
-        // it is a mirror rather than a second store: a paste answers with this.
-        clip_.text = said.text;
-    }
-
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
-        if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
-            return;
-        }
-        paste_.awaiting = false;
-        if (!draft_.open) {
-            return;
-        }
-        const std::string text = a.readable ? a.text : clip_.text;
-        if (text.empty() || !admissible(text)) {
-            return;
-        }
-        draft_.line.type(text);
-        say(mail);
-    }
-
-private:
     // ---- Offering and declaring ---------------------------------------------------------
 
     void announce(loom::Mail& mail) {
@@ -452,9 +474,17 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kInfoPane;
-        const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
-                                    std::int64_t mods = input::mod::kNone) {
-            actions.rows.push_back(PaneActionRow{id, label, sc, mods});
+        actions.rows = action_rows();
+        (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
+    /// reads, so what the pane acts on and what it said it acts on are one list.
+    std::vector<PaneActionRow> action_rows() const {
+        std::vector<PaneActionRow> rows;
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
+                                 std::int64_t mods = input::mod::kNone) {
+            rows.push_back(PaneActionRow{id, label, sc, mods});
         };
         if (draft_.open) {
             row(pane::kActionCommit, "commit", input::scan::kReturn);
@@ -464,7 +494,16 @@ private:
             row(pane::kActionDown, "row down", input::scan::kDown);
             row(pane::kActionEdit, "edit", input::scan::kReturn);
         }
-        (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, actions);
+        return rows;
+    }
+
+    bool answers(const std::string& id) const {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- The four asks -------------------------------------------------------------------
@@ -577,6 +616,18 @@ private:
         return Placed{};
     }
 
+    /// WHAT A PRESS ON A PLACED ROW DOES -- with the notice already spent (`on(PanePressed)`).
+    void press_placed(const Placed& at, loom::Mail& mail) {
+        if (at.what == Placed::kObject) {
+            ask_select(known_.objects[at.index].identity, mail);
+        } else if (at.what == Placed::kProperty) {
+            state_.cursor = static_cast<std::int64_t>(at.index);
+            say(mail);
+        } else {
+            press_action(at.index, mail);
+        }
+    }
+
     // ---- Saying what the pane shows -------------------------------------------------------
 
     void say(loom::Mail& mail) {
@@ -590,8 +641,11 @@ private:
             out.push_back(
                 surface::SurfaceTextRow{drawable(fit(std::move(text), columns_)), role, ground});
         };
+        // THE BODY IS COMPOSED WITHOUT THE NOTICE, and `finish` puts it in front, so a row's
+        // published place is where it lands in `out` plus `lead()`. Counting the notice the other
+        // way sent a press two rows below the one it named whenever a notice stood.
         const auto mark = [&out, this](Placed::What what, std::size_t index) {
-            composed_.push_back(Row{static_cast<std::int64_t>(out.size()) - lead(), what, index});
+            composed_.push_back(Row{static_cast<std::int64_t>(out.size()) + lead(), what, index});
         };
         if (!heard_) {
             push("OBJECTS (waiting)", surface::role::kMuted);
@@ -613,15 +667,14 @@ private:
             share_body_rows(static_cast<std::size_t>(budget), known_.objects.size(),
                             known_.properties.size());
         say_objects(share.objects, push, mark);
-        while (out.size() < static_cast<std::size_t>(lead()) + 1 + share.objects) {
+        while (out.size() < 1 + share.objects) {
             push(std::string(), surface::role::kFill);
         }
         // A SECTION BEGINS HERE, AND THE GROUND IS WHAT SAYS SO. Accent ink alone was not
         // enough: the row above `PROPERTIES` is the SELECTED object, which is accent too.
         push("PROPERTIES", surface::role::kAccent, surface::role::kMuted);
         say_properties(share.properties, push, mark);
-        while (out.size() <
-               static_cast<std::size_t>(lead()) + 2 + share.objects + share.properties) {
+        while (out.size() < 2 + share.objects + share.properties) {
             push(std::string(), surface::role::kFill);
         }
         for (std::size_t which = 0; which < kActionCount; ++which) {
@@ -635,10 +688,10 @@ private:
         finish(out, mail);
     }
 
-    /// HOW MANY ROWS `say` HAS ALREADY SPENT BEFORE THE BODY BEGINS: the notice, when there
-    /// is one. The press inverse is measured from the same number, so a notice cannot move a
-    /// press off its row.
-    std::int64_t lead() const { return notice_.empty() ? 0 : 1; }
+    /// HOW MANY ROWS `finish` PUTS IN FRONT OF THE BODY: the notice, when there is one and a room
+    /// to hold it beside the body. The press inverse adds the same number, so a notice cannot
+    /// move a press off its row.
+    std::int64_t lead() const { return !notice_.empty() && rows_ > 1 ? 1 : 0; }
 
     template <class Push, class Mark>
     void say_objects(std::size_t share, Push&& push, Mark&& mark) {
@@ -728,7 +781,7 @@ private:
     }
 
     void finish(std::vector<surface::SurfaceTextRow>& out, loom::Mail& mail) {
-        if (!notice_.empty() && rows_ > 1) {
+        if (lead() > 0) {
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
@@ -738,6 +791,7 @@ private:
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        ++published_;
         (void)mail.as_role(pane::kInfoPaneRole)
             .send_to_role(kWorkshopRole, PaneContent{pane::kInfoPane, std::move(out)});
     }
@@ -774,6 +828,9 @@ private:
     component::Clipboard clip_;
     std::vector<Row> composed_;
     std::string notice_;
+    /// HOW MANY TIMES THIS PANE HAS SAID ITS ROWS -- how a handler that spent a notice learns
+    /// whether the act it ran said them without it (`on(PanePressed)`).
+    std::uint64_t published_ = 0;
 
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.
