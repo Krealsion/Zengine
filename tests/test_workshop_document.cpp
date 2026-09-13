@@ -3580,22 +3580,25 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
     REQUIRE(seat->presses.size() == presses_before + 1);
     CHECK(seat->presses.back().row == 0);
 
-    // Titles hidden AND the pane unfocused... except a press INTO the pane focuses it,
-    // which auto-shows its title -- so the lattice a press lands in is the titled one,
-    // and row 0 is still the row under the header. The un-titled lattice is on screen
-    // only while the pane does not hold the keyboard, which no press into it can be
-    // true of. That asymmetry is SC-6's invariant working, not an off-by-one.
+    // Titles hidden AND the pane unfocused: the lattice ON SCREEN reserves no header, so the
+    // panel's top prose row is the provider's row 0 -- and a press there names row 0. It is
+    // read against that picture, the one the maker aimed at, BEFORE the press focuses the
+    // pane; the focus then brings the title back (SC-6's invariant), and from then on the
+    // titled lattice is the one on screen, where that same cell is the header's.
     press_outside(r, kind);
     r.key(input::scan::kT);
     r.text("t");
     REQUIRE_FALSE(r.session().pane_titles);
+    REQUIRE(external_title_rows(r.session().panels, kind, r.session().pane_titles) == 0);
     const std::size_t hidden_before = seat->presses.size();
     r.press_cell(body.x + 1, body.y); // the panel's top row: bare, no header reserved
-    // The press focuses the pane; the focused pane reserves its title again, so this
-    // cell is the header's and names no body row.
-    CHECK(seat->presses.size() == hidden_before);
+    REQUIRE(seat->presses.size() == hidden_before + 1);
+    CHECK(seat->presses.back().row == 0);
     CHECK(keyboard_pane(r.session().panels) == kind);
+    REQUIRE(external_title_rows(r.session().panels, kind, r.session().pane_titles) == 1);
     const std::size_t focused_before = seat->presses.size();
+    r.press_cell(body.x + 1, body.y); // the same cell, now the focused pane's header
+    CHECK(seat->presses.size() == focused_before);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
     REQUIRE(seat->presses.size() == focused_before + 1);
     CHECK(seat->presses.back().row == 0);

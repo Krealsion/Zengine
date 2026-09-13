@@ -803,6 +803,10 @@ struct Live {
 
     Live() {
         host.interaction_now = [this] { return clock.read(); };
+        // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's).
+        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        };
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
@@ -2241,7 +2245,8 @@ private:
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, PaneContent, SeatDo>,
-                             loom::Emit<PaneCatalogRequested, PaneRoom, PanePressed>> {
+                             loom::Emit<PaneCatalogRequested, PaneRoom, PanePressed,
+                                        v2::PanePressed>> {
 public:
     void on(const PaneOffered& o, loom::Mail& mail) {
         offers.push_back(o);
@@ -2276,6 +2281,13 @@ public:
         (void)mail.as_role(kWorkshopProvider).send_to_role(office, p);
     }
     void press_personally(loom::Mail& mail, const char* office, const PanePressed& p) {
+        (void)mail.send_to_role(office, p);
+    }
+    /// ...and the press's second version, in both spellings, for a provider's checks on it.
+    void press(loom::Mail& mail, const char* office, const v2::PanePressed& p) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, p);
+    }
+    void press_personally(loom::Mail& mail, const char* office, const v2::PanePressed& p) {
         (void)mail.send_to_role(office, p);
     }
 
@@ -2449,6 +2461,13 @@ struct PaneRig {
         speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
         speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+        // ...the press's second version, and the host's answer that chooses between the two,
+        // wired exactly as workshop.cpp wires them. A case that wants an OLDER host -- one that
+        // answers nothing, so every press crosses as v1 -- empties `host.holder_accepts`.
+        speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
+        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        };
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
@@ -2668,6 +2687,7 @@ struct PaneRig {
         grant.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         grant.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+        grant.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
@@ -3664,6 +3684,19 @@ inline std::int64_t open_powers(PaneRig& r) {
 
 inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+}
+
+/// The band's legend rows, padding trimmed -- the MSG-0 reading, in one place.
+inline std::vector<std::string> band_lines(PaneRig& r) {
+    std::vector<std::string> out;
+    const Screen sc = screen_of(r.session());
+    for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
+        const std::string row = inspector_row(r.last_canvas(), 0, y);
+        if (!row.empty()) {
+            out.push_back(row);
+        }
+    }
+    return out;
 }
 
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,

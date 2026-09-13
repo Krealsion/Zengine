@@ -42,12 +42,16 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 LAW — A resolved owner's inverse is asked once per press, beside the canvas point, and answers where it landed in that pane's body — never what it means; a decline changes nothing, so holding it is sound.
 
 MEANS
-- ⭐ this law was `info_body_at`'s; `pane_editor_at` is the built-in that owns one now.
+- ⭐ this law was `info_body_at`'s; `pane_editor_at` is the built-in that owns one now;
+- an external pane's is asked before the press writes the keyboard, which moves a hidden title.
 
 PROVEN BY — `workshop/screen_pane_editor.cpp` `pane_editor_at`, `pane_editor_body`;
 `workshop/screen.hpp` `PaneEditorAt`, `PaneEditorAt::present`, `ProseAt`;
-`workshop/screen_external.cpp` `external_press_at`; `tests/test_workshop_panes_input.cpp` case
-`"SEL-0: a press in the body names the row under the header, in both media"`.
+`workshop/screen_external.cpp` `external_press_at`; `workshop/weave_pointer.cpp`
+`on(PointerButton)`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: a press in the body
+names the row under the header, in both media"`; `tests/test_workshop_panes_files.cpp` case
+`"with pane titles hidden, a first press on the row painted gamma selects gamma once every
+delivery it caused has settled, and a later press opens gamma"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy
