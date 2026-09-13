@@ -27,7 +27,8 @@ committed flight awaiting application is not superseded. Silence stays pending, 
 inspectable. Records are released when consumed, one retained for a repair's late word and
 retired by any newer terminal outcome. Refusals are Loom's word about an exact attempt or the
 manager's immediate word, never a fallback. The host mints the manager's authority for its exact
-incarnation and owns the pump seam where a native owner's showing failure surfaces.
+incarnation and owns the boundary a native owner's showing runs inside: a throw there is Failed,
+its words kept for the host's turn to tell, and the turn explains no exception that reaches it.
 
 **Alternatives considered.**
 - *The reveal as the commitment, with the asker holding its gestures* — TRIED, and superseded:
@@ -50,8 +51,12 @@ incarnation and owns the pump seam where a native owner's showing failure surfac
   an outcome nobody established; a pending open is a truthful, bounded, inspectable state.
 - *A loaded manager, or a separate presentation artifact* — not required now; presentation
   stays movable and the manager native, with the reauthorization obligation written down.
-- *Catching every host exception at the pump* — refused: only a showing failure the turn's
-  record explains is attributed; anything else propagates as it always did.
+- *Attributing an escaped exception from the turn's last bus fact* — TRIED and corrected: an
+  observer throwing on a later delivery, or on the failed showing's own refusal notification,
+  was told in the held owner's words. A nearby event and a held owner identify no exception;
+  the owner's application is contained where it runs (OPEN-W3).
+- *Catching every host exception at the pump* — refused: nothing reaching the pump is
+  examined; what the boundaries captured is told, and the exception leaves as it came.
 
 **Consequences.** Four turns from the desk's admission to the terminal answer. Two small
 identities cross the bus, never bytes or rows. The Editor's state carries `opened_by` so its

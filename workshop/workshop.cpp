@@ -1672,18 +1672,20 @@ int main(int argc, char** argv) {
     // artifact's load answer is an ordinary delivery like any other, and so is every
     // fact that follows it.
     //
-    // ONE SEAM IS THE HOST'S AT THIS LOOP (workshop/host_pump.hpp): a native owner whose
-    // showing of a jointly published claim throws is recorded by Loom, held, and its own
-    // exception re-raised here. This host reads the turn's facts, names the held owner in the
-    // journal and on the console, and serves on -- the record protects the weave, the opening
-    // manager settles the open in words, and the repair is the owner's reload or removal. An
-    // exception those facts do not explain propagates exactly as it always did.
+    // ONE SEAM IS THE HOST'S AT THIS LOOP (workshop/host_pump.hpp): a native owner's showing
+    // of a jointly published claim runs inside the host's boundary, so a throw there is
+    // Loom's Failed -- the owner held, the opening manager told -- with the owner's own words
+    // kept in `host.showings`. This loop tells those words in the journal and on the console
+    // and serves on; the manager settles the open in words. Loom's repair is the owner's
+    // reload or removal, and this host offers neither for a native owner. It explains no
+    // exception: one that reaches it propagates as it came.
     while (!host.quit) {
-        const ServedTurn served = serve_until_idle(bus, [&journal](const std::string& said) {
-            journal.info("zengine.workshop", said);
-            std::printf("zengine-workshop - %s\n", said.c_str());
-            std::fflush(stdout);
-        });
+        const ServedTurn served =
+            serve_until_idle(bus, host.showings, [&journal](const std::string& said) {
+                journal.info("zengine.workshop", said);
+                std::printf("zengine-workshop - %s\n", said.c_str());
+                std::fflush(stdout);
+            });
         (void)served;
         if (!host.quit && bus.pending() == 0) {
             std::printf("zengine-workshop - the bus went quiet without a quit "

@@ -93,14 +93,24 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 LAW — No timeout, retry or forced recovery: an owner that never answers leaves the one flight pending, its operation, requester, stage, awaited office and attempt readable in `OpeningState` and on the desk.
 
 MEANS
-- queue emptiness and elapsed time prove nothing; the next request supersedes it;
-- unrelated panes and the picker keep working while it stands.
+- queue emptiness and elapsed time prove nothing; a newer request supersedes a preparation;
+- unrelated panes and the picker keep working while it stands;
+- a refusal before any operation is the latest result under its own path and requester, with op 0;
+
+DOES NOT MEAN
+- that a refusal meanwhile moves the live operation's fields: they describe the live flight alone.
 
 PROVEN BY — `workshop/opening.hpp` `OpeningState::stage`, `OpeningState::awaiting`,
-`OpeningState::attempt`; `workshop/weave_opening.cpp` `progress`;
+`OpeningState::attempt`, `OpeningState::last_path`, `OpeningState::last_requester`,
+`OpeningState::last_op`; `workshop/weave_opening.cpp` `progress`, `refuse_request`;
 `workshop/weave_managed.cpp` `on(ManagedOpenProgress)`; `tests/test_workshop_panes_editor.cpp`
 case `"EDIT-W75: a silent or failed preparation stays pending and inspectable, a lost
-terminal answer undoes nothing, and no forged authority or attempt decides anything"`.
+terminal answer undoes nothing, and no forged authority or attempt decides anything"`;
+`tests/test_workshop_panes_opening.cpp` case `"the latest terminal result names the request it
+answers -- a refusal before any operation existed names its own path and requester and no
+operation, and the other operator's records and the next valid open are untouched"`, case `"a
+request refused while a published commitment is still applying becomes the latest terminal
+result, and the live operation keeps its own identity until it settles"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-06 — Records are released when consumed; at most one Failed record is retained
@@ -128,7 +138,10 @@ LAW — Each requester keeps its ticket and clears only the ask whose exact atte
 MEANS
 - no document-only fallback, and no standalone mode inferred from a refusal;
 - a manager with no Editor to bind refuses at once, in words: never silence;
-- handler failure and delivered silence are not dispatch refusals.
+- an enqueue that queued nothing, Loom's later refusal of a queued attempt, and a forgery differ.
+
+DOES NOT MEAN
+- that handler failure or delivered silence is a dispatch refusal.
 
 PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-pane/pane.cpp`
 `on(DispatchRefused)`, `edit_source`; `editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
@@ -136,12 +149,15 @@ PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-
 case `"FILES-WEAVE: an open refused at dispatch is said by that exact attempt, and a fresh
 attempt takes once an opening office is present"`, case `"FILES-WEAVE: a forged refusal
 naming the pane's own live attempt settles nothing, and the open completes"`;
-`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: each of e's two asks refused at
-dispatch is said by that attempt and stage, and a fresh e takes once the office is
-present"`, case `"BLD-WEAVE: a forged refusal naming the pane's own live attempt settles
-nothing at either stage, and the open completes"`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer
-right"`.
+`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup nothing could queue is
+refused at once in words, an open queued to an office nobody holds is refused at dispatch by
+that attempt, and a fresh e takes once each office is present"`, case `"BLD-WEAVE: a lookup
+queued to the project office and refused at dispatch -- the office gone before delivery -- is
+said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the
+office is back"`, case `"BLD-WEAVE: a forged refusal naming the pane's own live attempt
+settles nothing at either stage, and the open completes"`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W77: the old door still opens and shows,
+or refuses truthfully, by a kept answer right"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-08 — The authority is the host's, minted for the manager's exact incarnation
@@ -159,18 +175,24 @@ manager's authority names its exact incarnation -- a swapped manager's retained 
 refused in words, and the host authorizes the successor by minting again"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
-## WL-OPEN-09 — The host's turn attributes a native showing failure from the record alone
+## WL-OPEN-09 — A native showing failure is captured where it is thrown, not at the pump
 
-LAW — A native owner's showing that throws is recorded by Loom and re-raised at the host's turn; `serve_until_idle` names the held owner from the turn's last tap fact and serves on; other throws propagate.
+LAW — A native owner applies a published claim inside `contain_showing`: a throw there is Failed, its words in the host's book; `serve_until_idle` tells the book and propagates every exception.
 
 MEANS
-- the desk says which owner is held; the repair is that owner's reload or removal;
-- an owner held since an earlier turn explains no later exception.
+- the words come from the code around the owner's application, never a bus event or a held owner;
+- the book is told on every exit of the turn, also while an exception leaves it unchanged;
+- Declined is returned, never thrown; a native owner throwing outside the boundary propagates.
 
-PROVEN BY — `workshop/host_pump.hpp` `serve_until_idle`, `ServedTurn`;
-`workshop/host_pump.cpp` `TurnTap`, `LastFact`; `tests/test_workshop_panes_opening.cpp` case
-`"OPEN-W3: the host's turn attributes a native showing failure from Loom's record and serves
-on, and an exception the record does not explain propagates"`.
+DOES NOT MEAN
+- that a failure becomes recoverable: the owner stays held until it is reloaded or removed;
+- that a loaded owner's words reach the book: its showing answers across its ABI as a status.
+
+PROVEN BY — `workshop/host_pump.hpp` `contain_showing`, `ShowingFailures`, `ServedTurn`;
+`workshop/host_pump.cpp` `serve_until_idle`; `workshop/weave.hpp` `HostContext::showings`;
+`workshop/weave_managed.cpp` `on_claim_published`; `tests/test_workshop_panes_opening.cpp`
+case `"OPEN-W3: a native owner's failed showing is told in the words its own boundary
+captured, and every exception that reaches the host's turn propagates as it came"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## Do not assume

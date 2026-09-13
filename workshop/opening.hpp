@@ -40,9 +40,10 @@
 // stays pending, bounded to one, and says so -- before the commitment (an owner that never
 // answers) and after it (an owner never shown).
 //
-// ⚠ ONE FLIGHT AT A TIME, SUPERSEDED EXPLICITLY. A second request while one is pending
+// ⚠ ONE FLIGHT AT A TIME, SUPERSEDED EXPLICITLY. A second request while one is being prepared
 // cancels the first (the bus releases its offers), answers its requester "superseded", and
-// begins the new one. There is no queue of intents and no retry.
+// begins the new one. A second request while a commitment is still being applied supersedes
+// nothing: it is refused in words. There is no queue of intents and no retry.
 //
 // ⚠ A LOST TERMINAL ANSWER DOES NOT UNDO A COMMITMENT. A requester replaced between its ask
 // and the outcome loses its answer right; the manager counts the loss and the published
@@ -56,9 +57,9 @@
 // settles, except a commitment an owner could not apply: that one it RETAINS
 // (`OpeningState::retained`, at most one) for the late word about the held owner's repair --
 // "applied after repair", or "not applied after repair" when the successor kept its own
-// state -- and releases it once that word is recorded, or when a newer request settles,
-// after which no late word about it can be reported. A repaired owner is not proof that its
-// old operation applied: the record, re-read, is.
+// state -- and releases it once that word is recorded, or when a newer terminal outcome is
+// recorded, after which no late word about it can be reported. A repaired owner is not proof
+// that its old operation applied: the record, re-read, is.
 
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
@@ -72,35 +73,49 @@
 
 namespace zengine::workshop {
 
-/// WHAT A MAKER, A PROBE OR A CASE CAN READ OF THE MANAGER: the pending open, its stage,
-/// who it is waiting on and with which queued attempt, and what the last one came to.
+/// WHAT A MAKER, A PROBE OR A CASE CAN READ OF THE MANAGER: two records that never borrow from
+/// each other, and the counts.
+///
+/// THE LIVE OPERATION -- `op` through `requester` -- describes the one open in flight, and only
+/// it: all of it is set when an operation begins and cleared when it settles, so nothing here
+/// outlives its operation, and a request refused meanwhile leaves every field of it alone.
+///
+/// THE LATEST TERMINAL RESULT -- `last_path` through `last_op` -- describes the last request
+/// this manager answered with an outcome, all of it at once: a settled operation, or a request
+/// refused before any operation existed, which names its own path and requester and `last_op`
+/// 0, because no operation was allocated for it. It changes only when a newer outcome is
+/// recorded, so a live operation beginning leaves it standing; the one exception is the late
+/// word about the retained record's repair, which rewrites the outcome of that same request.
 struct OpeningState {
     std::int64_t op = 0;         ///< the live operation, or 0
-    std::string path;            ///< what it opens
+    std::string path;            ///< what the live operation opens
     std::string stage;           ///< idle | trial | prepare | admit | apply
     std::string awaiting;        ///< the office the outstanding attempt is addressed to
     std::int64_t attempt = 0;    ///< the queued attempt (Loom's sequence) awaited, or 0
-    std::int64_t requester = 0;  ///< who asked (a WeaveId, diagnostic only)
+    std::int64_t requester = 0;  ///< who asked for the live operation (a WeaveId, diagnostic)
+    std::string last_path;       ///< what the latest answered request asked to open
+    std::int64_t last_requester = 0; ///< who asked it (a WeaveId, diagnostic only)
     /// committed | committed, application failed | committed, not applied | committed,
     /// owner removed | committed, answer lost | committed, applied after repair |
     /// committed, not applied after repair -- <office> kept its own state | refused |
     /// superseded | ''
     std::string last_outcome;
-    std::string last_refusal;    ///< the maker's sentence for the last refusal
-    std::int64_t last_op = 0;    ///< the last operation that settled
+    std::string last_refusal;    ///< the maker's sentence for it, when it was not opened
+    std::int64_t last_op = 0;    ///< the operation it settled, or 0: refused before one existed
     std::int64_t committed = 0;  ///< how many opens this manager established, applied and all
     std::int64_t unapplied = 0;  ///< commitments an owner did not apply (failed, declined, lost)
     std::int64_t refused = 0;
     std::int64_t answers_lost = 0; ///< outcomes a replaced requester never heard
     /// THE ONE RECORD THIS MANAGER STILL HOLDS AFTER SETTLING (WL-OPEN-06): a commitment an owner could not apply, kept at the bus for the late
     /// word about that owner's repair, or 0. Every other settled record is released at once;
-    /// this one when the repair re-settles it, or when a newer request settles.
+    /// this one when the repair re-settles it, or when a newer terminal outcome is recorded.
     std::int64_t retained = 0;
     ZEN_SHAPE(OpeningState, 1, ZEN_FIELD(op), ZEN_FIELD(path), ZEN_FIELD(stage),
               ZEN_FIELD(awaiting), ZEN_FIELD(attempt), ZEN_FIELD(requester),
-              ZEN_FIELD(last_outcome), ZEN_FIELD(last_refusal), ZEN_FIELD(last_op),
-              ZEN_FIELD(committed), ZEN_FIELD(unapplied), ZEN_FIELD(refused),
-              ZEN_FIELD(answers_lost), ZEN_FIELD(retained));
+              ZEN_FIELD(last_path), ZEN_FIELD(last_requester), ZEN_FIELD(last_outcome),
+              ZEN_FIELD(last_refusal), ZEN_FIELD(last_op), ZEN_FIELD(committed),
+              ZEN_FIELD(unapplied), ZEN_FIELD(refused), ZEN_FIELD(answers_lost),
+              ZEN_FIELD(retained));
 };
 
 class OpeningManager
@@ -135,6 +150,7 @@ private:
         bool live = false;
         std::uint64_t op = 0;
         std::string path;
+        std::int64_t requester = 0;
         loom::DeferredAnswer answer;
         loom::Ticket attempt{};
         std::string stage;
@@ -153,6 +169,10 @@ private:
     /// publication; `applied` is every owner's application of it; the answer is both.
     void settle(bool committed, bool applied, const std::string& refusal, loom::Mail& mail,
                 loom::JointApplication application = loom::JointApplication::None);
+    /// A REQUEST REFUSED BEFORE IT BECAME AN OPERATION -- no slot at `begin`, or a commitment
+    /// still applying -- answered now, in words, and recorded as the latest terminal result
+    /// under its own path and requester with no operation; the live operation is not touched.
+    void refuse_request(const std::string& path, const std::string& refusal, loom::Mail& mail);
     /// Every newer terminal outcome that takes this manager's public result retires the one
     /// retained record, unless it is the operation settling now (`settling`; 0 for an
     /// immediate refusal that settles nothing).
@@ -169,9 +189,11 @@ private:
     std::string presentation_office_;
     PaneRef pane_;
     Flight flight_;
-    /// The retained record's operation and path (`OpeningState::retained` mirrors the op).
+    /// The retained record's operation, path and requester (`OpeningState::retained` mirrors
+    /// the op): the request its late word is about.
     std::uint64_t retained_ = 0;
     std::string retained_path_;
+    std::int64_t retained_requester_ = 0;
 };
 
 } // namespace zengine::workshop

@@ -116,3 +116,23 @@ BECAUSE — a mutation that truncated the whole-binary run at ninety-two of five
 fifty-six cases proved nothing about the red path; the focused suite failed without a crash and
 the sanitizer named the use-after-free, and both were reported.
 SEEN — nowhere yet
+
+## VM-MUT-30 — A forgery guards nothing unless it arrives while its ask is outstanding
+
+METHOD — Deliver a forged or stale notice while the ask it names is still unanswered, holding the answer when the owner answers in the asking delivery, and assert the order the guarded party heard both in.
+BECAUSE — a forged lookup refusal queued once the tap saw the lookup delivered sat behind the
+door's same-delivery answer and reached the Builder after it; the case stayed green with its
+guard out of play, and only a probe of the delivery order showed it.
+SEEN — `tests/test_workshop_panes_builder.cpp` `HeldLookupOffice`, case `"BLD-WEAVE: a forged
+refusal naming the pane's own live attempt settles nothing at either stage, and the open
+completes"`.
+
+## VM-MUT-31 — A refusal case names which of three facts it witnesses
+
+METHOD — Say whether a refusal case witnesses an enqueue that queued nothing, Loom's refusal of a queued attempt, or a forgery, and show it by that branch's mutant alone: the other branches' mutants leave it green.
+BECAUSE — a case titled for dispatch refusal removed the only office declaring the lookup's
+shape, so nothing was queued; its lookup half was an enqueue refusal, and the pane's handling
+of a queued lookup refused later had no witness until a killed office refused one.
+SEEN — `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup queued to the project
+office and refused at dispatch -- the office gone before delivery -- is said by that exact
+attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back"`.

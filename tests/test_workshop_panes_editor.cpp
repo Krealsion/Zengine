@@ -3889,9 +3889,11 @@ TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, 
         CHECK(e.doc_row(0) == "one");
         CHECK(e.read("path") == a_path);
         CHECK(e.read("opened_by") != "0"); // installed by the managed operation, not alone
-        // THE MANAGER'S CONVERSATION WAS THE EDITOR'S, NOT THE ASKER'S: its requester of
-        // record is the Editor's weave, and the flight settled applied.
-        CHECK(e.opening().requester == static_cast<std::int64_t>(e.image.value));
+        // THE MANAGER'S CONVERSATION WAS THE EDITOR'S, NOT THE ASKER'S: the requester its
+        // latest result names is the Editor's weave, and the flight settled applied.
+        CHECK(e.opening().last_requester == static_cast<std::int64_t>(e.image.value));
+        CHECK(e.opening().last_path == a_path);
+        CHECK(e.opening().requester == 0); // nothing is live any more
         CHECK(e.opening().committed == 1);
         CHECK(e.opening().last_outcome == "committed");
     }

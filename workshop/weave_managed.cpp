@@ -315,7 +315,18 @@ void WorkshopWeave::on(const PresentationAdmitRequested& asked, loom::Mail& mail
 
 // ---- The publication hook: the trial becomes the desk ----------------------------------------
 
-bool WorkshopWeave::on_claim_published(const PanePresentation& published) {
+// WL-OPEN-09 -- agents/workshop/opening.md
+loom::Weave::PublishedClaim WorkshopWeave::on_claim_published(const PanePresentation& published) {
+    // THE DESK IS A NATIVE OWNER, SO ITS APPLICATION RUNS INSIDE THE HOST'S BOUNDARY: a throw
+    // from anything below is this desk's own failure -- Loom holds the desk, and the host's
+    // turn tells the words kept here -- and never an exception left for the pump to explain.
+    return contain_showing(&host_->showings, self_, [this, &published] {
+        return show_presentation(published) ? loom::Weave::PublishedClaim::Applied
+                                            : loom::Weave::PublishedClaim::Declined;
+    });
+}
+
+bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     if (!trial_.live || published.shown_by != static_cast<std::int64_t>(trial_.op)) {
         // NOT A PRESENTATION THIS DESK PREPARED. By the mechanism this cannot happen (the
         // operation bound this exact incarnation and its trial); if it does, the desk keeps

@@ -944,9 +944,11 @@ private:
     Written resolve(const std::string& requested, std::string& out) const {
         if (!requested.empty() && !std::filesystem::path(requested).is_absolute() &&
             !project_known_) {
-            return Written::no(requested +
-                               " is a relative path and this Editor has not been told where "
-                               "this run began -- open it by its full path");
+            // THE REASON FIRST, THE FILE AFTER IT, in every refusal of an open: a requester's
+            // row is cut at its width from the end, and the file is what a maker can lose.
+            return Written::no("a relative path means nothing until this Editor is told where "
+                               "this run began -- open " +
+                               requested + " by its full path");
         }
         out = ws::persist::resolved_against(project_dir_, requested);
         return Written::ok();
@@ -980,18 +982,19 @@ private:
             // buffer. The two ways out are this pane's own save and its one deliberate
             // discard, named by their actions; the band spells their keys while the pane
             // holds the keyboard.
-            plan.outcome =
-                Written::no(e_.path + " has unsaved changes -- save source or discard "
-                                      "source edits in the Editor first; nothing was opened");
+            plan.outcome = Written::no("the Editor holds unsaved changes to " + e_.path +
+                                       " -- save source or discard source edits in the "
+                                       "Editor first; nothing was opened");
             return plan;
         }
         if (paste_.awaiting) {
             // A PASTE STILL ARRIVING IS THE OPEN DOCUMENT'S, and its answer could still land
             // in it: replacing the document under it would strand a maker's own paste. The
             // quit's rule (WL-EDIT-14), one operation over: refused in words, try again.
-            plan.outcome = Written::no(e_.path + " is still waiting for a clipboard answer -- "
-                                                 "try again once it has arrived; nothing was "
-                                                 "opened");
+            plan.outcome = Written::no("the Editor is still waiting for a clipboard answer "
+                                       "for " +
+                                       e_.path +
+                                       " -- try again once it has arrived; nothing was opened");
             return plan;
         }
         // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the asker its refusal
@@ -1005,7 +1008,8 @@ private:
         }
         plan.admitted = ws::source_in(read.text);
         if (!plan.admitted.outcome.accepted) {
-            plan.outcome = Written::no(plan.path + ": " + plan.admitted.outcome.refusal);
+            plan.outcome =
+                Written::no(plan.admitted.outcome.refusal + " -- " + plan.path + " was not opened");
         }
         return plan;
     }
@@ -1025,10 +1029,10 @@ private:
         case loom::JointRefusal::ParticipantChanged:
         case loom::JointRefusal::WrongState:
         case loom::JointRefusal::Cancelled:
-            return path + " was not opened -- the document changed while opening; try again";
+            return "the document changed while opening " + path + " -- try again";
         default:
-            return path + " was not prepared -- the opening was no longer arranged (" +
-                   loom::name_of(why) + ")";
+            return "the opening was no longer arranged (" + std::string(loom::name_of(why)) +
+                   ") -- " + path + " was not prepared";
         }
     }
 

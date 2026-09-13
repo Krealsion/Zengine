@@ -128,11 +128,13 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         // its offers; both owners hear it ended; its requester hears why. A flight that
         // has already committed and is waiting on its owners' application is NOT
         // superseded -- nothing of it is the manager's to cancel -- and the newer request
-        // waits its turn: refused now, in words, rather than queued.
+        // waits its turn: refused now, in words, rather than queued. That refusal is the
+        // newer request's own result; the live operation's identity is not its to change.
         if (flight_.stage == "apply") {
-            (void)mail.answer(SourceOpened{
-                false, "the desk and the Editor are still applying " + flight_.path +
-                           " -- " + asked.path + " was not opened; try again"});
+            refuse_request(asked.path,
+                           "the desk and the Editor are still applying " + flight_.path +
+                               " -- " + asked.path + " was not opened; try again",
+                           mail);
             return;
         }
         (void)mail.cancel_joint(authority_, flight_.op);
@@ -146,28 +148,21 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         authority_, {loom::claim_key<EditorDocument>(std::string_view(editor_office_)),
                      loom::claim_key<PanePresentation>(std::string_view(presentation_office_))});
     if (!begun.ok) {
-        // AN IMMEDIATE TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT, so it retires
-        // an older retained record exactly as a settlement does (`retire`): `last_outcome`
-        // describes this refusal from here, and a late word about the older repair could no
-        // longer be reported truthfully -- it would overwrite this refusal with the old path.
-        // Releasing that record also frees its slot, which is what `Exhausted` was about.
-        retire(mail, 0);
-        ++state_.refused;
-        state_.last_outcome = "refused";
-        state_.last_refusal = refusal_words(asked.path, begun.why);
-        (void)mail.answer(SourceOpened{false, state_.last_refusal});
+        // NO OPERATION WAS ALLOCATED, so the request is refused as itself (`refuse_request`).
+        refuse_request(asked.path, refusal_words(asked.path, begun.why), mail);
         return;
     }
     flight_ = Flight{};
     flight_.live = true;
     flight_.op = begun.op;
     flight_.path = asked.path;
+    flight_.requester = static_cast<std::int64_t>(mail.sender().value);
     flight_.answer = mail.defer_answer();
+    // THE LIVE OPERATION'S RECORD. The latest terminal result stands as it was: an operation
+    // beginning is not an outcome, and that record changes only when one is recorded.
     state_.op = static_cast<std::int64_t>(begun.op);
     state_.path = asked.path;
-    state_.requester = static_cast<std::int64_t>(mail.sender().value);
-    state_.last_outcome.clear();
-    state_.last_refusal.clear();
+    state_.requester = flight_.requester;
     if (!ask(mail, presentation_office_,
              PresentationTrialRequested{static_cast<std::int64_t>(begun.op), pane_.provider,
                                         pane_.pane},
@@ -292,6 +287,11 @@ void OpeningManager::on(const loom::JointApplied& said, loom::Mail& mail) {
             release_retained(mail); // Missing: released elsewhere, nothing more to say
             return;
         }
+        // THE SAME REQUEST'S RESULT, REWRITTEN: every newer terminal outcome would have retired
+        // this record, so the latest result already names it -- and says so again here.
+        state_.last_op = static_cast<std::int64_t>(retained_);
+        state_.last_path = retained_path_;
+        state_.last_requester = retained_requester_;
         switch (status.application) {
         case loom::JointApplication::Applied:
             state_.last_outcome = "committed, applied after repair";
@@ -392,7 +392,11 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
     progress(mail, false);
     // A NEWER REQUEST SETTLING RETIRES THE RECORD KEPT FOR AN OLDER ONE'S LATE WORD (WL-OPEN-06).
     retire(mail, op);
+    // THE LATEST TERMINAL RESULT IS THIS OPERATION'S, ALL OF IT: its operation, the path it
+    // opened and who asked -- so the outcome below is never read against another request.
     state_.last_op = static_cast<std::int64_t>(op);
+    state_.last_path = flight_.path;
+    state_.last_requester = flight_.requester;
     if (committed && applied) {
         ++state_.committed;
         state_.last_outcome = "committed";
@@ -417,32 +421,58 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
         }
     }
     const std::string path = flight_.path;
+    const std::int64_t requester = flight_.requester;
+    // THE LIVE OPERATION'S RECORD ENDS WITH IT: nothing of it outlives the flight.
     flight_ = Flight{};
     state_.op = 0;
+    state_.path.clear();
     state_.stage = "idle";
     state_.awaiting.clear();
     state_.attempt = 0;
+    state_.requester = 0;
     // THE RECORD: consumed here, so released
     // here -- unless an owner is HELD under it. That record is retained, at most one, for
     // the late word about the owner's repair; nothing else is promised about it.
     if (committed && application == loom::JointApplication::Failed) {
         retained_ = op;
         retained_path_ = path;
+        retained_requester_ = requester;
         state_.retained = static_cast<std::int64_t>(op);
     } else {
         (void)mail.release_joint(authority_, op);
     }
 }
 
+// WL-OPEN-05 -- agents/workshop/opening.md
+void OpeningManager::refuse_request(const std::string& path, const std::string& refusal,
+                                    loom::Mail& mail) {
+    // AN IMMEDIATE TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT, so it retires an
+    // older retained record exactly as a settlement does (`retire`): the result describes this
+    // refusal from here, and a late word about the older repair could no longer be reported
+    // truthfully -- it would overwrite this refusal with the old path. Releasing that record
+    // also frees its slot, which is what `Exhausted` was about.
+    retire(mail, 0);
+    ++state_.refused;
+    // THE RESULT NAMES THIS REQUEST AND NO OPERATION: none was allocated for it, and the live
+    // operation -- if one is still applying -- is described by its own record, untouched.
+    state_.last_path = path;
+    state_.last_requester = static_cast<std::int64_t>(mail.sender().value);
+    state_.last_outcome = "refused";
+    state_.last_refusal = refusal;
+    state_.last_op = 0;
+    (void)mail.answer(SourceOpened{false, refusal});
+}
+
 // WL-OPEN-06 -- agents/workshop/opening.md
 void OpeningManager::retire(loom::Mail& mail, std::uint64_t settling) {
     // EVERY NEWER TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT -- a settlement, or
-    // an immediate refusal at `begin` -- retires the one record retained for an older
-    // commitment's repair: `last_outcome` describes the newer outcome from here, so the late
-    // word about the older repair could no longer be reported truthfully, and reporting it
-    // anyway would overwrite the newer result with the old operation's path. The record that
-    // is settling now is not retired here: `settle` decides whether to retain it. Releasing a
-    // record lifts no hold and repairs nothing -- the claimant's facts stay on its claim record.
+    // a request refused before it became an operation -- retires the one record retained for
+    // an older commitment's repair: the latest result describes the newer outcome from here, so
+    // the late word about the older repair could no longer be reported truthfully, and
+    // reporting it anyway would overwrite the newer result with the old operation's path. The
+    // record that is settling now is not retired here: `settle` decides whether to retain it.
+    // Releasing a record lifts no hold and repairs nothing -- the claimant's facts stay on its
+    // claim record.
     if (retained_ != 0 && retained_ != settling) {
         release_retained(mail);
     }
@@ -455,6 +485,7 @@ void OpeningManager::release_retained(loom::Mail& mail) {
     (void)mail.release_joint(authority_, retained_);
     retained_ = 0;
     retained_path_.clear();
+    retained_requester_ = 0;
     state_.retained = 0;
 }
 
