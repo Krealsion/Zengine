@@ -64,11 +64,12 @@ MEANS
 - a press crosses as the pane's OWN row and column, resolved to them by the host;
 - a heading, a marker, a blank row or the space below the last control means nothing.
 
-PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `say_properties`;
+PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `lead`, `say_properties`;
 `workshop/pane_vocabulary.hpp` `PanePressed::row`, `PanePressed::column`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on an object row selects it,
 through the document's own door"`, case `"INFO-WEAVE: pressing Create is the SAME operation
-the `n` key performs"`.
+the `n` key performs"`, case `"a press on an Info row while a notice stands names the row
+painted there, and a full room keeps both controls under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-05 — A resting value is fitted and a live draft is windowed
@@ -123,7 +124,9 @@ MEANS
 PROVEN BY — `info-pane/pane.cpp` `say`, `lead`, `finish`, `kActionCount`;
 `workshop/weave.hpp` `WorkshopWeave::judge_content`; `tests/test_workshop_panes_info.cpp` case
 `"INFO-WEAVE: a room too short for the body invents none of it"`, case `"INFO-WEAVE: the two
-controls are the last rows of the body, and say their own availability in characters"`.
+controls are the last rows of the body, and say their own availability in characters"`, case
+`"a press on an Info row while a notice stands names the row painted there, and a full room
+keeps both controls under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-09 — An object row is fitted whole, and a press on it asks the document
