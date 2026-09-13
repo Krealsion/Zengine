@@ -171,6 +171,10 @@ struct BuildCandidate {
     bool tree = false;
 };
 
+/// What a published row names when it names no listing entry: the notice, a header, a count of
+/// entries not shown, a sentence, or a mode's row.
+constexpr std::int64_t kNoEntry = -1;
+
 /// One list-window over `total` rows with the cursor on `at`, `count` rows visible -- the
 /// windowing `list_window` does, spelled here so the pane can walk it. `before`/`after` are
 /// how many rows are hidden each side.
@@ -300,9 +304,11 @@ public:
         if (chooser_.open || authoring_.open) {
             return; // a mode owns its own rows; a press outside a live list selects nothing
         }
+        // THE PRESS IS READ AGAINST THE PICTURE IT WAS AIMED AT, before anything below changes the
+        // next one: spending the notice moves every row up, and a new cursor moves the window.
         std::size_t which = 0;
-        if (!row_of_body_row(press.row, which)) {
-            return; // the header, a marker row, or blank space names no entry
+        if (!entry_at_row(press.row, which)) {
+            return; // the notice, the header, a marker row, or blank space names no entry
         }
         // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds, too
         // (`on(PaneActionRequested)` says why an open needs the saying).
@@ -1067,38 +1073,41 @@ private:
             .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{}, opened.correlation);
     }
 
-    // ---- Presses into the body's window -------------------------------------------------
+    // ---- Presses into the rows this pane published --------------------------------------
 
-    /// WHICH LISTING ROW A BODY ROW SHOWS -- the browser's `files_row_of_body_row`, over the
-    /// window this pane last drew. Row 0 of the body is the row under the header.
-    bool row_of_body_row(std::int64_t body_row, std::size_t& out) {
-        if (rows_ <= kHeaderRows || body_row < kHeaderRows) {
+    /// WHICH LISTING ENTRY A PRESSED ROW SHOWS, read off the picture `say` last published -- never
+    /// a second calculation of it. Row 0 is the room's first row: the notice when one leads, the
+    /// header otherwise. A row that names no entry, or lies past the published rows, is false.
+    bool entry_at_row(std::int64_t row, std::size_t& out) const {
+        if (row < 0 || row >= static_cast<std::int64_t>(entry_of_row_.size())) {
             return false;
         }
-        const std::size_t total = listing_.rows.size();
-        if (total == 0) {
+        const std::int64_t entry = entry_of_row_[static_cast<std::size_t>(row)];
+        if (entry == kNoEntry || entry >= static_cast<std::int64_t>(listing_.rows.size())) {
             return false;
         }
-        const std::size_t body_rows = static_cast<std::size_t>(rows_ - kHeaderRows);
-        const Window win = window_of(total, static_cast<std::size_t>(state_.cursor), body_rows);
-        const std::int64_t first_entry = win.before > 0 ? kHeaderRows + 1 : kHeaderRows;
-        const std::int64_t offset = body_row - first_entry;
-        if (offset < 0 || offset >= static_cast<std::int64_t>(win.count)) {
-            return false;
-        }
-        out = win.first + static_cast<std::size_t>(offset);
-        return out < total;
+        out = static_cast<std::size_t>(entry);
+        return true;
     }
 
     // ---- Saying what the pane shows -----------------------------------------------------
 
     void say(loom::Mail& mail) {
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
+            entry_of_row_.clear(); // nothing is published, so no row can name an entry
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, this](const std::string& text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{fit(text, columns_), role});
+        // EACH ROW IS COMPOSED WITH THE ENTRY IT SHOWS, and the notice and both cuts below take a
+        // row and its entry together -- so the map a press reads is this picture's, however the
+        // window was fitted, whatever leads it, and wherever the room cut it off.
+        struct Composed {
+            surface::SurfaceTextRow row;
+            std::int64_t entry = kNoEntry;
+        };
+        std::vector<Composed> out;
+        const auto push = [&out, this](const std::string& text, std::int64_t role,
+                                       std::int64_t entry = kNoEntry) {
+            out.push_back(Composed{surface::SurfaceTextRow{fit(text, columns_), role}, entry});
         };
         if (chooser_.open) {
             say_chooser(push);
@@ -1129,14 +1138,22 @@ private:
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
-            out.insert(out.begin(), surface::SurfaceTextRow{fit(notice_, columns_), surface::role::kAccent});
+            const surface::SurfaceTextRow notice{fit(notice_, columns_), surface::role::kAccent};
+            out.insert(out.begin(), Composed{notice, kNoEntry});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        std::vector<surface::SurfaceTextRow> rows;
+        rows.reserve(out.size());
+        entry_of_row_.clear();
+        for (Composed& composed : out) {
+            rows.push_back(std::move(composed.row));
+            entry_of_row_.push_back(composed.entry);
+        }
         ++published_;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(out)});
+            .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(rows)});
     }
 
     /// HOW MANY ROWS THE LISTING MAY SPEND: the room, less this pane's own header, less the
@@ -1195,7 +1212,8 @@ private:
             const FileRow& row = listing_.rows[i];
             push(std::string(here ? "> " : "  ") + row_text(row),
                  here ? surface::role::kAccent
-                      : (row.openable ? surface::role::kFill : surface::role::kMuted));
+                      : (row.openable ? surface::role::kFill : surface::role::kMuted),
+                 static_cast<std::int64_t>(i));
         }
         if (win.after > 0) {
             push("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
@@ -1259,6 +1277,10 @@ private:
     /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
     /// can tell whether the act it ran already said its rows.
     std::uint64_t published_ = 0;
+    /// WHICH ENTRY EACH ROW OF THAT PICTURE SHOWS, parallel to the rows sent: an index into
+    /// `listing_.rows`, or `kNoEntry`. Replaced by every `say`, the room grant's included; the
+    /// listing is only retaken by a handler that then says, so an index names what was painted.
+    std::vector<std::int64_t> entry_of_row_;
 
     Ask root_;
     Ask open_;
