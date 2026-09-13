@@ -8,9 +8,10 @@ write a weave.
 them, move and resize them, inspect and edit their properties, watch invalid edits be refused,
 save the result, and reopen it. Around that sit panes that show what the running system is
 made of, a Terminal pane that talks to the live process, a Builder that starts a real
-build and offers the result to the running project, and a [source editor](editor.md) that
-opens the file a build recipe names — so `edit → save → build → realize → inspect` closes
-without leaving the application. Your desk comes back on its own when you relaunch.
+build and offers the result to the running project, and an [Editor pane](editor.md) that
+opens the file a build recipe names and holds it while you edit — so `edit → save → build →
+realize → inspect` closes without leaving the application. Your desk comes back on its own
+when you relaunch.
 
 **What it is not yet** is written down in [limitations](limitations.md) rather than left to
 be discovered — the editor holds one plain-ASCII file at a time, the document itself still
@@ -185,7 +186,8 @@ remembers that layout for you either way.
    - **You will not see a caret while you type a property.** A pane sends finished rows and a
      caret is not a row, so the value scrolls to where you are typing and the insertion point
      itself does not cross. It is a real cost of Info being a loaded pane, and it is the
-     contract the Editor's own migration exists to fix.
+     contract the Editor's own migration fixed: the Editor pane publishes its caret and its
+     selection beside its rows, and Workshop draws them into the pane.
    - `Width` and `Height` are **one** property each — a mode plus an amount, `12` cells or
      `70%` — presented as one row even though two fields are stored.
    - `Resolved` is a separate, read-only row. Narrowing the workspace with `[` moves

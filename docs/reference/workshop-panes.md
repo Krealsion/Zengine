@@ -32,8 +32,10 @@ chosen to be unalike:
 catalog: it arrives by a plan row naming `zengine-builder-pane`, exactly as `Files` does, and
 Workshop compiles nothing for it. It is left in the table because the pair is what the two
 paragraphs below argue with, and because a reader who finds the pane on their screen should be
-able to find out where it went. The built-in half of the catalog is `Info`, `Editor`, `Layouts`
-and `Pane Manager`.
+able to find out where it went. The built-in half of the catalog is `Layouts` and
+`Pane Manager`; `Info` and `Editor`, which were built-ins when this table was written, are loaded
+panes now (`zengine-info-pane`, `zengine-editor-pane`), and a setup naming either under
+`zengine.workshop` is converted at read.
 
 ⚠ **`Attention` is a loaded pane that was never a built-in one.** What is currently true used
 to be an OVERLAY: a global chord opened it, it owned the keyboard while it was up, it was drawn

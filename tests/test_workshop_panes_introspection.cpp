@@ -1547,10 +1547,18 @@ TEST_CASE("SOURCE-1: knowing a power is still not authority to change it") {
     CHECK(op::invocations() == ran_before);
 
     // AND NO ROW OF THE PROJECT PANE OFFERS A CONTROL EITHER -- it is unchanged.
+    //
+    // ⚠ THE KEYBOARD GOES BACK TO THE DESK FIRST, and this line is load-bearing: the presses
+    // above pointed the keys at the Powers pane, `p` is a command-mode row, and a picker that
+    // never opened left this half of the case reading the rows of a pane that was never
+    // seated -- an empty vector every loop below walked in zero steps. Found when the rig's
+    // own picker helper started refusing a walk it could not make (VD-26).
+    r.press_cell(0, screen_of(r.session()).h - 1);
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
     const std::vector<std::string> rows = pane_rows(r, project);
+    REQUIRE_FALSE(rows.empty()); // the loops below are about rows, and there must be some
     for (std::int64_t row = 0; row < static_cast<std::int64_t>(rows.size()); ++row) {
         press_pane(r, project, row, 1);
     }

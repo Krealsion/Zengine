@@ -47,7 +47,7 @@ void WorkshopWeave::picker_move(std::int64_t by) {
     }
 }
 
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::picker_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     PanelPicker& picker = session_.panels.picker;
     const std::int64_t rows = spend_wheel(picker.wheel_accum, w.dy, kListWheelRows);

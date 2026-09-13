@@ -193,13 +193,13 @@ WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-14 — A place a maker types into keeps Escape
 
-LAW — The source editor's Escape is a pinned no-op, and a focused external pane has already been sent the key; the way out of either is a press on a pane that takes no text, then Escape.
+LAW — A focused external pane has already been sent the key (the Editor's Escape is a pinned no-op in its own image); the way out is a press on a pane that takes no text, then Escape.
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `escape_may_shed_selection`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
 `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text,
-then Escape, puts the selection down"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: Escape
-means nothing in the editor -- no mode closes, no text moves"`.
+then Escape, puts the selection down"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29:
+Escape means nothing in the Editor -- no mode closes, no text moves"`.
 WHY — `agents/decisions/escape-is-back.md`
 
 ## Do not assume

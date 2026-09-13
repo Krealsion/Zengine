@@ -9,12 +9,12 @@ seam is the protocol's law, in [`../panes.md`](../panes.md).
 LAW — `Panels::keyboard` is the keyboard-taking pane the maker last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
-- `editor_has_keyboard` and `pane_editor_has_keyboard` are the built-ins';
+- `pane_editor_has_keyboard` is the one built-in's; the Editor's went with the Editor (VD-25);
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;
-`workshop/screen_arrange.cpp` `editor_has_keyboard`,
-`pane_editor_has_keyboard`; `workshop/weave_external.cpp` `keyboard_pane`;
+`workshop/screen_arrange.cpp` `pane_editor_has_keyboard`; `workshop/weave_external.cpp`
+`keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external pane's room points
 the keyboard at it"`, case `"MSG-0: a press into a second external pane moves the keyboard to
 it"`, case `"MSG-0: a pane that stops being presentable stops being typed into"`.
@@ -25,14 +25,13 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — `PanelKind::takes_keyboard` is a fact about a kind on its catalog row; whether that pane can take keys at this instant is live state its own resolver answers, stored nowhere.
 
 MEANS
-- the Editor needs a document open; a loaded pane answers for itself and is always a candidate;
-- the Editor and the Pane Manager carry the flag; nothing registered, no focus framework.
+- a loaded pane answers for itself and is always a candidate, the empty Editor included;
+- the Pane Manager carries the flag; nothing registered, no focus framework.
 
 PROVEN BY — `workshop/panel.hpp` `PanelKind::takes_keyboard`, `kind_takes_keyboard`,
-`kPanelCatalog`; `workshop/screen_arrange.cpp` `editor_has_keyboard`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: an empty editor pane takes no keys and says how to
-fill itself"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the pane lists the place
-this run began, asked of the host"`.
+`kPanelCatalog`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W30: an empty Editor pane
+takes the keys and does nothing with them"`; `tests/test_workshop_panes_files.cpp` case
+`"FILES-WEAVE: the pane lists the place this run began, asked of the host"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-03 — One reading decides both
@@ -78,7 +77,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-06 — The modes above it never reach that line
 
-LAW — The priority is the above-mode classes, the modes, a focused pane, the editor holding a document, a live property draft, then `command()`, spelled once in `keyboard_context`.
+LAW — The priority is the above-mode classes, the modes, a focused pane, a live property draft, then `command()`, spelled once in `keyboard_context`.
 
 MEANS
 - opening the Terminal or an arrangement scope leaves the candidate where it was;
@@ -111,9 +110,9 @@ MEANS
 
 PROVEN BY — `workshop/keymap.hpp` `context_takes_text`; `workshop/screen_arrange.cpp`
 `keyboard_context`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits exactly where
-nothing takes text"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: ^c in the editor copies --
-it does not quit -- and quit stays a press away"`; `tests/test_component.cpp` case `"component: a
-consumed gesture that changes nothing is still consumed"`.
+nothing takes text"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W27: ^c copies, does not
+quit, and the copy reaches the platform clipboard"`; `tests/test_component.cpp` case `"component:
+a consumed gesture that changes nothing is still consumed"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-10 — The screen says where typing goes, in two places, in characters
@@ -126,8 +125,7 @@ MEANS
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
 `workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the
-screen says which pane the keys are going to, in two places"`; `tests/test_workshop_editor.cpp`
-case `"EDIT-0: the band and the header both say where typing goes"`;
+screen says which pane the keys are going to, in two places"`;
 `tests/test_workshop_panes_actions.cpp` case `"the band's legend and the hotkey view print the
 pane's rows while it holds the keys"`, case `"a pane that declared nothing is described as
 ownership only, exactly as before"`.

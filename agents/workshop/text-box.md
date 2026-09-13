@@ -60,7 +60,7 @@ MEANS
 **The Terminal's instance of this left the host (VD-24)** — `terminal_input_place` and the
 reconcile above the participant check were its one measurer, and the pane owns both now.
 
-PROVEN BY — `workshop/screen.hpp` `editor_body`; `workshop/weave_run.cpp` `repaint`;
+PROVEN BY — `workshop/weave_run.cpp` `repaint`;
 `workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_workshop_panes_terminal.cpp`
 case `"TERM-W12: a press on the input row places the caret where the maker aimed"`;
 `tests/test_component.cpp` case `"HD-4: the window is state, and every operation leaves the
@@ -204,18 +204,23 @@ WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## WL-TEXT-14 — A text-selection drag is a gesture record of its own
 
-LAW — `Session::text_drag` holds which editable line a press began sweeping and nothing else; every motion re-resolves the current geometry through the press's own functions and hands the component a column.
+LAW — `Session::text_drag` holds which editable line or pane a press began sweeping and nothing else; every motion re-resolves the current geometry through the press's own measurer and hands on a position.
 
 MEANS
 - the row is not re-tested mid-drag, so a hand that wanders off the line keeps sweeping it;
-- a press begins it only on the paths that consume the press; release keeps the selection.
+- a press begins it only on the paths that consume the press; release keeps the selection;
+- a pane's (`kExternalPane`) crosses as `PaneDragged`, unclamped, no release; a lost seat ends it.
 
-**A PANE HAS NO SWEEP (VD-24).** `kTerminalLine` was one of this record's places and left
-with the overlay: a pane is sent a press and no motion, so a migrated line selects a word
-from its own presses and this record holds only lines this host still resolves.
+DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay (VD-24) and the
+Terminal asks for no sweep; a pane that never declared a use for the motion is sent one it may
+ignore, and the Editor is the one that spends it.
 
 PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`, `property_value_column`,
-`text_drag_place`; `component/text_box.hpp` `TextBox::drag_to_column`;
-`tests/test_component.cpp` case `"component: drag_to_column extends from the pressed anchor
-and can leave the slice"`.
+`text_drag_place`, `kExternalPane`; `workshop/weave_external.cpp` `external_drag`;
+`workshop/weave_pointer.cpp` `on(PointerMoved)`, `end_held_gestures`;
+`component/text_box.hpp` `TextBox::drag_to_column`; `tests/test_component.cpp` case
+`"component: drag_to_column extends from the pressed anchor and can leave the slice"`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W36: a drag sweeps a multiline selection, and
+the selection survives release"`, case `"EDIT-W46: a press begins a sweep only where it named a
+row of the body"`.
 WHY — `agents/decisions/one-press-one-gesture.md`

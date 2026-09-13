@@ -4,10 +4,11 @@
 on. The exact contracts are [Workshop panes](../reference/workshop-panes.md); a maker's view of
 the same ground is [panes](../workshop/panes.md).
 
-Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it, an
-Info panel beside them, a source editor, and a Terminal overlay -- plus the panes its load plan
-brings, which since the pane-weave arc include the project browser and the Builder. A **tool**
-is something a maker can open from the `+ panel` picker.
+Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it and
+the panes its load plan brings -- since the pane-weave arc that is Info, the project browser,
+the Builder, Attention, the Terminal and the source Editor, every one of them a loaded weave
+beside the two built-ins Workshop still compiles (Layouts and the Pane Manager). A **tool** is
+something a maker can open from the `+ panel` picker.
 
 There are **two ways** to put one there, and current source deliberately does not merge them.
 Pick yours before you read any mechanics.
@@ -957,7 +958,12 @@ And the actions you declare beside your offer — `PaneActions{pane, rows}`, eac
 your namespace, a label and a default gesture as `PaneKey`'s two numbers — come back as
 `PaneActionRequested{pane, id}` in place of the key whenever a maker presses the binding that
 requests one, after their own keymap has moved it; act on the id, never on the key, and keep
-matching raw keys only for what a component of yours owns, such as a text field's editing.)
+matching raw keys only for what a component of yours owns, such as a text field's editing.
+That declaration has a second version, `PaneActions v2`, whose rows carry one more field:
+`supersedes`, naming a Workshop action your row stands in for while your pane owns the keyboard.
+Use it only if your pane performs one of those operations on a subject of its own — a pane
+holding its own document says `document.save` — and keep sending version one otherwise. Version
+one is unchanged and will stay unchanged, so a pane built against it keeps working.)
 `PanePressed` carries no
 button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
 arrival *is* that gesture.

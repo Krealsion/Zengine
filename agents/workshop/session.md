@@ -72,12 +72,14 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
 
-LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which saves the session before it stops the bus; no autosave, no dirty tracking, no background writer.
+LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which asks the room and then saves the session before it stops the bus; no autosave, no background writer.
 
 MEANS
-- crash durability is not claimed: `write_file` does not fsync; a killed run loses its session.
+- crash durability is not claimed: `write_file` does not fsync; a killed run loses its session;
+- `finish_quit` is the one place the desk is written and the bus stopped.
 
-PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_session.cpp` `save_last_session`;
+PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`; `workshop/weave_session.cpp`
+`save_last_session`;
 `workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
@@ -111,9 +113,47 @@ file to exist"`, case `"a save into a place that does not exist refuses before i
 anything"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
+## WL-SESSION-19 — A quit Loom could not deliver to a participant is refused at once
+
+LAW — A delivery of the quit question that Loom refuses ends that quit as a refusal naming the participant and the reason: held gestures replay, nothing is saved, and the next quit asks afresh.
+
+MEANS
+- the host's `QuitDeliveryWatch` writes each such refusal from its tap to a book, waking Workshop;
+- the book decides; the wake-up carries nothing: only an entry for the quit in flight refuses it;
+- one known refusal ends the quit although another participant's answer is still owed.
+
+DOES NOT MEAN
+- that a delivered question nobody answers, a handler that failed or an exception ends a quit;
+- that `zen.DispatchRefused` reaches a publication's author: it does not, so the host watches.
+
+PROVEN BY — `workshop/quit_delivery.hpp` `QuitDeliveryWatch`, `UndeliveredQuits`,
+`UndeliveredQuit`, `QuitDeliveryRefusalNoted`; `workshop/quit_delivery.cpp` `QuitDeliveryWatch`,
+`undelivered_quit_words`; `workshop/weave_run.cpp` `on(QuitDeliveryRefusalNoted)`,
+`refuse_quit`; `workshop/weave.hpp` `HostContext::undelivered_quits`; `workshop/workshop.cpp`
+`quit_watch`; `tests/test_workshop_panes_editor.cpp` case `"a quit the held Editor cannot be
+asked is refused at once in its office's words, the maker's keys and the repair work, and a quit
+after the reload ends the run"`, case `"gestures queued behind a quit the held Editor cannot be
+asked are replayed in order once it is refused, and a burst past the hold is counted in its
+words"`, case `"a participant with no pane on the desk that stops running after the quit is asked
+refuses it by office and reason, and another participant's owed answer is not waited for"`, case
+`"a delivered question nobody answers keeps the quit waiting, and a forged wake-up, a stranger's
+quit question or Workshop's refused answer of another shape -- each carrying the live ask's own
+number -- ends nothing"`, case `"a refusal or an answer that belongs to a quit already ended
+cannot decrement, refuse or complete the quit asked after it"`, case `"once the host's watch is
+gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not quitting discards
+what the book holds"`, case `"a Workshop that does not hold its office says so and starts no
+quit, and the refusal Loom records for that authorship is not made a participant's"`, case `"the
+close box and the interrupt chord meet the same refusal as q when the held Editor cannot be
+asked"`, case `"the shipped host mounts the quit watch from Workshop's own mount, after the bus
+and the HostContext whose book it writes"`.
+WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
+
 ## Do not assume
 
 - That a session save can be trusted after a crash: it is written on an orderly close and
   nowhere else (WL-SESSION-13).
 - That the last session and a named setup are the same thing saved twice: two promises, two
   files (WL-SESSION-04).
+- That a quit waits on a participant Loom would not deliver the question to: it is refused
+  (WL-SESSION-19). A participant that is delivered the question and never answers still holds
+  it open, named rather than timed out.

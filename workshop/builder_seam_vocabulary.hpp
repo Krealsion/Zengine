@@ -16,8 +16,9 @@
 //
 //     zengine.project    read-only    ProjectFrontierRequested -> ProjectFrontierSaid
 //                                     PlanNamesRequested       -> PlanNames
+//                                     RecipeSourceRequested    -> RecipeSourceSaid
 //     zengine.plan       ACTS         PlanRowRequested         -> PlanRowWritten
-//     zengine.workshop   ACTS         RecipeSourceRequested    -> SourceOpened
+//     zengine.editor     ACTS         OpenSourceRequested      -> SourceOpened
 //
 // ⚠ THE TWO PLAN QUESTIONS ARE AT TWO OFFICES ON PURPOSE, and the line is
 // `pane_seam_vocabulary.hpp`'s own: a question whose answer runs nobody's code lives apart
@@ -150,27 +151,45 @@ struct PlanRowWritten {
               ZEN_FIELD(frontier), ZEN_FIELD(product), ZEN_FIELD(path));
 };
 
-// ---- One recipe's source, opened in the Editor ----------------------------------
+// ---- One recipe's source, resolved by the host --------------------------------------
 
-/// OPEN THE SOURCE THIS RECIPE WAS AUTHORED FROM. Addressed to `zengine.workshop`, the office
-/// that holds the Editor today, and answered with `SourceOpened` -- the same answer
-/// `OpenSourceRequested` gets, because the two asks end in the same act.
+/// WHICH SOURCE FILE THIS RECIPE WAS AUTHORED FROM. Addressed to `zengine.project`, the
+/// read-only office (`pane_doors.hpp`), and answered with `RecipeSourceSaid`. The Builder
+/// pane then spends the Editor's one door itself -- `OpenSourceRequested` at `kEditorRole`
+/// -- and hears `SourceOpened` exactly as the Files pane does.
 ///
-/// ⚠ IT NAMES A RECIPE AND NOT A PATH, and that is the whole reason it is a second shape
+/// IT NAMES A RECIPE AND NOT A PATH, and that is the whole reason it is a second shape
 /// rather than a use of `OpenSourceRequested`. `RecipeSummary` is `{recipe, artifact}` on
-/// purpose: a presentation does not receive source paths, build trees, package prefixes or
-/// link lists, because handing them over would put a build procedure on a screen that has no
-/// way to act on one. So the pane says the only thing it holds -- the recipe's own name --
-/// and the host resolves it through `HostContext::recipe_source` against the catalog IT owns.
-/// A pane that could spell the path would already have been given the procedure.
+/// purpose: a presentation holds a recipe's NAME and never its procedure, so what it asks is
+/// "which one file does this name mean", and the host answers that out of the completed
+/// catalog IT owns (`HostContext::recipe_source`, WL-PROJ-02) -- the one path the recipe
+/// names, absolute, as the build itself would read it. The pane carries that one path to the
+/// Editor's door and holds nothing else of the procedure.
 ///
-/// AND EVERY REFUSAL IS THE HOST'S. A name the project's recipes do not hold, a recipe kind
-/// that names no single source, a file that is not there, a dirty buffer that must be saved
-/// or discarded first: all four reach the pane as `SourceOpened::refusal`, in the words their
-/// owner used, and the pane says them in its own row.
+/// ⚠ THIS ASK USED TO END IN THE OPENING. While the host held the Editor it answered this
+/// shape with `SourceOpened` after opening the file itself. The document is the Editor
+/// weave's now, so the host cannot open anything, and a host that relayed the ask onward
+/// would have to name the Editor's office -- which is exactly the pane-specific routing this
+/// arc refuses. The resolution stayed where the catalog is; the opening went where the
+/// document is; the Builder walks the two doors in order.
 struct RecipeSourceRequested {
     std::string recipe;
     ZEN_SHAPE(RecipeSourceRequested, 1, ZEN_FIELD(recipe));
+};
+
+/// WHAT THE RECIPE RESOLVES TO. `accepted` with the one absolute `source` the recipe names,
+/// or a refusal in the OWNER's words: the catalog's when the id names no authored recipe of
+/// this project, the recipe file's when the kind names no single source (the `kind` word is
+/// the file's own), the host's when it resolves no recipe sources at all. `recipe` rides back
+/// so the asker reads the answer against the row it asked about rather than against wherever
+/// its cursor has since moved.
+struct RecipeSourceSaid {
+    std::string recipe;
+    bool accepted = false;
+    std::string refusal;
+    std::string source;
+    ZEN_SHAPE(RecipeSourceSaid, 1, ZEN_FIELD(recipe), ZEN_FIELD(accepted), ZEN_FIELD(refusal),
+              ZEN_FIELD(source));
 };
 
 } // namespace zengine::workshop

@@ -19,6 +19,11 @@ namespace zengine::workshop {
 // WL-PED-05 -- agents/workshop/pane-manager.md
 // WL-SESSION-12 -- agents/workshop/session-restore.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
+    (void)mail;
+    apply_setup_now();
+}
+
+void WorkshopWeave::apply_setup_now() {
     // MEMBERSHIP-DEPENDENT SESSION STATE FIRST. This is the one door a setup's
     // membership changes through -- the picker's removal, a restore, a geometry edit
     // that reseats -- so it is the one place that has to notice a selection whose pane
@@ -32,7 +37,6 @@ void WorkshopWeave::apply_setup(loom::Mail& mail) {
     // here, because the panel could not send for itself. A pane weave asks on its own room
     // grant, in its own image, addressed to the office it presents -- so `reconcile`'s
     // answer is once again nothing but which panels opened.
-    (void)mail;
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md

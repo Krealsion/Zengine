@@ -56,13 +56,14 @@ WHY — `agents/decisions/two-bands.md`
 LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has four writers and no other.
 
 MEANS
-- the press line, `enter_arrange_pane` after admission, `open_source`, Escape's fallthrough;
+- the press line, `enter_arrange_pane` after admission, a pane's reveal, Escape's fallthrough;
 - a refused Arrange leaves the selection exactly where it was.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPaneKind`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`; `workshop/weave_external.cpp` `unselect_pane`;
-`workshop/weave_pane_editor.cpp` `open_source`; `tests/test_workshop_screen.cpp` case `"WUX-5: the
-selection lift never reaches the file, and no session starts with one"`, case `"WUX-7: contextual
+`workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `tests/test_workshop_screen.cpp` case
+`"WUX-5: the selection lift never reaches the file, and no session starts with one"`, case
+`"WUX-7: contextual
 Arrange lifts the pane it addressed, not the one in front"`, case `"WUX-7: every pane a maker can
 point at can be arranged, and the refusals are blind"`.
 WHY — `agents/decisions/the-selection-lift.md`

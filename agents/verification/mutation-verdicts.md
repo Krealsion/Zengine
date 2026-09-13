@@ -90,6 +90,25 @@ a suite whose fixture never reaches it; the diagnosis turned up a third mutation
 written, because the multiply beside it had none.
 SEEN — nowhere yet
 
+## VM-MUT-29 — Put the defect back, and name which cases are retargeted rather than kept
+
+METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart; say whether a moved expectation was restored, changed or new; retire one that pins a rejected outcome.
+BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
+and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
+for a choice the maker then rejected stayed green and changed nothing about the disposition.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
+save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
+opens nothing, and the requester is told why"`, case `"EDIT-W68: a resize after the commitment
+is an ordinary presentation change"`.
+
+## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
+
+METHOD — A case that forges a message proves the guard only when the forging weave is granted to say that shape; read the grant before believing the green, and let a mutation of the guard show the case reaches it.
+BECAUSE — two forgery cases of a twelve-mutation matrix stayed green under their mutants: the
+asker's grant lacked the forged shape, so the bus refused the forgery before the host ever saw
+it; with the grant added both went red, and one gained an in-flight forgery on the way.
+SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), EDIT-W10, EDIT-W23.
+
 ## VM-MUT-23 — A crashing mutation needs a separate semantic pin
 
 METHOD — A crashing mutation needs a separate semantic pin — the focused suite and the sanitizer, reported together — and a canary must be surgical and non-crashing.
@@ -97,3 +116,23 @@ BECAUSE — a mutation that truncated the whole-binary run at ninety-two of five
 fifty-six cases proved nothing about the red path; the focused suite failed without a crash and
 the sanitizer named the use-after-free, and both were reported.
 SEEN — nowhere yet
+
+## VM-MUT-30 — A forgery guards nothing unless it arrives while its ask is outstanding
+
+METHOD — Deliver a forged or stale notice while the ask it names is still unanswered, holding the answer when the owner answers in the asking delivery, and assert the order the guarded party heard both in.
+BECAUSE — a forged lookup refusal queued once the tap saw the lookup delivered sat behind the
+door's same-delivery answer and reached the Builder after it; the case stayed green with its
+guard out of play, and only a probe of the delivery order showed it.
+SEEN — `tests/test_workshop_panes_builder.cpp` `HeldLookupOffice`, case `"BLD-WEAVE: a forged
+refusal naming the pane's own live attempt settles nothing at either stage, and the open
+completes"`.
+
+## VM-MUT-31 — A refusal case names which of three facts it witnesses
+
+METHOD — Say whether a refusal case witnesses an enqueue that queued nothing, Loom's refusal of a queued attempt, or a forgery, and show it by that branch's mutant alone: the other branches' mutants leave it green.
+BECAUSE — a case titled for dispatch refusal removed the only office declaring the lookup's
+shape, so nothing was queued; its lookup half was an enqueue refusal, and the pane's handling
+of a queued lookup refused later had no witness until a killed office refused one.
+SEEN — `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup queued to the project
+office and refused at dispatch -- the office gone before delivery -- is said by that exact
+attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back"`.

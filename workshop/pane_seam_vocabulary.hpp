@@ -28,17 +28,21 @@
 // ---- THREE OFFICES, SPLIT BY WHETHER ANSWERING ACTS ---------------------------
 //
 //     zengine.project    read-only    ProjectRootRequested  -> ProjectRoot
+//                                     RecipeSourceRequested  -> RecipeSourceSaid
 //     zengine.recipes    ACTS         RecipeUseRequested     -> RecipeOutcome
 //                                     RecipeAuthorRequested  -> RecipeOutcome
-//     zengine.workshop   ACTS         OpenSourceRequested    -> SourceOpened
+//     zengine.editor     ACTS         OpenSourceRequested    -> SourceOpened
 //
 // The split is `arrangement_vocabulary.hpp`'s own: a question whose answer runs nobody's
 // code lives apart from one whose whole purpose is to change the project on disk, so
 // "which office can write a maker's files" keeps a one-word answer. `ProjectRoot` reads
 // two strings the host captured once; `zengine.recipes` writes recipe catalogs through the
-// one authoring writer; and opening a source is the Editor's, held by Workshop today and
-// addressed at `zengine.workshop` until the Editor is a weave of its own -- then the same
-// sentence goes to `zengine.editor` and only the address moves.
+// one authoring writer; and opening a source is the Editor's. It was addressed at
+// `zengine.workshop` while the host held the document, with a note that the sentence would
+// one day go to `zengine.editor` and only the address would move. It has: the Editor is a
+// weave of its own (`Zengine/editor-pane/`), the document lives in it, and the two askers
+// spell `kEditorRole` below. Which SOURCE a recipe names stayed with the host, because the
+// completed catalog is the host's: that is the read-only door's third question.
 //
 // ---- WHAT CROSSES, AND WHAT CANNOT --------------------------------------------
 //
@@ -77,6 +81,15 @@ inline constexpr const char* kProjectRole = "zengine.project";
 /// `zengine.project` because answering it WRITES -- it installs a catalog or appends a
 /// recipe row -- and the read-only door must not be the one that can.
 inline constexpr const char* kRecipesRole = "zengine.recipes";
+
+/// THE OFFICE THAT HOLDS THE ONE SOURCE DOCUMENT AND OPENS A SOURCE INTO IT. A ROLE, for the
+/// two above's reason: a reloaded Editor is still the party a Files row asks. Spelled here
+/// rather than taken from `editor-pane/vocabulary.hpp`, for `pane_migration.hpp`'s reason:
+/// that header is the weave's own and neither asker links the weave; a case checks the two
+/// spellings against each other, which is the seam where a divergence would actually be
+/// caught. A host that loads no Editor holds no such office and an ask reaches nobody -- the
+/// asker's row stays as it was, and nothing was opened.
+inline constexpr const char* kEditorRole = "zengine.editor";
 
 // ---- The project root, read ----------------------------------------------------
 
@@ -144,11 +157,11 @@ struct RecipeOutcome {
 
 // ---- One source, opened in the Editor ------------------------------------------
 
-/// OPEN THIS PATH IN THE EDITOR. Addressed to `zengine.workshop`, the office that holds the
-/// Editor today; the host normalizes, reads and judges the file through the one door
-/// `open_source(path, mail)` (WL-EDIT-05), and a dirty buffer's refusal reaches the asker
-/// as the answer. When the Editor becomes a weave, this sentence goes to `zengine.editor`
-/// and only the address moves.
+/// OPEN THIS PATH IN THE EDITOR. Addressed to `zengine.editor` (`kEditorRole`), the office
+/// that holds the one source document; the Editor weave normalizes, reads and judges the
+/// file (WL-EDIT-05), asks Workshop to seat its pane, and installs the document on the desk's
+/// word that it did. A dirty buffer's refusal, and the desk's, reach the asker as the answer.
+/// The sentence used to go to `zengine.workshop`; only the address moved.
 struct OpenSourceRequested {
     std::string path;
     ZEN_SHAPE(OpenSourceRequested, 1, ZEN_FIELD(path));
@@ -157,6 +170,11 @@ struct OpenSourceRequested {
 /// WHAT OPENING CAME TO. `accepted` with an empty `refusal`, or the door's own sentence --
 /// a file that is not there, a name the custody cannot carry, a dirty buffer that must be
 /// saved or discarded first. The pane says the refusal in its own row.
+///
+/// ⚠ ACCEPTED MEANS PRESENTED. The Editor answers this only after Workshop has seated its
+/// pane, selected it and pointed the keys at it, in one delivery (`PaneRevealRequested`,
+/// pane_vocabulary.hpp) -- so an accepted open is an open the maker can see, and a refused one
+/// left the prior document, the setup, the selection and the keys exactly as they were.
 struct SourceOpened {
     bool accepted = false;
     std::string refusal;

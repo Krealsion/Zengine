@@ -41,6 +41,7 @@
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
 
+#include <algorithm>
 #include <fstream>
 
 namespace {
@@ -152,14 +153,32 @@ struct BuilderRig {
         mount_tool_office();
     }
 
-    void open(std::int64_t width = 160, std::int64_t height = 48) {
+    /// `with_editor` LOADS THE REAL EDITOR IMAGE BESIDE THE BUILDER, for the cases about `e`:
+    /// the Editor is a weave (VD-25), so the second of the two doors `e` walks is answered by
+    /// nobody unless its image is in the room.
+    /// `with_manager` MOUNTS THE OPENING MANAGER BESIDE WORKSHOP, as the host does (the office
+    /// `e`'s second door asks, WL-OPEN-01), and `with_project_door` the read-only project
+    /// office `e`'s first door asks; each left out is a door that reaches nobody, which the
+    /// refusal-at-dispatch cases are about.
+    void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
+              bool with_manager = true, bool with_project_door = true) {
+        r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
-        mount_doors();
+        if (with_manager) {
+            r.mount_opening();
+        }
+        mount_doors(with_project_door);
         load::LoadPlan plan;
         load::ArtifactIntent seat;
         seat.stem = pane::kBuilderPaneStem;
         seat.weave = load::WeaveIntent{pane::kBuilderPaneRole};
         plan.artifacts.push_back(seat);
+        if (with_editor) {
+            load::ArtifactIntent editor;
+            editor.stem = "zengine-editor-pane";
+            editor.weave = load::WeaveIntent{"zengine.editor"};
+            plan.artifacts.push_back(editor);
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
@@ -187,6 +206,58 @@ struct BuilderRig {
 
     const RuntimePane* row() {
         return r.session().panels.runtime.find(pane::kBuilderPaneRole, pane::kBuilderPane);
+    }
+
+    /// A KEY AND ITS CHARACTER QUEUED AND NOT DRAINED, so a case can place a real message at
+    /// an exact interval of the conversation `e` begins; the case pumps.
+    void enqueue_letter(std::int64_t scancode, const char* typed) {
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::KeyPressed{scancode, "", input::mod::kNone}), loom::WeaveId{},
+            loom::WeaveId{}, 0));
+        (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{typed}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+
+    /// A STRANGER THAT CAN SAY `zen.DispatchRefused` AS A SHAPE, granted so the forgery case
+    /// proves the pane's refusal to act on ordinary speech and not the bus's grant refusal.
+    DoorAsker* stranger = nullptr;
+    loom::WeaveId stranger_id{};
+    void mount_stranger() {
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        stranger = held.get();
+        loom::Grant grant;
+        grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
+        stranger_id = r.bus.register_weave(std::move(held), std::move(grant),
+                                           std::string(kDoorAskerOffice));
+        stranger->zen_set_self(stranger_id);
+        stranger->id = stranger_id;
+    }
+    void forge_refusal(loom::WeaveId to, std::uint64_t attempt, const char* role,
+                       const char* shape) {
+        REQUIRE(stranger != nullptr);
+        stranger->next = [to, attempt, role, shape](DoorAsker&, loom::Mail& mail) {
+            loom::DispatchRefused forged;
+            forged.attempt = std::to_string(attempt);
+            forged.role = role;
+            forged.shape = shape;
+            forged.version = 1;
+            forged.reason = "NoSuchTarget";
+            (void)mail.as_role(kDoorAskerOffice).send(to, forged);
+        };
+        (void)r.bus.send(stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+    }
+
+    /// The Editor pane's handle, when its image was loaded beside the Builder.
+    std::int64_t editor_kind() {
+        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        REQUIRE(editor != nullptr);
+        return editor->kind;
+    }
+    std::string editor_status() {
+        const std::vector<std::string> rows = pane_rows(r, editor_kind());
+        REQUIRE_FALSE(rows.empty());
+        return rows[0];
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -234,7 +305,10 @@ struct BuilderRig {
         tool = raw;
     }
 
-    void mount_doors() {
+    /// The read-only project office `mount_doors` seated, when it seated one.
+    loom::WeaveId project_id{};
+
+    void mount_doors(bool with_project_door = true) {
         r.host.frontier = [this] { return frontier; };
         r.host.plan_names = [this](const std::string& stem) {
             for (const std::string& held : plan_rows) {
@@ -253,17 +327,22 @@ struct BuilderRig {
             return next_append;
         };
         r.host.recipe_source = [this](const std::string&) { return next_source; };
+        if (!with_project_door) {
+            return;
+        }
 
         auto project = std::make_unique<ProjectDoor>(r.host.project_dir, marks_, r.host.frontier,
-                                                     r.host.plan_names);
+                                                     r.host.plan_names, r.host.recipe_source);
         ProjectDoor* praw = project.get();
         loom::Grant say_project;
         say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
         say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
+        say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
         const loom::WeaveId pid = r.bus.register_weave(std::move(project), std::move(say_project),
                                                        std::string(kProjectRole));
         praw->zen_set_self(pid);
+        project_id = pid;
 
         auto plan = std::make_unique<PlanDoor>(r.host.append_plan_row);
         PlanDoor* draw = plan.get();
@@ -351,7 +430,7 @@ TEST_CASE("BLD-WEAVE: the pane declares the nine ids a maker's keymap file alrea
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const PaneActionRow& row : seat->actions) {
+    for (const v2::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     for (const std::string& want : kBrowsingIds) {
@@ -756,9 +835,10 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the 
 
 TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host") {
     // ⭐ THE PANE NAMES A RECIPE AND NEVER A PATH. `RecipeSummary` is `{recipe, artifact}` on
-    // purpose, so the sentence that crosses is the recipe's own name and the host resolves it
-    // against the catalog IT owns -- a pane that could spell the path would already have been
-    // handed the build procedure.
+    // purpose, so the sentence that crosses is the recipe's own name and the host's read-only
+    // project office resolves it against the catalog IT owns -- a pane that could spell the
+    // path would already have been handed the build procedure. The pane then carries the one
+    // path the door named to the Editor's own door, and the Editor asks to be shown.
     BuilderRig b("bld-edit");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     const std::string src = (b.root / "snake.cpp").generic_string();
@@ -768,23 +848,55 @@ TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host
     b.next_source.known = true;
     b.next_source.kind = "single_source";
     b.next_source.source = src;
-    b.open();
+    b.open(160, 48, /*with_editor=*/true);
 
     b.letter(input::scan::kE, "e");
-    CHECK(b.r.session().editor.open_document());
-    CHECK(b.r.session().editor.path == src);
+    const std::int64_t editor = b.editor_kind();
+    REQUIRE(b.r.session().panels.has(editor));
+    CHECK(b.r.session().panels.keyboard == editor);
+    CHECK(b.editor_status().rfind("saved L1:C1/2", 0) == 0);
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    const std::vector<std::string> rows = pane_rows(b.r, editor);
+    CHECK(std::find(rows.begin(), rows.end(), "int main() {}") != rows.end());
 }
 
-TEST_CASE("BLD-WEAVE: a refusal from the Editor door is said in the pane's own row") {
+TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row") {
+    // THE FIRST DOOR'S REFUSAL: a kind with no single source, in the recipe file's own words.
     BuilderRig b("bld-edit-refuse");
     b.tool->catalog = catalog_of({{"block", "zen-block"}});
     b.next_source.known = true;
     b.next_source.kind = "cmake_target"; // no single source to edit
-    b.open();
+    b.open(160, 48, /*with_editor=*/true);
 
     b.letter(input::scan::kE, "e");
-    CHECK_FALSE(b.r.session().editor.open_document());
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
     CHECK(b.text().find("names no single source") != std::string::npos);
+
+    // THE SECOND DOOR'S REFUSAL: a file that is not there, in the Editor's own words.
+    BuilderRig c("bld-edit-missing");
+    c.tool->catalog = catalog_of({{"gone", "zen-gone"}});
+    c.next_source.known = true;
+    c.next_source.kind = "single_source";
+    c.next_source.source = (c.root / "absent.cpp").generic_string();
+    c.open(160, 48, /*with_editor=*/true);
+    c.letter(input::scan::kE, "e");
+    CHECK_FALSE(c.r.session().panels.has(c.editor_kind()));
+    CHECK(c.text().find("cannot read") != std::string::npos); // the reader's own words
+
+    // ...AND A HOST WITH NO EDITOR IN THE ROOM: the second ask reaches the opening manager,
+    // which finds no Editor to bind and REFUSES IN WORDS at once -- an immediate refusal,
+    // never silence and never a standalone mode inferred from it -- and the pane says those
+    // words (WL-OPEN-07).
+    BuilderRig d("bld-edit-nobody");
+    d.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    d.next_source.known = true;
+    d.next_source.kind = "single_source";
+    d.next_source.source = (d.root / "snake.cpp").generic_string();
+    d.open();
+    const std::string before = d.text();
+    d.letter(input::scan::kE, "e");
+    CHECK(d.text() != before);
+    CHECK(d.text().find("no Editor") != std::string::npos);
 }
 
 // ============================================================================
@@ -891,4 +1003,409 @@ TEST_CASE("BLD-WEAVE: a maker's authored override for a retired Workshop id keep
     b.r.key(input::scan::kJ, input::mod::kCtrl);
     REQUIRE(b.authored.size() == 1);
     CHECK(b.authored[0].role == "zengine.oven");
+}
+
+
+namespace {
+/// A source file on disk, for the cases that open one.
+inline void put_source(const std::filesystem::path& at, const std::string& bytes) {
+    std::ofstream out(at, std::ios::binary | std::ios::trunc);
+    REQUIRE(out.good());
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    out.close();
+    REQUIRE(out.good());
+}
+
+struct HeldLookupState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(HeldLookupState, 1, ZEN_FIELD(asked));
+};
+
+/// A PROJECT OFFICE THAT HOLDS ITS ANSWER TO A SOURCE LOOKUP until a case releases it (test
+/// instrumentation). The real door answers inside the delivery that asked, so while it holds
+/// the office no forgery can be delivered between the lookup and its answer; this office keeps
+/// the lookup genuinely outstanding for exactly as long as a case needs, and then answers as
+/// the real door would, through the answer right Loom kept for the ask.
+class HeldLookupOffice : public loom::WeaveBase<HeldLookupOffice, HeldLookupState,
+                                                loom::Accept<RecipeSourceRequested, SeatDo>,
+                                                loom::Emit<RecipeSourceSaid>> {
+public:
+    RecipeSourceSaid answer_with;
+    loom::DeferredAnswer held;
+
+    void on(const RecipeSourceRequested&, loom::Mail& mail) {
+        ++state_.asked;
+        held = mail.defer_answer();
+    }
+    /// THE RELEASE: the held answer, now.
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (held.valid()) {
+            (void)loom::answer_deferred(held, mail, answer_with);
+            held = loom::DeferredAnswer{};
+        }
+    }
+};
+} // namespace
+
+// ============================================================================
+// BLD-WEAVE -- a refusal at enqueue, a refusal at dispatch, and a forgery are three facts (WL-OPEN-07)
+// ============================================================================
+
+TEST_CASE("BLD-WEAVE: a lookup nothing could queue is refused at once in words, an open queued to an office nobody holds is refused at dispatch by that attempt, and a fresh e takes once each office is present") {
+    // THE FIRST DOOR CANNOT EVEN BE ASKED: no project office is held, and with it absent
+    // nobody on this bus declares the lookup's shape, so the seam admits nothing and the
+    // pane's ticket is not valid -- the IMMEDIATE enqueue refusal, handled at once, in words
+    // naming the lookup as the stage that failed. (Not silence, and never a fabricated stage.
+    // A lookup that WAS queued and then refused at dispatch is the next case's.)
+    BuilderRig a("bld-lookup-refused");
+    a.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    a.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
+    a.letter(input::scan::kE, "e");
+    CHECK_MESSAGE(a.text().find("`snake`") != std::string::npos, a.text());
+    CHECK_MESSAGE(a.text().find("could not be looked up") != std::string::npos, a.text());
+    CHECK_MESSAGE(a.text().find("nothing was queued") != std::string::npos, a.text());
+    CHECK_FALSE(a.r.session().panels.has(a.editor_kind()));
+    CHECK(a.r.opening->state().op == 0); // the manager was never asked
+    // ...AND A FRESH `e` TAKES once the office is held: the same rig, the door mounted late.
+    a.mount_doors(true);
+    a.letter(input::scan::kE, "e");
+    CHECK_MESSAGE(a.text().find("could not be looked up") == std::string::npos, a.text());
+
+    // THE SECOND DOOR REACHES NOBODY: the project answers, the open is queued to an opening
+    // office nobody holds and refused at dispatch, and the pane names the open as the stage
+    // that failed; nothing moves on the desk.
+    BuilderRig b("bld-open-refused");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.next_source.known = true;
+    b.next_source.kind = "single_source";
+    b.next_source.source = (b.root / "snake.cpp").generic_string();
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    b.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
+    b.letter(input::scan::kE, "e");
+    CHECK_MESSAGE(b.text().find("`snake`") != std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("was not opened") != std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("could not reach") != std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("NoSuchTarget") != std::string::npos, b.text());
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.r.session().panels.keyboard == b.kind);
+    // ...AND A FRESH `e` TAKES once the office is held.
+    b.r.mount_opening();
+    b.letter(input::scan::kE, "e");
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.r.session().panels.keyboard == b.editor_kind());
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+}
+
+TEST_CASE("BLD-WEAVE: a lookup queued to the project office and refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back") {
+    // ⭐ LOOM'S LATER WORD, NOT THE IMMEDIATE ONE. The office is held and the lookup's shape
+    // is declared when `e` asks, so the lookup is QUEUED with a valid ticket. The office is then
+    // killed -- a real lifecycle change, made after the turn that queued the lookup and before
+    // the turn that would deliver it -- so Loom refuses that queued attempt at dispatch and
+    // tells the pane by it (`zen.DispatchRefused`). The immediate enqueue refusal is the case
+    // above and a stranger's forged notice the case below; none of the three proves another.
+    BuilderRig b("bld-lookup-dispatch-refused");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.next_source.known = true;
+    b.next_source.kind = "single_source";
+    b.next_source.source = (b.root / "snake.cpp").generic_string();
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    b.open(160, 48, /*with_editor=*/true);
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    REQUIRE(b.project_id.valid());
+    REQUIRE(b.r.bus.resolve_schema(RecipeSourceRequested::zen_name,
+                                   RecipeSourceRequested::zen_version) != nullptr);
+    // WHAT THE BUS SAYS, read off its tap: where the turn ends, the lookup's refusal, the
+    // notice the pane is handed, and whether the pane ever asks to open.
+    loom::Switchboard& bus = b.r.bus;
+    bool stopped = false;
+    std::uint64_t action = 0;
+    std::uint64_t refused_seq = 0;
+    std::uint64_t refused_parent = 0;
+    loom::RefusalReason refused_reason = loom::RefusalReason::None;
+    std::string refused_role;
+    std::uint64_t notice_attempt = 0;
+    std::uint64_t notice_parent = 0;
+    bool notice_from_bus = false;
+    int notices = 0;
+    int opens_asked = 0;
+    const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
+        if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            ev.schema_name == PaneActionRequested::zen_name) {
+            // THE TURN ENDS WHERE THE PANE HAS HEARD `e`: its lookup is queued, not delivered.
+            stopped = true;
+            action = ev.seq;
+            bus.stop();
+        }
+        if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id &&
+            ev.schema_name == RecipeSourceRequested::zen_name) {
+            refused_seq = ev.seq;
+            refused_parent = ev.dispatch_parent;
+            refused_reason = ev.refusal.reason;
+            refused_role = ev.addressed_role;
+        }
+        if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr) {
+            ++notices;
+            notice_attempt = loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq;
+            notice_parent = ev.dispatch_parent;
+            notice_from_bus = !ev.sender.valid();
+        }
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id &&
+            ev.schema_name == OpenSourceRequested::zen_name) {
+            ++opens_asked;
+        }
+    });
+    b.enqueue_letter(input::scan::kE, "e");
+    for (int turns = 0; turns < 8 && !stopped; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(stopped);
+    // THE LOOKUP IS QUEUED AND NOTHING HAS REFUSED IT: no seam refusal, no dispatch yet.
+    CHECK(bus.pending() > 0);
+    CHECK(refused_seq == 0);
+    CHECK(b.text().find("could not be looked up") == std::string::npos);
+    // THE OFFICE GOES BEFORE ITS DELIVERY.
+    bus.kill(b.project_id);
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+    // LOOM'S WORD: that queued attempt, authored in the delivery the turn ended on, refused at
+    // dispatch for the office it was addressed to -- a reason no enqueue can give.
+    REQUIRE(refused_seq != 0);
+    CHECK(refused_seq > action);
+    CHECK(refused_parent == action);
+    CHECK(refused_reason == loom::RefusalReason::TargetUnavailable);
+    CHECK(refused_role == kProjectRole);
+    CHECK(bus.outcome(loom::Ticket{refused_seq}).disposition == loom::Disposition::Refused);
+    // ...HANDED TO THE PANE AS LOOM'S OWN NOTICE, BY THAT EXACT ATTEMPT.
+    CHECK(notices == 1);
+    CHECK(notice_from_bus);
+    CHECK(notice_parent == refused_seq);
+    CHECK(notice_attempt == refused_seq);
+    // THE MAKER READS THE RECIPE, THE STAGE, THE OFFICE AND THE REASON -- not the enqueue
+    // refusal's words -- and nothing was opened.
+    CHECK_MESSAGE(b.text().find("`snake`: the source could not be looked up -- it could not "
+                                "reach zengine.project (TargetUnavailable)") != std::string::npos,
+                  b.text());
+    CHECK(b.text().find("nothing was queued") == std::string::npos);
+    CHECK(opens_asked == 0);
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.r.opening->state().op == 0);
+    CHECK(b.r.opening->state().committed == 0);
+    CHECK(bus.resolve_schema(RecipeSourceRequested::zen_name,
+                             RecipeSourceRequested::zen_version) != nullptr);
+    // THE OFFICE COMES BACK -- revived in place, the same office -- and a fresh `e` takes.
+    const std::string bytes = bus.snapshot_bytes(b.project_id);
+    REQUIRE(bus.swap_state(b.project_id, bytes).revived);
+    b.letter(input::scan::kE, "e");
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.r.session().panels.keyboard == b.editor_kind());
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    // ...AND THE REFUSAL IT SPENT IS GONE FROM THE PANE'S PUBLISHED ROWS -- the rows Workshop holds
+    // for it, which are the rows a maker reads beside the opened source.
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+}
+
+TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e while that lookup is still unanswered, stays gone once the source opens, and a new refusal stands through a repaint until the act after it") {
+    // A PRIVATE STATE CHANGE IS COMPLETE WHEN THE PUBLISHED PICTURE SAYS IT. The pane clears its
+    // notice where the maker acts; an act whose answer is still on its way publishes nothing of
+    // its own, so the rows Workshop holds must be said again at that act -- not at the answer,
+    // which may be a while, and never inside `say`, which would lose a new refusal on the first
+    // unrelated repaint. Every row checked here is the pane's PUBLISHED row, as Workshop admitted it.
+    BuilderRig b("bld-notice-spent");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    const std::string src = (b.root / "snake.cpp").generic_string();
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
+    // A STANDING REFUSAL: `e` with no project office, so nothing could be queued.
+    b.letter(input::scan::kE, "e");
+    REQUIRE_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
+    // ...AND A REPAINT THE MAKER DID NOT MAKE KEEPS IT: the tool republishes, the pane says again.
+    b.tool_says();
+    CHECK_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
+    // THE OFFICE ARRIVES HOLDING ITS ANSWER, and the maker presses `e` again.
+    auto held = std::make_unique<HeldLookupOffice>();
+    HeldLookupOffice* office = held.get();
+    office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
+    loom::Grant say;
+    say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    const loom::WeaveId office_id =
+        b.r.bus.register_weave(std::move(held), std::move(say), std::string(kProjectRole));
+    office->zen_set_self(office_id);
+    const auto release = [&b, office_id] {
+        (void)b.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        b.r.bus.drain_until_idle();
+    };
+    b.letter(input::scan::kE, "e");
+    // THE LOOKUP IS UNANSWERED -- and the refusal it spent is already gone from the rows.
+    REQUIRE(office->held.valid());
+    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+    // THE ANSWER, released: the source opens, and the rows stay clean.
+    release();
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
+    // A NEW REFUSAL, from the office's own words, stands through an unrelated repaint...
+    b.focus();
+    office->answer_with = RecipeSourceSaid{"snake", false, "`snake` names no file here", ""};
+    b.letter(input::scan::kE, "e");
+    REQUIRE(office->held.valid());
+    release();
+    REQUIRE_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
+    b.tool_says();
+    CHECK_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
+    // ...until the maker's next act, which says its own.
+    b.letter(input::scan::kC, "c");
+    CHECK_MESSAGE(b.text().find("`snake` names no file here") == std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("build recipe: snake") != std::string::npos, b.text());
+}
+
+TEST_CASE("a key the Builder's role line does not take is no act: the notice stands through a repaint, and a key it takes spends it") {
+    // THE OTHER HALF OF "SPENT MEANS PUBLISHED": what is not an act spends nothing. The line
+    // consumes its editing keys and refuses the rest; a refused key used to clear the notice
+    // privately and say no rows, so the next unrelated repaint dropped a sentence the maker
+    // had done nothing to.
+    BuilderRig b("bld-notice-unspent");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    b.letter(input::scan::kO, "o");
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    b.r.key(input::scan::kDown); // a key the line has no meaning for
+    b.tool_says();               // an unrelated repaint
+    CHECK_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    b.r.key(input::scan::kLeft); // a key the line takes
+    CHECK_MESSAGE(b.text().find("type the role it holds") == std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-WEAVE: a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes") {
+    // THE PROVENANCE IS THE FACT. While each ask is genuinely outstanding, a stranger says
+    // `zen.DispatchRefused` with the RIGHT attempt number -- read off the bus's tap when the
+    // ask was delivered -- and the pane settles nothing on it: the conversation goes on to
+    // its real answer, and the source opens.
+    //
+    // ⚠ OUTSTANDING MEANS NOT YET ANSWERED. The real project door answers inside the delivery
+    // that asked, so a forgery queued once the tap has seen the lookup is delivered behind the
+    // answer and protects nothing. The lookup here is answered by an office that holds its
+    // answer until the forgery has reached the pane, and the order the pane heard things in is
+    // asserted, so a forgery that stops arriving in time turns this case red.
+    BuilderRig b("bld-forged");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    const std::string src = (b.root / "snake.cpp").generic_string();
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
+    auto held = std::make_unique<HeldLookupOffice>();
+    HeldLookupOffice* office = held.get();
+    office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
+    loom::Grant say;
+    say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    const loom::WeaveId office_id =
+        b.r.bus.register_weave(std::move(held), std::move(say), std::string(kProjectRole));
+    office->zen_set_self(office_id);
+    const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
+    REQUIRE(pane_id.value != 0);
+    b.mount_stranger();
+    std::uint64_t lookup = 0;
+    std::uint64_t open = 0;
+    std::vector<std::string> heard; ///< what reached the pane, in order
+    const loom::WeaveId stranger_id = b.stranger_id;
+    const loom::ObserverId tap = b.r.bus.add_observer(
+        [&lookup, &open, &heard, pane_id, stranger_id](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            if (ev.sender == pane_id) {
+                if (ev.schema_name == RecipeSourceRequested::zen_name) {
+                    lookup = ev.seq;
+                } else if (ev.schema_name == OpenSourceRequested::zen_name) {
+                    open = ev.seq;
+                }
+            }
+            if (ev.target != pane_id) {
+                return;
+            }
+            if (ev.schema_name == loom::DispatchRefused::zen_name && ev.sender == stranger_id) {
+                heard.push_back("forged");
+            } else if (ev.schema_name == RecipeSourceSaid::zen_name) {
+                heard.push_back("looked up");
+            } else if (ev.schema_name == SourceOpened::zen_name) {
+                heard.push_back("opened");
+            }
+        });
+    b.enqueue_letter(input::scan::kE, "e");
+    int turns = 0;
+    while (lookup == 0) {
+        REQUIRE(++turns < 8);
+        REQUIRE(b.r.bus.pump_pending() > 0);
+    }
+    // THE FORGERY AT THE LOOKUP STAGE, delivered while the office still holds the answer.
+    REQUIRE(office->held.valid());
+    b.forge_refusal(pane_id, lookup, kProjectRole, RecipeSourceRequested::zen_name);
+    b.r.bus.drain_until_idle();
+    REQUIRE(heard == std::vector<std::string>{"forged"});
+    CHECK(office->held.valid());
+    CHECK(b.text().find("could not be looked up") == std::string::npos);
+    // THE ANSWER, released; the open is asked.
+    (void)b.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                loom::WeaveId{}, 0));
+    while (open == 0) {
+        REQUIRE(++turns < 16);
+        REQUIRE(b.r.bus.pump_pending() > 0);
+    }
+    // THE FORGERY AT THE OPEN STAGE, delivered while the open is outstanding.
+    b.forge_refusal(pane_id, open, kOpeningRole, OpenSourceRequested::zen_name);
+    (void)b.r.bus.pump_pending();
+    (void)b.r.bus.pump_pending();
+    CHECK(b.text().find("could not reach") == std::string::npos);
+    b.r.bus.drain_until_idle();
+    b.r.bus.remove_observer(tap);
+    CHECK(heard == std::vector<std::string>{"forged", "looked up", "forged", "opened"});
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
+    CHECK(b.text().find("could not reach") == std::string::npos);
+    CHECK(b.text().find("could not be looked up") == std::string::npos);
+}
+
+TEST_CASE("BLD-WEAVE: the Editor's refusal of a source reaches a narrow Builder row reason first, so the row's cut takes the tail and not why") {
+    // THE ROW IS CUT AT ITS WIDTH FROM THE END, with the cut marked, so a refusal that led
+    // with a file showed a narrow row the file and no reason. Every refusal of an open leads
+    // with why: here the Editor's own, for a different source asked while its buffer is unsaved.
+    BuilderRig b("bld-narrow-refusal");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    const std::string snake = (b.root / "snake.cpp").generic_string();
+    b.next_source.known = true;
+    b.next_source.kind = "single_source";
+    b.next_source.source = snake;
+    put_source(b.root / "snake.cpp", "int main() {}\n");
+    put_source(b.root / "other.cpp", "int other() { return 1; }\n");
+    b.open(120, 48, /*with_editor=*/true);
+    // THE FIRST `e` OPENS snake.cpp, AND AN EDIT LEAVES IT UNSAVED.
+    b.letter(input::scan::kE, "e");
+    REQUIRE(b.r.session().panels.keyboard == b.editor_kind());
+    b.r.text("x");
+    REQUIRE(b.editor_status().find("UNSAVED") != std::string::npos);
+    // THE SECOND `e`, BACK IN THE BUILDER, ASKS FOR ANOTHER SOURCE, AND THE EDITOR REFUSES IT.
+    b.focus();
+    b.next_source.source = (b.root / "other.cpp").generic_string();
+    b.letter(input::scan::kE, "e");
+    const std::string sentence = "the Editor holds unsaved changes to " + snake +
+                                 " -- save source or discard source edits in the Editor first; "
+                                 "nothing was opened";
+    const ExternalPane* seat = b.r.session().panels.external_pane(b.kind);
+    REQUIRE(seat != nullptr);
+    // THE ROW IS NARROWER THAN THE SENTENCE, or this would prove nothing about a cut.
+    REQUIRE(seat->columns > 0);
+    REQUIRE(static_cast<std::size_t>(seat->columns) < sentence.size());
+    std::string row;
+    for (const std::string& shown : b.shown()) {
+        if (shown.rfind("the Editor holds unsaved changes", 0) == 0) {
+            row = shown;
+        }
+    }
+    REQUIRE_MESSAGE(!row.empty(), b.text());
+    CHECK(row.size() == static_cast<std::size_t>(seat->columns));
+    CHECK(row == sentence.substr(0, static_cast<std::size_t>(seat->columns) - 3) + "...");
+    CHECK(b.editor_status().find("snake.cpp") != std::string::npos); // nothing else was opened
+    CHECK(b.editor_status().find("other.cpp") == std::string::npos);
 }

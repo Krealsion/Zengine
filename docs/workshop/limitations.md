@@ -198,7 +198,7 @@ key. Detail in [Builder](builder.md).
 
 **Workshop can open, edit and save any file this process can read** — from the
 [Files](files.md) pane, or from the Builder for a recipe's own source; see [the source
-editor](editor.md) — and
+editor](editor.md), a loaded pane that holds the document itself — and
 the loop `edit → save → build → realize → inspect` closes without leaving the application. The
 honest bounds on that capability today:
 
@@ -209,7 +209,9 @@ honest bounds on that capability today:
 | Non-ASCII source? | **no** — the shipped media place columns by byte and glyphs by sequence, so a caret over multi-byte text would lie; such a file is refused whole and never rewritten |
 | Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
 | Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
-| Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit refuses while source is unsaved |
+| Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit asks the Editor and refuses while source is unsaved |
+| Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection and scroll position ride a same-shape reload; the undo history and a paste still on its way do not |
+| Does it survive the Editor pane being removed from the desk? | **yes** — the pane is a presentation; bring it back from the picker and the document is where it was |
 
 What text editing also exists is two single-line editors in this host, each over the same
 component: the Pane Manager's property draft and the layout-name line. Two more live in loaded

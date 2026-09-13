@@ -162,7 +162,8 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     const KeyContext beneath = keyboard_context_beneath_menu(s);
     bool requestable = false;
     for (const ActionRow& row : kActionCatalog) {
-        if (row.act == entry.row->act && active_in(row.context, beneath)) {
+        if (row.act == entry.row->act &&
+            s.keymap.row_active(row, beneath, keyboard_pane(s.panels))) {
             requestable = true;
             break;
         }

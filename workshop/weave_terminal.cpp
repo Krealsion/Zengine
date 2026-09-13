@@ -192,9 +192,9 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // was a GLOBAL row -- the last one that opened one particular pane from anywhere -- and a
     // pane a maker opens from the picker needs no key of its own, exactly as Attention's
     // `Ctrl+a` needed none once the current-condition view became a pane.
-    // The editor's deliberate discard, reachable from command mode too so the quit
-    // refusal names a gesture that works where the maker is standing.
-    case Act::kEditorDiscard: discard_source_edits(); break;
+    // ⭐ THE EDITOR'S COMMAND-MODE DISCARD WAS HERE AND IS GONE (VD-22, VD-25): a key that
+    // acted on the Editor's document from wherever the maker was standing. The Editor is a
+    // pane; a maker presses into it and discards there.
     // THE TWO SETUP GESTURES: ordinary maker commands beside `+ panel`,
     // deliberately not another `^`-pair beside the document's. they are
     // both FILE operations and nothing else -- `s` writes, `r` reads, and naming a
@@ -270,7 +270,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
         say(note, bad);
         break;
     }
-    case Act::kQuit: quit(); break;
+    case Act::kQuit: quit(mail); break;
     default: break;
     }
 }

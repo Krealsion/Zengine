@@ -12,6 +12,14 @@ expectation of nothing is satisfied by anything.
 SEEN — `tests/check_doc_links.cmake`; `tests/check_package_vocabulary.cmake`;
 `tests/check_law_register.cmake`.
 
+## VM-CHECK-14 — A helper that walks toward a state must refuse to walk forever
+
+METHOD — A rig helper that steps until a cursor reaches a row needs a precondition and a per-step advance check; without them a case whose setup failed spins, and its quiet half proves nothing.
+BECAUSE — a picker walk kept pressing Down while a pane held the keyboard, repainting into the
+rig's canvas vector until the process took six gigabytes -- and where the same walk had asked for
+row zero it returned quietly, leaving a whole half-case reading the rows of a pane never seated.
+SEEN — `tests/workshop_support.hpp` `PaneRig::pick`.
+
 ## VM-CHECK-02 — Grep code, not comments
 
 METHOD — Grep code, not comments: a check that asks whether a file declares or spends a name strips `//` and `/* */` first and matches a whole token — `Rect` is not inside `SurfaceRect`.
