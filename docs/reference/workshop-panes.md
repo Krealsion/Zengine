@@ -404,9 +404,9 @@ authored setup                 resolved presentation          session interactio
 > **The office authors the pane; Workshop grants the room.**
 
 A weave that is not Workshop can offer Workshop a **pane**: a row in the picker, a panel a maker
-can open, and a bounded budget of prose to fill it with. Five shapes are the entire protocol
-(`workshop/pane_vocabulary.hpp`) — four for the room and its rows, and [one bounded
-press](#a-pane-may-be-pressed):
+can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's core
+(`workshop/pane_vocabulary.hpp`, whose header lists every shape that crosses today) — four for
+the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
@@ -501,16 +501,17 @@ PanePressed            Workshop  ->  provider   "a maker pressed here, in that r
   product**: no host boots it. A registration hook would have proved nothing about the ABI it
   exists to exercise.
 
-Deliberately absent, and each one is a decision: no focus, capture, hover, release, double-press
-or drag forwarding (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput`, the wheel
-since QR-18 as `PaneWheel` — the notches, forwarded, following the pointer as a press does — and
-an action a pane declared beside its offer as `PaneActionRequested`, the resolved id in place of
-the key), and no reply, disposition or acknowledgement to any of them; no
+Deliberately absent, and each one is a decision: no focus-changed notification, capture, hover,
+release or double-press (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput` to the pane
+a maker last pressed into, the wheel since QR-18 as `PaneWheel` — the notches, forwarded,
+following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
+beside its offer as `PaneActionRequested`, the resolved id in place of the key), and no reply,
+disposition or acknowledgement to any of them; no
 multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
 resize handles; no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
 any kind inside the protocol** — a provider that wants to know something asks its owner with its
-own grant, exactly as any weave would, and the eleven shapes carry no `QueryRole`, no `ListLoaded`,
+own grant, exactly as any weave would, and the shapes carry no `QueryRole`, no `ListLoaded`,
 no Senses and no service registry; no package identity, signature, marketplace or cross-restart
 author claim; no out-of-process provider support; no provider scan directory, autoload list or
 plugin SDK. **No Loom change of any kind.**
@@ -527,7 +528,8 @@ phase, not an unfinished half of it.
 maker presses a visible row
     -> Workshop resolves WHICH pane by geometry it already holds, and WHERE
        in the room it granted that pane
-    -> PanePressed { pane, row, column }        the fifth and last shape
+    -> PanePressed { pane, row, column }        the fifth shape
+       (or v2::PanePressed { pane, row, column, keys_went_here }, below)
     -> the provider maps the row against the projection it is CURRENTLY showing
     -> LoadedSelected { pane, library, role }   published; nobody answers
 ```
@@ -535,8 +537,28 @@ maker presses a visible row
 - **Workshop learns nothing about what a pane's rows mean.** It sends a row and a column of the
   budget it granted, and holds no row identities, no selectable flags, no weave metadata and no
   list-item semantics. Three presses on three different rows produce three messages differing only
-  in where the hand was — pinned from a bus tap, which also shows Workshop's whole outbound
-  vocabulary is five shapes and that `PaneContent` still travels one way only.
+  in where the hand was — pinned from a bus tap, which also names every shape Workshop says across
+  that life and shows that `PaneContent` still travels one way only.
+- **A second version says whether the keys were already there, and only that.**
+  `v2::PanePressed` is the same place plus `keys_went_here`: true exactly when ordinary keys were
+  reaching this pane at the instant of the press — no picker, naming line or hotkey view had
+  them, and the keyboard was pointed at this pane. Workshop reads it, and the row, *before* the
+  press moves the keyboard, so a press that brings the keys back says `false`, and a press on a
+  pane whose titles are hidden names the row painted where it landed (that pane's title returns
+  with the keys, and the smaller room it leaves is granted right after the press). It is a fact,
+  not an instruction: the Files pane opens a row only on a press that says the keys were already
+  its own and that row was already selected, and a pane with no such rule ignores it. Nothing is
+  said when the keys leave a pane.
+- **One press crosses once, in the version its pane can read.** Workshop sends the second
+  version only when the host answers that the office's current holder accepts it — read from the
+  bus's own role table and accept-sets — and the first version otherwise, unchanged, so a pane
+  built before the second existed hears exactly what it always heard. A first-version press states
+  no fact: a pane that accepts both must treat it as "not known" (Files selects on it, and Return
+  still opens). The answer is an inspection, not a promise: the office is resolved again at
+  delivery, and if another holder without the second door has taken it by then, Loom refuses that
+  one press, records the refusal against Workshop's send, and nothing is sent again. A pane that
+  adds the second door changes what it accepts, which Loom will not reload in place: restart
+  Workshop to load it.
 - **The coordinate is the `PaneRoom` lattice and nothing else.** Row 0 is the first row of the
   provider's body, under Workshop's header row, which the provider was never granted and is never
   told about. Every forwarded press is inside `[0, rows) × [0, columns)` — swept over the whole

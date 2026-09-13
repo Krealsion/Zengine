@@ -1069,6 +1069,10 @@ int main(int argc, char** argv) {
     //                         pressed, resolved at the moment of the press out of a runtime
     //                         catalog row. Same one-resolved-role send, same runtime data,
     //                         same impossibility of naming it here.
+    //   v2::PanePressed       the same press carrying where the keys went just before it, sent
+    //                         INSTEAD of v1 to an office whose holder accepts it -- which this
+    //                         host answers from the bus (`host.holder_accepts`, below) -- so it
+    //                         is the same rule for the same destination, one version on.
     //
     // THE KEYBOARD SEAM ADDED A FOURTH AND A FIFTH, `to_any` FOR THE SAME REASON AGAIN:
     //
@@ -1157,6 +1161,13 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+    speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
+    // WHICH VERSION OF A SENTENCE AN OFFICE'S HOLDER ACCEPTS, asked at the send and answered
+    // from this bus's own role table and accept-sets: an observation this host already holds,
+    // handed to the weave as an answer and never as a reference to the bus.
+    host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
+        return holder_accepts_on(bus, role, shape);
+    };
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);

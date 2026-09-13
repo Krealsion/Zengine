@@ -77,10 +77,16 @@ Press into the pane to point your keys at it, then:
 | `m` | **mark** this directory, or unmark it if it is already marked |
 | `n` / `N` | go to the **next** / **previous** marked place |
 
-The mouse works the way the keys do, with one deliberate extra step: **the first press on a
-row selects it, and pressing the row that is already selected opens it.** So the press that
-points your keys at the pane can never also open a file — which matters most when you have
-unsaved edits, because opening a different file is exactly what would be refused.
+The mouse works the way the keys do, with one deliberate extra step: **a press selects a row,
+and pressing the row that is already selected opens it — once your keys are already in
+Files.** A press that brings your keys here from somewhere else (the Editor after it opened a
+file, or Workshop's own keys) only selects and points the keys at Files, even on the row that
+was selected, so it can never also open a file — which matters most when you have unsaved
+edits, because opening a different file is exactly what would be refused. While the picker or
+the hotkey view has the keys, presses in Files only select, and the bottom band stops saying
+that typing goes to Files; close it and the next press on the selected row opens it. With pane
+titles hidden, Files' title comes back when your keys arrive, and the row you pressed is still
+the row you selected.
 
 While you are typing a recipe field, only Return and Escape mean what the table above says;
 every other key goes into the line you are editing, so Backspace deletes a character rather

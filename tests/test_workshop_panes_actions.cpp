@@ -121,19 +121,6 @@ const std::vector<v2::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     return row->actions;
 }
 
-/// The band's legend rows, padding trimmed -- the MSG-0 reading, in one place.
-std::vector<std::string> band_lines(PaneRig& r) {
-    std::vector<std::string> out;
-    const Screen sc = screen_of(r.session());
-    for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
-        const std::string row = inspector_row(r.last_canvas(), 0, y);
-        if (!row.empty()) {
-            out.push_back(row);
-        }
-    }
-    return out;
-}
-
 std::string hotkeys_text(PaneRig& r) {
     std::string out;
     for (const HotkeyRow& row : hotkeys_rows(r.session())) {
@@ -1076,7 +1063,21 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     REQUIRE(r.session().panels.has(kind));
     REQUIRE_FALSE(pane_rows(r, kind).empty());
     CHECK(pane_rows(r, kind)[0].rfind("an old pane", 0) == 0);
+    // ...AND THE PRESS IT IS SENT IS THE FIRST VERSION, ONCE, AS IT ALWAYS WAS: the image declares
+    // no press door of either version, so the gate refuses it exactly as before a second version
+    // existed, and a host that can say more says nothing more to a pane with no door for it.
+    std::vector<std::pair<std::uint32_t, loom::RefusalReason>> pressed;
+    const loom::WeaveId image = r.kernel.weave_id("zengine-legacy-pane");
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.target == image && ev.schema_name == PanePressed::zen_name) {
+            pressed.emplace_back(ev.schema_version, ev.refusal.reason);
+        }
+    });
     press_body(r, kind);
+    r.bus.remove_observer(tap);
+    REQUIRE(pressed.size() == 1);
+    CHECK(pressed[0].first == 1u);
+    CHECK(pressed[0].second == loom::RefusalReason::NotAccepted);
     r.key(input::scan::kM);
     REQUIRE(pane_rows(r, kind).size() >= 2);
     CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image

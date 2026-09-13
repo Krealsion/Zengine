@@ -60,12 +60,24 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
     }
 }
 
-// WL-PRESS-04 -- agents/workshop/press-chain.md
-bool WorkshopWeave::external_press(std::int64_t kind, const zengine::input::PointerButton& b,
-                                   loom::Mail& mail) {
-    const ExternalPressAt at =
-        external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
-                          session_.pane_titles, b.space, b.x, b.y);
+// WL-FOCUS-04 -- agents/workshop/focus.md
+bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
+                       const loom::Schema& shape) {
+    const loom::WeaveId holder = bus.role_holder(role);
+    if (!holder.valid()) {
+        return false;
+    }
+    for (const std::shared_ptr<const loom::Schema>& door : bus.accepted_schemas(holder)) {
+        if (door != nullptr && loom::same_identity(*door, shape)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// WL-PRESS-04 -- agents/workshop/press-chain.md; WL-FOCUS-04 -- agents/workshop/focus.md
+bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
+                                   bool keys_went_here, loom::Mail& mail) {
     if (!at.named) {
         return false;
     }
@@ -78,8 +90,20 @@ bool WorkshopWeave::external_press(std::int64_t kind, const zengine::input::Poin
     if (row == nullptr || pane == nullptr || !pane->granted) {
         return false;
     }
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+    // ONE PRESS, ONE SENTENCE, IN THE VERSION THE OFFICE'S HOLDER ACCEPTS NOW. The host reads
+    // that off the bus at this instant; the role is resolved again at delivery, so a holder
+    // replaced in between may refuse the version chosen here -- Loom records that refusal
+    // against this send, and nothing here sends the press again in the other version, which
+    // would be a second gesture delivered after whatever the maker did next.
+    if (host_->holder_accepts &&
+        host_->holder_accepts(row->provider, *loom::schema_of<v2::PanePressed>())) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider,
+                          v2::PanePressed{row->pane, at.row, at.column, keys_went_here});
+    } else {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+    }
     note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }

@@ -119,17 +119,24 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
     if (legend_rows > 0) {
         const KeyContext ctx = keyboard_context(s);
         const std::int64_t typing = keyboard_pane(s.panels);
+        // THE SENTENCE NAMES WHERE AN ORDINARY KEY GOES, WHICH IS NOT ALWAYS THE PANE THE KEYS
+        // ARE POINTED AT. Under the picker, a naming line or the hotkey view that pane is still
+        // the candidate -- its title keeps the mark, and the keys return to it when the mode
+        // closes -- while every ordinary key is the mode's. `typing_pane` is the answer a
+        // press's `keys_went_here` is read from, so the band and the seam say one thing.
+        const std::int64_t typed = typing_pane(s);
         const RuntimePane* typed_into =
-            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+            typed == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typed);
         // THE PANE MANAGER IS THE ONE BUILT-IN LEFT THAT TAKES THE KEYS, and it gets the
         // same sentence for the same measured reason: keystrokes landing somewhere the
         // screen does not name is the lie this row exists to refuse. (The source editor
-        // had a sentence of its own here; it is a pane, and the first arm names it.)
+        // had a sentence of its own here; it is a pane, and the first arm names it.) The
+        // hotkey view holds its keys too while it is open.
         std::string said;
         if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
                    " -- press elsewhere for Workshop's keys";
-        } else if (ctx == KeyContext::kPaneEditor &&
+        } else if (ctx == KeyContext::kPaneEditor && !s.hotkeys.open &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "keys go to the Pane Manager -- press elsewhere for Workshop's keys";
         }

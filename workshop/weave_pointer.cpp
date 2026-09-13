@@ -498,6 +498,26 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // the panes topmost-first, then nothing -- moved, not changed.
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+        // ...AND THE PICTURE THE MAKER PRESSED IS READ HERE TOO, BEFORE THE TWO LINES BELOW
+        // REWRITE IT. Both are facts about the keyboard as it stood: where an ordinary key went
+        // (`typing_pane`), and where in a pane's body the press landed -- which the keyboard
+        // decides as well, because a pane whose titles are hidden wears its title row exactly
+        // while it has the keys. Read after the write, a press that brings the keys back to a
+        // pane would report them as already there, and a press on a hidden-titles pane would
+        // be measured under a title that was not painted when the maker aimed. Nothing is
+        // kept: the two values are spent by this press and gone with it.
+        //
+        // ⚠ THEY DESCRIBE THE PICTURE AS THIS HANDLER FINDS IT, which is the painted one for a
+        // press handled in the turn it arrived. A press queued behind another that moved the
+        // pane's content is measured against the picture after that move, and no press names
+        // the picture it was aimed at; this is where one would be read, if a later version of
+        // the press is to carry it.
+        const std::int64_t typing_before = typing_pane(session_);
+        const ExternalPressAt aimed =
+            here.occupied && is_runtime_kind(here.kind)
+                ? external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+                                    here.kind, session_.pane_titles, b.space, b.x, b.y)
+                : ExternalPressAt{};
         // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
         // ANY LAYER ANSWERS IT. Putting it in the routing arms instead would be
         // four decisions -- one per arm, one of them easy to forget -- about a single
@@ -589,7 +609,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             // because a pane resolves a sweep from the positions it was given and needs
             // no sentence saying the hand let go. A press on the header or the padding
             // begins no sweep: it named no row, so there is nothing for a motion to extend.
-            if (external_press(here.kind, b, mail)) {
+            if (external_press(here.kind, aimed, typing_before == here.kind, mail)) {
                 session_.text_drag.active = true;
                 session_.text_drag.place = text_drag_place::kExternalPane;
                 session_.text_drag.kind = here.kind;
