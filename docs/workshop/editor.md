@@ -52,24 +52,51 @@ cannot carry, unsaved edits in the document you have open, a paste of yours stil
 Nothing is added to your desk, your keys do not move, and whoever asked is told why in the
 Files pane's or the Builder's own row. If the Editor pane is not loaded at all (a load plan
 without it), Files and the Builder are told so at once — `no Editor and desk are present to
-open <file>` — and nothing waits. Every refusal leads with its reason and ends with the file,
-so a narrow pane cuts the path, never the reason.
+open <file>` — and nothing waits. A refusal from the Editor, or from the open itself, says what
+stopped it before it names a path, so a narrow row cuts the path and keeps the reason:
+`the Editor holds unsaved changes to ...` still says why. When Files or the Builder cannot send
+the open at all, their own row starts with the name you chose.
 
 ### While an open is on its way, and if it stalls
 
 An open takes a few turns of Workshop's bus, and while it is on its way the Attention pane
 shows a standing condition for it — `opening <file>`, and which side it is waiting for. A
 second request while the first is still being prepared replaces it: the first is refused as
-superseded, naming the newer file, and the newer one goes on. If a side never answers (a
-broken Editor image, for instance), the open stays pending and says so; nothing times out,
-nothing is retried behind your back, every other pane keeps working, and your next open
-replaces it.
+superseded, naming the newer file, and the newer one goes on. If a side never answers while
+the open is being prepared (a broken Editor image, for instance), the open stays pending and
+says so; nothing times out, nothing is retried behind your back, every other pane keeps
+working, and your next open replaces it. Once the two sides have changed together, a second
+request replaces nothing while they are still taking it up: it is refused — ask again a moment
+later.
 
-Rarely, an open can be **published but not applied**: the two facts changed together, and then
-one side could not take up its half — a defect in that side's code. You are told which side,
-and that side is held until it is reloaded or removed (rebuild the Editor and load the new
-image, or remove the pane); the other side keeps what it applied. A fresh open after the
-repair is a new fact, not a replay of the old one.
+Rarely, an open is **published but not applied**: the two changed together, and then one side
+did not take up its half. Whoever asked is told which side, and in what words:
+
+- **could not apply** — a defect in that side's code. That side is *held*: it takes no keys,
+  answers nothing and opens nothing until it is reloaded. Nothing is rolled back — whatever the
+  other side took up stays as it is — so the Editor pane can stand seated, with your keys,
+  in front of an Editor that is held; press elsewhere and Workshop's keys are yours again.
+- **did not apply** — that side is working and kept what it had; open the file again.
+- **was removed before it could apply** — that side went away first; open the file again once
+  it is back.
+
+**A held Editor is repaired by reloading its image**: rebuild `zengine-editor-pane` with a
+recipe that builds it and load it in place from the Builder (see
+[load after build](builder.md#load-after-build-and-reload-in-place)). Removing the Editor's pane
+repairs nothing — it takes the pane off your desk, and the Editor behind it, its document and
+its hold stay exactly as they were — and Workshop has no way to unload the Editor while it
+runs. The reloaded Editor still has the document it had before the open, and nothing of the
+file it could not apply: open that file again, a new open rather than a replay of the old one.
+Reload it **before** you quit. An orderly quit asks the Editor about unsaved work, a held
+Editor cannot answer, and Workshop goes on waiting, holding your keys, even after the reload —
+a quit asked while the Editor is held can only be ended from outside Workshop.
+
+If the side that could not apply is **Workshop's own desk**, nothing inside the running
+Workshop repairs it: Workshop cannot reload its own desk, and a held desk takes none of your
+keys, so it cannot be asked to quit either. Workshop writes which side is held, in that side's
+own words, to the console it was started from (and to its log, when started with `--log`). End
+the Workshop process from outside and start it again; anything unsaved in Workshop itself is
+lost.
 
 ### The file you edit is the file the build reads
 
@@ -164,7 +191,8 @@ Nothing ordinary can throw dirty source away:
   the picker and the document, its caret and its undo history are exactly where they were;
 - an orderly **quit** (`q`, `Ctrl`+`c` where nothing takes text, the close box) **asks** the
   Editor first and is refused while source is unsaved, with the two ways out named — save, or
-  discard — and proceeds the moment the buffer is clean;
+  discard — and proceeds the moment the buffer is clean (a *held* Editor cannot answer it:
+  [reload it first](#while-an-open-is-on-its-way-and-if-it-stalls));
 - a **reload** of the Editor's own image (a rebuild of `zengine-editor-pane` loaded in place)
   carries the document across whole: bytes, unsaved edits, caret, selection and scroll
   position. What does not survive a reload is the undo history and a paste still on its way.

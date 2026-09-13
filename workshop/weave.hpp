@@ -12,6 +12,7 @@
 
 
 #include "persist.hpp"
+#include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
@@ -181,6 +182,10 @@ struct HostContext {
     /// from the durable reference it already converts, never by this weave. Empty means no
     /// pane is managed: Workshop claims nothing and the managed doors answer nobody.
     PaneRef managed_pane;
+
+    /// THE BOOK A NATIVE SHOWING THAT DID NOT COMPLETE IS WRITTEN IN (`host_pump.hpp`): this
+    /// weave's publication hook keeps its own words here, and the host's turn tells them.
+    ShowingFailures showings;
 
     /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
     // WL-ATTN-01 -- agents/workshop/attention.md
@@ -601,10 +606,11 @@ public:
     /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a maker can read.
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
     /// THE PUBLICATION HOOK: the trial becomes the desk, all at once, before any observer --
-    /// `true`; or `false`, DECLINED: a presentation this desk did not prepare, or one it
-    /// could not seat, is not applied and never reported as applied; the desk keeps what it
-    /// has and re-claims its own truth at the end of its next delivery.
-    bool on_claim_published(const PanePresentation& published);
+    /// Applied; or DECLINED: a presentation this desk did not prepare, or one it could not
+    /// seat, is not applied and never reported as applied; the desk keeps what it has and
+    /// re-claims its own truth at the end of its next delivery. The application runs inside
+    /// the host's showing boundary, so what it throws is Failed, in its own words.
+    loom::Weave::PublishedClaim on_claim_published(const PanePresentation& published);
     /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved.
     void after_delivery(loom::Mail& mail);
 
@@ -615,6 +621,10 @@ public:
 
 private:
     // ---- The managed pane's bookkeeping ---------------------------------------------------
+
+    /// THE APPLICATION ITSELF, run by the hook inside the boundary: `true` applied, `false`
+    /// declined.
+    bool show_presentation(const PanePresentation& published);
 
     /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its
     /// body would get, and -- once admitted -- the rows and caret it will show.
