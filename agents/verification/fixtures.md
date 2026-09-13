@@ -7,9 +7,9 @@ a durable format, a key. One method per heading; cite by ID. Router:
 ## VM-FIX-01 — A claim about a bound needs the range
 
 METHOD — A claim about a BOUND needs the range, not a point: sweep it as a property, and run the real screen at the supported minimum; one arranged case proves that arrangement.
-BECAUSE — thirty cases and twenty-four caught mutations were green while the shipped terminal at
-its minimum width of 78 columns showed the marker cut; the crowded case stopped three tabs short
-of the boundary.
+BECAUSE — 30 cases and 24 caught mutations were green while the shipped terminal at its minimum
+width of 78 columns showed the marker cut; the crowded case stopped three tabs short of the
+boundary.
 SEEN — `tests/test_workshop_panels.cpp` case `"WIND-1: the half-share pays at the bottom of
 the range too, and buys no slot"`.
 
@@ -89,7 +89,7 @@ SEEN — nowhere yet
 
 METHOD — A case that stops at a gesture's recorded base witnesses what it REMEMBERED, not what it wrote: add the motion and the release, assert the authored amount, and assert the unnamed axis unchanged.
 BECAUSE — the mutation that made the base read the visible rectangle reddened four assertions,
-two of them the authored results the earlier case had stopped short of.
+two of them the authored results the earlier case stopped short of.
 SEEN — `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize begins from the
 full resolved size"`.
 
@@ -144,9 +144,8 @@ high == 7"`.
 ## VM-FIX-18 — Guard an index in the same keystroke
 
 METHOD — Guard `[0]` and `.back()` with `REQUIRE` in the same keystroke: a mutation that empties the container otherwise detonates the run and hides every later result.
-BECAUSE — two such guards turned forty-one and twenty-eight reported red cases into a hundred
-and forty and a hundred and thirty-two; the crash arrives exactly when a mutation empties the
-container, and hides every result after it.
+BECAUSE — two such guards turned 41 and 28 reported red cases into 140 and 132; the crash
+arrives exactly when a mutation empties the container, and hides every result after it.
 SEEN — nowhere yet
 
 ## VM-FIX-19 — Before widening a key's fallthrough, read the no-op cases as law
@@ -154,9 +153,9 @@ SEEN — nowhere yet
 METHOD — Before widening a key's fallthrough, grep the suites for cases that pin the key as a NO-OP and read them as law; a place a maker types into keeps the key while it holds the keys.
 BECAUSE — two shipped cases went red the moment Escape's fallthrough widened to every context:
 an editor case pinning Escape as nothing, and a seam case that types after it.
-SEEN — `tests/test_workshop_editor.cpp` case `"EDIT-0: Escape means nothing in the editor -- no
-mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real
-Composer's fields speak the vocabulary across the seam"`.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29: Escape means nothing in the
+Editor -- no mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the
+real Composer's fields speak the vocabulary across the seam"`.
 
 ## VM-FIX-20 — A historical content id is pinned with its provenance
 
@@ -184,24 +183,38 @@ SEEN — nowhere yet
 ## VM-FIX-23 — Cross an extraction operation by operation, old call and new request
 
 METHOD — For each operation an extraction re-homes, name what the OLD call did -- grouping, normalization, selection, fallback -- and, once it is a request, what its answer refers to and how the receiver re-checks it.
-BECAUSE — one extraction lost five things in six operations and every one was invisible until
-the next gesture: three answers outlived the line they were about, and one `paste` became a
-`type`, which surrendered the undo group and the whitespace normalization with it.
+BECAUSE — one extraction lost five things in six operations, every one invisible until the
+next gesture: three answers outlived the line they were about, and one `paste` became a
+`type`, surrendering the undo group and the whitespace normalization with it.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a
 line that is gone is neither shown nor taken"`, case `"TERM-W21: clipboard text lands in the
-draft that asked for it, or nowhere"`, case `"TERM-W22: a paste is one gesture, and undo gives
-back the line it landed in"`, case `"TERM-W23: what the clipboard holds is normalized to fit a
-line, or refused aloud"`.
+draft that asked for it, or nowhere"`.
 
 ## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
 
-METHOD — To reproduce "the answer arrived after the line moved", enqueue the gestures without draining and drain once: the request a handler sends lands behind what is already queued, so the order is the case's.
-BECAUSE — a sleep does not order a single-threaded bus and a helper that publishes and drains
-spends the answer before it returns, so the interleaving is unreachable from the ordinary
-rig doors; the batch is deterministic and needs no thread.
+METHOD — Stage an order by enqueueing without draining and pumping one turn at a time: assert the state at each milestone the interference must land at, then drain; a handler's sends land behind what is queued.
+BECAUSE — a sleep does not order a single-threaded bus, and a helper that drains -- including
+one that only READS, through a poke -- spends the batch before it is built; measured, twice. A
+pump count whose meaning moved with the conversation reproduced nothing; a milestone did.
 SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
-and a submit is"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the real Composer's fields
-speak the vocabulary across the seam"`.
+and a submit is"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W53: a press that only
+focuses begins no sweep, and a gesture keeps the geometry it was made against"`, case `"EDIT-W67:
+room lost before the commitment refuses the open, and nothing is authored or moved"`.
+
+## VM-FIX-26 — A custodian's reload is witnessed at the bound, with the exit asked after
+
+METHOD — When a weave's state is a maker's work, reload it over the real Kernel with that work at its admitted bound aboard, read the reloaded rows, and ask the exit question.
+BECAUSE — a pinned shape says nothing of the decode budget a reload spends; the exit is where
+a stale answer costs.
+SEEN — `tests/test_workshop_load.cpp` case `"RELOAD-1/VD-25: a four-megabyte dirty document
+rides a reload in place, and the reloaded pane still refuses the quit"`.
+
+## VM-FIX-27 — A retired built-in's stand-in is what replaced it
+
+METHOD — When a built-in every suite used as its ordinary pane becomes a weave, its stand-in is what an ordinary pane now IS: a runtime pane admitted first, so its handle is a constant.
+BECAUSE — a built-in kept for the suites would be a product nobody ships; the difference is
+worth a helper that says so.
+SEEN — `tests/workshop_support.hpp` `stock`, `admit_stock`, `release_keys`.
 
 ## VM-FIX-25 — A loop's shape is not a bound on what a maker can produce
 

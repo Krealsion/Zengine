@@ -10,14 +10,16 @@
 //     ProjectDoor   zengine.project   ProjectRootRequested     -> ProjectRoot
 //                                     ProjectFrontierRequested -> ProjectFrontierSaid
 //                                     PlanNamesRequested       -> PlanNames
+//                                     RecipeSourceRequested    -> RecipeSourceSaid
 //     RecipesDoor   zengine.recipes   RecipeUseRequested       -> RecipeOutcome
 //                                     RecipeAuthorRequested    -> RecipeOutcome
 //     PlanDoor      zengine.plan      PlanRowRequested         -> PlanRowWritten
 //
-// The remaining doors -- one source opened in the Editor, by path or by recipe name -- are
-// not here: Workshop's own weave holds the Editor, so `OpenSourceRequested` and
-// `RecipeSourceRequested` are answered where `open_source` lives (`weave_pane_editor.cpp`),
-// at the office Workshop already holds.
+// The one door that OPENS a source -- `OpenSourceRequested` -> `SourceOpened` -- is not here
+// and not this host's: the Editor is a weave of its own (`Zengine/editor-pane/`) holding the
+// one document, and the sentence is addressed to its office (`kEditorRole`). What stayed
+// with the host is the half that was always the host's -- which file a recipe NAMES, read
+// off the completed catalog it owns -- and that is the read-only office's fourth question.
 //
 // ⚠ THE FILE WAS NAMED FOR THE FIRST PANE THAT ASKED, AND THE OFFICES NEVER WERE. The
 // project browser's migration cut this seam and these doors carried its name through two
@@ -74,33 +76,37 @@ struct ProjectDoorState {
     std::int64_t answers = 0;   ///< where this run began, and where its marks live
     std::int64_t frontiers = 0; ///< what realization is waiting on
     std::int64_t lookups = 0;   ///< whether the plan in force names an artifact
+    std::int64_t sources = 0;   ///< which file a recipe names
     std::int64_t refused = 0;   ///< asks that were not authored as any office
     ZEN_EXPOSE();
-    ZEN_SHAPE(ProjectDoorState, 1, ZEN_FIELD(answers), ZEN_FIELD(frontiers),
-              ZEN_FIELD(lookups), ZEN_FIELD(refused));
+    ZEN_SHAPE(ProjectDoorState, 2, ZEN_FIELD(answers), ZEN_FIELD(frontiers),
+              ZEN_FIELD(lookups), ZEN_FIELD(sources), ZEN_FIELD(refused));
 };
 
 /// THE READ-ONLY PROJECT OFFICE: where this run began, what its realization is waiting on,
-/// and whether its plan already names an artifact -- answered to whoever asks.
+/// whether its plan already names an artifact, and which file a recipe names -- answered to
+/// whoever asks.
 ///
-/// ⚠ THREE QUESTIONS, ONE OFFICE, AND NOT ONE OF THEM RUNS ANYBODY'S CODE. That is the
+/// ⚠ FOUR QUESTIONS, ONE OFFICE, AND NOT ONE OF THEM RUNS ANYBODY'S CODE. That is the
 /// whole membership rule: an answer that changed the project would belong at an ACTING
 /// office (`RecipesDoor`, `PlanDoor`), so "which office can write a maker's files" keeps a
-/// one-word answer. The first is two strings the host captured once; the second and third
-/// are closures the host already wired over owners it holds, spent at the moment of the ask.
+/// one-word answer. The first is two strings the host captured once; the other three are
+/// closures the host already wired over owners it holds, spent at the moment of the ask.
 class ProjectDoor
     : public loom::WeaveBase<
           ProjectDoor, ProjectDoorState,
-          loom::Accept<ProjectRootRequested, ProjectFrontierRequested, PlanNamesRequested>,
-          loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames>> {
+          loom::Accept<ProjectRootRequested, ProjectFrontierRequested, PlanNamesRequested,
+                       RecipeSourceRequested>,
+          loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames, RecipeSourceSaid>> {
 public:
     using Frontier = std::function<ProjectFrontier()>;
     using Names = std::function<bool(const std::string&)>;
+    using Source = std::function<HostContext::RecipeSource(const std::string&)>;
 
     ProjectDoor(const std::string& project_dir, const std::string& marks_path,
-                Frontier frontier = {}, Names names = {})
+                Frontier frontier = {}, Names names = {}, Source source = {})
         : project_dir_(&project_dir), marks_path_(&marks_path), frontier_(std::move(frontier)),
-          names_(std::move(names)) {}
+          names_(std::move(names)), source_(std::move(source)) {}
 
     void on(const ProjectRootRequested&, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
@@ -145,11 +151,51 @@ public:
         (void)mail.answer(PlanNames{asked.stem, names_ ? names_(asked.stem) : false});
     }
 
+    /// WHICH FILE THIS RECIPE NAMES -- `HostContext::recipe_source`, spent at the ask, and
+    /// what the host's own Editor door did with the name before it opened anything. The
+    /// asker holds a recipe's NAME and never its procedure; what it hears is the one absolute
+    /// path the recipe was completed to (WL-PROJ-02), or the owner's refusal in the owner's
+    /// words: the catalog's, when the id names no authored recipe of this project; the
+    /// recipe file's, when the kind names no single source (the `kind` word is the file's,
+    /// so the sentence reads in the terms the maker authored); the host's, when it resolves
+    /// no recipe sources at all. Opening the file is the Editor's and is asked of the Editor.
+    void on(const RecipeSourceRequested& asked, loom::Mail& mail) {
+        if (mail.authored_role().empty()) {
+            ++state_.refused;
+            return;
+        }
+        ++state_.sources;
+        if (!source_) {
+            (void)mail.answer(RecipeSourceSaid{
+                asked.recipe, false,
+                "this host resolves no recipe sources -- nothing was opened", std::string()});
+            return;
+        }
+        const HostContext::RecipeSource named = source_(asked.recipe);
+        if (!named.known) {
+            (void)mail.answer(RecipeSourceSaid{asked.recipe, false,
+                                               "this project's recipes do not hold `" +
+                                                   asked.recipe + "` -- nothing was opened",
+                                               std::string()});
+            return;
+        }
+        if (named.source.empty()) {
+            (void)mail.answer(RecipeSourceSaid{asked.recipe, false,
+                                               "`" + asked.recipe + "` is a " + named.kind +
+                                                   " recipe -- it names no single source file "
+                                                   "to edit",
+                                               std::string()});
+            return;
+        }
+        (void)mail.answer(RecipeSourceSaid{asked.recipe, true, std::string(), named.source});
+    }
+
 private:
     const std::string* project_dir_;
     const std::string* marks_path_;
     Frontier frontier_;
     Names names_;
+    Source source_;
 };
 
 /// WHAT THE RECIPES DOOR HAS DONE. Counters, and the two acts told apart, because "a maker

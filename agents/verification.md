@@ -8,6 +8,14 @@ where the method is applied in this tree — a test file and case, a script, a l
 [`../AGENTS.md`](../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom); the public
 reference is [`../docs/contributing/build-and-test.md`](../docs/contributing/build-and-test.md).
 
+## Before choosing a lane
+
+Apply the [architectural review](../AGENTS.md#intent-evidence-and-architectural-fit) before
+implementation and at review. A suite can agree with the code about the wrong behavior;
+the existing [fixture method VM-FIX-04](verification/fixtures.md) states that limit. Judge the
+whole design against its intended capability and known next consumers, then choose evidence
+that can falsify its behavioral claims. Both judgments matter.
+
 ## The lanes, in order
 
 1. **The ordinary lane** — `cmake -DZEN_BUILD_DIR=<build> -P tests/verify.cmake`, never a bare
@@ -30,8 +38,11 @@ measured on.
 
 A green means nothing complained. It names the repository, the configuration and the compiler —
 "green on Windows/MinGW-w64 GCC 13.1, Debug, SDL off", never "green on Windows" — and it quotes
-`tests/verify.cmake`. Proven means a regression test asserts it; everything else is true by
-construction and not yet pinned. A count is a population, never an acceptance oracle.
+`tests/verify.cmake`. A regression test pins its assertion under the conditions exercised;
+it does not establish that the assertion is the intended requirement. A property established by
+source inspection without a regression witness is true by construction, not yet pinned. An
+unexamined claim is unverified. Counts identify neither the exercised behavior nor its fitness;
+assertion totals are reported evidence, never an acceptance oracle.
 
 ## The population contract
 

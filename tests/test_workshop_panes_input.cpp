@@ -1516,7 +1516,10 @@ TEST_CASE("MSG-0: a key carries the modifiers the transition carried, unchanged"
     REQUIRE(seat->keys.size() == 2);
     CHECK(seat->keys[0].modifiers == input::mod::kShift);
     CHECK(seat->keys[1].modifiers == input::mod::kAlt);
-    // ...and Ctrl+S is still the document's, in every mode, so it never arrives.
+    // ...AND CTRL+S DOES NOT (VD-26). `document.save` is requestable while a pane holds the
+    // keys, and this pane declared no row standing in for it, so the chord is the object
+    // document's here exactly as it is on the bare desk. A pane that DOES declare one --
+    // the Editor -- hears it instead, and that is proved where that pane is.
     r.key(input::scan::kS, input::mod::kCtrl);
     CHECK(seat->keys.size() == 2);
 }
@@ -1652,7 +1655,7 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "^s save | ^o open | ^k hotkeys");
+        CHECK(lines[1] == "^s save | ^o open | ^k hotkeys"); // `^s` is the document's (VD-26)
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 

@@ -54,9 +54,10 @@
 //
 //     zengine.workshop   ACTS   DocumentActRequested -> DocumentActed
 //
-// Answered at the office this host already holds, for `OpenSourceRequested`'s reason: the
+// Answered at the office this host already holds, for the reason every act door has: the
 // party that owns the document is the party that answers for it, and a second office would
-// be a second answer to "who may write this". The four acts are the four the built-in
+// be a second answer to "who may write this". (The Editor's own act door moved with the
+// Editor for the same reason -- `OpenSourceRequested` is answered at `zengine.editor`.) The four acts are the four the built-in
 // offered -- select, create, delete, and commit one property -- and each is the SAME call
 // the host's own key is bound to, so both gestures converge on one write, one selection rule
 // and one sentence (WL-CTRL-05, kept).

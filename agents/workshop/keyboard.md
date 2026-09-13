@@ -49,9 +49,10 @@ PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context`, `keyboard_contex
 `workshop/keymap.hpp` `context_takes_text`, `KeyContext`; `workshop/weave_seam.cpp`
 `paste_owner_now`; `workshop/weave_handlers.cpp` `on(KeyPressed)`; `workshop/weave_pointer.cpp`
 `on(TextEntered)`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every Workshop mode owns
-the keyboard above a focused pane"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the editor
-context takes text, and its class algebra is exact"`; `tests/test_workshop_document.cpp` case
-`"KEY-0: the view lists the context beneath it, and three contexts differ"`.
+the keyboard above a focused pane"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one
+physical ^s is the document's save or the source's, by who holds the keys"`;
+`tests/test_workshop_document.cpp` case `"KEY-0: the view lists the context beneath it, and three
+contexts differ"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-04 — Matching is exact
@@ -66,23 +67,24 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-05 — Three declaration-only activity classes
 
-LAW — Three declaration-only classes: global rows above every mode, no-text rows exactly where no editable text has the keys, no-editor rows everywhere but the editor; nothing else answers above a mode.
+LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
 
 MEANS
 - `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
-- `workshop.quit` (`^c`) is `kNoText`; it is the only row of that class left;
-- `document.save` (`^s`) is `kNoEditor`; the editor's row is `editor.save`; they never meet.
+- `workshop.quit` (`^c`) is `kNoText`; `document.save` (`^s`) is `kUnlessOwned`;
+- `Keymap::row_active` is the one answer for all three; every view spends it.
 
 DOES NOT MEAN
-- that a pane's row is a fourth class: it meets the global and no-editor rows only (WL-KEY-15).
+- that a pane's row is a fourth class: it meets these, never another mode's (WL-KEY-15).
+- ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared (VD-26).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`KeyContext::kNoEditor`, `Keymap::above_mode_action`, `workshop.quit`,
-`document.save`, `editor.save`; `workshop/weave_handlers.cpp` `on(KeyPressed)`;
-`tests/test_workshop_editor.cpp` case `"EDIT-0: one physical ^s resolves to the document's save or
-the editor's, by context"`; `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits
-exactly where nothing takes text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys
-that mean the same thing in every mode still outrank a pane"`.
+`KeyContext::kUnlessOwned`, `Keymap::above_mode_action`, `workshop.quit`, `document.save`;
+`workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_panes_editor.cpp` case
+`"EDIT-W3: one physical ^s is the document's save or the source's, by who holds the keys"`;
+`tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits exactly where nothing takes
+text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys that mean the same thing in
+every mode still outrank a pane"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
@@ -182,8 +184,7 @@ PROVEN BY — `workshop/screen_hotkeys.cpp` `paint_hotkeys`, `hotkeys_rows`,
 `tests/test_workshop_document.cpp` case `"KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k
 close it"`, case `"KEY-0: the view is keys-modal -- a maker reading a binding is not executing
 it"`; `tests/test_workshop_screen.cpp` case `"QR-17/SC-6,7: the compact view owns no pointer space
-and moves no reservation"`; `tests/test_workshop_editor.cpp` case `"EDIT-0: the hotkey view
-answers for the editor with its own unremappable keys"`.
+and moves no reservation"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-KEY-12 — The printable-trigger swallow is derived from the binding
@@ -230,33 +231,37 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
 
-LAW — A pane declares rows of the one catalog beside its offer; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
+LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
 
 MEANS
-- a pane's context is its runtime handle: active while it holds the keys, never another pane's;
-- a refused shape keeps the previous rows; the file's load re-joins every pane, and the file wins;
-- a matching keystroke crosses as `PaneActionRequested`, swallowed; every other as `PaneKey`.
+- input's OWNER is the pane's handle only while the resolved context is that pane's;
+- a v2 row may name one `kUnlessOwned` action it owns: it is inactive throughout the pane;
+- a refusal keeps the previous rows; a file's load re-joins every pane, and the file wins.
 
 DOES NOT MEAN
 - that a pane says it wants keys: a declaration points no keyboard at it and holds none;
-- that the contextual surface lists a pane's rows: it declares over `kActionCatalog` ids.
+- that rebinding either row moves either meaning, or that a global row can be owned.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `PaneActionRequested`; `workshop/keymap.hpp` `PaneRow`, `PaneRows`, `kMaxPaneActionRows`,
 `collision_sentence`, `Keymap::panes`, `Keymap::pane_action_for`, `check_pane_action_text`,
-`join_pane_rows`, `drop_pane_rows`; `workshop/panel.hpp` `RuntimePane::actions`;
+`join_pane_rows`, `drop_pane_rows`, `PaneRow::supersedes`, `Keymap::pane_supersedes`,
+`Keymap::row_active`, `Keymap::owner_of`, `superseded_here`;
+`workshop/pane_vocabulary.hpp` `v2::PaneActionRow`, `v2::PaneActions`, `kOwnableDocumentSave`;
+`workshop/weave.hpp` `declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`;
+`workshop/panel.hpp` `RuntimePane::actions`;
 `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
 `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
 `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
 `workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `hotkeys_rows`;
 `tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order,
-and a refusal writes nothing"`, case `"a row colliding with a chord answered above every mode
-refuses the whole shape and keeps the previous rows"`, case `"a declared gesture arrives as the
-resolved id and an undeclared one as the key; typing still crosses raw"`, case `"an override
-authored before the pane arrives is applied when it does, and one loaded after the pane
-declared is applied at the load"`, case `"the keymap file wins: a pane whose rows its bindings
-collide with is refused in words, in both orders"`, case `"a maker's override moves a Powers
-action, and the key it left no longer acts"`.
+and a refusal writes nothing"`, case `"a declared gesture arrives as the resolved id and an
+undeclared one as the key; typing still crosses raw"`, case `"the keymap file wins: a pane whose
+rows its bindings collide with is refused in words, in both orders"`, case `"a pane built against
+the published version one still registers, declares and dispatches"`;
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W62: the object document's save belongs to
+every context that is not the pane's own"`, case `"EDIT-W63: a pane that owns one action may put
+its other rows on that action's key"`.
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## Do not assume

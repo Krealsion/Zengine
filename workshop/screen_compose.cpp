@@ -29,9 +29,9 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
         }
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            if (p.kind == panel::kEditor) {
-                paint_editor(layer, s, b, sc, chrome);
-            } else if (p.kind == panel::kLayouts) {
+            // ⭐ THE EDITOR'S ARM WAS FIRST HERE AND IS GONE: it is an external pane, painted
+            // by the generic arm at the end of this chain like every other.
+            if (p.kind == panel::kLayouts) {
                 // THE LAYOUT RUN, THE SETUP ASSOCIATION AND THE WORKSPACE FACT --
                 // one more arm, in the one walk, and that is the whole of what the
                 // conversion cost this function. What it BUYS is the two lines above it:
@@ -121,16 +121,14 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* typed_into =
             typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
-        // THE SOURCE EDITOR IS THE SECOND KEYBOARD-TAKING PANE, and it gets the same
-        // sentence for the same measured reason: keystrokes landing somewhere
-        // the screen does not name is the lie this row exists to refuse.
+        // THE PANE MANAGER IS THE ONE BUILT-IN LEFT THAT TAKES THE KEYS, and it gets the
+        // same sentence for the same measured reason: keystrokes landing somewhere the
+        // screen does not name is the lie this row exists to refuse. (The source editor
+        // had a sentence of its own here; it is a pane, and the first arm names it.)
         std::string said;
         if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
                    " -- press elsewhere for Workshop's keys";
-        } else if (ctx == KeyContext::kEditor &&
-                   s.keymap.resolved_legend() == legend_mode::kFull) {
-            said = "typing goes to the source editor -- press elsewhere for Workshop's keys";
         } else if (ctx == KeyContext::kPaneEditor &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "keys go to the Pane Manager -- press elsewhere for Workshop's keys";

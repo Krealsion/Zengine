@@ -30,7 +30,7 @@ MEANS
 
 DOES NOT MEAN
 - that the Editor's multiline machinery or the Composer's fields were taught it — neither was;
-- that a PANE gets it: a pane is sent a press and no motion, so it cannot sweep (WL-TERM-09).
+- that a PANE gets it: a pane sweeps from the positions it is sent (WL-TEXT-14), never a word.
 
 **The live witness went with the Terminal's line, and is not replaced.** It was driven over
 the terminal overlay's own row; the Pane Manager's draft spends the same call and has no
@@ -84,4 +84,27 @@ PROVEN BY — `surface/skin_tui.hpp` `kTuiPointerOn`; `docs/workshop/limitations
 undoes enter"`.
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
+## WL-PTR-10 — `on(PointerWheel)` is Workshop's one wheel router
+
+LAW — `on(PointerWheel)` routes every wheel: modes keep their ownership, the topmost occupancy decides (picker, then front order), a header row is not the body, and notches accumulate in `spend_wheel`.
+
+MEANS
+- both Pane Manager lists and the picker move their cursor by `kListWheelRows`;
+- an external pane's body: the notches cross as `PaneWheel`; the Editor scrolls, caret still.
+
+DOES NOT MEAN
+- that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
+
+PROVEN BY — `workshop/weave_pane_editor.cpp` `pane_editor_wheel`; `workshop/weave_panels.cpp`
+`picker_wheel`; `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/screen.hpp`
+`kListWheelRows`; `workshop/screen_gestures.cpp` `list_window`; `workshop/screen_reveal.cpp`
+`spend_wheel`; `editor-pane/pane.cpp` `on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp`
+case `"EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`;
+`tests/test_workshop_panes_seam.cpp` case `"QR-18/SC-5: the picker's windowed inventory is
+reached by the wheel"`.
+WHY — `agents/decisions/the-first-multiline-consumer.md`
+
 ## Do not assume
+
+- That "… N more" is unreachable — the wheel reaches it wherever a cursor is
+  (WL-PTR-10).

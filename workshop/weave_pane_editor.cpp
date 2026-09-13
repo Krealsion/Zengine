@@ -93,7 +93,7 @@ void WorkshopWeave::pane_editor_move_in(bool rows, std::int64_t by) {
     }
 }
 
-// WL-EDIT-10 -- agents/workshop/editor.md; WL-PED-08 -- agents/workshop/pane-manager.md
+// WL-PTR-10 -- agents/workshop/pointer.md; WL-PED-08 -- agents/workshop/pane-manager.md
 void WorkshopWeave::pane_editor_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     repair_pane_editor_subject();
     const PaneEditorAt where = pane_editor_at(session_, w.space, w.x, w.y);
@@ -474,182 +474,13 @@ void WorkshopWeave::pane_editor_press(const zengine::input::PointerButton& b, st
 }
 
 
-// WL-EDIT-03, WL-EDIT-05, WL-EDIT-06, WL-EDIT-11, WL-EDIT-13 -- agents/workshop/editor.md
-// WL-FRONT-04 -- agents/workshop/planes.md
-Written WorkshopWeave::open_source(const std::string& requested, loom::Mail& mail) {
-    const std::string path = persist::resolved_against(host_->project_dir, requested);
-    EditorState& e = session_.editor;
-    if (e.open_document() && e.path == path) {
-        // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
-        // its caret, its selection, its history and its viewport all stand; what
-        // moves is presence (a removed pane comes back) and the keyboard.
-        const Written room = ensure_editor_pane(mail);
-        if (!room.accepted) {
-            return room;
-        }
-        session_.panels.selected = panel::kEditor;
-        session_.panels.keyboard = panel::kEditor;
-        e.follow_caret = true;
-        say("editing " + e.path + (e.dirty() ? " -- UNSAVED edits stand" : ""), false);
-        return Written::ok();
-    }
-    if (e.dirty()) {
-        // THE UNSAVED-LOSS FLOOR: a different source must not silently replace a
-        // dirty buffer. The two ways out are the editor's own save and its one
-        // deliberate discard door, both named with their effective gestures.
-        return Written::no(e.path + " has unsaved changes -- " + hotkey(Act::kEditorSave) +
-                           " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
-                           " discards them; nothing was opened");
-    }
-    // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the maker the
-    // notice and nothing else -- the pane, the setup, the current document (if any)
-    // and the file itself are all exactly as they were.
-    const persist::FileText read =
-        persist::read_file(path, kMaxSourceBytes, "a source file");
-    if (!read.outcome.accepted) {
-        return read.outcome;
-    }
-    SourceIn admitted = source_in(read.text);
-    if (!admitted.outcome.accepted) {
-        return Written::no(path + ": " + admitted.outcome.refusal);
-    }
-    const Written room = ensure_editor_pane(mail);
-    if (!room.accepted) {
-        return room;
-    }
-    e.path = path;
-    e.saved_lines = admitted.lines;
-    e.buffer.set_lines(std::move(admitted.lines));
-    e.convention = admitted.convention;
-    ++e.doc_epoch;
-    e.first_row = 0;
-    e.first_col = 0;
-    e.wheel_accum = 0.0;
-    e.follow_caret = true;
-    // AND IT SELECTS THE PANE IT JUST FILLED. The keyboard candidate's own
-    // argument, one question wider: an open that pointed the keys at a pane still
-    // sitting behind another would put the first keystroke somewhere the maker
-    // cannot see. The two facts are written together everywhere they are written.
-    session_.panels.selected = panel::kEditor;
-    session_.panels.keyboard = panel::kEditor;
-    say("editing " + e.path, false);
-    return Written::ok();
-}
-
-/// THE ONE EDITOR DOOR, ANSWERED ACROSS THE SEAM (`pane_seam_vocabulary.hpp`).
-///
-/// It is the SAME door the recipe-name ask below spends, and the one the browser used to spend
-/// directly before it became a weave -- the
-/// path goes through `open_source`, which normalizes it, refuses a dirty buffer, reads and
-/// judges the file and installs it, exactly as it always has (WL-EDIT-05). What is new is
-/// only that a refusal now travels back to whoever asked, as a value, so a pane that is no
-/// longer inside this process can say it in its own row.
-///
-/// AN OFFICE, AND ONLY AN OFFICE, the two host doors' rule: opening a maker's source for
-/// anonymous speech would be this host acting on a sentence with no author.
-void WorkshopWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return;
-    }
-    const Written done = open_source(asked.path, mail);
-    (void)mail.answer(SourceOpened{done.accepted, done.refusal});
-    repaint(mail);
-}
-
-/// THE SAME DOOR, REACHED BY A RECIPE'S NAME (`builder_seam_vocabulary.hpp`) -- what
-/// the Builder panel's own `e` did before that panel became a weave (WL-EDIT-05).
-///
-/// ⚠ THE ASKER NAMES A RECIPE AND NEVER A PATH, and the resolution is HERE because the
-/// catalog is here. `builder::RecipeSummary` is `{recipe, artifact}` on purpose: a
-/// presentation does not receive source paths, build trees, package prefixes or link lists,
-/// so a pane that could spell the path would already have been handed the build procedure.
-/// It says the one thing it holds, and this host looks the recipe up in the catalog IT owns
-/// and spends the same `open_source` every other opener spends.
-///
-/// EVERY REFUSAL IS SOMEBODY'S OWN WORDS. The catalog's, when the id names no authored
-/// recipe of this project; the recipe file's, when the kind names no single source (the
-/// `kind` word is the file's, so the sentence reads in the terms the maker authored); and
-/// the Editor door's, for a missing file or a dirty buffer. All three go back as the
-/// answer, and the pane says them in its own row.
-void WorkshopWeave::on(const RecipeSourceRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return;
-    }
-    if (!host_->recipe_source) {
-        (void)mail.answer(
-            SourceOpened{false, "this host resolves no recipe sources -- nothing was opened"});
-        return;
-    }
-    const HostContext::RecipeSource named = host_->recipe_source(asked.recipe);
-    if (!named.known) {
-        (void)mail.answer(SourceOpened{
-            false, "this project's recipes do not hold `" + asked.recipe +
-                       "` -- nothing was opened"});
-        return;
-    }
-    if (named.source.empty()) {
-        (void)mail.answer(SourceOpened{false, "`" + asked.recipe + "` is a " + named.kind +
-                                                  " recipe -- it names no single source file "
-                                                  "to edit"});
-        return;
-    }
-    const Written done = open_source(named.source, mail);
-    (void)mail.answer(SourceOpened{done.accepted, done.refusal});
-    repaint(mail);
-}
-
-Written WorkshopWeave::ensure_editor_pane(loom::Mail& mail) {
-    const PaneRef ref = pane_ref_of(panel::kEditor);
-    Setup candidate = session_.setup.active;
-    const bool added = add_pane(candidate, ref);
-    const Seating trial = seat_panes(candidate, session_.panels,
-                                     stack_capacity(screen_of(session_)));
-    for (const std::int64_t k : trial.waiting) {
-        if (k == panel::kEditor) {
-            return Written::no("no room for the Editor on this screen -- make the window "
-                               "taller, then try again");
-        }
-    }
-    if (added) {
-        session_.setup.active = std::move(candidate);
-    }
-    apply_setup(mail);
-    return Written::ok();
-}
-
-// WL-EDIT-01 -- agents/workshop/editor.md
-void WorkshopWeave::save_source() {
-    EditorState& e = session_.editor;
-    if (!e.open_document()) {
-        say("no source is open -- nothing was saved", true);
-        return;
-    }
-    const Written written =
-        persist::write_file(e.path, source_text(e.buffer.lines(), e.convention));
-    if (!written.accepted) {
-        say(written.refusal, true);
-        return;
-    }
-    e.saved_lines = e.buffer.lines();
-    say("saved " + e.path, false);
-}
-
-// WL-EDIT-03 -- agents/workshop/editor.md
-void WorkshopWeave::discard_source_edits() {
-    EditorState& e = session_.editor;
-    if (!e.open_document()) {
-        say("no source is open -- nothing to discard", true);
-        return;
-    }
-    if (!e.dirty()) {
-        say("the source matches its last saved state -- nothing to discard", false);
-        return;
-    }
-    e.buffer.revert_to(e.saved_lines);
-    e.follow_caret = true;
-    say("discarded unsaved edits -- " + e.path +
-            " is back to its last saved state; undo takes them back",
-        false);
-}
+// ⭐ THE SOURCE EDITOR'S DOORS WERE HERE AND ARE GONE (VD-25). `open_source`, the two
+// seam answers (`OpenSourceRequested`, `RecipeSourceRequested`), `ensure_editor_pane`,
+// `save_source` and `discard_source_edits` were this host's hands on a document it held
+// in its session. The document is the Editor weave's now (`editor-pane/pane.cpp`), the
+// open door is at that weave's own office (`kEditorRole`), the recipe resolution stayed
+// with the catalog's owner (`ProjectDoor`, `pane_doors.hpp`), and the one thing this
+// host still does for an opened source -- seat, select and point the keys at the pane
+// that asked -- is `on(PaneRevealRequested)` in `weave_seam.cpp`, made general.
 
 } // namespace zengine::workshop

@@ -402,7 +402,7 @@ std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 
 // ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
 
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 // WL-INFO-03 -- agents/workshop/info-body.md
 // WL-TAB-08 -- agents/workshop/tab-run.md
 ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {

@@ -9,8 +9,10 @@
 // Timer, and everything it once read straight off `HostContext` -- where this run began,
 // the file its marks live in, whether a file is a recipe catalog, one path to open in the
 // Editor -- it ASKS for, through the four doors `workshop/pane_seam_vocabulary.hpp`
-// spells. What crosses the seam is values; the browser owns its listing, its marks and its
-// two modes, and holds no reference to anything in the host.
+// spells. Three of them are the host's; the fourth is the Editor weave's own
+// (`zengine.editor`), since the Editor stopped being the host's built-in. What crosses the
+// seam is values; the browser owns its listing, its marks and its two modes, and holds no
+// reference to anything in the host.
 //
 // THE PURE HALF DID NOT MOVE ITS MEANING. `files.hpp`'s `Listing`, `marks.hpp`'s
 // `LocationMarks`, `marks_persist.hpp` and `path_admission.hpp` are the same files this
@@ -21,6 +23,7 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
+#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
@@ -231,8 +234,8 @@ class FilesWeave
           FilesWeave, files::FilesState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, ProjectRoot, RecipeOutcome,
-                       SourceOpened, zengine::builder::BuildStatus, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       SourceOpened, loom::DispatchRefused, zengine::builder::BuildStatus,
+                       surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, surface::ClipboardCopy,
@@ -301,9 +304,16 @@ public:
         if (!row_of_body_row(press.row, which)) {
             return; // the header, a marker row, or blank space names no entry
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds, too
+        // (`on(PaneActionRequested)` says why an open needs the saying).
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
         if (had_keyboard_ && which == static_cast<std::size_t>(state_.cursor)) {
             open(mail); // a press on the already-selected row activates it (WL-FOCUS-04)
+            if (spent && published_ == published) {
+                say(mail);
+            }
             return;
         }
         state_.cursor = static_cast<std::int64_t>(which);
@@ -322,12 +332,12 @@ public:
         if (!authoring_.open) {
             return;
         }
-        notice_.clear();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!authoring_.line.consume(key.scancode, key.modifiers, clip_)) {
-            return;
+            return; // a key that means nothing to the line is no act: the notice stands, unsaid
         }
+        notice_.clear();
         if (clip_.writes != copied_before) {
             mail.publish(surface::ClipboardCopy{clip_.text});
         }
@@ -377,7 +387,23 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
             return;
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
+        // one whose answer is still on its way (an open at the opening office, a catalog at the
+        // recipes office) or that meant nothing says none, and the spent notice would stand
+        // painted beside the act that spent it. So when a notice stood and the act published
+        // nothing, the rows are said here, once, without it.
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        act(asked, mail);
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
+
+    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`).
+    void act(const PaneActionRequested& asked, loom::Mail& mail) {
         // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
         // (`files.open`) commits a chooser row or an authoring field; Escape
         // (`files.cancel`) backs out whole; the browser's other verbs mean nothing until the
@@ -491,11 +517,33 @@ public:
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
             return;
         }
-        open_.awaiting = false;
+        open_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
         }
+    }
+
+    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
+    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). The shape alone is ordinary speech, so
+    /// Loom's provenance is checked first; then the exact attempt is matched against the one
+    /// ask this pane can still be waiting on, and only that ask is cleared. A forged, stale,
+    /// duplicate or mismatched notice settles nothing. Delivered silence is not a refusal and
+    /// is not ended here: the ask stays awaited, and the next Return is a fresh attempt.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        const loom::Ticket attempt = refused.refused_attempt();
+        if (!attempt.valid() || !open_.awaiting || !open_.attempt.valid() ||
+            attempt.seq != open_.attempt.seq) {
+            return;
+        }
+        const std::string subject = open_.subject;
+        open_ = Ask{};
+        notice_ = "`" + ws::shown_name(subject) + "` was not opened -- the open could not reach " +
+                  ws::kOpeningRole + " (" + refused.reason + ")";
+        say(mail);
     }
 
     /// A BUILD THIS PROCESS RAN HAS FINISHED (published `to_any`), so what is on disk may
@@ -635,6 +683,10 @@ private:
     struct Ask {
         std::uint64_t pending = 0;
         bool awaiting = false;
+        /// THE QUEUED ATTEMPT (Loom's sequence), kept so the bus's later word that exactly
+        /// this send was refused before any handler ran can be matched to it -- and only it.
+        loom::Ticket attempt{};
+        std::string subject; ///< what the ask was about, for the sentence a refusal needs
     };
 
     void ask_project_root(loom::Mail& mail) {
@@ -774,14 +826,34 @@ private:
             say(mail);
             return;
         }
-        // A FILE: ask the Editor door to open it. The answer says whether it took.
+        // A FILE: ask the opening office to open it. The answer says whether it took: the
+        // opening manager arranges the document and the desk together (WL-OPEN-01), and an
+        // accepted answer is a source the maker can see. The door used to be the host's, then
+        // the Editor's own office (which still relays to the same manager); only the address
+        // moved, and every refusal still lands in this pane's own row.
+        //
+        // ⚠ THE TICKET IS KEPT, NOT DISCARDED (WL-OPEN-07). A valid ticket says the send was
+        // queued and nothing more; the bus's later, authenticated word that exactly this
+        // attempt was refused before any handler ran -- no opening office is held, or it is
+        // held behind a claim it could not apply -- reaches `on(loom::DispatchRefused)` and is
+        // matched to this attempt, and only this one. A ticket that is not valid means nothing
+        // was queued at all, and that is refused now, in words, rather than awaited forever.
         open_.pending = ++asked_;
         open_.awaiting = true;
-        (void)mail.as_role(files::kFilesRole)
-            .send_to_role(kWorkshopRole,
-                          OpenSourceRequested{ws::persist::resolved_against(state_.current_dir, row->name)},
-                          open_.pending);
+        open_.subject = row->name;
+        open_.attempt = mail.as_role(files::kFilesRole)
+                            .send_to_role(ws::kOpeningRole,
+                                          OpenSourceRequested{ws::persist::resolved_against(
+                                              state_.current_dir, row->name)},
+                                          open_.pending);
+        if (!open_.attempt.valid()) {
+            open_ = Ask{};
+            notice_ = "`" + ws::shown_name(row->name) +
+                      "` was not opened -- nothing was queued to the opening office";
+            say(mail);
+        }
     }
+
 
     void mark(loom::Mail& mail) {
         if (state_.current_dir.empty()) {
@@ -1062,6 +1134,7 @@ private:
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
         }
+        ++published_;
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(out)});
     }
@@ -1183,6 +1256,9 @@ private:
     Listing listing_;
     double wheel_accum_ = 0.0;
     std::string notice_;
+    /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
+    /// can tell whether the act it ran already said its rows.
+    std::uint64_t published_ = 0;
 
     Ask root_;
     Ask open_;

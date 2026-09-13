@@ -44,29 +44,48 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "editor-pane/vocabulary.hpp"
+#include "weavelib/legacy_pane_protocol.hpp"
+
+#include <zen/registry.hpp>
+
 namespace {
 
-PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
-                       std::int64_t modifiers = input::mod::kNone) {
-    PaneActionRow row;
+v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
+                       std::int64_t modifiers = input::mod::kNone,
+                       const char* supersedes = "") {
+    v2::PaneActionRow row;
     row.id = id;
     row.label = label;
     row.scancode = scancode;
     row.modifiers = modifiers;
+    row.supersedes = supersedes;
     return row;
 }
 
-PaneActions actions_for(const char* pane, std::vector<PaneActionRow> rows) {
-    PaneActions a;
-    a.pane = pane;
-    a.rows = std::move(rows);
-    return a;
-}
+/// A VERSION-ONE DECLARATION, built from rows written in the host's own row type -- see
+/// `narrowed` below for why the suite writes them that way and sends them this way (VD-27).
+PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows);
 
 /// Offer a pane AND declare its actions in one breath, as a real provider does, then open
 /// it from the picker. Answers the pane's runtime handle.
+/// ⚠ THESE SEND VERSION ONE, WHICH IS THE POINT (VD-27). The rows are written in the host's
+/// own (later) row type for one spelling across the suite, and NARROWED here to exactly the
+/// four fields a provider built before ownership existed can say. So every case below that is
+/// not about ownership drives the legacy door, with the real shape, through the real seam.
+inline PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows) {
+    PaneActions out;
+    out.pane = pane;
+    for (const v2::PaneActionRow& row : rows) {
+        REQUIRE_MESSAGE(row.supersedes.empty(),
+                        "a row that owns a host action cannot be said in version one");
+        out.rows.push_back(PaneActionRow{row.id, row.label, row.scancode, row.modifiers});
+    }
+    return out;
+}
+
 std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* office,
-                                const char* pane, std::vector<PaneActionRow> rows) {
+                                const char* pane, std::vector<v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
         s.declare(m, actions_for(pane, rows));
@@ -76,14 +95,27 @@ std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* offi
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
+/// ...AND THE SECOND VERSION, for a pane that owns one of Workshop's actions.
+std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* office,
+                                   const char* pane, std::vector<v2::PaneActionRow> rows) {
+    r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
+        s.declare_v2(m, v2::PaneActions{pane, rows});
+    });
+    r.pick(PaneRef{office, pane});
+    const RuntimePane* row = r.session().panels.runtime.find(office, pane);
+    return row == nullptr ? kNoPaneKind : row->kind;
+}
+
 /// Declare again, for a pane already offered -- a refresh, or an attempt at one.
-void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane, std::vector<PaneActionRow> rows) {
+void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane,
+               std::vector<v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.declare(m, actions_for(pane, rows));
     });
 }
 
-const std::vector<PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
+const std::vector<v2::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     const RuntimePane* row = r.session().panels.runtime.of_kind(kind);
     REQUIRE(row != nullptr);
     return row->actions;
@@ -155,9 +187,38 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
     REQUIRE(declared->fields()[1].type.element != nullptr);
     REQUIRE(declared->fields()[1].type.element->message != nullptr);
     CHECK(declared->fields()[1].type.element->message->name() == "PaneActionRow");
+    CHECK(declared->fields()[1].type.element->message->version() == 1u);
     for (const loom::Field& f : declared->fields()) {
         CHECK(f.name != "provider"); // WHOSE it is, is `mail.authored_role()`
     }
+
+    // ⭐ AND THE SECOND PUBLISHED VERSION, BESIDE IT AND NOT INSTEAD OF IT (VD-27). Version
+    // one above is exactly the four fields it has always had -- the field that lets a pane
+    // name an action it owns lives here, in a version of its own, because a published
+    // `(name, version)` is frozen and its identity is derived from the shape (Loom GATE-04).
+    const std::shared_ptr<const loom::Schema> row2 = loom::schema_of<v2::PaneActionRow>();
+    REQUIRE(row2 != nullptr);
+    CHECK(row2->name() == "PaneActionRow");
+    CHECK(row2->version() == 2u);
+    REQUIRE(row2->fields().size() == 5);
+    for (std::size_t i = 0; i < row->fields().size(); ++i) {
+        CHECK(row2->fields()[i].name == row->fields()[i].name); // the four, in order
+        CHECK(row2->fields()[i].type.kind == row->fields()[i].type.kind);
+    }
+    CHECK(row2->fields()[4].name == "supersedes");
+    CHECK(row2->fields()[4].type.kind == loom::Kind::Text);
+    CHECK_FALSE(loom::same_identity(*row, *row2)); // two shapes, and the bus knows it
+
+    const std::shared_ptr<const loom::Schema> declared2 = loom::schema_of<v2::PaneActions>();
+    REQUIRE(declared2 != nullptr);
+    CHECK(declared2->name() == "PaneActions");
+    CHECK(declared2->version() == 2u);
+    REQUIRE(declared2->fields().size() == 2);
+    CHECK(declared2->fields()[0].name == "pane");
+    REQUIRE(declared2->fields()[1].type.element != nullptr);
+    REQUIRE(declared2->fields()[1].type.element->message != nullptr);
+    CHECK(declared2->fields()[1].type.element->message->version() == 2u);
+    CHECK_FALSE(loom::same_identity(*declared, *declared2));
 
     const std::shared_ptr<const loom::Schema> asked = loom::schema_of<PaneActionRequested>();
     REQUIRE(asked != nullptr);
@@ -189,14 +250,14 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
 
 TEST_CASE("the join judges a declaration whole, in order, and a refusal writes nothing") {
     Keymap k;
-    const auto refused = [&k](std::vector<PaneActionRow> rows) {
+    const auto refused = [&k](std::vector<v2::PaneActionRow> rows) {
         Keymap candidate = k;
         const Written w = join_pane_rows(candidate, kSomePane, rows);
         CHECK_FALSE(w.accepted);
         CHECK(candidate.pane_rows(kSomePane) == nullptr); // nothing written
         return w.refusal;
     };
-    const auto accepted = [&k](std::vector<PaneActionRow> rows) {
+    const auto accepted = [&k](std::vector<v2::PaneActionRow> rows) {
         Keymap candidate = k;
         const Written w = join_pane_rows(candidate, kSomePane, rows);
         CHECK_MESSAGE(w.accepted, w.refusal);
@@ -205,7 +266,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
     };
 
     SUBCASE("the row count is bounded, and the bound is said") {
-        std::vector<PaneActionRow> many;
+        std::vector<v2::PaneActionRow> many;
         for (std::size_t i = 0; i <= kMaxPaneActionRows; ++i) {
             many.push_back(declared(("x.r" + std::to_string(i)).c_str(), "row",
                                     input::scan::kUnknown));
@@ -262,10 +323,28 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         const Gesture hotkeys = k.gesture_of(Act::kHotkeys);
         CHECK(refused({declared("x.k", "keys", hotkeys.scancode, hotkeys.modifiers)}) ==
               collision_sentence(hotkeys, "workshop.hotkeys", "x.k"));
-        // A NO-EDITOR ROW (`document.save`, ^s) is active in a pane too: refused.
+        // ⭐ `document.save` (^s) IS REFUSED HERE AGAIN, AND ONE DECLARATION BUYS IT (VD-26).
+        // The row is active while a pane holds the keys, so a pane taking its chord for an
+        // unrelated operation really would be two meanings on one gesture -- unless the pane
+        // says the row is standing in for it, which is one meaning in two scopes.
         const Gesture save = k.gesture_of(Act::kSaveDocument);
         CHECK(refused({declared("x.s", "save", save.scancode, save.modifiers)}) ==
               collision_sentence(save, "document.save", "x.s"));
+        const Keymap with_save = accepted(
+            {declared("x.s", "save", save.scancode, save.modifiers, kOwnableDocumentSave)});
+        REQUIRE(with_save.pane_rows(kSomePane) != nullptr);
+        CHECK(with_save.pane_supersedes(kSomePane, kOwnableDocumentSave));
+        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                          kSomePane) == Act::kNone);
+        // ...AND ANOTHER PANE'S KEYS ARE NOT THIS ONE'S DECLARATION.
+        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                          kSomePane + 1) == Act::kSaveDocument);
+        // AN ID WORKSHOP DOES NOT DECLARE, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
+        CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
+                  .find("not one of Workshop's action ids") != std::string::npos);
+        CHECK(refused({declared("x.o", "o", input::scan::kUnknown, input::mod::kNone,
+                                "document.open")})
+                  .find("not an action a pane may own") != std::string::npos);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
         // holds the keys (WL-FOCUS-09): a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);
@@ -697,6 +776,8 @@ TEST_CASE("the band's legend and the hotkey view print the pane's rows while it 
               std::string::npos);
         // THE PANE'S OWN ROWS FIRST, then the chorded survivors; an unbound row teaches
         // no key (WL-KEY-13).
+        // (`^s save` is back in this row: `document.save` is requestable while a pane that
+        // did not declare it owns the keys; VD-26.)
         CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^k hotkeys");
     }
     // THE HOTKEY VIEW: the rows, then the ownership sentence for everything else.
@@ -731,7 +812,7 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys");
+    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys"); // `^s` is back (VD-26)
     r.key(input::scan::kK, input::mod::kCtrl);
     const std::string view = hotkeys_text(r);
     CHECK(view.find("every ordinary key and character goes to the pane") != std::string::npos);
@@ -811,4 +892,245 @@ TEST_CASE("a maker's override moves a Powers action, and the key it left no long
     r.key(input::scan::kU, input::mod::kCtrl);
     CHECK(pane_rows(r, kind).at(0).find("[Operators]") != std::string::npos);
     CHECK(band_lines(r).at(1).find("^u switch view") != std::string::npos);
+}
+
+// ============================================================================
+// A PANE BUILT BEFORE OWNERSHIP EXISTED (VD-27)
+// ============================================================================
+
+/// THE PANE-ACTION PROTOCOL EXACTLY AS `84b6bc0` PUBLISHED IT -- one definition, in
+/// `weavelib/legacy_pane_protocol.hpp`, shared with the image built from it. A provider compiled
+/// against that header derives THESE schemas; if the shipped v1 ever drifts from them again,
+/// `same_identity` below says so, and every separately built pane in the world stops registering
+/// with this host (Loom GATE-04).
+namespace legacy = legacy_protocol;
+
+/// A PROVIDER THAT KNOWS ONLY THE OLD PROTOCOL: it offers a pane and declares its rows through
+/// the shapes above, and it has never heard of ownership.
+class LegacySeat : public loom::WeaveBase<LegacySeat, SeatState,
+                                          loom::Accept<PaneCatalogRequested, PaneRoom,
+                                                       PaneActionRequested, SeatDo>,
+                                          loom::Emit<PaneOffered, PaneContent, legacy::PaneActions>> {
+public:
+    explicit LegacySeat(std::string office) : office_(std::move(office)) {}
+
+    std::vector<std::string> said;
+    std::function<void(LegacySeat&, loom::Mail&)> next;
+
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const PaneRoom& room, loom::Mail& mail) {
+        std::vector<surface::SurfaceTextRow> rows;
+        rows.push_back(surface::SurfaceTextRow{"an old pane", surface::role::kFill});
+        (void)room;
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider,
+                                                 PaneContent{"old", std::move(rows)});
+    }
+    void on(const PaneActionRequested& a, loom::Mail&) { said.push_back(a.id); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            auto what = next;
+            next = nullptr;
+            what(*this, mail);
+        }
+    }
+
+    void offer_and_declare(loom::Mail& mail) {
+        (void)mail.as_role(office_).send_to_role(
+            kWorkshopProvider, PaneOffered{"old", "Old", "a pane from before ownership"});
+        legacy::PaneActions a;
+        a.pane = "old";
+        a.rows.push_back(legacy::PaneActionRow{"old.up", "row up", input::scan::kUp, 0});
+        a.rows.push_back(legacy::PaneActionRow{"old.mark", "mark", input::scan::kM, 0});
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+    }
+
+private:
+    std::string office_;
+};
+
+TEST_CASE("a pane built against the published version one still registers, declares and dispatches") {
+    // ⚔ THE DEFECT: `supersedes` was added to `PaneActionRow` v1, which changed the content-id
+    // of that shape AND of the `PaneActions` v1 enclosing it. A provider built against the old
+    // header and a host built against the new one could not both register -- ordinary Registry
+    // registration refuses the pair with `SchemaConflict` -- and only rebuilding every shipped
+    // pane in lockstep hid it. Version one is version one again, and ownership is version two.
+    CHECK(loom::same_identity(*loom::schema_of<legacy::PaneActionRow>(),
+                              *loom::schema_of<PaneActionRow>()));
+    CHECK(loom::same_identity(*loom::schema_of<legacy::PaneActions>(),
+                              *loom::schema_of<PaneActions>()));
+    CHECK_FALSE(loom::same_identity(*loom::schema_of<legacy::PaneActions>(),
+                                    *loom::schema_of<v2::PaneActions>()));
+
+    // ...AND IT WORKS, ON A REAL BUS, WITH THE REAL HOST, BESIDE A PANE THAT OWNS AN ACTION.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    auto seat = std::make_unique<LegacySeat>(std::string(kOtherOffice));
+    LegacySeat* old_pane = seat.get();
+    loom::Grant say;
+    say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    say.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    say.allow_to_any(legacy::PaneActions::zen_name, legacy::PaneActions::zen_version);
+    const loom::WeaveId id =
+        r.bus.register_weave(std::move(seat), std::move(say), std::string(kOtherOffice));
+    old_pane->zen_set_self(id);
+    old_pane->next = [](LegacySeat& s, loom::Mail& m) { s.offer_and_declare(m); };
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+
+    const RuntimePane* row = r.session().panels.runtime.find(kOtherOffice, "old");
+    REQUIRE_MESSAGE(row != nullptr, "the old provider's offer was not admitted");
+    REQUIRE(row->actions.size() == 2); // its rows, widened into the host's own row type
+    CHECK(row->actions[0].id == "old.up");
+    CHECK(row->actions[0].supersedes.empty()); // version one owns nothing, and says so
+    r.pick(PaneRef{kOtherOffice, "old"});
+    const std::int64_t kind = row->kind;
+    REQUIRE(r.session().panels.has(kind));
+    press_body(r, kind);
+    r.key(input::scan::kM);
+    REQUIRE_MESSAGE(!old_pane->said.empty(), "the old pane's own row did not dispatch");
+    CHECK(old_pane->said.back() == "old.mark");
+
+    // ...AND THE OLD PANE, WHICH OWNS NOTHING, LEAVES `^s` TO THE OBJECT DOCUMENT.
+    const Gesture save = r.session().keymap.gesture_of(Act::kSaveDocument);
+    const std::size_t before_save = old_pane->said.size();
+    r.key(save.scancode, save.modifiers);
+    CHECK(old_pane->said.size() == before_save);
+    CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                               kind) == Act::kSaveDocument);
+
+    // BESIDE IT, A PANE THAT OWNS `document.save` -- the second version, on the same host and
+    // in the same session. (This rig's screen holds one stack pane, so the old one steps out.)
+    r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk, for the picker
+    r.pick(PaneRef{kOtherOffice, "old"});
+    REQUIRE_FALSE(r.session().panels.has(kind));
+    ProviderSeat* modern = r.mount_provider(kHelloOffice);
+    const std::int64_t owner = seat_pane_declared_v2(
+        r, modern, kHelloOffice, kHelloPane,
+        {declared("hello.save", "save mine", save.scancode, save.modifiers,
+                  kOwnableDocumentSave)});
+    REQUIRE(owner != kNoPaneKind);
+    REQUIRE(r.session().panels.has(owner));
+    press_body(r, owner);
+    r.key(save.scancode, save.modifiers);
+    REQUIRE_MESSAGE(!modern->actions.empty(), "the owning pane's row did not dispatch");
+    CHECK(modern->actions.back().id == "hello.save");
+    CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                               owner) == Act::kNone);
+}
+
+TEST_CASE("a pane provider built as its own image against the published protocol alone loads, declares and dispatches beside the Editor") {
+#ifndef WORKSHOP_SO_LEGACY_PANE
+    MESSAGE("no legacy pane image was built for this tree");
+#else
+    // ⭐ THE BINARY WITNESS, THROUGH THE REAL HOST. The `legacy::` shapes above are compiled
+    // into THIS executable and prove schema agreement; `zengine-legacy-pane` is an image of its
+    // own, built by tests/CMakeLists.txt from a source that never includes the current pane
+    // vocabulary -- read here as a file, so the claim is about the artifact and not about a
+    // namespace this suite happens to contain.
+    const std::string source = slurp(LEGACY_PANE_SOURCE);
+    REQUIRE_FALSE(source.empty());
+    // THE DIRECTIVE, not the name: the fixture's own comment names the header it refuses to
+    // include, and a tripwire that read the comment would refuse the explanation.
+    CHECK(source.find("#include \"workshop/pane_vocabulary.hpp\"") == std::string::npos);
+    CHECK(source.find("#include <workshop/pane_vocabulary.hpp>") == std::string::npos);
+    CHECK(source.find("#include \"legacy_pane_protocol.hpp\"") != std::string::npos);
+    MESSAGE("legacy image: ", WORKSHOP_SO_LEGACY_PANE, ", ",
+            std::filesystem::file_size(WORKSHOP_SO_LEGACY_PANE), " bytes");
+
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    // ONE PLAN, TWO IMAGES: the old provider and the current Editor, which declares version two.
+    load::LoadPlan plan;
+    {
+        load::ArtifactIntent old;
+        old.stem = "zengine-legacy-pane";
+        old.weave = load::WeaveIntent{"zengine.test.legacy"};
+        plan.artifacts.push_back(old);
+        load::ArtifactIntent editor;
+        editor.stem = zengine::editor_pane::kEditorPaneStem;
+        editor.weave = load::WeaveIntent{zengine::editor_pane::kEditorPaneRole};
+        plan.artifacts.push_back(editor);
+    }
+    const load::Executed done = r.run_plan(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.extent(160, 48);
+    const RuntimePane* old = r.session().panels.runtime.find("zengine.test.legacy", "old");
+    REQUIRE_MESSAGE(old != nullptr, "the legacy image's offer was not admitted");
+    REQUIRE(old->actions.size() == 2); // its version-one rows, widened into the host's own type
+    CHECK(old->actions[1].id == "old.mark");
+    CHECK(old->actions[1].supersedes.empty()); // version one owns nothing, and says so
+    const RuntimePane* editor = r.session().panels.runtime.find(
+        zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
+    REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
+    bool owns = false;
+    for (const v2::PaneActionRow& row : editor->actions) {
+        owns = owns || row.supersedes == kOwnableDocumentSave;
+    }
+    CHECK(owns); // the version-two declaration, admitted in the same session
+
+    // THE OLD PANE, SEATED, PRESSED INTO, AND ASKED FOR ITS OWN ROW BY KEY.
+    const std::int64_t kind = old->kind;
+    r.pick(PaneRef{"zengine.test.legacy", "old"});
+    REQUIRE(r.session().panels.has(kind));
+    REQUIRE_FALSE(pane_rows(r, kind).empty());
+    CHECK(pane_rows(r, kind)[0].rfind("an old pane", 0) == 0);
+    press_body(r, kind);
+    r.key(input::scan::kM);
+    REQUIRE(pane_rows(r, kind).size() >= 2);
+    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image
+    // ...AND `^s` THERE IS THE OBJECT DOCUMENT'S: the old pane owns nothing.
+    const Gesture save = r.session().keymap.gesture_of(Act::kSaveDocument);
+    r.key(save.scancode, save.modifiers);
+    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark");
+    CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
+                                               kind) == Act::kSaveDocument);
+#endif
+}
+
+/// THE SHAPE AS THIS PR HAD IT BEFORE THE CORRECTION: version one with the ownership field in
+/// it. Nothing sends this; it exists so a case can put it in a Registry beside the published
+/// version one and watch what a separately built pane provider would have met.
+namespace broken {
+
+struct PaneActionRow {
+    std::string id;
+    std::string label;
+    std::int64_t scancode = 0;
+    std::int64_t modifiers = 0;
+    std::string supersedes;
+    ZEN_SHAPE(PaneActionRow, 1, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers), ZEN_FIELD(supersedes));
+};
+
+struct PaneActions {
+    std::string pane;
+    std::vector<PaneActionRow> rows;
+    ZEN_SHAPE(PaneActions, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
+};
+
+} // namespace broken
+
+TEST_CASE("two builds of one published version cannot both register, and that is what a field added in place did") {
+    // ⚔ THE DEFECT, REPRODUCED AT ITS OWN LAYER. A published `(name, version)` is frozen and
+    // identity across a `.so` seam is the content-id derived from the shape (Loom GATE-04). The
+    // ownership field was first added to `PaneActionRow` v1 in place; this is what a provider
+    // built against the old header would then have met in an ordinary Registry.
+    CHECK_FALSE(loom::same_identity(*loom::schema_of<broken::PaneActionRow>(),
+                                    *loom::schema_of<legacy::PaneActionRow>()));
+    {
+        loom::Registry vocabulary;
+        loom::SchemaClaimScope old_pane = vocabulary.claim({loom::schema_of<legacy::PaneActions>()});
+        CHECK_THROWS_AS((void)vocabulary.claim({loom::schema_of<broken::PaneActions>()}),
+                        loom::SchemaConflict);
+    }
+    // ...AND THE TWO SHAPES THIS HOST PUBLISHES TODAY LIVE IN ONE REGISTRY WITHOUT A WORD.
+    {
+        loom::Registry vocabulary;
+        loom::SchemaClaimScope old_pane = vocabulary.claim({loom::schema_of<legacy::PaneActions>()});
+        loom::SchemaClaimScope current = vocabulary.claim(
+            {loom::schema_of<PaneActions>(), loom::schema_of<v2::PaneActions>()});
+        CHECK(true); // no conflict: one identity for v1, a different one for v2
+    }
 }

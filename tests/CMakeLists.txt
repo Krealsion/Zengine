@@ -197,6 +197,42 @@ target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
+# A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from
+# weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `84b6bc0` published
+# it) and deliberately NOT from zengine-workshop-vocabulary -- the whole claim is that a party
+# nobody rebuilt still registers, declares and dispatches with the current host, and a case
+# reads its source to check the include is absent. Loaded by the actions suite (through the
+# real Workshop) and the load suite (through the real reload).
+zengine_weave(zengine-legacy-pane weavelib/legacy_pane.cpp)
+target_link_libraries(zengine-legacy-pane
+    PRIVATE zengine-surface-vocabulary zengine-input-vocabulary zengine-activation
+            zengine-warnings zengine-sanitize)
+
+# A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation;
+# WL-OPEN-02). It holds `zengine.editor`, offers the pane, claims
+# a document identity, prepares and offers like the real image -- and, when armed through
+# its exposed state, fails the showing of its published claim exactly once. What it exists to
+# prove is what the REAL manager and the REAL Workshop do when a real loaded owner fails
+# through the real ABI: nothing here is a document, and the real Editor's own cases stand
+# beside it untouched.
+zengine_weave(zengine-failing-editor weavelib/failing_editor.cpp)
+target_link_libraries(zengine-failing-editor
+    PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
+            zengine-warnings zengine-sanitize)
+
+# THE REAL EDITOR, BUILT ONCE MORE WITH ONE DELIBERATE THROW (test instrumentation;
+# WL-OPEN-02). The exact source of `editor-pane/pane.cpp`, under
+# the same reloadable-weave build contract as the product image, with
+# ZENGINE_EDITOR_TEST_THROW_ON_B_CPP defined: its showing hook throws once, before anything is
+# activated, for a published path ending in `/b.cpp` and for nothing else. It stands in for a
+# real owner whose image cannot complete a showing; a reload of its record into the normal
+# image is the repair the cases witness. The normal image defines nothing and compiles none of
+# it. Loaded by one suite, named in no host's boot list, never installed.
+zengine_weave(zengine-editor-throwing ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_THROW_ON_B_CPP=1)
+target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
+                                                     zengine-input-vocabulary zengine-activation)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -564,6 +600,22 @@ target_include_directories(zengine-component-tests PRIVATE
 
 zengine_doctest_test(component zengine-component-tests)
 
+# ---- The Editor buffer suite: the multiline document as values ------------------------
+#
+# ⭐ IT WAS THE FIRST TIER OF `workshop_editor` (VD-25). The buffer, the source byte law, the
+# tab geometry and the paste flattening are `editor-pane/editor.hpp`'s -- a header that came
+# out of the host with the Editor -- and what they DO is this suite's claim on the component
+# suite's terms: its own executable, its own count, and an include set that can name nothing
+# of the host. That the Editor pane gets its answers from it is the panes suite's claim.
+add_executable(zengine-editor-tests test_editor.cpp doctest_main.cpp)
+target_link_libraries(zengine-editor-tests
+    PRIVATE zengine-component zengine-workshop-vocabulary zengine-input-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-editor-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(editor zengine-editor-tests)
+
 # ---- The Operator suite, and the stranger that reads a rule it did not write ----------
 #
 # `zengine-operator-stranger` is its own target on purpose. It is SEM-0's
@@ -812,8 +864,11 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 #   workshop_panes         the external pane seam, from both sides
 #   workshop_persistence   what survives a process
 #   workshop_load          which artifacts are in the room at all
-#   workshop_editor        the built-in source editor and its document
 #   workshop_files         the project browser, its bounds and its root
+#
+# `workshop_editor` WAS THE SEVENTH AND IS GONE (VD-25): the source editor is a weave. Its
+# buffer is the `editor` suite's below (a pure one, with its own executable); the pane, its
+# document custody and its doors are `test_workshop_panes_editor.cpp`'s, under `panes`.
 #
 # THE COUNT IN THAT FIRST SENTENCE IS THE ONE THING HERE THAT DATES: the split's argument
 # is about boundaries, not about how many there are, and each later phase that earns a suite
@@ -928,6 +983,19 @@ set(ZENGINE_WORKSHOP_DEFS
     # the only place a fresh Workshop's own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
     "WORKSHOP_SO_TERMINAL_PANE=\"$<TARGET_FILE:zengine-terminal-pane>\""
+    # ...AND THE EDITOR PANE, the sixth and last of the migrations -- and the first whose
+    # image holds a maker's DOCUMENT: the suites that drive Files' Return and the Builder's
+    # `e` load it beside the asker, because the door those gestures reach is its.
+    "WORKSHOP_SO_EDITOR_PANE=\"$<TARGET_FILE:zengine-editor-pane>\""
+    # ...AND THE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE, with its source, which a
+    # case reads to check that the current vocabulary is nowhere in it.
+    "WORKSHOP_SO_LEGACY_PANE=\"$<TARGET_FILE:zengine-legacy-pane>\""
+    "LEGACY_PANE_SOURCE=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/legacy_pane.cpp\""
+    # ...AND THE LOADED STAND-IN THAT CANNOT APPLY A PUBLISHED CLAIM (test instrumentation),
+    # resolved by stem like every other image.
+    "WORKSHOP_SO_FAILING_EDITOR=\"$<TARGET_FILE:zengine-failing-editor>\""
+    # ...and the real Editor built with one deliberate throw.
+    "WORKSHOP_SO_EDITOR_THROWING=\"$<TARGET_FILE:zengine-editor-throwing>\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
     # the same signature.
@@ -948,7 +1016,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-info-pane zengine-terminal-pane
+    zengine-attention-pane zengine-info-pane zengine-terminal-pane zengine-legacy-pane
+    zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source)
 
@@ -996,10 +1065,11 @@ zengine_workshop_suite(document SOURCES test_workshop_document.cpp
 
 zengine_workshop_suite(screen SOURCES test_workshop_screen.cpp)
 
-# The SOURCE EDITOR: the multiline buffer, the byte law, the Builder's edit-source
-# door, save/dirty truth, the viewport and the no-silent-loss floor. Its temporary
-# directories are its own, exactly as the family rule requires.
-zengine_workshop_suite(editor SOURCES test_workshop_editor.cpp)
+# ⭐ THE SOURCE EDITOR'S SUITE WAS HERE AND IS TWO SUITES NOW (VD-25). The multiline buffer
+# and the byte law are `zengine-editor-tests` (below, beside the component suite: a pure
+# executable over `editor-pane/editor.hpp`); the door, save/dirty truth, the viewport, the
+# no-silent-loss floor and the exit are `test_workshop_panes_editor.cpp`'s, under `panes`,
+# driven through the real loaded image.
 
 # The PROJECT BROWSER: enumeration and its bound, the directories-first order, the
 # name admission, the root boundary, the press/wheel routing and the path from a row to
@@ -1072,6 +1142,8 @@ zengine_workshop_suite(panes
             test_workshop_panes_attention.cpp
             test_workshop_panes_info.cpp
             test_workshop_panes_terminal.cpp
+            test_workshop_panes_editor.cpp
+            test_workshop_panes_opening.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -1098,7 +1170,12 @@ zengine_workshop_suite(panes
                 # source read can keep: that the image which presents a Loom participant
                 # cannot construct, own, reach or author through one.
                 "TERMINAL_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/terminal-pane/pane.cpp\""
-                "TERMINAL_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/terminal-pane/CMakeLists.txt\"")
+                "TERMINAL_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/terminal-pane/CMakeLists.txt\""
+                # ...and the Editor pane's source and build file, for the claim only a source
+                # read can keep: that the image which holds a maker's document cannot reach
+                # the host's session, screen or weave.
+                "EDITOR_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/editor-pane/pane.cpp\""
+                "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor-pane/CMakeLists.txt\"")
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -1133,7 +1210,7 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
 # plan can point at and get wrong.
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
-          zengine-operator-consumer-weave zengine-introspection
+          zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
                 # RELOAD-1's two more images: a GOOD consumer weave (the reload's offer
@@ -1145,6 +1222,13 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # An ordinary weave that is not a provider and not an operator consumer,
                 # built by another phase's rules and untouched by this one.
                 "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+                # VD-25's custody witness: the real Editor image, reloaded in place with a
+                # maker's document aboard -- the one lifecycle act a maker can perform on
+                # the pane that holds their unsaved work.
+                "EDITOR_PANE_SO=\"$<TARGET_FILE:zengine-editor-pane>\""
+                # The provider built against the published protocol alone, reloaded in place
+                # through the same path with the state it had.
+                "LEGACY_PANE_SO=\"$<TARGET_FILE:zengine-legacy-pane>\""
                 # A provider surface at a version this host does not speak, and a CONSUMER
                 # surface at a version this host does not speak. Two different refusals;
                 # both must remain distinguishable from "an ordinary artifact".

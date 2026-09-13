@@ -223,45 +223,11 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
     Row* row = nullptr;
     switch (p.owner) {
     case PasteOwner::kNone: return;
-    case PasteOwner::kEditor: {
-        // THE EDITOR'S SETTLEMENT PINS THE WHOLE POSITION, not just the draft: the
-        // request recorded which document was open and exactly where it stood, and
-        // the answer applies there or nowhere. A replaced or closed document strands
-        // the payload silently (the dead draft's own fate); a document that MOVED --
-        // any edit, any caret or selection change between request and answer -- gets
-        // a sentence instead of a paste, because relocating the text to wherever the
-        // caret is now would be answering a question the maker no longer asked.
-        EditorState& e = session_.editor;
-        if (!e.open_document() || e.doc_epoch != p.editor_doc) {
-            return; // the document that asked is gone; discarded, silently
-        }
-        if (e.buffer.revision() != p.editor_revision) {
-            say("the paste answer arrived after the source moved -- nothing was "
-                "pasted; paste again",
-                true);
-            repaint(mail);
-            return;
-        }
-        if (a.readable) {
-            session_.clipboard.text = a.text; // the platform's current truth, asked for
-        }
-        if (session_.clipboard.text.empty()) {
-            repaint(mail);
-            return; // an empty clipboard pastes nothing, the component's own law
-        }
-        const PasteableSource judged = pasteable_source(session_.clipboard.text);
-        if (!judged.representable) {
-            say("the clipboard holds bytes outside plain ASCII, which this editor "
-                "cannot carry truthfully -- nothing was pasted",
-                true);
-            repaint(mail);
-            return;
-        }
-        e.buffer.paste_lines(judged.lines);
-        e.follow_caret = true;
-        repaint(mail);
-        return;
-    }
+    // ⭐ THE EDITOR'S SETTLEMENT ARM WAS HERE AND IS GONE (VD-25). It pinned the answer to
+    // the document AND the position the ask recorded -- a moved buffer got a sentence, a
+    // replaced one silence -- and that whole discipline moved with the buffer: the Editor
+    // weave asks the Skin itself and judges the answer against its own epoch and revision
+    // (`editor-pane/pane.cpp`).
     case PasteOwner::kNaming:
         box = naming_line();
         break;
@@ -291,6 +257,13 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
 
 // WL-KEY-03 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
+    if (quitting_) {
+        HeldInput held;
+        held.kind = HeldInput::Kind::kText;
+        held.text = t;
+        (void)hold_input(std::move(held));
+        return;
+    }
     if (!swallow_text_.empty()) {
         const std::string owed = swallow_text_;
         swallow_text_.clear();
@@ -334,10 +307,6 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     case KeyContext::kPane:
         external_text(keyboard_pane(), t, mail);
         return;
-    case KeyContext::kEditor:
-        editor_text(t.text);
-        repaint(mail);
-        return;
     case KeyContext::kDraft: {
         Row* row = editing_row();
         if (row == nullptr) {
@@ -380,6 +349,13 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+    if (quitting_) {
+        HeldInput held;
+        held.kind = HeldInput::Kind::kButton;
+        held.button = b;
+        (void)hold_input(std::move(held));
+        return;
+    }
     // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
     // open it took every pointer event anywhere -- a press outside its own regions was
     // consumed rather than falling through -- because it was drawn over the room with no
@@ -541,14 +517,13 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // already promises about the pointer.
         //
         // A BUILT-IN CAN BE A CANDIDATE WHEN ITS CATALOG ROW SAYS SO. The Editor was
-        // the first -- a body a maker types into, so a press there points the keys at
-        // their source exactly as a press into an external pane points them at a
-        // provider -- and Project Files is the second, a list with a cursor and
-        // gestures of its own. At two, the distinction stopped being something this
-        // line should know: it is a fact about a KIND, so it is declared on the kind
-        // (`PanelKind::takes_keyboard`) and read here. Every other built-in still
-        // clears the candidate, and this is still not a focus framework -- one
-        // declaration moved, nothing registered.
+        // the first -- a body a maker types into -- and Project Files the second, a list
+        // with a cursor and gestures of its own; at two, the distinction stopped being
+        // something this line should know: it is a fact about a KIND, so it is declared
+        // on the kind (`PanelKind::takes_keyboard`) and read here. Both of those are
+        // weaves now and take the keys as every runtime pane does; the declaration
+        // stays on the kind for the built-ins that remain, and this is still not a
+        // focus framework -- one declaration, nothing registered.
         //
         // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS.
         // Selection is the wider of the two and the keyboard candidate is DERIVED
@@ -606,15 +581,19 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // it would have to guess (a refusal belongs to the deepest layer whose
         // vocabulary contains the reason -- and this one's does not).
         if (here.occupied && is_runtime_kind(here.kind)) {
-            external_press(here.kind, b, mail);
-        } else if (here.occupied && here.kind == panel::kEditor) {
-            // A PRESS INTO THE EDITOR PLACES THE CARET AND BEGINS A SELECTION SWEEP
-            // -- the draft's and the Terminal line's own press, over a document. It
-            // says nothing: the caret is the statement, and the candidate line above
-            // already pointed the keys here for the whole rectangle. A press on the
-            // header or past the body's rows moves nothing and is consumed exactly
-            // as an external pane's header press is.
-            editor_press(b);
+            // AND A PRESS THAT NAMED A ROW OF THE PANE'S BODY TAKES HOLD OF THAT PANE FOR
+            // THE LENGTH OF THE BUTTON. The record is this host's -- which pane, by handle,
+            // and that a sweep is in progress -- and nothing else: what the sweep MEANS is
+            // the pane's, told to it one `PaneDragged` per motion (`external_drag`), and
+            // the release ends the record silently (`end_held_gestures`) and sends nothing,
+            // because a pane resolves a sweep from the positions it was given and needs
+            // no sentence saying the hand let go. A press on the header or the padding
+            // begins no sweep: it named no row, so there is nothing for a motion to extend.
+            if (external_press(here.kind, b, mail)) {
+                session_.text_drag.active = true;
+                session_.text_drag.place = text_drag_place::kExternalPane;
+                session_.text_drag.kind = here.kind;
+            }
         } else if (here.occupied && here.kind == panel::kPaneEditor) {
             // AND A PRESS INTO THE PANE EDITOR -- Files' arm, one pane over:
             // a pane row chooses the SUBJECT, a field row moves the row cursor, the
@@ -626,7 +605,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                    layouts_press(b, mail)) {
             // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
             // second press and the reorder drag, asked ONLY once the ordinary walk has
-            // said this point is that pane's -- the Editor's own press position.
+            // said this point is that pane's -- every pane's own press position.
             // The inverse itself is still specialised to Layouts and still rule
             // end to end (the spans come from `band_status`' own composition); what is
             // gone is the coordinate exception that used to ask it first, above every
@@ -675,6 +654,13 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
 
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+    if (quitting_) {
+        HeldInput held;
+        held.kind = HeldInput::Kind::kMoved;
+        held.moved = m;
+        (void)hold_input(std::move(held));
+        return;
+    }
     // ⭐ READING PAST AN ELLIPSIS WAS THE FIRST THING THIS HANDLER DID, AND IT LEFT WITH THE
     // INFO PANEL. A motion used to resolve `reveal_for` before anything else it might mean and
     // scroll a truncated row under the hand; that feature was Info's alone, needs the row's
@@ -703,10 +689,10 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         }
         return;
     }
-    // ⭐ THE TERMINAL'S MOTION BRANCH WAS HERE AND IS GONE (VD-24) -- with it the last
-    // selection drag this host resolved on behalf of a pane's editable line. A pane's own
-    // line is swept by the pane, out of the presses and motions it is already sent; what
-    // this host still resolves is the SOURCE EDITOR's, which is its own buffer.
+    // ⭐ THE TERMINAL'S MOTION BRANCH WAS HERE AND IS GONE (VD-24), AND THE SOURCE
+    // EDITOR'S WENT AFTER IT (VD-25) -- with it the last selection this host resolved
+    // against a document of its own. A pane's own body is swept by the pane, out of the
+    // presses and the motions it is sent; what this host resolves is the geometry, below.
     // AND ARRANGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
     // with no pane gesture held does nothing at all: only a PRESS begins one, which is
     // the same sentence this handler already said about the document.
@@ -737,40 +723,18 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // motion the pane resolves against its own composition -- this host has no body to resolve
     // it against and no row to sweep.
 
-    // A SELECTION DRAG IN THE SOURCE EDITOR — the third editable place, and the first
-    // where the ROW is meaningful mid-drag: a document has many. The geometry is
-    // re-resolved per motion through the same resolution the press spent; a hand past
-    // the body's top or bottom edge steps the caret one row further per motion (the
-    // component's leftward-step law turned vertical), and the follow flag then pulls
-    // the viewport after it -- deterministic, minimal, and enough to sweep a
-    // selection out of the window a motion at a time.
+    // A SELECTION SWEEP IN A PANE THIS HOST DID NOT COMPILE -- the source editor's own
+    // arm, made general, and the one motion that crosses the seam. The press that began it
+    // recorded the pane; each motion is resolved against that pane's body AS IT IS NOW,
+    // through the same measurer the press spent, and crosses UNCLAMPED: a hand above the
+    // body is a negative row, a hand below it a row past the granted count, and what either
+    // means (step the viewport, extend the range, ignore it) is the pane's own vocabulary.
+    // A pane that is no longer seated ends the sweep inside `external_drag`, with nothing
+    // sent; nothing here repaints, because nothing here changed what is shown -- the
+    // pane's next content will.
     if (session_.text_drag.active &&
-        session_.text_drag.place == text_drag_place::kEditorBody &&
-        session_.editor.open_document()) {
-        const Screen sc = screen_of(session_);
-        const ExternalBodyPlace body = editor_body(session_, sc);
-        if (!body.present) {
-            return;
-        }
-        const ProseAt at = prose_at(m.space, m.x, m.y, body.region_x, body.region_y,
-                                    body.fit);
-        if (!at.understood) {
-            return;
-        }
-        EditorState& e = session_.editor;
-        const std::int64_t brow = at.row - body.header_rows;
-        std::size_t target;
-        if (brow < 0) {
-            target = e.first_row > 0 ? e.first_row - 1 : 0;
-        } else if (brow >= body.rows) {
-            target = e.first_row + static_cast<std::size_t>(body.rows);
-        } else {
-            target = e.first_row + static_cast<std::size_t>(brow);
-        }
-        e.buffer.drag_to(target,
-                         at.column < 0 ? std::int64_t{-1} : e.first_col + at.column);
-        e.follow_caret = true;
-        repaint(mail);
+        session_.text_drag.place == text_drag_place::kExternalPane) {
+        external_drag(session_.text_drag.kind, m, mail);
         return;
     }
     const PointedAt at = canvas_point_of(m.space, m.x, m.y);
@@ -796,8 +760,15 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     repaint(mail);
 }
 
-// WL-EDIT-10 -- agents/workshop/editor.md
+// WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+    if (quitting_) {
+        HeldInput held;
+        held.kind = HeldInput::Kind::kWheel;
+        held.wheel = w;
+        (void)hold_input(std::move(held));
+        return;
+    }
     if (session_.arrange.open || session_.context.open) {
         return;
     }
@@ -827,39 +798,46 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         pane_editor_wheel(w, mail);
         return;
     }
-    if (here.kind != panel::kEditor || !session_.editor.open_document()) {
-        return;
+    // ⭐ THE SOURCE EDITOR'S WHEEL ARM WAS HERE AND IS GONE (VD-25): the last wheel this
+    // host spent on a viewport of its own. A pane's viewport is the pane's, and the wheel
+    // reaches it as `PaneWheel` two arms up, like every other pane's.
+}
+
+// WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md
+bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail) {
+    const LayoutTabPress tab =
+        band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
+    if (!tab.hit) {
+        return false;
     }
-    if (!over_editor_body(session_, sc, w.space, w.x, w.y)) {
-        return;
+    if (tab.create) {
+        // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE:
+        // the same door, the same ceiling, the same refusal in the same words. It arms
+        // no double-click and begins no drag -- it is not a tab.
+        session_.tab_click = TabClickMemory{};
+        new_layout(mail);
+        return true;
     }
-    EditorState& e = session_.editor;
-    const std::int64_t lines = spend_wheel(e.wheel_accum, w.dy, kEditorWheelLines);
-    if (lines == 0) {
-        return;
+    // A SECOND PRESS ON THE SAME TAB RENAMES IT, and the first one has already
+    // made that tab live -- which is why the editor's subject and the switch cannot
+    // disagree. `press_selects_word`'s discipline exactly: the completing press SPENDS
+    // the arming, so there is no triple-click, and a first press is an ordinary switch
+    // with an arming left beside it.
+    const std::int64_t now = interaction_now();
+    if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
+        session_.tab_click = TabClickMemory{};
+        open_layout_rename(tab.at);
+        return true;
     }
-    const ExternalBodyPlace body = editor_body(session_, sc);
-    if (!body.present) {
-        return;
-    }
-    const std::size_t rows = static_cast<std::size_t>(body.rows);
-    const std::size_t total = e.buffer.line_count();
-    const std::size_t furthest = total > rows ? total - rows : 0;
-    std::size_t first = e.first_row;
-    if (lines > 0) {
-        const std::size_t up = static_cast<std::size_t>(lines);
-        first = first > up ? first - up : 0;
-    } else {
-        first += static_cast<std::size_t>(-lines);
-    }
-    if (first > furthest) {
-        first = furthest;
-    }
-    if (first == e.first_row) {
-        return; // already at the edge: nothing moved, nothing repaints
-    }
-    e.first_row = first;
-    repaint(mail);
+    session_.tab_click = TabClickMemory{true, tab.at, now};
+    // AND THE PRESS TAKES HOLD OF THE TAB. A press that becomes a drag
+    // reorders; a press that does not is exactly the switch it always was, because a
+    // drag that never moved lands the layout back where it started. The record holds no
+    // position: the switch below has just made this tab the live one, so what is being
+    // carried is always `setup.active_at`.
+    session_.tab_drag.active = true;
+    switch_layout(tab.at, mail);
+    return true;
 }
 
 } // namespace zengine::workshop

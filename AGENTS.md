@@ -8,6 +8,21 @@ appear in a public page, and `doc_links`). Substrate truth belongs to the Loom:
 <https://github.com/Krealsion/Loom/blob/main/docs/CONTEXT.md>; with a sibling checkout those
 are `../Loom/docs/README.md` and `../Loom/docs/CONTEXT.md`.
 
+## Intent, evidence, and architectural fit
+
+Approved purpose, requirements, and architectural contracts determine whether a change is right.
+Code, observations, and tests establish current behavior under the conditions examined. A passing
+test cannot by itself settle intended behavior or justify weakening a contract. If they disagree,
+trace the requirement and actual path, identify whether code, test, or prose is wrong, and correct
+that part within the authorized scope. Escalate changes to intended contracts to their owner.
+
+Before implementation and again at review, assess the complete result: does it serve the intended
+capability, preserve coherent ownership/authority/composition, and leave selected next work and
+known consumers able to build on it? Local green does not excuse avoidable coupling, duplicate
+truth, special cases, or migration burdens imposed on future owners. Revise that design; make
+necessary tradeoffs explicit for acceptance. Keep the argument proportional and grounded in
+real consumers, not speculative abstractions. Required checks still have to pass.
+
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
@@ -18,6 +33,7 @@ routed: read a surface's document when the task touches that surface, not before
 | lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers under `agents/verification/` |
 | `surface/` — the drawing vocabulary, grounds, planes, the TUI/SDL media, input backends | [agents/surface.md](agents/surface.md) |
 | `workshop/` or `component/` — Workshop's law, one register per owner under `agents/workshop/` | [agents/workshop.md](agents/workshop.md), the router |
+| `files/`, `builder-pane/`, `attention-pane/`, `info-pane/`, `terminal-pane/` — extracted pane behavior and its shared protocol | [agents/workshop.md](agents/workshop.md) and [agents/panes.md](agents/panes.md) |
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
 | `maker/` — a weave built from a maker's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |

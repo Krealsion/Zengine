@@ -63,6 +63,36 @@ BECAUSE — all eight compile commands were identical token for token and both l
 in exactly the object path; that is a stronger answer than any argument about flags.
 SEEN — nowhere yet
 
+## VM-PROBE-10 — Read the declared surface, not only the snapshot
+
+METHOD — A weave's snapshot and its declared read surface are two questions; ask both of the running image, and where a field is materialized, COUNT the materializations and read that count too.
+BECAUSE — a snapshot built on demand left the shape reads are answered from untouched, so a
+document rode a reload intact while `path` and `text` read empty; the repair then rebuilt the
+whole document on an arrow key with every returned byte identical. Output saw neither.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W52: every field the pane advertises
+reports what it is holding now"`, case `"EDIT-W64: the mirror is rebuilt when the bytes move and
+at no other time"`; `tests/test_workshop_load.cpp` case `"RELOAD-3/VD-26: the reloaded pane reads
+live, not out of the snapshot it revived from"`.
+
+## VM-PROBE-11 — Do not move the simulated hand between two events of one poll
+
+METHOD — Resolve a batch's geometry ONCE, before the first gesture is queued, and let the enqueue helpers spend those numbers: an observation that advances the schedule is not an observation.
+BECAUSE — re-aiming per gesture hid the reflow the batch existed to catch, and it did the
+re-aiming by READING the pane -- a poke, which drains -- so the batch delivered its own press
+before the motion was queued, and proved two polls. Measured, on the committed witness.
+SEEN — `tests/test_workshop_panes_editor.cpp` `EditorRig::aim`, `EditorRig::enqueue_press_doc`,
+`EditorRig::admitted_caret`.
+
+## VM-PROBE-12 — A cost is measured at the bound, on both shapes, and split from the baseline
+
+METHOD — A cost claimed per operation is measured at the admitted bound on both document shapes -- one long line and many short lines -- and split into the instrument's own work and the work the owner did anyway.
+BECAUSE — one increment on a four-thousand-line sample counted the materializations and said
+nothing about what one costs beside the history's own snapshot, which is the same order of
+work and was there all along; a count is not a cost.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is rebuilt when the
+bytes move and at no other time"` (the count); the measurement rides with the phase record
+(VM-WIT-24).
+
 ## VM-PROBE-09 — A precedent transfers only as far as its reason
 
 METHOD — A precedent transfers only as far as its reason: the neighbouring fixture tree is prepared at build time because a suite binary depends on it; copy the reason, not the shape.

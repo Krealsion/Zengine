@@ -65,6 +65,11 @@
         "artifact": "zengine-terminal-pane",
         "provider": [],
         "weave": [ { "role": "zengine.terminal" } ]
+      },
+      {
+        "artifact": "zengine-editor-pane",
+        "provider": [],
+        "weave": [ { "role": "zengine.editor" } ]
       }
     ]
   }

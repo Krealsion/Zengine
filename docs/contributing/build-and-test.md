@@ -263,9 +263,12 @@ cmake -P tests/check_package_vocabulary.cmake
 
 ## What a green means
 
-**Green means nothing complained.** Proven means a regression test asserts it; everything else
-is true-by-construction-and-not-yet-pinned. A green must name a population that actually ran,
-which repository it was, which configuration, and which compiler.
+**Green means nothing complained.** A regression test pins its assertion under the conditions
+it exercises. It does not establish that the assertion is the right requirement or that the
+combined design remains useful to its consumers. A source-traced property without a regression
+witness is true by construction, not yet pinned; an unexamined claim is unverified. A green names
+the population that ran, the repository, configuration, and compiler. Review the complete design
+and its effect on known consumers alongside the behavioral evidence.
 
 ## Warnings
 
