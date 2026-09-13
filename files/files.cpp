@@ -236,9 +236,10 @@ Window fitted_window(std::size_t total, std::size_t at, std::int64_t budget) {
 class FilesWeave
     : public loom::WeaveBase<
           FilesWeave, files::FilesState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, PaneWheel, PaneActionRequested, ProjectRoot, RecipeOutcome,
-                       SourceOpened, loom::DispatchRefused, zengine::builder::BuildStatus,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
+                       ws::v2::PanePressed, PaneKey, PaneTextInput, PaneWheel,
+                       PaneActionRequested, ProjectRoot, RecipeOutcome, SourceOpened,
+                       loom::DispatchRefused, zengine::builder::BuildStatus,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
@@ -262,6 +263,11 @@ public:
     /// WORKSHOP GRANTS THE PANE ITS ROOM -- the one beat on which this tool draws. The
     /// listing is a snapshot re-enumerated here (WL-FILES-12); if this run has no origin
     /// yet, the room grant is also when the browser first asks the host where it began.
+    ///
+    /// ⚠ AND A GRANT IS NOT A MAKER'S ACT, so it keeps the maker's selection. A room moves for
+    /// reasons that have nothing to do with the listing -- a resized surface, a dragged edge, and
+    /// the title row a hidden-titles pane gets back with the keys, which arrives right behind the
+    /// press that selected -- and resetting the cursor there undid that press.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != files::kProjectFilesPane) {
             return;
@@ -274,7 +280,7 @@ public:
             say(mail); // (waiting) until the answer arrives; the header still names the pane
             return;
         }
-        refresh();
+        relist();
         say(mail);
     }
 
@@ -297,8 +303,23 @@ public:
         say(mail);
     }
 
+    /// A PRESS FROM A HOST THAT SAYS NOTHING ABOUT WHERE THE KEYS WERE -- one that predates the
+    /// second version, or could not answer which version this pane accepts. Not knowing is
+    /// not permission: the press selects, and Return is how such a maker opens the row.
     void on(const PanePressed& press, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || press.pane != files::kProjectFilesPane) {
+        pressed(press.pane, press.row, /*keys_went_here=*/false, mail);
+    }
+
+    /// ...AND ONE THAT DOES: Workshop read, before the press moved the keyboard, whether an
+    /// ordinary key was reaching this pane.
+    void on(const ws::v2::PanePressed& press, loom::Mail& mail) {
+        pressed(press.pane, press.row, press.keys_went_here, mail);
+    }
+
+    // WL-FOCUS-04 -- agents/workshop/focus.md
+    void pressed(const std::string& pane, std::int64_t row, bool keys_went_here,
+                 loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || pane != files::kProjectFilesPane) {
             return;
         }
         if (chooser_.open || authoring_.open) {
@@ -307,7 +328,7 @@ public:
         // THE PRESS IS READ AGAINST THE PICTURE IT WAS AIMED AT, before anything below changes the
         // next one: spending the notice moves every row up, and a new cursor moves the window.
         std::size_t which = 0;
-        if (!entry_at_row(press.row, which)) {
+        if (!entry_at_row(row, which)) {
             return; // the notice, the header, a marker row, or blank space names no entry
         }
         // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds, too
@@ -315,15 +336,16 @@ public:
         const bool spent = !notice_.empty();
         const std::uint64_t published = published_;
         notice_.clear();
-        if (had_keyboard_ && which == static_cast<std::size_t>(state_.cursor)) {
-            open(mail); // a press on the already-selected row activates it (WL-FOCUS-04)
+        // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS ALREADY WERE:
+        // the press that brings the keys to this pane is a maker pointing at it, not an act in it.
+        if (keys_went_here && which == static_cast<std::size_t>(state_.cursor)) {
+            open(mail);
             if (spent && published_ == published) {
                 say(mail);
             }
             return;
         }
         state_.cursor = static_cast<std::int64_t>(which);
-        had_keyboard_ = true; // the press that selects has also pointed the keys here
         say(mail);
     }
 
@@ -331,7 +353,6 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != files::kProjectFilesPane) {
             return;
         }
-        had_keyboard_ = true;
         // ONLY THE AUTHORING LINE READS RAW KEYS. Everything else this pane does arrives as
         // a resolved id (`on(PaneActionRequested)`); a component's editing gestures are the
         // component's, not the pane's commands.
@@ -577,12 +598,7 @@ public:
         if (first || said.builds == built_before) {
             return; // a description, not news: nothing on disk changed because of this
         }
-        const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
-        const std::string was = row != nullptr ? row->name : std::string();
-        refresh();
-        if (!was.empty()) {
-            point_at(was);
-        }
+        relist();
         say(mail);
     }
 
@@ -745,6 +761,20 @@ private:
         listing_ = ws::enumerate_directory(state_.current_dir);
         state_.cursor = 0;
         wheel_accum_ = 0.0;
+    }
+
+    /// LOOK AT THE SAME PLACE AGAIN FOR A REASON THAT IS NOT THE MAKER'S -- a room granted, a
+    /// build finished -- and keep what the maker selected: the entry the cursor named is found
+    /// again by name, and only an entry the fresh listing no longer has leaves the cursor at the
+    /// top. A move to another place (enter, parent, a mark) and `files.refresh` start from
+    /// `refresh()` itself.
+    void relist() {
+        const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+        const std::string was = row != nullptr ? row->name : std::string();
+        refresh();
+        if (!was.empty()) {
+            point_at(was);
+        }
     }
 
     void move(std::int64_t by) {
@@ -1260,7 +1290,6 @@ private:
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
     bool granted_ = false;
-    bool had_keyboard_ = false;
     static constexpr std::int64_t kHeaderRows = 1;
 
     bool settled_ = false;

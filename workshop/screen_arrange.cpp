@@ -195,6 +195,16 @@ KeyContext keyboard_context(const Session& s) {
     return keyboard_context_beneath_menu(s);
 }
 
+// WL-FOCUS-04, WL-FOCUS-10 -- agents/workshop/focus.md
+std::int64_t typing_pane(const Session& s) {
+    // THE KEY HANDLER'S OWN ORDER, READ AS A VALUE: the hotkey view spends every key the rows
+    // above the modes do not, and below it the resolved context decides (`on(KeyPressed)`).
+    if (s.hotkeys.open || keyboard_context(s) != KeyContext::kPane) {
+        return kNoPaneKind;
+    }
+    return keyboard_pane(s.panels);
+}
+
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
 bool escape_may_shed_selection(KeyContext c) {
     return c == KeyContext::kPaneEditor || c == KeyContext::kCommand;

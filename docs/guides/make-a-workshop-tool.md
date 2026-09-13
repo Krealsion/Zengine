@@ -947,11 +947,30 @@ Two consequences worth designing for:
   screen — drop your map with the grant rather than reading a press against a picture nobody is
   looking at.
 
+### Did the maker's keys already point at my pane?
+
+Only if you ask for the press's second version. A press is also the gesture that points the
+keyboard at your pane, so a pane that activates a row on a press — the Files pane opens the
+selected file — needs to know whether this press *brought* the keys or found them already there.
+`v2::PanePressed { pane, row, column, keys_went_here }` says exactly that: `keys_went_here` is
+true when ordinary keys were reaching your pane at the instant of the press, and false when they
+were elsewhere or when a picker, a naming line or the hotkey view had them.
+
+- **Accept it beside `PanePressed`, never instead of it.** Workshop sends each press once, as the
+  second version when the pane's office is held by a weave that accepts it and as the first
+  otherwise — so a pane that accepts only `PanePressed` is unchanged, and a Workshop that predates
+  the second version still sends you the first.
+- **A first-version press says nothing about the keys.** Treat it as "not known", never as "they
+  were here": the Files pane only selects on one, and Return still opens.
+- **Nothing is sent when the keys leave**, and no answer or retry follows a press your office could
+  not take. Adding the door changes what your weave accepts, which a reload in place refuses:
+  restart Workshop to load it.
+
 ### What is deliberately absent
 
-Still no focus, capture, hover, release, double-press or drag forwarding of any kind, and no
-reply, disposition or acknowledgement. (Keys and text do cross, as `PaneKey` and
-`PaneTextInput`, once a maker has pressed into your pane; the wheel crosses as `PaneWheel`
+Still no focus-changed notification, capture, hover, release or double-press of any kind, and no
+reply, disposition or acknowledgement. (A sweep crosses as `PaneDragged`; keys and text cross as
+`PaneKey` and `PaneTextInput` once a maker has pressed into your pane; the wheel crosses as `PaneWheel`
 `{pane, dx, dy}` — the notches over your body, unchanged, whether or not you hold the keys.
 Accept it and spend it as your own Up/Down step; a pane that does not accept it is unchanged.
 And the actions you declare beside your offer — `PaneActions{pane, rows}`, each row an id in

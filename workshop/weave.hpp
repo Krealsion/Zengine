@@ -74,6 +74,16 @@ struct HostContext {
     // WL-PTR-01 -- agents/workshop/pointer.md
     std::function<std::int64_t()> interaction_now;
 
+    /// DOES WHOEVER HOLDS `role` AT THIS INSTANT ACCEPT `shape`? Answered by the host from the
+    /// bus's own facts -- the role's holder and that holder's accepted schemas, the set a
+    /// delivery is matched against -- for a native or a loaded holder alike, and kept nowhere
+    /// (`holder_accepts_on` is the answer both the host and a suite wire). It chooses which
+    /// published version of a sentence to send and PROMISES NOTHING ABOUT DELIVERY: the role is
+    /// resolved again when the message is dispatched, and a different holder may refuse it.
+    /// Empty answers no, and every such sentence then crosses in its first version.
+    // WL-FOCUS-04 -- agents/workshop/focus.md
+    std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
     /// HOST -- through the read-only project office (`pane_doors.hpp`), to the Builder pane,
     /// which then asks the Editor's own office to open the file it names.
@@ -230,6 +240,14 @@ struct HostContext {
     }
 };
 
+/// THE HOST'S ANSWER TO `HostContext::holder_accepts`, READ OFF `bus` AT THE CALL: the weave
+/// holding `role` now, and whether its published accept-set has a door of exactly `shape`'s
+/// identity (name, version and structure -- what dispatch selects a door by and what the gate
+/// then admits against). Nobody holding the role is no. A weave that accepts every registered
+/// shape by its accept MODE declares no door here, and is answered no.
+bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
+                       const loom::Schema& shape);
+
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopDoc,
@@ -268,6 +286,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PanePressed,
+                                        zengine::workshop::v2::PanePressed,
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
                                         zengine::workshop::PaneWheel,
@@ -1169,7 +1188,12 @@ private:
     /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM. Answers whether the press NAMED A ROW
     /// of the granted body -- which is what a sweep may begin from -- and nothing about
     /// what the provider made of it, which this host never learns.
-    bool external_press(std::int64_t kind, const zengine::input::PointerButton& b,
+    ///
+    /// `at` AND `keys_went_here` ARE THE PICTURE THE MAKER PRESSED, read by the caller before
+    /// the press moved the keyboard: where the press landed in the body as it was painted, and
+    /// whether that pane was where an ordinary key went. The press crosses ONCE, as
+    /// `v2::PanePressed` when the office's current holder accepts it and as v1 otherwise.
+    bool external_press(std::int64_t kind, const ExternalPressAt& at, bool keys_went_here,
                         loom::Mail& mail);
 
     /// TELL THE PANE A PRESS BEGAN IN THAT THE HAND MOVED WITH THE BUTTON DOWN -- resolved

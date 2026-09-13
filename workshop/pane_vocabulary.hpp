@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// seven times since. Twenty-one shapes, four of them a second version of one declaration.
+// eight times since. Twenty-two shapes, five of them a second version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
@@ -17,6 +17,7 @@
 //     PaneCaret              provider  ->  Workshop   "...and here is where I am typing in it."
 //     v2::PaneCaret          provider  ->  Workshop   "...in that generation."
 //     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
+//     v2::PanePressed        Workshop  ->  provider   "...and whether your keys were already here."
 //     PaneDragged            Workshop  ->  provider   "...and their hand is here now, still down."
 //     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
 //     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
@@ -129,6 +130,12 @@
 // last pressed into, and sends that pane the keys. It is still not capture --
 // nothing is held across a release, the memory is a single kind resolved fresh at
 // every spend, and a press ANYWHERE else takes it away again. See `PaneKey`.
+//
+// ITS SECOND VERSION SAYS ONE THING ABOUT THAT MOVE, AND ONLY AS IT STOOD AT THE PRESS
+// (`v2::PanePressed`): whether ordinary keys were already reaching this pane. It is a fact
+// about routing, read before the press moved anything, and never an instruction -- what it
+// means for a row is the pane's -- and it is not a focus notification: nothing is said when
+// the keys leave a pane, and nothing is kept between presses to say it from.
 //
 // ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
 //
@@ -265,6 +272,42 @@ struct PanePressed {
     std::int64_t column = 0;
     ZEN_SHAPE(PanePressed, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
 };
+
+/// THE SAME PRESS, AND WHERE THE KEYS WENT JUST BEFORE IT.
+///
+/// `pane`, `row` and `column` are v1's, resolved the same way: against the picture the maker
+/// pressed, which is the one painted before this press moved the keyboard -- a press that
+/// brings back the title a hidden-titles pane keeps while it has the keys names the row that
+/// was painted where it landed, not the row under the title that arrives with it.
+///
+/// `keys_went_here` IS TRUE EXACTLY WHEN THIS PANE WAS WHERE AN ORDINARY KEY WENT immediately
+/// before Workshop handled this press: no mode and no hotkey view had the keys, and the pane
+/// the keyboard was pointed at was this one. A pane that is still the keyboard's candidate
+/// under an open picker was not where the keys went. It says nothing about the next key
+/// (a chord answered above every mode still is), nothing about any earlier press, and it
+/// commands nothing: a pane that activates only what was already its keys' subject reads it,
+/// and a pane with no such rule ignores it.
+///
+/// ONE PRESS CROSSES AS ONE SHAPE. Workshop sends this version INSTEAD of v1, never beside it,
+/// and only when the host answers that the office's current holder accepts it; every other
+/// pane hears v1, unchanged. The answer is an inspection, not a reservation: the office is
+/// resolved again at delivery, a different holder may refuse this version, and that refusal
+/// is the press's outcome -- nothing is retried and no v1 follows it. A v1 press states no
+/// routing fact at all, so a pane that accepts both must not read v1 as "the keys were here".
+/// A second published version rather than a field, for `v2::PaneActions`' reason (Loom
+/// GATE-04): a published `(name, version)` is frozen.
+namespace v2 {
+
+struct PanePressed {
+    std::string pane;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    bool keys_went_here = false; ///< ordinary keys reached this pane just before this press
+    ZEN_SHAPE(PanePressed, 2, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(keys_went_here));
+};
+
+} // namespace v2
 
 /// A KEY WENT DOWN WHILE THIS PANE HELD THE KEYBOARD.
 ///

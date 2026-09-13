@@ -162,11 +162,14 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 LAW — A listing is recomputed at the room grant, an enter, a parent, `files.refresh`, and on a finished build; no watcher, no timer, no poll, and staleness between those moments is named, not solved.
 
 MEANS
-- the room grant is the pane's own beat: the walk happens there, never inside anything that draws.
+- the room grant is the pane's own beat: the walk happens there, never inside anything that draws;
+- a walk nobody asked for, a grant or a build, keeps the selected entry by name (`relist`).
 
-PROVEN BY — `files/files.cpp` `refresh`; `files/vocabulary.hpp` `kActionRefresh`;
+PROVEN BY — `files/files.cpp` `refresh`, `relist`; `files/vocabulary.hpp` `kActionRefresh`;
 `docs/workshop/limitations.md` `listing`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: the pane lists the place this run began, asked of the host"`.
+`"FILES-WEAVE: the pane lists the place this run began, asked of the host"`, case `"with pane
+titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused
+has settled, and a later press opens gamma"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-13 — Bounds and order

@@ -985,6 +985,13 @@ KeyContext keyboard_context_beneath_menu(const Session& s);
 /// no context stack, and a mode that closes stops being the answer with nothing to clear.
 KeyContext keyboard_context(const Session& s);
 
+/// THE PANE AN ORDINARY KEY GOES TO RIGHT NOW, or `kNoPaneKind` -- the pane the key handler
+/// would hand a keystroke no above-mode row answers: the context is a pane's and no hotkey view
+/// has the keys. Not `keyboard_pane`, which is the pane the keys RETURN to and still names a
+/// pane under an open picker. A press's `keys_went_here` and the band's typing sentence are
+/// both this answer, so what crosses the seam and what the screen says cannot disagree.
+std::int64_t typing_pane(const Session& s);
+
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
 bool escape_may_shed_selection(KeyContext c);
 

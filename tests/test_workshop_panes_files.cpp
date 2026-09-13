@@ -124,22 +124,47 @@ inline std::int64_t cursor_said(const std::vector<std::string>& rows) {
 }
 
 /// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: the row each `PanePressed` delivered to the
-/// browser carried, how many opens the browser attempted -- delivered, or refused at dispatch --
-/// and the exact path of each one delivered. A case states the provider row it aimed at and the
-/// file an activation asked for, rather than inferring either from the pane's answer.
+/// weave carried, the version it crossed in and the routing fact a second version states, how
+/// many opens the weave attempted -- delivered, or refused at dispatch -- and the exact path of
+/// each one delivered. A case states the provider row it aimed at, where Workshop said the keys
+/// were, and the file an activation asked for, rather than inferring any of them from the pane's
+/// answer. A press is read by field name, so one tap reads either version.
 struct SeamTap {
     loom::Switchboard& bus;
     loom::WeaveId browser;
     loom::ObserverId id{};
     std::vector<std::int64_t> pressed;
+    std::vector<std::uint32_t> versions;  ///< per delivered press
+    std::vector<int> keys_went_here;      ///< per delivered press: 1, 0, or -1 for a v1 (no fact)
+    std::vector<std::string> heard;       ///< every shape delivered to the weave, in order
+    std::size_t refused = 0;              ///< deliveries to the weave Loom refused
+    std::size_t keys = 0;                 ///< raw keys the weave was sent (`PaneKey`)
+    std::size_t actions = 0;              ///< resolved ids (`PaneActionRequested`)
+    std::size_t rooms = 0;
     std::size_t attempts = 0;
     std::vector<std::string> requested;
 
     SeamTap(loom::Switchboard& b, loom::WeaveId weave) : bus(b), browser(weave) {
         id = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Refused && ev.target == browser) {
+                ++refused;
+            }
+            if (ev.kind == loom::EventKind::Delivered && ev.target == browser) {
+                heard.push_back(ev.schema_name);
+                keys += ev.schema_name == PaneKey::zen_name ? std::size_t{1} : std::size_t{0};
+                actions += ev.schema_name == PaneActionRequested::zen_name ? std::size_t{1}
+                                                                           : std::size_t{0};
+                rooms += ev.schema_name == PaneRoom::zen_name ? std::size_t{1} : std::size_t{0};
+            }
             if (ev.kind == loom::EventKind::Delivered && ev.target == browser &&
                 ev.schema_name == PanePressed::zen_name && ev.payload != nullptr) {
-                pressed.push_back(loom::from_value<PanePressed>(*ev.payload).row);
+                const loom::Cell* row = ev.payload->get("row");
+                const loom::Cell* fact = ev.payload->get("keys_went_here");
+                pressed.push_back(row != nullptr && row->is(loom::Kind::Int) ? row->as_int() : -1);
+                versions.push_back(ev.schema_version);
+                keys_went_here.push_back(fact != nullptr && fact->is(loom::Kind::Bool)
+                                             ? (fact->as_bool() ? 1 : 0)
+                                             : -1);
             }
             if (ev.sender == browser && ev.schema_name == OpenSourceRequested::zen_name &&
                 (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
@@ -289,6 +314,17 @@ struct FilesRig {
             loom::to_value(input::KeyPressed{sc, "", input::mod::kNone}), loom::WeaveId{},
             loom::WeaveId{}, 0));
     }
+    /// ...AND A PRESS ON ONE OF THE PANE'S PROVIDER ROWS, queued the same way: `press_pane`'s
+    /// arithmetic against the picture as it stands when the press is queued.
+    void enqueue_press(std::int64_t row) {
+        const ui::Rect body = external_body_rect(r.session(), kind);
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::PointerButton{1, true, body.x,
+                                                body.y + kExternalHeaderRows + row +
+                                                    surface::kTuiCanvasTopRow,
+                                                input::space::kCells, input::mod::kNone}),
+            loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
 
     /// A STRANGER THAT CAN SAY `zen.DispatchRefused` AS A SHAPE -- granted so the forgery
     /// case proves the PANE's refusal to act on ordinary speech, not the bus's grant refusal.
@@ -413,13 +449,11 @@ struct FilesRig {
 
     /// EVERY ROW THE ROOM HOLDS, PRESSED ONCE FROM THE SAME PICTURE: the cursor on `at`, with a
     /// refusal leading or not, settled again before each press because a press can change it.
-    /// First, a maker's press on the cursor's own row: arrows arrive as action ids, and the press
-    /// is what takes the pane's keys, so a later press on that row is the activation gesture.
+    /// The rig's title press gave the pane the keys and the arrows that settle it keep them
+    /// there, so every press here is made by a maker whose keys are already Files': a press on
+    /// the cursor's own row is the activation gesture.
     void sweep(std::int64_t at, bool refusal_leads) {
-        settle(at, false);
-        const std::int64_t mine = row_beginning(shown(), "> ");
-        REQUIRE(mine >= 0);
-        press_pane(r, kind, mine, 0);
+        REQUIRE(typing_pane(r.session()) == kind);
         SeamTap tap(r.bus, files_id());
         for (std::int64_t row = 0; row < granted_rows(); ++row) {
             settle(at, refusal_leads);
@@ -599,20 +633,27 @@ TEST_CASE("FILES-WEAVE: Return walks into a directory, Backspace walks out") {
 }
 
 TEST_CASE("FILES-WEAVE: a press selects, and a second press on the same row activates") {
-    // THE TWO-PRESS PROMISE IS THE PANE'S OWN NOW (the focus register's fourth law). The
-    // first press into a pane that does not hold the keys selects the row and takes them; a
-    // press on the row a pane already has selected is the activation gesture.
+    // THE TWO-PRESS PROMISE IS THE PANE'S OWN (the focus register's fourth law), decided from the
+    // fact Workshop reports with the press. The keys begin elsewhere -- a press outside the pane
+    // gives them to Workshop -- so the first press, even on the row the cursor already rests on,
+    // only selects it and takes the keys; the second, the keys now Files', activates it.
     FilesRig f("files-press");
     std::filesystem::create_directory(f.root / "src");
     put_file(f.root / "src" / "inner.cpp", "int i;\n");
     put_file(f.root / "zulu.cpp", "int z;\n");
     f.open();
+    press_outside(f.r, f.kind);
+    REQUIRE(keyboard_pane(f.r.session().panels) == kNoPaneKind);
+    SeamTap tap(f.r.bus, f.files_id());
 
-    // Row 0 is the pane's own header; row 1 is the first entry under it.
+    // Row 0 is the pane's own header; row 1 is the first entry under it, `src/`, where the cursor
+    // already is.
     press_pane(f.r, f.kind, 1, 0);
     CHECK(f.at_cursor().rfind("src/", 0) == 0);
+    CHECK_FALSE(any_row(f.shown(), "inner.cpp"));
     press_pane(f.r, f.kind, 1, 0);
     CHECK(any_row(f.shown(), "inner.cpp"));
+    CHECK(tap.keys_went_here == std::vector<int>{0, 1});
 }
 
 TEST_CASE("FILES-WEAVE: the wheel moves the cursor, and a header press names no entry") {
@@ -689,18 +730,17 @@ TEST_CASE("a press on Files' painted header while a refusal leads selects nothin
 }
 
 TEST_CASE("a press on Files' painted selected row while a refusal leads opens exactly that row's file") {
-    // THE TWO-PRESS PROMISE, UNDER A NOTICE. The maker's first press on `alpha.cpp` selects it and
-    // takes the pane's keys; Return's open is refused for want of an opening office, and the
-    // refusal leads. The office is then held, so the press on the row marked `>` is the activation
-    // gesture -- and it must open the file that row shows, not the row below it. What it asked for
-    // and what the Editor then holds are both read as exact paths.
+    // THE ACTIVATION, UNDER A NOTICE. The rig's title press gave the pane the keys with the cursor
+    // on `alpha.cpp`; Return's open is refused for want of an opening office, and the refusal
+    // leads. The office is then held, so the press on the row marked `>` -- the keys still
+    // Files' -- is the activation gesture, and it must open the file that row shows, not the row
+    // below it. What it asked for and what the Editor then holds are both read as exact paths.
     FilesRig f("files-press-selected");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
-    const std::int64_t first = row_beginning(f.shown(), "> alpha.cpp");
-    REQUIRE(first == 1);
-    press_pane(f.r, f.kind, first, 0);
+    REQUIRE(row_beginning(f.shown(), "> alpha.cpp") == 1);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
     f.r.key(input::scan::kReturn);
     f.r.mount_opening();
     const std::vector<std::string> before = f.shown();
@@ -780,6 +820,415 @@ TEST_CASE("in a room too small for the window Files composes, a press names only
     SUBCASE("with a refusal leading") {
         f.sweep(kLongListing / 2, true);
     }
+}
+
+// ============================================================================
+// A press opens a row only where the keys already were -- and Workshop says where they were
+// ============================================================================
+
+TEST_CASE("a press on Files' selected row after its open moved the keys to the Editor selects that row and takes the keys back, and opens nothing") {
+    // THE PRESS THAT POINTS THE KEYS IS NOT AN ACT IN THE PANE (WL-FOCUS-04). Files opened beta
+    // and the Editor took the keys; beta is still Files' selection. Pressing it again is a maker
+    // coming back to Files, and what it may do is aim the keys -- a second open of beta is the
+    // defect. Only the press after that, with the keys Files' own, opens it.
+    FilesRig f("files-back-from-open");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
+    REQUIRE(f.at_cursor().rfind("beta.cpp", 0) == 0);
+    REQUIRE(tap.attempts == 0);
+    f.r.key(input::scan::kReturn);
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(tap.requested == std::vector<std::string>{beta});
+    REQUIRE(keyboard_pane(f.r.session().panels) == editor);
+
+    // THE KEYS ARE THE EDITOR'S: an ordinary key reaches it, and Files hears nothing.
+    SeamTap editor_tap(f.r.bus, f.r.kernel.weave_id("zengine-editor-pane"));
+    const std::size_t files_heard = tap.heard.size();
+    f.r.key(input::scan::kDown);
+    CHECK(editor_tap.keys + editor_tap.actions == 1);
+    CHECK(tap.heard.size() == files_heard);
+
+    // ONE PRESS ON FILES' STILL-SELECTED ROW: it selects, the keys come back, nothing is asked.
+    const std::int64_t selected = row_beginning(f.shown(), "> beta.cpp");
+    REQUIRE(selected >= 0);
+    const std::size_t presses = tap.pressed.size();
+    press_pane(f.r, f.kind, selected, 0);
+    REQUIRE(tap.pressed.size() == presses + 1);
+    CHECK(tap.versions.back() == 2u);
+    CHECK(tap.keys_went_here.back() == 0);
+    CHECK(tap.requested == std::vector<std::string>{beta});
+    CHECK(tap.attempts == 1);
+    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
+
+    // ...AND THE NEXT PRESS ON IT, THE KEYS BEING FILES', IS THE ACTIVATION.
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+    REQUIRE(tap.pressed.size() == presses + 2);
+    CHECK(tap.keys_went_here.back() == 1);
+    CHECK(tap.requested == std::vector<std::string>{beta, beta});
+    CHECK(keyboard_pane(f.r.session().panels) == editor);
+}
+
+TEST_CASE("the keys leave Files by a press into the Editor and Files is told nothing, so only Workshop can say a later press on Files' selected row came from elsewhere") {
+    // WHY A PANE-LOCAL MEMORY CANNOT ANSWER THIS. The keys leave Files for the Editor by a press
+    // on the Editor's own row, and no delivery reaches Files: there is no departure message, by
+    // design (the vocabulary's "no focus-changed notification"). The fact has to come with the
+    // press, from the party that routes the keys.
+    FilesRig f("files-leave-by-press");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string alpha = (f.root / "alpha.cpp").lexically_normal().generic_string();
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
+    f.r.key(input::scan::kReturn);
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  alpha.cpp"), 0);
+    REQUIRE(f.at_cursor().rfind("alpha.cpp", 0) == 0);
+    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+
+    SeamTap tap(f.r.bus, f.files_id());
+    SeamTap editor_tap(f.r.bus, f.r.kernel.weave_id("zengine-editor-pane"));
+    press_pane(f.r, editor, 1, 0); // the Editor's first document row
+    CHECK(keyboard_pane(f.r.session().panels) == editor);
+    CHECK(tap.heard.empty()); // nothing at all reached Files as the keys left it
+    // THE EDITOR, A PANE THAT ACCEPTS ONLY THE FIRST VERSION, HEARD EXACTLY ONE PRESS IN IT.
+    REQUIRE(editor_tap.pressed.size() == 1);
+    CHECK(editor_tap.versions[0] == 1u);
+    CHECK(editor_tap.refused == 0);
+
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> alpha.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.keys_went_here[0] == 0);
+    CHECK(tap.attempts == 0);
+    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> alpha.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.keys_went_here[1] == 1);
+    CHECK(tap.requested == std::vector<std::string>{alpha});
+}
+
+TEST_CASE("a press on Files' selected row opens it when the keys were already Files', whether Workshop's title, Files' own header or an arrow left them there") {
+    // THE OTHER HALF OF THE SAME LAW. Nothing about how the keys came to Files is Files' to know:
+    // Workshop's title is not a provider row and sends no press, Files' header names no entry, and
+    // an arrow arrives as a resolved id rather than a key. What Files is told is whether the keys
+    // were its own when the maker pressed.
+    FilesRig f("files-already-here");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
+
+    SUBCASE("the rig's title press left the keys on Files, and an arrow chose the row") {
+        SeamTap tap(f.r.bus, f.files_id());
+        f.r.key(input::scan::kDown);
+        CHECK(tap.actions == 1); // a resolved id...
+        CHECK(tap.keys == 0);    // ...and no raw key at all
+        REQUIRE(f.at_cursor().rfind("beta.cpp", 0) == 0);
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+        REQUIRE(tap.pressed.size() == 1);
+        CHECK(tap.keys_went_here[0] == 1);
+        CHECK(tap.requested == std::vector<std::string>{beta});
+    }
+    SUBCASE("from the Editor, a press on Workshop's title of Files took the keys and sent Files nothing") {
+        f.r.key(input::scan::kDown); // chosen and opened by keys: no press of Files' is in its past
+        f.r.key(input::scan::kReturn);
+        REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+        SeamTap tap(f.r.bus, f.files_id());
+        const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+        f.r.press_cell(body.x, body.y);
+        CHECK(tap.pressed.empty());
+        REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+        REQUIRE(tap.pressed.size() == 1);
+        CHECK(tap.keys_went_here[0] == 1);
+        CHECK(tap.requested == std::vector<std::string>{beta});
+    }
+    SUBCASE("from the Editor, a press on Files' own header took the keys and named no entry") {
+        f.r.key(input::scan::kDown);
+        f.r.key(input::scan::kReturn);
+        REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+        SeamTap tap(f.r.bus, f.files_id());
+        const std::int64_t header = row_beginning(f.shown(), "Files ");
+        REQUIRE(header == 0);
+        press_pane(f.r, f.kind, header, 0);
+        REQUIRE(tap.pressed.size() == 1);
+        CHECK(tap.keys_went_here[0] == 0);
+        CHECK(tap.attempts == 0);
+        REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+        REQUIRE(tap.pressed.size() == 2);
+        CHECK(tap.keys_went_here[1] == 1);
+        CHECK(tap.requested == std::vector<std::string>{beta});
+    }
+}
+
+TEST_CASE("two presses on Files' selected row queued while the keys were the Editor's cross as elsewhere then here, and open that row's file once") {
+    // ONE DRAIN, TWO GESTURES, NO RE-WINDOW BETWEEN THEM. Each press is resolved by Workshop in
+    // its own turn, so the second one is read after the first moved the keys: the fact each
+    // carries is the routing at ITS press. The first aims, the second acts.
+    FilesRig f("files-two-queued");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
+    f.r.key(input::scan::kReturn);
+    REQUIRE(keyboard_pane(f.r.session().panels) == f.editor_kind());
+    const std::int64_t row = row_beginning(f.shown(), "> beta.cpp");
+    REQUIRE(row >= 0);
+
+    SeamTap tap(f.r.bus, f.files_id());
+    f.enqueue_press(row);
+    f.enqueue_press(row);
+    f.r.bus.drain_until_idle();
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.pressed[0] == row);
+    CHECK(tap.pressed[1] == row);
+    CHECK(tap.keys_went_here == std::vector<int>{0, 1});
+    CHECK(tap.attempts == 1);
+    CHECK(tap.requested == std::vector<std::string>{beta});
+}
+
+TEST_CASE("with pane titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused has settled, and a later press opens gamma") {
+    // THE PRESS THAT TAKES THE KEYS ALSO BRINGS BACK THE PANE'S TITLE (WL-FOCUS-11): the keyboard's
+    // pane keeps its title whatever the preference says. So the picture the maker pressed has no
+    // title row and the picture after the press has one. The press is read against the first;
+    // the room the title takes is granted after it, and that re-grant must not move the
+    // selection the press made.
+    FilesRig f("files-hidden-titles");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    put_file(f.root / "gamma.cpp", "the gamma source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string gamma = (f.root / "gamma.cpp").lexically_normal().generic_string();
+    press_outside(f.r, f.kind);
+    f.letter(input::scan::kT, "t");
+    REQUIRE_FALSE(f.r.session().pane_titles);
+    REQUIRE(external_title_rows(f.r.session().panels, f.kind, f.r.session().pane_titles) == 0);
+
+    // THE COORDINATES ARE THE PICTURE'S: the region's rows as painted, with no title row in them.
+    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const std::vector<std::string> painted = external_region_rows(f.r.last_canvas(), body);
+    const std::string seen = picture(painted);
+    INFO("painted with titles hidden and the keys elsewhere:\n", seen);
+    const std::int64_t aimed = row_beginning(painted, "  gamma.cpp");
+    REQUIRE(aimed >= 1);
+    REQUIRE(row_beginning(painted, "Files ") == 0);
+
+    SeamTap tap(f.r.bus, f.files_id());
+    f.r.press_cell(body.x, body.y + aimed);
+    const std::vector<std::string> after = f.shown();
+    const std::string now = picture(after);
+    INFO("after the press settled, the pane showed:\n", now);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.pressed[0] == aimed); // the row painted where the press landed
+    CHECK(tap.keys_went_here[0] == 0);
+    // ...AND THE ROOM THE TITLE TOOK WAS GRANTED AFTER THE PRESS, and settled.
+    const auto at_press = std::find(tap.heard.begin(), tap.heard.end(), std::string(PanePressed::zen_name));
+    REQUIRE(at_press != tap.heard.end());
+    CHECK(std::find(at_press, tap.heard.end(), std::string(PaneRoom::zen_name)) != tap.heard.end());
+    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+    REQUIRE(external_title_rows(f.r.session().panels, f.kind, f.r.session().pane_titles) == 1);
+    CHECK(f.at_cursor().rfind("gamma.cpp", 0) == 0);
+    CHECK(tap.attempts == 0);
+
+    // A LATER PRESS ON GAMMA, WHERE IT IS PAINTED NOW, OPENS GAMMA.
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> gamma.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.keys_went_here[1] == 1);
+    CHECK(tap.requested == std::vector<std::string>{gamma});
+}
+
+TEST_CASE("a press into Files while the picker has the keys never opens its selected row, and the band does not say typing goes to Files; with the picker closed the press opens it") {
+    // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE (WL-FOCUS-06). A Files
+    // pane taller than the picker's slot can be pressed below it: the press makes Files the pane the
+    // keys return to, but an ordinary key reaches the picker. Workshop reports that, and says it:
+    // neither the press nor the band may claim the keys are Files'.
+    FilesRig f("files-under-picker");
+    for (std::int64_t i = 0; i < 12; ++i) {
+        put_file(f.root / entry_name(i), "x\n");
+    }
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    f.author_height(34, 160, 47); // taller than the picker's slot, so rows below it are Files'
+    press_outside(f.r, f.kind);
+    f.r.key(input::scan::kP);
+    REQUIRE(f.r.session().panels.picker.open);
+
+    // AN ENTRY ROW OF FILES THE PICKER DOES NOT COVER, found by the walk a press spends.
+    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const std::vector<std::string> rows = pane_rows(f.r, f.kind);
+    std::int64_t row = -1;
+    for (std::int64_t i = static_cast<std::int64_t>(rows.size()) - 1; i >= 0 && row < 0; --i) {
+        const Occupancy there =
+            occupied_at(f.r.session().panels, f.r.session().setup.active, screen_of(f.r.session()),
+                        body.x, body.y + kExternalHeaderRows + i);
+        if (there.kind == f.kind && rows[static_cast<std::size_t>(i)].rfind("  entry-", 0) == 0) {
+            row = i;
+        }
+    }
+    const std::string seen = picture(rows);
+    INFO("Files under the picker showed:\n", seen);
+    REQUIRE(row >= 0);
+    const std::string entry = rows[static_cast<std::size_t>(row)].substr(2);
+    const std::string path =
+        (f.root / entry).lexically_normal().generic_string();
+
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, row, 0); // selects it, and makes Files the candidate
+    REQUIRE(f.r.session().panels.picker.open);
+    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPicker);
+    REQUIRE(f.at_cursor() == entry);
+    for (const std::string& line : band_lines(f.r)) {
+        CHECK_MESSAGE(line.find("typing goes to") == std::string::npos, line);
+    }
+    press_pane(f.r, f.kind, row, 0); // ...and again, on the row it now has selected
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.keys_went_here == std::vector<int>{0, 0});
+    CHECK(tap.attempts == 0);
+    CHECK(f.r.session().panels.picker.open);
+    // AN ORDINARY KEY IS THE PICKER'S, which is what the fact said.
+    const std::size_t picker_was = f.r.session().panels.picker.cursor;
+    f.r.key(input::scan::kDown);
+    CHECK(f.r.session().panels.picker.cursor != picker_was);
+    CHECK(tap.keys + tap.actions == 0);
+
+    // CLOSING THE PICKER HANDS THE KEYS TO FILES, the band says so, and the press opens the row.
+    f.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(f.r.session().panels.picker.open);
+    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPane);
+    CHECK(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
+    press_pane(f.r, f.kind, row, 0);
+    REQUIRE(tap.pressed.size() == 3);
+    CHECK(tap.keys_went_here[2] == 1);
+    CHECK(tap.requested == std::vector<std::string>{path});
+}
+
+TEST_CASE("a press into Files while the hotkey view has the keys never opens its selected row, and the band does not say typing goes to Files; with the view closed the press opens it") {
+    // THE HOTKEY VIEW IS NOT A KEYBOARD CONTEXT (WL-KEY-11): it is keys-modal over whatever context
+    // lies beneath, which here is Files itself -- the candidate, the resolved pane and the context
+    // all still name Files, and still no ordinary key reaches it. So "where the keys went" is not
+    // `keyboard_context` alone.
+    FilesRig f("files-under-hotkeys");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0); // the keys are Files'
+    REQUIRE(f.at_cursor().rfind("beta.cpp", 0) == 0);
+    REQUIRE(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
+
+    f.r.key(input::scan::kK, input::mod::kCtrl);
+    REQUIRE(f.r.session().hotkeys.open);
+    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
+    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPane);
+    for (const std::string& line : band_lines(f.r)) {
+        CHECK_MESSAGE(line.find("typing goes to") == std::string::npos, line);
+    }
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 1);
+    CHECK(tap.keys_went_here[0] == 0);
+    CHECK(tap.attempts == 0);
+    CHECK(f.r.session().hotkeys.open);
+    // AN ORDINARY KEY IS THE VIEW'S.
+    f.r.key(input::scan::kUp);
+    CHECK(tap.keys + tap.actions == 0);
+    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
+
+    f.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(f.r.session().hotkeys.open);
+    CHECK(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.keys_went_here[1] == 1);
+    CHECK(tap.requested == std::vector<std::string>{beta});
+}
+
+TEST_CASE("a press from a host that states no routing fact only selects in Files, even on the selected row with the keys Files', and Return still opens it") {
+    // AN OLDER HOST AND A NEWER FILES. A host that answers nothing about which version an office
+    // accepts sends every press as v1, and v1 says nothing about where the keys were -- so Files
+    // does not guess that they were its own. The key a maker already opens with still opens.
+    FilesRig f("files-older-host");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
+    f.r.host.holder_accepts = nullptr;
+    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
+    SeamTap tap(f.r.bus, f.files_id());
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.versions == std::vector<std::uint32_t>{1u, 1u});
+    CHECK(tap.attempts == 0);
+    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
+    CHECK(keyboard_pane(f.r.session().panels) == f.kind);
+    f.r.key(input::scan::kReturn);
+    CHECK(tap.requested == std::vector<std::string>{beta});
+}
+
+TEST_CASE("Files takes a press of either version only from Workshop's office and about its own pane, and opens only on a second-version press that says the keys were already there") {
+    // THE PROVIDER'S OWN CHECKS, MEASURED FROM THE ONLY SIDE THEY SHOW ON: a weave holding
+    // `zengine.workshop` in Workshop's place grants the room and says every press itself, each
+    // aimed at the row the cursor is on. Speech that holds the office without speaking as it,
+    // and a press about some other pane, act on nothing; a first-version press selects; a
+    // second-version press opens exactly when it says the keys were already this pane's.
+    FilesRig f("files-press-authors");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    PaneWatcher* watch = f.r.mount_watcher();
+    f.mount_project_door();
+    REQUIRE(f.r.load(files::kFilesStem, WORKSHOP_SO_FILES, files::kFilesRole).valid());
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, files::kFilesRole, PaneRoom{files::kProjectFilesPane, 8, 60});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    REQUIRE(watch->content.back().rows.size() >= 3);
+    REQUIRE(watch->content.back().rows[1].text.rfind("> alpha.cpp", 0) == 0);
+    SeamTap tap(f.r.bus, f.files_id());
+    std::size_t said = watch->content.size();
+
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press_personally(m, files::kFilesRole,
+                            v2::PanePressed{files::kProjectFilesPane, 1, 0, true});
+    });
+    REQUIRE(tap.pressed.size() == 1); // delivered...
+    CHECK(tap.attempts == 0);         // ...and not acted on
+    CHECK(watch->content.size() == said);
+
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole, v2::PanePressed{"somebody-else", 1, 0, true});
+    });
+    REQUIRE(tap.pressed.size() == 2);
+    CHECK(tap.attempts == 0);
+    CHECK(watch->content.size() == said);
+
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole, PanePressed{files::kProjectFilesPane, 1, 0});
+    });
+    REQUIRE(tap.pressed.size() == 3);
+    CHECK(tap.attempts == 0);
+    CHECK(watch->content.size() == said + 1); // it selected, and said so
+    said = watch->content.size();
+
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole, v2::PanePressed{files::kProjectFilesPane, 1, 0, false});
+    });
+    REQUIRE(tap.pressed.size() == 4);
+    CHECK(tap.attempts == 0);
+    CHECK(watch->content.size() == said + 1);
+
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole, v2::PanePressed{files::kProjectFilesPane, 1, 0, true});
+    });
+    REQUIRE(tap.pressed.size() == 5);
+    CHECK(tap.attempts == 1);
 }
 
 // ============================================================================
