@@ -125,9 +125,11 @@ inline constexpr const char* kDocumentCommit = "commit";  ///< write `text` into
 /// ASK THE DOCUMENT'S OWNER TO DO ONE THING.
 ///
 /// ⚠ `row` IS AN INDEX INTO THE PICTURE THE PANE WAS SHOWN, and it is the one place an index
-/// crosses. It is safe for the same reason the built-in's `s.cursor` was: the rows are
-/// derived from the selection, and a commit that named a row the current derivation does not
-/// have is refused by name rather than applied to a neighbour. `identity` is what SELECT
+/// crosses. The rows are derived from the selection, and a commit that names a row the current
+/// derivation does not have is refused by name rather than applied to a neighbour -- but a
+/// commit that arrives after the selection moved names that row of the object selected NOW,
+/// and nothing here can tell. The pane abandons a draft whose property its picture stops
+/// showing, and a commit it already sent says it may still land. `identity` is what SELECT
 /// names, because a selection outlives a list.
 struct DocumentActRequested {
     std::string act;

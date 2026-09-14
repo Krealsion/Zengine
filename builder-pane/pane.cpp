@@ -253,6 +253,15 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
             return;
         }
+        // THE MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT.
+        // While the role line is open the pane declares two rows and no more -- but the
+        // declaration and the keystroke race across two messages (Escape and Return in one poll
+        // resolve to a cancel and a commit, and the commit arrives after the line closed), so a
+        // stale id, or one nobody declared, spends nothing: no act, and the notice stands
+        // (`agents/panes.md`).
+        if (!answers(asked.id)) {
+            return;
+        }
         // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
         // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
         // one whose answer is still on its way (`e`'s lookup, `f`'s frontier, `o`'s plan names)
@@ -268,12 +277,9 @@ public:
         }
     }
 
-    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`).
+    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
+    /// and only for an id `answers` admitted in the mode the pane is in.
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
-        // THE MODE OWNS THE PANE'S ACTIONS FIRST. While the role line has the keyboard the
-        // pane declares two rows and no more, so nothing else can arrive here -- but the
-        // declaration and the keystroke race across two messages, and a stale id must mean
-        // nothing rather than build something.
         if (role_.open) {
             if (asked.id == pane::kActionCommit) {
                 commit_role(mail);
@@ -580,15 +586,22 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kBuilderPane;
-        const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
-                                    std::int64_t mods = input::mod::kNone) {
-            actions.rows.push_back(PaneActionRow{id, label, sc, mods});
+        actions.rows = action_rows();
+        (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
+    /// reads, so what the pane acts on and what it said it acts on are one list.
+    std::vector<PaneActionRow> action_rows() const {
+        std::vector<PaneActionRow> rows;
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
+                                 std::int64_t mods = input::mod::kNone) {
+            rows.push_back(PaneActionRow{id, label, sc, mods});
         };
         if (role_.open) {
             row(pane::kActionCommit, "load it", input::scan::kReturn);
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
-            (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, actions);
-            return;
+            return rows;
         }
         // ---- THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME DEFAULTS the
         // built-in shipped (workshop/keymap.hpp's command-mode rows, before this migration),
@@ -602,7 +615,16 @@ private:
         row(pane::kActionRecipeBack, "recipe back", input::scan::kC, input::mod::kShift);
         row(pane::kActionFrontier, "frontier", input::scan::kF);
         row(pane::kActionEditSource, "edit source", input::scan::kE);
-        (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, actions);
+        return rows;
+    }
+
+    bool answers(const std::string& id) const {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- The asks -------------------------------------------------------------------

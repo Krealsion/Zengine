@@ -312,7 +312,7 @@ TEST_CASE("QR-3: what the authored name bound IS, and what it is not a statement
     CHECK(doc::check_name(std::string(doc::kMaxNameLen, 'x')).accepted);
     CHECK_FALSE(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).accepted);
     CHECK(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).refusal ==
-          "a name is at most 64 characters");
+          "a name is at most 64 bytes");
     CHECK_FALSE(doc::check_name(std::string()).accepted);
 
     // A NAME THE OLD BOUND REFUSED IS AUTHORED THROUGH THE ORDINARY OPERATION NOW, and the
@@ -364,6 +364,51 @@ TEST_CASE("QR-3: a name past the authored bound is still refused, from a file as
     // And through the maker's own operation.
     CHECK_FALSE(doc::rename(live, live.elements[0].id, over).accepted);
     CHECK(live.elements[0].label == "panel");
+}
+
+TEST_CASE("an object's name is bounded in bytes: sixty-four bytes of multibyte UTF-8 are a name, sixty-five are refused in bytes, and the name the refusal met stands") {
+    // THE REFUSAL SAYS THE UNIT THE CHECK COUNTS. `check_name` spends `size()` against the bound,
+    // and `size()` is bytes -- but the sentence said characters, so a name of twenty-two
+    // characters was refused as though it were more than sixty-four of them. What moved is the
+    // explanation: the bound, and which byte sequences are a name, are the ones the document
+    // already had.
+    const std::string euro = "\xE2\x82\xAC";     // U+20AC, three bytes
+    const std::string grin = "\xF0\x9F\x98\x80"; // U+1F600, four bytes
+    const std::string acute = "\xC3\xA9";        // U+00E9, two bytes
+    std::string at_bound;
+    for (int i = 0; i < 20; ++i) {
+        at_bound += euro;
+    }
+    at_bound += grin; // twenty-one characters
+    std::string past;
+    for (int i = 0; i < 21; ++i) {
+        past += euro;
+    }
+    past += acute; // twenty-two characters
+    REQUIRE(at_bound.size() == doc::kMaxNameLen);
+    REQUIRE(past.size() == doc::kMaxNameLen + 1);
+
+    CHECK(doc::check_name(at_bound).accepted);
+    const Written refused = doc::check_name(past);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "a name is at most 64 bytes");
+    // ...beside the rules that were already there, which did not move.
+    CHECK(doc::check_name(std::string(doc::kMaxNameLen, 'x')).accepted);
+    CHECK(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).refusal ==
+          "a name is at most 64 bytes");
+    CHECK(doc::check_name(std::string()).refusal == "a name cannot be empty");
+
+    // THROUGH THE OPERATION: the name at the bound is authored whole, and the one past it is
+    // refused in the same words while the name it met stands.
+    WorkshopDoc d = two_panels();
+    const std::int64_t id = d.elements[0].id;
+    CHECK(doc::rename(d, id, at_bound).accepted);
+    CHECK(doc::find(d, id)->label == at_bound);
+    const Written again = doc::rename(d, id, past);
+    CHECK_FALSE(again.accepted);
+    CHECK(again.refusal == "a name is at most 64 bytes");
+    CHECK(doc::find(d, id)->label == at_bound);
+    CHECK(doc::check_document(d).accepted);
 }
 
 TEST_CASE("reuse: two properties of one type share every line of conversion") {

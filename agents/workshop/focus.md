@@ -61,8 +61,8 @@ MEANS
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
 DOES NOT MEAN
-- that the chosen version arrives: a holder replaced before dispatch refuses it, and no retry;
-- that anything is kept between presses, or said when the keys leave a pane.
+- that a version chosen arrives: a new holder lacking its door refuses, one with it may take it;
+- that anything is retried, kept between presses, or said when the keys leave a pane.
 
 PROVEN BY — `workshop/screen_arrange.cpp` `typing_pane`; `workshop/weave_pointer.cpp`
 `on(PointerButton)`; `workshop/weave_external.cpp` `external_press`, `holder_accepts_on`;
@@ -139,11 +139,12 @@ quit, and the copy reaches the platform clipboard"`; `tests/test_component.cpp` 
 a consumed gesture that changes nothing is still consumed"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
-## WL-FOCUS-10 — The screen says where typing goes, in two places, in characters
+## WL-FOCUS-10 — The title's mark and the band's first row, in characters
 
 LAW — The pane the keys point at wears the `> ` mark in its header; while ordinary keys reach it, the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`.
 
 MEANS
+- two facts, not one twice: the mark names the pane the keys return to, the band where a key goes;
 - the legend rows after it spell the pane's declared rows first, then the chords (WL-KEY-15);
 - under a mode or the hotkey view the mark stays and the band names no pane: one `typing_pane`.
 

@@ -88,16 +88,24 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and a new document must
 
-LAW — A `PaneRoom` grant keeps the draft; a `DocumentShown` whose row is gone or renamed ABANDONS it, because carrying a draft onto whatever row took its index writes a maker's text into another property.
+LAW — A `PaneRoom` grant keeps the draft; a `DocumentShown` that stops showing its property ABANDONS it, saying so: a draft carried onto another object's row writes a maker's text into another property.
 
 MEANS
-- the abandonment is the one thing this pane drops without being asked, and it is named.
+- its property is the object AND the label on the draft's row: another object's row is not it;
+- the pane drops it unasked, so it says so, and whether a commit it sent may still be written.
 
-PROVEN BY — `info-pane/pane.cpp` `on(DocumentShown)`, `on(PaneRoom)`, `close_draft`,
-`draft_`;
-`workshop/document_seam_vocabulary.hpp` `DocumentShown::properties`;
+DOES NOT MEAN
+- that a commit already sent is recalled — the host commits against the rows it holds then.
+
+PROVEN BY — `info-pane/pane.cpp` `on(DocumentShown)`, `on(PaneRoom)`, `shows_draft_subject`,
+`end_draft`, `close_draft`, `Draft::object`, `draft_`;
+`workshop/document_seam_vocabulary.hpp` `DocumentShown::properties`, `DocumentShown::selected`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft opens on the cursor's row,
-declares two ids and no more, and commits through the document"`.
+declares two ids and no more, and commits through the document"`, case `"a picture that selects
+another object abandons the Info draft and says so, even where that object has the same property
+on the same row, and writes nothing into either object"`, case `"a press on an object while an
+Info draft is live is refused in the controls' words, keeping the draft, its text, the selection
+and the document through a new room, and selecting resumes once the draft ends"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-07 — `share_body_rows` is max-min fair sharing
@@ -131,17 +139,20 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-09 — An object row is fitted whole, and a press on it asks the document
 
-LAW — An object row puts the identity before the name and is cut at the granted columns; a press on one ASKS the host to select, and the pane learns the answer as an ordinary picture rather than by moving it.
+LAW — An object row puts the identity before the name, cut at the granted columns; a press on one ASKS the host to select unless a draft is live, and learns the answer as a picture, not by moving it.
 
 MEANS
 - a name longer than the column is marked, and the document still holds all of it;
-- an undrawable byte is replaced rather than sent, because a publication is judged whole.
+- an undrawable byte is replaced rather than sent, because a publication is judged whole;
+- a select changes the rows a draft is typed into, so a live draft refuses it first (WL-CTRL-03).
 
-PROVEN BY — `info-pane/pane.cpp` `say_objects`, `ask_select`, `on(PanePressed)`;
-`workshop/pane_text.hpp` `drawable`; `workshop/document_seam_vocabulary.hpp`
-`kDocumentSelect`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on an
-object row selects it, through the document's own door"`, case `"INFO-WEAVE: an object name a
-canvas cannot draw is still shown"`.
+PROVEN BY — `info-pane/pane.cpp` `say_objects`, `ask_select`, `on(PanePressed)`,
+`press_placed`, `kFinishTheEdit`; `workshop/pane_text.hpp` `drawable`;
+`workshop/document_seam_vocabulary.hpp` `kDocumentSelect`; `tests/test_workshop_panes_info.cpp`
+case `"INFO-WEAVE: a press on an object row selects it, through the document's own door"`, case
+`"INFO-WEAVE: an object name a canvas cannot draw is still shown"`, case `"a press on an object
+while an Info draft is live is refused in the controls' words, keeping the draft, its text, the
+selection and the document through a new room, and selecting resumes once the draft ends"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-10 — An empty list says it is empty, whatever its share
@@ -172,3 +183,28 @@ PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `worksho
 the row and says so"`, case `"INFO-WEAVE: the pane arrives by a plan row and resolves a row the
 desk already had"`.
 WHY — `agents/decisions/one-body-two-lists.md`
+
+## WL-INFO-12 — An answer is read against the act and the draft that asked
+
+LAW — A commit's answer closes or marks only the draft that sent it; ending a draft says nothing was written only while no commit is unanswered, and an account replaces only the sentence that promised it.
+
+MEANS
+- the correlation names the request; a commit's `draft_epoch` says if its field is still open;
+- a select, a create or a delete closes no draft; one of them is outstanding beside one commit;
+- an ask replaces the record of its kind: the older answer is dropped, its sentence already spent.
+
+DOES NOT MEAN
+- that closing a draft retracts a write, or that the pane knows what object a late commit reached.
+
+PROVEN BY — `info-pane/pane.cpp` `on(DocumentActed)`, `answered_commit`, `ask`, `end_draft`,
+`Asked`, `SentCommit`, `SentCommit::draft`, `SentCommit::promise`, `acting_`, `committing_`;
+`component/text_box.hpp` `TextBox::draft_epoch`; `tests/test_workshop_panes_info.cpp` case `"a
+commit and a cancel resolved in one poll: the cancel says the commit was already sent, the
+answer's account takes that sentence's place, and no row says nothing was written over a write"`,
+case `"an Info commit answered after a newer draft opened on the same field closes, alters and
+marks nothing on that draft, and a sentence a later act said stands"`, case `"an Info draft ended
+while an earlier draft's commit is still unanswered says the commit was already sent, even when an
+act between them asked the document something else, and that commit's account replaces the
+sentence"`, case `"a select asked before an Info draft opened, and answered while it is open,
+closes nothing"`.
+WHY — `agents/decisions/a-paste-is-a-conversation.md`

@@ -194,6 +194,12 @@ remembers that layout for you either way.
      `Resolved` and never touches `Width`. That distinction is the whole point of the
      [ui package](../reference/ui.md).
    - Try an illegal value. The refusal names what is wrong and the property does not move.
+   - **While a property draft is open, a press on an object is refused** (`finish the edit
+     first`): press `Enter` or `Esc`, then select. `Esc` always closes the draft, but it cannot
+     take back a commit that `Enter` has already sent — the pane says `commit already sent`, and
+     then whether it was written. If something outside the pane changes the selection while you
+     type — a press on another object, or `n` — the draft is abandoned, the pane says so, and
+     nothing you typed is written into the other object.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
 6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done

@@ -19,7 +19,7 @@ a compiled-in Workshop panel        you are editing Workshop's own source
     the picker's built-in half is a compile-time array you add a row to
 
 an office-authored external pane    you are a weave that is not Workshop
-    a bounded provider protocol: five message shapes and no sixth
+    a bounded provider protocol, every shape listed in workshop/pane_vocabulary.hpp
     you publish semantic rows; Workshop owns the room and the presentation
 ```
 
@@ -52,7 +52,7 @@ Two sentences worth keeping:
 
 > **The external pane seam exists; product distribution and plugin onboarding do not.**
 
-> The seam is not hypothetical. The five shapes, the provenance rule, discovery, room, content
+> The seam is not hypothetical. Its shapes, the provenance rule, discovery, room, content
 > bounds, setup resolution and the generic presentation are current production source with a
 > real dynamically loaded witness. What is missing is everything *around* it — a way for an
 > end user to install or select a provider.
@@ -724,7 +724,13 @@ The exact reference is `workshop/pane_vocabulary.hpp` and
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane). This
 section is the orientation; that one is the contract.
 
-## B1. Five shapes, and there is no sixth
+## B1. The five shapes every pane speaks
+
+These five are how a pane arrives, is sized, says its rows and hears a press. The protocol has
+more — keys, text, the wheel, a sweep, declared actions, a caret, a reveal and the quit, some of
+them in a second version beside the first — and each is optional: a pane that neither sends nor
+accepts one is unchanged by it. `workshop/pane_vocabulary.hpp` lists every one, with what each
+says.
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
@@ -1121,8 +1127,9 @@ to run. You do not need any of that to see your panel work.
 
 ```text
 I am a weave that wants to show a maker some rows
-    -> Part B. Five shapes, an office you author through, a prose budget you must
-       measure against, and one bounded press. Read tests/weavelib/workshop_hello.cpp
+    -> Part B. The pane protocol (workshop/pane_vocabulary.hpp), an office you author
+       through, a prose budget you must measure against, and the input shapes you choose
+       to accept. Read tests/weavelib/workshop_hello.cpp
 
 I am editing Workshop and I only display information
     -> a kind, a pane key, a six-field catalog row, a painter, one arm in paint_panels

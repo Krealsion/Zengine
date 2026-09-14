@@ -363,6 +363,37 @@ struct FilesRig {
         r.text(typed);
     }
 
+    void settle() { r.bus.drain_until_idle(); }
+
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
+    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
+    /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
+    void regrant() {
+        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        const std::int64_t rows = seat->rows;
+        const std::int64_t columns = seat->columns;
+        wide_ = !wide_;
+        r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
+        const ExternalPane* after = r.session().panels.external_pane(kind);
+        REQUIRE(after != nullptr);
+        REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
+                        "the surface changed and the pane's room did not");
+    }
+    bool wide_ = true;
+
+    /// The ids the pane declares right now, sorted.
+    std::vector<std::string> declared() {
+        std::vector<std::string> ids;
+        const RuntimePane* seat = row();
+        REQUIRE(seat != nullptr);
+        for (const v2::PaneActionRow& a : seat->actions) {
+            ids.push_back(a.id);
+        }
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    }
+
     /// The browser's weave, for a tap that reads what crosses its seam.
     loom::WeaveId files_id() {
         const loom::WeaveId id = r.kernel.weave_id(files::kFilesStem);
@@ -1631,6 +1662,71 @@ TEST_CASE("a key the Files authoring line does not take is no act: the notice st
     CHECK(any_row(f.shown(), "Return commits a field"));
     f.r.key(input::scan::kLeft); // a key the line takes
     CHECK_FALSE(any_row(f.shown(), "Return commits a field"));
+}
+
+TEST_CASE("an id Files does not declare in the mode it is in is no act: an unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the same poll leave the notice standing through a new room, and a declared id that moves nothing still spends it") {
+    // WHAT IS NOT AN ACT SPENDS NOTHING, FOR AN ID AS FOR A KEY. The pane cleared its notice
+    // before it asked what the id meant in the mode it was in, then said its rows without it --
+    // so an id nobody declared erased the authoring line's own instructions, and so did one the
+    // line's mode does not declare.
+    FilesRig f("files-ids-unspent");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    f.open();
+    for (int i = 0; i < 8; ++i) {
+        f.r.key(input::scan::kUp); // the cursor on the first row, before any notice stands
+    }
+    const std::string resting = f.at_cursor();
+    REQUIRE_FALSE(resting.empty());
+    f.letter(input::scan::kA, "a");
+    f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
+    REQUIRE(any_row(f.shown(), "Return commits a field"));
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionOpen};
+    REQUIRE(f.declared() == line_ids);
+    const auto line_stands = [&f, &line_ids] {
+        CHECK(any_row(f.shown(), "Return commits a field"));
+        CHECK(f.declared() == line_ids);
+        CHECK(f.recipes.all().empty());
+    };
+
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE.
+    const PaneRig::OfficeAction unknown =
+        f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, "files.no-such-action");
+    REQUIRE(unknown.authored);
+    REQUIRE(unknown.delivered);
+    CHECK(unknown.author == kWorkshopProvider);
+    line_stands();
+    f.regrant();
+    line_stands();
+
+    // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN.
+    const PaneRig::OfficeAction refresh =
+        f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, files::kActionRefresh);
+    REQUIRE(refresh.delivered);
+    line_stands();
+    f.regrant();
+    line_stands();
+
+    // ESCAPE TWICE IN ONE POLL: the line's cancel, then a cancel Workshop resolved against the
+    // line's rows, arriving when the browser declares none. The first cancel's answer stands.
+    f.enqueue_key(input::scan::kEscape);
+    f.enqueue_key(input::scan::kEscape);
+    f.settle();
+    REQUIRE_FALSE(f.declared() == line_ids);
+    CHECK(f.first().rfind("no recipe was written", 0) == 0);
+    f.regrant();
+    CHECK(f.first().rfind("no recipe was written", 0) == 0);
+
+    // A DECLARED ID THAT MOVES NOTHING IS STILL AN ACT: `files.up` on the first row spends the
+    // notice, in the rows Workshop holds, through a new room too.
+    REQUIRE(f.at_cursor() == resting);
+    const PaneRig::OfficeAction up =
+        f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, files::kActionUp);
+    REQUIRE(up.delivered);
+    CHECK(f.at_cursor() == resting);
+    CHECK(f.first().rfind("Files", 0) == 0);
+    f.regrant();
+    CHECK(f.first().rfind("Files", 0) == 0);
+    CHECK(f.recipes.all().empty());
 }
 
 // ============================================================================

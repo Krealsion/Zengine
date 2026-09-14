@@ -639,8 +639,10 @@ void WorkshopWeave::on(const DocumentActRequested& asked, loom::Mail& mail) {
     }
     if (asked.act == kDocumentCommit) {
         // ⚠ THE INDEX IS JUDGED AGAINST THE CURRENT DERIVATION, not against the one the pane
-        // was shown. A row the rows no longer have is refused by name rather than applied to
-        // whatever moved into its place, which is the one hazard an index across a seam has.
+        // was shown. A row the rows no longer have is refused by name. A row they still have is
+        // written even when the selection moved after the pane asked -- the same row of the object
+        // selected now -- which is the hazard an index across a seam still has; the pane abandons
+        // a draft whose property its picture stops showing and says a sent commit may still land.
         if (asked.row < 0 ||
             static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
             answer(false, "that row is not in this object's properties any more");

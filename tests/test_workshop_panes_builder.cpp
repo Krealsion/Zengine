@@ -284,6 +284,42 @@ struct BuilderRig {
         seat_do([](Tool& t, loom::Mail& mail) { t.say(mail); });
     }
 
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
+    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
+    /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
+    void regrant() {
+        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        const std::int64_t rows = seat->rows;
+        const std::int64_t columns = seat->columns;
+        wide_ = !wide_;
+        r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
+        const ExternalPane* after = r.session().panels.external_pane(kind);
+        REQUIRE(after != nullptr);
+        REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
+                        "the surface changed and the pane's room did not");
+    }
+    bool wide_ = true;
+
+    /// A KEY QUEUED AND NOT DRAINED, so two keys land in one poll; `settle` drains.
+    void enqueue_key(std::int64_t scancode) {
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::KeyPressed{scancode, "", input::mod::kNone}), loom::WeaveId{},
+            loom::WeaveId{}, 0));
+    }
+    void settle() { r.bus.drain_until_idle(); }
+
+    /// The ids the pane declares right now, in its own order.
+    std::vector<std::string> declared() {
+        std::vector<std::string> ids;
+        const RuntimePane* seat = row();
+        REQUIRE(seat != nullptr);
+        for (const v2::PaneActionRow& a : seat->actions) {
+            ids.push_back(a.id);
+        }
+        return ids;
+    }
+
     void seat_do(std::function<void(Tool&, loom::Mail&)> what) {
         tool->next_act = std::move(what);
         (void)r.bus.send(tool_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -1277,6 +1313,69 @@ TEST_CASE("a key the Builder's role line does not take is no act: the notice sta
     CHECK_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
     b.r.key(input::scan::kLeft); // a key the line takes
     CHECK_MESSAGE(b.text().find("type the role it holds") == std::string::npos, b.text());
+}
+
+TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an unknown one, a build id while the role line is open, and a commit resolved after the line closed leave the notice and the line standing through a new room, and a declared id through the same door acts") {
+    // WHAT IS NOT AN ACT SPENDS NOTHING, FOR AN ID AS FOR A KEY. The pane cleared its notice
+    // before it asked what the id meant in the mode it was in, then said its rows without it --
+    // so an id nobody declared, or one that raced the pane's own re-declaration, erased the
+    // line's instructions or the cancel's answer and did nothing else.
+    BuilderRig b("bld-ids-unspent");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    const std::vector<std::string> line_ids{pane::kActionCommit, pane::kActionCancel};
+    b.letter(input::scan::kO, "o");
+    REQUIRE(b.declared() == line_ids);
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    const std::int64_t builds = b.tool->builds;
+    const auto line_stands = [&b, &line_ids, builds] {
+        CHECK_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+        CHECK(b.declared() == line_ids);
+        CHECK(b.tool->builds == builds);
+        CHECK(b.authored.empty());
+    };
+
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE.
+    const PaneRig::OfficeAction unknown =
+        b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, "builder.no-such-action");
+    REQUIRE(unknown.authored);
+    REQUIRE(unknown.delivered);
+    CHECK(unknown.author == kWorkshopProvider);
+    line_stands();
+    b.regrant();
+    line_stands();
+
+    // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN.
+    const PaneRig::OfficeAction build =
+        b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, pane::kActionBuild);
+    REQUIRE(build.delivered);
+    line_stands();
+    b.regrant();
+    line_stands();
+
+    // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT: the line closes and its own answer stands.
+    const PaneRig::OfficeAction cancel =
+        b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, pane::kActionCancel);
+    REQUIRE(cancel.delivered);
+    CHECK(b.text().find("type the role it holds") == std::string::npos);
+    CHECK(b.text().find("nothing was loaded and nothing was written") != std::string::npos);
+    CHECK(b.declared().size() == kBrowsingIds.size());
+
+    // ESCAPE AND RETURN IN ONE POLL: the cancel, then a commit Workshop resolved against the
+    // line's rows, arriving after the line closed. The cancel's answer stands.
+    b.letter(input::scan::kO, "o");
+    REQUIRE(b.declared() == line_ids);
+    b.enqueue_key(input::scan::kEscape);
+    b.enqueue_key(input::scan::kReturn);
+    b.settle();
+    CHECK(b.declared().size() == kBrowsingIds.size());
+    CHECK_MESSAGE(b.text().find("nothing was loaded and nothing was written") != std::string::npos,
+                  b.text());
+    b.regrant();
+    CHECK_MESSAGE(b.text().find("nothing was loaded and nothing was written") != std::string::npos,
+                  b.text());
+    CHECK(b.authored.empty());
+    CHECK(b.tool->builds == builds);
 }
 
 TEST_CASE("BLD-WEAVE: a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes") {

@@ -106,13 +106,17 @@ LAW — The Attention pane remembers the key and a stamp of the statement it hid
 
 MEANS
 - never persisted; it crosses a same-shape reload in the pane's state and reaches no file;
-- dismiss is not resolve: the host still holds the condition, derives it and says it.
+- dismiss is not resolve: the host still holds the condition, derives it and says it;
+- so a list whose every current condition is hidden says they are hidden, never the all-clear.
 
 PROVEN BY — `attention-pane/vocabulary.hpp` `Dismissal`, `AttentionPaneState::dismissed`;
+`attention-pane/pane.cpp` `say_view`, `visible`, `known_`;
 `workshop/attention.hpp` `Condition::stamp`; `tests/test_workshop_panes_attention.cpp` case
 `"ATTN-WEAVE: dismissal hides a presentation and changes nothing that is true"`, case
 `"ATTN-WEAVE: a dismissed condition comes back when it materially changes"`, case
-`"ATTN-WEAVE: a dismissal does not outlive the condition it was about"`.
+`"ATTN-WEAVE: a dismissal does not outlive the condition it was about"`, case `"an Attention
+pane whose every current condition is hidden says they are hidden and still true, through a spent
+notice and a new room, and says nothing needs attention only when nothing is true"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-09 — RETIRED: the view was a mode in the picker's place
