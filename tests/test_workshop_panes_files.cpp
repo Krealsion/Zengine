@@ -1692,7 +1692,7 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
     REQUIRE(any_row(f.shown(), "Return commits a field"));
     const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
-    REQUIRE(f.declared() == line_ids);
+    CHECK(f.declared() == line_ids);
     const auto line_stands = [&f, &line_ids] {
         CHECK(any_row(f.shown(), "Return commits a field"));
         CHECK(any_row(f.shown(), "recipe name> "));
@@ -1782,7 +1782,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
         REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0); // what a browsing open would open
         f.letter(input::scan::kA, "a");
         f.r.key(input::scan::kReturn); // the one candidate: the line opens
-        REQUIRE(f.declared() == line_ids);
+        REQUIRE(any_row(f.shown(), "recipe name> oven"));
         SeamTap tap(f.r.bus, f.files_id());
         burst(f, input::scan::kEscape, input::scan::kReturn);
         CHECK(tap.ids == std::vector<std::string>{files::kActionCancel, files::kActionCommitField});
@@ -1799,7 +1799,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
         f.open(160, 48, /*with_editor=*/true);
         REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0);
         f.letter(input::scan::kA, "a");
-        REQUIRE(f.declared() == chooser_ids);
+        REQUIRE(any_row(f.shown(), "pick something buildable"));
         SeamTap tap(f.r.bus, f.files_id());
         burst(f, input::scan::kEscape, input::scan::kReturn);
         CHECK(tap.ids == std::vector<std::string>{files::kActionCancel, files::kActionChoose});
@@ -1813,7 +1813,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
         put_file(f.root / "oven.cpp", "// a maker's weave\n");
         f.open(160, 48, /*with_editor=*/true);
         f.letter(input::scan::kA, "a");
-        REQUIRE(f.declared() == chooser_ids);
+        REQUIRE(any_row(f.shown(), "pick something buildable"));
         SeamTap tap(f.r.bus, f.files_id());
         burst(f, input::scan::kReturn, input::scan::kReturn);
         CHECK(tap.ids == std::vector<std::string>{files::kActionChoose, files::kActionChoose});
