@@ -52,7 +52,8 @@
 //
 // ---- ...AND THE FOUR ACTS ARE ORDINARY ASKS -----------------------------------
 //
-//     zengine.workshop   ACTS   DocumentActRequested -> DocumentActed
+//     zengine.workshop   ACTS     DocumentActRequested     -> DocumentActed   select/create/delete
+//     zengine.workshop   WRITES   DocumentCommitRequested  -> DocumentActed   one property
 //
 // Answered at the office this host already holds, for the reason every act door has: the
 // party that owns the document is the party that answers for it, and a second office would
@@ -61,6 +62,17 @@
 // offered -- select, create, delete, and commit one property -- and each is the SAME call
 // the host's own key is bound to, so both gestures converge on one write, one selection rule
 // and one sentence (WL-CTRL-05, kept).
+//
+// ---- A COMMIT NAMES WHAT IT WAS TYPED INTO (WL-DOC-21) ------------------------
+//
+// A row index names a row of a picture, and the rows are the SELECTION's: a commit that
+// arrived after the selection moved, or after a load put a different document behind the same
+// identities, would write that row of whatever is there now. So the host NAMES what its
+// inspector rows address -- `Session::subject`, one name per document incarnation, object and
+// row layout, handed out once -- publishes the name beside the rows (`v2::DocumentShown`), and
+// writes a `DocumentCommitRequested` only while the name it carries is still the rows' own.
+// v1 stays exactly what it was for select, create and delete, and a v1 `commit`, which can
+// name no subject, is refused in words and writes nothing: there is no target to invent for it.
 
 #include <zen/weave/shape.hpp>
 
@@ -112,6 +124,27 @@ struct DocumentShown {
               ZEN_FIELD(properties));
 };
 
+namespace v2 {
+
+/// `DocumentShown` v1's picture, plus the NAME of what its property rows address (WL-DOC-21).
+///
+/// `subject` is the host's own name for one document incarnation, one selected object and one
+/// row layout, and nothing a reader can decode: it is compared, and returned in a commit. It
+/// does not move when a value, a room or the workspace does, so a draft outlives those; it
+/// moves when the selection does, when a load replaces the document (identical bytes included)
+/// and when an identity the document already held is handed out again. PUBLISHED BESIDE v1,
+/// never instead of it, and said when either the rows or the name changed.
+struct DocumentShown {
+    std::vector<ShownObject> objects;
+    std::int64_t selected = 0; ///< as v1
+    std::vector<ShownProperty> properties;
+    std::int64_t subject = 0; ///< what `properties` address, named by the host; 0 is none
+    ZEN_SHAPE(DocumentShown, 2, ZEN_FIELD(objects), ZEN_FIELD(selected),
+              ZEN_FIELD(properties), ZEN_FIELD(subject));
+};
+
+} // namespace v2
+
 // ---- The four acts ------------------------------------------------------------
 
 /// WHICH ACT. Spelled as strings on the wire rather than as an enumerator's number, for the
@@ -120,30 +153,45 @@ struct DocumentShown {
 inline constexpr const char* kDocumentSelect = "select";  ///< make `identity` the selection
 inline constexpr const char* kDocumentCreate = "create";  ///< mint a new object
 inline constexpr const char* kDocumentDelete = "delete";  ///< remove the selected object
-inline constexpr const char* kDocumentCommit = "commit";  ///< write `text` into row `row`
+/// v1's commit, which names a row and no subject: refused, and nothing is written. A commit is
+/// `DocumentCommitRequested`.
+inline constexpr const char* kDocumentCommit = "commit";
 
 /// ASK THE DOCUMENT'S OWNER TO DO ONE THING.
 ///
-/// ⚠ `row` IS AN INDEX INTO THE PICTURE THE PANE WAS SHOWN, and it is the one place an index
-/// crosses. The rows are derived from the selection, and a commit that names a row the current
-/// derivation does not have is refused by name rather than applied to a neighbour -- but a
-/// commit that arrives after the selection moved names that row of the object selected NOW,
-/// and nothing here can tell. The pane abandons a draft whose property its picture stops
-/// showing, and a commit it already sent says it may still land. `identity` is what SELECT
-/// names, because a selection outlives a list.
+/// `identity` is what SELECT names, because a selection outlives a list. ⚠ `commit` is the one
+/// act this shape can no longer ask for: `row` was an index into the picture the pane was
+/// shown, and an index names that row of whatever is selected when the ask arrives. Such a
+/// commit is refused in the host's words with nothing written and no selection moved; the
+/// fields stay, because a published `(name, version)` is frozen.
 struct DocumentActRequested {
     std::string act;
     std::int64_t identity = 0; ///< `select` only
-    std::int64_t row = 0;      ///< `commit` only: the index in `DocumentShown::properties`
-    std::string text;          ///< `commit` only: what the maker typed
+    std::int64_t row = 0;      ///< v1's `commit` only, which is refused
+    std::string text;          ///< v1's `commit` only, which is refused
     ZEN_SHAPE(DocumentActRequested, 1, ZEN_FIELD(act), ZEN_FIELD(identity), ZEN_FIELD(row),
               ZEN_FIELD(text));
 };
 
+/// WRITE `text` INTO ROW `row` OF THE SUBJECT `subject` NAMES (WL-DOC-21).
+///
+/// The subject is judged FIRST, before any setter is reached: a name that is not the one the
+/// host's rows carry now is refused with nothing written, no selection moved and nothing
+/// retargeted -- whether the old object still exists or not, and however the strings compare.
+/// A commit that reaches the host before the subject moves is written to that subject. `row`
+/// is an index within the named subject, and `text` is what the maker typed.
+struct DocumentCommitRequested {
+    std::int64_t subject = 0; ///< `v2::DocumentShown::subject` of the picture the draft opened on
+    std::int64_t row = 0;     ///< the index in that picture's `properties`
+    std::string text;
+    ZEN_SHAPE(DocumentCommitRequested, 1, ZEN_FIELD(subject), ZEN_FIELD(row), ZEN_FIELD(text));
+};
+
 /// WHAT THE ACT CAME TO. `accepted` with an empty `refusal`, or the document's own words --
 /// a draft that is not a value of this type at all, a value the property refused and why, a
-/// delete with nothing selected, a spent mint. The pane says the refusal in its own row and
-/// keeps the draft open, which is what the built-in did with the same sentence.
+/// delete with nothing selected, a spent mint, a subject that no longer applies, a v1 commit.
+/// The pane says the refusal in its own row and keeps the draft open, which is what the
+/// built-in did with the same sentence.
 ///
 /// AND A REFUSED ACT IS STILL FOLLOWED BY THE PICTURE. `DocumentShown` is compared and
 /// published on the same repaint, so an accepted act reaches the pane as new rows and a

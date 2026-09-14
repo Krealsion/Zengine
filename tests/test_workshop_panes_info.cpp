@@ -334,18 +334,27 @@ struct DocumentAskTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
     std::vector<std::string> commits; ///< each commit's text, in the order the door received them
+    std::vector<std::int64_t> subjects; ///< ...and the subject each one named (WL-DOC-21)
+    int legacy_commits = 0;           ///< a v1 `commit`, which names no subject
     int others = 0;                   ///< a select, a create or a delete
     DocumentAskTap(loom::Switchboard& on, loom::WeaveId door) : bus(on) {
         tap = bus.add_observer([this, door](const loom::BusEvent& ev) {
-            if (ev.kind != loom::EventKind::Delivered || ev.target != door ||
-                ev.schema_name != DocumentActRequested::zen_name || ev.payload == nullptr) {
+            if (ev.kind != loom::EventKind::Delivered || ev.target != door || ev.payload == nullptr) {
                 return;
             }
-            const DocumentActRequested asked = loom::from_value<DocumentActRequested>(*ev.payload);
-            if (asked.act == kDocumentCommit) {
+            if (ev.schema_name == DocumentCommitRequested::zen_name) {
+                const DocumentCommitRequested asked =
+                    loom::from_value<DocumentCommitRequested>(*ev.payload);
                 commits.push_back(asked.text);
-            } else {
-                ++others;
+                subjects.push_back(asked.subject);
+            } else if (ev.schema_name == DocumentActRequested::zen_name) {
+                const DocumentActRequested asked =
+                    loom::from_value<DocumentActRequested>(*ev.payload);
+                if (asked.act == kDocumentCommit) {
+                    ++legacy_commits;
+                } else {
+                    ++others;
+                }
             }
         });
     }
@@ -1357,7 +1366,7 @@ TEST_CASE("a picture that selects another object abandons the Info draft and say
 
     CHECK(f.declared() ==
           std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
-    CHECK_MESSAGE(f.row_of("edit abandoned -- the p") == 0, f.text());
+    CHECK_MESSAGE(f.row_of("edit abandoned -- the s") == 0, f.text());
     CHECK(f.row_containing(authored + "77").empty());
     CHECK(object_of(f, first).label == authored);
 
@@ -1636,7 +1645,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         make_object(f); // `n` on the workspace: a new object, selected, and a picture of it
         REQUIRE(f.r.session().selected != selected);
         CHECK(f.declared() == resting);
-        CHECK_MESSAGE(f.row_of("edit abandoned -- the property it was on is no longer shown; "
+        CHECK_MESSAGE(f.row_of("edit abandoned -- the selection or the document changed; "
                                "unwritten changes discarded") == 0,
                       f.text());
         for (const std::string& one : admitted_and_painted(f)) {
@@ -1791,6 +1800,657 @@ TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's
     CHECK(object_of(f, selected).x == 12);
     CHECK(f.declared() ==
           std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+}
+
+// ============================================================================
+// INFO-WEAVE — a commit names what it was typed for, and a send Loom refused is not silence
+// ============================================================================
+
+namespace {
+
+/// THE HOST'S LAST NAMED PICTURE -- the rows and the subject they address (WL-DOC-21).
+inline v2::DocumentShown named_picture(InfoRig& f) {
+    REQUIRE_FALSE(f.r.said_named_documents.empty());
+    return f.r.said_named_documents.back();
+}
+
+/// A PRIMARY BUTTON EVENT ON ONE OBJECT'S WORKSPACE CELL, queued and not drained. The cell is the
+/// object's authored corner plus one, resolved before a burst begins, so no helper drains between
+/// the events of the burst.
+inline void enqueue_object_button(InfoRig& f, const ui::Element& e, std::int64_t button,
+                                  bool down) {
+    const std::int64_t cx = kWorkspaceX + e.x + 1;
+    const std::int64_t cy = kWorkspaceY + e.y + 1 + surface::kTuiCanvasTopRow;
+    (void)f.r.bus.publish(loom::Message(
+        loom::to_value(input::PointerButton{button, down, cx, cy, input::space::kCells,
+                                            input::mod::kNone}),
+        loom::WeaveId{}, loom::WeaveId{}, 0));
+}
+
+const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
+const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommit};
+
+} // namespace
+
+TEST_CASE("an Info commit queued behind a press on another object, or on it and back, is refused: neither object is written and the pane says why") {
+    // ⭐ THE RACE, THROUGH ORDINARY INPUT. Return and a press on #2's workspace cell in one poll:
+    // Workshop resolves the Return to the pane's commit and selects #2 before the pane has sent it,
+    // so the commit arrives naming a row while #2's rows are the host's. It wrote `panel77` into #2
+    // (measured at START with the same burst). The geometry is read before the burst.
+    InfoRig f;
+    f.open();
+    const ui::Element first = f.r.w->document().elements[0];
+    const ui::Element second = f.r.w->document().elements[1];
+    REQUIRE(f.r.session().selected == first.id);
+    f.draft_on("Name");
+    f.r.text("77");
+    const std::int64_t typed_for = named_picture(f).subject;
+    REQUIRE(typed_for != 0);
+    AnswerTap tap(f.r.bus, info_id(f));
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+
+    SUBCASE("a press on the other object") {
+        f.enqueue_key(input::scan::kReturn);
+        enqueue_object_button(f, second, 1, true);
+        enqueue_object_button(f, second, 1, false);
+        f.settle();
+        CHECK(f.r.session().selected == second.id);
+    }
+    SUBCASE("a press on the other object and back onto the first") {
+        // THE SAME OBJECT SELECTED AGAIN: its rows, labels and values are exactly the ones the
+        // draft was typed over, and it is still not the subject the commit named.
+        f.enqueue_key(input::scan::kReturn);
+        enqueue_object_button(f, second, 1, true);
+        enqueue_object_button(f, second, 1, false);
+        enqueue_object_button(f, first, 1, true);
+        enqueue_object_button(f, first, 1, false);
+        f.settle();
+        CHECK(f.r.session().selected == first.id);
+    }
+    // ONE COMMIT LEFT THE PANE, NAMING ITS DRAFT'S SUBJECT, AND ONE ANSWER CAME BACK.
+    REQUIRE(asks.commits == std::vector<std::string>{first.label + "77"});
+    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+    CHECK(asks.legacy_commits == 0);
+    CHECK(tap.answered == 1);
+    // NEITHER OBJECT WAS WRITTEN, AND THE HOST SAYS NOTHING WAS COMMITTED.
+    CHECK(object_of(f, first.id).label == first.label);
+    CHECK(object_of(f, second.id).label == second.label);
+    CHECK(f.r.last_notice().find("committed") == std::string::npos);
+    CHECK(named_picture(f).subject != typed_for);
+    // THE PANE ABANDONED THE DRAFT WHEN IT SAW THE NEW SUBJECT, AND ITS ROW SAYS WHY THE COMMIT WAS
+    // REFUSED -- in what Workshop admitted and in what it painted.
+    CHECK(f.declared() == kResting);
+    CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
+    CHECK(f.admitted_leads("commit refused -- the s"));
+    CHECK(f.row_containing(first.label + "77").empty());
+}
+
+TEST_CASE("an Info commit that reaches the document before a press on another object is written to the object it was typed for") {
+    // THE OPPOSITE ORDER IS LEGITIMATE: the commit arrives while its subject is still the rows'
+    // own, so the write lands, and the press that follows moves the selection over a document that
+    // already holds it.
+    InfoRig f;
+    f.open();
+    const ui::Element first = f.r.w->document().elements[0];
+    const ui::Element second = f.r.w->document().elements[1];
+    f.draft_on("Name");
+    f.r.text("77");
+    const std::int64_t typed_for = named_picture(f).subject;
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.r.key(input::scan::kReturn); // drained: the commit is answered before anything else happens
+    enqueue_object_button(f, second, 1, true);
+    enqueue_object_button(f, second, 1, false);
+    f.settle();
+    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+    CHECK(object_of(f, first.id).label == first.label + "77");
+    CHECK(object_of(f, second.id).label == second.label);
+    CHECK(f.r.session().selected == second.id);
+    CHECK(f.declared() == kResting);
+    for (const std::string& one : f.shown()) {
+        INFO("row: ", one);
+        CHECK(one.find("refused") == std::string::npos);
+    }
+}
+
+TEST_CASE("an Info commit queued behind a load is refused over the document's own bytes and over another #1, and a refused load keeps the draft") {
+    // ⭐ THE SECOND IDENTITY BOUNDARY. A load restores the file's mint, so the #1 a draft was
+    // typed for may be another object after it -- or the very same bytes. Return and Ctrl+O in one
+    // poll, with a draft on #1's Name holding `panel77`: before this, the commit wrote into the
+    // replacement.
+    InfoRig f;
+    f.open();
+    TempDir dir("info-subject-load");
+    f.r.host.document_path = dir.document();
+    const std::int64_t first = f.r.session().selected;
+    const std::string authored = object_of(f, first).label;
+
+    SUBCASE("the document's own bytes") {
+        f.unfocus();
+        f.r.key(input::scan::kS, input::mod::kCtrl);
+        REQUIRE_FALSE(f.r.session().notice_is_bad);
+        const std::string saved = slurp(dir.document());
+        f.draft_on("Name");
+        f.r.text("77");
+        const std::int64_t typed_for = named_picture(f).subject;
+        const std::size_t pictures = f.r.said_documents.size();
+        AnswerTap tap(f.r.bus, info_id(f));
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_key(input::scan::kO, input::mod::kCtrl);
+        f.settle();
+        REQUIRE(asks.commits == std::vector<std::string>{authored + "77"});
+        CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+        CHECK(tap.answered == 1);
+        CHECK(f.r.last_notice().find("loaded") != std::string::npos);
+        // NO ROW A v1 READER SEES MOVED, and the named picture says the subject did.
+        CHECK(f.r.said_documents.size() == pictures);
+        CHECK(named_picture(f).subject != typed_for);
+        CHECK(f.r.session().selected == first);
+        CHECK(object_of(f, first).label == authored);
+        CHECK(slurp(dir.document()) == saved);
+        CHECK(f.declared() == kResting);
+        CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
+        CHECK(f.admitted_leads("commit refused -- the s"));
+    }
+    SUBCASE("a document whose #1 is another name") {
+        // THE FILE ON DISK IS THIS DOCUMENT WITH #1 CALLED `alpha` -- the same identities and mint,
+        // written by the document's own save, as another run would have left it -- so after the
+        // load the draft's identity, row and label are all still there, holding another value.
+        WorkshopDoc other = f.r.w->document();
+        other.elements[0].label = "alpha";
+        const Written wrote = persist::save_file(dir.document(), other);
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        f.draft_on("Name");
+        f.r.text("77");
+        const std::int64_t typed_for = named_picture(f).subject;
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_key(input::scan::kO, input::mod::kCtrl);
+        f.settle();
+        REQUIRE(asks.commits == std::vector<std::string>{authored + "77"});
+        CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+        CHECK(object_of(f, first).label == "alpha");
+        CHECK(named_picture(f).subject != typed_for);
+        CHECK(f.declared() == kResting);
+        CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
+    }
+    SUBCASE("a load the file refuses") {
+        {
+            std::ofstream bad(dir.document(), std::ios::binary);
+            bad << "{";
+        }
+        f.draft_on("Name");
+        f.r.text("77");
+        const std::int64_t typed_for = named_picture(f).subject;
+        f.r.key(input::scan::kO, input::mod::kCtrl);
+        REQUIRE(f.r.session().notice_is_bad);
+        // THE DRAFT, ITS TEXT AND ITS SUBJECT STAND, and the next Return is written.
+        CHECK(named_picture(f).subject == typed_for);
+        CHECK(f.declared() == kDrafting);
+        CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+        CHECK(object_of(f, first).label == authored + "77");
+        CHECK(f.declared() == kResting);
+    }
+}
+
+TEST_CASE("an Info commit queued behind the contextual delete of its object is refused, and the object selected in its place is not written") {
+    // A right press on #1's workspace cell opens the contextual surface on that object, whose one
+    // row is `object.delete`, and the Return after it chooses it -- all in the poll that carries
+    // the draft's Return. The selection moves to #2, which has `Name` on the same row.
+    InfoRig f;
+    f.open();
+    const ui::Element first = f.r.w->document().elements[0];
+    const ui::Element second = f.r.w->document().elements[1];
+    f.draft_on("Name");
+    f.r.text("77");
+    const std::int64_t typed_for = named_picture(f).subject;
+    AnswerTap tap(f.r.bus, info_id(f));
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.enqueue_key(input::scan::kReturn);
+    enqueue_object_button(f, first, 3, true);
+    f.enqueue_key(input::scan::kReturn);
+    f.settle();
+    REQUIRE(doc::find(f.r.w->document(), first.id) == nullptr);
+    REQUIRE(f.r.session().selected == second.id);
+    REQUIRE(asks.commits == std::vector<std::string>{first.label + "77"});
+    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+    CHECK(tap.answered == 1);
+    CHECK(object_of(f, second.id).label == second.label);
+    CHECK(f.declared() == kResting);
+    CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
+}
+
+TEST_CASE("an Info draft outlives a new room, a workspace refit and its own object moving, and its commit is written") {
+    // THE ORDINARY UPDATES ARE NOT A NEW SUBJECT. Each one rebuilds or re-reads the host's rows
+    // and publishes a picture, and none of them changes what the draft's row addresses.
+    InfoRig f;
+    f.open();
+    const std::int64_t first = f.r.session().selected;
+    const std::string authored = object_of(f, first).label;
+    f.draft_on("Name");
+    f.r.text("77");
+    const std::int64_t typed_for = named_picture(f).subject;
+    const std::size_t named = f.r.said_named_documents.size();
+    f.regrant();
+    f.unfocus();
+    f.r.key(input::scan::kLeftBracket);
+    f.r.key(input::scan::kRightBracket);
+    const std::int64_t x = object_of(f, first).x;
+    f.r.key(input::scan::kL);
+    REQUIRE(object_of(f, first).x != x);
+    REQUIRE(f.r.said_named_documents.size() > named); // the moved value was said...
+    CHECK(named_picture(f).subject == typed_for);     // ...under the same subject
+    f.focus();
+    REQUIRE(f.declared() == kDrafting);
+    CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.r.key(input::scan::kReturn);
+    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+    CHECK(object_of(f, first).label == authored + "77");
+    CHECK(object_of(f, first).x != x);
+    CHECK(f.declared() == kResting);
+}
+
+namespace {
+
+/// WHAT THE BUS SAID ABOUT A COMMIT IT REFUSED AT DISPATCH, read off its tap.
+struct RefusedAtDispatch {
+    std::uint64_t attempt = 0; ///< the refused commit's sequence
+    std::string reason;        ///< Loom's safe reason
+    int notices = 0;           ///< Loom's notices naming that attempt, delivered to the pane
+    int delivered = 0;         ///< commits delivered to anybody in the interval
+};
+
+/// LOOM REFUSES THE PANE'S NEXT COMMIT AT DISPATCH. The turn stops where the pane has heard `heard`
+/// of Workshop's resolved actions -- its commit queued behind them, not delivered -- and
+/// Workshop's weave is killed before that delivery, a real lifecycle change by the host's own
+/// authority, so the bus refuses the queued commit and tells its author by that attempt. Workshop
+/// is then revived in place from its own snapshot -- the same document and session -- asks the
+/// room who has panes (its startup sentence, so a declaration the pane made while Workshop was dead
+/// is made again), and grants the pane a room again, so Workshop holds the rows it says. Ordinary
+/// input cannot put a death between a send and its delivery; this is the Builder suite's staging.
+inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
+    const loom::WeaveId pane_id = info_id(f);
+    loom::Switchboard& bus = f.r.bus;
+    RefusedAtDispatch out;
+    int actions = 0;
+    bool stopped = false;
+    const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
+        if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            ev.schema_name == PaneActionRequested::zen_name && ++actions == heard) {
+            stopped = true;
+            bus.stop();
+        }
+        if (ev.schema_name == DocumentCommitRequested::zen_name) {
+            if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id) {
+                out.attempt = ev.seq;
+                out.reason = loom::name_of(ev.refusal.reason);
+            } else if (ev.kind == loom::EventKind::Delivered) {
+                ++out.delivered;
+            }
+        }
+        if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr &&
+            out.attempt != 0 &&
+            loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq ==
+                out.attempt) {
+            ++out.notices;
+        }
+    });
+    for (int turns = 0; turns < 16 && !stopped; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(stopped);
+    const std::string bytes = bus.snapshot_bytes(f.r.workshop_id);
+    bus.kill(f.r.workshop_id);
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+    REQUIRE(bus.swap_state(f.r.workshop_id, bytes).revived);
+    f.r.ready();
+    f.regrant();
+    return out;
+}
+
+/// AN OFFICE HOLDING `zengine.workshop` WITH NO DOCUMENT DOOR. It hears a pane's offer, its
+/// declared actions and its rows the way Workshop does, and says Workshop's resolved commit id to
+/// the Info pane under that office. With Workshop's weave off the bus, nothing on it declares
+/// `DocumentCommitRequested`, so a commit meets Loom's seam before anything is queued.
+class DoorlessOffice
+    : public loom::WeaveBase<DoorlessOffice, SeatState,
+                             loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
+                             loom::Emit<PaneActionRequested>> {
+public:
+    void on(const PaneOffered&, loom::Mail&) {}
+    void on(const PaneActions&, loom::Mail&) {}
+    void on(const PaneContent& said, loom::Mail& mail) {
+        if (!mail.authored_from_role(pane::kInfoPaneRole)) {
+            return;
+        }
+        rows.clear();
+        for (const surface::SurfaceTextRow& row : said.rows) {
+            rows.push_back(row.text);
+        }
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        ++state_.said;
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(pane::kInfoPaneRole,
+                          PaneActionRequested{pane::kInfoPane, pane::kActionCommit});
+    }
+    std::vector<std::string> rows; ///< the pane's last rows, as this office was told them
+};
+
+/// A STRANGER: an ordinary weave granted the refusal notice's shape, as every loaded image already
+/// is. What it sends is its own speech, whatever the payload claims.
+class Stranger : public loom::WeaveBase<Stranger, SeatState, loom::Accept<SeatDo>,
+                                        loom::Emit<loom::DispatchRefused>> {
+public:
+    void on(const SeatDo&, loom::Mail&) { ++state_.said; }
+};
+
+} // namespace
+
+TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and its text stand, the next Return is written, and a cancel's promise is replaced") {
+    InfoRig f;
+    f.open();
+    const std::int64_t first = f.r.session().selected;
+    const std::string authored = object_of(f, first).label;
+    f.draft_on("Name");
+    f.r.text("77");
+
+    SUBCASE("the draft that sent it stands") {
+        f.enqueue_key(input::scan::kReturn);
+        const RefusedAtDispatch refused = refuse_next_commit(f, 1);
+        CHECK(refused.attempt != 0);
+        CHECK(refused.reason == "TargetUnavailable");
+        CHECK(refused.notices == 1);
+        CHECK(refused.delivered == 0);
+        CHECK(object_of(f, first).label == authored);
+        // THE PANE SAYS WHAT HAPPENED, in the rows Workshop holds and paints, and the draft is
+        // exactly what it was.
+        CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
+        CHECK(f.row_of("commit not delivered --") == 0);
+        CHECK(f.declared() == kDrafting);
+        CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
+        // ...IT TAKES MORE TEXT, AND THE NEXT RETURN IS A FRESH COMMIT, NOT ONE HELD BEHIND AN
+        // ANSWER THAT CANNOT COME.
+        f.r.text("8");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.commits == std::vector<std::string>{authored + "778"});
+        CHECK(object_of(f, first).label == authored + "778");
+        CHECK(f.declared() == kResting);
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit not sent") == std::string::npos);
+        }
+    }
+    SUBCASE("a draft cancelled while it waited") {
+        // Return and Escape: the pane hears the commit and the cancel before the death, so the
+        // cancel promised the commit may still be written. Loom's word replaces that promise.
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_key(input::scan::kEscape);
+        const RefusedAtDispatch refused = refuse_next_commit(f, 2);
+        CHECK(refused.notices == 1);
+        CHECK(refused.delivered == 0);
+        CHECK(object_of(f, first).label == authored);
+        CHECK(f.declared() == kResting);
+        CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit already sent") == std::string::npos);
+        }
+        // ...AND ESCAPE OVER THE NEXT DRAFT CLAIMS NO COMMIT IS OUTSTANDING.
+        f.focus();
+        f.r.key(input::scan::kReturn);
+        REQUIRE(f.declared() == kDrafting);
+        f.r.key(input::scan::kEscape);
+        CHECK_MESSAGE(f.row_of("edit cancelled -- unwri") == 0, f.text());
+    }
+}
+
+TEST_CASE("an Info commit nothing could queue is released at once: the draft stands, the next commit tries again, and it is written once the door is back") {
+    // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its document and
+    // session untouched -- and an office with no document door holds `zengine.workshop` meanwhile,
+    // so the commit's shape is one this bus has never heard of and Loom's seam refuses it before
+    // anything is queued. The pane's ticket is not valid; no answer and no notice can follow.
+    InfoRig f;
+    f.open();
+    const std::int64_t first = f.r.session().selected;
+    const std::string authored = object_of(f, first).label;
+    f.draft_on("Name");
+    f.r.text("77");
+    const std::int64_t typed_for = named_picture(f).subject;
+    const loom::WeaveId pane_id = info_id(f);
+
+    std::unique_ptr<loom::Weave> workshop = f.r.take_workshop_off();
+    REQUIRE(f.r.bus.resolve_schema(DocumentCommitRequested::zen_name,
+                                   DocumentCommitRequested::zen_version) == nullptr);
+    auto held = std::make_unique<DoorlessOffice>();
+    DoorlessOffice* office = held.get();
+    loom::Grant say;
+    say.allow_to_role(PaneActionRequested::zen_name, PaneActionRequested::zen_version,
+                      pane::kInfoPaneRole);
+    const loom::WeaveId office_id =
+        f.r.bus.register_weave(std::move(held), std::move(say), std::string(kWorkshopProvider));
+    office->zen_set_self(office_id);
+
+    int seam_refusals = 0;
+    int queued = 0;
+    std::string reason;
+    const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.schema_name != DocumentCommitRequested::zen_name) {
+            return;
+        }
+        if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id) {
+            ++seam_refusals;
+            reason = loom::name_of(ev.refusal.reason);
+        } else {
+            ++queued;
+        }
+    });
+    const auto commit_id_said = [&f, office_id] {
+        (void)f.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        f.r.bus.drain_until_idle();
+    };
+    commit_id_said();
+    CHECK(seam_refusals == 1);
+    CHECK(reason == "SeamUnresolved");
+    CHECK(queued == 0);
+    REQUIRE_FALSE(office->rows.empty());
+    CHECK_MESSAGE(office->rows.front().rfind("commit not submitted --", 0) == 0,
+                  office->rows.front());
+    // THE RECORD WAS RELEASED: the next commit is attempted again rather than refused as the second
+    // of two, which is what an outstanding record would have said.
+    commit_id_said();
+    CHECK(seam_refusals == 2);
+    CHECK(queued == 0);
+    CHECK(office->rows.front().rfind("commit not submitted --", 0) == 0);
+    f.r.bus.remove_observer(tap);
+
+    // THE DOOR COMES BACK: the office leaves, and the same Workshop weave holds it again.
+    REQUIRE(f.r.bus.unregister_weave(office_id) != nullptr);
+    f.r.put_workshop_back(std::move(workshop));
+    f.regrant();
+    CHECK_MESSAGE(f.admitted_leads("commit not submitted --"), f.text());
+    CHECK(f.declared() == kDrafting);
+    CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
+    CHECK(object_of(f, first).label == authored);
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.r.key(input::scan::kReturn);
+    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
+    CHECK(object_of(f, first).label == authored + "77");
+    CHECK(f.declared() == kResting);
+}
+
+TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstanding commit exactly, settles nothing") {
+    // THE PROVENANCE IS THE FACT; THE SHAPE IS SPEECH. A stranger says `zen.DispatchRefused` naming
+    // every half the pane matches -- the attempt, the correlation, the shape, its version, the
+    // office -- and queues it where it reaches the pane before the document's answer does.
+    InfoRig f;
+    f.open();
+    const std::int64_t first = f.r.session().selected;
+    const std::string authored = object_of(f, first).label;
+    auto held = std::make_unique<Stranger>();
+    Stranger* stranger = held.get();
+    loom::Grant grant;
+    grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
+    const loom::WeaveId stranger_id = f.r.bus.register_weave(std::move(held), std::move(grant));
+    stranger->zen_set_self(stranger_id);
+    const loom::WeaveId pane_id = info_id(f);
+
+    // THE COMMITS THE DOOR RECEIVED, with the attempt and the correlation each carried.
+    std::vector<std::uint64_t> seqs;
+    std::vector<std::uint64_t> correlations;
+    std::vector<std::string> first_rows; ///< every row 0 the pane said, in order
+    int forged_delivered = 0;
+    bool stopped = false;
+    bool stop_armed = false;
+    const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind != loom::EventKind::Delivered) {
+            return;
+        }
+        if (ev.schema_name == DocumentCommitRequested::zen_name) {
+            seqs.push_back(ev.seq);
+            correlations.push_back(ev.correlation);
+        } else if (ev.target == pane_id && ev.schema_name == loom::DispatchRefused::zen_name &&
+                   ev.sender == stranger_id) {
+            ++forged_delivered;
+        } else if (ev.sender == pane_id && ev.schema_name == PaneContent::zen_name &&
+                   ev.payload != nullptr) {
+            const PaneContent said = loom::from_value<PaneContent>(*ev.payload);
+            if (!said.rows.empty()) {
+                first_rows.push_back(said.rows.front().text);
+            }
+        } else if (stop_armed && !stopped && ev.target == pane_id &&
+                   ev.schema_name == PaneActionRequested::zen_name) {
+            stopped = true;
+            f.r.bus.stop();
+        }
+    });
+
+    // THE PANE'S CORRELATION IS ITS OWN COUNT: read off a first commit, written, and the next is
+    // one more.
+    f.draft_on("Name");
+    f.r.text("7");
+    f.r.key(input::scan::kReturn);
+    REQUIRE(seqs.size() == 1);
+    REQUIRE(object_of(f, first).label == authored + "7");
+    REQUIRE(f.declared() == kResting);
+    f.r.key(input::scan::kReturn); // `info.edit` on the same row: a new draft
+    REQUIRE(f.declared() == kDrafting);
+    f.r.text("8");
+
+    // THE TURN STOPS WHERE THE PANE HAS HEARD ITS COMMIT: the commit is queued, not delivered.
+    stop_armed = true;
+    f.enqueue_key(input::scan::kReturn);
+    for (int turns = 0; turns < 16 && !stopped; ++turns) {
+        (void)f.r.bus.pump_pending();
+    }
+    REQUIRE(stopped);
+    REQUIRE(seqs.size() == 1);
+    // ITS ATTEMPT IS THE SEQUENCE HANDED OUT JUST BEFORE THE NEXT ONE -- read off a probe now, and
+    // checked against the commit's delivery afterwards.
+    const loom::Ticket probe = f.r.bus.send(
+        stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    REQUIRE(probe.valid());
+    loom::DispatchRefused forged;
+    forged.attempt = std::to_string(probe.seq - 1);
+    forged.role = kWorkshopProvider;
+    forged.shape = DocumentCommitRequested::zen_name;
+    forged.version = DocumentCommitRequested::zen_version;
+    forged.reason = "TargetUnavailable";
+    REQUIRE(f.r.bus
+                .send_as(stranger_id, pane_id,
+                         loom::Message(loom::to_value(forged), stranger_id, loom::WeaveId{},
+                                       correlations.front() + 1))
+                .valid());
+    // ...AND WORKSHOP'S RESOLVED COMMIT ID AGAIN, queued behind the forgery, ahead of the answer.
+    f.enqueue_action(pane::kActionCommit);
+    f.settle();
+    f.r.bus.remove_observer(tap);
+
+    // THE FORGERY WAS DELIVERED, AND IT NAMED THE COMMIT THE DOOR THEN RECEIVED, EXACTLY.
+    CHECK(forged_delivered == 1);
+    REQUIRE(seqs.size() == 2);
+    CHECK(seqs.back() == probe.seq - 1);
+    CHECK(correlations.back() == correlations.front() + 1);
+    // IT SETTLED NOTHING: the commit id said meanwhile met the outstanding commit and was not sent,
+    // no row ever said the commit was not delivered, and the answer closed the draft.
+    const bool not_sent_said =
+        std::find_if(first_rows.begin(), first_rows.end(), [](const std::string& row) {
+            return row.rfind("commit not sent --", 0) == 0;
+        }) != first_rows.end();
+    CHECK(not_sent_said);
+    for (const std::string& row : first_rows) {
+        INFO("row 0: ", row);
+        CHECK(row.find("not delivered") == std::string::npos);
+    }
+    CHECK(object_of(f, first).label == authored + "78");
+    CHECK(f.declared() == kResting);
+    CHECK(f.row_of("commit not sent") == -1);
+}
+
+TEST_CASE("an Info select Loom refuses at dispatch releases its own record, and the next press selects") {
+    // THE SAME ACCOUNTING FOR THE OTHER DOCUMENT ASK. A press on #2's object row asks the document
+    // to select it; the turn stops where the pane has heard the press -- its select queued, not
+    // delivered -- and Workshop's weave is killed before that delivery and revived afterwards, as
+    // `refuse_next_commit` stages a commit's refusal.
+    InfoRig f;
+    f.open();
+    const std::int64_t first = f.r.session().selected;
+    const std::int64_t second = f.r.w->document().elements[1].id;
+    const std::int64_t at = f.row_of("  #" + std::to_string(second));
+    REQUIRE(at >= 0);
+    const loom::WeaveId pane_id = info_id(f);
+    loom::Switchboard& bus = f.r.bus;
+    bool stopped = false;
+    std::uint64_t attempt = 0;
+    std::string reason;
+    int notices = 0;
+    const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
+        if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            (ev.schema_name == PanePressed::zen_name)) {
+            stopped = true;
+            bus.stop();
+        }
+        if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id &&
+            ev.schema_name == DocumentActRequested::zen_name) {
+            attempt = ev.seq;
+            reason = loom::name_of(ev.refusal.reason);
+        }
+        if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
+            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr &&
+            attempt != 0 &&
+            loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq == attempt) {
+            ++notices;
+        }
+    });
+    f.enqueue_press(at);
+    for (int turns = 0; turns < 16 && !stopped; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(stopped);
+    const std::string bytes = bus.snapshot_bytes(f.r.workshop_id);
+    bus.kill(f.r.workshop_id);
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+    REQUIRE(bus.swap_state(f.r.workshop_id, bytes).revived);
+    f.r.ready();
+    f.regrant();
+    CHECK(attempt != 0);
+    CHECK(reason == "TargetUnavailable");
+    CHECK(notices == 1);
+    CHECK(f.r.session().selected == first);
+    CHECK_MESSAGE(f.admitted_leads("select not delivered --"), f.text());
+    // ...AND THE NEXT PRESS IS A SELECT OF ITS OWN, answered.
+    f.press_row("  #" + std::to_string(second));
+    CHECK(f.r.session().selected == second);
+    CHECK(f.row_of("select not delivered") == -1);
 }
 
 // ============================================================================

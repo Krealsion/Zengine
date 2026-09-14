@@ -163,11 +163,20 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
 
 // ---- The maker's gestures over one session ---------------------------------------------
 
-// WL-DOC-10 -- agents/workshop/document.md
+// WL-DOC-10, WL-DOC-21 -- agents/workshop/document.md
 std::int64_t create(WorkshopDoc& d, Session& s) {
     const std::int64_t id = doc::add_default(d);
     if (id == 0) {
         return 0;
+    }
+    // AN IDENTITY THE DOCUMENT HAS ALREADY HELD IS BEING HANDED OUT AGAIN, so its mint was
+    // rewound from outside every gesture (a poke, a state swap): the new object is not the one
+    // that number named, and the rows' name goes with the object they named -- even when the
+    // selection's number, and so everything a picture shows, stays the same.
+    if (id <= s.subject.held_through) {
+        s.subject.name = 0;
+    } else {
+        s.subject.held_through = id;
     }
     s.selected = id;
     refocus(d, s);

@@ -88,24 +88,28 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and a new document must
 
-LAW — A `PaneRoom` grant keeps the draft; a `DocumentShown` that stops showing its property ABANDONS it, saying so: a draft carried onto another object's row writes a maker's text into another property.
+LAW — A `PaneRoom` grant keeps the draft; a picture that stops showing its subject ABANDONS it, saying so: a draft carried onto another object's row would ask to write a maker's text into another property.
 
 MEANS
-- its property is the object AND the label on the draft's row: another object's row is not it;
-- the pane drops it unasked, so it says so, and whether a commit it sent may still be written.
+- its subject is the host's name for the rows, then the object AND the label on the draft's row;
+- a room, a refit or a moved value keeps that name; another selection or any load does not;
+- the pane drops it unasked, so it says so, and that a commit it sent was already sent.
 
 DOES NOT MEAN
-- that a commit already sent is recalled — the host commits against the rows it holds then.
+- that a commit already sent is recalled — the host writes it only while its subject holds.
 
-PROVEN BY — `info-pane/pane.cpp` `on(DocumentShown)`, `on(PaneRoom)`, `shows_draft_subject`,
-`end_draft`, `close_draft`, `Draft::object`, `draft_`;
-`workshop/document_seam_vocabulary.hpp` `DocumentShown::properties`, `DocumentShown::selected`;
+PROVEN BY — `info-pane/pane.cpp` `on(v2::DocumentShown)`, `on(PaneRoom)`, `shows_draft_subject`,
+`end_draft`, `close_draft`, `Draft::object`, `Draft::subject`, `draft_`;
+`workshop/document_seam_vocabulary.hpp` `v2::DocumentShown::subject`, `DocumentShown::selected`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft opens on the cursor's row,
 declares two ids and no more, and commits through the document"`, case `"a picture that selects
 another object abandons the Info draft and says so, even where that object has the same property
 on the same row, and writes nothing into either object"`, case `"a press on an object while an
 Info draft is live is refused in the controls' words, keeping the draft, its text, the selection
-and the document through a new room, and selecting resumes once the draft ends"`.
+and the document through a new room, and selecting resumes once the draft ends"`, case `"an Info
+commit queued behind a load is refused over the document's own bytes and over another #1, and a
+refused load keeps the draft"`, case `"an Info draft outlives a new room, a workspace refit and
+its own object moving, and its commit is written"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-07 — `share_body_rows` is max-min fair sharing
@@ -194,8 +198,8 @@ MEANS
 - a select, a create or a delete keeps its own newest record, so none of them hides a commit.
 
 DOES NOT MEAN
-- that closing a draft retracts a write, or that the pane knows what object a late commit reached;
-- that an answer replaces a later act's sentence, or that an unanswered commit is ever given up.
+- that closing a draft retracts a write, or that the pane decides what a late commit may reach;
+- that an answer replaces a later act's sentence, or that a delivered unanswered commit ends.
 
 PROVEN BY — `info-pane/pane.cpp` `on(DocumentActed)`, `act`, `answered_commit`, `ask`,
 `end_draft`, `Asked`, `SentCommit`, `SentCommit::draft`, `SentCommit::text`,
@@ -218,5 +222,30 @@ the unsent text, a refusal is not said of the newer text, and the newer text com
 case `"an Info commit's answer settles the sentence that said a second commit was not sent, and
 leaves a sentence a later act said standing"`, case `"a commit from a newer Info draft is not sent
 while an earlier draft's commit is unanswered, even with a select asked between them, and the
-earlier commit's account replaces that sentence without closing or altering the newer draft"`.
+earlier commit's account replaces that sentence without closing or altering the newer draft"`,
+case `"an Info commit queued behind a press on another object, or on it and back, is refused:
+neither object is written and the pane says why"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
+
+## WL-INFO-13 — A document ask Loom says never arrived is released, and silence still waits
+
+LAW — Info keeps each document ask's ticket: nothing queued, or Loom's own `zen.DispatchRefused` naming that attempt, releases that record and says so, closing no draft; a forged notice settles nothing.
+
+MEANS
+- the draft and its text stand, and the next Return is a fresh commit, not a second one;
+- the account says nothing was written and replaces only that commit's own sentence;
+- a notice counts only with Loom's provenance, then the attempt, correlation, shape and office.
+
+DOES NOT MEAN
+- that a delivered, unanswered ask is released: no timeout, retry, cancellation or polling;
+- that the pane's other sends are accounted: the rows, the declaration and the clipboard are not.
+
+PROVEN BY — `info-pane/pane.cpp` `on(DispatchRefused)`, `refused_ask`, `undelivered_commit`,
+`ask`, `ask_commit`, `Asked::attempt`, `kCommitNotQueued`, `kCommitUndelivered`;
+`tests/test_workshop_panes_info.cpp` case `"an Info commit Loom refuses at dispatch is released:
+the draft and its text stand, the next Return is written, and a cancel's promise is replaced"`,
+case `"an Info commit nothing could queue is released at once: the draft stands, the next commit
+tries again, and it is written once the door is back"`, case `"a refusal notice anyone could send,
+naming the Info pane's outstanding commit exactly, settles nothing"`, case `"an Info select Loom
+refuses at dispatch releases its own record, and the next press selects"`.
+WHY — `agents/decisions/an-undelivered-ask-is-released.md`
