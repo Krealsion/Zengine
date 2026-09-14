@@ -139,7 +139,8 @@ PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::pa
 `begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
 `PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
 `workshop/property.hpp` `Row::paste`, `Row::resume`; `terminal-pane/pane.cpp` `begin_paste`,
-`on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `surface/vocabulary.hpp`
+`on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `info-pane/pane.cpp`
+`begin_paste`, `on(ClipboardText)`, `Paste::epoch`; `surface/vocabulary.hpp`
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
 reads the platform current, not the mirror stale"`, case `"QR-11: an unsolicited ClipboardText
 enters no box and no mirror"`; `tests/test_component.cpp` case `"QR-11: paste is a request the
@@ -148,7 +149,9 @@ however much typing preceded it"`; `tests/test_workshop_panes_terminal.cpp` case
 clipboard text lands in the draft that asked for it, or nowhere"`, case `"TERM-W21b: an edit is
 not a new draft, and a submit is"`, case `"TERM-W22: a paste is one gesture, and undo gives back
 the line it landed in"`, case `"TERM-W23: what the clipboard holds is normalized to fit a line,
-or refused aloud"`.
+or refused aloud"`; `tests/test_workshop_panes_info.cpp` case `"a clipboard answer asked for by an
+Info draft that has closed lands in no later draft, and one asked for by the draft still standing
+lands in it"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror

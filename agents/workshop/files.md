@@ -219,10 +219,14 @@ MEANS
 - so there is no second commit id: Return is `files.open`, and what it means is the pane's;
 - while the line has the keyboard only two rows are declared, so Backspace still deletes.
 
-PROVEN BY — `files/files.cpp` `declare`; `files/vocabulary.hpp` `kActionOpen`, `kActionCancel`;
-`workshop/keymap.hpp` `join_pane_rows`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: the pane declares its rows with the ids a maker's keymap already knows"`, case
-`"FILES-WEAVE: the authoring line takes raw keys, and Escape abandons it whole"`.
+PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
+`kActionOpen`, `kActionCancel`; `workshop/keymap.hpp` `join_pane_rows`;
+`tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the pane declares its rows with the ids
+a maker's keymap already knows"`, case `"FILES-WEAVE: the authoring line takes raw keys, and
+Escape abandons it whole"`, case `"an id Files does not declare in the mode it is in is no act: an
+unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the
+same poll leave the notice standing through a new room, and a declared id that moves nothing still
+spends it"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 
 ## WL-FILES-17 — Three doors, and what crosses them is a value

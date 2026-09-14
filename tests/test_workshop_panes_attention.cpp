@@ -388,6 +388,58 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     CHECK(f.r.said_conditions.back().rows.size() == 2);
 }
 
+TEST_CASE("an Attention pane whose every current condition is hidden says they are hidden and still true, through a spent notice and a new room, and says nothing needs attention only when nothing is true") {
+    // HIDING IS A PRESENTATION CHOICE. With every current condition hidden the list was empty,
+    // and the pane said the sentence it says when NOTHING is true -- `nothing needs your
+    // attention right now` -- while the host held the condition, the chip named it and the
+    // publication carried it.
+    AttentionRig f;
+    f.open();
+    const std::string empty = "nothing needs your attention right now";
+    CHECK(f.text().find(empty) != std::string::npos); // nothing is true yet: the empty sentence
+
+    f.unfocus(); // `establish` repaints with a key, which must not be this pane's
+    f.establish(thing("a.one", "the first thing", "why the first"));
+    f.focus();
+    f.letter(input::scan::kD, "d");
+    REQUIRE(f.text().find("hidden -- the first thing is still true") != std::string::npos);
+    CHECK(f.text().find("all conditions hidden -- 1 is still true") != std::string::npos);
+    CHECK(f.text().find(empty) == std::string::npos);
+
+    // SPENDING THE SENTENCE ABOUT THE GESTURE UN-SAYS NOTHING: the list still says it is hiding.
+    f.r.key(input::scan::kUp);
+    CHECK(f.text().find("hidden -- the first thing") == std::string::npos);
+    CHECK(f.text().find("all conditions hidden -- 1 is still true") != std::string::npos);
+    CHECK(f.text().find(empty) == std::string::npos);
+    f.regrant();
+    CHECK(f.text().find("all conditions hidden -- 1 is still true") != std::string::npos);
+    CHECK(f.text().find(empty) == std::string::npos);
+    // ...AND WHAT IS TRUE IS UNTOUCHED: the host holds it, the chip names it, the seam carries
+    // it.
+    CHECK(f.r.session().conditions.holds("a.one"));
+    CHECK(attention_conditions(f.r.session()).size() == 1);
+    CHECK(f.r.attention_note().find("the first thing") != std::string::npos);
+    REQUIRE_FALSE(f.r.said_conditions.empty());
+    CHECK(f.r.said_conditions.back().rows.size() == 1);
+
+    // TWO, BOTH HIDDEN: the count is what is hidden.
+    f.unfocus();
+    f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
+    f.focus();
+    REQUIRE(f.text().find("ATTENTION -- 1 condition") != std::string::npos);
+    f.letter(input::scan::kD, "d");
+    CHECK(f.text().find("all conditions hidden -- 2 are still true") != std::string::npos);
+
+    // RETRACTED BY THEIR OWNER: nothing is true, so nothing is hidden, and the empty sentence is
+    // the true one again.
+    f.unfocus();
+    f.retract("a.one");
+    CHECK(f.text().find("all conditions hidden -- 1 is still true") != std::string::npos);
+    f.retract("b.two");
+    CHECK(f.text().find(empty) != std::string::npos);
+    CHECK(f.text().find("all conditions hidden") == std::string::npos);
+}
+
 TEST_CASE("ATTN-WEAVE: the pane's keys act only after the maker has pressed into it") {
     // ⭐ VD-22, AT THIS PANE. The overlay owned the keyboard from the moment a chord opened
     // it, wherever the maker was standing. A pane's rows are active only while it holds the
