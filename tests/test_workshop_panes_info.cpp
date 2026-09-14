@@ -175,6 +175,61 @@ struct InfoRig {
         std::sort(ids.begin(), ids.end());
         return ids;
     }
+
+    /// THE ROWS WORKSHOP HOLDS FOR THIS PANE -- the content it admitted, which the next repaint
+    /// paints. `shown()` is that picture painted, a turn behind; a spent notice leaves THESE.
+    std::vector<std::string> admitted() {
+        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        std::vector<std::string> rows;
+        for (const surface::SurfaceTextRow& one : seat->shown) {
+            rows.push_back(one.text);
+        }
+        return rows;
+    }
+
+    /// The first painted row holding `needle`, or an empty string.
+    std::string row_containing(const std::string& needle) {
+        for (const std::string& one : shown()) {
+            if (one.find(needle) != std::string::npos) {
+                return one;
+            }
+        }
+        return std::string();
+    }
+
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
+    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
+    /// private. Required to be a real grant, so the case cannot pass on a deduplicated extent.
+    void regrant() {
+        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        REQUIRE(seat != nullptr);
+        const std::int64_t rows = seat->rows;
+        wide_ = !wide_;
+        r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
+        REQUIRE(r.session().panels.external_pane(kind) != nullptr);
+        REQUIRE_MESSAGE(r.session().panels.external_pane(kind)->rows != rows,
+                        "the surface changed and the pane's room did not");
+    }
+    bool wide_ = true;
+
+    /// A KEY OR A PRESS QUEUED AND NOT DRAINED, so a case places a real gesture at an exact
+    /// interval of a conversation (the Files rig's own doors); `settle` drains.
+    void enqueue_key(std::int64_t sc) {
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::KeyPressed{sc, "", input::mod::kNone}), loom::WeaveId{},
+            loom::WeaveId{}, 0));
+    }
+    void enqueue_press(std::int64_t at) {
+        const ui::Rect body = external_body_rect(r.session(), kind);
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::PointerButton{1, true, body.x + 1,
+                                                body.y + kExternalHeaderRows + at +
+                                                    surface::kTuiCanvasTopRow,
+                                                input::space::kCells, input::mod::kNone}),
+            loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+    void settle() { r.bus.drain_until_idle(); }
 };
 
 /// One object on the host's document, made the way a maker makes one.
@@ -622,6 +677,272 @@ TEST_CASE("INFO-WEAVE: an object name a canvas cannot draw is still shown") {
         }
     }
     CHECK(f.text().find("na me") != std::string::npos);
+}
+
+// ============================================================================
+// A notice, and the act that spends it
+// ============================================================================
+//
+// A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT, AND SPENT MEANS GONE FROM THE ROWS WORKSHOP
+// HOLDS (`agents/panes.md`). Both halves are asked of what Workshop admitted and painted, never
+// of the pane: a notice cleared in private stands painted until some unrelated grant says the
+// rows again, so every "it stands" below is read again after a new room.
+
+TEST_CASE("a press on an Info row while a notice stands names the row painted there, and a full room keeps both controls under the notice") {
+    // THE NOTICE TAKES THE FIRST ROW AND EVERY ROW UNDER IT MOVES DOWN ONE. The pane composes its
+    // body without the notice and `finish` puts it in front -- but the row map counted the notice
+    // the other way, and the body was padded as though the notice were already in it. So while a
+    // notice stood, a press landed two rows below the row it named, a blank row sat under the
+    // object list, and a full room lost `[ Delete ]` off its end.
+    InfoRig f;
+    f.open(160, 24);
+    for (int i = 0; i < 24; ++i) {
+        make_object(f);
+    }
+    f.focus();
+    const std::string label = f.picture().properties.front().label;
+    f.r.key(input::scan::kReturn); // `info.edit` on the row the workspace makes: the pane refuses
+    REQUIRE(f.row_of(label) == 0);
+
+    // A FULL ROOM: every granted row is published, and the two controls are still its last two.
+    const std::vector<std::string> rows = f.shown();
+    const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    REQUIRE(static_cast<std::int64_t>(rows.size()) == seat->rows);
+    CHECK(rows[rows.size() - 2].rfind("[ Create ]", 0) == 0);
+    CHECK(rows[rows.size() - 1].rfind("[ Delete ]", 0) == 0);
+    // ...AND NOTHING BLANK UNDER THE OBJECT LIST: the row above the properties is an object.
+    const std::int64_t properties = f.row_of("PROPERTIES");
+    REQUIRE(properties > 1);
+    CHECK(rows[static_cast<std::size_t>(properties - 1)].rfind("> #", 0) == 0);
+
+    // A PRESS ON A PROPERTY PAINTED UNDER THE NOTICE PUTS THE CURSOR ON THAT PROPERTY.
+    const std::string second = f.picture().properties[1].label;
+    f.press_row(" " + second);
+    CHECK(f.row_of(">" + second) >= 0);
+    CHECK(f.row_of(label) == -1); // ...and it was an act, so the notice is spent
+
+    // A PRESS ON AN OBJECT PAINTED UNDER A NOTICE SELECTS THAT OBJECT.
+    f.r.key(input::scan::kUp);
+    f.r.key(input::scan::kReturn);
+    REQUIRE(f.row_of(label) == 0);
+    const std::int64_t before = f.r.session().selected;
+    std::int64_t other = 0;
+    for (const std::string& one : f.shown()) {
+        if (one.rfind("  #", 0) == 0) {
+            other = std::stoll(one.substr(3));
+            break;
+        }
+    }
+    REQUIRE(other != 0);
+    REQUIRE(other != before);
+    f.press_row("  #" + std::to_string(other));
+    CHECK(f.r.session().selected == other);
+    CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
+}
+
+TEST_CASE("a key the Info draft line does not take is no act: the notice stands through a new room, and a key it takes spends it") {
+    // THE DRAFT'S LINE REFUSES A KEY IT HAS NO MEANING FOR, and the pane cleared its notice
+    // before it asked the line -- so the refusal stood painted over a private clear, and the next
+    // room grant said the rows without a sentence the maker had done nothing to.
+    InfoRig f;
+    f.open();
+    f.focus();
+    f.go_to_first_editable();
+    f.r.key(input::scan::kReturn); // a draft on an authored row
+    REQUIRE(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
+    f.r.text("77");
+    f.press_row("( Create )"); // the pane's own refusal, beside the live draft
+    REQUIRE(f.row_of("finish the edit") == 0);
+    const std::string drafted = f.row_containing("77");
+    REQUIRE_FALSE(drafted.empty());
+
+    f.r.key(input::scan::kDown); // a key the line has no meaning for
+    CHECK(f.row_of("finish the edit") == 0);
+    CHECK(f.row_containing("77") == drafted); // the same room, so the same row, byte for byte
+    f.regrant();
+    CHECK(f.row_of("finish the edit") == 0);
+    // ...AND THE DRAFT IS THE DRAFT IT WAS: still open, its text where the maker left it.
+    CHECK(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
+    CHECK_FALSE(f.row_containing("77").empty());
+
+    f.r.key(input::scan::kLeft); // a key the line takes
+    CHECK(f.row_of("finish the edit") == -1);
+    CHECK_FALSE(f.row_containing("77").empty());
+}
+
+TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commit resolved before a cancel, and an id nobody declared, leave the notice standing through a new room") {
+    // THE MODE OWNS THE PANE'S ACTIONS, AND A DECLARATION RACES A KEYSTROKE. A maker who presses
+    // Escape and Return in one poll gets both resolved against the rows the draft declared --
+    // `info.cancel`, then `info.commit` -- and the pane hears the commit after the cancel closed
+    // the draft: a stale id, delivered by Workshop under its own office. The pane cleared its
+    // notice before it asked what the id meant here, so the cancel's own sentence stood over a
+    // private clear.
+    InfoRig f;
+    f.open();
+    f.focus();
+    const std::size_t editable = f.go_to_first_editable();
+    const std::string authored = f.picture().properties[editable].value;
+    f.r.key(input::scan::kReturn);
+    f.r.text("77");
+    const std::vector<std::string> resting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
+
+    f.enqueue_key(input::scan::kEscape);
+    f.enqueue_key(input::scan::kReturn);
+    f.settle();
+    REQUIRE(f.row_of("edit cancelled") == 0);
+    CHECK(f.declared() == resting);
+    f.regrant();
+    CHECK(f.row_of("edit cancelled") == 0);
+
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE, is the same non-act -- asked of a
+    // notice of its own, so it cannot pass or fail on what the stale commit did.
+    f.r.key(input::scan::kReturn);
+    f.r.key(input::scan::kEscape);
+    REQUIRE(f.row_of("edit cancelled") == 0);
+    const PaneRig::OfficeAction unknown =
+        f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, "info.no-such-action");
+    REQUIRE(unknown.authored);
+    REQUIRE(unknown.delivered);
+    CHECK(unknown.author == kWorkshopProvider);
+    f.regrant();
+    CHECK(f.row_of("edit cancelled") == 0);
+    // ...AND NEITHER ONE WROTE ANYTHING: the value the maker typed never reached the document.
+    CHECK(f.picture().properties[editable].value == authored);
+
+    // THE SAME DOOR WITH AN ID THE PANE DOES ANSWER TO IS AN ACT -- which is what shows the
+    // provenance was never the reason for the silence above.
+    const auto cursor_row = [&f] { // the property row wearing the mark, not the selected object's
+        for (const std::string& one : f.shown()) {
+            if (one.rfind(">", 0) == 0 && one.rfind("> #", 0) != 0) {
+                return one;
+            }
+        }
+        return std::string();
+    };
+    const std::string cursor_was = cursor_row();
+    REQUIRE_FALSE(cursor_was.empty());
+    const PaneRig::OfficeAction down =
+        f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, pane::kActionDown);
+    REQUIRE(down.delivered);
+    CHECK(f.row_of("edit cancelled") == -1);
+    CHECK(cursor_row() != cursor_was); // the mark is on the next property now
+}
+
+TEST_CASE("a press on the Info object already selected spends the notice in the rows Workshop holds while its answer is still on its way, and needs no new document picture to say so") {
+    // AN ACCEPTED ACT THAT CHANGES NO PICTURE. The press asks the host to select what is
+    // selected; the host answers yes and has nothing new to publish, so no `DocumentShown` comes
+    // to say the pane's rows again. The pane cleared its notice at the press and said nothing of
+    // its own, so the refusal it had spent stood painted after the conversation was over.
+    InfoRig f;
+    f.open();
+    f.focus();
+    const DocumentShown said = f.picture();
+    REQUIRE_FALSE(said.properties.front().editable);
+    const std::string label = said.properties.front().label;
+    f.r.key(input::scan::kReturn); // `info.edit` on a row the workspace makes: the pane refuses
+    REQUIRE(f.row_of(label) == 0);
+    const std::int64_t selected = f.r.session().selected;
+    const std::size_t documents = f.r.said_documents.size();
+    const std::int64_t at = f.row_of("> #" + std::to_string(selected));
+    REQUIRE(at > 0);
+
+    const loom::WeaveId pane_id = f.r.kernel.weave_id(pane::kInfoPaneStem);
+    REQUIRE(pane_id.value != 0);
+    loom::Switchboard& bus = f.r.bus;
+    bool pressed = false;
+    bool answered = false;
+    const loom::ObserverId tap =
+        bus.add_observer([&pressed, &answered, &bus, pane_id](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered || ev.target != pane_id) {
+                return;
+            }
+            if (!pressed && ev.schema_name == PanePressed::zen_name) {
+                pressed = true; // the turn ends where the pane has acted: its ask is queued
+                bus.stop();
+            } else if (ev.schema_name == DocumentActed::zen_name) {
+                answered = true;
+            }
+        });
+    f.enqueue_press(at);
+    for (int turns = 0; turns < 8 && !pressed; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(pressed);
+    REQUIRE_FALSE(answered);
+    // TURN BY TURN, until the rows Workshop holds stop saying the refusal -- which must happen
+    // while the host's answer is still on its way to the pane.
+    const auto leads_with_it = [&f, &label] {
+        const std::vector<std::string> rows = f.admitted();
+        return !rows.empty() && rows.front().rfind(label, 0) == 0;
+    };
+    for (int turns = 0; turns < 16 && leads_with_it() && !answered; ++turns) {
+        (void)bus.pump_pending();
+    }
+    CHECK_FALSE(answered);
+    CHECK_FALSE(leads_with_it());
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+
+    // THE CONVERSATION IS OVER: accepted, the selection where it was, and no picture was said.
+    CHECK(answered);
+    CHECK(f.r.session().selected == selected);
+    CHECK(f.r.said_documents.size() == documents);
+    CHECK(f.row_of(label) == -1);
+    f.regrant();
+    CHECK(f.row_of(label) == -1);
+
+    // A PRESS STILL MEANS WHAT THE PICTURE SAYS: the rows moved up when the notice left, and the
+    // row the next press reads is the object painted there.
+    const std::int64_t other = said.objects.back().identity;
+    REQUIRE(other != selected);
+    f.press_row("  #" + std::to_string(other));
+    CHECK(f.r.session().selected == other);
+    CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
+}
+
+TEST_CASE("an Info act with nothing to act on still spends the notice before it, and a refusal the document gives a press stands until the act after it") {
+    // TWO HALVES OF ONE RULE. `info.edit` over an empty inspector is a declared id in the mode
+    // the pane is in -- an act that happens to change nothing, like `info.up` on the first row --
+    // so it spends the notice, and says the rows because nothing else will. And the document's
+    // own refusal, the answer to a press, is a NEW notice: the rows said at the press must not be
+    // the last word, and the next room must not take it back.
+    InfoRig f;
+    f.open();
+    f.focus();
+    f.go_to_first_editable();
+    f.r.key(input::scan::kReturn);
+    f.r.key(input::scan::kEscape); // a standing notice that is not the document's
+    REQUIRE(f.row_of("edit cancelled") == 0);
+    while (!f.r.w->document().elements.empty()) {
+        f.unfocus();
+        f.r.key(input::scan::kD);
+    }
+    f.focus(); // the OBJECTS heading: a row that means nothing, so nothing is spent
+    REQUIRE(f.row_of("edit cancelled") == 0);
+    REQUIRE(f.text().find("(nothing selected)") != std::string::npos);
+
+    // A PRESS ON `( Delete )` WITH NOTHING TO DELETE: the pane asks, the document refuses.
+    f.press_row("( Delete )");
+    CHECK(f.row_of("edit cancelled") == -1);
+    const std::vector<std::string> refused = f.shown();
+    REQUIRE_FALSE(refused.empty());
+    const std::string refusal = refused.front();
+    CHECK(refusal.rfind("( Delete )", 0) != 0);
+    CHECK(refusal.rfind("OBJECTS", 0) != 0);
+    f.regrant();
+    CHECK(f.shown().front().rfind(refusal.substr(0, 12), 0) == 0);
+
+    // `info.edit` WITH NOTHING SELECTED: declared, applicable, and a no-op -- the refusal is
+    // spent.
+    f.r.key(input::scan::kReturn);
+    CHECK(f.shown().front().rfind(refusal.substr(0, 12), 0) != 0);
+    CHECK(f.row_of("OBJECTS") == 0);
+
+    // ...AND THE NEXT PRESS READS THE PICTURE THAT SAYS SO: `[ Create ]` is where it is painted.
+    const std::size_t born = f.r.w->document().elements.size();
+    f.press_row("[ Create ]");
+    CHECK(f.r.w->document().elements.size() == born + 1);
 }
 
 // ============================================================================

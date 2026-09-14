@@ -190,6 +190,21 @@ struct TerminalRig {
     /// case asks what was ADMITTED rather than what was sent.
     const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
 
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
+    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
+    /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
+    void regrant() {
+        REQUIRE(seat() != nullptr);
+        const std::int64_t rows = seat()->rows;
+        const std::int64_t columns = seat()->columns;
+        wide_ = !wide_;
+        r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
+        REQUIRE(seat() != nullptr);
+        REQUIRE_MESSAGE((seat()->rows != rows || seat()->columns != columns),
+                        "the surface changed and the pane's room did not");
+    }
+    bool wide_ = true;
+
     /// The region this pane's rows are drawn into, on the last canvas -- found at the exact
     /// corner `external_body_rect` resolves, which is what `external_region_rows` matches on.
     ///
@@ -836,6 +851,64 @@ TEST_CASE("TERM-W19b: in a room too small for both, the LINE is what survives") 
         CHECK(rows[0].rfind(">", 0) == 0);
         CHECK(t.seat()->caret_row == 0);
     }
+}
+
+TEST_CASE("an id the Terminal never declared is no act: the refusal stands through a new room, the line and a press's memory with it, and a declared id through the same door acts") {
+    // THE FIVE ROWS NEVER CHANGE, so no keystroke resolves an id this pane did not declare, and
+    // the one way to hand it one is Workshop's own office with no key behind it. A key the line
+    // does not take already spent nothing (`on(PaneKey)` asks the line first); the resolved-id
+    // path spent the notice before it asked what the id meant, so the door's refusal stood
+    // painted over a private clear until the next room said the rows without it -- and the id
+    // ended the memory that lets a second press in a word select it, as though something had
+    // happened between the two presses.
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/false);
+    t.focus();
+    t.type("send #1 SurfaceText 1");
+    t.submit();
+    REQUIRE(t.text().find("nothing was authored") != std::string::npos);
+    const std::string line = t.input_text();
+    REQUIRE(t.seat() != nullptr);
+    const std::int64_t caret = t.seat()->caret_col;
+
+    const PaneRig::OfficeAction unknown = t.r.workshop_action(
+        pane::kTerminalPaneRole, pane::kTerminalPane, "terminal.no-such-action");
+    REQUIRE(unknown.authored);
+    REQUIRE(unknown.delivered);
+    CHECK(unknown.author == kWorkshopProvider);
+    CHECK(t.text().find("nothing was authored") != std::string::npos);
+    t.regrant();
+    CHECK(t.text().find("nothing was authored") != std::string::npos);
+    CHECK(t.input_text() == line);
+    CHECK(t.seat()->caret_col == caret);
+
+    // THE RAW-KEY PATH ALREADY ASKED THE LINE FIRST, AND IT IS THE CONTROL: a chord the line never
+    // takes (an Alt chord, by `TextBox::consume`'s own rule) crosses as `PaneKey` and spends
+    // nothing either, through a new room as well.
+    t.r.key(input::scan::kLeft, input::mod::kAlt);
+    t.regrant();
+    CHECK(t.text().find("nothing was authored") != std::string::npos);
+    CHECK(t.seat()->caret_col == caret);
+
+    // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT, and spends it -- so the provenance was never
+    // the reason for the silence above.
+    const PaneRig::OfficeAction up =
+        t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane, pane::kActionUp);
+    REQUIRE(up.delivered);
+    CHECK(t.text().find("nothing was authored") == std::string::npos);
+    CHECK(t.input_text() == line);
+
+    // ...AND AN ID THAT IS NO ACT IS NOT A GESTURE BETWEEN TWO PRESSES. The first press places
+    // the caret in `abc`; the second, at the same place, selects the word.
+    t.type("abc def");
+    t.press_row(t.input_row(), 2 + 1);
+    REQUIRE(t.seat()->sel_begin_row == surface::kNoSelection);
+    (void)t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane,
+                              "terminal.no-such-action");
+    t.press_row(t.input_row(), 2 + 1);
+    CHECK(t.seat()->sel_begin_row == t.input_row());
+    CHECK(t.seat()->sel_begin_col == 2);
+    CHECK(t.seat()->sel_end_col == 2 + 3);
 }
 
 TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither shown nor taken") {
