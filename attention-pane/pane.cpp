@@ -202,6 +202,12 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kAttentionPane) {
             return;
         }
+        // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: the
+        // notice, the cursor and every dismissal stay as they were. Every id the pane does
+        // declare says its rows below, so what an act spends is always published.
+        if (!answers(asked.id)) {
+            return;
+        }
         notice_.clear(); // the maker has acted; the last act's answer is spent
         const std::vector<StandingCondition> shown = visible();
         if (cursor_ >= shown.size()) {
@@ -226,8 +232,6 @@ public:
                 notice_ = "hidden -- " + shown[cursor_].compact + " is still true";
                 dismiss(shown[cursor_]);
             }
-        } else {
-            return;
         }
         say(mail);
     }
@@ -279,13 +283,27 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kAttentionPane;
-        actions.rows.push_back(
-            PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone});
-        actions.rows.push_back(PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
-                                             input::mod::kNone});
-        actions.rows.push_back(PaneActionRow{pane::kActionDismiss, "hide this one",
-                                             input::scan::kD, input::mod::kNone});
+        actions.rows = action_rows();
         (void)mail.as_role(pane::kAttentionPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE THREE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the
+    /// pane acts on and what it said it acts on are one list.
+    static std::vector<PaneActionRow> action_rows() {
+        return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
+                PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionDismiss, "hide this one", input::scan::kD,
+                              input::mod::kNone}};
+    }
+
+    static bool answers(const std::string& id) {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- The maker's own half: what they have chosen not to look at ----------------------

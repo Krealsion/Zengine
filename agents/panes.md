@@ -319,11 +319,19 @@ host action — and nothing reinterprets old bytes.
   `builder-pane/pane.cpp` both spell it.
   **AND SPENT MEANS GONE FROM THE PUBLISHED ROWS.** A private clear is complete only when the
   picture Workshop holds says it: an act whose answer is still on its way — the Builder's `e`
-  lookup, Files' open — says nothing of its own, so a spent refusal stood painted beside the
-  source that act then opened (measured in both panes). The handler that clears a standing
-  notice therefore says the rows itself when the act it ran published none (`published_`); a
-  key that means nothing to a line is no act and spends nothing. Other panes that clear a notice
-  where the maker acts carry the same obligation.
+  lookup, Files' open, Info's select — says nothing of its own, and neither does an accepted act
+  that changes no picture (a select of what is already selected), so a spent refusal stood
+  painted beside what the act did (measured in the Builder, Files and Info). The handler that
+  clears a standing notice therefore says the rows itself when the act it ran published none
+  (`published_`). Other panes that clear a notice where the maker acts carry the same obligation.
+  **What is not an act spends nothing**, and is decided before the notice is touched: a key a
+  line does not take, and an id the pane does not declare in the mode it is in — one that raced
+  a re-declaration (Escape and Return in one poll: a cancel, then a commit to a closed draft) or
+  one nobody declared. Cleared in private, the notice stood painted until an unrelated room grant
+  said the rows (measured in Info, the Terminal and Attention). The Builder and Files are the
+  exception today: they spend their notice on such an id, and say the rows without it. **A
+  notice's row moves every row beneath it**, so a pane reads a press against the rows it
+  published with the notice in them.
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).

@@ -2704,6 +2704,41 @@ struct PaneRig {
 
     loom::WeaveId watcher_id{};
 
+    /// WHAT BECAME OF ONE ID SAID AS WORKSHOP'S OFFICE (`workshop_action`), read off the tap.
+    struct OfficeAction {
+        bool authored = false;  ///< Loom took the authorship: Workshop held the office named
+        bool delivered = false; ///< ...and the office's holder ran its handler on the delivery
+        std::string author;     ///< the office that delivery carried
+    };
+
+    /// A RESOLVED ACTION ID SAID AS WORKSHOP'S OWN OFFICE, WITH NO KEY BEHIND IT -- through the
+    /// host's verified office door (`office_send_to_role_as`): Workshop's weave is the stamped
+    /// sender, `zengine.workshop` is verified at authorship, and Workshop's own grant gates it.
+    /// It is how a case hands a pane an id the keymap would never resolve for it, under
+    /// provenance the pane accepts, so a pane that does nothing did nothing with the ID. A case
+    /// pairs it with a declared id through the same door to show the provenance was never the
+    /// reason. Drained.
+    OfficeAction workshop_action(std::string_view office, const std::string& pane,
+                                 const std::string& id) {
+        OfficeAction said;
+        const loom::WeaveId holder = bus.role_holder(office);
+        const loom::ObserverId tap = bus.add_observer([&said, holder](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.target == holder &&
+                ev.schema_name == PaneActionRequested::zen_name) {
+                said.delivered = true;
+                said.author = ev.authored_role;
+            }
+        });
+        const loom::Ticket sent = bus.office_send_to_role_as(
+            workshop_id, kWorkshopProvider, office,
+            loom::Message(loom::to_value(PaneActionRequested{pane, id}), workshop_id, workshop_id,
+                          0));
+        said.authored = sent.valid();
+        bus.drain_until_idle();
+        bus.remove_observer(tap);
+        return said;
+    }
+
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
         bus.drain_until_idle();
