@@ -40,14 +40,18 @@ This is the designed split ([TIMER-05](../laws/timer-laws.md)) and it is stated 
 It is listed here because it is the first thing most Timer authors meet, and the convenient
 layer does not cover it.
 
-### A sender cannot observe its own send's fate
+### A sender sees its own send's fate only if it asks
 
 A send that goes nowhere — no holder for the role, a grant that does not permit it, a shape
-this process has never declared — produces no error your handler can read. The refusal is real
-and is visible to a **host-installed observer**. This is a recorded Loom seam, not a Zengine
-choice; the practical consequence is that "it loads and nothing happens" is the failure a
-newcomer hits first, and diagnosing it needs a tap. See
-[getting started](../getting-started.md#when-it-does-not-work).
+this process has never declared — produces no error your handler can read unless your weave
+asks for one. A weave that explicitly accepts Loom's `zen.DispatchRefused` is told when one of
+its directed or role-addressed sends was refused before its target ran, and a send that could
+not be queued at all returns a ticket that is not valid; the Files, Builder, Editor and Info
+panes use both. A publication is never reported that way, and a delivered message that is never
+answered tells its sender nothing. The refusal is always visible to a **host-installed
+observer**. This is a recorded Loom seam, not a Zengine choice; the practical consequence is
+that "it loads and nothing happens" is still the failure a newcomer hits first, and diagnosing
+it needs a tap. See [getting started](../getting-started.md#when-it-does-not-work).
 
 ### Loading the Timer service makes the process permanently non-quiescent
 
@@ -240,8 +244,24 @@ typing is discarded, silently.**
 | Pressed `Ctrl`+`V` and kept typing on the same line | the text arrives where your caret is. Typing is an edit, not a new command |
 
 The last two are the same distinction everywhere in Workshop: **a paste belongs to the draft
-that asked for it.** Clearing a line with `Esc`, or submitting it with `Enter`, ends that draft;
-typing into it does not.
+that asked for it.** Clearing a line with `Esc` ends that draft, and so does submitting the
+Terminal's line with `Enter`; typing into it does not. An Info property draft is the exception
+to the second: `Enter` sends its value, and the draft closes only when the document takes
+exactly what was sent.
+
+**Info's commit is an ask too, and says how it ended.** Info sends one commit at a time, and
+its answer can arrive after you typed more, pressed `Esc`, or selected something else:
+
+| what happened | what the pane says |
+|---|---|
+| the document took the value, and you had typed more since | `earlier commit written`; the draft stays open with your newer text |
+| you pressed `Esc` before the answer | `commit already sent`, replaced by how it ended while that sentence is still showing |
+| the selection or the document changed before the commit arrived | the draft is abandoned, then `commit refused`; nothing is written anywhere |
+| the commit could not be sent, or was refused on its way | `commit not submitted` or `commit not delivered`; nothing is written, and the draft stays for `Enter` |
+| the document received it and has not answered | nothing new: it stays outstanding, and `Enter` again says `commit not sent` |
+
+The same sentences, with what each one leaves behind, are in step 3 of
+[getting started with Workshop](getting-started.md).
 
 **What a paste puts on a single-line field.** The Terminal's line is one line, so a clipboard
 holding more than one becomes one: a tab, a line feed, a carriage return and a CRLF pair each
@@ -398,9 +418,11 @@ nothing in it can be made to send, sample, bind or load.
 
 You cannot drag a semantic object from one pane into another. There is no drag-and-drop between
 panes, no shared selection across panes, and no protocol by which one pane could hand an object
-to another. An external pane publishes prose and receives a press as a place, keys, text, the
-wheel, and the resolved id of an action it declared — eleven shapes — and nothing that would
-let it reach another pane or be reached by one.
+to another. An external pane publishes prose and receives its input as sentences about its own
+room — every shape it can send or be sent is listed in
+[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and described in
+[the pane reference](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — and nothing in
+them lets it reach another pane or be reached by one.
 
 The ownership map a future cross-pane gesture would have to cross is recorded in
 [the architecture notes](../architecture/README.md#cross-pane-interaction).
@@ -410,6 +432,13 @@ The ownership map a future cross-pane gesture would have to cross is recorded in
 A pane arrives because an artifact was in the load plan and the weave offered one. There is no
 discovery, no plugin directory, no versioning of pane offers, and no way for a maker to install
 somebody else's pane other than by editing a plan file and having the artifact on disk.
+
+**Nothing negotiates a pane built for another Workshop.** A shape that changed gains a second
+version beside the first, and each side speaks the versions it was built with. For the object
+document that means: a pane that commits a property by row alone, as Info's image did before
+its commit named what it was typed for, can still list, select, create and delete, and every
+commit it sends is refused with nothing written; an Info image that expects the named picture
+waits, showing `OBJECTS (waiting)`, under a Workshop that does not publish one.
 
 ## Platforms
 
