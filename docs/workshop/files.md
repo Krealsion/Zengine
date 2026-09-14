@@ -109,7 +109,11 @@ moves alone:
 backs out of choosing or typing; each means the same thing wherever it is in force, so each keeps
 one name. **An override of `files.open` now moves the browsing Return only**; earlier Workshops
 also applied it while choosing and while typing a field. To move those, write `files.choose` or
-`files.commit-field` as well — no name is copied onto another. Because each step's Return is its
+`files.commit-field` as well — no name is copied onto another. And if your file also put
+`files.up`, `files.down` or `files.cancel` on `return`, that key now meets the chooser's or the
+line's own Return: when that step opens, Workshop refuses its keys in words naming both, and
+Escape and Return do nothing there until one of the two moves in your file and Workshop starts
+again ([hotkeys](hotkeys.md#the-keymap-file)). Because each step's Return is its
 own, a Return pressed before Files has shown the next step still belongs to the step you pressed
 it in, and does nothing once that step has closed: Escape and then Return typed in quick
 succession on a field abandon the recipe and open nothing.
