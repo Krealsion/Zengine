@@ -503,8 +503,20 @@ kitchen: the bake completed
 | walls of template errors from `WeaveBase` | you declared an `on` and forgot `using TimedWeave::on;` — look for the `static_assert` sentence |
 
 **"It loads and nothing happens" deserves its own paragraph**, because it is the failure a
-stranger hits first and the one the substrate is quietest about. A sender cannot observe its
-own send's fate; the refusal is real, and it is visible to the *host*. Install an observer:
+stranger hits first and the one the substrate is quietest about. A sender sees its own send's
+fate only as far as it asks
+([limitations](workshop/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks)):
+
+- the ticket a send returns says whether the attempt was *queued*, not whether it was delivered;
+- a weave that explicitly accepts `zen.DispatchRefused`, and believes a notice only when
+  `mail.dispatch_refused()` is true, is told when one of its directed or role-addressed sends was
+  refused before the target's handler ran; a publication is never reported this way
+  ([Loom's reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#sender-visible-dispatch-refusal));
+- a message that was delivered and never answered tells its sender nothing: silence carries no
+  completion guarantee.
+
+The refusal is always visible to a *host*-installed observer, so that is the place to look
+first. Install one:
 
 ```cpp
 bus.add_observer([](const loom::BusEvent& e) {
