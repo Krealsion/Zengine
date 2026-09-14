@@ -88,11 +88,31 @@ that typing goes to Files; close it and the next press on the selected row opens
 titles hidden, Files' title comes back when your keys arrive, and the row you pressed is still
 the row you selected.
 
-While you are typing a recipe field, only Return and Escape mean what the table above says;
-every other key goes into the line you are editing, so Backspace deletes a character rather
-than walking up a directory. If you have moved any of these keys in your own keymap file, your
-spelling is what is in force — the names (`files.up`, `files.open`, `files.use-recipes` and the
-rest) did not change.
+While you are choosing what to build or typing a recipe field, only that step's keys are in force
+([below](#authoring-a-recipe-from-here)). On a field only Return and Escape are claimed, and every
+other key goes into the line you are editing, so Backspace deletes a character rather than
+walking up a directory.
+
+**If you move these keys in your own keymap file**, your spelling is in force, name by name. The
+browsing names — `files.up`, `files.down`, `files.open`, `files.parent`, `files.refresh`,
+`files.use-recipes`, `files.mark`, `files.next-mark`, `files.previous-mark` and
+`files.pick-buildable` — have not changed. Return has a separate name in each step, and each one
+moves alone:
+
+| name | what Return does | where |
+|---|---|---|
+| `files.open` | enter or edit | browsing |
+| `files.choose` | choose this | choosing what to build |
+| `files.commit-field` | commit this field | typing a recipe field |
+
+`files.up` and `files.down` also move through the list of candidates, and `files.cancel` (Escape)
+backs out of choosing or typing; each means the same thing wherever it is in force, so each keeps
+one name. **An override of `files.open` now moves the browsing Return only**; earlier Workshops
+also applied it while choosing and while typing a field. To move those, write `files.choose` or
+`files.commit-field` as well — no name is copied onto another. Because each step's Return is its
+own, a Return pressed before Files has shown the next step still belongs to the step you pressed
+it in, and does nothing once that step has closed: Escape and then Return typed in quick
+succession on a field abandon the recipe and open nothing.
 
 The wheel moves the cursor through the listing.
 
