@@ -24,8 +24,10 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
 `"FILES-WEAVE: `a` opens a chooser inside the pane's own room"`, case `"FILES-WEAVE: a maker
 authors a recipe row in-pane, and the host writes it"`, case `"FILES-WEAVE: the authoring line
-takes raw keys, and Escape abandons it whole"`; `tests/test_workshop_files.cpp` case `"PANE-DOOR:
-the recipes door spends this host's one writer and re-words nothing"`.
+takes raw keys, and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
+refuse a blank field, write one recipe and cancel, and Return then opens the file"`;
+`tests/test_workshop_files.cpp` case `"PANE-DOOR: the recipes door spends this host's one writer
+and re-words nothing"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force

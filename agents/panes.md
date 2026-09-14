@@ -332,7 +332,11 @@ host action — and nothing reinterprets old bytes.
   one nobody declared. Cleared in private, the notice stood painted until an unrelated room grant
   said the rows (measured in Info, the Terminal, Attention, the Builder and Files). Each pane
   asks `answers`, which reads the rows its `declare` sends, so what it acts on and what it
-  declared are one list per mode. **A notice's row moves every row beneath it**, so a pane reads
+  declared are one list per mode. That refuses a raced id only while **an id names one operation
+  in every mode that declares it**. An operation only one mode has gets an id only that mode
+  declares — Files' Return is `files.open`, `files.choose` or `files.commit-field`
+  ([`workshop/files.md`](workshop/files.md) WL-FILES-16) — or the next mode would take the raced
+  id as its own. **A notice's row moves every row beneath it**, so a pane reads
   a press against the rows it published with the notice in them.
   **AND AN ANSWER'S SENTENCE BELONGS TO THE ACT THAT ASKED.** Ending a draft ends the draft and
   not a write it already sent, so the sentence said then promises neither outcome, and no end
