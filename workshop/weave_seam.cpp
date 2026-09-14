@@ -638,36 +638,53 @@ void WorkshopWeave::on(const DocumentActRequested& asked, loom::Mail& mail) {
         return;
     }
     if (asked.act == kDocumentCommit) {
-        // ⚠ THE INDEX IS JUDGED AGAINST THE CURRENT DERIVATION, not against the one the pane
-        // was shown. A row the rows no longer have is refused by name. A row they still have is
-        // written even when the selection moved after the pane asked -- the same row of the object
-        // selected now -- which is the hazard an index across a seam still has; the pane abandons
-        // a draft whose property its picture stops showing and says a sent commit may still land.
-        if (asked.row < 0 ||
-            static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
-            answer(false, "that row is not in this object's properties any more");
-            return;
-        }
-        Row& row = session_.rows[static_cast<std::size_t>(asked.row)];
-        if (!row.editable()) {
-            answer(false, row.label() + " is not authored -- it is what the workspace makes "
-                                        "of the authored value");
-            return;
-        }
-        const Commit result = row.commit_text(asked.text);
-        if (result != Commit::Accepted) {
-            // Two different failures, and the row already words each one for its own kind:
-            // an unparseable draft reads "not <what would have worked>", a refused value
-            // carries the setter's own reason.
-            answer(false, row.label() + ": " + row.refusal());
-            return;
-        }
-        say("committed " + row.label() + " = " + row.value(), false);
-        answer(true, std::string());
-        repaint(mail);
+        // ⚠ A v1 COMMIT NAMES A ROW AND NOTHING THE ROW BELONGS TO, and a row index is that row
+        // of whatever is selected when the ask arrives -- another object's property, or the same
+        // number in a document loaded since. There is no subject to judge and none may be
+        // invented for it, so it is refused before any row is read, with no selection moved.
+        answer(false, kCommitNamesNoSubject);
         return;
     }
     answer(false, "`" + asked.act + "` is not something this document can be asked for");
+}
+
+// WL-DOC-21 -- agents/workshop/document.md
+void WorkshopWeave::on(const DocumentCommitRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // anonymous speech asks nothing, exactly as at the v1 door
+    }
+    const auto answer = [&mail](bool accepted, std::string refusal) {
+        (void)mail.answer(DocumentActed{accepted, std::move(refusal)});
+    };
+    // THE SUBJECT FIRST, BEFORE ANY ROW IS READ OR ANY SETTER REACHED. A name that is not the
+    // one these rows carry is a commit typed for another object, another layout or a document
+    // replaced since -- including one whose strings all match -- and it is refused whole: nothing
+    // written, no selection moved, no row of the current subject tried in its place.
+    if (session_.subject.name == 0 || asked.subject != session_.subject.name) {
+        answer(false, kCommitSubjectGone);
+        return;
+    }
+    if (asked.row < 0 || static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
+        answer(false, "that row is not in this object's properties any more");
+        return;
+    }
+    Row& row = session_.rows[static_cast<std::size_t>(asked.row)];
+    if (!row.editable()) {
+        answer(false, row.label() + " is not authored -- it is what the workspace makes "
+                                    "of the authored value");
+        return;
+    }
+    const Commit result = row.commit_text(asked.text);
+    if (result != Commit::Accepted) {
+        // Two different failures, and the row already words each one for its own kind:
+        // an unparseable draft reads "not <what would have worked>", a refused value
+        // carries the setter's own reason.
+        answer(false, row.label() + ": " + row.refusal());
+        return;
+    }
+    say("committed " + row.label() + " = " + row.value(), false);
+    answer(true, std::string());
+    repaint(mail);
 }
 
 // WL-TEXT-02 -- agents/workshop/text-box.md

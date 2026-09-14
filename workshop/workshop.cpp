@@ -1197,6 +1197,9 @@ int main(int argc, char** argv) {
     // the party that presents it is named by the load plan, and it carries a picture a maker
     // is already reading off the workspace beside it.
     speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
+    // ...and the same picture with the name of what its rows address, beside v1 and not instead
+    // of it (WL-DOC-21): a commit returns that name, and the host writes only while it holds.
+    speak.allow_to_any(v2::DocumentShown::zen_name, v2::DocumentShown::zen_version);
     // ...and the answer to the one act the document has a door for. `to_any` for
     // `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the weave that
     // asked, and no rule written here at boot could name it.

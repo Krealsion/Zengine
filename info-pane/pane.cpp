@@ -14,9 +14,11 @@
 // `WorkshopDoc` is the HOST's -- the workspace plane paints it, the pointer drags it, `^s`
 // writes it, the status slot counts it, a restore replaces it. This pane is one reader of it
 // and the one that shows it as a list. So what crosses is a PICTURE the host derives
-// (`DocumentShown`), and the four things a maker does here cross back as one ask
-// (`DocumentActRequested`). Nothing in this image can touch a document; it can ask, and be
-// refused in the document's own words.
+// (`v2::DocumentShown`, which names what its property rows address), and the four things a
+// maker does here cross back as asks: a select, a create or a delete (`DocumentActRequested`),
+// and a commit that returns the name of the subject its draft was typed for
+// (`DocumentCommitRequested`). Nothing in this image can touch a document; it can ask, and be
+// refused in the document's own words -- or learn from Loom that the ask never arrived.
 //
 // ⚠ AND THE PICTURE IS PUBLISHED RATHER THAN ASKED FOR, which is this migration's one new
 // sentence. WL-DOC-14 requires the canvas, the object list and the inspector to agree after
@@ -70,7 +72,7 @@ namespace pane = zengine::info_pane;
 
 using ws::DocumentActed;
 using ws::DocumentActRequested;
-using ws::DocumentShown;
+using ws::DocumentCommitRequested;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
@@ -216,16 +218,19 @@ constexpr const char* kFinishTheEdit = "finish the edit first -- commit it or ca
 constexpr const char* kCommitNotSent = "commit not sent -- an earlier commit is still unanswered";
 
 /// ENDING A DRAFT WITH NO COMMIT UNANSWERED (`end_draft`). What the draft held is gone, and a write
-/// an earlier commit made is not: neither sentence says whether anything was written.
+/// an earlier commit made is not: neither sentence says whether anything was written. A draft is
+/// abandoned when the host's picture names another subject (`shows_draft_subject`), which a load
+/// of identical bytes does too, so the sentence names the two things that can move it.
 constexpr const char* kCancelled = "edit cancelled -- unwritten changes discarded";
 constexpr const char* kAbandoned =
-    "edit abandoned -- the property it was on is no longer shown; unwritten changes discarded";
+    "edit abandoned -- the selection or the document changed; unwritten changes discarded";
 
-/// ...AND WITH ONE UNANSWERED, which a draft's end cannot take back.
+/// ...AND WITH ONE UNANSWERED, which a draft's end cannot take back. A cancel moves no subject,
+/// so its commit may still be written; an abandonment promises nothing about the one it leaves.
 constexpr const char* kCancelledSent =
     "commit already sent -- the draft is closed, and it may still be written";
 constexpr const char* kAbandonedSent =
-    "commit already sent -- its property is no longer shown, and it may still be written";
+    "commit already sent -- the draft ended: the selection or the document changed";
 
 /// A COMMIT'S ACCOUNT OVER A DRAFT THAT DOES NOT HOLD EXACTLY WHAT IT SENT -- its own draft typed
 /// into since, or a newer one -- and over no draft at all (`answered_commit`). A refusal is
@@ -234,6 +239,16 @@ constexpr const char* kEarlierWritten = "earlier commit written -- later edits n
 constexpr const char* kEarlierRefused = "earlier commit refused -- ";
 constexpr const char* kLateWritten = "commit written -- it was sent before the draft closed";
 constexpr const char* kLateRefused = "commit refused -- ";
+
+/// A DOCUMENT ASK THAT NEVER REACHED THE DOOR (WL-INFO-13): nothing queued at all (the send's
+/// ticket is not valid), or queued and refused by Loom before the door's handler ran
+/// (`zen.DispatchRefused`, whose reason follows in parentheses). Either way nothing was written
+/// or changed, the record is released, and the draft and its text stand for the next Return.
+constexpr const char* kCommitNotQueued = "commit not submitted -- nothing was queued or written";
+constexpr const char* kCommitUndelivered = "commit not delivered -- nothing was written";
+constexpr const char* kEarlierUndelivered = "earlier commit not delivered -- nothing was written";
+constexpr const char* kActNotQueued = " not submitted -- nothing was queued";
+constexpr const char* kActUndelivered = " not delivered -- nothing changed";
 
 constexpr bool available(Availability a) noexcept { return a == Availability::kAvailable; }
 
@@ -268,10 +283,11 @@ class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, PaneActionRequested, DocumentShown, DocumentActed,
-                       surface::ClipboardCopy, surface::ClipboardText>,
+                       PaneTextInput, PaneActionRequested, ws::v2::DocumentShown, DocumentActed,
+                       loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, DocumentActRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+                     DocumentCommitRequested, surface::ClipboardCopy,
+                     surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -297,19 +313,21 @@ public:
         say(mail);
     }
 
-    /// WHAT THE OBJECT DOCUMENT LOOKS LIKE, SAID BY THE HOST. Replaced WHOLE, never merged.
-    void on(const DocumentShown& said, loom::Mail& mail) {
+    /// WHAT THE OBJECT DOCUMENT LOOKS LIKE, SAID BY THE HOST, AND WHAT ITS ROWS ADDRESS. Replaced
+    /// WHOLE, never merged. v2 only: a v1 picture names no subject a commit could return, so a
+    /// host that says none leaves this pane waiting rather than editing against a bare row.
+    void on(const ws::v2::DocumentShown& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return; // a stranger's opinion about a document is not a reading of one
         }
         known_ = said;
         heard_ = true;
-        // ⚠ A DRAFT WHOSE PROPERTY IS NO LONGER SHOWN IS ABANDONED, and it is the one thing this
-        // pane drops without being asked -- so it says so. The rows are the SELECTION's: a
-        // selection moved by any gesture has left the field the maker was typing in, and every
-        // object has `Name` on the same row, so the subject is the object AND the label at the
-        // row. Carrying the draft onto whatever took its place would write the maker's text into
-        // a different property.
+        // ⚠ A DRAFT WHOSE SUBJECT IS NO LONGER SHOWN IS ABANDONED, and it is the one thing this
+        // pane drops without being asked -- so it says so. The rows are the SELECTION's, and the
+        // host names what they address: another object, another layout or a document loaded
+        // since -- identical bytes included -- is another name, even where `Name` sits on the same
+        // row with the same value. Carrying the draft onto whatever took its place would ask the
+        // document to write the maker's text into a different property, and it would refuse.
         if (draft_.open && !shows_draft_subject()) {
             end_draft(kAbandoned, kAbandonedSent);
             declare(mail);
@@ -345,6 +363,33 @@ public:
         // one asked before a draft opened may be answered while it is open.
         if (!said.accepted) {
             notice_ = said.refusal;
+            say(mail);
+        }
+    }
+
+    /// LOOM'S WORD THAT A DOCUMENT ASK OF THIS PANE'S NEVER REACHED THE DOOR'S HANDLER
+    /// (`zen.DispatchRefused`; WL-INFO-13) -- an attestation, not an answer. Provenance first:
+    /// the shape alone is ordinary speech anyone may send. Then the exact queued attempt, its
+    /// correlation and what it asked, matched against the one record that can still be waiting on
+    /// it (`refused_ask`), and only that record is released. A forged, late, duplicate or
+    /// mismatched notice settles nothing; an ask the door received and never answered is not
+    /// this, and stays awaited.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        if (refused_ask(committing_, refused, mail, DocumentCommitRequested::zen_name,
+                        DocumentCommitRequested::zen_version)) {
+            const SentCommit was = std::move(committing_);
+            committing_ = SentCommit{};
+            undelivered_commit(was, refused, mail);
+            return;
+        }
+        if (refused_ask(acting_, refused, mail, DocumentActRequested::zen_name,
+                        DocumentActRequested::zen_version)) {
+            const std::string act = acting_.act;
+            acting_ = Asked{};
+            notice_ = act + kActUndelivered + " (" + refused.reason + ")";
             say(mail);
         }
     }
@@ -466,7 +511,9 @@ private:
                     // ONE COMMIT OUTSTANDING AT A TIME. A second would hide the first's answer, or
                     // be answered first; so it is not sent, aloud, and nothing else is touched: the
                     // draft, its edits and the first commit's record stand, and Return sends the
-                    // edits once the first is answered. No retry is queued.
+                    // edits once the first is answered -- or once Loom says it never arrived
+                    // (`on(DispatchRefused)`). No retry is queued, and delivered silence still
+                    // waits.
                     notice_ = kCommitNotSent;
                     committing_.promise = notice_;
                     say(mail);
@@ -554,17 +601,21 @@ private:
 
     // ---- The four asks -------------------------------------------------------------------
 
-    /// A DOCUMENT ACT THIS PANE IS WAITING ON (`ask`).
+    /// A DOCUMENT ACT THIS PANE IS WAITING ON (`ask`, `ask_commit`).
     struct Asked {
         bool awaiting = false;
         std::uint64_t pending = 0; ///< the correlation: which request an answer names
+        /// THE QUEUED ATTEMPT, Loom's sequence for this send: what `zen.DispatchRefused` names when
+        /// the send never reached the door's handler. It proves the send was queued and no more.
+        loom::Ticket attempt{};
+        std::string act; ///< what it asked for, for the sentence a refusal of the send needs
     };
 
     /// ...AND A COMMIT, read against the draft that sent it and what it sent. A draft incarnation
     /// is not its contents: typing changes the text and keeps the epoch, which is why a paste may
     /// land in a draft that has moved on and why a write does not cover what was typed after
-    /// Return. The subject is the draft's own (`Draft::object`, `Draft::label`), fixed for its life
-    /// because a picture that moves it abandons the draft; nothing here says where the host wrote.
+    /// Return. The subject is the one the draft was opened on (`Draft::subject`), and the host
+    /// writes the commit only while that subject is still its rows' own.
     struct SentCommit : Asked {
         std::uint64_t draft = 0; ///< `TextBox::draft_epoch` when it was sent: which draft
         std::string text;        ///< ...and what it sent: whether that draft holds anything more
@@ -577,19 +628,37 @@ private:
     /// create or a delete replaces the record of its own kind -- an older one's answer names a
     /// correlation nothing waits on and is dropped unread, its sentence already spent by the act
     /// that asked again -- and cannot replace the commit's.
+    ///
+    /// ⚠ THE TICKET IS KEPT (WL-INFO-13). One that is not valid means nothing was queued: no
+    /// answer and no refusal notice can follow, so the record is released at once and the pane says
+    /// so.
     void ask(DocumentActRequested request, loom::Mail& mail) {
         const std::uint64_t correlation = ++asked_;
-        if (request.act == ws::kDocumentCommit) {
-            committing_ = SentCommit{};
-            committing_.awaiting = true;
-            committing_.pending = correlation;
-            committing_.draft = draft_.line.draft_epoch();
-            committing_.text = request.text;
-        } else {
-            acting_ = Asked{true, correlation};
+        Asked asking;
+        asking.awaiting = true;
+        asking.pending = correlation;
+        asking.act = request.act;
+        asking.attempt = mail.as_role(pane::kInfoPaneRole)
+                             .send_to_role(kWorkshopRole, std::move(request), correlation);
+        if (!asking.attempt.valid()) {
+            acting_ = Asked{};
+            notice_ = asking.act + kActNotQueued;
+            say(mail);
+            return;
         }
-        (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, std::move(request), correlation);
+        acting_ = std::move(asking);
+    }
+
+    /// DOES THIS NOTICE NAME THE ASK `record` IS WAITING ON -- the same queued attempt, under the
+    /// same correlation, of the shape it sent, to the office it addressed? Every half, because a
+    /// sequence alone is a number and the rest is what this pane asked.
+    static bool refused_ask(const Asked& record, const loom::DispatchRefused& refused,
+                            const loom::Mail& mail, const char* shape, std::uint32_t version) {
+        const loom::Ticket attempt = refused.refused_attempt();
+        return record.awaiting && record.attempt.valid() && attempt.valid() &&
+               attempt.seq == record.attempt.seq && mail.correlation() == record.pending &&
+               refused.shape == shape && refused.version == static_cast<std::int64_t>(version) &&
+               refused.role == kWorkshopRole && refused.target.empty();
     }
 
     /// A COMMIT'S ANSWER -- about the draft that sent it and what it sent, and about nothing else.
@@ -641,12 +710,48 @@ private:
         ask(std::move(request), mail);
     }
 
+    /// A COMMIT NAMES THE SUBJECT ITS DRAFT WAS OPENED ON, THE ROW AND THE TEXT (WL-DOC-21), and
+    /// keeps its ticket as `ask` does: nothing queued releases the record at once, and the draft
+    /// and its text stand, so the next Return is a fresh attempt rather than a second commit.
     void ask_commit(loom::Mail& mail) {
-        DocumentActRequested request;
-        request.act = ws::kDocumentCommit;
+        DocumentCommitRequested request;
+        request.subject = draft_.subject;
         request.row = draft_.row;
         request.text = draft_.line.text();
-        ask(std::move(request), mail);
+        const std::uint64_t correlation = ++asked_;
+        SentCommit sending;
+        sending.awaiting = true;
+        sending.pending = correlation;
+        sending.act = ws::kDocumentCommit;
+        sending.draft = draft_.line.draft_epoch();
+        sending.text = request.text;
+        sending.attempt = mail.as_role(pane::kInfoPaneRole)
+                              .send_to_role(kWorkshopRole, std::move(request), correlation);
+        if (!sending.attempt.valid()) {
+            committing_ = SentCommit{};
+            notice_ = kCommitNotQueued;
+            say(mail);
+            return;
+        }
+        committing_ = std::move(sending);
+    }
+
+    /// A COMMIT LOOM REFUSED BEFORE THE DOOR RAN -- nothing was written, so it closes no draft: the
+    /// one that sent it keeps its text and its history, and Return sends what it holds. The account
+    /// is said where an answer's would be (`answered_commit`): over this commit's own sentence, or
+    /// over an empty row while its own draft is open; a sentence a later act said stands.
+    void undelivered_commit(const SentCommit& was, const loom::DispatchRefused& refused,
+                            loom::Mail& mail) {
+        const bool own = !was.promise.empty() && notice_ == was.promise;
+        const bool same_draft = draft_.open && draft_.line.draft_epoch() == was.draft;
+        if (!own && !(same_draft && notice_.empty())) {
+            return;
+        }
+        const std::string why = " (" + refused.reason + ")";
+        notice_ = (draft_.open && !same_draft ? std::string(kEarlierUndelivered)
+                                              : std::string(kCommitUndelivered)) +
+                  why;
+        say(mail);
     }
 
     void press_action(std::size_t which, loom::Mail& mail) {
@@ -693,6 +798,7 @@ private:
         draft_.row = state_.cursor;
         draft_.label = row.label;
         draft_.object = known_.selected;
+        draft_.subject = known_.subject;
         draft_.line.set(row.value, row.value.size()); // the caret at the end, as it was
         declare(mail);
         say(mail);
@@ -706,6 +812,7 @@ private:
         draft_.row = 0;
         draft_.label.clear();
         draft_.object = 0;
+        draft_.subject = 0;
         draft_.line.clear();
     }
 
@@ -724,11 +831,12 @@ private:
         }
     }
 
-    /// DOES THE PICTURE STILL SHOW THE PROPERTY THE DRAFT IS TYPED INTO -- the same object, with
-    /// the same label on the draft's row. Another object's row of the same index and label is a
-    /// different property.
+    /// DOES THE PICTURE STILL SHOW THE PROPERTY THE DRAFT IS TYPED INTO -- the subject the host
+    /// named when the draft opened, and within it the same object with the same label on the
+    /// draft's row. Another object's row of the same index and label is a different property, and
+    /// so is the same row of a document loaded since: the host names it anew.
     bool shows_draft_subject() const {
-        return known_.selected == draft_.object &&
+        return known_.subject == draft_.subject && known_.selected == draft_.object &&
                draft_.row < static_cast<std::int64_t>(known_.properties.size()) &&
                known_.properties[static_cast<std::size_t>(draft_.row)].label == draft_.label;
     }
@@ -966,6 +1074,7 @@ private:
         std::int64_t row = 0;
         std::string label;       ///< what the row was called when the draft opened
         std::int64_t object = 0; ///< ...and whose property: the selection that picture named
+        std::int64_t subject = 0; ///< ...and what the host named those rows: what a commit returns
         component::TextBox line;
     };
 
@@ -980,9 +1089,9 @@ private:
 
     zengine::ActivationCursor activation_;
 
-    /// THE HOST'S LAST READING OF ITS OWN DOCUMENT. Replaced whole; owned by nobody here;
-    /// deliberately NOT in the state shape.
-    DocumentShown known_;
+    /// THE HOST'S LAST READING OF ITS OWN DOCUMENT, and the name of what its rows address. Replaced
+    /// whole; owned by nobody here; deliberately NOT in the state shape.
+    ws::v2::DocumentShown known_;
     bool heard_ = false;
 
     Draft draft_;

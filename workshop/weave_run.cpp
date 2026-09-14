@@ -83,15 +83,26 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
     (void)mail.as_role(kWorkshopProvider).publish(StandingConditions{std::move(now)});
 }
 
-// WL-DOC-20 -- agents/workshop/document.md
+// WL-DOC-20, WL-DOC-21 -- agents/workshop/document.md
 void WorkshopWeave::say_document(loom::Mail& mail) {
     DocumentShown now = document_shown(state_, session_);
-    if (document_said_ && same_document(now, said_document_)) {
+    const bool rows_moved = !document_said_ || !same_document(now, said_document_);
+    // ⚠ THE NAME MOVES WHERE NO STRING DOES. A load of the document's own bytes changes no row a
+    // picture shows, and still makes every draft typed before it one typed for another document;
+    // a reader told only the strings would keep that draft. So the name is news by itself.
+    const bool subject_moved = !document_said_ || said_subject_ != session_.subject.name;
+    if (!rows_moved && !subject_moved) {
         return; // no news is silence, and silence is what makes this seam terminate
     }
     said_document_ = now;
+    said_subject_ = session_.subject.name;
     document_said_ = true;
-    (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
+    // v1 AS IT ALWAYS WAS, and only when its own rows changed; v2 beside it, carrying the name.
+    v2::DocumentShown named{now.objects, now.selected, now.properties, session_.subject.name};
+    if (rows_moved) {
+        (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
+    }
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(named));
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md

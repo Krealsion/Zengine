@@ -587,16 +587,18 @@ struct SeenState {
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
                                                     StandingConditions, DocumentShown,
-                                                    TranscriptShown>,
+                                                    v2::DocumentShown, TranscriptShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
             std::vector<StandingConditions>& conditions,
             std::vector<DocumentShown>& documents,
+            std::vector<v2::DocumentShown>& named_documents,
             std::vector<TranscriptShown>& transcripts)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
-          documents_(&documents), transcripts_(&transcripts) {}
+          documents_(&documents), named_documents_(&named_documents),
+          transcripts_(&transcripts) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
@@ -604,6 +606,7 @@ public:
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
     void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
+    void on(const v2::DocumentShown& d, loom::Mail&) { named_documents_->push_back(d); }
     void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
 
 private:
@@ -611,6 +614,7 @@ private:
     std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
     std::vector<DocumentShown>* documents_;
+    std::vector<v2::DocumentShown>* named_documents_;
     std::vector<TranscriptShown>* transcripts_;
 };
 
@@ -791,6 +795,9 @@ struct Live {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `v2::DocumentShown`, the same picture with the name of what its rows address
+    /// (WL-DOC-21), in order -- published beside v1, and sometimes alone when only the name moved.
+    std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
@@ -823,7 +830,7 @@ struct Live {
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_transcripts);
+                                   said_named_documents, said_transcripts);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panels);
@@ -2033,7 +2040,7 @@ struct SeatState {
 class DocumentAsker
     : public loom::WeaveBase<DocumentAsker, SeatState,
                              loom::Accept<DocumentActed, SeatDo>,
-                             loom::Emit<DocumentActRequested>> {
+                             loom::Emit<DocumentActRequested, DocumentCommitRequested>> {
 public:
     void on(const DocumentActed& a, loom::Mail&) {
         ++state_.said;
@@ -2051,6 +2058,11 @@ public:
         (void)mail.as_role(kAskerOffice).send_to_role(kWorkshopProvider, std::move(request));
     }
 
+    /// ...and the commit that names its subject (WL-DOC-21), through the same office.
+    void commit(loom::Mail& mail, DocumentCommitRequested request) {
+        (void)mail.as_role(kAskerOffice).send_to_role(kWorkshopProvider, std::move(request));
+    }
+
     static constexpr const char* kAskerOffice = "zengine.test-asker";
 
     std::vector<DocumentActed> answers;
@@ -2064,6 +2076,8 @@ inline DocumentAsker* mount_document_asker(Live& t) {
     DocumentAsker* raw = seat.get();
     loom::Grant say;
     say.allow_to_role(DocumentActRequested::zen_name, DocumentActRequested::zen_version,
+                      kWorkshopProvider);
+    say.allow_to_role(DocumentCommitRequested::zen_name, DocumentCommitRequested::zen_version,
                       kWorkshopProvider);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(say),
@@ -2088,6 +2102,7 @@ inline void ask_document_act(Live& t, DocumentAsker* seat, const char* act,
     ask_document(t, seat, std::move(request));
 }
 
+/// v1's COMMIT, which names a row and no subject -- the door refuses it (WL-DOC-21).
 inline void ask_document_commit(Live& t, DocumentAsker* seat, std::int64_t row,
                                 const std::string& text) {
     DocumentActRequested request;
@@ -2095,6 +2110,15 @@ inline void ask_document_commit(Live& t, DocumentAsker* seat, std::int64_t row,
     request.row = row;
     request.text = text;
     ask_document(t, seat, std::move(request));
+}
+
+/// THE COMMIT THAT NAMES ITS SUBJECT, from the seated party, and drain.
+inline void ask_subject_commit(Live& t, DocumentAsker* seat, std::int64_t subject,
+                               std::int64_t row, const std::string& text) {
+    REQUIRE(seat != nullptr);
+    const DocumentCommitRequested request{subject, row, text};
+    seat->next = [request](DocumentAsker& a, loom::Mail& m) { a.commit(m, request); };
+    t.publish(loom::to_value(SeatDo{}));
 }
 
 class ProviderSeat
@@ -2404,6 +2428,9 @@ struct PaneRig {
     std::vector<StandingConditions> said_conditions;
     /// ...AND EVERY `DocumentShown`, in order, for the same reason.
     std::vector<DocumentShown> said_documents;
+    /// ...and every `v2::DocumentShown`, the same picture with the name of what its rows address
+    /// (WL-DOC-21), in order -- published beside v1, and sometimes alone when only the name moved.
+    std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
     WorkshopWeave* w = nullptr;
@@ -2419,7 +2446,7 @@ struct PaneRig {
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_transcripts);
+                                   said_named_documents, said_transcripts);
     }
 
 
@@ -2435,6 +2462,20 @@ struct PaneRig {
     WorkshopWeave* mount_workshop() {
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
+        // ...the press's second version is chosen by the host's answer about the office's holder,
+        // wired exactly as workshop.cpp wires it. A case that wants an OLDER host -- one that
+        // answers nothing, so every press crosses as v1 -- empties `host.holder_accepts`.
+        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        };
+        register_workshop(std::move(weave));
+        return w;
+    }
+
+    /// WORKSHOP'S PRODUCTION GRANT, SPELLED BY HAND -- `mount_workshop`'s rules, in one place so
+    /// the weave put back on the bus (`put_workshop_back`) is granted exactly what it was mounted
+    /// with.
+    static loom::Grant workshop_grant() {
         loom::Grant speak;
         speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
         speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
@@ -2461,13 +2502,9 @@ struct PaneRig {
         speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
         speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
-        // ...the press's second version, and the host's answer that chooses between the two,
-        // wired exactly as workshop.cpp wires them. A case that wants an OLDER host -- one that
-        // answers nothing, so every press crosses as v1 -- empties `host.holder_accepts`.
+        // ...the press's second version, exactly as workshop.cpp grants it; the host's answer that
+        // chooses between the two is wired in `mount_workshop`.
         speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
-        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            return holder_accepts_on(bus, role, shape);
-        };
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
@@ -2486,6 +2523,7 @@ struct PaneRig {
         // ...and the object document's picture and the one act it answers, exactly as
         // workshop.cpp grants them.
         speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
+        speak.allow_to_any(v2::DocumentShown::zen_name, v2::DocumentShown::zen_version);
         speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
         // ...and the terminal participant's record and the two answers its doors give,
         // exactly as workshop.cpp grants them.
@@ -2497,11 +2535,33 @@ struct PaneRig {
         // opening manager, exactly as workshop.cpp grants them.
         speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
         speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
+        return speak;
+    }
+
+    /// REGISTER WORKSHOP'S WEAVE IN ITS OFFICE, with the production grant and the quit's watch.
+    void register_workshop(std::unique_ptr<loom::Weave> weave) {
         workshop_id =
-            bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
+            bus.register_weave(std::move(weave), workshop_grant(), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, workshop_id, host.undelivered_quits);
-        return w;
+    }
+
+    /// TAKE WORKSHOP'S WEAVE OFF THIS BUS FOR AN INTERVAL, AND PUT IT BACK. The weave itself --
+    /// its document, its session, the panes it seated -- is the same object throughout; what leaves
+    /// with its record is its office and the accept-set that declared its doors, so for the interval
+    /// a shape only Workshop accepts is one this bus has never heard of. Put back, it holds the
+    /// office again under a new id (`workshop_id`), with the grant it was mounted with. Host root
+    /// authority, for an interval no gesture can make.
+    std::unique_ptr<loom::Weave> take_workshop_off() {
+        quit_watch.reset();
+        std::unique_ptr<loom::Weave> off = bus.unregister_weave(workshop_id);
+        REQUIRE(off != nullptr);
+        workshop_id = loom::WeaveId{};
+        return off;
+    }
+    void put_workshop_back(std::unique_ptr<loom::Weave> weave) {
+        REQUIRE(weave != nullptr);
+        register_workshop(std::move(weave));
     }
 
     /// THE OPENING MANAGER, MOUNTED THE WAY THE

@@ -272,6 +272,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
+                                          zengine::workshop::DocumentCommitRequested,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
@@ -296,6 +297,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::DocumentShown,
+                                        zengine::workshop::v2::DocumentShown,
                                         zengine::workshop::DocumentActed,
                                         zengine::workshop::TranscriptShown,
                                         zengine::workshop::TerminalActed,
@@ -541,10 +543,25 @@ public:
     /// it, naming who could not be asked and why, and every other entry is discarded.
     void on(const QuitDeliveryRefusalNoted& noted, loom::Mail& mail);
 
-    /// THE OBJECT DOCUMENT'S ONE ACTING DOOR: select, create, delete, commit one property.
-    /// Answered at this host's own office, because the party that owns the document is the
-    /// party that answers for it (`document_seam_vocabulary.hpp`).
+    /// THE OBJECT DOCUMENT'S ACTING DOOR, v1: select, create, delete -- and a v1 commit, which
+    /// names no subject and is refused with nothing written. Answered at this host's own office,
+    /// because the party that owns the document is the party that answers for it
+    /// (`document_seam_vocabulary.hpp`).
     void on(const DocumentActRequested& asked, loom::Mail& mail);
+
+    /// WRITE ONE PROPERTY OF THE SUBJECT THE ASK NAMES, or refuse with nothing written: the
+    /// subject is judged against `Session::subject` before any setter is reached (WL-DOC-21).
+    void on(const DocumentCommitRequested& asked, loom::Mail& mail);
+
+    /// THE TWO REFUSALS A COMMIT MAY MEET BEFORE ANY ROW IS READ (WL-DOC-21): a subject that is
+    /// no longer the rows' own, and a v1 commit, which names none. Each says nothing was written,
+    /// because nothing was; neither says which object was meant, because the host no longer
+    /// knows and a pane does.
+    static constexpr const char* kCommitSubjectGone =
+        "the selection or the document changed before it arrived, so nothing was written";
+    static constexpr const char* kCommitNamesNoSubject =
+        "a commit must name the subject it was typed for, and this one names none -- nothing "
+        "was written";
 
     /// AUTHOR ONE LINE AS THE TERMINAL PARTICIPANT, asked for by whoever presents it.
     ///
@@ -1328,6 +1345,7 @@ private:
     static constexpr const char* kNoPaneFile =
         "no pane file -- start Workshop with --pane <path>";
 
+
     /// What to say to a gesture that would have changed the document or the
     /// selection out from under a live property draft.
     std::string finish_draft_first() const;
@@ -1406,6 +1424,9 @@ private:
     // WL-DOC-20 -- agents/workshop/document.md
     DocumentShown said_document_;
     bool document_said_ = false;
+    /// ...and the subject name the v2 picture last carried, which moves without a string moving.
+    // WL-DOC-21 -- agents/workshop/document.md
+    std::int64_t said_subject_ = 0;
     /// ...and the same pair for the terminal participant's record.
     TranscriptShown said_transcript_;
     bool transcript_said_ = false;
