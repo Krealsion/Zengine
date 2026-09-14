@@ -421,6 +421,16 @@ private:
             return;
         }
         const std::size_t budget = static_cast<std::size_t>(budget_rows);
+        if (shown.empty() && !known_.empty()) {
+            // EVERYTHING TRUE IS HIDDEN, WHICH IS NOT NOTHING BEING TRUE. Hiding is what this
+            // maker chose to read; the host still holds each condition, the chip still counts it
+            // and the publication still carries it, so the list says it is hiding them rather
+            // than saying the all-clear.
+            push("  all conditions hidden -- " + std::to_string(known_.size()) +
+                     (known_.size() == 1 ? " is" : " are") + " still true",
+                 surface::role::kMuted);
+            return;
+        }
         if (shown.empty()) {
             // NOTHING IS WRONG, SAID IN WORDS. A maker who put this pane on their desk is
             // owed an answer, and an empty box is not one.

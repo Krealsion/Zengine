@@ -64,8 +64,10 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
 - **Workshop holds no selection INSIDE a pane and no memory of the press.** What it holds is
   which PANE: the desk's selection and the keyboard's candidate (`Panels::selected`,
   `Panels::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). No row identity,
-  no capture, no record of a press once it is sent, and no repaint on the forwarding path:
-  Workshop's picture did not change, and if the provider answers, its own handler repaints.
+  no capture and no record of a press once it is sent. Forwarding interprets none of the
+  provider's rows, but the press is still a press on Workshop's desk: it can move the selection
+  and the keys, give a hidden title back, grant a different room and repaint Workshop's own
+  presentation, and what the provider makes of it arrives as that provider's content.
   Nothing here reads `ExternalPane::shown` and nothing may — the moment Workshop looks at a
   provider's rows to decide what a press means, the seam has stopped being one.
 - **A press crosses ONCE, in the version the office's holder accepts.** `PanePressed v1`
@@ -122,8 +124,8 @@ screen says so, is Workshop routing law
 ## The wheel crosses as one shape (QR-18)
 
 `PaneWheel v1` `{pane, dx, dy}` — `input::PointerWheel`'s notches, forwarded unchanged, +1.0
-per notch away from the maker. It ADDED to the protocol and revised nothing; eight shapes now,
-and every older one is byte-identical.
+per notch away from the maker. It ADDED to the protocol and revised nothing, and every older
+shape is byte-identical.
 
 - **It follows the POINTER, not the keyboard.** Which pane receives it is `occupied_at`'s
   topmost answer — the same walk a press spends, the effective order with the selection lift
@@ -150,7 +152,7 @@ and every older one is byte-identical.
 ## The sweep, the reveal and the quit cross as five more shapes (VD-25, VD-26)
 
 The Editor's extraction added five shapes and no powers, all in `workshop/pane_vocabulary.hpp`
-beside the twelve before them, and each is an ordinary optional capability any pane may spend:
+beside the shapes before them, and each is an ordinary optional capability any pane may spend:
 
 - **`PaneDragged v1` `{pane, row, column}`**, Workshop → provider: the hand moved with the button
   down, in the pane a press named a row of. The position is the granted lattice's, resolved
@@ -255,7 +257,7 @@ v2::PaneContent v2, v2::PaneCaret v2                      (pane_vocabulary.hpp) 
 
 `PaneActions v1` `{pane, rows}` of `PaneActionRow v1` `{id, label, scancode, modifiers}`,
 provider → Workshop, sent beside the offer; `PaneActionRequested v1` `{pane, id}`, Workshop →
-provider. They ADDED to the protocol and revised nothing: eleven shapes, and every older one is
+provider. They ADDED to the protocol and revised nothing, and every older shape is
 byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
 Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 
@@ -328,10 +330,19 @@ host action — and nothing reinterprets old bytes.
   line does not take, and an id the pane does not declare in the mode it is in — one that raced
   a re-declaration (Escape and Return in one poll: a cancel, then a commit to a closed draft) or
   one nobody declared. Cleared in private, the notice stood painted until an unrelated room grant
-  said the rows (measured in Info, the Terminal and Attention). The Builder and Files are the
-  exception today: they spend their notice on such an id, and say the rows without it. **A
-  notice's row moves every row beneath it**, so a pane reads a press against the rows it
-  published with the notice in them.
+  said the rows (measured in Info, the Terminal, Attention, the Builder and Files). Each pane
+  asks `answers`, which reads the rows its `declare` sends, so what it acts on and what it
+  declared are one list per mode. **A notice's row moves every row beneath it**, so a pane reads
+  a press against the rows it published with the notice in them.
+  **AND AN ANSWER'S SENTENCE BELONGS TO THE ACT THAT ASKED.** Ending a draft ends the draft and
+  not a write it already sent, so the sentence said then promises neither outcome, and no end
+  says nothing was written: an empty record of outstanding requests is no proof that none was
+  taken. A sentence about a pending request is that request's, and its answer retires or
+  replaces that sentence, never a later act's. A draft incarnation is not its contents: an
+  answer closes, alters and marks only the draft that sent it, and closes it only while it holds
+  exactly what was sent, because a write does not cover typing done after it left. Info sends one
+  commit at a time and declines another aloud ([`workshop/info-body.md`](workshop/info-body.md)
+  WL-INFO-12).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).

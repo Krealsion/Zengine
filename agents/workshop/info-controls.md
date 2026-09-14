@@ -45,13 +45,14 @@ LAW — Two reasons, two owners: a live draft is the pane's own refusal, made be
 
 MEANS
 - a control never invents a reason: it defers to whoever owns the refusal;
-- availability predicts no refusal: dependents and a spent mint stay the document's to say.
+- availability predicts no refusal: dependents and a spent mint stay the document's to say;
+- the draft's one sentence also refuses a press on an object while it is live (WL-INFO-09).
 
 DOES NOT MEAN
 - that this is a `disabled` flag — a flag would collapse two facts with two owners.
 
 PROVEN BY — `info-pane/pane.cpp` `Availability`, `action_availability`, `press_action`,
-`available`; `workshop/document_seam_vocabulary.hpp` `DocumentActed::refusal`;
+`available`, `kFinishTheEdit`; `workshop/document_seam_vocabulary.hpp` `DocumentActed::refusal`;
 `workshop/document.hpp` `remove`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a live
 draft holds both controls back, and the reason is the maker's"`, case `"INFO-WEAVE: the two
 controls are the last rows of the body, and say their own availability in characters"`, case

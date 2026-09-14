@@ -72,8 +72,8 @@ the case.
 
 ## Hiding is not fixing
 
-`d` hides one condition from the indicator and from the view. It changes **nothing** about
-what is true:
+`d` hides one condition from the pane's list. The compact indicator still counts it, and it
+changes **nothing** about what is true:
 
 - the condition is still true, and whatever owns it still holds it;
 - the wall it describes is still standing — a refused preferences file is still refused, and
@@ -82,6 +82,10 @@ what is true:
   statement you hid, so a wall that changes its reason is a new statement and is visible
   again. That is deliberate: hiding a condition should silence the thing you read, not the
   next thing you have not.
+
+When you have hidden every condition that is currently true, the list says so —
+`all conditions hidden -- 2 are still true` — and not `nothing needs your attention right now`,
+which the pane says only when nothing is true.
 
 Hiding lasts as long as the run. Nothing about it is written to a file, and a fresh Workshop
 starts by showing you everything that is true. A hidden condition that then stops being true

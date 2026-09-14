@@ -207,6 +207,34 @@ constexpr std::size_t kActionCount = 2;
 /// selection.
 enum class Availability { kAvailable, kNoTarget, kDraftLive };
 
+/// THE PANE'S OWN REFUSAL WHILE A DRAFT IS LIVE -- one sentence for every act the draft holds
+/// back: the two controls, and a press on an object (`press_placed`).
+constexpr const char* kFinishTheEdit = "finish the edit first -- commit it or cancel it";
+
+/// A COMMIT ASKED FOR WHILE ONE IS UNANSWERED (`act`): not sent, and the draft and its edits stand.
+/// It belongs to the unanswered commit, whose answer retires or replaces it (`answered_commit`).
+constexpr const char* kCommitNotSent = "commit not sent -- an earlier commit is still unanswered";
+
+/// ENDING A DRAFT WITH NO COMMIT UNANSWERED (`end_draft`). What the draft held is gone, and a write
+/// an earlier commit made is not: neither sentence says whether anything was written.
+constexpr const char* kCancelled = "edit cancelled -- unwritten changes discarded";
+constexpr const char* kAbandoned =
+    "edit abandoned -- the property it was on is no longer shown; unwritten changes discarded";
+
+/// ...AND WITH ONE UNANSWERED, which a draft's end cannot take back.
+constexpr const char* kCancelledSent =
+    "commit already sent -- the draft is closed, and it may still be written";
+constexpr const char* kAbandonedSent =
+    "commit already sent -- its property is no longer shown, and it may still be written";
+
+/// A COMMIT'S ACCOUNT OVER A DRAFT THAT DOES NOT HOLD EXACTLY WHAT IT SENT -- its own draft typed
+/// into since, or a newer one -- and over no draft at all (`answered_commit`). A refusal is
+/// followed by the document's own words.
+constexpr const char* kEarlierWritten = "earlier commit written -- later edits not sent";
+constexpr const char* kEarlierRefused = "earlier commit refused -- ";
+constexpr const char* kLateWritten = "commit written -- it was sent before the draft closed";
+constexpr const char* kLateRefused = "commit refused -- ";
+
 constexpr bool available(Availability a) noexcept { return a == Availability::kAvailable; }
 
 constexpr Availability action_availability(std::size_t which, bool editing,
@@ -276,41 +304,49 @@ public:
         }
         known_ = said;
         heard_ = true;
-        // ⚠ A DRAFT WHOSE ROW IS GONE IS ABANDONED, and it is the one thing this pane drops
-        // without being asked. The rows are the SELECTION's; a maker who moves the selection
-        // while typing has left the field they were typing in, and carrying the draft onto
-        // whatever row took its index would write their text into a different property.
-        if (draft_.open && (draft_.row >= static_cast<std::int64_t>(known_.properties.size()) ||
-                            known_.properties[static_cast<std::size_t>(draft_.row)].label !=
-                                draft_.label)) {
-            close_draft();
+        // ⚠ A DRAFT WHOSE PROPERTY IS NO LONGER SHOWN IS ABANDONED, and it is the one thing this
+        // pane drops without being asked -- so it says so. The rows are the SELECTION's: a
+        // selection moved by any gesture has left the field the maker was typing in, and every
+        // object has `Name` on the same row, so the subject is the object AND the label at the
+        // row. Carrying the draft onto whatever took its place would write the maker's text into
+        // a different property.
+        if (draft_.open && !shows_draft_subject()) {
+            end_draft(kAbandoned, kAbandonedSent);
             declare(mail);
         }
         clamp_cursor();
         say(mail);
     }
 
-    /// WHAT THE DOCUMENT MADE OF THE LAST ASK. An accepted act says nothing here -- the host
-    /// says it on the band, as it always did; a picture it changed arrives as `DocumentShown`,
-    /// and the notice the ask spent was already said away where the maker acted
-    /// (`on(PanePressed)`, `on(PaneActionRequested)`), so an accepted select of the object
-    /// already selected, which changes no picture, leaves nothing to say. A refusal is the
-    /// document's own words and belongs beside the field it is about.
+    /// WHAT THE DOCUMENT MADE OF AN ACT THIS PANE IS WAITING ON, read against that act. The
+    /// correlation says WHICH request an answer is about; the record it matches says what the
+    /// request was, and a commit's draft incarnation and sent text say whether the draft open now
+    /// is the one that sent it and holds nothing it did not send.
+    ///
+    /// An accepted act says nothing here -- the host says it on the band, as it always did; a
+    /// picture it changed arrives as `DocumentShown`, and the notice the ask spent was already
+    /// said away where the maker acted (`on(PanePressed)`, `on(PaneActionRequested)`). A refusal
+    /// is the document's own words.
     void on(const DocumentActed& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !awaiting_ || mail.correlation() != pending_) {
+        if (!mail.answers_ask()) {
             return;
         }
-        awaiting_ = false;
-        if (said.accepted) {
-            if (draft_.open) {
-                close_draft();
-                declare(mail);
-                say(mail);
-            }
+        if (committing_.awaiting && mail.correlation() == committing_.pending) {
+            const SentCommit was = std::move(committing_);
+            committing_ = SentCommit{};
+            answered_commit(was, said, mail);
             return;
         }
-        notice_ = said.refusal;
-        say(mail);
+        if (!acting_.awaiting || mail.correlation() != acting_.pending) {
+            return;
+        }
+        acting_ = Asked{};
+        // A SELECT, A CREATE OR A DELETE CLOSES NO DRAFT: none of them is a draft's answer, and
+        // one asked before a draft opened may be answered while it is open.
+        if (!said.accepted) {
+            notice_ = said.refusal;
+            say(mail);
+        }
     }
 
     /// A PRESS NAMES A ROW OF THIS PANE'S ROOM, and this pane knows which list that row is
@@ -409,8 +445,8 @@ public:
             return;
         }
         paste_.awaiting = false;
-        if (!draft_.open) {
-            return;
+        if (!draft_.open || draft_.line.draft_epoch() != paste_.epoch) {
+            return; // the draft that asked is over; a later one did not ask, and gets nothing
         }
         const std::string text = a.readable ? a.text : clip_.text;
         if (text.empty() || !admissible(text)) {
@@ -426,10 +462,20 @@ private:
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
         if (draft_.open) {
             if (asked.id == pane::kActionCommit) {
+                if (committing_.awaiting) {
+                    // ONE COMMIT OUTSTANDING AT A TIME. A second would hide the first's answer, or
+                    // be answered first; so it is not sent, aloud, and nothing else is touched: the
+                    // draft, its edits and the first commit's record stand, and Return sends the
+                    // edits once the first is answered. No retry is queued.
+                    notice_ = kCommitNotSent;
+                    committing_.promise = notice_;
+                    say(mail);
+                    return;
+                }
                 ask_commit(mail);
             } else if (asked.id == pane::kActionCancel) {
-                close_draft();
-                notice_ = "edit cancelled -- nothing was written";
+                // ESCAPE ALWAYS ENDS THE DRAFT, AND SAYS WHETHER THAT WAS ALL IT ENDED.
+                end_draft(kCancelled, kCancelledSent);
                 declare(mail);
                 say(mail);
             }
@@ -508,11 +554,84 @@ private:
 
     // ---- The four asks -------------------------------------------------------------------
 
+    /// A DOCUMENT ACT THIS PANE IS WAITING ON (`ask`).
+    struct Asked {
+        bool awaiting = false;
+        std::uint64_t pending = 0; ///< the correlation: which request an answer names
+    };
+
+    /// ...AND A COMMIT, read against the draft that sent it and what it sent. A draft incarnation
+    /// is not its contents: typing changes the text and keeps the epoch, which is why a paste may
+    /// land in a draft that has moved on and why a write does not cover what was typed after
+    /// Return. The subject is the draft's own (`Draft::object`, `Draft::label`), fixed for its life
+    /// because a picture that moves it abandons the draft; nothing here says where the host wrote.
+    struct SentCommit : Asked {
+        std::uint64_t draft = 0; ///< `TextBox::draft_epoch` when it was sent: which draft
+        std::string text;        ///< ...and what it sent: whether that draft holds anything more
+        std::string promise;     ///< the sentence said about it while it was unanswered
+    };
+
+    /// ONE COMMIT OUTSTANDING, AND ONE OTHER ACT, THE NEWEST OF ITS KIND. `act` asks for a commit
+    /// only while none is unanswered, so a commit's record is never replaced while it waits, and
+    /// whether one is unanswered decides what ending a draft may say (`end_draft`). A select, a
+    /// create or a delete replaces the record of its own kind -- an older one's answer names a
+    /// correlation nothing waits on and is dropped unread, its sentence already spent by the act
+    /// that asked again -- and cannot replace the commit's.
     void ask(DocumentActRequested request, loom::Mail& mail) {
-        pending_ = ++asked_;
-        awaiting_ = true;
+        const std::uint64_t correlation = ++asked_;
+        if (request.act == ws::kDocumentCommit) {
+            committing_ = SentCommit{};
+            committing_.awaiting = true;
+            committing_.pending = correlation;
+            committing_.draft = draft_.line.draft_epoch();
+            committing_.text = request.text;
+        } else {
+            acting_ = Asked{true, correlation};
+        }
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, std::move(request), pending_);
+            .send_to_role(kWorkshopRole, std::move(request), correlation);
+    }
+
+    /// A COMMIT'S ANSWER -- about the draft that sent it and what it sent, and about nothing else.
+    ///
+    /// It is said where the notice row holds this commit's own sentence (`SentCommit::promise`),
+    /// or is empty while the draft that sent it is open; a sentence a later act said stands.
+    void answered_commit(const SentCommit& was, const DocumentActed& said, loom::Mail& mail) {
+        const bool own = !was.promise.empty() && notice_ == was.promise;
+        const bool same_draft = draft_.open && draft_.line.draft_epoch() == was.draft;
+        const bool may_say = own || (same_draft && notice_.empty());
+        if (same_draft && draft_.line.text() == was.text) {
+            // THE DRAFT HOLDS EXACTLY WHAT IT SENT: accepted ends it, and a sentence about the
+            // commit pending goes with it; a refusal stands beside it in the document's words.
+            if (said.accepted) {
+                close_draft();
+                declare(mail);
+                if (own) {
+                    notice_.clear();
+                }
+                say(mail);
+            } else if (may_say) {
+                notice_ = said.refusal;
+                say(mail);
+            }
+            return;
+        }
+        // ⚠ ANY OTHER DRAFT IS EDITS NO WRITE COVERS -- this one typed into after Return, or a
+        // newer one -- so the answer closes, alters and marks none of them, and says it as the
+        // earlier commit's. With no draft open, the draft that sent it is over: the write was
+        // never the draft's to take back, and the account replaces only the sentence that
+        // promised it.
+        if (!may_say) {
+            return;
+        }
+        if (draft_.open) {
+            notice_ = said.accepted ? std::string(kEarlierWritten)
+                                    : std::string(kEarlierRefused) + said.refusal;
+        } else {
+            notice_ = said.accepted ? std::string(kLateWritten)
+                                    : std::string(kLateRefused) + said.refusal;
+        }
+        say(mail);
     }
 
     void ask_select(std::int64_t identity, loom::Mail& mail) {
@@ -536,7 +655,7 @@ private:
             // THE APPLICATION'S OWN REFUSAL, MADE BEFORE THE OPERATION. A live draft is
             // unfinished work this act would destroy, and the pane is the party that knows
             // (WL-CTRL-03).
-            notice_ = "finish the edit first -- commit it or cancel it";
+            notice_ = kFinishTheEdit;
             say(mail);
             return;
         }
@@ -549,6 +668,7 @@ private:
 
     void begin_paste(loom::Mail& mail) {
         paste_.pending = ++asked_;
+        paste_.epoch = draft_.line.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kInfoPaneRole)
             .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
@@ -572,16 +692,45 @@ private:
         draft_.open = true;
         draft_.row = state_.cursor;
         draft_.label = row.label;
+        draft_.object = known_.selected;
         draft_.line.set(row.value, row.value.size()); // the caret at the end, as it was
         declare(mail);
         say(mail);
     }
 
+    /// `clear` ends the line's draft incarnation (`component::TextBox::draft_epoch`), which is
+    /// what a commit or a paste that the draft sent is read against when its answer comes back;
+    /// it is never called to make a fresh epoch for a draft that stays open.
     void close_draft() {
         draft_.open = false;
         draft_.row = 0;
         draft_.label.clear();
+        draft_.object = 0;
         draft_.line.clear();
+    }
+
+    /// END THE LIVE DRAFT AND SAY WHAT ENDING IT DID: `ended` when no commit is unanswered,
+    /// `sent` while one is -- this draft's, or one an earlier draft sent. Closing a draft is
+    /// always this pane's to do; a write already asked for is not, so the second sentence
+    /// promises neither outcome, and the commit's record keeps it as the one sentence its
+    /// answer's account may replace (`answered_commit`). No commit unanswered is not proof that
+    /// nothing was written -- an earlier one may have been taken -- so `ended` says only that
+    /// what was never written is gone.
+    void end_draft(const char* ended, const char* sent) {
+        close_draft();
+        notice_ = committing_.awaiting ? sent : ended;
+        if (committing_.awaiting) {
+            committing_.promise = notice_;
+        }
+    }
+
+    /// DOES THE PICTURE STILL SHOW THE PROPERTY THE DRAFT IS TYPED INTO -- the same object, with
+    /// the same label on the draft's row. Another object's row of the same index and label is a
+    /// different property.
+    bool shows_draft_subject() const {
+        return known_.selected == draft_.object &&
+               draft_.row < static_cast<std::int64_t>(known_.properties.size()) &&
+               known_.properties[static_cast<std::size_t>(draft_.row)].label == draft_.label;
     }
 
     bool has_target() const { return known_.selected != 0; }
@@ -619,6 +768,14 @@ private:
     /// WHAT A PRESS ON A PLACED ROW DOES -- with the notice already spent (`on(PanePressed)`).
     void press_placed(const Placed& at, loom::Mail& mail) {
         if (at.what == Placed::kObject) {
+            if (draft_.open) {
+                // A SELECT CHANGES THE ROWS A DRAFT IS TYPED INTO, the one object already
+                // selected included, so a live draft holds it back as it holds back the controls:
+                // refused here, before anything is asked, and the draft is exactly what it was.
+                notice_ = kFinishTheEdit;
+                say(mail);
+                return;
+            }
             ask_select(known_.objects[at.index].identity, mail);
         } else if (at.what == Placed::kProperty) {
             state_.cursor = static_cast<std::int64_t>(at.index);
@@ -807,13 +964,18 @@ private:
     struct Draft {
         bool open = false;
         std::int64_t row = 0;
-        std::string label; ///< what the row was called when the draft opened
+        std::string label;       ///< what the row was called when the draft opened
+        std::int64_t object = 0; ///< ...and whose property: the selection that picture named
         component::TextBox line;
     };
 
     struct Paste {
         bool awaiting = false;
         std::uint64_t pending = 0;
+        /// THE DRAFT THAT ASKED (`component::TextBox::draft_epoch`): the correlation says the
+        /// answer is to this pane's ask, and the epoch says the line it was asked for still
+        /// stands.
+        std::uint64_t epoch = 0;
     };
 
     zengine::ActivationCursor activation_;
@@ -835,8 +997,8 @@ private:
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.
     std::uint64_t asked_ = 0;
-    bool awaiting_ = false;
-    std::uint64_t pending_ = 0;
+    Asked acting_;         ///< a select, a create or a delete
+    SentCommit committing_; ///< a commit
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;

@@ -15,9 +15,9 @@ live and stored nowhere. One reading at the top of the pressed branch decides th
 the candidate. The press that points the keys is not an act in the pane, and Workshop tells the
 pane, on the press, whether ordinary keys were already reaching it. The candidate is never
 cleared and the target never stored. The modes above never reach that line. The pane gets every
-bare key, `q` included. `^c` follows the keyboard. The screen says where typing goes in two
-places, in characters. Pane titles are a preference, and the keyboard's pane always keeps its
-title.
+bare key, `q` included. `^c` follows the keyboard. The title's mark names the pane the keys
+return to; the band's first row says where a key goes now. Pane titles are a preference, and the
+keyboard's pane always keeps its title.
 
 **Alternatives tried.**
 - *A pane-local memory of having had the keys* (`had_keyboard_`, `d4815cc`) — retired: Files
@@ -46,9 +46,10 @@ title.
 - *Bare printables as globals* — rejected: admission refuses a bare printable on a global row.
 
 **Consequences.** A pane that closes, stops resolving or loses its room stops being the answer
-with nothing to clear, and gets the keyboard back when it returns. A press is refused, not
-repeated, when its office changes holder before delivery. The band's typing row is generated
-from the keymap's global rows. A hidden title returns its row to the provider through the grant.
+with nothing to clear, and gets the keyboard back when it returns. A holder changed before
+delivery takes the press or, lacking its door, refuses it; nothing retries. The band's typing row
+comes from the keymap's global rows. A hidden title returns its row to the provider through the
+grant.
 
 **Laws supported.** [WL-FOCUS-01](../workshop/focus.md), [WL-FOCUS-02](../workshop/focus.md),
 [WL-FOCUS-03](../workshop/focus.md), [WL-FOCUS-04](../workshop/focus.md),

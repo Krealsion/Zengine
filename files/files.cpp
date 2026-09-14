@@ -414,6 +414,14 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
             return;
         }
+        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT. The
+        // declaration and the keystroke race across two messages -- Escape twice in one poll
+        // resolves to two cancels against the authoring line's rows, and the second arrives when
+        // the browser declares none -- so a stale id, or one nobody declared, spends nothing: no
+        // act, and the notice stands (`agents/panes.md`).
+        if (!answers(asked.id)) {
+            return;
+        }
         // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
         // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
         // one whose answer is still on its way (an open at the opening office, a catalog at the
@@ -429,7 +437,8 @@ public:
         }
     }
 
-    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`).
+    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
+    /// and only for an id `answers` admitted in the mode the pane is in.
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
         // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
         // (`files.open`) commits a chooser row or an authoring field; Escape
@@ -664,16 +673,23 @@ private:
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = files::kProjectFilesPane;
-        const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
-                                    std::int64_t mods = input::mod::kNone) {
-            actions.rows.push_back(PaneActionRow{id, label, sc, mods});
+        actions.rows = action_rows();
+        (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
+    /// reads, so what the pane acts on and what it said it acts on are one list.
+    std::vector<PaneActionRow> action_rows() const {
+        std::vector<PaneActionRow> rows;
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
+                                 std::int64_t mods = input::mod::kNone) {
+            rows.push_back(PaneActionRow{id, label, sc, mods});
         };
         // ---- The authoring line owns the keyboard, except for two rows -----------------
         if (authoring_.open) {
             row(files::kActionOpen, "commit this field", input::scan::kReturn);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
-            (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
-            return;
+            return rows;
         }
         // ---- The chooser is a list: it needs the two arrows and the two mode rows ------
         if (chooser_.open) {
@@ -681,8 +697,7 @@ private:
             row(files::kActionDown, "row down", input::scan::kDown);
             row(files::kActionOpen, "choose this", input::scan::kReturn);
             row(files::kActionCancel, "cancel", input::scan::kEscape);
-            (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
-            return;
+            return rows;
         }
         // ---- Browsing: THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME
         // DEFAULTS the built-in shipped (workshop/keymap.hpp `kFiles`), so every maker's
@@ -697,7 +712,16 @@ private:
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
-        (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
+        return rows;
+    }
+
+    bool answers(const std::string& id) const {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- The doors ----------------------------------------------------------------------

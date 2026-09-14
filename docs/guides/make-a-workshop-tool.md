@@ -19,7 +19,7 @@ a compiled-in Workshop panel        you are editing Workshop's own source
     the picker's built-in half is a compile-time array you add a row to
 
 an office-authored external pane    you are a weave that is not Workshop
-    a bounded provider protocol: five message shapes and no sixth
+    a bounded provider protocol, every shape listed in workshop/pane_vocabulary.hpp
     you publish semantic rows; Workshop owns the room and the presentation
 ```
 
@@ -41,7 +41,7 @@ something, you are on one of the two paths above.
 | who is this for? | a contributor changing Workshop's source | a weave/host integration using the bounded pane protocol |
 | how is it discovered? | the compile-time built-in catalog (`kPanelCatalog`) | an office-authored runtime offer, this session only |
 | who paints it? | a painter you write: declared in `workshop/screen.hpp`, its body in the subject's `workshop/screen_<subject>.cpp` | Workshop's one generic external-pane painter |
-| can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **one bounded primary press**, delivered as a row and column of the room it was granted. No keyboard, focus, capture, hover, release or drag |
+| can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **the input it chooses to accept, all of it about its own room**: a primary press as a row and column, keys and typed text while it holds the keyboard, the wheel, a sweep while the button is held, and actions it declares with a default key a maker can rebind. No focus notification, capture, hover or release |
 | durable identity | the catalog row's `provider` + `pane` | the Loom-stamped provider office + the pane key that office offered |
 | saved setup | a `PaneRef` and the maker's authored window | the same, unresolved until some office offers it |
 | what state is retained? | whatever Workshop session structures you add | Workshop's bounded cache of the rows you last validly sent |
@@ -52,7 +52,7 @@ Two sentences worth keeping:
 
 > **The external pane seam exists; product distribution and plugin onboarding do not.**
 
-> The seam is not hypothetical. The five shapes, the provenance rule, discovery, room, content
+> The seam is not hypothetical. Its shapes, the provenance rule, discovery, room, content
 > bounds, setup resolution and the generic presentation are current production source with a
 > real dynamically loaded witness. What is missing is everything *around* it — a way for an
 > end user to install or select a provider.
@@ -402,8 +402,10 @@ ground every ink reads on is `role::kMuted`, and **never pair a role with its ow
 
 ## A5. Add interaction only when you need it
 
-Everything in this section and the two after it is **compiled-in only**. None of it — pointer
-forwarding, hotkeys, modes, `TextBox` — is available to an external pane.
+The mechanics in this section and the two after it are **compiled-in only**: the press chain,
+`command()` and a mode kept in Workshop's session. An external pane gets the same abilities —
+a press, keys and text, actions with rebindable keys, a text field of its own — through the pane
+protocol instead ([B5](#b5-a-press-and-the-input-you-may-accept)).
 
 A press arrives at `WorkshopWeave::on(const input::PointerButton&)`, declared in
 `workshop/weave.hpp` and defined in `workshop/weave_pointer.cpp`, which is a chain of handlers
@@ -713,18 +715,24 @@ test them through the suite rather than by hand in a terminal.
 # Part B — an office-authored external pane
 
 You are a weave that is **not** Workshop. You can offer Workshop a **pane**: a row in the picker,
-a panel a maker can open, and a bounded budget of prose to fill it with — plus, since SEL-0, one
-bounded gesture back out of it.
+a panel a maker can open, and a bounded budget of prose to fill it with — plus whatever of a
+maker's input into it you choose to accept.
 
 This is a different contract from Part A, not a lighter version of it. You get no painter, no
-coordinates and no placement. What you get is a budget, a way to speak into it, and a way to be
-told where in it a maker pressed.
+coordinates and no placement. What you get is a budget, a way to speak into it, and sentences
+about what a maker did in it.
 
 The exact reference is `workshop/pane_vocabulary.hpp` and
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane). This
 section is the orientation; that one is the contract.
 
-## B1. Five shapes, and there is no sixth
+## B1. The five shapes every pane speaks
+
+These five are how a pane arrives, is sized, says its rows and hears a press. The protocol has
+more — keys, text, the wheel, a sweep, declared actions, a caret, a reveal and the quit, some of
+them in a second version beside the first — and each is optional: a pane that neither sends nor
+accepts one is unchanged by it. `workshop/pane_vocabulary.hpp` lists every one, with what each
+says.
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
@@ -751,8 +759,8 @@ PanePressed            { pane, row, column }
   it unchanged. You supply no `SurfaceRect`, no `SurfaceLabel`, no `SurfaceTextRegion`, no
   coordinate, no z-order, no viewport and no caret.
 - **`PanePressed` is the room you were granted, read backwards** — a row and a column of the same
-  lattice `PaneRoom` gave you, and nothing else. [B5](#b5-one-press-and-nothing-else) is the whole
-  contract.
+  lattice `PaneRoom` gave you, and nothing else. [B5](#b5-a-press-and-the-input-you-may-accept)
+  is the whole contract.
 - **There is no provider field in any payload.** That absence is load-bearing; the next section
   says why.
 
@@ -897,7 +905,7 @@ control byte — and the combined catalog at 32 total entries, built-ins include
 atomic in both directions: an invalid first offer adds nothing, and an invalid *refresh* leaves
 the last accepted descriptor whole.
 
-## B5. One press, and nothing else
+## B5. A press, and the input you may accept
 
 ### How does my pane receive a maker press?
 
@@ -926,8 +934,11 @@ delivered like any other message: **a read-only pane stays read-only by doing no
   last prose line of a graphical medium, and anything outside the lattice are all still *consumed*
   by your pane — a pane that owns visible room owns pointer refusal for that room — and simply
   produce no message. Workshop does not round them to a nearest row.
-- **Workshop asks nothing back.** There is no reply shape and no `consumed`: which pane owns a
-  press is geometry Workshop already holds, so it is decided there and never asked of you.
+- **A press wants no reply.** No input shape has a `consumed` or a disposition: which pane owns a
+  press is geometry Workshop already holds, so it is decided there and never asked of you. The
+  protocol's few questions are each scoped to one conversation — a pane may ask to be seated,
+  and Workshop asks each pane that accepts the question whether it may quit — and
+  `workshop/pane_vocabulary.hpp` names them with their answers.
 
 ### Who interprets the press?
 
@@ -969,9 +980,10 @@ were elsewhere or when a picker, a naming line or the hotkey view had them.
 ### What is deliberately absent
 
 Still no focus-changed notification, capture, hover, release or double-press of any kind, and no
-reply, disposition or acknowledgement. (A sweep crosses as `PaneDragged`; keys and text cross as
-`PaneKey` and `PaneTextInput` once a maker has pressed into your pane; the wheel crosses as `PaneWheel`
-`{pane, dx, dy}` — the notches over your body, unchanged, whether or not you hold the keys.
+reply, disposition or acknowledgement for a gesture. (A sweep crosses as `PaneDragged`; keys and
+text cross as `PaneKey` and `PaneTextInput` once a maker has pressed into your pane; the wheel
+crosses as `PaneWheel` `{pane, dx, dy}` — the notches over your body, unchanged, whether or not
+you hold the keys.
 Accept it and spend it as your own Up/Down step; a pane that does not accept it is unchanged.
 And the actions you declare beside your offer — `PaneActions{pane, rows}`, each row an id in
 your namespace, a label and a default gesture as `PaneKey`'s two numbers — come back as
@@ -987,9 +999,10 @@ one is unchanged and will stay unchanged, so a pane built against it keeps worki
 button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
 arrival *is* that gesture.
 
-Everything in [A5](#a5-add-interaction-only-when-you-need-it), [A6](#a6-share-one-semantic-operation-between-the-pointer-and-a-hotkey)
-and [A7](#a7-use-a-component-when-it-owns-a-useful-invariant) is compiled-in-only, and reading it
-as provider guidance is the most likely way to plan a pane that cannot be built.
+The mechanics of [A5](#a5-add-interaction-only-when-you-need-it), [A6](#a6-share-one-semantic-operation-between-the-pointer-and-a-hotkey)
+and [A7](#a7-use-a-component-when-it-owns-a-useful-invariant) — the press chain, `command()`, a
+mode in Workshop's session — are compiled-in only; a pane reaches the same abilities through the
+shapes above, and planning a pane around those mechanics plans one that cannot be built.
 
 ### Does receiving a reference grant authority over the referenced thing?
 
@@ -1077,7 +1090,7 @@ Named here so you do not plan around it, and so a reader can tell a bounded seam
 no public plugin SDK, registry, marketplace or installation workflow
 no provider scan directory, autoload list, or --provider option on the Workshop host
 no package, publisher, signature or cross-restart author identity
-no provider focus, capture, hover, release, drag or hotkey path
+no provider focus notification, pointer capture, hover or release, and no drag between panes
 no provider-owned placement, coordinates, docking, tabs, resize handles or geometry
 no multiple instances of one PaneRef
 no unload notification, timeout, heartbeat, liveness query or `unavailable` state
@@ -1121,8 +1134,9 @@ to run. You do not need any of that to see your panel work.
 
 ```text
 I am a weave that wants to show a maker some rows
-    -> Part B. Five shapes, an office you author through, a prose budget you must
-       measure against, and one bounded press. Read tests/weavelib/workshop_hello.cpp
+    -> Part B. The pane protocol (workshop/pane_vocabulary.hpp), an office you author
+       through, a prose budget you must measure against, and the input shapes you choose
+       to accept. Read tests/weavelib/workshop_hello.cpp
 
 I am editing Workshop and I only display information
     -> a kind, a pane key, a six-field catalog row, a painter, one arm in paint_panels

@@ -87,8 +87,8 @@ inline constexpr const char* kActionCancel = "info.cancel";
 /// was standing on is still that row, and landing them back on it is worth one integer.
 ///
 /// AND THE DRAFT IS NOT HERE. It is work in flight, and a reload is entitled to drop it: the
-/// Builder's role line makes the same trade for the same reason. Nothing was written, because
-/// a draft is a draft precisely so that nothing is.
+/// Builder's role line makes the same trade for the same reason. Dropping it loses only what was
+/// never written: a commit it already sent is the document's either way.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the maker is on
     ZEN_SHAPE(InfoPaneState, 1, ZEN_FIELD(cursor));
