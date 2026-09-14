@@ -184,27 +184,39 @@ the row and says so"`, case `"INFO-WEAVE: the pane arrives by a plan row and res
 desk already had"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-12 — An answer is read against the act and the draft that asked
+## WL-INFO-12 — An answer is read against the act, the draft and the text that asked
 
-LAW — A commit's answer closes or marks only the draft that sent it; ending a draft says nothing was written only while no commit is unanswered, and an account replaces only the sentence that promised it.
+LAW — Info sends one commit at a time; its answer closes only the draft that sent it while that draft holds exactly what it sent, replaces only its own sentence, and no draft's end says nothing was written.
 
 MEANS
-- the correlation names the request; a commit's `draft_epoch` says if its field is still open;
-- a select, a create or a delete closes no draft; one of them is outstanding beside one commit;
-- an ask replaces the record of its kind: the older answer is dropped, its sentence already spent.
+- a commit asked while one is unanswered is not sent, aloud; the draft and its edits stand;
+- `draft_epoch` names the draft and the sent text what a write covers: later typing stays open;
+- a select, a create or a delete keeps its own newest record, so none of them hides a commit.
 
 DOES NOT MEAN
-- that closing a draft retracts a write, or that the pane knows what object a late commit reached.
+- that closing a draft retracts a write, or that the pane knows what object a late commit reached;
+- that an answer replaces a later act's sentence, or that an unanswered commit is ever given up.
 
-PROVEN BY — `info-pane/pane.cpp` `on(DocumentActed)`, `answered_commit`, `ask`, `end_draft`,
-`Asked`, `SentCommit`, `SentCommit::draft`, `SentCommit::promise`, `acting_`, `committing_`;
-`component/text_box.hpp` `TextBox::draft_epoch`; `tests/test_workshop_panes_info.cpp` case `"a
-commit and a cancel resolved in one poll: the cancel says the commit was already sent, the
-answer's account takes that sentence's place, and no row says nothing was written over a write"`,
-case `"an Info commit answered after a newer draft opened on the same field closes, alters and
-marks nothing on that draft, and a sentence a later act said stands"`, case `"an Info draft ended
-while an earlier draft's commit is still unanswered says the commit was already sent, even when an
-act between them asked the document something else, and that commit's account replaces the
-sentence"`, case `"a select asked before an Info draft opened, and answered while it is open,
-closes nothing"`.
+PROVEN BY — `info-pane/pane.cpp` `on(DocumentActed)`, `act`, `answered_commit`, `ask`,
+`end_draft`, `Asked`, `SentCommit`, `SentCommit::draft`, `SentCommit::text`,
+`SentCommit::promise`, `acting_`, `committing_`, `kCommitNotSent`; `component/text_box.hpp`
+`TextBox::draft_epoch`; `tests/test_workshop_panes_info.cpp` case `"a commit and a cancel
+resolved in one poll: the cancel says the commit was already sent, the answer's account takes that
+sentence's place, and no row says nothing was written over a write"`, case `"an Info commit
+answered after a newer draft opened on the same field closes, alters and marks nothing on that
+draft, and a sentence a later act said stands"`, case `"an Info draft ended while an earlier
+draft's commit is still unanswered says the commit was already sent, even when an act between them
+asked the document something else, and that commit's account replaces the sentence"`, case `"a
+select asked before an Info draft opened, and answered while it is open, closes nothing"`, case
+`"a second Info commit in the same poll as the first is not sent: the pane says so, keeps the text
+typed between them, sends that text once the first is answered, and a cancel after the write and a
+refused retry claims no write away"`, case `"Return twice over an unchanged Info draft sends one
+commit, says the second was not sent while the first is unanswered, and the first's acceptance
+closes the draft and retires that sentence"`, case `"text typed after an Info commit was sent
+outlives that commit's answer: the draft stays open with its history, the write is told apart from
+the unsent text, a refusal is not said of the newer text, and the newer text commits normally"`,
+case `"an Info commit's answer settles the sentence that said a second commit was not sent, and
+leaves a sentence a later act said standing"`, case `"a commit from a newer Info draft is not sent
+while an earlier draft's commit is unanswered, even with a select asked between them, and the
+earlier commit's account replaces that sentence without closing or altering the newer draft"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`

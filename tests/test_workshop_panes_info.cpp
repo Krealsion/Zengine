@@ -213,12 +213,16 @@ struct InfoRig {
     }
     bool wide_ = true;
 
-    /// A KEY OR A PRESS QUEUED AND NOT DRAINED, so a case places a real gesture at an exact
-    /// interval of a conversation (the Files rig's own doors); `settle` drains.
-    void enqueue_key(std::int64_t sc) {
-        (void)r.bus.publish(loom::Message(
-            loom::to_value(input::KeyPressed{sc, "", input::mod::kNone}), loom::WeaveId{},
-            loom::WeaveId{}, 0));
+    /// A KEY, A PRESS OR TYPED TEXT QUEUED AND NOT DRAINED, so a case places a real gesture at an
+    /// exact interval of a conversation (the Files rig's own doors); `settle` drains. `r.key` and
+    /// `r.text` drain, so a burst built from them is several polls rather than one.
+    void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
+        (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+    void enqueue_text(const std::string& typed) {
+        (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{typed}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
     }
     void enqueue_press(std::int64_t at) {
         const ui::Rect body = external_body_rect(r.session(), kind);
@@ -298,16 +302,24 @@ struct InfoRig {
 };
 
 /// HOW MANY OF THE HOST'S ANSWERS TO AN ACT HAVE REACHED THE PANE, read off the tap -- so a case
-/// can stop between the rows the pane said at its act and the answer that comes after them.
+/// can stop between the rows the pane said at its act and the answer that comes after them. `heard`
+/// is the order the pane was handed its answers and the typing around them.
 struct AnswerTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
     int answered = 0;
+    std::vector<std::string> heard;
     AnswerTap(loom::Switchboard& on, loom::WeaveId pane_id) : bus(on) {
         tap = bus.add_observer([this, pane_id](const loom::BusEvent& ev) {
-            if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
-                ev.schema_name == DocumentActed::zen_name) {
+            if (ev.kind != loom::EventKind::Delivered || ev.target != pane_id) {
+                return;
+            }
+            if (ev.schema_name == DocumentActed::zen_name) {
                 ++answered;
+                heard.push_back(ev.schema_name);
+            } else if (ev.schema_name == PaneTextInput::zen_name ||
+                       ev.schema_name == PaneKey::zen_name) {
+                heard.push_back(ev.schema_name);
             }
         });
     }
@@ -315,6 +327,44 @@ struct AnswerTap {
     AnswerTap(const AnswerTap&) = delete;
     AnswerTap& operator=(const AnswerTap&) = delete;
 };
+
+/// WHAT REACHED THE DOCUMENT'S DOOR, read off the tap at Workshop's delivery -- so a case counts
+/// the commits that LEFT the pane, and the text each carried, not the ones it meant to send.
+struct DocumentAskTap {
+    loom::Switchboard& bus;
+    loom::ObserverId tap{};
+    std::vector<std::string> commits; ///< each commit's text, in the order the door received them
+    int others = 0;                   ///< a select, a create or a delete
+    DocumentAskTap(loom::Switchboard& on, loom::WeaveId door) : bus(on) {
+        tap = bus.add_observer([this, door](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered || ev.target != door ||
+                ev.schema_name != DocumentActRequested::zen_name || ev.payload == nullptr) {
+                return;
+            }
+            const DocumentActRequested asked = loom::from_value<DocumentActRequested>(*ev.payload);
+            if (asked.act == kDocumentCommit) {
+                commits.push_back(asked.text);
+            } else {
+                ++others;
+            }
+        });
+    }
+    ~DocumentAskTap() { bus.remove_observer(tap); }
+    DocumentAskTap(const DocumentAskTap&) = delete;
+    DocumentAskTap& operator=(const DocumentAskTap&) = delete;
+};
+
+/// Did the tap hear `first` before any `then`?
+inline bool heard_before(const AnswerTap& tap, const char* first, const char* then) {
+    const auto a = std::find(tap.heard.begin(), tap.heard.end(), first);
+    const auto b = std::find(tap.heard.begin(), tap.heard.end(), then);
+    return a != tap.heard.end() && (b == tap.heard.end() || a < b);
+}
+
+/// The value column of a painted property row (the mark, then the nine-cell label column).
+inline std::string value_of(const std::string& property_row) {
+    return property_row.size() > 10 ? property_row.substr(10) : std::string();
+}
 
 /// The Info pane's weave, for a tap on what reaches it.
 inline loom::WeaveId info_id(InfoRig& f) {
@@ -1104,7 +1154,7 @@ TEST_CASE("a press on an object while an Info draft is live is refused in the co
     // THE DRAFT ENDS, NOTHING WAS SENT, AND A PRESS SELECTS AGAIN -- on the object painted under
     // the cancel's own sentence.
     f.r.key(input::scan::kEscape);
-    REQUIRE(f.row_of("edit cancelled -- nothi") == 0);
+    REQUIRE(f.row_of("edit cancelled -- unwri") == 0);
     f.press_row("  #" + std::to_string(other));
     CHECK(f.r.session().selected == other);
     CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
@@ -1222,7 +1272,7 @@ TEST_CASE("an Info commit answered after a newer draft opened on the same field 
 
         // ...AND THE NEWER DRAFT'S OWN CANCEL IS TRUE ABOUT IT: it sent nothing.
         f.r.key(input::scan::kEscape);
-        CHECK(f.row_of("edit cancelled -- nothi") == 0);
+        CHECK(f.row_of("edit cancelled -- unwri") == 0);
         CHECK(object_of(f, selected).x == expected_x);
     };
     SUBCASE("refused") { late_answer("abc", 3); }
@@ -1351,6 +1401,379 @@ TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands i
     CHECK(drafted.find(authored) != std::string::npos);
     CHECK(drafted.find("PASTED") == std::string::npos);
     CHECK(object_of(f, selected).label == authored);
+}
+
+// ONE COMMIT OUTSTANDING, AND WHAT IT SENT. A commit is the document's once it has left, and until
+// it is answered the pane sends no other: a second commit is declined aloud and the draft goes on
+// being edited. The answer is read against what the commit SENT as well as the draft that sent it,
+// because typing after Return is an edit that no write covers. Every burst below is one poll of
+// ordinary input where ordinary input can make it, and Workshop's office door where it cannot.
+
+/// Every row Workshop admitted for the pane and every row it painted, for a claim about both.
+inline std::vector<std::string> admitted_and_painted(InfoRig& f) {
+    std::vector<std::string> rows = f.shown();
+    const std::vector<std::string> held = f.admitted();
+    rows.insert(rows.end(), held.begin(), held.end());
+    return rows;
+}
+
+TEST_CASE("a second Info commit in the same poll as the first is not sent: the pane says so, keeps the text typed between them, sends that text once the first is answered, and a cancel after the write and a refused retry claims no write away") {
+    // ONE COMMIT HID ANOTHER. Return, Ctrl+A, `abc` and Return in one poll over a draft holding
+    // `77`: both commits left, the second replaced the first's record, so the answer that wrote 77
+    // was read as nobody's and the second's refusal was said over the draft -- and Escape then said
+    // nothing was written, over the 77 the document held.
+    InfoRig f;
+    f.open();
+    const std::int64_t selected = f.r.session().selected;
+    f.draft_holding("X", "77");
+    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    AnswerTap tap(f.r.bus, info_id(f));
+    f.enqueue_key(input::scan::kReturn);
+    f.enqueue_key(input::scan::kA, input::mod::kCtrl);
+    f.enqueue_text("abc");
+    f.enqueue_key(input::scan::kReturn);
+    // TURN BY TURN: the rows Workshop holds say the second commit was not sent, while the first is
+    // still unanswered.
+    for (int turns = 0; turns < 16 && !f.admitted_leads("commit not sent") && tap.answered == 0;
+         ++turns) {
+        (void)f.r.bus.pump_pending();
+    }
+    CHECK(tap.answered == 0);
+    CHECK(f.admitted_leads("commit not sent"));
+    f.settle();
+
+    // ONE COMMIT LEFT, WITH WHAT THE DRAFT HELD AT ITS RETURN, AND THE DOCUMENT TOOK IT.
+    CHECK(asks.commits == std::vector<std::string>{"77"});
+    CHECK(tap.answered == 1);
+    CHECK(object_of(f, selected).x == 77);
+    CHECK(f.picture().properties[f.property_index("X")].value == "77");
+    const auto kept = [&] {
+        CHECK(f.declared() == draft_ids);
+        CHECK(value_of(f.property_row("X")) == "abc");
+        CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
+        CHECK(f.admitted_leads("earlier commit written"));
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit not sent") == std::string::npos);
+        }
+    };
+    kept();
+    f.regrant();
+    kept();
+
+    // THE KEPT TEXT IS SENT ONCE THE FIRST IS ANSWERED -- refused in the document's own words,
+    // because it is exactly what the draft still holds.
+    f.r.key(input::scan::kReturn);
+    CHECK(asks.commits == std::vector<std::string>{"77", "abc"});
+    CHECK(tap.answered == 2);
+    CHECK_MESSAGE(f.row_of("X: not a whole") == 0, f.text());
+    CHECK(f.declared() == draft_ids);
+    CHECK(object_of(f, selected).x == 77);
+
+    // ESCAPE ENDS THE DRAFT, DISCARDS WHAT WAS NEVER WRITTEN, AND TAKES NO WRITE AWAY IN WORDS.
+    f.r.key(input::scan::kEscape);
+    const auto cancelled = [&] {
+        CHECK_MESSAGE(f.row_of("edit cancelled -- unwri") == 0, f.text());
+        CHECK(f.admitted_leads("edit cancelled -- unwri"));
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("nothing was") == std::string::npos);
+        }
+        CHECK(f.declared() ==
+              std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+        CHECK(object_of(f, selected).x == 77);
+        CHECK(f.picture().properties[f.property_index("X")].value == "77");
+    };
+    cancelled();
+    f.regrant();
+    cancelled();
+}
+
+TEST_CASE("Return twice over an unchanged Info draft sends one commit, says the second was not sent while the first is unanswered, and the first's acceptance closes the draft and retires that sentence") {
+    // AN UNCHANGED DRAFT STILL CLOSES ON ITS ACCEPTANCE. The declined Return lost nothing -- the
+    // draft held what the first commit sent -- so the answer ends the draft as any accepted commit
+    // does, and the sentence about the pending commit goes with it.
+    InfoRig f;
+    f.open();
+    const std::int64_t selected = f.r.session().selected;
+    f.draft_holding("X", "77");
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    AnswerTap tap(f.r.bus, info_id(f));
+    f.enqueue_key(input::scan::kReturn);
+    f.enqueue_key(input::scan::kReturn);
+    for (int turns = 0; turns < 16 && !f.admitted_leads("commit not sent") && tap.answered == 0;
+         ++turns) {
+        (void)f.r.bus.pump_pending();
+    }
+    CHECK(tap.answered == 0);
+    CHECK(f.admitted_leads("commit not sent"));
+    f.settle();
+
+    CHECK(asks.commits == std::vector<std::string>{"77"});
+    CHECK(tap.answered == 1);
+    CHECK(object_of(f, selected).x == 77);
+    CHECK(f.r.last_notice().find("committed X = 77") != std::string::npos);
+    const auto closed = [&] {
+        CHECK(f.declared() ==
+              std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+        CHECK(value_of(f.property_row("X")) == "77");
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit not sent") == std::string::npos);
+            CHECK(one.find("earlier commit") == std::string::npos);
+        }
+    };
+    closed();
+    f.regrant();
+    closed();
+}
+
+TEST_CASE("text typed after an Info commit was sent outlives that commit's answer: the draft stays open with its history, the write is told apart from the unsent text, a refusal is not said of the newer text, and the newer text commits normally") {
+    // AN ACCEPTED WRITE DOES NOT COVER WHAT WAS TYPED AFTER IT WAS SENT. Return and `8` in one poll
+    // over a draft holding `77`: the typing reached the pane before the answer, the document
+    // correctly took 77, and the answer closed the draft the 8 had been typed into.
+    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    const std::vector<std::string> resting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
+
+    SUBCASE("taken") {
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        f.draft_holding("X", "77");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        AnswerTap tap(f.r.bus, info_id(f));
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_text("8");
+        f.settle();
+        REQUIRE(tap.answered == 1);
+        CHECK(heard_before(tap, PaneTextInput::zen_name, DocumentActed::zen_name));
+        CHECK(asks.commits == std::vector<std::string>{"77"});
+        CHECK(object_of(f, selected).x == 77);
+        const auto kept = [&] {
+            CHECK(f.declared() == draft_ids);
+            CHECK(value_of(f.property_row("X")) == "778");
+            CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
+            CHECK(f.admitted_leads("earlier commit written"));
+        };
+        kept();
+        f.regrant();
+        kept();
+
+        // THE LINE IS STILL THE LINE IT WAS: undo steps back over the typing, redo brings it back.
+        f.r.key(input::scan::kZ, input::mod::kCtrl);
+        CHECK(value_of(f.property_row("X")).empty());
+        f.r.key(input::scan::kY, input::mod::kCtrl);
+        CHECK(value_of(f.property_row("X")) == "778");
+
+        // ...AND IT COMMITS LIKE ANY DRAFT: taken, unchanged since, so closed.
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.commits == std::vector<std::string>{"77", "778"});
+        CHECK(object_of(f, selected).x == 778);
+        CHECK(f.declared() == resting);
+        CHECK(value_of(f.property_row("X")) == "778");
+    }
+    SUBCASE("refused") {
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        const std::int64_t authored = object_of(f, selected).x;
+        f.draft_holding("X", "abc");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        AnswerTap tap(f.r.bus, info_id(f));
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_key(input::scan::kA, input::mod::kCtrl);
+        f.enqueue_text("12");
+        f.settle();
+        REQUIRE(tap.answered == 1);
+        CHECK(heard_before(tap, PaneTextInput::zen_name, DocumentActed::zen_name));
+        CHECK(asks.commits == std::vector<std::string>{"abc"});
+        CHECK(object_of(f, selected).x == authored);
+        const auto kept = [&] {
+            CHECK(f.declared() == draft_ids);
+            CHECK(value_of(f.property_row("X")) == "12");
+            // THE REFUSAL IS THE COMMIT'S: said as the earlier commit's, never in the document's
+            // bare words over a value it was not about.
+            CHECK_MESSAGE(f.row_of("earlier commit refused") == 0, f.text());
+            CHECK(f.row_of("X: not a whole") == -1);
+        };
+        kept();
+        f.regrant();
+        kept();
+
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.commits == std::vector<std::string>{"abc", "12"});
+        CHECK(object_of(f, selected).x == 12);
+        CHECK(f.declared() == resting);
+    }
+    SUBCASE("abandoned") {
+        // AND A DRAFT THAT OUTLIVED A WRITE, ABANDONED, TAKES NO WRITE AWAY IN WORDS EITHER.
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        f.draft_holding("X", "77");
+        AnswerTap tap(f.r.bus, info_id(f));
+        f.enqueue_key(input::scan::kReturn);
+        f.enqueue_text("8");
+        f.settle();
+        REQUIRE(tap.answered == 1);
+        REQUIRE(f.declared() == draft_ids);
+        make_object(f); // `n` on the workspace: a new object, selected, and a picture of it
+        REQUIRE(f.r.session().selected != selected);
+        CHECK(f.declared() == resting);
+        CHECK_MESSAGE(f.row_of("edit abandoned -- the p") == 0, f.text());
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("nothing was") == std::string::npos);
+        }
+        CHECK(object_of(f, selected).x == 77);
+    }
+}
+
+TEST_CASE("an Info commit's answer settles the sentence that said a second commit was not sent, and leaves a sentence a later act said standing") {
+    // A SENTENCE ABOUT A PENDING COMMIT BELONGS TO THAT COMMIT, AND ONLY THAT ONE. Two commits and
+    // a press on `( Create )` in one burst: the second commit is declined and the press says the
+    // draft comes first. The first commit's answer must not leave `commit not sent` painted once it
+    // has settled, and must not take the press's own sentence away. Workshop's office door places
+    // the press on the rows the decline said, which a pointer queued in the same poll could not
+    // name.
+    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    const auto burst = [](InfoRig& f, bool typed_between) {
+        const std::int64_t create = f.row_of("( Create )");
+        REQUIRE(create > 0);
+        f.enqueue_action(pane::kActionCommit);
+        if (typed_between) {
+            f.enqueue_as_workshop(loom::to_value(PaneTextInput{pane::kInfoPane, "8"}));
+        }
+        f.enqueue_action(pane::kActionCommit);
+        f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, create + 1, 2}));
+        f.settle();
+    };
+    const auto no_pending_sentence = [](InfoRig& f) {
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit not sent") == std::string::npos);
+            CHECK(one.find("earlier commit") == std::string::npos);
+        }
+    };
+
+    SUBCASE("unchanged since the commit: the answer closes the draft") {
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        f.draft_holding("X", "77");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        AnswerTap tap(f.r.bus, info_id(f));
+        burst(f, false);
+        CHECK(asks.commits == std::vector<std::string>{"77"});
+        CHECK(tap.answered == 1);
+        CHECK(object_of(f, selected).x == 77);
+        const auto stands = [&] {
+            CHECK(f.declared() ==
+                  std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+            CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
+            CHECK(f.admitted_leads("finish the edit first"));
+            no_pending_sentence(f);
+        };
+        stands();
+        f.regrant();
+        stands();
+    }
+    SUBCASE("refused, unchanged since the commit: the draft stays, and the press's sentence stands") {
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        const std::int64_t authored = object_of(f, selected).x;
+        f.draft_holding("X", "abc");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        AnswerTap tap(f.r.bus, info_id(f));
+        burst(f, false);
+        CHECK(asks.commits == std::vector<std::string>{"abc"});
+        CHECK(tap.answered == 1);
+        CHECK(object_of(f, selected).x == authored);
+        const auto stands = [&] {
+            CHECK(f.declared() == draft_ids);
+            CHECK(value_of(f.property_row("X")) == "abc");
+            CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
+            CHECK(f.admitted_leads("finish the edit first"));
+            no_pending_sentence(f);
+        };
+        stands();
+        f.regrant();
+        stands();
+    }
+    SUBCASE("typed between the two commits: the draft stays open with the newer text") {
+        InfoRig f;
+        f.open();
+        const std::int64_t selected = f.r.session().selected;
+        f.draft_holding("X", "77");
+        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        AnswerTap tap(f.r.bus, info_id(f));
+        burst(f, true);
+        CHECK(asks.commits == std::vector<std::string>{"77"});
+        CHECK(tap.answered == 1);
+        CHECK(object_of(f, selected).x == 77);
+        const auto stands = [&] {
+            CHECK(f.declared() == draft_ids);
+            CHECK(value_of(f.property_row("X")) == "778");
+            CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
+            CHECK(f.admitted_leads("finish the edit first"));
+            no_pending_sentence(f);
+        };
+        stands();
+        f.regrant();
+        stands();
+    }
+}
+
+TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's commit is unanswered, even with a select asked between them, and the earlier commit's account replaces that sentence without closing or altering the newer draft") {
+    // ONE OUTSTANDING COMMIT IS THE PANE'S, NOT ONE DRAFT'S. A commit and its cancel, a press on
+    // the object already selected (a select of its own), a newer draft on the same field and its
+    // commit, delivered in one burst: the select must not hide the first commit, the newer commit
+    // waits, and the account of the first is said over the newer draft as the earlier commit's.
+    InfoRig f;
+    f.open();
+    const std::int64_t selected = f.r.session().selected;
+    const std::string opened_with = std::to_string(object_of(f, selected).x);
+    f.draft_holding("X", "77");
+    const std::int64_t chosen = f.row_of("> #" + std::to_string(selected));
+    REQUIRE(chosen > 0);
+    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    AnswerTap tap(f.r.bus, info_id(f));
+    f.enqueue_action(pane::kActionCommit);
+    f.enqueue_action(pane::kActionCancel); // the first draft ends, its commit unanswered
+    // ...the object already selected is pressed on the rows that cancel said, under its sentence.
+    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, chosen + 1, 2}));
+    f.enqueue_action(pane::kActionEdit);
+    f.enqueue_action(pane::kActionCommit);
+    f.settle();
+
+    CHECK(asks.commits == std::vector<std::string>{"77"});
+    CHECK(asks.others == 1);
+    CHECK(tap.answered == 2);
+    CHECK(object_of(f, selected).x == 77);
+    const auto newer_stands = [&] {
+        CHECK(f.declared() == draft_ids);
+        CHECK(value_of(f.property_row("X")) == opened_with);
+        CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
+        for (const std::string& one : admitted_and_painted(f)) {
+            INFO("row: ", one);
+            CHECK(one.find("commit not sent") == std::string::npos);
+        }
+    };
+    newer_stands();
+    f.regrant();
+    newer_stands();
+
+    // ...AND ONCE IT IS ANSWERED THE NEWER DRAFT SENDS ITS OWN TEXT.
+    f.r.key(input::scan::kA, input::mod::kCtrl);
+    f.r.text("12");
+    f.r.key(input::scan::kReturn);
+    CHECK(asks.commits == std::vector<std::string>{"77", "12"});
+    CHECK(object_of(f, selected).x == 12);
+    CHECK(f.declared() ==
+          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
 }
 
 // ============================================================================
