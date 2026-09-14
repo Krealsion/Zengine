@@ -217,7 +217,7 @@ WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-20 — The document crosses the pane seam as a picture, said when it changes
 
-LAW — The host derives `DocumentShown` — object rows, selection, inspector rows — publishes it `to_any` only when it differs from its last utterance, and answers four acts at its own office.
+LAW — The host derives `DocumentShown` — object rows, selection, inspector rows — publishes it `to_any` only when it differs from its last utterance, and answers its acts at its own office.
 
 MEANS
 - the document itself never crosses: no `WorkshopDoc`, no `ui::Element`, no `Property`, no `Row`;
@@ -237,3 +237,28 @@ PROVEN BY — `workshop/document_seam_vocabulary.hpp` `ShownObject`, `ShownPrope
 as a picture, and only when it changed"`, case `"WL-DOC-20: the four acts are the writes the
 keys are bound to, and the refusals are the document's"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
+
+## WL-DOC-21 — A commit is written only to the subject the host named for its row
+
+LAW — The host names what its inspector rows address and says the name in `v2::DocumentShown`; a `DocumentCommitRequested` naming another is refused before any row is read, and a v1 commit is refused.
+
+MEANS
+- another object or layout, a load (identical bytes too) or a re-minted identity is a new name;
+- a room, a refit, a restored viewport and a moved value keep the name; v1 hears no name change.
+
+DOES NOT MEAN
+- a merge of values, or that a swap to another document's bytes, minting nothing, is seen.
+
+PROVEN BY — `workshop/document_seam_vocabulary.hpp` `v2::DocumentShown`,
+`DocumentCommitRequested`; `workshop/screen.hpp` `RowsSubject`, `Session::subject`;
+`workshop/screen_bindings.cpp` `refocus`; `workshop/screen_gestures.cpp` `create`;
+`workshop/weave_save.cpp` `WorkshopWeave::open_on_first`; `workshop/weave_seam.cpp`
+`WorkshopWeave::on(DocumentCommitRequested)`, `WorkshopWeave::on(DocumentActRequested)`;
+`workshop/weave_run.cpp` `WorkshopWeave::say_document`; `workshop/weave.hpp`
+`WorkshopWeave::said_subject_`; `tests/test_workshop_document.cpp` case `"a commit is written
+only while its subject is the rows' own: another selection, the same object again, a name never
+given and a deleted object write nothing, and a room, a refit and a moved value keep the name"`,
+case `"a load names a new subject over the document's own bytes and says only that, a refused
+load keeps the name, and an identity minted again names a new subject under the same
+selection"`.
+WHY — `agents/decisions/a-commit-names-its-subject.md`

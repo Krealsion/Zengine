@@ -3760,33 +3760,219 @@ TEST_CASE("WL-DOC-20: the four acts are the writes the keys are bound to, and th
     CHECK(t.session().selected == t.doc().elements[0].id);
     CHECK(seat->answers.back().accepted);
 
-    // COMMIT writes through the property, and a value the property refuses comes back in the
-    // document's own words with nothing written.
+    // COMMIT writes through the property, named by the subject the host gave its rows, and a
+    // value the property refuses comes back in the document's own words with nothing written.
     std::size_t width_row = 0;
     for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
         if (t.session().rows[i].label() == "Width") {
             width_row = i;
         }
     }
-    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "40%");
+    const std::int64_t subject = t.session().subject.name;
+    REQUIRE(subject != 0);
+    ask_subject_commit(t, seat, subject, static_cast<std::int64_t>(width_row), "40%");
     CHECK(seat->answers.back().accepted);
     CHECK(t.session().rows[width_row].value() == "40%");
-    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "banana");
+    ask_subject_commit(t, seat, subject, static_cast<std::int64_t>(width_row), "banana");
     CHECK_FALSE(seat->answers.back().accepted);
     CHECK(seat->answers.back().refusal.find("Width") != std::string::npos);
     CHECK(t.session().rows[width_row].value() == "40%"); // and nothing was written
 
-    // A ROW THE CURRENT DERIVATION DOES NOT HAVE IS REFUSED BY NAME rather than applied to
-    // whatever moved into its place -- the one hazard an index across a seam has.
-    ask_document_commit(t, seat, 9999, "40%");
+    // A ROW THE SUBJECT DOES NOT HAVE IS REFUSED BY NAME rather than applied to a neighbour.
+    ask_subject_commit(t, seat, subject, 9999, "40%");
     CHECK_FALSE(seat->answers.back().accepted);
     CHECK(seat->answers.back().refusal.find("not in this object") != std::string::npos);
+
+    // ...AND v1's COMMIT, WHICH NAMES A ROW AND NO SUBJECT, IS REFUSED BEFORE ANY ROW IS READ: the
+    // row it names is a real, editable row of the object selected now, and nothing is written.
+    const std::size_t answered = seat->answers.size();
+    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "50%");
+    REQUIRE(seat->answers.size() == answered + 1);
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitNamesNoSubject);
+    CHECK(t.session().rows[width_row].value() == "40%");
+    CHECK(t.session().selected == t.doc().elements[0].id);
 
     // DELETE removes exactly one, exactly as `d` does.
     const std::size_t before_delete = t.doc().elements.size();
     ask_document_act(t, seat, kDocumentDelete);
     CHECK(seat->answers.back().accepted);
     CHECK(t.doc().elements.size() == before_delete - 1);
+}
+
+namespace {
+
+/// WHERE A LABEL SITS in the host's own inspector rows, as an index a commit names.
+inline std::int64_t row_labelled(const Live& t, const std::string& label) {
+    for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
+        if (t.session().rows[i].label() == label) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    FAIL("the selected object has no row called ", label);
+    return -1;
+}
+
+/// One object's authored name, by identity, or an empty string when the document holds none.
+inline std::string label_of(const Live& t, std::int64_t id) {
+    const ui::Element* e = doc::find(t.doc(), id);
+    return e == nullptr ? std::string() : e->label;
+}
+
+} // namespace
+
+TEST_CASE("a commit is written only while its subject is the rows' own: another selection, the same object again, a name never given and a deleted object write nothing, and a room, a refit and a moved value keep the name") {
+    // ⭐ THE DOOR JUDGES WHAT A COMMIT WAS TYPED FOR, NOT THE ROW IT NAMES. Every object has
+    // `Name` on the same row, so a row index is true of whatever is selected when the ask arrives;
+    // the name the host gave its rows is what says whether that row is still the one the maker saw.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    DocumentAsker* seat = mount_document_asker(t);
+    const std::int64_t first = t.doc().elements[0].id;
+    const std::int64_t second = t.doc().elements[1].id;
+    REQUIRE(t.session().selected == first);
+    const std::int64_t name_row = row_labelled(t, "Name");
+    const std::int64_t typed_for_first = t.session().subject.name;
+    REQUIRE(typed_for_first != 0);
+
+    // THE ORDINARY UPDATES KEEP THE NAME: a new room, the workspace refit both ways, and a value of
+    // the same object moved on the workspace -- each rebuilds or re-reads the rows, and none of
+    // them changes what a row addresses.
+    t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
+    t.key(input::scan::kLeftBracket);
+    t.key(input::scan::kRightBracket);
+    const std::int64_t x_before = t.doc().elements[0].x;
+    t.key(input::scan::kL);
+    REQUIRE(t.doc().elements[0].x != x_before);
+    CHECK(t.session().subject.name == typed_for_first);
+    ask_subject_commit(t, seat, typed_for_first, name_row, "kept");
+    REQUIRE_FALSE(seat->answers.empty());
+    CHECK(seat->answers.back().accepted);
+    CHECK(label_of(t, first) == "kept");
+
+    // ANOTHER SELECTION: the name moves, and a commit typed for #1 writes neither object.
+    const std::string second_name = label_of(t, second);
+    t.key(input::scan::kTab);
+    REQUIRE(t.session().selected == second);
+    CHECK(t.session().subject.name != typed_for_first);
+    ask_subject_commit(t, seat, typed_for_first, name_row, "stale");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
+    CHECK(label_of(t, first) == "kept");
+    CHECK(label_of(t, second) == second_name);
+    CHECK(t.session().selected == second);
+
+    // THE SAME OBJECT SELECTED AGAIN is not the subject the commit was typed for: its rows, labels
+    // and values are what they were, and nothing is written.
+    t.key(input::scan::kTab);
+    REQUIRE(t.session().selected == first);
+    CHECK(t.session().subject.name != typed_for_first);
+    ask_subject_commit(t, seat, typed_for_first, name_row, "stale");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(label_of(t, first) == "kept");
+    CHECK(t.session().selected == first);
+
+    // A NAME NEVER GIVEN is refused in the same words, whatever row it names.
+    ask_subject_commit(t, seat, t.session().subject.name + 1, name_row, "guessed");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
+    CHECK(label_of(t, first) == "kept");
+
+    // THE OBJECT DELETED: the selection moves to the object that took its place, and a commit typed
+    // for the deleted one does not become that object's.
+    const std::int64_t typed_before_delete = t.session().subject.name;
+    ask_document_act(t, seat, kDocumentDelete);
+    REQUIRE(seat->answers.back().accepted);
+    REQUIRE(t.session().selected == second);
+    ask_subject_commit(t, seat, typed_before_delete, name_row, "stale");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
+    CHECK(label_of(t, second) == second_name);
+    CHECK(t.session().selected == second);
+    // ...and the name its rows carry now is written to.
+    ask_subject_commit(t, seat, t.session().subject.name, name_row, "current");
+    CHECK(seat->answers.back().accepted);
+    CHECK(label_of(t, second) == "current");
+}
+
+TEST_CASE("a load names a new subject over the document's own bytes and says only that, a refused load keeps the name, and an identity minted again names a new subject under the same selection") {
+    // ⭐ THE SECOND IDENTITY BOUNDARY. A load restores the file's mint, so #1 after it may be
+    // another object than #1 before -- or the very same bytes -- and no row a picture shows can
+    // tell those apart. The host can: it opened a document.
+    Live t;
+    TempDir dir("doc21-load");
+    t.host.document_path = dir.document();
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    DocumentAsker* seat = mount_document_asker(t);
+    const std::int64_t first = t.doc().elements[0].id;
+    const std::int64_t name_row = row_labelled(t, "Name");
+    t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE_FALSE(t.session().notice_is_bad);
+
+    // A REFUSED LOAD MOVES NOTHING, THE NAME INCLUDED, so work typed against it is still written.
+    const std::int64_t before_refusal = t.session().subject.name;
+    t.host.document_path = dir.file("not-a-document.json");
+    {
+        std::ofstream bad(t.host.document_path, std::ios::binary);
+        bad << "{";
+    }
+    t.key(input::scan::kO, input::mod::kCtrl);
+    REQUIRE(t.session().notice_is_bad);
+    CHECK(t.session().subject.name == before_refusal);
+    ask_subject_commit(t, seat, before_refusal, name_row, "still");
+    REQUIRE_FALSE(seat->answers.empty());
+    CHECK(seat->answers.back().accepted);
+    CHECK(label_of(t, first) == "still");
+
+    // THE DOCUMENT'S OWN BYTES, LOADED OVER IT: written first, so identities, labels and values are
+    // the same on both sides of the load.
+    t.host.document_path = dir.document();
+    t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE_FALSE(t.session().notice_is_bad);
+    const std::int64_t typed = t.session().subject.name;
+    const DocumentShown rows_before = t.said_documents.back();
+    const std::size_t pictures = t.said_documents.size();
+    const std::size_t named = t.said_named_documents.size();
+    t.key(input::scan::kO, input::mod::kCtrl);
+    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(t.session().selected == first);
+    CHECK(t.session().subject.name != typed);
+    // ...SAID, AND SAID ONLY WHERE IT IS NEWS: no v1 row moved, so no v1 picture; the named picture
+    // carries the same rows and the new name.
+    CHECK(t.said_documents.size() == pictures);
+    REQUIRE(t.said_named_documents.size() == named + 1);
+    const v2::DocumentShown said = t.said_named_documents.back();
+    CHECK(said.subject == t.session().subject.name);
+    CHECK(same_document(DocumentShown{said.objects, said.selected, said.properties}, rows_before));
+    ask_subject_commit(t, seat, typed, name_row, "stale");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
+    CHECK(label_of(t, first) == "still");
+    // ...and a repaint with nothing new says neither.
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.said_documents.size() == pictures);
+    CHECK(t.said_named_documents.size() == named + 1);
+
+    // AN IDENTITY HANDED OUT AGAIN. No gesture rewinds the mint; the construction layer's reset
+    // door does (staged here as a root send), leaving the selection's number and its rows standing.
+    // `n` then mints #1 again -- another object under the number the rows were built for.
+    const std::int64_t before_reset = t.session().subject.name;
+    (void)t.bus.send(t.workshop_id, loom::Message(loom::to_value(loom::PokeResetState{}),
+                                                  loom::WeaveId{}, loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    REQUIRE(t.doc().elements.empty());
+    REQUIRE(t.doc().next_id == first);
+    REQUIRE(t.session().selected == first);
+    t.key(input::scan::kN);
+    REQUIRE(t.doc().elements.size() == 1);
+    REQUIRE(t.doc().elements[0].id == first);
+    REQUIRE(t.session().selected == first);
+    CHECK(t.session().subject.name != before_reset);
+    const std::string made = label_of(t, first);
+    ask_subject_commit(t, seat, before_reset, name_row, "stale");
+    CHECK_FALSE(seat->answers.back().accepted);
+    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
+    CHECK(label_of(t, first) == made);
 }
 
 TEST_CASE("CTX-0: replacing the document drops a captured object subject") {

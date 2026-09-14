@@ -67,8 +67,16 @@ void WorkshopWeave::load_document() {
         false);
 }
 
+// WL-DOC-21 -- agents/workshop/document.md
 void WorkshopWeave::open_on_first() {
     session_.selected = state_.elements.empty() ? 0 : state_.elements.front().id;
+    // A DOCUMENT OPENED IS A NEW SUBJECT, WHATEVER IT SHARES WITH THE LAST ONE. A load restores
+    // the file's mint, so its #1 may be another object than the #1 a draft was typed for -- or
+    // the same bytes entirely -- and nothing a picture shows can tell those apart. The rows'
+    // name is dropped so the rebuild below gives a new one, and the identities this document
+    // holds start the count a re-minted identity is judged against (`create`).
+    session_.subject.name = 0;
+    session_.subject.held_through = state_.next_id - 1;
     rebuild_rows();
 }
 

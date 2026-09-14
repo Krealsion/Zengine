@@ -342,7 +342,11 @@ host action — and nothing reinterprets old bytes.
   answer closes, alters and marks only the draft that sent it, and closes it only while it holds
   exactly what was sent, because a write does not cover typing done after it left. Info sends one
   commit at a time and declines another aloud ([`workshop/info-body.md`](workshop/info-body.md)
-  WL-INFO-12).
+  WL-INFO-12). **A request Loom attests never arrived is not outstanding**: a send whose ticket is
+  not valid, or one `zen.DispatchRefused` names by its exact attempt, is released and said as
+  undelivered, and delivered silence still waits (WL-INFO-13). Info's commit also names the
+  subject its draft was typed for, and the host writes it only while that subject holds
+  ([`workshop/document.md`](workshop/document.md) WL-DOC-21).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).

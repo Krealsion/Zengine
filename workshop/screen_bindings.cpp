@@ -241,7 +241,28 @@ std::size_t first_editable(const std::vector<Row>& rows) {
 // caller had to know which it wanted. Both belong to the Info weave now -- it holds the cursor
 // in its own state and the draft in its own line -- so a rebuild is a rebuild, and the host's
 // derived rows are the only thing there is to rebuild.
-void refocus(WorkshopDoc& d, Session& s) { s.rows = inspector_rows(d, s); }
+//
+// ...AND THE NAME OF WHAT THEY ADDRESS IS DECIDED HERE, because every path that rebuilds the rows
+// comes through here. Rows rebuilt for the same object, in the same layout, under a name nothing
+// unnamed, address the same properties, so a resize, a refit or a restored viewport keeps the name
+// and a draft typed against it; anything else is a different subject and gets a name never given
+// before.
+// WL-DOC-21 -- agents/workshop/document.md
+void refocus(WorkshopDoc& d, Session& s) {
+    std::vector<Row> rows = inspector_rows(d, s);
+    bool same = s.subject.name != 0 && s.subject.object == s.selected &&
+                rows.size() == s.rows.size();
+    for (std::size_t i = 0; same && i < rows.size(); ++i) {
+        same = rows[i].label() == s.rows[i].label() &&
+               rows[i].editable() == s.rows[i].editable() &&
+               rows[i].section() == s.rows[i].section();
+    }
+    if (!same) {
+        s.subject.name = ++s.subject.minted;
+        s.subject.object = s.selected;
+    }
+    s.rows = std::move(rows);
+}
 
 std::size_t position_of(const WorkshopDoc& d, std::int64_t id) {
     for (std::size_t i = 0; i < d.elements.size(); ++i) {

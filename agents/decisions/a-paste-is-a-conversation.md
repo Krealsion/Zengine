@@ -50,7 +50,7 @@ is answered later, so the answer is read against the draft incarnation that sent
 is. An incarnation is not its contents: a paste may land in a draft typed into since it asked,
 while a write covers only the text it sent, so an accepted answer closes the draft only if it
 still holds that text. Once asked, a write is the document's: Info sends one commit at a time and
-declines a second aloud, a draft ended while one is unanswered says it may still be written and
+declines a second aloud, a draft ended while one is unanswered says it was already sent and
 no end says nothing was written, and an account replaces only its own sentence. A select, create
 or delete keeps its own record and cannot hide a commit.
 
