@@ -858,6 +858,26 @@ struct HotkeysView {
     bool open = false;
 };
 
+/// WHAT THE INSPECTOR'S ROWS ADDRESS, AND THE NAME THIS HOST GIVES IT -- the applicability a
+/// commit across the pane seam is judged by (`WorkshopWeave::on(DocumentCommitRequested)`).
+///
+/// A row's setter is a closure over one object of one document, so a row index means a
+/// property only together with WHICH document, WHICH object and WHICH layout of rows. `name`
+/// stands for exactly that triple: `refocus` keeps it across a rebuild of the same object's
+/// same rows (a resize, a refit, a value moving) and hands out a fresh one otherwise, and
+/// `open_on_first` and `create` unname it when the document behind the identities may have
+/// changed. Names count up from 1 and are never handed out twice in this session.
+// WL-DOC-21 -- agents/workshop/document.md
+struct RowsSubject {
+    std::int64_t name = 0;   ///< what the picture carries and a commit returns; 0 is unnamed
+    std::int64_t object = 0; ///< the identity the rows were built for when `name` was given
+    std::int64_t minted = 0; ///< the last name handed out
+    /// THE HIGHEST IDENTITY THE DOCUMENT HAS HELD SINCE IT WAS OPENED. A mint at or below it is
+    /// an identity handed out AGAIN -- a rewound mint, which no gesture makes and a poke or a
+    /// state swap can -- and the object behind that number is not the one it named before.
+    std::int64_t held_through = 0;
+};
+
 /// The session: what a maker is currently doing, as opposed to what they have authored.
 /// Kept out of `WorkshopDoc` deliberately, so the two kinds of fact cannot be mistaken for
 /// each other -- selection is not content, and neither is the window it is looked at through.
@@ -890,6 +910,7 @@ struct Session {
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
     std::vector<Row> rows;    ///< the inspector, rebuilt when the selection changes
+    RowsSubject subject;      ///< what `rows` address, named (WL-DOC-21)
     Drag drag;                ///< a pointer drag in flight, if any
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
@@ -1041,7 +1062,8 @@ std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s);
 /// ⭐ IT USED TO HAVE A TWIN AND A CURSOR. `refocus_keeping_draft` carried a live draft and the
 /// maker's row across a rebuild, and `first_editable` chose where a fresh one landed; both were
 /// about state the Info panel held in this host and the Info WEAVE holds now. What the host
-/// still owns is the derived rows themselves, which are a fact about the selection.
+/// still owns is the derived rows themselves, which are a fact about the selection -- and the
+/// name of what they address (`RowsSubject`), kept or given afresh here and nowhere else.
 void refocus(WorkshopDoc& d, Session& s);
 
 /// Where an identity sits in DOCUMENT ORDER, or `elements.size()` for one this
