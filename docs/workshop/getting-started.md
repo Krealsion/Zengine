@@ -198,11 +198,11 @@ remembers that layout for you either way.
      first`): press `Enter` or `Esc`, then select. `Enter` sends the value, one commit at a
      time: `Enter` again before the document answers sends nothing (`commit not sent`), and
      your text waits for the next `Enter`. Text typed before that answer is not part of the
-     commit, so if the document takes it the draft stays open with the newer text (`earlier
-     commit written`). `Esc` closes the draft and discards what was never written; it cannot
-     take back a commit already sent, so the pane says `commit already sent`, and replaces that
-     sentence with how the commit ended only if the sentence is still showing when the answer
-     comes.
+     commit: if the document takes it, the draft stays open with the newer text, and the pane
+     says `earlier commit written` unless a newer sentence of its own is showing. `Esc` closes
+     the draft and discards what was never written; it cannot take back a commit already sent,
+     so the pane says `commit already sent`, and replaces that sentence with how the commit
+     ended only if the sentence is still showing when the answer comes.
    - **If something outside the pane changes the selection while you type** — a press on
      another object, or `n` — the pane abandons the draft as soon as it sees the change and says
      so, and what you had not sent is written nowhere. A commit you had already sent is the

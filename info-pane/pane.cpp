@@ -227,9 +227,9 @@ constexpr const char* kCancelledSent =
 constexpr const char* kAbandonedSent =
     "commit already sent -- its property is no longer shown, and it may still be written";
 
-/// A COMMIT'S ACCOUNT OVER A DRAFT THAT HOLDS MORE THAN IT SENT -- its own draft typed into since,
-/// or a newer one -- and over no draft at all (`answered_commit`). A refusal is followed by the
-/// document's own words.
+/// A COMMIT'S ACCOUNT OVER A DRAFT THAT DOES NOT HOLD EXACTLY WHAT IT SENT -- its own draft typed
+/// into since, or a newer one -- and over no draft at all (`answered_commit`). A refusal is
+/// followed by the document's own words.
 constexpr const char* kEarlierWritten = "earlier commit written -- later edits not sent";
 constexpr const char* kEarlierRefused = "earlier commit refused -- ";
 constexpr const char* kLateWritten = "commit written -- it was sent before the draft closed";
