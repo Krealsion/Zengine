@@ -203,11 +203,18 @@ remembers that layout for you either way.
      the draft and discards what was never written; it cannot take back a commit already sent,
      so the pane says `commit already sent`, and replaces that sentence with how the commit
      ended only if the sentence is still showing when the answer comes.
-   - **If something outside the pane changes the selection while you type** — a press on
-     another object, or `n` — the pane abandons the draft as soon as it sees the change and says
-     so, and what you had not sent is written nowhere. A commit you had already sent is the
-     document's: if the selection moved before it arrived, it can land on that property of the
-     object selected then.
+   - **If something outside the pane changes the selection or the document while you type** — a
+     press on another object, `n`, or `Ctrl`+`O` loading a document, the same file included —
+     the pane abandons the draft as soon as it sees the change and says so, and what you had not
+     sent is written nowhere. A commit is written only to the property it was typed for: one
+     that arrives after the selection or the document changed is refused (`commit refused`),
+     and nothing is written to whatever is selected then. A new room, a narrower or wider
+     workspace, or the object moving on the workspace keeps the draft and its commit.
+   - **A commit that never reached the document says so.** `commit not submitted` means nothing
+     could be sent; `commit not delivered` means it was refused on its way, before the document
+     saw it. Either way nothing was written, your draft and its text stay, and `Enter` sends them
+     again. A commit the document received and has not answered yet is still outstanding:
+     `Enter` again says `commit not sent`, and nothing gives up on it.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
 6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
