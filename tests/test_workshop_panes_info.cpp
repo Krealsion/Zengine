@@ -1607,7 +1607,9 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         CHECK(f.declared() == resting);
     }
     SUBCASE("abandoned") {
-        // AND A DRAFT THAT OUTLIVED A WRITE, ABANDONED, TAKES NO WRITE AWAY IN WORDS EITHER.
+        // AND A DRAFT THAT OUTLIVED A WRITE, ABANDONED, TAKES NO WRITE AWAY IN WORDS EITHER -- read
+        // in a window wide enough for the whole sentence, because the right column's 26 columns
+        // cut it before the clause that says what was lost.
         InfoRig f;
         f.open();
         const std::int64_t selected = f.r.session().selected;
@@ -1618,10 +1620,25 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         f.settle();
         REQUIRE(tap.answered == 1);
         REQUIRE(f.declared() == draft_ids);
+        // THE MAKER'S OWN WINDOW FOR THE PANE, through the setup's authoring doors, and a new room.
+        Setup& desk = f.r.session().setup.active;
+        const Written placed = author_pane_place(desk, pane_info_ref(), subs(2), subs(3));
+        REQUIRE_MESSAGE(placed.accepted, placed.refusal);
+        const Written sized = author_pane_size(desk, pane_info_ref(),
+                                               PaneSize{pane_unit::kSubcells, subs(120)},
+                                               PaneSize{pane_unit::kSubcells, subs(30)});
+        REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+        f.r.extent(150, 44);
+        const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(seat != nullptr);
+        REQUIRE(seat->columns > 90);
+        REQUIRE(f.declared() == draft_ids); // a new room keeps the draft
         make_object(f); // `n` on the workspace: a new object, selected, and a picture of it
         REQUIRE(f.r.session().selected != selected);
         CHECK(f.declared() == resting);
-        CHECK_MESSAGE(f.row_of("edit abandoned -- the p") == 0, f.text());
+        CHECK_MESSAGE(f.row_of("edit abandoned -- the property it was on is no longer shown; "
+                               "unwritten changes discarded") == 0,
+                      f.text());
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
