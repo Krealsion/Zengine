@@ -35,12 +35,20 @@ WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-03 — The name's own refusals are empty and too long
 
-LAW — `check_name` refuses an empty name and one over `kMaxNameLen`; the authored bound is the document's, met from a file exactly as from a hand.
+LAW — `check_name` refuses an empty name and one over `kMaxNameLen` bytes, and its refusal says bytes; the authored bound is the document's, met from a file exactly as from a hand.
+
+MEANS
+- the unit is the one `size()` counts: sixty-four bytes of multibyte UTF-8 are a name.
+
+DOES NOT MEAN
+- a code-point, grapheme or display-width policy — none is made, and admission is unchanged.
 
 PROVEN BY — `workshop/document.hpp` `check_name`, `kMaxNameLen`, `rename`;
 `tests/test_workshop_document.cpp` case `"the name property's own refusals: empty and too
 long"`, case `"QR-3: what the authored name bound IS, and what it is not a statement about"`,
-case `"QR-3: a name past the authored bound is still refused, from a file as from a hand"`.
+case `"QR-3: a name past the authored bound is still refused, from a file as from a hand"`, case
+`"an object's name is bounded in bytes: sixty-four bytes of multibyte UTF-8 are a name,
+sixty-five are refused in bytes, and the name the refusal met stands"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-04 — The extent text form is canonical out and typeable in

@@ -483,9 +483,10 @@ back. The choice is presentation only — no pane's identity, geometry or saved 
 and it lasts for the current run.
 
 **One exception, and it is the law rather than a leftover:** the pane currently holding the
-keyboard keeps its title, mark and all. The `> ` mark is one of the two on-screen statements
-of where typing goes, and hiding chrome may never hide that — so with titles off, focusing a
-pane shows its title for exactly as long as the focus holds.
+keyboard keeps its title, mark and all. The `> ` mark names the pane your keys go back to —
+the band's first row says where a key goes right now, which the picker, a menu or the hotkey
+view takes first while it is open — and hiding chrome may never hide that, so with titles off, focusing a pane shows its
+title for exactly as long as the focus holds.
 
 ## Panes as an author
 
@@ -494,8 +495,8 @@ Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a pro
 If you want to *add* a pane that does something, that is [Making a Workshop
 tool](../guides/make-a-workshop-tool.md), which sorts the work into the two paths it can take:
 a compiled-in panel (source-contributor work) or an office-authored external pane (the bounded
-provider protocol — eleven shapes, a prose budget, a press as a place, keys, text, the wheel
-and declared actions, and no installation story yet).
+provider protocol — a prose budget, a press as a place, keys, text, the wheel and declared
+actions, and no installation story yet).
 
 The exact wire shapes are
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp). The smallest complete

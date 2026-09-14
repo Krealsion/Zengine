@@ -39,11 +39,19 @@ provider, holds the same conversation itself with its own book.
 **And the conversation moves with the line.** When a box leaves this host for a pane's own
 image, the whole of this decision goes with it: the ask, the recorded epoch and the check on
 arrival are the new owner's, because Workshop no longer holds the box and cannot make them.
-`files/`, `introspection/` and `composer/` each carry their own; the Terminal pane crossed
-without one and was corrected in review (`terminal-pane/pane.cpp` `Paste::epoch`). The
-migration accounting is what missed it — three of this decision's cases were repointed to the
-layout-name editor, which made them cases about that editor and left the extracted line with
-no case of its own (VM-POP-21).
+`files/`, `introspection/` and `composer/` each carry their own; the Terminal pane and Info's
+property draft crossed without one, and each was corrected later (`Paste::epoch` in each pane).
+The migration accounting is what missed the Terminal's — three of this decision's cases were
+repointed to the layout-name editor, which made them cases about that editor and left the
+extracted line with no case of its own (VM-POP-21).
 
-**Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-TEXT-08](../workshop/text-box.md),
-[WL-TEXT-09](../workshop/text-box.md), [WL-TEXT-10](../workshop/text-box.md).
+**And a commit is the same conversation.** Info's draft sends its commit to the document's door
+and hears the answer later, so the answer is read against the draft incarnation that sent it,
+exactly as a paste is, and closes or marks no other draft. What a paste may discard a commit may
+not: once asked, the write is the document's. So ending a draft while a commit is unanswered says
+it may still be written, and the answer's account replaces that sentence and no later one; a
+select, a create or a delete keeps its own record, so none of them can hide an unanswered commit.
+
+**Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-INFO-12](../workshop/info-body.md),
+[WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md),
+[WL-TEXT-10](../workshop/text-box.md).

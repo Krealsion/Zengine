@@ -166,7 +166,7 @@ inline Written check_name(const std::string& label) {
         return Written::no("a name cannot be empty");
     }
     if (label.size() > kMaxNameLen) {
-        return Written::no("a name is at most " + std::to_string(kMaxNameLen) + " characters");
+        return Written::no("a name is at most " + std::to_string(kMaxNameLen) + " bytes");
     }
     return Written::ok();
 }
