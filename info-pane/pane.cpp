@@ -211,6 +211,30 @@ enum class Availability { kAvailable, kNoTarget, kDraftLive };
 /// back: the two controls, and a press on an object (`press_placed`).
 constexpr const char* kFinishTheEdit = "finish the edit first -- commit it or cancel it";
 
+/// A COMMIT ASKED FOR WHILE ONE IS UNANSWERED (`act`): not sent, and the draft and its edits stand.
+/// It belongs to the unanswered commit, whose answer retires or replaces it (`answered_commit`).
+constexpr const char* kCommitNotSent = "commit not sent -- an earlier commit is still unanswered";
+
+/// ENDING A DRAFT WITH NO COMMIT UNANSWERED (`end_draft`). What the draft held is gone, and a write
+/// an earlier commit made is not: neither sentence says whether anything was written.
+constexpr const char* kCancelled = "edit cancelled -- unwritten changes discarded";
+constexpr const char* kAbandoned =
+    "edit abandoned -- the property it was on is no longer shown; unwritten changes discarded";
+
+/// ...AND WITH ONE UNANSWERED, which a draft's end cannot take back.
+constexpr const char* kCancelledSent =
+    "commit already sent -- the draft is closed, and it may still be written";
+constexpr const char* kAbandonedSent =
+    "commit already sent -- its property is no longer shown, and it may still be written";
+
+/// A COMMIT'S ACCOUNT OVER A DRAFT THAT HOLDS MORE THAN IT SENT -- its own draft typed into since,
+/// or a newer one -- and over no draft at all (`answered_commit`). A refusal is followed by the
+/// document's own words.
+constexpr const char* kEarlierWritten = "earlier commit written -- later edits not sent";
+constexpr const char* kEarlierRefused = "earlier commit refused -- ";
+constexpr const char* kLateWritten = "commit written -- it was sent before the draft closed";
+constexpr const char* kLateRefused = "commit refused -- ";
+
 constexpr bool available(Availability a) noexcept { return a == Availability::kAvailable; }
 
 constexpr Availability action_availability(std::size_t which, bool editing,
@@ -287,10 +311,7 @@ public:
         // row. Carrying the draft onto whatever took its place would write the maker's text into
         // a different property.
         if (draft_.open && !shows_draft_subject()) {
-            end_draft("edit abandoned -- the property it was on is no longer shown; nothing was "
-                      "written",
-                      "commit already sent -- its property is no longer shown, and it may still "
-                      "be written");
+            end_draft(kAbandoned, kAbandonedSent);
             declare(mail);
         }
         clamp_cursor();
@@ -299,8 +320,8 @@ public:
 
     /// WHAT THE DOCUMENT MADE OF AN ACT THIS PANE IS WAITING ON, read against that act. The
     /// correlation says WHICH request an answer is about; the record it matches says what the
-    /// request was, and a commit's draft incarnation says whether its field is still the one
-    /// open.
+    /// request was, and a commit's draft incarnation and sent text say whether the draft open now
+    /// is the one that sent it and holds nothing it did not send.
     ///
     /// An accepted act says nothing here -- the host says it on the band, as it always did; a
     /// picture it changed arrives as `DocumentShown`, and the notice the ask spent was already
@@ -441,12 +462,20 @@ private:
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
         if (draft_.open) {
             if (asked.id == pane::kActionCommit) {
+                if (committing_.awaiting) {
+                    // ONE COMMIT OUTSTANDING AT A TIME. A second would hide the first's answer, or
+                    // be answered first; so it is not sent, aloud, and nothing else is touched: the
+                    // draft, its edits and the first commit's record stand, and Return sends the
+                    // edits once the first is answered. No retry is queued.
+                    notice_ = kCommitNotSent;
+                    committing_.promise = notice_;
+                    say(mail);
+                    return;
+                }
                 ask_commit(mail);
             } else if (asked.id == pane::kActionCancel) {
                 // ESCAPE ALWAYS ENDS THE DRAFT, AND SAYS WHETHER THAT WAS ALL IT ENDED.
-                end_draft("edit cancelled -- nothing was written",
-                          "commit already sent -- the draft is closed, and it may still be "
-                          "written");
+                end_draft(kCancelled, kCancelledSent);
                 declare(mail);
                 say(mail);
             }
@@ -531,20 +560,23 @@ private:
         std::uint64_t pending = 0; ///< the correlation: which request an answer names
     };
 
-    /// ...AND A COMMIT, read against the draft that sent it. It names that draft's incarnation
-    /// rather than its subject: a draft's object and row are fixed for its life, because a
-    /// picture that moves either one abandons it (`on(DocumentShown)`).
+    /// ...AND A COMMIT, read against the draft that sent it and what it sent. A draft incarnation
+    /// is not its contents: typing changes the text and keeps the epoch, which is why a paste may
+    /// land in a draft that has moved on and why a write does not cover what was typed after
+    /// Return. The subject is the draft's own (`Draft::object`, `Draft::label`), fixed for its life
+    /// because a picture that moves it abandons the draft; nothing here says where the host wrote.
     struct SentCommit : Asked {
-        std::uint64_t draft = 0; ///< `TextBox::draft_epoch` when it was sent
-        std::string promise;     ///< what a draft's end said while this was unanswered
+        std::uint64_t draft = 0; ///< `TextBox::draft_epoch` when it was sent: which draft
+        std::string text;        ///< ...and what it sent: whether that draft holds anything more
+        std::string promise;     ///< the sentence said about it while it was unanswered
     };
 
-    /// ONE COMMIT AND ONE OTHER ACT OUTSTANDING, EACH THE NEWEST OF ITS KIND: an ask replaces the
-    /// record of its kind, so an older answer names a correlation nothing waits on and is dropped
-    /// unread. Only an act asks, and an act spends the notice first, so no sentence promising the
-    /// older answer is left standing. A commit keeps a record of its own because whether one is
-    /// unanswered decides what ending a draft may say (`end_draft`); a select, create or delete
-    /// must not be able to replace that fact.
+    /// ONE COMMIT OUTSTANDING, AND ONE OTHER ACT, THE NEWEST OF ITS KIND. `act` asks for a commit
+    /// only while none is unanswered, so a commit's record is never replaced while it waits, and
+    /// whether one is unanswered decides what ending a draft may say (`end_draft`). A select, a
+    /// create or a delete replaces the record of its own kind -- an older one's answer names a
+    /// correlation nothing waits on and is dropped unread, its sentence already spent by the act
+    /// that asked again -- and cannot replace the commit's.
     void ask(DocumentActRequested request, loom::Mail& mail) {
         const std::uint64_t correlation = ++asked_;
         if (request.act == ws::kDocumentCommit) {
@@ -552,6 +584,7 @@ private:
             committing_.awaiting = true;
             committing_.pending = correlation;
             committing_.draft = draft_.line.draft_epoch();
+            committing_.text = request.text;
         } else {
             acting_ = Asked{true, correlation};
         }
@@ -559,29 +592,46 @@ private:
             .send_to_role(kWorkshopRole, std::move(request), correlation);
     }
 
-    /// A COMMIT'S ANSWER -- about the draft incarnation that sent it, and about no other.
+    /// A COMMIT'S ANSWER -- about the draft that sent it and what it sent, and about nothing else.
+    ///
+    /// It is said where the notice row holds this commit's own sentence (`SentCommit::promise`),
+    /// or is empty while the draft that sent it is open; a sentence a later act said stands.
     void answered_commit(const SentCommit& was, const DocumentActed& said, loom::Mail& mail) {
-        if (draft_.open && draft_.line.draft_epoch() == was.draft) {
-            // THE DRAFT THAT SENT IT IS STILL OPEN: accepted ends it; a refusal stands beside it.
+        const bool own = !was.promise.empty() && notice_ == was.promise;
+        const bool same_draft = draft_.open && draft_.line.draft_epoch() == was.draft;
+        const bool may_say = own || (same_draft && notice_.empty());
+        if (same_draft && draft_.line.text() == was.text) {
+            // THE DRAFT HOLDS EXACTLY WHAT IT SENT: accepted ends it, and a sentence about the
+            // commit pending goes with it; a refusal stands beside it in the document's words.
             if (said.accepted) {
                 close_draft();
                 declare(mail);
-            } else {
+                if (own) {
+                    notice_.clear();
+                }
+                say(mail);
+            } else if (may_say) {
                 notice_ = said.refusal;
+                say(mail);
             }
-            say(mail);
             return;
         }
-        // ⚠ THE DRAFT THAT SENT IT IS OVER, and the write was never the draft's to take back. The
-        // answer touches no draft -- a newer one on the same field least of all -- and its
-        // account takes the place of exactly the sentence that promised it. A later act has spent
-        // or replaced that sentence already, and what the later act said stands.
-        if (!was.promise.empty() && notice_ == was.promise) {
-            notice_ = said.accepted
-                          ? std::string("commit written -- it was sent before the draft closed")
-                          : "commit refused -- " + said.refusal;
-            say(mail);
+        // ⚠ ANY OTHER DRAFT IS EDITS NO WRITE COVERS -- this one typed into after Return, or a
+        // newer one -- so the answer closes, alters and marks none of them, and says it as the
+        // earlier commit's. With no draft open, the draft that sent it is over: the write was
+        // never the draft's to take back, and the account replaces only the sentence that
+        // promised it.
+        if (!may_say) {
+            return;
         }
+        if (draft_.open) {
+            notice_ = said.accepted ? std::string(kEarlierWritten)
+                                    : std::string(kEarlierRefused) + said.refusal;
+        } else {
+            notice_ = said.accepted ? std::string(kLateWritten)
+                                    : std::string(kLateRefused) + said.refusal;
+        }
+        say(mail);
     }
 
     void ask_select(std::int64_t identity, loom::Mail& mail) {
@@ -649,7 +699,8 @@ private:
     }
 
     /// `clear` ends the line's draft incarnation (`component::TextBox::draft_epoch`), which is
-    /// what a commit or a paste that the draft sent is read against when its answer comes back.
+    /// what a commit or a paste that the draft sent is read against when its answer comes back;
+    /// it is never called to make a fresh epoch for a draft that stays open.
     void close_draft() {
         draft_.open = false;
         draft_.row = 0;
@@ -662,8 +713,9 @@ private:
     /// `sent` while one is -- this draft's, or one an earlier draft sent. Closing a draft is
     /// always this pane's to do; a write already asked for is not, so the second sentence
     /// promises neither outcome, and the commit's record keeps it as the one sentence its
-    /// answer's account may replace (`answered_commit`). No sentence here says nothing was
-    /// written while it might be.
+    /// answer's account may replace (`answered_commit`). No commit unanswered is not proof that
+    /// nothing was written -- an earlier one may have been taken -- so `ended` says only that
+    /// what was never written is gone.
     void end_draft(const char* ended, const char* sent) {
         close_draft();
         notice_ = committing_.awaiting ? sent : ended;

@@ -45,12 +45,14 @@ The migration accounting is what missed the Terminal's — three of this decisio
 repointed to the layout-name editor, which made them cases about that editor and left the
 extracted line with no case of its own (VM-POP-21).
 
-**And a commit is the same conversation.** Info's draft sends its commit to the document's door
-and hears the answer later, so the answer is read against the draft incarnation that sent it,
-exactly as a paste is, and closes or marks no other draft. What a paste may discard a commit may
-not: once asked, the write is the document's. So ending a draft while a commit is unanswered says
-it may still be written, and the answer's account replaces that sentence and no later one; a
-select, a create or a delete keeps its own record, so none of them can hide an unanswered commit.
+**And a commit is the same conversation, but a write covers less than its draft.** Info's commit
+is answered later, so the answer is read against the draft incarnation that sent it, as a paste
+is. An incarnation is not its contents: a paste may land in a draft typed into since it asked,
+while a write covers only the text it sent, so an accepted answer closes the draft only if it
+still holds that text. Once asked, a write is the document's: Info sends one commit at a time and
+declines a second aloud, a draft ended while one is unanswered says it may still be written and
+no end says nothing was written, and an account replaces only its own sentence. A select, create
+or delete keeps its own record and cannot hide a commit.
 
 **Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-INFO-12](../workshop/info-body.md),
 [WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md),

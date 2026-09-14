@@ -335,9 +335,13 @@ host action — and nothing reinterprets old bytes.
   declared are one list per mode. **A notice's row moves every row beneath it**, so a pane reads
   a press against the rows it published with the notice in them.
   **AND AN ANSWER'S SENTENCE BELONGS TO THE ACT THAT ASKED.** Ending a draft ends the draft and
-  not a write it already sent, so the sentence said then promises neither outcome; the answer's
-  own account takes that sentence's place and no later one, and closes, alters and marks no
-  draft but the one that sent it (Info, [`workshop/info-body.md`](workshop/info-body.md)
+  not a write it already sent, so the sentence said then promises neither outcome, and no end
+  says nothing was written: an empty record of outstanding requests is no proof that none was
+  taken. A sentence about a pending request is that request's, and its answer retires or
+  replaces that sentence, never a later act's. A draft incarnation is not its contents: an
+  answer closes, alters and marks only the draft that sent it, and closes it only while it holds
+  exactly what was sent, because a write does not cover typing done after it left. Info sends one
+  commit at a time and declines another aloud ([`workshop/info-body.md`](workshop/info-body.md)
   WL-INFO-12).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane

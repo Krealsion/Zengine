@@ -195,11 +195,19 @@ remembers that layout for you either way.
      [ui package](../reference/ui.md).
    - Try an illegal value. The refusal names what is wrong and the property does not move.
    - **While a property draft is open, a press on an object is refused** (`finish the edit
-     first`): press `Enter` or `Esc`, then select. `Esc` always closes the draft, but it cannot
-     take back a commit that `Enter` has already sent — the pane says `commit already sent`, and
-     then whether it was written. If something outside the pane changes the selection while you
-     type — a press on another object, or `n` — the draft is abandoned, the pane says so, and
-     nothing you typed is written into the other object.
+     first`): press `Enter` or `Esc`, then select. `Enter` sends the value, one commit at a
+     time: `Enter` again before the document answers sends nothing (`commit not sent`), and
+     your text waits for the next `Enter`. Text typed before that answer is not part of the
+     commit, so if the document takes it the draft stays open with the newer text (`earlier
+     commit written`). `Esc` closes the draft and discards what was never written; it cannot
+     take back a commit already sent, so the pane says `commit already sent`, and replaces that
+     sentence with how the commit ended only if the sentence is still showing when the answer
+     comes.
+   - **If something outside the pane changes the selection while you type** — a press on
+     another object, or `n` — the pane abandons the draft as soon as it sees the change and says
+     so, and what you had not sent is written nowhere. A commit you had already sent is the
+     document's: if the selection moved before it arrived, it can land on that property of the
+     object selected then.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
 6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
