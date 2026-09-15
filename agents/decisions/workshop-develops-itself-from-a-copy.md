@@ -40,5 +40,10 @@ build rebuilds them in the tree.
 **Consequences.** A changed host, service, plan or catalog needs a new runtime; the old one is
 refused, not removed, so its promotions stay where they were made. Two development roots never
 share a runtime unless a maker points one at the other's directory, which the manifest refuses.
+What a reuse reads is worth being exact about: the recorded digests are compared against the files
+in the BUILD TREE, which says whether the tree has built any of them anew, and the runtime is
+looked at for the names it copied, which says whether every copy is still there. What is in the
+runtime's own copies is never read again — so a reuse says the runtime is current, not that it is
+unharmed, and a copy changed inside a runtime is reused as it stands.
 
 **Laws supported.** [WL-CODE-06](../workshop/code.md), [WL-CODE-07](../workshop/code.md).

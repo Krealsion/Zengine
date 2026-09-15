@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE DEVELOPMENT RUNTIME'S RULES: made when absent, reused while what it copied is current, and
-# otherwise refused and left exactly as it is (WL-CODE-07).
+# THE DEVELOPMENT RUNTIME'S RULES: made when absent, reused while the tree it was made from has
+# built nothing it copied anew and every copy is still there, and otherwise refused and left
+# exactly as it is (WL-CODE-07).
 #
 # A configured build tree generates `<build>/workshop/development-runtime.cmake`, which sets that
 # tree's facts and includes this file; the development launch runs that script before it starts
@@ -20,7 +21,11 @@
 #
 # and ZEN_RUNTIME. The manifest is written last, so a directory holding one is a runtime this file
 # finished making; what it records -- the tree, the configuration, each copy's name and the digest
-# of each copy nothing but a new build changes -- is what a later run checks before reusing it.
+# of each copy nothing but a new build changes -- is what a later run checks before reusing it, and
+# WHAT IT CHECKS THEM AGAINST IS WORTH BEING EXACT ABOUT: the digests against the files in the
+# BUILD TREE, which says whether the tree has built any of them anew since; the names against the
+# runtime directory, which says whether every copy is still there. What is IN the runtime's copies
+# is never read again, so a reuse says this runtime is CURRENT -- never that it is unharmed.
 cmake_minimum_required(VERSION 3.16)
 
 foreach(zengine_fact IN ITEMS zengine_build zengine_source zengine_configuration zengine_copies
@@ -164,9 +169,10 @@ if(EXISTS "${zengine_manifest}")
     endif()
 
     message(STATUS "zengine: reusing the development runtime at ${zengine_runtime}")
-    message(STATUS "zengine:   made at ${zengine_made_at} from the build tree ${zengine_build}; "
-                   "its host, services, plans and catalogs are what the tree builds now, and what "
-                   "it promoted and reloaded is kept")
+    message(STATUS "zengine:   made at ${zengine_made_at} from the build tree ${zengine_build}, "
+                   "which has built none of the host, services, plans and catalogs it copied anew "
+                   "since, and every copy it made is still there; what it promoted and reloaded "
+                   "is kept")
     return()
 endif()
 
@@ -203,8 +209,9 @@ endforeach()
 string(TIMESTAMP zengine_now "%Y-%m-%d %H:%M:%S UTC" UTC)
 file(WRITE "${zengine_manifest}"
     "A Zengine development runtime. Nothing a build does writes here: a reload stages into it and\n"
-    "a promotion writes its pane files. A launch reuses it while the build tree's host, services,\n"
-    "plans and catalogs are the ones copied below; otherwise it is refused and left as it is.\n"
+    "a promotion writes its pane files. A launch reuses it while the build tree still holds the\n"
+    "host, services, plans and catalogs whose digests are below, and every copy is still in this\n"
+    "directory; what is in the copies is not read again. Otherwise it is refused, left as it is.\n"
     "format: 2\n"
     "build tree: ${zengine_build}\n"
     "source tree: ${zengine_source}\n"

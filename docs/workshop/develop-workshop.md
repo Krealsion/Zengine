@@ -62,16 +62,46 @@ Zengine/build/workshop/zengine-workshop-develop
 ## Every time after: Run
 
 Press **Run** again. The launch finds the runtime it made, checks that it is this build tree's,
-whole and current, and opens it in the same project directory, with every promotion made there:
+that the tree has built none of what it copied anew, and that every copy is still there, and opens
+it in the same project directory, with every promotion made there:
 
 ```
 -- zengine: reusing the development runtime at …/cmake-build-debug/workshop-runtime
 ```
 
-Quit Workshop from Workshop, whose quit asks about unsaved work; CLion's Stop ends the process
-without asking. While that Workshop is open, another Run starts nothing and says it is running.
-CLion's **Debug** on this configuration debugs the launch itself; to debug Workshop, attach to its
-process (`zengine-workshop`).
+Quit Workshop from Workshop, whose quit asks about unsaved work; CLion's Stop ends the launch
+without asking, and leaves the Workshop it started open. CLion's **Debug** on this configuration
+debugs the launch itself; to debug Workshop, attach to its process (`zengine-workshop`).
+
+## One Run at a time, for one runtime
+
+A runtime is one Workshop's: the images it loads, the panes you promote into it and the project
+files beside it are one directory's, and two Workshops over one runtime would write each other's.
+So a launch **claims** the runtime before it looks at anything or prepares anything, and holds the
+claim until the Workshop it started has exited. A second Run over that runtime prepares nothing,
+starts nothing, stops nothing, and says so:
+
+```
+zengine-workshop-develop - another launch holds the runtime …/workshop-runtime: it is preparing it, or the Workshop it started is still open. Use that Workshop, or quit it and launch again -- nothing was prepared, launched or stopped
+```
+
+The claim is the system's to keep: a named mutex on Windows, a lock file of yours under
+`/run/user/<uid>` or `/tmp` on Linux, named after the runtime directory. The system lets go of it
+when the launch ends, however it ends — so a crash, or CLion's Stop, leaves nothing held and
+nothing for you to delete. (The Linux lock file stays where it was made; nothing reads it for an
+answer, and it is not one to clean up.) Two runtimes are two claims, and one runtime spelled
+another way — other case on Windows, through a link on Linux — is the one claim.
+
+What the claim does not cover is a Workshop no launch holds: one started by hand from the runtime,
+or one CLion's Stop left open. For those there is the other check — the runtime's host image is in
+use — and a launch beside one of them refuses too, and stops nothing:
+
+```
+zengine-workshop-develop - …/workshop-runtime/zengine-workshop.exe is running, and no launch holds its runtime: a Workshop started from it some other way, or left open by a launch that was stopped. Quit it, then launch again -- nothing was prepared, launched or stopped
+```
+
+On Linux that check is the kernel's answer (`ETXTBSY`), and a kernel that lets a running program's
+file be opened for writing does not give it.
 
 ## Where everything is
 
@@ -135,7 +165,9 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 
 | it says | because | what to do |
 |---|---|---|
-| `… is running: a Workshop launched from this runtime is still open` | that Workshop has the runtime | use it, or quit it and Run |
+| `… another launch holds the runtime …` | a Run has that runtime: preparing it, or its Workshop is open | use that Workshop, or quit it and Run |
+| `… is running, and no launch holds its runtime` | a Workshop from that runtime is open that no Run holds — started by hand, or left by a Stop | quit it, then Run |
+| `… could not claim the runtime … for this launch` | the system would not give the claim it names | read that reason; nothing was prepared |
 | `… has built … anew since …` | the host, a service, a plan or a catalog was rebuilt | [a new runtime](#when-the-host-changed-a-new-runtime) |
 | `… is incomplete: … is not there` | a file of the runtime was removed | a new runtime |
 | `… configuration, not its … one`, or `… copied other files …` | the build tree was configured differently since | a new runtime |
@@ -313,8 +345,9 @@ build artifacts with the same names — both have a `zengine-attention-pane`. Ea
 names its own build tree and checkout, each runtime's reloads and promotions are files in its own
 directory, each launch opens its own tree's runtime in its own project directory, and the script
 refuses to make one build tree's runtime in a directory that is already another's. The sharing
-that remains is the kind you ask for: a runtime directory you name for two launches, and a
-catalog you copy, which names the tree it was written for.
+that remains is the kind you ask for: a runtime directory you name for two launches — one launch
+at a time, since the first to claim it holds it — and a catalog you copy, which names the tree it
+was written for.
 
 ## What this does not do
 

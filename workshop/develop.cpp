@@ -29,15 +29,5 @@ int main(int argc, char** argv) {
                                ZENGINE_DEVELOP_PLAN,    ZENGINE_DEVELOP_CATALOG};
     const std::vector<std::string> args =
         argc > 1 ? std::vector<std::string>(argv + 1, argv + argc) : std::vector<std::string>();
-    develop::World world;
-    world.in_use = &develop::image_in_use;
-    world.run = [](const zengine::builder::BuildCommand& command) {
-        return zengine::builder::run_forwarding(command, stdout);
-    };
-    world.directory = &develop::project_directory;
-    world.say = [](const std::string& line) {
-        std::printf("zengine-workshop-develop - %s\n", line.c_str());
-        std::fflush(stdout);
-    };
-    return develop::launch(facts, develop::choose(args, facts), world);
+    return develop::launch(facts, develop::choose(args, facts), develop::real_world());
 }

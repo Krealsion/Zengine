@@ -155,7 +155,8 @@ MEANS
 - a host, service, plan or catalog built anew makes it stale; a rebuilt or promoted pane does not.
 
 DOES NOT MEAN
-- that a runtime updates itself: a stale one is kept as it is, and a new one is made beside it.
+- that a runtime updates itself: a stale one is kept as it is, and a new one is made beside it;
+- that a reuse reads what is in the runtime's copies: the digests it checks are the tree's files.
 
 PROVEN BY — `workshop/CMakeLists.txt` `zengine_development_copies`,
 `zengine_development_replaceable`, `zengine_development_runtime`; `workshop/prepare-runtime.cmake`
@@ -172,28 +173,43 @@ UNWITNESSED — an ordinary build leaving a runtime's files untouched is measure
 witness on Linux and on Windows and pinned by no case.
 WHY — `agents/decisions/workshop-develops-itself-from-a-copy.md`
 
-## WL-CODE-08 — The development launch starts its runtime's copy, or nothing
+## WL-CODE-08 — The development launch holds its runtime and starts its copy, or nothing
 
-LAW — `zengine-workshop-develop` has the runtime script make or reuse its runtime, then starts that runtime's host with its graphical plan, development catalog and project directory, or starts nothing.
+LAW — `zengine-workshop-develop` claims its runtime while it prepares and runs it, has the runtime script make or reuse it, then starts that runtime's host with its plan, catalog and project, or nothing.
 
 MEANS
-- the build tree's host is never started: a refused or failed preparation launches nothing at all;
-- a runtime whose host is running refuses a second launch before preparing, and stops nothing;
-- the shared run configuration names only the target, whose compiled-in facts are the tree's.
+- the claim comes before it looks or prepares, and is let go when the host has exited: one launch;
+- a launch that cannot have it prepares, starts and stops nothing; a host none holds is refused;
+- the build tree's host is never started, and the shared configuration names only the target.
 
 DOES NOT MEAN
-- that Workshop can launch, reload, edit or relaunch the process hosting it: that stays outside.
+- that Workshop can launch, reload, edit or relaunch the process hosting it: that stays outside;
+- that a host started without a launch is coordinated: the in-use check alone refuses beside it.
 
 PROVEN BY — `workshop/develop.hpp` `launch`, `choose`, `runtime_command`, `host_command`,
-`image_in_use`; `workshop/develop.cpp` `main`; `builder/run.hpp` `run_forwarding`;
-`workshop/CMakeLists.txt` `zengine_development_plan`; `tests/test_workshop_files.cpp` case `"the
-development launch prepares its runtime through the runtime script, then starts only that
-runtime's host, with its graphical plan and development catalog, in a project directory of its
-own"`, case `"a development launch that is refused starts nothing: no graphical plan, a runtime
-whose host is running, a runtime script that refused or never ran, a project path that is no
-directory, an argument it does not know"`, case `"an image a running program holds reads as in
-use and a file nobody holds does not, and the project directory is made when absent and refused
-when it is a file"`.
+`image_in_use`, `claim_runtime`, `runtime_claim_name`, `real_world`; `workshop/develop.cpp`
+`main`; `builder/run.hpp` `run_forwarding`; `workshop/CMakeLists.txt` `zengine_development_plan`;
+`tests/test_workshop_files.cpp` case `"the development launch claims its runtime, prepares it
+through the runtime script, then starts only that runtime's host, with its graphical plan and
+development catalog, in a project directory of its own, and lets the claim go only after that host
+exits"`, case `"a development launch that is refused starts nothing and holds nothing after: no
+graphical plan, a runtime another launch holds or that could not be claimed, a runtime whose host
+is running, a runtime script that refused or never ran, a project path that is no directory, an
+argument it does not know"`, case `"two launches of one runtime that overlap before its host
+starts: exactly one prepares and starts it, and the other refuses without preparing, whether the
+runtime was absent or already made"`, case `"a launch holds its runtime until the Workshop it
+started has exited: a launch meanwhile is refused and prepares nothing, and a launch after the
+exit prepares and starts it again"`, case `"a launch whose preparation fails, or whose Workshop
+does not start, lets its runtime go as it ends: the next launch prepares it and starts it"`, case
+`"a launch that cannot make its runtime's claim prepares nothing and launches nothing, and says
+why"`, case `"a launch that dies holding its runtime lets it go with its process, and a Workshop a
+dead launch left open is refused by the in-use check and stopped by nobody"`, case `"a Workshop
+started from a runtime without a launch holds no claim, and while it runs a launch is refused by
+the in-use check and stops nothing"`, case `"launches of two runtimes do not wait on each other,
+and one runtime spelled another way is still the runtime its launch holds"`, case `"a runtime's
+claim is named for its directory however it is spelled, made yet or not, and two runtimes are two
+claims"`, case `"an image a running program holds reads as in use and a file nobody holds does
+not, and the project directory is made when absent and refused when it is a file"`.
 UNWITNESSED — that CLion loads the shared configuration and runs it with its toolchain's
 environment is measured by a live witness on Windows and pinned by no case.
 WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
@@ -207,5 +223,10 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 - That the IDE's side of the launch is pinned — CLion loading the shared configuration and its
   toolchain environment reaching the host are measured by a witness, not a case (WL-CODE-08,
   UNWITNESSED).
+- That looking for a running host is what keeps two launches apart: the claim does, and the look
+  is for a host no launch holds — one started another way, or left by a stopped launch
+  (WL-CODE-08).
+- That a reused runtime has been found undamaged: the digests are read from the build tree's
+  files, and the runtime is looked at for the names it copied (WL-CODE-07).
 - That a pane is discovered because its protocol is installed: it arrives by a load-plan row a
   maker authors, and the office its source speaks as must be the role that row gives it.

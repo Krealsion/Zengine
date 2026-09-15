@@ -662,9 +662,10 @@ include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
 #
 # `zengine-workshop-develop` is what a maker runs to work in that runtime: CLion's shared
 # "Develop Workshop" configuration (`.run/` at the repository root) names this target and
-# nothing else, and a shell runs the same executable. It runs the script above, then starts the
-# runtime's own host with the graphical plan, the development catalog and a project directory of
-# its own (workshop/develop.hpp) -- or starts nothing, and says why.
+# nothing else, and a shell runs the same executable. It claims the runtime -- one launch has it,
+# from before the script runs until the Workshop it started has exited -- runs the script above,
+# then starts the runtime's own host with the graphical plan, the development catalog and a
+# project directory of its own (workshop/develop.hpp) -- or starts nothing, and says why.
 #
 # BUILDING IT STARTS NOTHING. It is an executable a build compiles, run by nothing a build does;
 # it is no artifact, no plan row and no catalog row, so nothing inside Workshop can launch, reload
