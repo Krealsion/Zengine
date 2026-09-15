@@ -197,6 +197,16 @@ target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
+# THE MAKER'S EXAMPLE PANE, compiled here so it cannot rot (examples are compiled,
+# docs/contributing/repository-conventions.md) and loaded by the Workshop suites that follow a
+# pane to its source. It links what a stranger's recipe links -- the exported pane protocol,
+# the surface and input vocabularies, the activation cursor -- and not Workshop's own
+# vocabulary, so a header it needed from outside that set would fail here first.
+zengine_weave(zengine-example-tally ${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp)
+target_link_libraries(zengine-example-tally
+    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+            zengine-activation zengine-warnings zengine-sanitize)
+
 # A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from
 # weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `84b6bc0` published
 # it) and deliberately NOT from zengine-workshop-vocabulary -- the whole claim is that a party
@@ -964,6 +974,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # asserts a floor on what it found, and excludes the host's side of the seam by name.
     "WORKSHOP_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/workshop\""
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+    # ...AND THE MAKER'S EXAMPLE PANE, with its source: the Edit Code cases load the image
+    # and open the file, so the path a recipe names is the file this tree compiled.
+    "WORKSHOP_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\""
+    "TALLY_SOURCE=\"${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
     # ...AND THE PROJECT BROWSER, which is a loaded artifact now. It is in the SHARED
     # definitions rather than one suite's because `PaneRig::artifact_path`
@@ -1019,7 +1033,7 @@ set(ZENGINE_WORKSHOP_FIXTURES
     zengine-attention-pane zengine-info-pane zengine-terminal-pane zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
-    zengine-provider-source)
+    zengine-provider-source zengine-example-tally)
 
 # One Workshop suite: the shared link line, the shared artifact paths, the shared
 # third_party include, plus whatever this one alone needs. It exists so the eight agree by
@@ -1144,6 +1158,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_terminal.cpp
             test_workshop_panes_editor.cpp
             test_workshop_panes_opening.cpp
+            test_workshop_panes_code.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

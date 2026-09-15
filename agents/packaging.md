@@ -17,9 +17,10 @@ find_package(zengine 0.1 CONFIG REQUIRED)     # resolves Zengine's Loom dependen
 target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 ```
 
-**Eight exported targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
+**Nine exported targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
 house and a guest spell them identically: `activation`, `timer`, `surface`, `input`, `ui`,
-`component`, `operator`, `operator-consumer`. A plain hyphenated name on a link line means the
+`component`, `operator`, `operator-consumer`, `pane` (the one header
+`workshop/pane_vocabulary.hpp`, installed under `include/zengine/workshop/`). A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
 **Five artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
@@ -40,10 +41,11 @@ page does not spell them.
 **What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin and
 SDL input reader, because a fetched SDL is a build-tree library this install does not own;
 Workshop, because its executable compiles its own build directory into itself for the Builder
-tool it mounts; the Workshop/Builder/introspection/composer vocabularies and the pane weaves
-that spend them (`zengine-files`, `zengine-builder-pane`), because there is no way for an
-externally-built pane to arrive in a run; the Timer's service headers, because using the
-Timer is supported and *being* one has not been measured.
+tool it mounts; the rest of the Workshop/Builder/introspection/composer vocabularies and the
+pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
+being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
+arrives by an authored load-plan row; the Timer's service headers, because using the Timer is
+supported and *being* one has not been measured.
 
 Header spelling does not change across the boundary: installed headers land under
 `include/zengine/<package>/`, so `#include "timer/vocabulary.hpp"` is the same sentence from

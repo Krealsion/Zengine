@@ -21,6 +21,7 @@
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
+#include "provenance.hpp"     // what stands behind an office's running code, from three owners
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -1184,6 +1185,13 @@ int main(int argc, char** argv) {
     // an answer.
     speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
     speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
+    // ...AND WHAT A PANE'S EDIT CODE SAYS: the open it asks for, ROLE-SCOPED to the opening
+    // office because that is the one door opening a source has (WL-OPEN-01), and the reading
+    // it publishes once that open took -- `to_any`, `StandingConditions`' reason: this host
+    // cannot name the pane that presents build choices.
+    speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version,
+                        kOpeningRole);
+    speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
     // ⭐ `SourceOpened` WAS GRANTED HERE AND IS NOT (VD-25): the one answer this host owed
     // across the seam was what opening a source came to, and the source is the Editor
     // weave's now -- the answer is its, at its own office.
@@ -1526,6 +1534,19 @@ int main(int argc, char** argv) {
         now.waiting = !now.artifact.empty();
         now.blocked = executor.behind();
         return now;
+    };
+
+    // ---- WHAT STANDS BEHIND AN OFFICE'S RUNNING CODE (`HostContext::code_source`) ----------
+    //
+    // `frontier`'s shape, three owners wide: the bus says who holds the office, the realization
+    // owner says which artifact that weave was realized from, and the catalog in force says
+    // which recipes produce it -- each read at the moment a pane's Edit Code asks, none copied
+    // (`provenance.hpp` says why the middle edge is a WeaveId and never a role). It is a reading
+    // and not a power: it opens nothing, and it chooses nothing when several recipes answer.
+    // A later owner of this join -- a manager weave, an office -- replaces this closure and
+    // nothing that spends it.
+    host.code_source = [&bus, &executor, &current_recipes](const std::string& office) {
+        return provenance::code_source_of(office, bus, executor, current_recipes);
     };
 
     // ---- THE TWO AUTHORED FILES GAIN A WRITER, THE MAKER'S OWN ACT (PICK-1, LOAD-IT) --

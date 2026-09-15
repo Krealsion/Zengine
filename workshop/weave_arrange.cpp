@@ -438,6 +438,9 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             false);
         return;
     }
+    // EDIT CODE: the setup has answered for the reference above, and what the pane's code is
+    // is the host's to answer next (`edit_code`, agents/workshop/code.md).
+    case Act::kEditCode: edit_code(ref, mail); return;
     default: return;
     }
 }

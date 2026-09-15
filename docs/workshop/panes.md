@@ -139,7 +139,7 @@ done with the thing you pointed at — the same operations Workshop's keys alrea
 aimed at that thing:
 
 - **a pane** — `arrange`, `Order >` (front / back / raise / lower), `Reset >`
-  (place / width / height), `remove`;
+  (place / width / height), `edit code`, `remove`;
 - **a document object** — `delete`;
 - **the empty room** — Workshop's own doors: a new object, the picker, arrange desk, the
   hotkey view, save / open, the setup gestures, reset order.
@@ -162,6 +162,11 @@ action you choose. `arrange` is the deliberate exception: choosing it begins arr
 **that pane** *and* selects it, because arranging is an ongoing state and the pane you are
 arranging is the one you are working with — and only after the pane passes the same checks
 every arranging road applies. A refusal changes nothing at all, selection included.
+
+**`edit code`** follows the pane to the code that draws it: Workshop works out which artifact the
+pane's weave was loaded from and which build recipe makes it, opens that recipe's source in the
+Editor, and points the Builder at the recipe — or says what it could not find. It opens and builds
+nothing else; [edit a running pane](edit-a-running-pane.md) walks the whole loop.
 
 The menu offers what is *meaningful* for that kind of thing, not a prediction of success —
 choose an action on a pane whose place this screen cannot resolve and the owner answers in
@@ -499,8 +504,11 @@ provider protocol — a prose budget, a press as a place, keys, text, the wheel 
 actions, and no installation story yet).
 
 The exact wire shapes are
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp). The smallest complete
-external-pane witness is
+[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), installed with the package
+as `zengine::pane`. The example to start from is
+[`examples/tally-pane/tally.cpp`](../../examples/tally-pane/tally.cpp) — one file a one-source
+recipe builds against the installed package, loaded by a plan row, and changed while it runs in
+[edit a running pane](edit-a-running-pane.md). The smallest complete external-pane witness is
 [`tests/weavelib/workshop_hello.cpp`](../../tests/weavelib/workshop_hello.cpp) — a test
 fixture, not a product plugin. The shipped one is
 [`introspection/`](../../introspection/loaded.hpp), documented at

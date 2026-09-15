@@ -162,13 +162,20 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 |---|---|
 | **`c`** / **`Shift+c`** | move through the recipes this project holds (it wraps) |
 | **`b`** | **build** the recipe you have chosen |
-| **`Shift+b`** | **load after build** — one action in two states. Before or during a build it is a *toggle*: armed, the next `b` builds **and** loads the result into the running project. When an artifact is built, nothing was asked about loading it and nothing is armed, it is a *button*: press it and the built artifact is loaded now |
+| **`Shift+b`** | **load after build** — one action in two states. Mostly it is a *switch* that stays where you leave it until Workshop quits: while it is on, every `b` builds **and** loads the result into the running project, and each press says `load after build: on` or `off`. When a build has finished that nothing asked to load, and the switch is off, it is a *button* instead: the realize row says `-- (load-after-build loads <artifact> now)`, and pressing it asks for that finished build's recipe again with the load aboard — that build's recipe, even if you have chosen another since |
 | **`Shift+p`** | **promote** the running image — make it the file a restart loads (after a reload in place; below) |
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
 | **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
+
+**Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
+of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
+recipe, visibly, and says the source is open and whether load after build is on. It builds,
+arms and loads nothing, and it does not say the pane will reload — whether a rebuild can reload
+in place is Workshop's notice to give. `b` and `Shift`+`b` stay yours
+([edit a running pane](edit-a-running-pane.md)).
 
 The pane shows the office it presents and the catalog in force, the chosen recipe and what it
 makes, where the last build got to (with its
@@ -210,7 +217,9 @@ Builder, and no "all good" is manufactured.
 recipe row and the ask agree — and performs exactly what `Shift+b` performs: the same build,
 the same offer, the same realization decision by the same owner. When **several** recipes
 produce the frontier, `f` refuses to choose between them and names them; pick one with `c` and
-press `f` again. When nothing is waiting, or nothing here produces the artifact, `f` says so
+press `f` again. A pick counts only while it is still the chosen recipe: when `edit code`, or
+`f` itself, has since moved the choice to another recipe, that recipe is not one you picked, and
+`f` asks again. When nothing is waiting, or nothing here produces the artifact, `f` says so
 and asks for nothing.
 
 `f` starts a build **only when pressed**. Encountering a buildable missing artifact never
@@ -348,8 +357,11 @@ was, so a quit now runs the old code next launch — the row says *NOT DEFAULT* 
 that to be discovered. **`Shift+p` promotes**: the running image's bytes are written into the
 plan's file (a sibling, then a rename, so a refused write leaves nothing half-written), and the
 row says *default*. **`Shift+r` reverts**: the image before the last reload runs again, through
-the same reload — same id, state kept. A promotion that wrote over the previous image leaves
-nothing honest to revert to, and revert says so.
+the same reload — same id, state kept. Before a promotion writes over the plan's file it keeps
+those bytes beside the reloads (`<stem>-<n>-promoted-over`), so a revert after a promote still
+runs the code you had, and the row says *NOT DEFAULT* again: the next launch runs what you
+promoted. A second `Shift+r` runs the promoted image, which is the default. With no reload in
+this run there is nothing to revert to, and revert says so.
 
 **Same shapes only.** A reload carries state and keeps routing, so it is refused — before the
 running weave is touched — when the rebuilt weave keeps a different **state** or answers to
@@ -404,8 +416,9 @@ leaves the row waiting until you load it: nothing is realized because a file app
 - A recipe row is *added* from Files (`a`) and *edited or removed* in a text editor. There is
   no recipe editor: what you can change at run time is one appended row, or *which whole
   catalog file* is in force. (A `single_source` recipe's **source** opens in Workshop's own
-  editor with `e`; any other project file — a recipe catalog included — opens from the
-  [Files](files.md) pane, see [the source editor](editor.md).)
+  editor with `e`, or with `edit code` on the pane its artifact draws; any other project file —
+  a recipe catalog included — opens from the [Files](files.md) pane, see
+  [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
 - A rebuilt weave whose **shape** changed does not enter the running project: the refusal

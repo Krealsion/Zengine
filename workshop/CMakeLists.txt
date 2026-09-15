@@ -83,6 +83,22 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             loom::core
                                                             loom::terminal)
 
+# ---- The pane protocol, alone, as a package a stranger links -------------------------
+#
+# `workshop/pane_vocabulary.hpp` is the whole conversation between Workshop and a weave that
+# offers it a pane, and it needs nothing beyond the surface vocabulary's row type and
+# `<zen/weave/shape.hpp>`. It is exported on its own (`zengine::pane`,
+# cmake/ZengineInstall.cmake) because a pane now ARRIVES in a run through an authored load-plan
+# row, so a maker's one-file pane built against the installed package is a road with an end.
+# The rest of `zengine-workshop-vocabulary` stays Workshop's own. The in-tree pane weaves keep
+# reaching the header by include path; this target is what a stranger's link line names.
+add_library(zengine-pane-vocabulary INTERFACE)
+target_include_directories(zengine-pane-vocabulary INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::pane ALIAS zengine-pane-vocabulary)
+target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary loom::core)
+
 # ---- The authored load plan: its shape, its file, and its execution (LOAD-0) ----------
 #
 # A SECOND TARGET RATHER THAN THREE MORE HEADERS IN THE ONE ABOVE, and the split is a
@@ -187,6 +203,9 @@ add_library(zengine-workshop-logic STATIC
     host_pump.cpp
     # The host's watch over the quit question's deliveries, and the book Workshop reads.
     quit_delivery.cpp
+    # A pane's Edit Code: the host's answer about its code spent, the managed open asked for,
+    # and the Builder told which recipe the opened source belongs to.
+    weave_code.cpp
 )
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)

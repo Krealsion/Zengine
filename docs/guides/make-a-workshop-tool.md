@@ -46,7 +46,7 @@ something, you are on one of the two paths above.
 | saved setup | a `PaneRef` and the maker's authored window | the same, unresolved until some office offers it |
 | what state is retained? | whatever Workshop session structures you add | Workshop's bounded cache of the rows you last validly sent |
 | where does it go? | `kSideRegion` or `kOverlayStack`, declared in the row | always the overlay stack; you do not ask |
-| install / plugin story | none needed — you compiled it in | **none exists** |
+| install / plugin story | none needed — you compiled it in | **no discovery or installer**: a one-file recipe builds it against the installed package (`zengine::pane`) and a load-plan row you author loads it — [edit a running pane](../workshop/edit-a-running-pane.md) |
 
 Two sentences worth keeping:
 
@@ -816,8 +816,10 @@ So adding a **first-party** tool to a running Workshop is now a row in a file:
 { "artifact": "my-tool", "provider": [], "weave": [ { "role": "my.tool" } ] }
 ```
 
-...plus getting `my-tool.so` / `my-tool.dll` beside the executable, which is still a build
-question and still has no answer for a stranger. Read
+...plus getting `my-tool.so` / `my-tool.dll` beside the executable. A one-file build recipe
+answers that for a stranger: it builds the source against the installed package, and the
+Builder's `load it` and frontier actions put the product where the plan loads it from
+([edit a running pane](../workshop/edit-a-running-pane.md), with the Tally example). Read
 [reference/load-plan.md](../reference/load-plan.md) before you write one: a plan row is an
 **execution-authority decision**, not configuration.
 
@@ -1057,7 +1059,9 @@ office can refresh or overwrite the other's. A runtime offer also cannot shadow 
 
 `tests/weavelib/workshop_hello.cpp` is the smallest complete witness of this protocol: one
 office, one pane key, both authorship checks, a content body formatted from the room it was
-actually granted, and nothing else.
+actually granted, and nothing else. The one to copy is
+[`examples/tally-pane/tally.cpp`](../../examples/tally-pane/tally.cpp): the same shape with a
+declared action and state a reload keeps, built from the installed package.
 
 > **It is a test fixture and a protocol reference — not a product plugin and not a deployment
 > recipe.** It is built by `tests/`, loaded only by the Workshop suite, and named in no host's

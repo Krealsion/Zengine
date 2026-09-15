@@ -494,7 +494,7 @@ endfunction()
 
 # ---- Which packages are PUBLIC, and how a link line says so (PKG-0) --------------------
 #
-# Eight of the targets below are exported by cmake/ZengineInstall.cmake, so an unrelated
+# Nine of the targets below are exported by cmake/ZengineInstall.cmake, so an unrelated
 # project reaches them with find_package(zengine) and links them by the SAME name this tree
 # uses. That is what the `zengine::` ALIASes are for: the exported EXPORT_NAMEs are set to
 # match them exactly, the way the Loom's do, so the in-tree spelling and the stranger's

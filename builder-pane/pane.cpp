@@ -76,6 +76,7 @@ using ws::PlanRowWritten;
 using ws::ProjectFrontierRequested;
 using ws::ProjectFrontierSaid;
 using ws::OpenSourceRequested;
+using ws::PaneSourceOpened;
 using ws::RecipeSourceRequested;
 using ws::RecipeSourceSaid;
 using ws::SourceOpened;
@@ -166,7 +167,7 @@ class BuilderPaneWeave
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, PaneSourceOpened>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -359,7 +360,11 @@ public:
             // recipe their pick named is gone. The frontier action must not read what is
             // left as an explicit choice.
             state_.chosen.clear();
-            picked_ = false;
+        }
+        if (!picked_.empty() && named_row(picked_) == known_.recipes.size()) {
+            // ...AND A PICK GOES WITH ITS RECIPE, so the name coming back in a later catalog is
+            // not a pick the maker made of it.
+            picked_.clear();
         }
         say(mail);
     }
@@ -526,6 +531,51 @@ public:
             notice_ = said.refusal;
             say(mail);
         }
+    }
+
+    /// A MAKER REACHED THE SOURCE BEHIND A PANE, AND IT IS OPEN -- Workshop's reading, published
+    /// once the open its Edit Code asked for took (WL-CODE-03). The choice moves to the recipe
+    /// that source belongs to, visibly, so the next build is that pane's without the maker
+    /// finding its recipe by name. Nothing is built, armed or realized: those stay gestures.
+    ///
+    /// ⚠ THE OFFICE IS READ BEFORE A WORD IS: the reading changes this pane's standing choice,
+    /// so a publication that was not authored as Workshop's office moves nothing.
+    ///
+    /// ⚠ NO PICK FOLLOWS THE CHOICE. `picked` is the recipe the maker named with `c`
+    /// (WL-PROJ-14), and this reading names the one recipe the host found; moving the choice to it
+    /// leaves any earlier pick naming the recipe it was, so the frontier action cannot spend a
+    /// pick of another recipe for this one -- and a pick of this very recipe still stands.
+    ///
+    /// ⚠ AND IT PROMISES NO RELOAD. Whether a rebuilt image reloads the pane in place is the
+    /// realization owner's to say, and nothing here was told it: `PaneSourceOpened` carries no
+    /// eligibility, and Workshop's own notice carries the owner's words. What this pane does know
+    /// is its own standing load after build -- which the realize row stops showing once a load has
+    /// been asked for -- so the sentence says whether the next build will be offered at all.
+    // WL-CODE-04 -- agents/workshop/code.md
+    void on(const PaneSourceOpened& said, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        // A CATALOG THIS PANE HAS HEARD AND THAT DOES NOT HOLD THE RECIPE IS A DISAGREEMENT TO SAY,
+        // not a choice to make: the pane's copy is behind the host's, and its next arrival is the
+        // truth. One it has not heard yet takes the name, which that arrival keeps or releases.
+        if (heard_ && named_row(said.recipe) == known_.recipes.size()) {
+            if (!role_.open) {
+                notice_ = "the source of " + said.name + " is open, but recipe `" + said.recipe +
+                          "` is not in the recipes this pane last heard -- nothing was chosen";
+                say(mail);
+            }
+            return;
+        }
+        state_.chosen = said.recipe;
+        // THE ROLE LINE KEEPS ITS OWN ROW: a maker mid-way through typing a role still sees the
+        // line; the choice has moved underneath it and the recipe row says so when it closes.
+        if (!role_.open) {
+            notice_ = "build recipe: " + said.recipe + " -> " + said.artifact + " -- the source of " +
+                      said.name + " is open in the Editor; save it, then build (load after build: " +
+                      (state_.arm ? "on" : "off") + ")";
+        }
+        say(mail);
     }
 
     // ---- The clipboard the role line spends -----------------------------------------
@@ -772,8 +822,11 @@ private:
         }
         (void)mail.publish(builder::RevertArtifact{shown_.artifact});
         awaiting_realization_ = true;
+        // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture and inside one row: the source
+        // a maker saved is still the edited one, and the next build builds it. A running image and
+        // a saved file are two facts, and a maker reading only the pane would take one for the other.
         notice_ = "asked to revert `" + shown_.artifact +
-                  "` -- the image before the last reload runs again, state kept";
+                  "`: the previous image runs, state kept; saved source unchanged";
         say(mail);
     }
 
@@ -791,8 +844,9 @@ private:
         state_.chosen = known_.recipes[to].recipe;
         // THE ONE WRITER OF `picked`: this gesture is what makes a selection the MAKER's
         // rather than the catalog's order wearing a name. The frontier action reads it when
-        // several recipes produce one artifact.
-        picked_ = true;
+        // several recipes produce one artifact -- and it records WHICH recipe was picked, so a
+        // choice another gesture later moves elsewhere carries no pick with it.
+        picked_ = state_.chosen;
         notice_ = "build recipe: " + known_.recipes[to].recipe + " -> " +
                   known_.recipes[to].artifact;
         say(mail);
@@ -841,9 +895,12 @@ private:
             return;
         }
         if (makers > 1) {
+            // A STANDING PICK IS THE MAKER'S PICK OF THE RECIPE STILL CHOSEN. Edit Code following a
+            // pane's source and this gesture taking a lone producer both move the choice without
+            // picking; a pick of the recipe they left does not stand for the one they chose.
             const std::size_t at = named_row(state_.chosen);
             const bool standing_pick =
-                picked_ && at < known_.recipes.size() &&
+                !picked_.empty() && picked_ == state_.chosen && at < known_.recipes.size() &&
                 known_.recipes[at].artifact == frontier_artifact_;
             if (!standing_pick) {
                 notice_ = std::to_string(makers) + " recipes produce `" + frontier_artifact_ +
@@ -1269,9 +1326,11 @@ private:
     bool awaiting_realization_ = false;
     builder::BuildStatus shown_{};
     builder::RecipeCatalog known_{};
-    /// HAS THE MAKER EXPLICITLY PICKED A RECIPE, as opposed to the catalog's first row being
-    /// where they happen to be? The frontier action is the only reader (WL-PROJ-14).
-    bool picked_ = false;
+    /// WHICH RECIPE THE MAKER LAST PICKED WITH `c`, by name -- empty when they never have, or when
+    /// a catalog no longer holds it. The frontier action is the only reader (WL-PROJ-14), and it
+    /// counts the pick only while that recipe is still the choice. A member and not state, like
+    /// the picture: a reloaded pane has picked nothing.
+    std::string picked_;
 
     /// THE PROJECT'S FRONTIER, AS OF THE LAST ANSWER. Not published, not state, and not
     /// derived here: three values the host's read-only door said, and a flag saying whether
