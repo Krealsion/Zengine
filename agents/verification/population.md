@@ -177,7 +177,7 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 | attention, info-body, info-controls, pane-manager | `workshop_panels`, then `workshop_document` |
 | catalog, panes-and-windows, setup-file | `workshop_panes` (seam, window), then `workshop_screen` |
 | contextual, press-chain | `workshop_panels`, `workshop_screen`, `workshop_document` |
-| code | `workshop_panes` (code), then `workshop_files` (the entry's format, the development catalog and runtime) |
+| code | `workshop_panes` (code), then `workshop_files` (the entry's format, the development catalog, runtime and launch) |
 | build-output | `builder` (the runner's bytes, the kept record), then `workshop_panes` (output) |
 | document | `workshop_document`; the file half (document-file) in `workshop_persistence` |
 | editor, files, project | `workshop_panes` (editor) and `workshop_files`; the buffer in `editor`; project also `workshop_panels` |

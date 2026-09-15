@@ -29,7 +29,9 @@
 # ONE INTERFACE TARGET, NOT THREE, and that is a decision about consumers rather
 # than a shortcut. A consumer that wants to PRESENT a build (Workshop) includes
 # only `builder/vocabulary.hpp`; a consumer that wants to RUN one (a host)
-# includes runner.hpp as well. Splitting the target would suggest the header
+# includes runner.hpp as well; and the development launch, a process that holds
+# the runtime script and then Workshop and is no weave, includes run.hpp alone
+# (workshop/develop.hpp). Splitting the target would suggest the header
 # boundary is enforced by the build graph, and it is not — the enforcement is the
 # grant the host writes, which is where authority in this system actually lives.
 # What DOES carry the split is which header each consumer names, and Workshop's

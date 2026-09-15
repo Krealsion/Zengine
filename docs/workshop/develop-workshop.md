@@ -7,8 +7,8 @@ without leaving Workshop, then keep a change or take it back.
 
 This is the loop [edit a running pane](edit-a-running-pane.md) teaches, with Zengine's own source
 as the project. That page makes a pane of *your* project from one source file; this one works on
-the panes Zengine's CMake tree builds. The gestures are the same. What is new is the setup, and
-the setup is most of this page:
+the panes Zengine's CMake tree builds. The gestures are the same. What is new is the launch: one
+Run in CLion opens the Workshop to work in, the same Run every time.
 
 ```
 right-click a shipped pane → edit code → change it → Ctrl+s
@@ -21,72 +21,131 @@ right-click a shipped pane → edit code → change it → Ctrl+s
 
 - **A Zengine checkout that is yours to edit.** The files the Editor opens and saves are that
   checkout's.
-- **An installed Loom**, and a compiler and CMake that build Zengine — exactly what
-  [Build it](../../README.md#build-it) asks for.
-- **A terminal** of about 200 by 56 cells, so Attention, the Builder and the Editor show together.
+- **An installed Loom**, and a compiler and CMake that build Zengine with the SDL skin (the
+  default) — what [Build it](../../README.md#build-it) asks for. The launch opens Workshop's window.
+- **CLion**, or a shell. The launch is one run configuration in CLion and one executable in a
+  shell; both run the same thing.
 
-## Once: a checkout, a build tree, a runtime
+## Once: open the project and Run
+
+In CLion, open the checkout as a CMake project and give its CMake profile the prefix the Loom is
+installed in: `-DCMAKE_PREFIX_PATH=<prefix>` in the profile's CMake options. Reload the CMake
+project. The run configuration list now holds **Develop Workshop**, beside the ones CLion makes for
+each target: it is shared from the repository's `.run/` directory, and it names one target,
+`zengine-workshop-develop`, and no path. Select it and press **Run**.
+
+The first Run builds the host and every artifact its load plans name — minutes, once. Then the
+launch says what it does in CLion's Run window, before Workshop's own lines:
+
+```
+zengine-workshop-develop - build tree: …/cmake-build-debug
+zengine-workshop-develop - runtime: …/cmake-build-debug/workshop-runtime
+-- zengine: development runtime made at …/cmake-build-debug/workshop-runtime
+zengine-workshop-develop - project: …/cmake-build-debug/workshop-project (Workshop's project files)
+zengine-workshop-develop - launching …/workshop-runtime/zengine-workshop --load-plan …/workshop-runtime/graphical-load-plan.json --recipes …/workshop-runtime/development-build-recipes.json
+```
+
+and Workshop's window opens with the development catalog in force: the Builder's header names
+`development-build-recipes.json`. On Windows the program is `zengine-workshop.exe`, and the
+compiler's runtime libraries come from the environment CLion gives the Run for the profile's
+toolchain; Workshop's builds run in that environment too.
+
+From a shell it is the same executable, run where the compiler runs (`deps` is the Loom prefix, as
+in [Build it](../../README.md#build-it)):
+
+```sh
+cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/deps"
+cmake --build Zengine/build --target zengine-workshop-develop
+Zengine/build/workshop/zengine-workshop-develop
+```
+
+## Every time after: Run
+
+Press **Run** again. The launch finds the runtime it made, checks that it is this build tree's,
+whole and current, and opens it in the same project directory, with every promotion made there:
+
+```
+-- zengine: reusing the development runtime at …/cmake-build-debug/workshop-runtime
+```
+
+Quit Workshop from Workshop, whose quit asks about unsaved work; CLion's Stop ends the process
+without asking. While that Workshop is open, another Run starts nothing and says it is running.
+CLion's **Debug** on this configuration debugs the launch itself; to debug Workshop, attach to its
+process (`zengine-workshop`).
+
+## Where everything is
 
 Four directories take part, and each has one job:
 
 | directory | holds | written by |
 |---|---|---|
 | the **checkout** | the source you edit | you, through the Editor |
-| the **build tree** | everything CMake builds, each pane target in its own directory | `b` in the Builder, and any `cmake --build` of yours |
-| the **runtime** | the Workshop that runs: the host, every artifact it loads, both load plans and both recipe catalogs, copied once | Workshop: a reload copies into it and a promotion writes it; no build does |
-| the **project directory** | Workshop's project files — the document, setups, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
+| the **build tree** — `cmake-build-debug`, or `Zengine/build` | everything CMake builds, each pane target in its own directory, the launch in `workshop/` | `b` in the Builder, CLion's build before a Run, and any `cmake --build` of yours |
+| the **runtime** — `workshop-runtime` in the build tree | the Workshop that runs: the host, every artifact it loads, both load plans and both recipe catalogs, copied once | the launch makes it; a reload copies into it and a promotion writes it; no build does |
+| the **project directory** — `workshop-project` in the build tree | Workshop's project files: the document, setups, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
 
-From the directory that holds your checkout and the prefix the Loom is installed in (`deps`, as
-in [Build it](../../README.md#build-it)):
-
-```sh
-cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/deps"
-cmake --build Zengine/build --target zengine-workshop
-cmake -DZEN_RUNTIME="$PWD/workshop-runtime" -P Zengine/build/workshop/development-runtime.cmake
-mkdir workshop-project
-cd workshop-project
-../workshop-runtime/zengine-workshop --recipes ../workshop-runtime/development-build-recipes.json
-```
-
-**1. Configure and build.** Any generator works, and `-DBUILD_TESTING=OFF` and
-`-DZENGINE_SDL_SKIN=OFF` leave out what this loop does not use. Building `zengine-workshop` builds
-the host and every artifact its load plans name. Configuring writes two more files beside the
-host in `Zengine/build/workshop/` (under a multi-config generator, in a directory per
-configuration):
+Configuring writes two files beside the host, in the build tree's `workshop/` directory (under a
+multi-config generator, in a directory per configuration, with a runtime per configuration too):
 
 - `development-build-recipes.json`, the **development catalog**: one `cmake_target` recipe per
   shipped pane weave ([which](#which-panes)), each naming this build tree, the target, the
   directory the target builds into, and the pane's own source file as its **editing entry** — the
   file `edit code` opens. The entry is the source the build declared for that weave, never a file
   name worked out from the pane's title or the target's name.
-- `development-runtime.cmake`, the script that makes a runtime from this build tree.
+- `development-runtime.cmake`, the script the launch runs to make the runtime or reuse it. You can
+  run it yourself: `cmake [-DZEN_RUNTIME=<dir>] -P <build>/workshop/development-runtime.cmake`.
 
-**2. Make the runtime.** The script copies the host, the artifacts, both plans and both catalogs
-into `ZEN_RUNTIME` — `Zengine/build/workshop-runtime` when you do not name one, or a directory per
-configuration under a multi-config generator — and writes `zengine-development-runtime.txt` there,
-naming the build tree and the checkout the runtime was made from.
+*Why a copy.* A Workshop running from the build tree's `workshop/` directory has loaded the very
+files a build copies there. A build would then write over images the process is using — Windows
+refuses the write, and Linux lets it change code under a running program — and it would change
+what the next launch runs without anyone choosing that. Nothing a build does writes the runtime. A
+pane's target builds into its own directory in the build tree; when a build is loaded, Workshop
+copies the product into the runtime under a name no earlier load used and loads that copy. The
+artifacts link Zengine and the Loom in rather than sharing them as libraries, so the build tree
+holds no file the runtime loads.
 
-*Why a copy.* A Workshop running from `Zengine/build/workshop/` has loaded the very files a build
-copies there. A build would then write over images the process is using — Windows refuses the
-write, and Linux lets it change code under a running program — and it would change what the next
-launch runs without anyone choosing that. Nothing a build does writes the runtime. A pane's target
-builds into its own directory in the build tree; when a build is loaded, Workshop copies the
-product into the runtime under a name no earlier load used and loads that copy. The artifacts link
-Zengine and the Loom in rather than sharing them as libraries, so the build tree holds no file the
-runtime loads.
+*Why a launch.* It is outside Workshop: nothing in Workshop starts, stops, reloads or relaunches
+the Workshop you are working in, and building the launch starts nothing. The catalog is its
+choice, not the project's: run by hand, Workshop reads the project's `build-recipes.json` or the
+shipped default exactly as it always does, and `u` in [Files](files.md) switches catalogs while it
+runs. Without the SDL skin the launch refuses; the runtime script, then the runtime's
+`zengine-workshop --recipes <runtime>/development-build-recipes.json` from a directory of your
+own, gives a terminal Workshop the same setup.
 
-The runtime is made **once**. The script refuses, and copies nothing, when the directory is
-already this build tree's runtime (to pick up what the tree has built since, quit that Workshop,
-remove the directory and run the script again), when it is a runtime made from another build tree,
-when it holds anything else, or when the tree has not built what it copies.
+## When the host changed: a new runtime
 
-**3. Launch it** from a directory of its own, naming the development catalog. The catalog is
-chosen only by you: without `--recipes`, Workshop reads the project's `build-recipes.json` or the
-shipped default, exactly as it always does, and `u` in [Files](files.md) can switch catalogs while
-it runs. The Builder's header names the catalog in force. Launching from the checkout works too,
-but the project files you save then land among the source.
+A runtime copies the host once. When the build tree has built the host, a service (a skin, an
+input reader, the Timer, an operator provider), a load plan or a catalog anew — after a pull, or a
+change to Workshop's own code — that runtime would still run what it copied, so the launch refuses
+and names what changed:
 
-## Every time: point, change, build, reload
+```
+zengine: …/workshop-runtime was made from this build tree at …, and the tree has built zengine-workshop.exe anew since, so it would still run the copies it took then -- nothing was copied, changed or launched.
+```
+
+Nothing is removed. To make a runtime from what the tree has built now, rename or move
+`workshop-runtime` — its promotions and reloads stay in it — and Run again. To keep runtimes side
+by side, give the launch another directory: `--runtime <dir>` in a copy of the run configuration's
+program arguments, or on the command line. A rebuilt pane never makes a runtime stale; reloading
+it is what the runtime is for.
+
+## When the launch refuses
+
+Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
+
+| it says | because | what to do |
+|---|---|---|
+| `… is running: a Workshop launched from this runtime is still open` | that Workshop has the runtime | use it, or quit it and Run |
+| `… has built … anew since …` | the host, a service, a plan or a catalog was rebuilt | [a new runtime](#when-the-host-changed-a-new-runtime) |
+| `… is incomplete: … is not there` | a file of the runtime was removed | a new runtime |
+| `… configuration, not its … one`, or `… copied other files …` | the build tree was configured differently since | a new runtime |
+| `… recorded too little to tell whether it is whole …` | an earlier Zengine made that runtime | a new runtime |
+| `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
+| `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
+| `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
+| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_SDL_SKIN=OFF` | configure with the SDL skin |
+
+## The loop: point, change, build, reload
 
 The example is **Attention**, which keeps one thing: the conditions you hid. If it says
 `0 conditions`, there is nothing to hide and a reload only shows new text; any condition — a
@@ -245,20 +304,25 @@ the rest from there; `m` marks it for the next time.
 | the reload is refused with a changed shape | the rebuild changed what the pane keeps or answers to | put the shape back; replacing a shape is not something Workshop drives yet |
 
 **A setup does not follow a move.** The development catalog names the checkout and the build tree
-by absolute path, and a CMake build tree names its checkout too. Move either, and configure
-again, build, and make a new runtime.
+by absolute path, and a CMake build tree names its checkout too. Move either, configure again
+and Run: a runtime made before the move is another tree's now, so move it aside or name another
+directory, and the launch makes a new one.
 
 **Two setups side by side stay apart.** Two checkouts, each with its own build tree and runtime,
 build artifacts with the same names — both have a `zengine-attention-pane`. Each runtime's catalog
 names its own build tree and checkout, each runtime's reloads and promotions are files in its own
-directory, and the script refuses to make one build tree's runtime in a directory that is already
-another's. The sharing that remains is the kind you ask for: two Workshops launched from one
-runtime directory share its images, and a catalog you copy names the tree it was written for.
+directory, each launch opens its own tree's runtime in its own project directory, and the script
+refuses to make one build tree's runtime in a directory that is already another's. The sharing
+that remains is the kind you ask for: a runtime directory you name for two launches, and a
+catalog you copy, which names the tree it was written for.
 
 ## What this does not do
 
 - **It is not an installed Workshop that develops itself.** A development runtime is a copy of one
-  build tree, for working on Zengine; nothing here installs, packages or updates a Workshop.
+  build tree, for working on Zengine; nothing here installs, packages or updates a Workshop, and
+  a runtime that a changed host made stale is kept, not refreshed.
+- **It does not launch from inside.** Workshop cannot start, stop, reload or relaunch the process
+  it runs in; the launch is CLion's Run, or the executable in a shell.
 - **It does not replace the host or a service.** Only the pane weaves above are rebuilt and
   reloaded from here.
 - **It does not build, reload, promote or revert for you.** Each is a gesture, and each says what

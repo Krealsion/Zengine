@@ -1115,8 +1115,10 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
                 "WORKSHOP_DEVELOPMENT_RECIPES=\"$<TARGET_FILE_DIR:zengine-workshop>/development-build-recipes.json\""
                 "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_BINARY_DIR=\"${CMAKE_BINARY_DIR}\""
-                # ...and the runtime script beside it, run by this tree's own CMake (WL-CODE-07).
+                # ...and the runtime script beside it, run by this tree's own CMake (WL-CODE-07),
+                # with the rules it includes, which a case runs over copies of its own.
                 "WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT=\"$<TARGET_FILE_DIR:zengine-workshop>/development-runtime.cmake\""
+                "WORKSHOP_DEVELOPMENT_RUNTIME_RULES=\"${CMAKE_SOURCE_DIR}/workshop/prepare-runtime.cmake\""
                 "WORKSHOP_CMAKE_PROGRAM=\"${CMAKE_COMMAND}\"")
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE

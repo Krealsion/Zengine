@@ -27,6 +27,7 @@
 #include "builder/generate.hpp"
 #include "builder/run.hpp" // the development runtime script, run as a maker runs it
 #include "editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
+#include "workshop/develop.hpp"   // ...and the launch that runs that script, then its host
 #include "workshop/authoring.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
@@ -2293,36 +2294,211 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
     }
 }
 
-TEST_CASE("the development runtime is made once, into nothing that is already something: another tree's runtime, this tree's own and a non-empty directory are refused, and nothing is copied") {
+// ---- the development runtime and the launch that uses it (WL-CODE-07, WL-CODE-08) ----------
+
+/// A CMake script run as a maker runs one (`cmake -P`). CMAKE WRAPS AN ERROR'S TEXT AT WORD
+/// BOUNDARIES, so the output is read with its breaks as spaces and a sentence is found whole.
+inline zengine::builder::RunResult run_cmake_script(std::vector<std::string> args) {
+    zengine::builder::BuildCommand run;
+    run.program = WORKSHOP_CMAKE_PROGRAM;
+    run.args = std::move(args);
+    zengine::builder::RunResult result = zengine::builder::run_recipe(run);
+    std::string flat;
+    for (const char c : result.output) {
+        const bool space = c == ' ' || c == '\n' || c == '\r';
+        if (!space || (!flat.empty() && flat.back() != ' ')) {
+            flat += space ? ' ' : c;
+        }
+    }
+    result.output = flat;
+    return result;
+}
+
+inline std::vector<std::string> entries_of(const std::filesystem::path& dir) {
+    std::vector<std::string> names;
+    std::error_code ec;
+    for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(dir, ec)) {
+        names.push_back(e.path().filename().generic_string());
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+/// Every file under a directory, with its bytes: what "left exactly as it is" is measured by.
+inline std::vector<std::pair<std::string, std::string>> contents_of(const std::filesystem::path& dir) {
+    std::vector<std::pair<std::string, std::string>> files;
+    std::error_code ec;
+    for (std::filesystem::recursive_directory_iterator it(dir, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        std::error_code kind_ec;
+        if (it->is_regular_file(kind_ec)) {
+            files.emplace_back(std::filesystem::relative(it->path(), dir).generic_string(),
+                               slurp(it->path().string()));
+        }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+/// A BUILD TREE'S COPIES MADE OF A FEW BYTES EACH -- a host, a service, a pane, a plan and a
+/// catalog -- and the runtime rules (`workshop/prepare-runtime.cmake`) run over them with the
+/// facts a generated script would set. What the rules decide does not depend on what the bytes
+/// are, so a suite can make, rebuild and promote files a real build takes minutes to make.
+struct RuntimeTree {
+    std::filesystem::path build;
+    std::vector<std::string> copies;
+    std::vector<std::string> replaceable;
+    std::string configuration = "Debug";
+
+    explicit RuntimeTree(const std::filesystem::path& root) : build(root / "build") {
+        put("workshop/zengine-workshop.exe", "host one");
+        put("snake/zengine-timer.dll", "service one");
+        put("attention-pane/zengine-attention-pane.dll", "pane one", true);
+        put("workshop/graphical-load-plan.json", "plan one");
+        put("workshop/development-build-recipes.json", "catalog one");
+    }
+
+    /// Build a copy into the tree, or build it anew.
+    void put(const std::string& rel, const std::string& bytes, bool pane = false) {
+        std::filesystem::create_directories((build / rel).parent_path());
+        put_file(build / rel, bytes);
+        const std::string path = (build / rel).generic_string();
+        if (std::find(copies.begin(), copies.end(), path) == copies.end()) {
+            copies.push_back(path);
+            if (pane) {
+                replaceable.push_back(path);
+            }
+        }
+    }
+
+    zengine::builder::RunResult prepare(const std::filesystem::path& runtime) const {
+        const auto listed = [](const std::vector<std::string>& paths) {
+            std::string list;
+            for (const std::string& p : paths) {
+                list += (list.empty() ? "" : ";") + p;
+            }
+            return list;
+        };
+        return run_cmake_script({"-Dzengine_build=" + build.generic_string(),
+                                 "-Dzengine_source=" + (build.parent_path() / "src").generic_string(),
+                                 "-Dzengine_configuration=" + configuration,
+                                 "-Dzengine_default_runtime=" + (build / "workshop-runtime").generic_string(),
+                                 "-Dzengine_copies=" + listed(copies),
+                                 "-Dzengine_replaceable=" + listed(replaceable),
+                                 "-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
+                                 WORKSHOP_DEVELOPMENT_RUNTIME_RULES});
+    }
+};
+
+TEST_CASE("a development runtime is made whole into an absent directory, then reused while what it copied is current: a promoted pane and a rebuilt one keep it, and nothing is copied again") {
+    TempDir scratch("dev-runtime-reuse");
+    RuntimeTree tree(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+
+    const zengine::builder::RunResult made = tree.prepare(runtime);
+    REQUIRE_MESSAGE(made.started, made.trouble);
+    REQUIRE_MESSAGE(made.status == 0, made.output);
+    CHECK(made.output.find("development runtime made at") != std::string::npos);
+    // EVERY COPY, BYTE FOR BYTE, AND THE MANIFEST -- written last, and nothing else.
+    CHECK(entries_of(runtime) ==
+          std::vector<std::string>{"development-build-recipes.json", "graphical-load-plan.json",
+                                   "zengine-attention-pane.dll", "zengine-development-runtime.txt",
+                                   "zengine-timer.dll", "zengine-workshop.exe"});
+    CHECK(slurp((runtime / "zengine-workshop.exe").string()) == "host one");
+    CHECK(slurp((runtime / "zengine-attention-pane.dll").string()) == "pane one");
+    // ON WINDOWS CMAKE'S `file(WRITE)` ENDS A LINE WITH CR LF, and the rules read either ending;
+    // the manifest's lines are read here with the CR taken out.
+    std::string manifest = slurp((runtime / "zengine-development-runtime.txt").string());
+    manifest.erase(std::remove(manifest.begin(), manifest.end(), '\r'), manifest.end());
+    CHECK(manifest.find("format: 2\n") != std::string::npos);
+    CHECK(manifest.find("build tree: " + tree.build.generic_string() + "\n") != std::string::npos);
+    CHECK(manifest.find("configuration: Debug\n") != std::string::npos);
+    CHECK(manifest.find("copy: replaceable zengine-attention-pane.dll\n") != std::string::npos);
+    CHECK(manifest.find("copy: replaceable zengine-workshop.exe\n") == std::string::npos);
+    CHECK(manifest.find(" zengine-workshop.exe\n") != std::string::npos);
+
+    // A PROMOTION WRITES THE RUNTIME'S PANE, A RELOAD LEAVES ITS COPY BESIDE IT, AND A DEVELOPMENT
+    // BUILD REBUILDS THE TREE'S: all three are what a runtime is for, and none makes it stale.
+    put_file(runtime / "zengine-attention-pane.dll", "pane promoted");
+    std::filesystem::create_directories(runtime / "zengine-attention-pane.reloads");
+    put_file(runtime / "zengine-attention-pane.reloads" / "zengine-attention-pane-1.dll", "a reload");
+    tree.put("attention-pane/zengine-attention-pane.dll", "pane rebuilt", true);
+    const auto kept = contents_of(runtime);
+    const zengine::builder::RunResult reused = tree.prepare(runtime);
+    REQUIRE_MESSAGE(reused.started, reused.trouble);
+    CHECK_MESSAGE(reused.status == 0, reused.output);
+    CHECK(reused.output.find("reusing the development runtime") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+
+    // ...AND A HOST BUILT AGAIN TO THE SAME BYTES IS STILL CURRENT: the digest decides, not the time.
+    tree.put("workshop/zengine-workshop.exe", "host one");
+    const zengine::builder::RunResult again = tree.prepare(runtime);
+    CHECK_MESSAGE(again.status == 0, again.output);
+    CHECK(contents_of(runtime) == kept);
+}
+
+TEST_CASE("a development runtime that is stale, incomplete, or made for another configuration or another set of copies is refused and left exactly as it is") {
+    TempDir scratch("dev-runtime-refused");
+    RuntimeTree tree(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+    REQUIRE(tree.prepare(runtime).status == 0);
+    const auto kept = contents_of(runtime);
+
+    // STALE: the tree built its host anew, so the runtime would still run the host it copied.
+    tree.put("workshop/zengine-workshop.exe", "host two");
+    const zengine::builder::RunResult stale = tree.prepare(runtime);
+    REQUIRE_MESSAGE(stale.started, stale.trouble);
+    CHECK(stale.status != 0);
+    CHECK(stale.output.find("has built zengine-workshop.exe anew") != std::string::npos);
+    CHECK(stale.output.find("nothing was copied, changed or launched") != std::string::npos);
+    CHECK(stale.output.find("rename or move this directory") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    // ...and a rebuilt service is the same answer.
+    tree.put("workshop/zengine-workshop.exe", "host one");
+    tree.put("snake/zengine-timer.dll", "service two");
+    const zengine::builder::RunResult service = tree.prepare(runtime);
+    CHECK(service.status != 0);
+    CHECK(service.output.find("has built zengine-timer.dll anew") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.put("snake/zengine-timer.dll", "service one");
+    REQUIRE(tree.prepare(runtime).status == 0);
+
+    // ANOTHER CONFIGURATION of the same tree.
+    tree.configuration = "Release";
+    const zengine::builder::RunResult configured = tree.prepare(runtime);
+    CHECK(configured.status != 0);
+    CHECK(configured.output.find("this build tree's Debug configuration, not its Release one") !=
+          std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.configuration = "Debug";
+
+    // ANOTHER SET OF COPIES: the configuration now stages one more file.
+    tree.put("workshop/SDL3.dll", "sdl");
+    const zengine::builder::RunResult widened = tree.prepare(runtime);
+    CHECK(widened.status != 0);
+    CHECK(widened.output.find("copied other files (now: SDL3.dll;") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.copies.pop_back();
+    REQUIRE(tree.prepare(runtime).status == 0);
+
+    // INCOMPLETE: a copy is gone from the runtime, and nothing is copied into it again.
+    std::filesystem::remove(runtime / "graphical-load-plan.json");
+    const auto without_plan = contents_of(runtime);
+    const zengine::builder::RunResult incomplete = tree.prepare(runtime);
+    CHECK(incomplete.status != 0);
+    CHECK(incomplete.output.find("is incomplete: graphical-load-plan.json is not there") !=
+          std::string::npos);
+    CHECK(contents_of(runtime) == without_plan);
+}
+
+TEST_CASE("the development runtime script this tree generated refuses another tree's runtime, an earlier script's runtime and a non-empty directory, and copies nothing") {
     // THE SCRIPT THIS TREE GENERATED, RUN AS A MAKER RUNS IT (`cmake -P`), against three directories
     // it must not write into. Every refusal leaves the directory exactly as it was: a runtime may be
     // running, and a directory the script did not make from this tree is somebody else's files.
     TempDir scratch("dev-runtime");
     const auto make_into = [](const std::filesystem::path& runtime) {
-        zengine::builder::BuildCommand run;
-        run.program = WORKSHOP_CMAKE_PROGRAM;
-        run.args = {"-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
-                    WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT};
-        zengine::builder::RunResult result = zengine::builder::run_recipe(run);
-        // CMAKE WRAPS AN ERROR'S TEXT AT WORD BOUNDARIES; a sentence is read with its breaks as spaces.
-        std::string flat;
-        for (const char c : result.output) {
-            const bool space = c == ' ' || c == '\n' || c == '\r';
-            if (!space || (!flat.empty() && flat.back() != ' ')) {
-                flat += space ? ' ' : c;
-            }
-        }
-        result.output = flat;
-        return result;
-    };
-    const auto entries_of = [](const std::filesystem::path& dir) {
-        std::vector<std::string> names;
-        std::error_code ec;
-        for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(dir, ec)) {
-            names.push_back(e.path().filename().generic_string());
-        }
-        std::sort(names.begin(), names.end());
-        return names;
+        return run_cmake_script({"-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
+                                 WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT});
     };
 
     // ANOTHER BUILD TREE'S RUNTIME.
@@ -2338,15 +2514,16 @@ TEST_CASE("the development runtime is made once, into nothing that is already so
     CHECK(foreign.output.find("nothing was copied") != std::string::npos);
     CHECK(entries_of(other) == std::vector<std::string>{"zengine-development-runtime.txt"});
 
-    // THIS TREE'S OWN, ALREADY MADE: made once, and remade only after it is removed.
+    // THIS TREE'S OWN, MADE BY AN EARLIER SCRIPT, whose manifest named only the tree: it cannot say
+    // whether it is whole or current, so it is kept and not reused.
     const std::filesystem::path own = scratch.path() / "own-runtime";
     std::filesystem::create_directories(own);
     put_file(own / "zengine-development-runtime.txt",
              std::string("A Zengine development runtime.\nbuild tree: ") + ZENGINE_BINARY_DIR + "\n");
-    const zengine::builder::RunResult again = make_into(own);
-    REQUIRE_MESSAGE(again.started, again.trouble);
-    CHECK(again.status != 0);
-    CHECK(again.output.find("already this build tree's development") != std::string::npos);
+    const zengine::builder::RunResult earlier = make_into(own);
+    REQUIRE_MESSAGE(earlier.started, earlier.trouble);
+    CHECK(earlier.status != 0);
+    CHECK(earlier.output.find("recorded too little to tell whether it is whole") != std::string::npos);
     CHECK(entries_of(own) == std::vector<std::string>{"zengine-development-runtime.txt"});
 
     // A DIRECTORY WITH SOMEBODY ELSE'S FILES IN IT.
@@ -2358,6 +2535,185 @@ TEST_CASE("the development runtime is made once, into nothing that is already so
     CHECK(occupied.status != 0);
     CHECK(occupied.output.find("is not empty and is not a development") != std::string::npos);
     CHECK(entries_of(busy) == std::vector<std::string>{"notes.txt"});
+}
+
+/// Facts a launch might have compiled in, for a tree that exists nowhere.
+inline zengine::workshop::develop::Facts launch_facts() {
+    zengine::workshop::develop::Facts facts;
+    facts.cmake = "/tools/cmake";
+    facts.script = "/tree/workshop/development-runtime.cmake";
+    facts.build = "/tree";
+    facts.runtime = "/tree/workshop-runtime";
+    facts.project = "/tree/workshop-project";
+    facts.host = "zengine-workshop";
+    facts.plan = "graphical-load-plan.json";
+    facts.catalog = "development-build-recipes.json";
+    return facts;
+}
+
+/// DOORS FOR A LAUNCH THAT ANSWER AS TOLD AND WRITE DOWN WHAT WAS ASKED, in order. The first
+/// command run is the runtime script and the second the host, which is the order `launch` owes.
+struct LaunchDoors {
+    bool running = false;
+    bool prepare_starts = true;
+    std::int64_t prepare_status = 0;
+    std::string directory_refusal;
+    bool host_starts = true;
+    std::int64_t host_status = 0;
+    std::vector<std::string> asked;
+    std::vector<zengine::builder::BuildCommand> ran;
+    std::vector<std::string> said;
+
+    zengine::workshop::develop::World world() {
+        zengine::workshop::develop::World doors;
+        doors.in_use = [this](const std::string& path) {
+            asked.push_back("in use? " + path);
+            return running;
+        };
+        doors.run = [this](const zengine::builder::BuildCommand& command) {
+            ran.push_back(command);
+            const bool script = ran.size() == 1;
+            zengine::builder::RunResult result;
+            result.started = script ? prepare_starts : host_starts;
+            result.status = script ? prepare_status : host_status;
+            result.trouble = result.started ? "" : "not there";
+            return result;
+        };
+        doors.directory = [this](const std::string& dir) {
+            asked.push_back("directory " + dir);
+            return directory_refusal;
+        };
+        doors.say = [this](const std::string& line) { said.push_back(line); };
+        return doors;
+    }
+
+    bool said_words(const std::string& words) const {
+        return std::any_of(said.begin(), said.end(), [&](const std::string& line) {
+            return line.find(words) != std::string::npos;
+        });
+    }
+};
+
+TEST_CASE("the development launch prepares its runtime through the runtime script, then starts only that runtime's host, with its graphical plan and development catalog, in a project directory of its own") {
+    namespace develop = zengine::workshop::develop;
+    const develop::Facts facts = launch_facts();
+    LaunchDoors doors;
+    doors.host_status = 7;
+    CHECK(develop::launch(facts, develop::choose({}, facts), doors.world()) == 7);
+    CHECK(doors.asked == std::vector<std::string>{"in use? /tree/workshop-runtime/zengine-workshop",
+                                                  "directory /tree/workshop-project"});
+    REQUIRE(doors.ran.size() == 2);
+    CHECK(doors.ran[0].program == "/tools/cmake");
+    CHECK(doors.ran[0].args == std::vector<std::string>{"-DZEN_RUNTIME=/tree/workshop-runtime", "-P",
+                                                        "/tree/workshop/development-runtime.cmake"});
+    CHECK(doors.ran[1].program == "/tree/workshop-runtime/zengine-workshop");
+    CHECK(doors.ran[1].args ==
+          std::vector<std::string>{"--load-plan", "/tree/workshop-runtime/graphical-load-plan.json",
+                                   "--recipes", "/tree/workshop-runtime/development-build-recipes.json"});
+    CHECK(doors.ran[1].dir == "/tree/workshop-project");
+    CHECK(doors.said_words("Workshop exited with 7"));
+
+    // A NAMED RUNTIME AND PROJECT ARE THE ONES USED, absolute, without a trailing separator: the
+    // host starts in the project directory, where a spelling relative to the launch means nothing.
+    TempDir scratch("dev-launch");
+    const std::string runtime = (scratch.path() / "runtime-2").generic_string();
+    const develop::Choice named = develop::choose(
+        {"--runtime", runtime, "--project", (scratch.path() / "project-2").generic_string() + "/"},
+        facts);
+    REQUIRE_MESSAGE(named.ok, named.complaint);
+    CHECK(named.runtime == runtime);
+    CHECK(named.project == (scratch.path() / "project-2").generic_string());
+    LaunchDoors elsewhere;
+    CHECK(develop::launch(facts, named, elsewhere.world()) == 0);
+    REQUIRE(elsewhere.ran.size() == 2);
+    CHECK(elsewhere.ran[0].args.front() == "-DZEN_RUNTIME=" + runtime);
+    CHECK(elsewhere.ran[1].program == runtime + "/zengine-workshop");
+    CHECK(elsewhere.ran[1].dir == named.project);
+    CHECK(std::filesystem::path(develop::choose({"--project", "here"}, facts).project).is_absolute());
+}
+
+TEST_CASE("a development launch that is refused starts nothing: no graphical plan, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
+    namespace develop = zengine::workshop::develop;
+    const develop::Facts facts = launch_facts();
+    const develop::Choice usual = develop::choose({}, facts);
+
+    // A TREE CONFIGURED WITHOUT THE SDL SKIN has no graphical Workshop to launch.
+    develop::Facts plain = facts;
+    plain.plan.clear();
+    LaunchDoors unplanned;
+    CHECK(develop::launch(plain, usual, unplanned.world()) == 1);
+    CHECK(unplanned.asked.empty());
+    CHECK(unplanned.ran.empty());
+    CHECK(unplanned.said_words("staged no graphical load plan"));
+
+    // THE RUNTIME'S HOST IS RUNNING: asked before anything is prepared, and nothing is stopped.
+    LaunchDoors running;
+    running.running = true;
+    CHECK(develop::launch(facts, usual, running.world()) == 1);
+    CHECK(running.asked == std::vector<std::string>{"in use? /tree/workshop-runtime/zengine-workshop"});
+    CHECK(running.ran.empty());
+    CHECK(running.said_words("nothing was prepared, launched or stopped"));
+
+    // THE RUNTIME SCRIPT REFUSED -- its words were its own, above -- and CMAKE THAT NEVER RAN.
+    LaunchDoors refused;
+    refused.prepare_status = 1;
+    CHECK(develop::launch(facts, usual, refused.world()) == 1);
+    CHECK(refused.ran.size() == 1);
+    CHECK(refused.asked.size() == 1);
+    CHECK(refused.said_words("the runtime was not prepared"));
+    LaunchDoors absent;
+    absent.prepare_starts = false;
+    CHECK(develop::launch(facts, usual, absent.world()) == 1);
+    CHECK(absent.ran.size() == 1);
+    CHECK(absent.said_words("could not run /tools/cmake"));
+
+    // THE PROJECT PATH IS NO DIRECTORY, and a host that would not start.
+    LaunchDoors filed;
+    filed.directory_refusal = "is there and is not a directory";
+    CHECK(develop::launch(facts, usual, filed.world()) == 1);
+    CHECK(filed.ran.size() == 1);
+    CHECK(filed.said_words("is there and is not a directory -- nothing was launched"));
+    LaunchDoors unstarted;
+    unstarted.host_starts = false;
+    CHECK(develop::launch(facts, usual, unstarted.world()) == 1);
+    CHECK(unstarted.ran.size() == 2);
+    CHECK(unstarted.said_words("did not start"));
+
+    // AN ARGUMENT IT DOES NOT KNOW, and a flag with no directory.
+    LaunchDoors misspoken;
+    const develop::Choice unknown = develop::choose({"--host", "/tree/workshop/zengine-workshop"}, facts);
+    CHECK_FALSE(unknown.ok);
+    CHECK(develop::launch(facts, unknown, misspoken.world()) == 2);
+    CHECK(misspoken.asked.empty());
+    CHECK(misspoken.ran.empty());
+    CHECK_FALSE(develop::choose({"--runtime"}, facts).ok);
+}
+
+TEST_CASE("an image a running program holds reads as in use and a file nobody holds does not, and the project directory is made when absent and refused when it is a file") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-in-use");
+    const std::filesystem::path idle = scratch.path() / "zengine-workshop.exe";
+    put_file(idle, "not running");
+    CHECK_FALSE(develop::image_in_use(idle.string()));
+    CHECK(slurp(idle.string()) == "not running");
+    CHECK_FALSE(develop::image_in_use((scratch.path() / "absent.exe").string()));
+#if defined(_WIN32)
+    // THIS SUITE'S OWN IMAGE IS RUNNING, and Windows will not open a running image for writing.
+    // (Linux says ETXTBSY only where its kernel still denies that write, so it is not pinned there.)
+    char own[MAX_PATH];
+    const DWORD length = ::GetModuleFileNameA(nullptr, own, MAX_PATH);
+    REQUIRE(length > 0);
+    REQUIRE(length < MAX_PATH);
+    CHECK(develop::image_in_use(std::string(own, length)));
+#endif
+
+    const std::filesystem::path project = scratch.path() / "made" / "project";
+    CHECK(develop::project_directory(project.string()).empty());
+    CHECK(std::filesystem::is_directory(project));
+    put_file(project / "workshop.json", "a maker's document");
+    CHECK(develop::project_directory(project.string()).empty());
+    CHECK(slurp((project / "workshop.json").string()) == "a maker's document");
+    CHECK(develop::project_directory(idle.string()) == "is there and is not a directory");
 }
 
 // ============================================================================
