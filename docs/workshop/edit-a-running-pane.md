@@ -112,6 +112,9 @@ names — the one a restart loads — is untouched. That is what `NOT DEFAULT` m
   next launch runs it; the realize row says `promoted: the next launch runs the image weave #…
   is running now`. A count lives in the running weave, so a fresh launch starts again at
   `Count: 0` — with the new text.
+- **`Shift`+`r` after `Shift`+`p` still takes it back.** Promote kept the bytes it wrote over
+  (`tally.reloads/tally-<n>-promoted-over…`), so `Tally: 3` runs again and the realize row says
+  `NOT DEFAULT` again: the next launch runs what you promoted. `Shift`+`r` once more runs it.
 
 Revert while you are trying things, and promote once you want to keep one. A reload you never
 promoted is gone at the next launch, and the realize row keeps saying `NOT DEFAULT` so that is

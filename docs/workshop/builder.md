@@ -353,8 +353,11 @@ was, so a quit now runs the old code next launch — the row says *NOT DEFAULT* 
 that to be discovered. **`Shift+p` promotes**: the running image's bytes are written into the
 plan's file (a sibling, then a rename, so a refused write leaves nothing half-written), and the
 row says *default*. **`Shift+r` reverts**: the image before the last reload runs again, through
-the same reload — same id, state kept. A promotion that wrote over the previous image leaves
-nothing honest to revert to, and revert says so.
+the same reload — same id, state kept. Before a promotion writes over the plan's file it keeps
+those bytes beside the reloads (`<stem>-<n>-promoted-over`), so a revert after a promote still
+runs the code you had, and the row says *NOT DEFAULT* again: the next launch runs what you
+promoted. A second `Shift+r` runs the promoted image, which is the default. With no reload in
+this run there is nothing to revert to, and revert says so.
 
 **Same shapes only.** A reload carries state and keeps routing, so it is refused — before the
 running weave is touched — when the rebuilt weave keeps a different **state** or answers to
