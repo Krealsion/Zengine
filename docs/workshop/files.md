@@ -113,10 +113,14 @@ also applied it while choosing and while typing a field. To move those, write `f
 `files.up`, `files.down` or `files.cancel` on `return`, that key now meets the chooser's or the
 line's own Return: when that step opens, Workshop refuses its keys in words naming both, and
 Escape and Return do nothing there until one of the two moves in your file and Workshop starts
-again ([hotkeys](hotkeys.md#the-keymap-file)). Because each step's Return is its
-own, a Return pressed before Files has shown the next step still belongs to the step you pressed
-it in, and does nothing once that step has closed: Escape and then Return typed in quick
-succession on a field abandon the recipe and open nothing.
+again ([hotkeys](hotkeys.md#the-keymap-file)).
+
+Workshop names each key when it reads it, by the keys in force at that moment, and Files acts on
+that name. A Return read while a field's keys are in force is `files.commit-field`: if the field
+has closed before Files receives it, it does nothing, and it never becomes the browser's open.
+Once the browser's keys are in force, a Return is `files.open` and opens the file under the
+cursor, as it should. That is a promise about the operation a key was read as — not about how
+fast you type, what was on screen, or which row or field you meant.
 
 The wheel moves the cursor through the listing.
 
