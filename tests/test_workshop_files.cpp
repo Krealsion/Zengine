@@ -25,6 +25,8 @@
 // compiles it -- so the generated project and the preflight are read here, against the
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
+#include "builder/run.hpp" // the development runtime script, run as a maker runs it
+#include "editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
 #include "workshop/authoring.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
@@ -57,6 +59,7 @@
 
 // `std::system`, for the one Windows arrangement the standard library cannot make: a
 // directory JUNCTION. `mklink /J` is how a person makes one and needs no privilege.
+#include <algorithm>
 #include <cstdlib>
 
 // ...AND THE ONE PLATFORM CALL THIS SUITE MAKES. A filename holding ill-formed UTF-16 is
@@ -497,16 +500,7 @@ namespace {
 inline std::function<HostContext::RecipeSource(const std::string&)>
 host_recipe_source(const CurrentRecipes& owner) {
     return [&owner](const std::string& id) {
-        HostContext::RecipeSource out;
-        const zengine::builder::Recipe* found = zengine::builder::recipe_named(owner.all(), id);
-        if (found != nullptr) {
-            out.known = true;
-            out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
-            if (found->single_source.has_value()) {
-                out.source = found->single_source->source;
-            }
-        }
-        return out;
+        return provenance::recipe_source_of(owner.all(), id);
     };
 }
 
@@ -544,7 +538,8 @@ TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is hold
     second.id = "two";
     second.artifact = "zengine-two";
     second.artifact_dir = "/elsewhere";
-    second.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    second.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string(), std::string()};
     completed.push_back(second);
     owner.hold("/project/recipes.json", completed, &HostContext::so_in);
 
@@ -645,7 +640,8 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     zengine::builder::Recipe target;
     target.id = "built";
     target.artifact = "built";
-    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string()};
+    target.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string(), std::string()};
     owner.hold("/project/t.json", {target}, &HostContext::so_in);
     const HostContext::RecipeSource named = answer("built");
     CHECK(named.known);
@@ -2098,7 +2094,8 @@ TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, ne
     zengine::builder::Recipe target;
     target.id = "two";
     target.artifact = "zengine-two";
-    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    target.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string(), std::string()};
     zengine::builder::Recipe aimed;
     aimed.id = "three";
     aimed.artifact = "zengine-three";
@@ -2124,6 +2121,243 @@ TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, ne
     // ...WHILE THE FILE'S OWN ROW STAYS AS AUTHORED: the completion is never written back.
     const std::vector<zengine::builder::Recipe> authored{single};
     CHECK(recipe_persist::to_text(authored).find("build-workspace") == std::string::npos);
+}
+
+// ============================================================================
+// An editing entry on a CMake target, and the catalogs written before it existed (WL-CODE-05)
+// ============================================================================
+
+namespace {
+
+/// A CATALOG THIS BUILD'S PREDECESSOR WROTE, byte for byte as its `a` wrote one -- the one-line
+/// canonical form with the content id version 1's shapes carried -- with its paths put somewhere
+/// that is nobody's. What version 1 was is this text, not an assumption about optional fields.
+const std::string kVersionOneCatalog =
+    "{\"zen\":1,\"schema\":\"WorkshopRecipeFile\",\"version\":1,\"content_id\":\"0xddcb128121a0f122\","
+    "\"fields\":{\"format\":\"zengine-build-recipes\",\"format_version\":\"1\",\"recipes\":["
+    "{\"recipe\":\"skin-tui-block\",\"artifact\":\"zengine-skin-tui-block\",\"artifact_dir\":"
+    "\"/zen/build/snake\",\"cmake_target\":[{\"build_dir\":\"/zen/build\",\"target\":"
+    "\"zengine-skin-tui-block\",\"config\":\"\"}],\"single_source\":[]},"
+    "{\"recipe\":\"tally\",\"artifact\":\"tally\",\"artifact_dir\":\"\",\"cmake_target\":[],"
+    "\"single_source\":[{\"source\":\"/zen/journey/project/tally.cpp\",\"packages\":"
+    "[\"/zen/journey/prefix\",\"/zen/loom/install\"],\"links\":[\"zengine::pane\","
+    "\"zengine::activation\",\"zengine::input\",\"loom::switchboard\"],\"toolchain_from\":\"\","
+    "\"workspace\":\"\"}]}]}}";
+
+} // namespace
+
+TEST_CASE("a version-1 catalog a maker already has reads whole: every row, and no CMake target with an entry") {
+    const recipe_persist::LoadedRecipes read = recipe_persist::from_text(kVersionOneCatalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    REQUIRE(read.recipes.size() == 2);
+    REQUIRE(read.recipes[0].cmake_target.has_value());
+    CHECK(read.recipes[0].cmake_target->build_dir == "/zen/build");
+    CHECK(read.recipes[0].cmake_target->target == "zengine-skin-tui-block");
+    CHECK(read.recipes[0].cmake_target->entry.empty()); // no entry: the honest absence
+    REQUIRE(read.recipes[1].single_source.has_value());
+    CHECK(read.recipes[1].single_source->source == "/zen/journey/project/tally.cpp");
+    CHECK(read.recipes[1].single_source->links.size() == 4);
+
+    // WHAT A NEWER WRITER DOES WITH IT: the same rows, as version 2, each entry spelled empty.
+    const std::string rewritten = recipe_persist::to_text(read.recipes);
+    CHECK(rewritten.find("\"version\":2") != std::string::npos);
+    CHECK(rewritten.find("\"format_version\":\"2\"") != std::string::npos);
+    CHECK(rewritten.find("\"entry\":\"\"") != std::string::npos);
+    const recipe_persist::LoadedRecipes again = recipe_persist::from_text(rewritten);
+    REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
+    CHECK(again.recipes == read.recipes);
+
+    // ...AND THE JOIN READS IT AS A RECIPE WITH NO FILE TO OPEN, in the recipe file's words.
+    const HostContext::RecipeSource named = provenance::recipe_source_of(read.recipes,
+                                                                         "skin-tui-block");
+    CHECK(named.known);
+    CHECK(named.kind == "cmake_target");
+    CHECK(named.source.empty());
+}
+
+TEST_CASE("a catalog is refused by a version this Workshop does not read, and a version-2 row without its entry is refused by admission") {
+    // A LATER NUMBER, BY ITS NUMBER.
+    const std::string one = "\"version\":1";
+    std::string later = kVersionOneCatalog;
+    later.replace(later.find(one), one.size(), "\"version\":3");
+    const recipe_persist::LoadedRecipes three = recipe_persist::from_text(later);
+    CHECK_FALSE(three.outcome.accepted);
+    CHECK(three.outcome.refusal == "build recipes version 3 -- this Workshop reads versions 1 and 2");
+
+    // A VERSION-1 ROW UNDER A VERSION-2 ENVELOPE IS NOT QUIETLY TAKEN AS "NO ENTRY": admission has no
+    // optional field, and a row missing one is refused by the gate that describes those bytes.
+    const std::string envelope = "\"version\":1,\"content_id\":\"0xddcb128121a0f122\",";
+    const std::string field = "\"format_version\":\"1\"";
+    std::string mixed = kVersionOneCatalog;
+    mixed.replace(mixed.find(envelope), envelope.size(), "\"version\":2,");
+    mixed.replace(mixed.find(field), field.size(), "\"format_version\":\"2\"");
+    const recipe_persist::LoadedRecipes missing = recipe_persist::from_text(mixed);
+    CHECK_FALSE(missing.outcome.accepted);
+    CHECK(missing.outcome.refusal.find("entry") != std::string::npos);
+
+    // AN ENVELOPE AND A FIELD THAT DISAGREE ARE REFUSED NAMING BOTH NUMBERS.
+    std::string disagreeing = kVersionOneCatalog;
+    disagreeing.replace(disagreeing.find(field), field.size(), "\"format_version\":\"2\"");
+    const recipe_persist::LoadedRecipes torn = recipe_persist::from_text(disagreeing);
+    CHECK_FALSE(torn.outcome.accepted);
+    CHECK(torn.outcome.refusal ==
+          "build recipes say version 2 inside a version-1 envelope -- a catalog is one version");
+}
+
+TEST_CASE("an editing entry is written, read back, checked as a recipe path, and completed against the project like a source") {
+    zengine::builder::Recipe relative;
+    relative.id = "attention";
+    relative.artifact = "zengine-attention-pane";
+    relative.cmake_target = zengine::builder::CMakeTargetRecipe{
+        "/zen/build", "zengine-attention-pane", std::string(), "attention-pane/pane.cpp"};
+    zengine::builder::Recipe absolute = relative;
+    absolute.id = "files";
+    absolute.artifact = "zengine-files";
+    absolute.cmake_target->target = "zengine-files";
+    absolute.cmake_target->entry = "/zen/checkout/files/files.cpp";
+    zengine::builder::Recipe none = relative;
+    none.id = "skin";
+    none.artifact = "zengine-skin";
+    none.cmake_target->target = "zengine-skin";
+    none.cmake_target->entry.clear();
+
+    const std::vector<zengine::builder::Recipe> authored{relative, absolute, none};
+    const recipe_persist::LoadedRecipes read =
+        recipe_persist::from_text(recipe_persist::to_text(authored));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.recipes == authored);
+
+    // COMPLETION: RELATIVE MEANS THE PROJECT'S FILE, ABSOLUTE STAYS, EMPTY STAYS EMPTY -- and the
+    // catalog file's own directory is not a base, exactly as for a single source.
+    std::vector<zengine::builder::Recipe> completed = read.recipes;
+    recipe_persist::complete_recipes(completed, "/zen/runtime", "/zen/checkout");
+    CHECK(completed[0].cmake_target->entry == "/zen/checkout/attention-pane/pane.cpp");
+    CHECK(completed[1].cmake_target->entry == "/zen/checkout/files/files.cpp");
+    CHECK(completed[2].cmake_target->entry.empty());
+    CHECK(completed[0].cmake_target->build_dir == "/zen/build"); // nothing else moved
+    CHECK(provenance::recipe_source_of(completed, "attention").source ==
+          "/zen/checkout/attention-pane/pane.cpp");
+
+    // AN ENTRY IS A PATH A RECIPE NAMES: a quote or a control byte is refused whole.
+    zengine::builder::Recipe quoted = relative;
+    quoted.cmake_target->entry = "pane\".cpp";
+    CHECK(zengine::builder::check_recipe(quoted).find("an editing entry cannot contain a double "
+                                                      "quote") != std::string::npos);
+    zengine::builder::Recipe broken = relative;
+    broken.cmake_target->entry = std::string("pane") + '\n' + ".cpp";
+    CHECK(zengine::builder::check_recipe(broken).find("an editing entry cannot contain control "
+                                                      "characters") != std::string::npos);
+}
+
+TEST_CASE("the development catalog this tree generated names every shipped pane by its own target, build directory and weave source, each one the Editor opens, and nothing else") {
+    // THE BUILD'S OWN ANSWER, READ AS THE HOST READS A CATALOG. Every row is a CMake target this
+    // tree builds, into the directory CMake says, with the source `zengine_weave` was handed as its
+    // entry -- and that directory is never the host's own, which is the separation the development
+    // runtime rests on: a pane target's build writes no file a Workshop run from this tree maps.
+    const recipe_persist::LoadedRecipes read =
+        recipe_persist::load_file(WORKSHOP_DEVELOPMENT_RECIPES);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    const std::vector<std::pair<std::string, std::string>> panes = {
+        {"zengine-attention-pane", "attention-pane/pane.cpp"},
+        {"zengine-builder-pane", "builder-pane/pane.cpp"},
+        {"zengine-editor-pane", "editor-pane/pane.cpp"},
+        {"zengine-files", "files/files.cpp"},
+        {"zengine-info-pane", "info-pane/pane.cpp"},
+        {"zengine-terminal-pane", "terminal-pane/pane.cpp"},
+        {"zengine-introspection", "introspection/introspection.cpp"},
+        {"zengine-composer", "composer/composer.cpp"}};
+    REQUIRE(read.recipes.size() == panes.size());
+    const std::filesystem::path host_dir =
+        std::filesystem::path(WORKSHOP_HOST_DIR).lexically_normal();
+    for (std::size_t i = 0; i < panes.size(); ++i) {
+        const zengine::builder::Recipe& row = read.recipes[i];
+        INFO("pane ", panes[i].first);
+        CHECK(row.id == panes[i].first);
+        CHECK(row.artifact == panes[i].first);
+        REQUIRE(row.cmake_target.has_value());
+        CHECK(row.cmake_target->target == panes[i].first);
+        CHECK(std::filesystem::path(row.cmake_target->build_dir).lexically_normal() ==
+              std::filesystem::path(ZENGINE_BINARY_DIR).lexically_normal());
+        const std::filesystem::path entry(row.cmake_target->entry);
+        CHECK(entry.lexically_normal() ==
+              (std::filesystem::path(ZENGINE_SOURCE_DIR) / panes[i].second).lexically_normal());
+        REQUIRE(std::filesystem::exists(entry));
+        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a maker edits in Workshop, so its bytes
+        // meet the Editor's source law -- one character a canvas cannot draw refuses the open whole.
+        std::ifstream in(entry, std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const SourceIn admitted = source_in(bytes);
+        CHECK_MESSAGE(admitted.outcome.accepted, admitted.outcome.refusal);
+        CHECK_FALSE(row.artifact_dir.empty());
+        CHECK(std::filesystem::path(row.artifact_dir).lexically_normal() != host_dir);
+    }
+}
+
+TEST_CASE("the development runtime is made once, into nothing that is already something: another tree's runtime, this tree's own and a non-empty directory are refused, and nothing is copied") {
+    // THE SCRIPT THIS TREE GENERATED, RUN AS A MAKER RUNS IT (`cmake -P`), against three directories
+    // it must not write into. Every refusal leaves the directory exactly as it was: a runtime may be
+    // running, and a directory the script did not make from this tree is somebody else's files.
+    TempDir scratch("dev-runtime");
+    const auto make_into = [](const std::filesystem::path& runtime) {
+        zengine::builder::BuildCommand run;
+        run.program = WORKSHOP_CMAKE_PROGRAM;
+        run.args = {"-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
+                    WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT};
+        zengine::builder::RunResult result = zengine::builder::run_recipe(run);
+        // CMAKE WRAPS AN ERROR'S TEXT AT WORD BOUNDARIES; a sentence is read with its breaks as spaces.
+        std::string flat;
+        for (const char c : result.output) {
+            const bool space = c == ' ' || c == '\n' || c == '\r';
+            if (!space || (!flat.empty() && flat.back() != ' ')) {
+                flat += space ? ' ' : c;
+            }
+        }
+        result.output = flat;
+        return result;
+    };
+    const auto entries_of = [](const std::filesystem::path& dir) {
+        std::vector<std::string> names;
+        std::error_code ec;
+        for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(dir, ec)) {
+            names.push_back(e.path().filename().generic_string());
+        }
+        std::sort(names.begin(), names.end());
+        return names;
+    };
+
+    // ANOTHER BUILD TREE'S RUNTIME.
+    const std::filesystem::path other = scratch.path() / "other-tree-runtime";
+    std::filesystem::create_directories(other);
+    put_file(other / "zengine-development-runtime.txt",
+             "A Zengine development runtime.\nbuild tree: /somewhere/else/build\n");
+    const zengine::builder::RunResult foreign = make_into(other);
+    REQUIRE_MESSAGE(foreign.started, foreign.trouble);
+    CHECK(foreign.status != 0);
+    CHECK(foreign.output.find("made from") != std::string::npos);
+    CHECK(foreign.output.find("/somewhere/else/build") != std::string::npos);
+    CHECK(foreign.output.find("nothing was copied") != std::string::npos);
+    CHECK(entries_of(other) == std::vector<std::string>{"zengine-development-runtime.txt"});
+
+    // THIS TREE'S OWN, ALREADY MADE: made once, and remade only after it is removed.
+    const std::filesystem::path own = scratch.path() / "own-runtime";
+    std::filesystem::create_directories(own);
+    put_file(own / "zengine-development-runtime.txt",
+             std::string("A Zengine development runtime.\nbuild tree: ") + ZENGINE_BINARY_DIR + "\n");
+    const zengine::builder::RunResult again = make_into(own);
+    REQUIRE_MESSAGE(again.started, again.trouble);
+    CHECK(again.status != 0);
+    CHECK(again.output.find("already this build tree's development") != std::string::npos);
+    CHECK(entries_of(own) == std::vector<std::string>{"zengine-development-runtime.txt"});
+
+    // A DIRECTORY WITH SOMEBODY ELSE'S FILES IN IT.
+    const std::filesystem::path busy = scratch.path() / "busy";
+    std::filesystem::create_directories(busy);
+    put_file(busy / "notes.txt", "mine\n");
+    const zengine::builder::RunResult occupied = make_into(busy);
+    REQUIRE_MESSAGE(occupied.started, occupied.trouble);
+    CHECK(occupied.status != 0);
+    CHECK(occupied.output.find("is not empty and is not a development") != std::string::npos);
+    CHECK(entries_of(busy) == std::vector<std::string>{"notes.txt"});
 }
 
 // ============================================================================

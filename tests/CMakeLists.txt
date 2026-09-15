@@ -1109,7 +1109,15 @@ zengine_workshop_suite(screen SOURCES test_workshop_screen.cpp)
 zengine_workshop_suite(files SOURCES test_workshop_files.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_RECIPES_HPP=\"${CMAKE_SOURCE_DIR}/workshop/recipes.hpp\""
-                "WORKSHOP_HOST_DIR=\"$<TARGET_FILE_DIR:zengine-workshop>\"")
+                "WORKSHOP_HOST_DIR=\"$<TARGET_FILE_DIR:zengine-workshop>\""
+                # THE DEVELOPMENT CATALOG THIS TREE GENERATED, and the two trees it must name, so
+                # a case reads the build's own answer about its panes (WL-CODE-06).
+                "WORKSHOP_DEVELOPMENT_RECIPES=\"$<TARGET_FILE_DIR:zengine-workshop>/development-build-recipes.json\""
+                "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
+                "ZENGINE_BINARY_DIR=\"${CMAKE_BINARY_DIR}\""
+                # ...and the runtime script beside it, run by this tree's own CMake (WL-CODE-07).
+                "WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT=\"$<TARGET_FILE_DIR:zengine-workshop>/development-runtime.cmake\""
+                "WORKSHOP_CMAKE_PROGRAM=\"${CMAKE_COMMAND}\"")
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
@@ -1159,6 +1167,7 @@ zengine_workshop_suite(panes
             test_workshop_panes_editor.cpp
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
+            test_workshop_panes_output.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -1342,6 +1351,7 @@ foreach(zengine_fixture_one ${zengine_fixture_tree} ${zengine_fixture_tree_b})
                 "-DZENGINE_FIXTURE_ARTIFACTS=${zengine_fixture_artifacts}"
                 "-DZENGINE_FIXTURE_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}"
                 "-DZENGINE_FIXTURE_SLOW=${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake"
+                "-DZENGINE_FIXTURE_DIAGNOSTIC=${CMAKE_CURRENT_SOURCE_DIR}/diagnostic_build.cmake"
         DEPENDS ${zengine_fixture_src}/CMakeLists.txt
         COMMENT "builder suite: configuring the fixture build tree a recipe can point at")
     list(APPEND zengine_fixture_stamps ${zengine_fixture_one}/CMakeCache.txt)
@@ -1354,6 +1364,9 @@ target_compile_definitions(zengine-builder-tests PRIVATE
     "ZENGINE_TEST_SLOW_SCRIPT=\"${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake\""
     "ZENGINE_TEST_FIXTURE_TREE=\"${zengine_fixture_tree}\""
     "ZENGINE_TEST_FIXTURE_TREE_B=\"${zengine_fixture_tree_b}\""
+    # ...and the bytes `fixture-diagnostic` writes before it prints them, so a case compares what
+    # the output reader kept with what the build said, byte for byte.
+    "ZENGINE_TEST_DIAGNOSTIC_OUT=\"${zengine_fixture_tree}/diagnostic.txt\""
     "ZENGINE_TEST_FIXTURE_ARTIFACTS=\"${zengine_fixture_artifacts}\""
     "ZENGINE_TEST_ARTIFACT_SUFFIX=\"${CMAKE_SHARED_LIBRARY_SUFFIX}\""
     # ---- The two halves of the package, READ AS SOURCE FILES (BLD-1) --------------

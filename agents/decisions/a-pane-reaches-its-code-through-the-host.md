@@ -29,12 +29,14 @@ only while the code is unchanged, it publishes a reading the Builder pane follow
   pinned by case `"the Builder's words after Edit Code promise no reload: an owner's refusal stands
   alone, and an eligible pane still reads how to build it"`. It says its own switch instead.
 - *Carrying the reload refusal in `PaneSourceOpened`* — argued: Workshop's notice already says
-  the owner's words at that moment, and a copy would make the Builder hold eligibility it does
-  not own.
+  the owner's words at that moment, so the reading needs no second copy of them. Presenting an
+  owner's refusal, attributed to that owner, would not make the Builder decide eligibility; a
+  later presentation that needs the words may carry them so.
 - *Addressing the Builder pane's office from the desk* — argued: the host names no pane's
   office, `StandingConditions`' rule; a publication any presenter may follow keeps that true.
-- *A source field on `cmake_target` recipes* — argued: a recipe format change for panes this
-  loop does not build; left as the seam Workshop's own panes need.
+- *A source field on `cmake_target` recipes* — argued at the time: a format change for panes
+  that loop did not build; later made an editing entry
+  ([an-entry-is-where-reading-starts](an-entry-is-where-reading-starts.md)).
 
 **Consequences.** The pane protocol is exported alone as `zengine::pane`, so a one-file pane
 builds against the installed package. A later owner of the join replaces

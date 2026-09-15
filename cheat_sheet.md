@@ -537,7 +537,8 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
 | `c` / `Shift`+`c` | choose the next / previous recipe |
 | `f` | build and realize the project frontier |
-| `e` | open the chosen recipe's **source** in the editor (single-source recipes) |
+| `e` | open the chosen recipe's **source** in the editor (a single source, or a CMake target's editing entry) |
+| `l` | in the Builder: **read output** — what the build the pane names said, bound to that build (`↑` `↓` `Home` `End` `←` `→` `[` `]`, `Esc` closes) |
 | `Ctrl`+`s` / `Ctrl`+`o` | save / open the document (`Ctrl`+`s` saves the **source** while the editor holds the keys) |
 | `Ctrl`+`t` | open or close the terminal overlay |
 | `Ctrl`+`k` | open the hotkey view |
@@ -563,8 +564,8 @@ region is marked on the pane while you edit it; `s` saves the pane to `--pane` (
 `workshop-pane.json`); `Ctrl`+`d` discards unsaved pane edits. Unsaved pane truth refuses the
 quit. See [the Pane Creator](docs/workshop/panes.md#the-pane-creator--a-pane-made-of-data).
 
-**Source editor** (`e` on a single-source recipe) — a built-in pane holding the one file the
-chosen recipe names; press into its body and your keys are in the source. Typing edits;
+**Source editor** (`e` on a recipe that names a source or an entry) — a pane holding the one
+file the chosen recipe names; press into its body and your keys are in the source. Typing edits;
 `Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a preferred column
 through short ones); `Home`/`End` and `Ctrl`+`Home`/`End`; `Ctrl`+arrows by word;
 `Shift`+movement selects; `Ctrl`+`a`/`c`/`x`/`v`/`z`/`y` as expected, across lines; the
@@ -605,7 +606,8 @@ and a right-click or `Esc` leaves — leaving is all that press does.
 **Context menu** — right-click a pane, a document object, or the empty room, and a small
 menu beside the click lists what can be done with the thing you pointed at: pane
 arrangement (arrange, Order, Reset, remove), `edit code` (the pane's source, through its
-recipe — [edit a running pane](docs/workshop/edit-a-running-pane.md)), object deletion, or
+recipe — [edit a running pane](docs/workshop/edit-a-running-pane.md), and for Workshop's own panes
+[develop Workshop](docs/workshop/develop-workshop.md)), object deletion, or
 Workshop's own doors.
 Rows whose action has a working shortcut in the place you are returning to show it after
 the label, spelled from the live keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row

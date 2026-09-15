@@ -179,6 +179,23 @@ inline std::string take_complete_lines(std::string& buffer, bool ending) {
     return done;
 }
 
+/// HOW MANY BYTES OF `ready`, FROM `at`, THE NEXT `BuildOutput` CARRIES: all that is left when
+/// it fits in `kMaxOutputChars`, else up to the last line break inside that bound, else the
+/// bound itself (a line longer than a message continues in the next). A message ends where a
+/// line does whenever one can, and no byte is left out to make one fit.
+// WL-OUT-01 -- agents/workshop/build-output.md
+inline std::size_t output_piece(const std::string& ready, std::size_t at) {
+    const std::size_t left = ready.size() - at;
+    if (left <= kMaxOutputChars) {
+        return left;
+    }
+    const std::size_t nl = ready.rfind('\n', at + kMaxOutputChars - 1);
+    if (nl != std::string::npos && nl >= at) {
+        return nl - at + 1;
+    }
+    return kMaxOutputChars;
+}
+
 /// The runner's own books. Nothing here is a capability -- the capability is the
 /// catalog, and the catalog is not state a poke can reach (see below).
 ///
@@ -359,15 +376,14 @@ private:
             const RunLook seen = held.process.look();
             held.pending += seen.fresh;
             const std::string ready = take_complete_lines(held.pending, seen.ended);
-            if (!ready.empty()) {
-                std::string text = tail_lines(ready, kAllLines);
-                std::int64_t dropped = 0;
-                if (text.size() > kMaxOutputChars) {
-                    dropped = static_cast<std::int64_t>(text.size() - kMaxOutputChars);
-                    text.erase(0, text.size() - kMaxOutputChars);
-                }
+            // EVERY BYTE THE LOOK MADE READY, IN ORDER, IN AS MANY MESSAGES AS IT TAKES. The
+            // look itself is bounded (`kMaxLookBytes`), so this is bounded too; what is not done
+            // any more is keeping a look's last 2,048 characters and counting the rest away.
+            for (std::size_t at = 0; at < ready.size();) {
+                const std::size_t piece = output_piece(ready, at);
                 (void)mail.send_to_role(kBuilderRole,
-                                        BuildOutput{held.op, held.recipe, text, dropped});
+                                        BuildOutput{held.op, held.recipe, ready.substr(at, piece)});
+                at += piece;
             }
             if (!seen.ended) {
                 ++i;

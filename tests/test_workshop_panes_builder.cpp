@@ -400,6 +400,10 @@ const std::vector<std::string> kBrowsingIds = {
     pane::kActionRevert,     pane::kActionLoadIt,       pane::kActionRecipeNext,
     pane::kActionRecipeBack, pane::kActionFrontier,     pane::kActionEditSource};
 
+/// ...and how many the pane declares while browsing: those nine and the output reader's own,
+/// which is new and so is in no maker's keymap file yet (WL-OUT-04).
+const std::size_t kBrowsingRows = kBrowsingIds.size() + 1;
+
 inline bld::RecipeCatalog catalog_of(std::vector<std::pair<std::string, std::string>> rows,
                                      std::string source = "/project/recipes.json") {
     bld::RecipeCatalog out;
@@ -839,7 +843,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and
     CHECK(b.authored[0].recipe == "snake");
     CHECK(b.text().find("loaded `zengine-snake` as zengine.oven") != std::string::npos);
     // ...AND THE ROWS COME BACK, because the mode closed and the declaration was replaced.
-    REQUIRE(b.row()->actions.size() == kBrowsingIds.size());
+    REQUIRE(b.row()->actions.size() == kBrowsingRows);
 }
 
 TEST_CASE("BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is written") {
@@ -852,7 +856,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is writte
     b.r.key(input::scan::kEscape);
     CHECK(b.text().find("nothing was loaded and nothing was written") != std::string::npos);
     CHECK(b.authored.empty());
-    REQUIRE(b.row()->actions.size() == kBrowsingIds.size());
+    REQUIRE(b.row()->actions.size() == kBrowsingRows);
 }
 
 TEST_CASE("BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused before the line") {
@@ -947,7 +951,7 @@ TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row")
 
     b.letter(input::scan::kE, "e");
     CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
-    CHECK(b.text().find("names no single source") != std::string::npos);
+    CHECK(b.text().find("names no source file or editing entry") != std::string::npos);
 
     // THE SECOND DOOR'S REFUSAL: a file that is not there, in the Editor's own words.
     BuilderRig c("bld-edit-missing");
@@ -1400,7 +1404,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     REQUIRE(cancel.delivered);
     CHECK(b.text().find("type the role it holds") == std::string::npos);
     CHECK(b.text().find("nothing was loaded and nothing was written") != std::string::npos);
-    CHECK(b.declared().size() == kBrowsingIds.size());
+    CHECK(b.declared().size() == kBrowsingRows);
 
     // ESCAPE AND RETURN IN ONE POLL: the cancel, then a commit Workshop resolved against the
     // line's rows, arriving after the line closed. The cancel's answer stands.
@@ -1409,7 +1413,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     b.enqueue_key(input::scan::kEscape);
     b.enqueue_key(input::scan::kReturn);
     b.settle();
-    CHECK(b.declared().size() == kBrowsingIds.size());
+    CHECK(b.declared().size() == kBrowsingRows);
     CHECK_MESSAGE(b.text().find("nothing was loaded and nothing was written") != std::string::npos,
                   b.text());
     b.regrant();

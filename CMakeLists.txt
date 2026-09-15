@@ -259,6 +259,12 @@ function(zengine_weave target source)
                                             zengine-sanitize)
     loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
+    # ...AND THAT FILE IS WRITTEN DOWN, as the file this weave's code is read from. It is the
+    # editing entry the development recipe catalog names for the weave (workshop/CMakeLists.txt),
+    # so the entry is the build's own declaration and never a file guessed from a target's name.
+    get_filename_component(zengine_weave_entry "${source}" ABSOLUTE
+                           BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_property(TARGET ${target} PROPERTY ZENGINE_WEAVE_SOURCE "${zengine_weave_entry}")
 endfunction()
 
 # ---- ...and an artifact that is a PROVIDER and not a weave (PROV-0) ---------------------

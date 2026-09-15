@@ -43,7 +43,8 @@ project(zengine-build-fixture NONE)
 # Handed in by the suite's own CMakeLists at configure time. Named rather than derived,
 # because a fixture that guessed where the suite expects its artifact would be a fixture
 # that can silently stop being about the same file.
-foreach(required ZENGINE_FIXTURE_ARTIFACTS ZENGINE_FIXTURE_SUFFIX ZENGINE_FIXTURE_SLOW)
+foreach(required ZENGINE_FIXTURE_ARTIFACTS ZENGINE_FIXTURE_SUFFIX ZENGINE_FIXTURE_SLOW
+                 ZENGINE_FIXTURE_DIAGNOSTIC)
     if(NOT DEFINED ${required})
         message(FATAL_ERROR "build fixture: -D${required}=... is required")
     endif()
@@ -91,6 +92,16 @@ add_custom_target(fixture-empty
 # would make the stale-artifact question unanswerable.
 add_custom_target(fixture-broken
     COMMAND ${CMAKE_COMMAND} -DSTEPS=1 -DPAUSE=0.05 -DFAIL=1 -P "${ZENGINE_FIXTURE_SLOW}")
+
+# A build that fails the way a COMPILER fails: a diagnostic with UTF-8 quotes, a CR LF line, a
+# path holding a space and a command echo longer than one `BuildOutput`, then a non-zero exit.
+# It is what the output reader has to carry whole, and `diagnostic.txt` beside this tree holds
+# the same bytes for a case to compare (`tests/diagnostic_build.cmake` says what is in them).
+# Also not `fixture_target`: it fails, so it leaves no artifact.
+add_custom_target(fixture-diagnostic
+    COMMAND ${CMAKE_COMMAND} "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/diagnostic.txt"
+            -P "${ZENGINE_FIXTURE_DIAGNOSTIC}"
+    COMMAND ${CMAKE_COMMAND} -E false)
 
 # The slow, chatty ones. Each is one parameterisation of ASYNC-1's script, and the numbers
 # are the ones its cases were written against. A parameterisation is a TARGET here, because

@@ -26,8 +26,10 @@ get the same behaviour, the same refusals and the same words:
   loaded from and the one recipe that builds it, and opens that recipe's source
   ([edit a running pane](edit-a-running-pane.md)); its answers land on the notice line.
 
-A recipe that names no single source — a `cmake_target` recipe builds a project of its own —
-refuses in those words. There is no path argument and no multi-file session: the Editor holds
+The file a recipe names is its `source` when it builds one source file, and its **editing entry**
+when it builds a CMake target — the file a reader of that artifact starts at, which is how
+Workshop's own panes open ([develop Workshop](develop-workshop.md)). A `cmake_target` recipe with
+no entry names no file, and refuses in those words. There is no path argument and no multi-file session: the Editor holds
 **one** document, and asking for a different source while the current one has unsaved edits
 is refused until you save them (`Ctrl`+`s`) or deliberately discard them (`Ctrl`+`d`). Asking
 for the source that is *already* open just brings the pane and your keys back to it — edits,
@@ -121,7 +123,9 @@ That resolution happens **once**, when the recipe catalog is read, and everythin
 spends the same answer — the project's answer to the Builder's `e`, the build's own check that
 the file is there, and the generated project that actually compiles it. So the file `e` opens
 and the file `b` compiles are the same file, whether the recipe spelled it relatively or
-absolutely.
+absolutely. A `cmake_target` recipe's `entry` is completed by the same rule at the same moment,
+and it is the file `e` opens; what `b` compiles for that recipe is whatever its CMake project says
+the target is made of, of which the entry is where reading starts.
 
 An **absolute** source keeps exactly the meaning it has, always. A **relative** one means
 nothing until the project has answered: until then the Editor refuses it and says so, rather

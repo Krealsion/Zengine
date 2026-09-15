@@ -22,8 +22,9 @@
 //
 // ⚠ AND IT CHOOSES NOTHING. Several recipes may produce one artifact (the recipe law accepts
 // it, `builder::check_recipes`); the answer lists them in catalog order and a consumer that
-// cannot choose says so. A `cmake_target` recipe is listed with no source, because it names a
-// configured tree and a target and no single file -- a source is never guessed for one.
+// cannot choose says so. A `cmake_target` recipe is listed with the editing entry its author
+// wrote, or with no source when it names none -- it names a configured tree and a target, and
+// a file is never guessed for one from the target's, the artifact's or the pane's name.
 //
 // HOST-SIDE, for `staging.hpp`'s reason: it reads the realization owner's rows, and no
 // presentation source may spell that owner. The desk reads the value through
@@ -77,8 +78,33 @@ inline HostContext::CodeSource code_source_of(const std::string& office, loom::W
         named.kind = recipe.single_source.has_value() ? "single_source" : "cmake_target";
         if (recipe.single_source.has_value()) {
             named.source = recipe.single_source->source;
+        } else if (recipe.cmake_target.has_value()) {
+            named.source = recipe.cmake_target->entry;
         }
         out.recipes.push_back(std::move(named));
+    }
+    return out;
+}
+
+/// WHICH FILE ONE RECIPE'S CODE STARTS IN -- the answer `HostContext::recipe_source` gives the
+/// read-only project door, read from the catalog in force at the ask: a single source, or the
+/// editing entry a `cmake_target` recipe names, completed as the build reads them; empty for a
+/// recipe that names neither. One function, so the Builder's `e` and Edit Code read a recipe the
+/// same way, and a suite can ask the rule the host wires rather than a copy of it.
+// WL-CODE-05 -- agents/workshop/code.md
+inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Recipe>& recipes,
+                                                  const std::string& id) {
+    HostContext::RecipeSource out;
+    const builder::Recipe* found = builder::recipe_named(recipes, id);
+    if (found == nullptr) {
+        return out;
+    }
+    out.known = true;
+    out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
+    if (found->single_source.has_value()) {
+        out.source = found->single_source->source;
+    } else if (found->cmake_target.has_value()) {
+        out.source = found->cmake_target->entry;
     }
     return out;
 }

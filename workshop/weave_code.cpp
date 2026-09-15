@@ -22,7 +22,7 @@ namespace {
 /// nobody holds the office (nothing is running to trace); the office is Workshop's own or held
 /// by a weave the plan did not load (no artifact is known); no recipe produces the artifact
 /// (author one); several do (choose -- the Builder holds that choice); one does and names a
-/// build tree rather than a file (there is no single source to open, and none is guessed).
+/// build tree with no editing entry (there is no file to open, and none is guessed from a name).
 // WL-CODE-02 -- agents/workshop/code.md
 std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
     if (code.weave == 0) {
@@ -53,9 +53,10 @@ std::string code_refusal(const std::string& name, const HostContext::CodeSource&
     }
     const HostContext::CodeSource::Recipe& only = code.recipes.front();
     if (only.source.empty()) {
-        return "recipe `" + only.id + "` is a " + only.kind + " recipe: it builds " +
-               code.artifact + " from a build tree and a target, not from one source file -- "
-                               "open the file you mean from Files; nothing was opened";
+        return "recipe `" + only.id + "` is a " + only.kind + " recipe with no editing entry: it "
+               "builds " + code.artifact + " from a build tree and a target and names no file to "
+               "start from -- give it an `entry`, or open the file you mean from Files; nothing "
+               "was opened";
     }
     return std::string();
 }
