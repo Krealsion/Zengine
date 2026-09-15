@@ -76,6 +76,7 @@ using ws::PlanRowWritten;
 using ws::ProjectFrontierRequested;
 using ws::ProjectFrontierSaid;
 using ws::OpenSourceRequested;
+using ws::PaneSourceOpened;
 using ws::RecipeSourceRequested;
 using ws::RecipeSourceSaid;
 using ws::SourceOpened;
@@ -166,7 +167,7 @@ class BuilderPaneWeave
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, PaneSourceOpened>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
@@ -528,6 +529,45 @@ public:
         }
     }
 
+    /// A MAKER REACHED THE SOURCE BEHIND A PANE, AND IT IS OPEN -- Workshop's reading, published
+    /// once the open its Edit Code asked for took (WL-CODE-03). The choice moves to the recipe
+    /// that source belongs to, visibly, so the next build is that pane's without the maker
+    /// finding its recipe by name. Nothing is built, armed or realized: those stay gestures.
+    ///
+    /// ⚠ THE OFFICE IS READ BEFORE A WORD IS: the reading changes this pane's standing choice,
+    /// so a publication that was not authored as Workshop's office moves nothing.
+    ///
+    /// ⚠ `picked` IS NOT WRITTEN. It is the maker's explicit pick among several producers
+    /// (WL-PROJ-14), written only by `c`; this reading names the one recipe the host found, and
+    /// the frontier action must not take it for a choice between several.
+    // WL-CODE-04 -- agents/workshop/code.md
+    void on(const PaneSourceOpened& said, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        // A CATALOG THIS PANE HAS HEARD AND THAT DOES NOT HOLD THE RECIPE IS A DISAGREEMENT TO SAY,
+        // not a choice to make: the pane's copy is behind the host's, and its next arrival is the
+        // truth. One it has not heard yet takes the name, which that arrival keeps or releases.
+        if (heard_ && named_row(said.recipe) == known_.recipes.size()) {
+            if (!role_.open) {
+                notice_ = "the source of " + said.name + " is open, but recipe `" + said.recipe +
+                          "` is not in the recipes this pane last heard -- nothing was chosen";
+                say(mail);
+            }
+            return;
+        }
+        state_.chosen = said.recipe;
+        // THE ROLE LINE KEEPS ITS OWN ROW: a maker mid-way through typing a role still sees the
+        // line; the choice has moved underneath it and the recipe row says so when it closes.
+        if (!role_.open) {
+            notice_ = "build recipe: " + said.recipe + " -> " + said.artifact + " -- the source of " +
+                      said.name + " is open in the Editor; save it, then build here (load after "
+                                  "build reloads " +
+                      said.name + " in place)";
+        }
+        say(mail);
+    }
+
     // ---- The clipboard the role line spends -----------------------------------------
 
     void on(const surface::ClipboardCopy& said, loom::Mail&) {
@@ -772,8 +812,12 @@ private:
         }
         (void)mail.publish(builder::RevertArtifact{shown_.artifact});
         awaiting_realization_ = true;
+        // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture: the source a maker saved is
+        // still the edited one, and the next build builds it. A running image and a saved file are
+        // two facts, and a maker reading only the pane would otherwise take one for the other.
         notice_ = "asked to revert `" + shown_.artifact +
-                  "` -- the image before the last reload runs again, state kept";
+                  "` -- the image before the last reload runs again, state kept; the saved source "
+                  "is not reverted, and the next build builds it";
         say(mail);
     }
 

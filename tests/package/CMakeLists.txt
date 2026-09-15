@@ -32,7 +32,8 @@ target_link_libraries(witness-surfaces
         zengine::ui
         zengine::component
         zengine::operator
-        zengine::operator-consumer)
+        zengine::operator-consumer
+        zengine::pane)
 
 # ---- one capability, end to end: a weave that orders time ------------------------------
 #

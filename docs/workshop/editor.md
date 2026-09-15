@@ -15,13 +15,16 @@ and Workshop holds none of them.
 
 ## Opening a source
 
-Two things can ask the Editor to open a file, and both ask the **same door**, so both get
-the same behaviour, the same refusals and the same words:
+Three things can ask the Editor to open a file, and all of them ask the **same door**, so all
+get the same behaviour, the same refusals and the same words:
 
 - the **Files** pane — browse from where you launched Workshop, anywhere your system lets
   this process read, and open any file you find (see [Files](files.md));
 - the **Builder** — choose a recipe (`c` steps through them) and press **`e`**, which asks the
-  project which file that recipe names and then opens it.
+  project which file that recipe names and then opens it;
+- **`edit code`** on a pane's context menu — Workshop follows the pane to the artifact it was
+  loaded from and the one recipe that builds it, and opens that recipe's source
+  ([edit a running pane](edit-a-running-pane.md)); its answers land on the notice line.
 
 A recipe that names no single source — a `cmake_target` recipe builds a project of its own —
 refuses in those words. There is no path argument and no multi-file session: the Editor holds
@@ -49,10 +52,10 @@ is there.
 
 The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
 cannot carry, unsaved edits in the document you have open, a paste of yours still on its way.
-Nothing is added to your desk, your keys do not move, and whoever asked is told why in the
-Files pane's or the Builder's own row. If the Editor pane is not loaded at all (a load plan
-without it), Files and the Builder are told so at once — `no Editor and desk are present to
-open <file>` — and nothing waits. A refusal from the Editor, or from the open itself, says what
+Nothing is added to your desk, your keys do not move, and whoever asked is told why — in the
+Files pane's or the Builder's own row, or on the notice line for `edit code`. If the Editor pane
+is not loaded at all (a load plan without it), whoever asked is told so at once — `no Editor and
+desk are present to open <file>` — and nothing waits. A refusal from the Editor, or from the open itself, says what
 stopped it before it names a path, so a narrow row cuts the path and keeps the reason:
 `the Editor holds unsaved changes to ...` still says why. When Files or the Builder cannot send
 the open at all, their own row starts with the name you chose.
@@ -230,7 +233,7 @@ The Editor edits what is in the file and writes what you edited — nothing else
 ## The loop
 
 ```
-open a file (Files pane, or the Builder's e) → edit → save (Ctrl+s)
+open a file (Files pane, the Builder's e, or edit code on a pane) → edit → save (Ctrl+s)
     → build (b), load after build (Shift+b then b, or f) → inspect (Project / Powers / Loaded)
     → press back into the Editor and go again
 ```

@@ -87,6 +87,7 @@
 #include "workshop/host_sources.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_plan.hpp"
+#include "workshop/provenance.hpp" // what stands behind an office's code, wired as the host wires it
 #include "workshop/recipes.hpp"
 #include "workshop/sample_door.hpp"
 #include "workshop/sample_presentation.hpp"
@@ -2535,6 +2536,11 @@ struct PaneRig {
         // opening manager, exactly as workshop.cpp grants them.
         speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
         speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
+        // ...and a pane's Edit Code: the open it asks the opening office for, and the reading it
+        // publishes once that open took, exactly as workshop.cpp grants them.
+        speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version,
+                            kOpeningRole);
+        speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
         return speak;
     }
 
@@ -2951,6 +2957,11 @@ struct PaneRig {
             return WORKSHOP_SO_LEGACY_PANE;
         }
 #endif
+#ifdef WORKSHOP_SO_TALLY
+        if (stem == "zengine-example-tally") {
+            return WORKSHOP_SO_TALLY;
+        }
+#endif
 #ifdef WORKSHOP_SO_FAILING_EDITOR
         if (stem == "zengine-failing-editor") {
             return WORKSHOP_SO_FAILING_EDITOR;
@@ -2988,6 +2999,19 @@ struct PaneRig {
             bus.pump_pending();
         }
         return plan_->outcome();
+    }
+
+    /// WIRE WHAT STANDS BEHIND AN OFFICE'S CODE the way `workshop.cpp` wires it: the bus's holder,
+    /// this rig's realization owner's rows (none before `run_plan`), and the catalog it holds --
+    /// each read at the moment a pane's Edit Code asks.
+    void wire_code_source() {
+        host.code_source = [this](const std::string& office) {
+            if (plan_ != nullptr) {
+                return provenance::code_source_of(office, bus, *plan_, host_recipes);
+            }
+            return provenance::code_source_of(office, bus.role_holder(office), {},
+                                              host_recipes.all());
+        };
     }
 
     /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out --
@@ -3894,11 +3918,14 @@ inline std::vector<std::string> presentation_sources() {
     // exactly one file in this repository spells that name, and the tripwire that forbids
     // every other file from spelling it would otherwise forbid the one file whose job it is.
     // Naming a retired reference is not knowing a pane: nothing here can present one.
+    // `provenance.hpp` is host-side for `staging.hpp`'s reason: it reads the realization
+    // owner's resolved rows to say which artifact an office's holder came from, the host wires
+    // it into `HostContext::code_source`, and the desk reads only the value that closure answers.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
                                                 "staging.hpp", "authoring.hpp", "pane_doors.hpp",
                                                 "pane_seam_vocabulary.hpp",
-                                                "pane_migration.hpp"};
+                                                "pane_migration.hpp", "provenance.hpp"};
     std::vector<std::string> out;
     for (const std::filesystem::directory_entry& entry :
          std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {

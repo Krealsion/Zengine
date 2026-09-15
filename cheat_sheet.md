@@ -95,6 +95,7 @@ tree's own spelling: `#include "timer/vocabulary.hpp"`.
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
 | `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
+| `zengine::pane` | offer Workshop a pane from a weave: the offer, the room, the rows, the gestures |
 
 The loadable artifacts come with the package, never from a build tree:
 
@@ -603,7 +604,9 @@ and a right-click or `Esc` leaves — leaving is all that press does.
 
 **Context menu** — right-click a pane, a document object, or the empty room, and a small
 menu beside the click lists what can be done with the thing you pointed at: pane
-arrangement (arrange, Order, Reset, remove), object deletion, or Workshop's own doors.
+arrangement (arrange, Order, Reset, remove), `edit code` (the pane's source, through its
+recipe — [edit a running pane](docs/workshop/edit-a-running-pane.md)), object deletion, or
+Workshop's own doors.
 Rows whose action has a working shortcut in the place you are returning to show it after
 the label, spelled from the live keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row
 opens its group, staying beside the click), `Esc` backs out or closes, a click outside

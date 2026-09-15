@@ -4473,7 +4473,7 @@ TEST_CASE("CTX-0: the contextual surface is painted where it is hit") {
     // legend is already saying -- and the rows are the declared population with the
     // cursor's own mark, labels from the one action truth, groups saying they descend.
     const std::vector<std::string> rows = context_rows_on(t.canvases.back(), t.session());
-    REQUIRE(rows.size() == 4);
+    REQUIRE(rows.size() == 5);
     for (const std::string& row : rows) {
         CHECK(row.find("ACTIONS") == std::string::npos);
         CHECK(row.find("chooses") == std::string::npos);
@@ -4481,11 +4481,12 @@ TEST_CASE("CTX-0: the contextual surface is painted where it is hit") {
     CHECK(rows[0] == "> arrange");
     CHECK(rows[1] == "  Order >");
     CHECK(rows[2] == "  Reset >");
-    CHECK(rows[3] == "  remove");
+    CHECK(rows[3] == "  edit code");
+    CHECK(rows[4] == "  remove");
 
     // THE INVERSE PAIR, SPENT: a press at the row the painter drew chooses that row.
-    // Row 3 is `remove` -- and the pane is gone, through the one door.
-    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 3));
+    // Row 4 is `remove` -- and the pane is gone, through the one door.
+    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 4));
     CHECK_FALSE(t.menu().open);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
 

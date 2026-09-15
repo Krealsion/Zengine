@@ -2059,18 +2059,21 @@ TEST_CASE("CTX-0: a right press captures a subject and selects nothing") {
 
 TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id") {
     // The pane's top level since ARR-0: ONE arrangement entry -- moving and resizing are
-    // one maker intent -- then two groups at their first members' positions, and remove.
+    // one maker intent -- then two groups at their first members' positions, then Edit Code
+    // (a different intent: what the pane is, not where it sits), and remove, last.
     // Groups appear ONCE, and an empty group is structurally impossible (a group entry
     // exists only where a member declared it).
     const std::vector<ContextEntry> pane = context_population(context_subject::kPane, "");
-    REQUIRE(pane.size() == 4);
+    REQUIRE(pane.size() == 5);
     CHECK_FALSE(pane[0].is_group);
     CHECK(pane[0].row->act == Act::kArrange);
     CHECK(pane[1].is_group);
     CHECK(std::string(pane[1].group) == "Order");
     CHECK(pane[2].is_group);
     CHECK(std::string(pane[2].group) == "Reset");
-    CHECK(pane[3].row->act == Act::kManageRemove);
+    CHECK_FALSE(pane[3].is_group);
+    CHECK(pane[3].row->act == Act::kEditCode);
+    CHECK(pane[4].row->act == Act::kManageRemove);
 
     const std::vector<ContextEntry> order =
         context_population(context_subject::kPane, "Order");
@@ -2275,6 +2278,7 @@ TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
     t.key(input::scan::kUp); // the cursor bound keeps it at the top; up is a no-op
     t.key(input::scan::kDown);
     t.key(input::scan::kDown);
+    t.key(input::scan::kDown); // edit code
     t.key(input::scan::kDown); // remove, the last top-level row
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.menu().open);

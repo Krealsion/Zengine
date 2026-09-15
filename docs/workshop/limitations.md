@@ -10,9 +10,9 @@ deprecation cycles.
 
 ### The installable package does not cover everything Zengine builds
 
-`find_package(zengine)` exports eight capability targets and installs the loadable artifacts
+`find_package(zengine)` exports nine capability targets and installs the loadable artifacts
 they need — see [using Zengine from another
-project](../getting-started.md#using-zengine-from-another-project). Four things are
+project](../getting-started.md#using-zengine-from-another-project). Three things are
 deliberately outside it, and each is a real limit rather than an oversight:
 
 - **The SDL-backed skin and input reader are not installed.** When no SDL3 is present the
@@ -22,8 +22,6 @@ deliberately outside it, and each is a real limit rather than an oversight:
 - **Workshop is not installed.** Its executable compiles the path of the build tree that
   produced it into itself, for the Builder tool it mounts, so an installed copy would carry a
   stranger's directory layout. Workshop is launched from a build tree.
-- **The external-pane vocabularies are not exported**, for the reason below: there is no way
-  for an externally-built pane to arrive in a Workshop run.
 - **The Timer's own service headers are not installed** (`timer/normalize.hpp`,
   `timer/timer_weave.hpp`), so writing a *replacement* Timer service outside this repository
   is not a supported path. Using the Timer is; being one is not.

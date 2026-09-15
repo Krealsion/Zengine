@@ -101,6 +101,12 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.reset-place", kOnPane, "Reset"},
     {"manage.reset-width", kOnPane, "Reset"},
     {"manage.reset-height", kOnPane, "Reset"},
+    // EDIT CODE: the pointed pane's running code, followed to its authored source. After the
+    // arrangement vocabulary, because it is a different intent -- change what the pane IS, not
+    // where it sits -- and before `remove`, which stays last as the one row that takes a pane
+    // away. A row, not a group: what it can reach is the host's to say at spend, never the
+    // menu's at paint (WL-CTX-07).
+    {"pane.edit-code", kOnPane, ""},
     {"manage.remove", kOnPane, ""},
     // -- a document object -------------------------------------------------------------
     {"object.delete", kOnObject, ""},

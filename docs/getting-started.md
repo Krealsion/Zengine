@@ -68,6 +68,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
 | `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
+| `zengine::pane` | offer Workshop a pane from a weave: the offer, the room, the rows, the gestures |
 
 Every one of them carries its own include path and its own Loom dependencies, so linking one
 is the whole of what you write.
