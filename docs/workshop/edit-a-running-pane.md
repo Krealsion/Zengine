@@ -9,12 +9,15 @@ The loop, once it is set up:
 
 ```
 right-click the pane → edit code → change it → Ctrl+s
-    → Builder: Shift+b, b → the same pane shows the change, count kept
+    → Builder: b, with load after build on → the same pane shows the change, count kept
     → Shift+r takes it back, or Shift+p makes it what the next launch runs
 ```
 
-Each arrow is a gesture you make. Opening code builds nothing, saving builds nothing, a build
-reloads only because you armed it, and nothing is kept for the next launch until you promote.
+Each arrow is a gesture you make. *Load after build* is a switch in the Builder that stays where
+you leave it: you turn it on with `Shift`+`b` the first time through after Workshop starts, and
+from then on `b` alone builds and reloads — [step 3](#every-time-point-change-build-reload) says
+how to read which it is. Opening code builds nothing, saving builds nothing, and nothing is kept
+for the next launch until you promote.
 
 ## What you need
 
@@ -66,7 +69,8 @@ appears in the picker.
 Nothing is built yet, so the Builder says the project is waiting on `tally`. Press **`f`**: it
 builds the one recipe that produces it and loads the result. The first build configures a small
 generated project and takes a few seconds; then the realize row says
-`realized -- weave #… as example.tally`.
+`realized -- weave #… as example.tally`. `f` loads what it builds without turning load after
+build on.
 
 **Done this before?** A built pane is kept beside Workshop, not in your project:
 `Zengine/build/workshop/tally.so`, with `tally.reloads/` next to it. If one is there, `o` loads it
@@ -90,18 +94,42 @@ opened the source of Tally -- recipe `tally` builds tally; save, then build it i
 with load after build, and Tally reloads in place
 ```
 
-The Builder has chosen the `tally` recipe for you and says so on its first row. Nothing was
-built, nothing was selected, and Tally is still running with its count.
+The Builder has chosen the `tally` recipe for you, and its notice says so and whether load after
+build is on:
+
+```
+build recipe: tally -> tally -- the source of Tally is open in the Editor; save it, then build (load after build: off)
+```
+
+Nothing was built, nothing was selected, and Tally is still running with its count.
 
 **2. Change it, and save.** The rows Tally says are in `rows_for`, at the top of the file under
-`CHANGE THIS FIRST`, on line 39. The Editor opens at line 1 with a few rows showing and has no
-search: roll the mouse wheel over it until that line shows (about a dozen notches at the size
-above; the caret stays where it was), then press on `Tally` to put the caret there. `Shift`+`Right`
-five times selects the word; type `Count` over it, and press `Ctrl`+`s`. The Editor's status row
-says `saved`. The build reads the saved file, never the buffer.
+`CHANGE THIS FIRST`, on line 39. The first time, the Editor opens at line 1 with a few rows showing
+and has no search: roll the mouse wheel over it until that line shows (about a dozen notches at the
+size above; the caret stays where it was). When `edit code` opens `tally.cpp` again while the Editor
+still holds it, the Editor stays where you left it, caret and all, so the line is already in view.
+Press on the word to put the caret there. `Shift`+`Right` once per letter selects it (five times
+for `Tally`); type the new word over it (`Count`, say), and press `Ctrl`+`s`. The Editor's status
+row says `saved`. The build reads the saved file, never the buffer.
 
-**3. Build, and reload.** Press into the Builder, press **`Shift`+`b`** — the notice says
-`load after build: on` — then **`b`**. When the build finishes the realize row says:
+**3. Build, and reload.** Press into the Builder, and before pressing anything read what it says,
+because that decides what `Shift`+`b` does now.
+
+*The realize row first.* If it says `-- (load-after-build loads … now)`, a build finished and
+nothing has loaded it, and `Shift`+`b` is a button for *that* build: it asks for the same recipe
+again with the load aboard, and turns nothing on. When the row names `tally`, press
+**`Shift`+`b`**. When it names anything else, press **`b`** first; once that build finishes the
+row names `tally`, and `Shift`+`b` loads it.
+
+*Otherwise, the end of the notice Edit Code wrote* says where the load-after-build switch is:
+
+- `(load after build: off)`, as it is the first time through after Workshop starts: press
+  **`Shift`+`b`** — the notice says `load after build: on` — then **`b`**;
+- `(load after build: on)`, as it is every time after that: press **`b`** alone. The switch stays
+  on; a second `Shift`+`b` would turn it off again (the notice says `load after build: off`), and
+  `b` would then only build.
+
+When the build finishes the realize row says:
 
 ```
 realized, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #25 keeps its id and its state
@@ -144,7 +172,7 @@ the column. Fix it, save, and `b` again: the reload goes ahead as if nothing had
 
 ### A change to what the pane keeps
 
-Add a field to `TallyState` and build with load after build armed. The build works, and the
+Add a field to `TallyState` and build with load after build on. The build works, and the
 reload is refused before anything is replaced:
 
 ```

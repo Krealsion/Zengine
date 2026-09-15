@@ -162,7 +162,7 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 |---|---|
 | **`c`** / **`Shift+c`** | move through the recipes this project holds (it wraps) |
 | **`b`** | **build** the recipe you have chosen |
-| **`Shift+b`** | **load after build** — one action in two states. Before or during a build it is a *toggle*: armed, the next `b` builds **and** loads the result into the running project. When an artifact is built, nothing was asked about loading it and nothing is armed, it is a *button*: press it and the built artifact is loaded now |
+| **`Shift+b`** | **load after build** — one action in two states. Mostly it is a *switch* that stays where you leave it until Workshop quits: while it is on, every `b` builds **and** loads the result into the running project, and each press says `load after build: on` or `off`. When a build has finished that nothing asked to load, and the switch is off, it is a *button* instead: the realize row says `-- (load-after-build loads <artifact> now)`, and pressing it asks for that finished build's recipe again with the load aboard — that build's recipe, even if you have chosen another since |
 | **`Shift+p`** | **promote** the running image — make it the file a restart loads (after a reload in place; below) |
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
 | **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
@@ -172,8 +172,10 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
 of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
-recipe, visibly, and says the source is open. It builds, arms and loads nothing — `b` and
-`Shift`+`b` stay yours ([edit a running pane](edit-a-running-pane.md)).
+recipe, visibly, and says the source is open and whether load after build is on. It builds,
+arms and loads nothing, and it does not say the pane will reload — whether a rebuild can reload
+in place is Workshop's notice to give. `b` and `Shift`+`b` stay yours
+([edit a running pane](edit-a-running-pane.md)).
 
 The pane shows the office it presents and the catalog in force, the chosen recipe and what it
 makes, where the last build got to (with its
@@ -215,7 +217,9 @@ Builder, and no "all good" is manufactured.
 recipe row and the ask agree — and performs exactly what `Shift+b` performs: the same build,
 the same offer, the same realization decision by the same owner. When **several** recipes
 produce the frontier, `f` refuses to choose between them and names them; pick one with `c` and
-press `f` again. When nothing is waiting, or nothing here produces the artifact, `f` says so
+press `f` again. A pick counts only while it is still the chosen recipe: when `edit code`, or
+`f` itself, has since moved the choice to another recipe, that recipe is not one you picked, and
+`f` asks again. When nothing is waiting, or nothing here produces the artifact, `f` says so
 and asks for nothing.
 
 `f` starts a build **only when pressed**. Encountering a buildable missing artifact never

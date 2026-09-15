@@ -234,8 +234,8 @@ The Editor edits what is in the file and writes what you edited — nothing else
 
 ```
 open a file (Files pane, the Builder's e, or edit code on a pane) → edit → save (Ctrl+s)
-    → build (b), load after build (Shift+b then b, or f) → inspect (Project / Powers / Loaded)
-    → press back into the Editor and go again
+    → build (b; to load it too, Shift+b once turns load after build on, then b each time; or f)
+    → inspect (Project / Powers / Loaded) → press back into the Editor and go again
 ```
 
 Everything after **save** is the Builder's and the project's, unchanged — the Editor adds no
