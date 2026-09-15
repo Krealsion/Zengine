@@ -40,8 +40,9 @@ finished build's own ask.
 
 **Consequences.** A plain build no longer changes the file a restart loads; the product reaches it
 when the maker loads it. `<stem>.reloads/` grows one file per reload and nothing prunes it. A
-promotion that wrote over the previous image leaves nothing honest to revert to, and revert says
-so. A changed shape is refused by the kernel before the incumbent is touched, and the road on is
-a prepared replacement with an authored migration, which Workshop does not host yet.
+promotion keeps the bytes it writes over there too (`<stem>-<n>-promoted-over`), so a revert after
+it still runs the image before the last reload. A changed shape is refused by the kernel before
+the incumbent is touched, and the road on is a prepared replacement with an authored migration,
+which Workshop does not host yet.
 
 **Laws supported.** [WL-PROJ-16](../workshop/project.md).
