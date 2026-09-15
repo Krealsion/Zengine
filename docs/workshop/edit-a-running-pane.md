@@ -68,6 +68,12 @@ builds the one recipe that produces it and loads the result. The first build con
 generated project and takes a few seconds; then the realize row says
 `realized -- weave #… as example.tally`.
 
+**Done this before?** A built pane is kept beside Workshop, not in your project:
+`Zengine/build/workshop/tally.so`, with `tally.reloads/` next to it. If one is there, `o` loads it
+and nothing waits, and Tally shows what that earlier build said, whatever `tally.cpp` says now.
+Delete both before `o` to start from this source, or carry on: the first build with load after
+build replaces it in place.
+
 **3. Open it.** Give Workshop the keys back, `p`, choose `Tally`. It says `Tally: 0`. Press into
 it; each `Space` adds one.
 
@@ -88,8 +94,11 @@ The Builder has chosen the `tally` recipe for you and says so on its first row. 
 built, nothing was selected, and Tally is still running with its count.
 
 **2. Change it, and save.** The rows Tally says are in `rows_for`, at the top of the file under
-`CHANGE THIS FIRST`. Change `"Tally: "` to `"Count: "` and press `Ctrl`+`s`. The Editor's status
-row says `saved`. The build reads the saved file, never the buffer.
+`CHANGE THIS FIRST`, on line 39. The Editor opens at line 1 with a few rows showing and has no
+search: roll the mouse wheel over it until that line shows (about a dozen notches at the size
+above; the caret stays where it was), then press on `Tally` to put the caret there. `Shift`+`Right`
+five times selects the word; type `Count` over it, and press `Ctrl`+`s`. The Editor's status row
+says `saved`. The build reads the saved file, never the buffer.
 
 **3. Build, and reload.** Press into the Builder, press **`Shift`+`b`** — the notice says
 `load after build: on` — then **`b`**. When the build finishes the realize row says:
