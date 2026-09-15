@@ -12,24 +12,33 @@ its stem beside the host, so every project one host directory serves shares thos
 
 **Decision.** Configuration generates two files beside the host. `development-build-recipes.json`
 has one `cmake_target` row per listed shipped pane weave: its target, the directory CMake builds
-it into, and the source `zengine_weave` recorded as its entry. `development-runtime.cmake` copies
-the host, its staged artifacts, both plans and both catalogs into a runtime directory, writes a
-manifest naming the build tree, and refuses another tree's runtime, one already made and any
-non-empty directory. A maker launches the runtime with `--recipes` naming its catalog.
+it into, and the source `zengine_weave` recorded as its entry. `development-runtime.cmake` sets
+the tree's facts for `workshop/prepare-runtime.cmake`, which copies the host, its staged
+artifacts, both plans and both catalogs into a runtime directory and writes a manifest last: the
+tree, the configuration, each copy and the digest of each copy only a build changes. A later run
+reuses that runtime while the tree still builds those digests, and refuses, copying nothing,
+another tree's or configuration's runtime, an incomplete or stale one, and any other non-empty
+directory. The pane artifacts carry no digest: a promotion rewrites them there, and a development
+build rebuilds them in the tree.
 
 **Alternatives considered.**
-- *Running the build tree's own Workshop* — argued: the files it maps are an ordinary build's
-  staging output, so its separation from the build lasts until someone builds, and that build
-  also changes what its next launch loads.
+- *Running the build tree's own Workshop* — tried: with one running on Windows, an ordinary
+  build failed copying over the pane DLL it had loaded, and succeeded once it quit. Its separation
+  from the build lasts until someone builds, and that build also changes what its next launch
+  loads.
 - *Pane recipes in the shipped default catalog* — argued: Files' `a` seeds a maker's catalog
   from the shipped rows, so every project would inherit Workshop's own panes.
 - *An install component for Workshop* — argued: the package ships no Workshop, and an install
   rule would claim a distributable product this setup is not.
-- *A custom target that makes the runtime* — argued: a recipe names targets, so a build could
-  write over a running runtime; a `-P` script is out of every recipe's reach.
+- *A custom target that makes the runtime* — argued: a build of it, which any recipe can ask
+  for, would write a runtime. What makes or reuses one is running the script, which the
+  development launch does ([the launch](the-development-launch-stands-outside-workshop.md));
+  building that launcher writes only its own executable.
+- *Refreshing a stale runtime in place* — argued: it would write over images a Workshop may have
+  mapped and over what a maker promoted there.
 
-**Consequences.** A changed host or a newly listed pane needs a new runtime, and promotions made
-in the old one go with it. Two development roots never share a runtime unless a maker points one
-at the other's directory, which the manifest refuses.
+**Consequences.** A changed host, service, plan or catalog needs a new runtime; the old one is
+refused, not removed, so its promotions stay where they were made. Two development roots never
+share a runtime unless a maker points one at the other's directory, which the manifest refuses.
 
 **Laws supported.** [WL-CODE-06](../workshop/code.md), [WL-CODE-07](../workshop/code.md).

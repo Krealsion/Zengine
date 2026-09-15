@@ -110,6 +110,7 @@
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <thread>
 #include <utility>
@@ -613,9 +614,9 @@ inline RecipeStart start_recipe(const BuildCommand& command) {
 /// than beside it, so there is exactly one implementation of the platform work
 /// and the canary cannot pass merely because two paths drifted apart.
 ///
-/// The one-millisecond nap is what makes this a wait rather than a spin. It is
-/// also the only sleep anywhere in this file, and it exists solely on the path
-/// that is deliberately not used.
+/// The one-millisecond nap is what makes this a wait rather than a spin. It and
+/// `run_forwarding`'s below are the only sleeps in this file, and neither is on a
+/// path a weave takes.
 inline RunResult run_recipe(const BuildCommand& command) {
     RunResult result;
     RecipeStart begun = start_recipe(command);
@@ -639,6 +640,44 @@ inline RunResult run_recipe(const BuildCommand& command) {
         }
         if (seen.fresh.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+}
+
+/// Run one command TO COMPLETION, handing its output on to `to` as it arrives. IT
+/// BLOCKS, and it keeps none of the output: every byte went on.
+///
+/// FOR A PROCESS WHOSE WORDS BELONG TO WHOEVER WATCHES THIS ONE. The development
+/// launch (`workshop/develop.hpp`) is no weave: it holds the runtime script and
+/// then the Workshop it started until each ends, and what they say reaches the
+/// launch's own output while they run rather than after. Written over the held
+/// primitive like `run_recipe`, so the platform work keeps one implementation. Its
+/// nap is a frame long rather than a millisecond, because what it holds may run
+/// for hours and a quiet one should cost nothing.
+inline RunResult run_forwarding(const BuildCommand& command, std::FILE* to) {
+    RunResult result;
+    RecipeStart begun = start_recipe(command);
+    if (!begun.started) {
+        result.trouble = begun.trouble;
+        return result;
+    }
+    result.started = true;
+    for (;;) {
+        const RunLook seen = begun.process.look();
+        if (!seen.fresh.empty()) {
+            (void)std::fwrite(seen.fresh.data(), 1, seen.fresh.size(), to);
+            (void)std::fflush(to);
+        }
+        if (seen.ended) {
+            result.status = seen.status;
+            if (seen.never_ran) {
+                result.started = false;
+                result.trouble = seen.trouble;
+            }
+            return result;
+        }
+        if (seen.fresh.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }
 }

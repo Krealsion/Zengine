@@ -1,9 +1,10 @@
 # Workshop law — a pane's code
 
 Register `WL-CODE`: a running pane followed to the authored source of its code, the maker handed
-on to the build, and Workshop's own panes made a project the same way. One law per heading; cite
-by ID. Router: [`../workshop.md`](../workshop.md). The opening is [`opening.md`](opening.md); the
-pointed subject is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
+on to the build, and Workshop's own panes made a project the same way, with the launch that starts
+the Workshop working on them. One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md). The opening is [`opening.md`](opening.md); the pointed subject
+is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
 [`project.md`](project.md); what a build said is [`build-output.md`](build-output.md).
 
 ## WL-CODE-01 — What stands behind an office's code is three owners' answer, read at the ask
@@ -146,31 +147,65 @@ WHY — `agents/decisions/workshop-develops-itself-from-a-copy.md`
 
 ## WL-CODE-07 — The Workshop that edits itself runs from a copy no build writes
 
-LAW — `development-runtime.cmake` copies the host, its staged artifacts, both plans and both catalogs into a runtime its manifest binds to one build tree, and into nothing that is already something.
+LAW — The runtime script copies the host, its staged artifacts, both plans and both catalogs into a runtime its manifest binds to one tree and configuration, reuses it while current, and writes over nothing.
 
 MEANS
 - a pane builds into its package's directory, never the host's: no build writes an image it maps;
-- another tree's runtime, a runtime already made and a non-empty directory are refused, uncopied;
-- a reload stages into the runtime and a promotion writes the runtime's file, not the build tree.
+- a runtime of another tree or configuration, an incomplete one and a busy directory are refused;
+- a host, service, plan or catalog built anew makes it stale; a rebuilt or promoted pane does not.
 
 DOES NOT MEAN
-- that the runtime is an install: the package ships no Workshop, and a changed host is a new copy.
+- that a runtime updates itself: a stale one is kept as it is, and a new one is made beside it.
 
 PROVEN BY — `workshop/CMakeLists.txt` `zengine_development_copies`,
-`zengine_development_runtime`; `tests/test_workshop_files.cpp` case `"the development runtime is
-made once, into nothing that is already something: another tree's runtime, this tree's own and a
-non-empty directory are refused, and nothing is copied"`, case `"the development catalog this
-tree generated names every shipped pane by its own target, build directory and weave source, each
-one the Editor opens, and nothing else"`.
-UNWITNESSED — a successful copy, and an ordinary build leaving it untouched, are measured by a
-live witness on Linux and on Windows and pinned by no case.
+`zengine_development_replaceable`, `zengine_development_runtime`; `workshop/prepare-runtime.cmake`
+`zengine_manifest`, `zengine_fixed_names`, `zengine_changed`, `zengine_missing`;
+`tests/test_workshop_files.cpp` case `"a development runtime is made whole into an absent
+directory, then reused while what it copied is current: a promoted pane and a rebuilt one keep it,
+and nothing is copied again"`, case `"a development runtime that is stale, incomplete, or made for
+another configuration or another set of copies is refused and left exactly as it is"`, case `"the
+development runtime script this tree generated refuses another tree's runtime, an earlier script's
+runtime and a non-empty directory, and copies nothing"`, case `"the development catalog this tree
+generated names every shipped pane by its own target, build directory and weave source, each one
+the Editor opens, and nothing else"`.
+UNWITNESSED — an ordinary build leaving a runtime's files untouched is measured by a live
+witness on Linux and on Windows and pinned by no case.
 WHY — `agents/decisions/workshop-develops-itself-from-a-copy.md`
+
+## WL-CODE-08 — The development launch starts its runtime's copy, or nothing
+
+LAW — `zengine-workshop-develop` has the runtime script make or reuse its runtime, then starts that runtime's host with its graphical plan, development catalog and project directory, or starts nothing.
+
+MEANS
+- the build tree's host is never started: a refused or failed preparation launches nothing at all;
+- a runtime whose host is running refuses a second launch before preparing, and stops nothing;
+- the shared run configuration names only the target, whose compiled-in facts are the tree's.
+
+DOES NOT MEAN
+- that Workshop can launch, reload, edit or relaunch the process hosting it: that stays outside.
+
+PROVEN BY — `workshop/develop.hpp` `launch`, `choose`, `runtime_command`, `host_command`,
+`image_in_use`; `workshop/develop.cpp` `main`; `builder/run.hpp` `run_forwarding`;
+`workshop/CMakeLists.txt` `zengine_development_plan`; `tests/test_workshop_files.cpp` case `"the
+development launch prepares its runtime through the runtime script, then starts only that
+runtime's host, with its graphical plan and development catalog, in a project directory of its
+own"`, case `"a development launch that is refused starts nothing: no graphical plan, a runtime
+whose host is running, a runtime script that refused or never ran, a project path that is no
+directory, an argument it does not know"`, case `"an image a running program holds reads as in
+use and a file nobody holds does not, and the project directory is made when absent and refused
+when it is a file"`.
+UNWITNESSED — that CLion loads the shared configuration and runs it with its toolchain's
+environment is measured by a live witness on Windows and pinned by no case.
+WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 
 ## Do not assume
 
 - That any catalog opens Workshop's own panes: the shipped default names none of their entries;
   the development catalog a configured tree generates does (WL-CODE-06).
-- That a successful runtime copy and an ordinary build beside it are pinned — they are measured
-  by a witness, not a case (WL-CODE-07, UNWITNESSED).
+- That an ordinary build beside a runtime is pinned — it is measured by a witness, not a case
+  (WL-CODE-07, UNWITNESSED).
+- That the IDE's side of the launch is pinned — CLion loading the shared configuration and its
+  toolchain environment reaching the host are measured by a witness, not a case (WL-CODE-08,
+  UNWITNESSED).
 - That a pane is discovered because its protocol is installed: it arrives by a load-plan row a
   maker authors, and the office its source speaks as must be the role that row gives it.
