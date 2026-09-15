@@ -80,16 +80,20 @@ inline constexpr const char* kActionPickBuildable = "files.pick-buildable";
 // deliberately NOT the built-in's `recipe.*`/`authoring.*` ids, because those were Workshop
 // contexts a maker's keymap could name and this pane's modes are not: a maker who bound
 // `recipe.choose` was binding a Workshop context that no longer exists.
-
-// ⚠ THERE IS NO SEPARATE `files.choose`. The built-in spelled the chooser's commit and the
-// authoring line's commit as rows in their OWN keyboard contexts (`kRecipeChooser`,
-// `kAuthoring`), all three answering to Return; a PANE has ONE context -- its own runtime
-// handle -- so two of its rows cannot answer to one gesture and the collision law refuses
-// the declaration whole (`join_pane_rows`). So Return is `files.open`, and what it means is
-// the pane's business: enter or edit while browsing, commit while a mode is open. A maker's
-// keymap moves the gesture once and it moves in every mode, which is the honest reading of
-// "one pane, one key map" and is what a maker sees anyway.  ///< commit a chooser row / an authoring field
-inline constexpr const char* kActionCancel = "files.cancel";  ///< back out of a mode whole
+//
+// ⚠ EACH MODE'S RETURN IS AN ID OF ITS OWN, BECAUSE AN ID IS ONE OPERATION. The collision law
+// judges the declaration in force (`join_pane_rows`), and the pane replaces that declaration
+// whenever its mode changes (files.cpp `declare`), so the three rows on Return are never
+// declared together and never meet. One id for all three was not forced by that law, and it
+// let a Return Workshop resolved against one mode be acted on in the next, where it meant
+// something else: Escape and Return in one poll cancelled the line, then opened the file under
+// the cursor. So `files.open` is browsing's enter-or-edit and nothing more, the chooser's row
+// is `files.choose`, the line's field is `files.commit-field`, and a maker's keymap moves each
+// alone. `files.up`, `files.down` and `files.cancel` stay shared because each means one thing
+// in every mode that declares it: the cursor of the list shown, and out of the mode open.
+inline constexpr const char* kActionChoose = "files.choose";            ///< author this candidate
+inline constexpr const char* kActionCommitField = "files.commit-field"; ///< commit this field
+inline constexpr const char* kActionCancel = "files.cancel";            ///< out of a mode, whole
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1). What a maker is browsing survives a
 /// reload of this weave's own image; the listing is re-enumerated at every room grant

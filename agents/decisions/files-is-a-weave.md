@@ -36,14 +36,19 @@ the project is has been permitted to read nothing under it.
 
 ## Three things the code decided differently from the plan
 
-A PANE IS ONE KEYBOARD CONTEXT. The built-in bound Return three ways, in three contexts
-(`kFiles`, `kRecipeChooser`, `kAuthoring`). A pane's declared rows join into ONE map under its
-runtime handle, and the collision law refuses a second row on a gesture already taken — so
-`files.choose` could not exist beside `files.open`, and `files.parent` on Backspace would have
-made the authoring line unable to delete a character. The answer is that a pane DECLARES WHAT
-IS TRUE NOW and re-declares when its mode changes: while the line has the keyboard, two rows
-are declared and every other key arrives as an ordinary key. The ids never move, so a maker's
-authored keymap keeps working, which was the promise.
+A MODE IS A DECLARATION, NOT A KEYBOARD CONTEXT. The built-in bound Return three ways, in three
+contexts (`kFiles`, `kRecipeChooser`, `kAuthoring`). A pane's declared rows join into ONE map
+under its runtime handle, and the collision law refuses a second row on a gesture already taken
+in the rows in force — so `files.parent` on Backspace would have made the authoring line unable
+to delete a character. The answer is that a pane DECLARES WHAT IS TRUE NOW and re-declares when
+its mode changes: while the line has the keyboard, two rows are declared and every other key
+arrives as an ordinary key. The same fact lets each mode's Return be an id of its own —
+`files.open` browsing, `files.choose` in the chooser, `files.commit-field` on the line — since
+those rows are never in force together. One id for all three was not forced, and it let a Return
+Workshop resolved in one mode be acted on in the next: Escape and Return in one poll cancelled
+the line, then opened the file under the cursor. The browsing ids never moved, so a maker's
+authored override still means what it meant; one for `files.open` moves the browser's Return
+alone.
 
 THE CONVERSION IS NOT A FORMAT VERSION. A saved setup naming `zengine.workshop/project-files`
 is a legal file in the version it was written at; what changed is what that reference RESOLVES
