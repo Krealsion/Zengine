@@ -209,6 +209,10 @@ struct OutputRig {
         for (const surface::SurfaceTextRow& row : pane->shown) {
             out.push_back(row.text);
         }
+        // A BUILDER PANE ALWAYS SHOWS ROWS, so none is a picture Workshop refused or never took --
+        // said here as a failure, rather than left to a case's `rows()[0]` to crash on (the
+        // spelling reversion did, and the crash skipped the rest of the suite).
+        REQUIRE_MESSAGE(!out.empty(), "the Builder pane shows no rows: its picture was refused or never published");
         return out;
     }
     std::string text() {
