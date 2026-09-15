@@ -129,6 +129,14 @@ and is the Editor pane's own `save source` while your keys are in the source. Th
 one pane that **declares** it stands in for the document's save; that declaration, and not the
 chord, is what decides. Rebind either one and the same thing stays true.
 
+**A pane's own rows are judged later, too.** A pane declares its rows when it arrives and may
+declare them again while it runs — Files does whenever its chooser or recipe line opens. Each
+declaration meets your file under the same collision law, and one that collides is refused:
+Workshop names the pane and both actions on its band and keeps the rows it last accepted from
+that pane, so it goes on naming keys by those rows. Nothing is sent to the pane, which carries on
+in its new step, where those names may mean nothing. [Files](files.md#moving-around) says what
+that means for its chooser and recipe line today, and how to recover.
+
 **What is kept:** an override whose action id this build does not know is preserved exactly
 as you wrote it — byte for byte, in place — not deleted and not an error. It is your intent,
 addressed to whichever build understands it.

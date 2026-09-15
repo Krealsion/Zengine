@@ -215,9 +215,9 @@ WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 LAW — The pane declares only its mode's rows, one id per operation, with the ids a maker's keymap names, re-declared as the mode changes; a key they do not claim reaches it as a key.
 
 MEANS
-- the rows in force are what collide, so each mode's Return is an id of its own;
-- an id raced past a re-declaration is refused, never acted on as another mode's;
-- while the line has the keyboard only two rows are declared, so Backspace still deletes.
+- only the rows in force collide, so each mode's Return is an id of its own;
+- an id not in the rows in force is no act; one still there (up, down, cancel) keeps its meaning;
+- while the line has the keys only two rows are declared, so Backspace still deletes.
 
 PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
 `kActionOpen`, `kActionChoose`, `kActionCommitField`; `workshop/keymap.hpp` `join_pane_rows`;
