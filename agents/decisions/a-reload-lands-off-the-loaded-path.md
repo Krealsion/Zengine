@@ -14,7 +14,7 @@ program (both measured, in the research this record closes).
 **Decision.** A rebuilt product never lands on the loaded file. A single-source recipe builds
 into its own workspace, under `out/`; a CMake target builds where its project puts it; and the
 HOST copies the product to where it will be opened from — the plan's file for a first
-realization, a per-operation path beside the host for a reload — through one rule both hosts
+realization, a new per-operation path beside the host for a reload — through one rule both hosts
 wire into the executor, which spells no path. The executor's already-resolved arm opens one
 `zen.ReloadWeave` conversation over the copy, bracketed by the operator offer, settled by the
 booter. The plan's file is untouched by a reload, so a quit runs the old code next launch: the
@@ -39,7 +39,8 @@ finished build's own ask.
   its weave would leave the catalog on the old image"`.
 
 **Consequences.** A plain build no longer changes the file a restart loads; the product reaches it
-when the maker loads it. `<stem>.reloads/` grows one file per reload and nothing prunes it. A
+when the maker loads it. `<stem>.reloads/` grows one file per reload and nothing prunes it; a
+name already there, another process's or an earlier run's, is passed over and never written. A
 promotion keeps the bytes it writes over there too (`<stem>-<n>-promoted-over`), so a revert after
 it still runs the image before the last reload. A changed shape is refused by the kernel before
 the incumbent is touched, and the road on is a prepared replacement with an authored migration,

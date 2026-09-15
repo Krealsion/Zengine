@@ -1,10 +1,10 @@
 {
   "zen": 1,
   "schema": "WorkshopRecipeFile",
-  "version": 1,
+  "version": 2,
   "fields": {
     "format": "zengine-build-recipes",
-    "format_version": "1",
+    "format_version": "2",
     "recipes": [
       {
         "recipe": "skin-tui-block",
@@ -14,7 +14,8 @@
           {
             "build_dir": "@CMAKE_BINARY_DIR@",
             "target": "zengine-skin-tui-block",
-            "config": ""
+            "config": "",
+            "entry": ""
           }
         ],
         "single_source": []

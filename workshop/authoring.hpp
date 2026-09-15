@@ -67,7 +67,8 @@ inline builder::Recipe compose(const HostContext::RecipeDraft& draft) {
     r.artifact = draft.artifact;
     if (draft.tree) {
         r.artifact_dir = draft.artifact_dir;
-        r.cmake_target = builder::CMakeTargetRecipe{draft.build_dir, draft.target, std::string()};
+        r.cmake_target = builder::CMakeTargetRecipe{draft.build_dir, draft.target, std::string(),
+                                                    std::string()};
     } else {
         builder::SingleSourceRecipe one;
         one.source = draft.source;

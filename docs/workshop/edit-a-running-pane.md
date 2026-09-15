@@ -28,8 +28,7 @@ for the next launch until you promote.
   ordinary project that finds the installed packages and nothing else, so the prefix is not
   optional — and it has to be the build Workshop runs from, or the pane speaks a protocol
   Workshop does not.
-- **A terminal** to launch Workshop from, and to read a compiler's whole answer when a build fails
-  ([below](#a-build-that-fails)).
+- **A terminal** to launch Workshop from.
 - **Room for four panes**: a terminal of about 200 by 56 cells shows Files, the Builder, Tally and
   the Editor together. On a smaller one, Workshop says which pane is waiting for room.
 
@@ -165,10 +164,11 @@ Make a typo, save, and `b`. The Builder says `FAILED` on its `last` row and
 `REFUSED -- the build failed, so nothing was offered to the project` on its realize row, and
 Tally keeps running the code it had. Your edit is still in the Editor, saved.
 
-The Builder's rows show the beginning of what the build said, and a compiler's reason is further
-down its output. Grow the Builder (right-click it, `arrange`, `=`) until its `ran` row shows,
-and run that command in a terminal to read every line — the error names the file, the line and
-the column. Fix it, save, and `b` again: the reload goes ahead as if nothing had happened.
+The `last` row ends `-- read output`. Press **`l`** in the Builder: it shows that build's own
+lines, as the build wrote them, under a header naming the build — `↓` and `End` move down to
+the error, which names the file, the line and the column, and `→` pans along a long line. `Escape`
+gives the Builder's rows back ([reading what a build said](builder.md#reading-what-a-build-said)).
+Fix it in the Editor, save, and `b` again: the reload goes ahead as if nothing had happened.
 
 ### A change to what the pane keeps
 
@@ -192,9 +192,9 @@ nothing:
 
 | the notice starts | because | what to do |
 |---|---|---|
-| `no build recipe produces …, the artifact behind …` | no recipe in the catalog makes the artifact that pane runs from | for a one-file pane of your own, author its recipe with `a` in Files. Every pane Zengine ships says this too, and there is no recipe to author for those yet ([below](#what-this-does-not-do)) |
+| `no build recipe produces …, the artifact behind …` | no recipe in the catalog makes the artifact that pane runs from | for a one-file pane of your own, author its recipe with `a` in Files. Every pane Zengine ships says this under the shipped catalog; the development catalog has their recipes ([develop Workshop](develop-workshop.md)) |
 | `2 recipes build …` | several recipes make that artifact, and choosing between them is yours | choose one in the Builder with `c`, then `e` there opens its source |
-| `recipe … is a cmake_target recipe` | that recipe builds an existing CMake target, which names a build tree, not one file | open the file you mean from Files |
+| `recipe … is a cmake_target recipe with no editing entry` | that recipe builds an existing CMake target and names no file to start reading at | give the recipe an `entry` ([the Builder](builder.md#an-existing-cmake-target)), or open the file you mean from Files |
 | `… is part of Workshop itself` | the pane is one Workshop draws | there is no separate code to open |
 | `… is drawn by … which this project's plan did not load` | the pane's weave did not come from this project's load plan, so no artifact is known for it | load it through the plan |
 
@@ -204,10 +204,12 @@ file, the open is refused in those words, and nothing moves until you save or di
 ## What this does not do
 
 - **It does not build, reload or promote for you.** Each is a gesture, and each says what it did.
-- **It opens one file.** A single-source recipe names exactly one source; the headers it includes
-  are yours to find, and a pane built by a CMake target has no one file to open.
-- **Workshop's own panes are not reachable this way yet.** Files, the Builder and the rest are
-  built by Zengine's own CMake tree, and a recipe for a CMake target names no source.
+- **It opens one file.** A single-source recipe names exactly one source, and a CMake target
+  recipe its editing entry when it has one; the headers they include are yours to find, from
+  Files.
+- **Workshop's own panes need a development setup.** Files, the Builder and the rest are built by
+  Zengine's own CMake tree, and changing them from inside a running Workshop is
+  [develop Workshop](develop-workshop.md).
 - **It does not search.** The Editor holds one file and has no find or go-to-line; the example
   keeps the part to change at the top so the first loop is short.
 

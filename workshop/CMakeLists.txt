@@ -538,6 +538,161 @@ add_dependencies(zengine-workshop zengine-workshop-staging)
 file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
      INPUT ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2)
 
+# ---- THE DEVELOPMENT SETUP: WORKSHOP'S OWN PANES AS A PROJECT (WL-CODE-06, WL-CODE-07) ----
+#
+# WHAT A MAKER DEVELOPING WORKSHOP NEEDS FROM THIS TREE IS TWO FILES, and both are facts only
+# this configuration knows: where it builds each pane, and which file each pane's code starts
+# in. So they are generated here, and no line of host code names a pane, a target or a path.
+#
+# THE DEVELOPMENT CATALOG. One `cmake_target` row per shipped PANE weave: the target itself, the
+# directory CMake builds it into (`$<TARGET_FILE_DIR>`, never a guess -- the shipped catalog's own
+# lesson, above), and the weave's own source as its editing entry -- the file `zengine_weave` was
+# handed, recorded on the target, never inferred from a title, role, stem or target name. It is
+# not the shipped default and nothing selects it: a maker names it (`--recipes`, or `u` in Files).
+#
+# THE PANES ARE LISTED, BECAUSE WHICH WEAVES ARE PANES IS NOT A BUILD FACT. The Skins, the input
+# readers and the Timer are services every pane stands on, and the two providers are not weaves;
+# none of them gets a row, so building one from here is not offered. Which rows a running
+# Workshop may RELOAD is still the realization owner's to say, row by row, at the reload.
+set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-editor-pane
+                                 zengine-files zengine-info-pane zengine-terminal-pane
+                                 zengine-introspection zengine-composer)
+if(CMAKE_CONFIGURATION_TYPES)
+    set(zengine_development_config "$<CONFIG>")
+    set(zengine_development_runtime "${CMAKE_BINARY_DIR}/workshop-runtime/$<CONFIG>")
+else()
+    set(zengine_development_config "")
+    set(zengine_development_runtime "${CMAKE_BINARY_DIR}/workshop-runtime")
+endif()
+set(zengine_development_rows "")
+foreach(pane IN LISTS zengine_workshop_pane_weaves)
+    if(NOT TARGET ${pane})
+        continue()
+    endif()
+    if(NOT zengine_development_rows STREQUAL "")
+        string(APPEND zengine_development_rows ",\n")
+    endif()
+    string(APPEND zengine_development_rows
+        "      {\n"
+        "        \"recipe\": \"${pane}\",\n"
+        "        \"artifact\": \"${pane}\",\n"
+        "        \"artifact_dir\": \"$<TARGET_FILE_DIR:${pane}>\",\n"
+        "        \"cmake_target\": [\n"
+        "          {\n"
+        "            \"build_dir\": \"${CMAKE_BINARY_DIR}\",\n"
+        "            \"target\": \"${pane}\",\n"
+        "            \"config\": \"${zengine_development_config}\",\n"
+        "            \"entry\": \"$<TARGET_PROPERTY:${pane},ZENGINE_WEAVE_SOURCE>\"\n"
+        "          }\n"
+        "        ],\n"
+        "        \"single_source\": []\n"
+        "      }")
+endforeach()
+file(GENERATE OUTPUT ${zengine_workshop_dir}/development-build-recipes.json CONTENT
+"{
+  \"zen\": 1,
+  \"schema\": \"WorkshopRecipeFile\",
+  \"version\": 2,
+  \"fields\": {
+    \"format\": \"zengine-build-recipes\",
+    \"format_version\": \"2\",
+    \"recipes\": [
+${zengine_development_rows}
+    ]
+  }
+}
+")
+
+# THE DEVELOPMENT RUNTIME. A Workshop run from this tree's own host directory maps the very
+# files an ordinary `cmake --build` stages there: the copy writes over an image the process has
+# mapped, and it changes what the next launch loads without anyone promoting it. So the
+# Workshop a maker edits itself with runs from a COPY no build rule writes -- the host, the
+# artifacts staged beside it, both plans and both catalogs -- made or reused by an explicit act,
+# the development launch below or a maker's own:
+#
+#     cmake [-DZEN_RUNTIME=<dir>] -P <build>/workshop/development-runtime.cmake
+#
+# A pane target then builds into its own package directory, the reload stages its product into
+# the runtime off the loaded path, and a promotion writes the runtime's file and nothing in this
+# tree. The script is a `-P` script and not a target on purpose: a recipe names a target, and
+# nothing a recipe can name makes, reuses or writes over a runtime. What the script decides --
+# made when absent, reused while this tree's copies are current, refused and left as it is
+# otherwise -- is `prepare-runtime.cmake`; what is generated here is only this tree's facts.
+# The pane artifacts are the copies a runtime changes itself (a promotion writes them), so a
+# rebuilt pane does not make a runtime stale, and a rebuilt host or service does.
+set(zengine_development_copies "$<TARGET_FILE:zengine-workshop>")
+set(zengine_development_replaceable "")
+foreach(artifact IN LISTS zengine_workshop_artifacts)
+    list(APPEND zengine_development_copies "$<TARGET_FILE:${artifact}>")
+    if(artifact IN_LIST zengine_workshop_pane_weaves)
+        list(APPEND zengine_development_replaceable "$<TARGET_FILE:${artifact}>")
+    endif()
+endforeach()
+foreach(plan IN LISTS zengine_workshop_plans)
+    list(APPEND zengine_development_copies "${CMAKE_CURRENT_SOURCE_DIR}/${plan}")
+endforeach()
+list(APPEND zengine_development_copies "${zengine_workshop_dir}/default-build-recipes.json"
+                                       "${zengine_workshop_dir}/development-build-recipes.json"
+                                       ${ZENGINE_SDL_RUNTIME})
+string(REPLACE ";" "\"\n    \"" zengine_development_copy_lines "${zengine_development_copies}")
+string(REPLACE ";" "\"\n    \"" zengine_development_replaceable_lines
+               "${zengine_development_replaceable}")
+file(GENERATE OUTPUT ${zengine_workshop_dir}/development-runtime.cmake CONTENT
+"# Generated by Zengine's configure for ONE build tree. Do not edit: configuring rewrites it.
+#
+# Makes or reuses a development runtime: a copy of this build's Workshop that no build rule
+# writes, so a pane rebuilt from its development catalog reloads into a running Workshop without
+# the build touching an image that Workshop has mapped. See docs/workshop/develop-workshop.md.
+#
+#     cmake [-DZEN_RUNTIME=<dir>] -P ${zengine_workshop_dir}/development-runtime.cmake
+cmake_minimum_required(VERSION 3.16)
+set(zengine_build \"${CMAKE_BINARY_DIR}\")
+set(zengine_source \"${CMAKE_SOURCE_DIR}\")
+set(zengine_configuration \"$<CONFIG>\")
+set(zengine_default_runtime \"${zengine_development_runtime}\")
+set(zengine_launch \"$<TARGET_FILE:zengine-workshop-develop>\")
+set(zengine_copies
+    \"${zengine_development_copy_lines}\")
+set(zengine_replaceable
+    \"${zengine_development_replaceable_lines}\")
+include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
+")
+
+# ---- THE DEVELOPMENT LAUNCH (WL-CODE-08) -----------------------------------------------
+#
+# `zengine-workshop-develop` is what a maker runs to work in that runtime: CLion's shared
+# "Develop Workshop" configuration (`.run/` at the repository root) names this target and
+# nothing else, and a shell runs the same executable. It claims the runtime -- one launch has it,
+# from before the script runs until the Workshop it started has exited -- runs the script above,
+# then starts the runtime's own host with the graphical plan, the development catalog and a
+# project directory of its own (workshop/develop.hpp) -- or starts nothing, and says why.
+#
+# BUILDING IT STARTS NOTHING. It is an executable a build compiles, run by nothing a build does;
+# it is no artifact, no plan row and no catalog row, so nothing inside Workshop can launch, reload
+# or edit the process it starts. It depends on the host so that an IDE's build before the launch
+# builds what a runtime copies, and a host rebuilt that way reads as a stale runtime, not as
+# nothing changed. Its facts are this tree's, compiled in the way `ZENGINE_BUILDER_CMAKE` is, so
+# the shared configuration names no path; it exists without SDL too, where it refuses to launch,
+# so every lane compiles it.
+if("graphical-load-plan.json" IN_LIST zengine_workshop_plans)
+    set(zengine_development_plan graphical-load-plan.json)
+else()
+    set(zengine_development_plan "")
+endif()
+add_executable(zengine-workshop-develop develop.cpp)
+target_link_libraries(zengine-workshop-develop
+    PRIVATE zengine-builder-vocabulary zengine-warnings zengine-sanitize)
+add_dependencies(zengine-workshop-develop zengine-workshop)
+target_compile_definitions(zengine-workshop-develop PRIVATE
+    "ZENGINE_DEVELOP_CMAKE=\"${CMAKE_COMMAND}\""
+    "ZENGINE_DEVELOP_SCRIPT=\"${zengine_workshop_dir}/development-runtime.cmake\""
+    "ZENGINE_DEVELOP_BUILD=\"${CMAKE_BINARY_DIR}\""
+    "ZENGINE_DEVELOP_RUNTIME=\"${zengine_development_runtime}\""
+    "ZENGINE_DEVELOP_PROJECT=\"${CMAKE_BINARY_DIR}/workshop-project\""
+    "ZENGINE_DEVELOP_HOST=\"$<TARGET_FILE_NAME:zengine-workshop>\""
+    "ZENGINE_DEVELOP_PLAN=\"${zengine_development_plan}\""
+    "ZENGINE_DEVELOP_CATALOG=\"development-build-recipes.json\"")
+
 # And the shared SDL3 the two SDL-backed weaves link. New in G-1: SDL used to be
 # archived INTO the one weave that used it, and two weaves cannot share an archived
 # copy (cmake/ZengineSdl.cmake says why). A shared library has to be findable at run

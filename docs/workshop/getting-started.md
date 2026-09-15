@@ -275,6 +275,8 @@ Neither is a degraded version of the other, and the same published intent produc
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.
 - [The source editor](editor.md) — edit the file a recipe names, without leaving.
+- [Edit a running pane](edit-a-running-pane.md), and [develop Workshop](develop-workshop.md) —
+  change a pane while it runs: one of your own, or one Workshop ships.
 - [Introspection](../reference/introspection.md) — `Loaded`, `Project`, `Powers`.
 - [Limitations](limitations.md) — read this before planning around Workshop.
 - [Making a Workshop tool](../guides/make-a-workshop-tool.md) — if you want to add a pane.

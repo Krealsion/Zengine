@@ -25,6 +25,9 @@
 // compiles it -- so the generated project and the preflight are read here, against the
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
+#include "builder/run.hpp" // the development runtime script, run as a maker runs it
+#include "editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
+#include "workshop/develop.hpp"   // ...and the launch that runs that script, then its host
 #include "workshop/authoring.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
@@ -57,7 +60,15 @@
 
 // `std::system`, for the one Windows arrangement the standard library cannot make: a
 // directory JUNCTION. `mklink /J` is how a person makes one and needs no privilege.
+#include <algorithm>
 #include <cstdlib>
+
+// ...AND THE DEVELOPMENT LAUNCH'S SEPARATE PROCESSES, which a case holds and looks at until what it
+// waits for has happened, with a bound for when it never does.
+#include <chrono>
+#include <deque>
+#include <functional>
+#include <thread>
 
 // ...AND THE ONE PLATFORM CALL THIS SUITE MAKES. A filename holding ill-formed UTF-16 is
 // the measured condition the admission boundary exists for, and only `CreateFileW` will
@@ -497,16 +508,7 @@ namespace {
 inline std::function<HostContext::RecipeSource(const std::string&)>
 host_recipe_source(const CurrentRecipes& owner) {
     return [&owner](const std::string& id) {
-        HostContext::RecipeSource out;
-        const zengine::builder::Recipe* found = zengine::builder::recipe_named(owner.all(), id);
-        if (found != nullptr) {
-            out.known = true;
-            out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
-            if (found->single_source.has_value()) {
-                out.source = found->single_source->source;
-            }
-        }
-        return out;
+        return provenance::recipe_source_of(owner.all(), id);
     };
 }
 
@@ -544,7 +546,8 @@ TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is hold
     second.id = "two";
     second.artifact = "zengine-two";
     second.artifact_dir = "/elsewhere";
-    second.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    second.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string(), std::string()};
     completed.push_back(second);
     owner.hold("/project/recipes.json", completed, &HostContext::so_in);
 
@@ -645,7 +648,8 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     zengine::builder::Recipe target;
     target.id = "built";
     target.artifact = "built";
-    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string()};
+    target.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string(), std::string()};
     owner.hold("/project/t.json", {target}, &HostContext::so_in);
     const HostContext::RecipeSource named = answer("built");
     CHECK(named.known);
@@ -2098,7 +2102,8 @@ TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, ne
     zengine::builder::Recipe target;
     target.id = "two";
     target.artifact = "zengine-two";
-    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    target.cmake_target =
+        zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string(), std::string()};
     zengine::builder::Recipe aimed;
     aimed.id = "three";
     aimed.artifact = "zengine-three";
@@ -2124,6 +2129,1247 @@ TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, ne
     // ...WHILE THE FILE'S OWN ROW STAYS AS AUTHORED: the completion is never written back.
     const std::vector<zengine::builder::Recipe> authored{single};
     CHECK(recipe_persist::to_text(authored).find("build-workspace") == std::string::npos);
+}
+
+// ============================================================================
+// An editing entry on a CMake target, and the catalogs written before it existed (WL-CODE-05)
+// ============================================================================
+
+namespace {
+
+/// A CATALOG THIS BUILD'S PREDECESSOR WROTE, byte for byte as its `a` wrote one -- the one-line
+/// canonical form with the content id version 1's shapes carried -- with its paths put somewhere
+/// that is nobody's. What version 1 was is this text, not an assumption about optional fields.
+const std::string kVersionOneCatalog =
+    "{\"zen\":1,\"schema\":\"WorkshopRecipeFile\",\"version\":1,\"content_id\":\"0xddcb128121a0f122\","
+    "\"fields\":{\"format\":\"zengine-build-recipes\",\"format_version\":\"1\",\"recipes\":["
+    "{\"recipe\":\"skin-tui-block\",\"artifact\":\"zengine-skin-tui-block\",\"artifact_dir\":"
+    "\"/zen/build/snake\",\"cmake_target\":[{\"build_dir\":\"/zen/build\",\"target\":"
+    "\"zengine-skin-tui-block\",\"config\":\"\"}],\"single_source\":[]},"
+    "{\"recipe\":\"tally\",\"artifact\":\"tally\",\"artifact_dir\":\"\",\"cmake_target\":[],"
+    "\"single_source\":[{\"source\":\"/zen/journey/project/tally.cpp\",\"packages\":"
+    "[\"/zen/journey/prefix\",\"/zen/loom/install\"],\"links\":[\"zengine::pane\","
+    "\"zengine::activation\",\"zengine::input\",\"loom::switchboard\"],\"toolchain_from\":\"\","
+    "\"workspace\":\"\"}]}]}}";
+
+} // namespace
+
+TEST_CASE("a version-1 catalog a maker already has reads whole: every row, and no CMake target with an entry") {
+    const recipe_persist::LoadedRecipes read = recipe_persist::from_text(kVersionOneCatalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    REQUIRE(read.recipes.size() == 2);
+    REQUIRE(read.recipes[0].cmake_target.has_value());
+    CHECK(read.recipes[0].cmake_target->build_dir == "/zen/build");
+    CHECK(read.recipes[0].cmake_target->target == "zengine-skin-tui-block");
+    CHECK(read.recipes[0].cmake_target->entry.empty()); // no entry: the honest absence
+    REQUIRE(read.recipes[1].single_source.has_value());
+    CHECK(read.recipes[1].single_source->source == "/zen/journey/project/tally.cpp");
+    CHECK(read.recipes[1].single_source->links.size() == 4);
+
+    // WHAT A NEWER WRITER DOES WITH IT: the same rows, as version 2, each entry spelled empty.
+    const std::string rewritten = recipe_persist::to_text(read.recipes);
+    CHECK(rewritten.find("\"version\":2") != std::string::npos);
+    CHECK(rewritten.find("\"format_version\":\"2\"") != std::string::npos);
+    CHECK(rewritten.find("\"entry\":\"\"") != std::string::npos);
+    const recipe_persist::LoadedRecipes again = recipe_persist::from_text(rewritten);
+    REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
+    CHECK(again.recipes == read.recipes);
+
+    // ...AND THE JOIN READS IT AS A RECIPE WITH NO FILE TO OPEN, in the recipe file's words.
+    const HostContext::RecipeSource named = provenance::recipe_source_of(read.recipes,
+                                                                         "skin-tui-block");
+    CHECK(named.known);
+    CHECK(named.kind == "cmake_target");
+    CHECK(named.source.empty());
+}
+
+TEST_CASE("a catalog is refused by a version this Workshop does not read, and a version-2 row without its entry is refused by admission") {
+    // A LATER NUMBER, BY ITS NUMBER.
+    const std::string one = "\"version\":1";
+    std::string later = kVersionOneCatalog;
+    later.replace(later.find(one), one.size(), "\"version\":3");
+    const recipe_persist::LoadedRecipes three = recipe_persist::from_text(later);
+    CHECK_FALSE(three.outcome.accepted);
+    CHECK(three.outcome.refusal == "build recipes version 3 -- this Workshop reads versions 1 and 2");
+
+    // A VERSION-1 ROW UNDER A VERSION-2 ENVELOPE IS NOT QUIETLY TAKEN AS "NO ENTRY": admission has no
+    // optional field, and a row missing one is refused by the gate that describes those bytes.
+    const std::string envelope = "\"version\":1,\"content_id\":\"0xddcb128121a0f122\",";
+    const std::string field = "\"format_version\":\"1\"";
+    std::string mixed = kVersionOneCatalog;
+    mixed.replace(mixed.find(envelope), envelope.size(), "\"version\":2,");
+    mixed.replace(mixed.find(field), field.size(), "\"format_version\":\"2\"");
+    const recipe_persist::LoadedRecipes missing = recipe_persist::from_text(mixed);
+    CHECK_FALSE(missing.outcome.accepted);
+    CHECK(missing.outcome.refusal.find("entry") != std::string::npos);
+
+    // AN ENVELOPE AND A FIELD THAT DISAGREE ARE REFUSED NAMING BOTH NUMBERS.
+    std::string disagreeing = kVersionOneCatalog;
+    disagreeing.replace(disagreeing.find(field), field.size(), "\"format_version\":\"2\"");
+    const recipe_persist::LoadedRecipes torn = recipe_persist::from_text(disagreeing);
+    CHECK_FALSE(torn.outcome.accepted);
+    CHECK(torn.outcome.refusal ==
+          "build recipes say version 2 inside a version-1 envelope -- a catalog is one version");
+}
+
+TEST_CASE("an editing entry is written, read back, checked as a recipe path, and completed against the project like a source") {
+    zengine::builder::Recipe relative;
+    relative.id = "attention";
+    relative.artifact = "zengine-attention-pane";
+    relative.cmake_target = zengine::builder::CMakeTargetRecipe{
+        "/zen/build", "zengine-attention-pane", std::string(), "attention-pane/pane.cpp"};
+    zengine::builder::Recipe absolute = relative;
+    absolute.id = "files";
+    absolute.artifact = "zengine-files";
+    absolute.cmake_target->target = "zengine-files";
+    absolute.cmake_target->entry = "/zen/checkout/files/files.cpp";
+    zengine::builder::Recipe none = relative;
+    none.id = "skin";
+    none.artifact = "zengine-skin";
+    none.cmake_target->target = "zengine-skin";
+    none.cmake_target->entry.clear();
+
+    const std::vector<zengine::builder::Recipe> authored{relative, absolute, none};
+    const recipe_persist::LoadedRecipes read =
+        recipe_persist::from_text(recipe_persist::to_text(authored));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.recipes == authored);
+
+    // COMPLETION: RELATIVE MEANS THE PROJECT'S FILE, ABSOLUTE STAYS, EMPTY STAYS EMPTY -- and the
+    // catalog file's own directory is not a base, exactly as for a single source.
+    std::vector<zengine::builder::Recipe> completed = read.recipes;
+    recipe_persist::complete_recipes(completed, "/zen/runtime", "/zen/checkout");
+    CHECK(completed[0].cmake_target->entry == "/zen/checkout/attention-pane/pane.cpp");
+    CHECK(completed[1].cmake_target->entry == "/zen/checkout/files/files.cpp");
+    CHECK(completed[2].cmake_target->entry.empty());
+    CHECK(completed[0].cmake_target->build_dir == "/zen/build"); // nothing else moved
+    CHECK(provenance::recipe_source_of(completed, "attention").source ==
+          "/zen/checkout/attention-pane/pane.cpp");
+
+    // AN ENTRY IS A PATH A RECIPE NAMES: a quote or a control byte is refused whole.
+    zengine::builder::Recipe quoted = relative;
+    quoted.cmake_target->entry = "pane\".cpp";
+    CHECK(zengine::builder::check_recipe(quoted).find("an editing entry cannot contain a double "
+                                                      "quote") != std::string::npos);
+    zengine::builder::Recipe broken = relative;
+    broken.cmake_target->entry = std::string("pane") + '\n' + ".cpp";
+    CHECK(zengine::builder::check_recipe(broken).find("an editing entry cannot contain control "
+                                                      "characters") != std::string::npos);
+}
+
+TEST_CASE("the development catalog this tree generated names every shipped pane by its own target, build directory and weave source, each one the Editor opens, and nothing else") {
+    // THE BUILD'S OWN ANSWER, READ AS THE HOST READS A CATALOG. Every row is a CMake target this
+    // tree builds, into the directory CMake says, with the source `zengine_weave` was handed as its
+    // entry -- and that directory is never the host's own, which is the separation the development
+    // runtime rests on: a pane target's build writes no file a Workshop run from this tree maps.
+    const recipe_persist::LoadedRecipes read =
+        recipe_persist::load_file(WORKSHOP_DEVELOPMENT_RECIPES);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    const std::vector<std::pair<std::string, std::string>> panes = {
+        {"zengine-attention-pane", "attention-pane/pane.cpp"},
+        {"zengine-builder-pane", "builder-pane/pane.cpp"},
+        {"zengine-editor-pane", "editor-pane/pane.cpp"},
+        {"zengine-files", "files/files.cpp"},
+        {"zengine-info-pane", "info-pane/pane.cpp"},
+        {"zengine-terminal-pane", "terminal-pane/pane.cpp"},
+        {"zengine-introspection", "introspection/introspection.cpp"},
+        {"zengine-composer", "composer/composer.cpp"}};
+    REQUIRE(read.recipes.size() == panes.size());
+    const std::filesystem::path host_dir =
+        std::filesystem::path(WORKSHOP_HOST_DIR).lexically_normal();
+    for (std::size_t i = 0; i < panes.size(); ++i) {
+        const zengine::builder::Recipe& row = read.recipes[i];
+        INFO("pane ", panes[i].first);
+        CHECK(row.id == panes[i].first);
+        CHECK(row.artifact == panes[i].first);
+        REQUIRE(row.cmake_target.has_value());
+        CHECK(row.cmake_target->target == panes[i].first);
+        CHECK(std::filesystem::path(row.cmake_target->build_dir).lexically_normal() ==
+              std::filesystem::path(ZENGINE_BINARY_DIR).lexically_normal());
+        const std::filesystem::path entry(row.cmake_target->entry);
+        CHECK(entry.lexically_normal() ==
+              (std::filesystem::path(ZENGINE_SOURCE_DIR) / panes[i].second).lexically_normal());
+        REQUIRE(std::filesystem::exists(entry));
+        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a maker edits in Workshop, so its bytes
+        // meet the Editor's source law -- one character a canvas cannot draw refuses the open whole.
+        std::ifstream in(entry, std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const SourceIn admitted = source_in(bytes);
+        CHECK_MESSAGE(admitted.outcome.accepted, admitted.outcome.refusal);
+        CHECK_FALSE(row.artifact_dir.empty());
+        CHECK(std::filesystem::path(row.artifact_dir).lexically_normal() != host_dir);
+    }
+}
+
+// ---- the development runtime and the launch that uses it (WL-CODE-07, WL-CODE-08) ----------
+
+/// A CMake script run as a maker runs one (`cmake -P`). CMAKE WRAPS AN ERROR'S TEXT AT WORD
+/// BOUNDARIES, so the output is read with its breaks as spaces and a sentence is found whole.
+inline zengine::builder::RunResult run_cmake_script(std::vector<std::string> args) {
+    zengine::builder::BuildCommand run;
+    run.program = WORKSHOP_CMAKE_PROGRAM;
+    run.args = std::move(args);
+    zengine::builder::RunResult result = zengine::builder::run_recipe(run);
+    std::string flat;
+    for (const char c : result.output) {
+        const bool space = c == ' ' || c == '\n' || c == '\r';
+        if (!space || (!flat.empty() && flat.back() != ' ')) {
+            flat += space ? ' ' : c;
+        }
+    }
+    result.output = flat;
+    return result;
+}
+
+inline std::vector<std::string> entries_of(const std::filesystem::path& dir) {
+    std::vector<std::string> names;
+    std::error_code ec;
+    for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(dir, ec)) {
+        names.push_back(e.path().filename().generic_string());
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+/// Every file under a directory, with its bytes: what "left exactly as it is" is measured by.
+inline std::vector<std::pair<std::string, std::string>> contents_of(const std::filesystem::path& dir) {
+    std::vector<std::pair<std::string, std::string>> files;
+    std::error_code ec;
+    for (std::filesystem::recursive_directory_iterator it(dir, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        std::error_code kind_ec;
+        if (it->is_regular_file(kind_ec)) {
+            files.emplace_back(std::filesystem::relative(it->path(), dir).generic_string(),
+                               slurp(it->path().string()));
+        }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+/// A BUILD TREE'S COPIES MADE OF A FEW BYTES EACH -- a host, a service, a pane, a plan and a
+/// catalog -- and the runtime rules (`workshop/prepare-runtime.cmake`) run over them with the
+/// facts a generated script would set. What the rules decide does not depend on what the bytes
+/// are, so a suite can make, rebuild and promote files a real build takes minutes to make.
+struct RuntimeTree {
+    std::filesystem::path build;
+    std::vector<std::string> copies;
+    std::vector<std::string> replaceable;
+    std::string configuration = "Debug";
+
+    explicit RuntimeTree(const std::filesystem::path& root) : build(root / "build") {
+        put("workshop/zengine-workshop.exe", "host one");
+        put("snake/zengine-timer.dll", "service one");
+        put("attention-pane/zengine-attention-pane.dll", "pane one", true);
+        put("workshop/graphical-load-plan.json", "plan one");
+        put("workshop/development-build-recipes.json", "catalog one");
+    }
+
+    /// Build a copy into the tree, or build it anew.
+    void put(const std::string& rel, const std::string& bytes, bool pane = false) {
+        std::filesystem::create_directories((build / rel).parent_path());
+        put_file(build / rel, bytes);
+        const std::string path = (build / rel).generic_string();
+        if (std::find(copies.begin(), copies.end(), path) == copies.end()) {
+            copies.push_back(path);
+            if (pane) {
+                replaceable.push_back(path);
+            }
+        }
+    }
+
+    zengine::builder::RunResult prepare(const std::filesystem::path& runtime) const {
+        const auto listed = [](const std::vector<std::string>& paths) {
+            std::string list;
+            for (const std::string& p : paths) {
+                list += (list.empty() ? "" : ";") + p;
+            }
+            return list;
+        };
+        return run_cmake_script({"-Dzengine_build=" + build.generic_string(),
+                                 "-Dzengine_source=" + (build.parent_path() / "src").generic_string(),
+                                 "-Dzengine_configuration=" + configuration,
+                                 "-Dzengine_default_runtime=" + (build / "workshop-runtime").generic_string(),
+                                 "-Dzengine_copies=" + listed(copies),
+                                 "-Dzengine_replaceable=" + listed(replaceable),
+                                 "-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
+                                 WORKSHOP_DEVELOPMENT_RUNTIME_RULES});
+    }
+};
+
+TEST_CASE("a development runtime is made whole into an absent directory, then reused while what it copied is current: a promoted pane and a rebuilt one keep it, and nothing is copied again") {
+    TempDir scratch("dev-runtime-reuse");
+    RuntimeTree tree(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+
+    const zengine::builder::RunResult made = tree.prepare(runtime);
+    REQUIRE_MESSAGE(made.started, made.trouble);
+    REQUIRE_MESSAGE(made.status == 0, made.output);
+    CHECK(made.output.find("development runtime made at") != std::string::npos);
+    // EVERY COPY, BYTE FOR BYTE, AND THE MANIFEST -- written last, and nothing else.
+    CHECK(entries_of(runtime) ==
+          std::vector<std::string>{"development-build-recipes.json", "graphical-load-plan.json",
+                                   "zengine-attention-pane.dll", "zengine-development-runtime.txt",
+                                   "zengine-timer.dll", "zengine-workshop.exe"});
+    CHECK(slurp((runtime / "zengine-workshop.exe").string()) == "host one");
+    CHECK(slurp((runtime / "zengine-attention-pane.dll").string()) == "pane one");
+    // ON WINDOWS CMAKE'S `file(WRITE)` ENDS A LINE WITH CR LF, and the rules read either ending;
+    // the manifest's lines are read here with the CR taken out.
+    std::string manifest = slurp((runtime / "zengine-development-runtime.txt").string());
+    manifest.erase(std::remove(manifest.begin(), manifest.end(), '\r'), manifest.end());
+    CHECK(manifest.find("format: 2\n") != std::string::npos);
+    CHECK(manifest.find("build tree: " + tree.build.generic_string() + "\n") != std::string::npos);
+    CHECK(manifest.find("configuration: Debug\n") != std::string::npos);
+    CHECK(manifest.find("copy: replaceable zengine-attention-pane.dll\n") != std::string::npos);
+    CHECK(manifest.find("copy: replaceable zengine-workshop.exe\n") == std::string::npos);
+    CHECK(manifest.find(" zengine-workshop.exe\n") != std::string::npos);
+
+    // A PROMOTION WRITES THE RUNTIME'S PANE, A RELOAD LEAVES ITS COPY BESIDE IT, AND A DEVELOPMENT
+    // BUILD REBUILDS THE TREE'S: all three are what a runtime is for, and none makes it stale.
+    put_file(runtime / "zengine-attention-pane.dll", "pane promoted");
+    std::filesystem::create_directories(runtime / "zengine-attention-pane.reloads");
+    put_file(runtime / "zengine-attention-pane.reloads" / "zengine-attention-pane-1.dll", "a reload");
+    tree.put("attention-pane/zengine-attention-pane.dll", "pane rebuilt", true);
+    const auto kept = contents_of(runtime);
+    const zengine::builder::RunResult reused = tree.prepare(runtime);
+    REQUIRE_MESSAGE(reused.started, reused.trouble);
+    CHECK_MESSAGE(reused.status == 0, reused.output);
+    CHECK(reused.output.find("reusing the development runtime") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+
+    // ...AND A HOST BUILT AGAIN TO THE SAME BYTES IS STILL CURRENT: the digest decides, not the time.
+    tree.put("workshop/zengine-workshop.exe", "host one");
+    const zengine::builder::RunResult again = tree.prepare(runtime);
+    CHECK_MESSAGE(again.status == 0, again.output);
+    CHECK(contents_of(runtime) == kept);
+
+    // WHAT A REUSE SAYS, AND WHAT IT DOES NOT. The digests are read from the BUILD TREE's files and
+    // the runtime is only looked at for names, so a copy changed inside the runtime is reused as it
+    // stands: a reuse says this runtime is current, never that it is unharmed, and it says so.
+    put_file(runtime / "zengine-timer.dll", "a service somebody changed in the runtime");
+    const zengine::builder::RunResult unread = tree.prepare(runtime);
+    CHECK_MESSAGE(unread.status == 0, unread.output);
+    CHECK(unread.output.find("has built none of the host, services, plans and catalogs it copied "
+                             "anew since, and every copy it made is still there") !=
+          std::string::npos);
+    CHECK(slurp((runtime / "zengine-timer.dll").string()) ==
+          "a service somebody changed in the runtime");
+}
+
+TEST_CASE("a development runtime that is stale, incomplete, or made for another configuration or another set of copies is refused and left exactly as it is") {
+    TempDir scratch("dev-runtime-refused");
+    RuntimeTree tree(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+    REQUIRE(tree.prepare(runtime).status == 0);
+    const auto kept = contents_of(runtime);
+
+    // STALE: the tree built its host anew, so the runtime would still run the host it copied.
+    tree.put("workshop/zengine-workshop.exe", "host two");
+    const zengine::builder::RunResult stale = tree.prepare(runtime);
+    REQUIRE_MESSAGE(stale.started, stale.trouble);
+    CHECK(stale.status != 0);
+    CHECK(stale.output.find("has built zengine-workshop.exe anew") != std::string::npos);
+    CHECK(stale.output.find("nothing was copied, changed or launched") != std::string::npos);
+    CHECK(stale.output.find("rename or move this directory") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    // ...and a rebuilt service is the same answer.
+    tree.put("workshop/zengine-workshop.exe", "host one");
+    tree.put("snake/zengine-timer.dll", "service two");
+    const zengine::builder::RunResult service = tree.prepare(runtime);
+    CHECK(service.status != 0);
+    CHECK(service.output.find("has built zengine-timer.dll anew") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.put("snake/zengine-timer.dll", "service one");
+    REQUIRE(tree.prepare(runtime).status == 0);
+
+    // ANOTHER CONFIGURATION of the same tree.
+    tree.configuration = "Release";
+    const zengine::builder::RunResult configured = tree.prepare(runtime);
+    CHECK(configured.status != 0);
+    CHECK(configured.output.find("this build tree's Debug configuration, not its Release one") !=
+          std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.configuration = "Debug";
+
+    // ANOTHER SET OF COPIES: the configuration now stages one more file.
+    tree.put("workshop/SDL3.dll", "sdl");
+    const zengine::builder::RunResult widened = tree.prepare(runtime);
+    CHECK(widened.status != 0);
+    CHECK(widened.output.find("copied other files (now: SDL3.dll;") != std::string::npos);
+    CHECK(contents_of(runtime) == kept);
+    tree.copies.pop_back();
+    REQUIRE(tree.prepare(runtime).status == 0);
+
+    // INCOMPLETE: a copy is gone from the runtime, and nothing is copied into it again.
+    std::filesystem::remove(runtime / "graphical-load-plan.json");
+    const auto without_plan = contents_of(runtime);
+    const zengine::builder::RunResult incomplete = tree.prepare(runtime);
+    CHECK(incomplete.status != 0);
+    CHECK(incomplete.output.find("is incomplete: graphical-load-plan.json is not there") !=
+          std::string::npos);
+    CHECK(contents_of(runtime) == without_plan);
+}
+
+TEST_CASE("the development runtime script this tree generated refuses another tree's runtime, an earlier script's runtime and a non-empty directory, and copies nothing") {
+    // THE SCRIPT THIS TREE GENERATED, RUN AS A MAKER RUNS IT (`cmake -P`), against three directories
+    // it must not write into. Every refusal leaves the directory exactly as it was: a runtime may be
+    // running, and a directory the script did not make from this tree is somebody else's files.
+    TempDir scratch("dev-runtime");
+    const auto make_into = [](const std::filesystem::path& runtime) {
+        return run_cmake_script({"-DZEN_RUNTIME=" + runtime.generic_string(), "-P",
+                                 WORKSHOP_DEVELOPMENT_RUNTIME_SCRIPT});
+    };
+
+    // ANOTHER BUILD TREE'S RUNTIME.
+    const std::filesystem::path other = scratch.path() / "other-tree-runtime";
+    std::filesystem::create_directories(other);
+    put_file(other / "zengine-development-runtime.txt",
+             "A Zengine development runtime.\nbuild tree: /somewhere/else/build\n");
+    const zengine::builder::RunResult foreign = make_into(other);
+    REQUIRE_MESSAGE(foreign.started, foreign.trouble);
+    CHECK(foreign.status != 0);
+    CHECK(foreign.output.find("made from") != std::string::npos);
+    CHECK(foreign.output.find("/somewhere/else/build") != std::string::npos);
+    CHECK(foreign.output.find("nothing was copied") != std::string::npos);
+    CHECK(entries_of(other) == std::vector<std::string>{"zengine-development-runtime.txt"});
+
+    // THIS TREE'S OWN, MADE BY AN EARLIER SCRIPT, whose manifest named only the tree: it cannot say
+    // whether it is whole or current, so it is kept and not reused.
+    const std::filesystem::path own = scratch.path() / "own-runtime";
+    std::filesystem::create_directories(own);
+    put_file(own / "zengine-development-runtime.txt",
+             std::string("A Zengine development runtime.\nbuild tree: ") + ZENGINE_BINARY_DIR + "\n");
+    const zengine::builder::RunResult earlier = make_into(own);
+    REQUIRE_MESSAGE(earlier.started, earlier.trouble);
+    CHECK(earlier.status != 0);
+    CHECK(earlier.output.find("recorded too little to tell whether it is whole") != std::string::npos);
+    CHECK(entries_of(own) == std::vector<std::string>{"zengine-development-runtime.txt"});
+
+    // A DIRECTORY WITH SOMEBODY ELSE'S FILES IN IT.
+    const std::filesystem::path busy = scratch.path() / "busy";
+    std::filesystem::create_directories(busy);
+    put_file(busy / "notes.txt", "mine\n");
+    const zengine::builder::RunResult occupied = make_into(busy);
+    REQUIRE_MESSAGE(occupied.started, occupied.trouble);
+    CHECK(occupied.status != 0);
+    CHECK(occupied.output.find("is not empty and is not a development") != std::string::npos);
+    CHECK(entries_of(busy) == std::vector<std::string>{"notes.txt"});
+}
+
+/// Facts a launch might have compiled in, for a tree that exists nowhere.
+inline zengine::workshop::develop::Facts launch_facts() {
+    zengine::workshop::develop::Facts facts;
+    facts.cmake = "/tools/cmake";
+    facts.script = "/tree/workshop/development-runtime.cmake";
+    facts.build = "/tree";
+    facts.runtime = "/tree/workshop-runtime";
+    facts.project = "/tree/workshop-project";
+    facts.host = "zengine-workshop";
+    facts.plan = "graphical-load-plan.json";
+    facts.catalog = "development-build-recipes.json";
+    return facts;
+}
+
+/// DOORS FOR A LAUNCH THAT ANSWER AS TOLD AND WRITE DOWN WHAT WAS ASKED OF THEM, IN ORDER, the
+/// claim and its letting go among the rest. The first command run is the runtime script and the
+/// second the host, which is the order `launch` owes.
+struct LaunchDoors {
+    bool held_elsewhere = false;
+    std::string claim_trouble;
+    bool running = false;
+    bool prepare_starts = true;
+    std::int64_t prepare_status = 0;
+    std::string directory_refusal;
+    bool host_starts = true;
+    std::int64_t host_status = 0;
+    std::vector<std::string> asked;
+    std::vector<zengine::builder::BuildCommand> ran;
+    std::vector<std::string> said;
+
+    zengine::workshop::develop::World world() {
+        namespace develop = zengine::workshop::develop;
+        develop::World doors;
+        doors.claim = [this](const std::string& runtime) {
+            asked.push_back("claim " + runtime);
+            develop::ClaimAnswer answer;
+            answer.busy = held_elsewhere;
+            answer.trouble = claim_trouble;
+            if (!held_elsewhere && claim_trouble.empty()) {
+                answer.claim = develop::RuntimeClaim([this] { asked.push_back("let go"); });
+            }
+            return answer;
+        };
+        doors.in_use = [this](const std::string& path) {
+            asked.push_back("in use? " + path);
+            return running;
+        };
+        doors.run = [this](const zengine::builder::BuildCommand& command) {
+            asked.push_back("run " + command.program);
+            ran.push_back(command);
+            const bool script = ran.size() == 1;
+            zengine::builder::RunResult result;
+            result.started = script ? prepare_starts : host_starts;
+            result.status = script ? prepare_status : host_status;
+            result.trouble = result.started ? "" : "not there";
+            return result;
+        };
+        doors.directory = [this](const std::string& dir) {
+            asked.push_back("directory " + dir);
+            return directory_refusal;
+        };
+        doors.say = [this](const std::string& line) { said.push_back(line); };
+        return doors;
+    }
+
+    bool said_words(const std::string& words) const {
+        return std::any_of(said.begin(), said.end(), [&](const std::string& line) {
+            return line.find(words) != std::string::npos;
+        });
+    }
+};
+
+TEST_CASE("the development launch claims its runtime, prepares it through the runtime script, then starts only that runtime's host, with its graphical plan and development catalog, in a project directory of its own, and lets the claim go only after that host exits") {
+    namespace develop = zengine::workshop::develop;
+    const develop::Facts facts = launch_facts();
+    LaunchDoors doors;
+    doors.host_status = 7;
+    CHECK(develop::launch(facts, develop::choose({}, facts), doors.world()) == 7);
+    // THE CLAIM BEFORE ANYTHING IS LOOKED AT OR PREPARED, AND LET GO AFTER THE HOST HAS RUN.
+    CHECK(doors.asked == std::vector<std::string>{"claim /tree/workshop-runtime",
+                                                  "in use? /tree/workshop-runtime/zengine-workshop",
+                                                  "run /tools/cmake",
+                                                  "directory /tree/workshop-project",
+                                                  "run /tree/workshop-runtime/zengine-workshop",
+                                                  "let go"});
+    REQUIRE(doors.ran.size() == 2);
+    CHECK(doors.ran[0].program == "/tools/cmake");
+    CHECK(doors.ran[0].args == std::vector<std::string>{"-DZEN_RUNTIME=/tree/workshop-runtime", "-P",
+                                                        "/tree/workshop/development-runtime.cmake"});
+    CHECK(doors.ran[1].program == "/tree/workshop-runtime/zengine-workshop");
+    CHECK(doors.ran[1].args ==
+          std::vector<std::string>{"--load-plan", "/tree/workshop-runtime/graphical-load-plan.json",
+                                   "--recipes", "/tree/workshop-runtime/development-build-recipes.json"});
+    CHECK(doors.ran[1].dir == "/tree/workshop-project");
+    CHECK(doors.said_words("Workshop exited with 7"));
+
+    // A NAMED RUNTIME AND PROJECT ARE THE ONES USED, absolute, without a trailing separator: the
+    // host starts in the project directory, where a spelling relative to the launch means nothing.
+    TempDir scratch("dev-launch");
+    const std::string runtime = (scratch.path() / "runtime-2").generic_string();
+    const develop::Choice named = develop::choose(
+        {"--runtime", runtime, "--project", (scratch.path() / "project-2").generic_string() + "/"},
+        facts);
+    REQUIRE_MESSAGE(named.ok, named.complaint);
+    CHECK(named.runtime == runtime);
+    CHECK(named.project == (scratch.path() / "project-2").generic_string());
+    LaunchDoors elsewhere;
+    CHECK(develop::launch(facts, named, elsewhere.world()) == 0);
+    REQUIRE(elsewhere.ran.size() == 2);
+    CHECK(elsewhere.ran[0].args.front() == "-DZEN_RUNTIME=" + runtime);
+    CHECK(elsewhere.ran[1].program == runtime + "/zengine-workshop");
+    CHECK(elsewhere.ran[1].dir == named.project);
+    CHECK(std::filesystem::path(develop::choose({"--project", "here"}, facts).project).is_absolute());
+}
+
+TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no graphical plan, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
+    namespace develop = zengine::workshop::develop;
+    const develop::Facts facts = launch_facts();
+    const develop::Choice usual = develop::choose({}, facts);
+    const std::string claim = "claim /tree/workshop-runtime";
+    const std::string in_use = "in use? /tree/workshop-runtime/zengine-workshop";
+
+    // A TREE CONFIGURED WITHOUT THE SDL SKIN has no graphical Workshop to launch.
+    develop::Facts plain = facts;
+    plain.plan.clear();
+    LaunchDoors unplanned;
+    CHECK(develop::launch(plain, usual, unplanned.world()) == 1);
+    CHECK(unplanned.asked.empty());
+    CHECK(unplanned.ran.empty());
+    CHECK(unplanned.said_words("staged no graphical load plan"));
+
+    // ANOTHER LAUNCH HOLDS THE RUNTIME, or its claim could not be asked for: nothing more is asked.
+    LaunchDoors elsewhere;
+    elsewhere.held_elsewhere = true;
+    CHECK(develop::launch(facts, usual, elsewhere.world()) == 1);
+    CHECK(elsewhere.asked == std::vector<std::string>{claim});
+    CHECK(elsewhere.ran.empty());
+    CHECK(elsewhere.said_words("another launch holds the runtime /tree/workshop-runtime"));
+    CHECK(elsewhere.said_words("nothing was prepared, launched or stopped"));
+    LaunchDoors unclaimed;
+    unclaimed.claim_trouble = "the mutex could not be made";
+    CHECK(develop::launch(facts, usual, unclaimed.world()) == 1);
+    CHECK(unclaimed.asked == std::vector<std::string>{claim});
+    CHECK(unclaimed.ran.empty());
+    CHECK(unclaimed.said_words("could not claim the runtime /tree/workshop-runtime for this launch "
+                               "(the mutex could not be made) -- nothing was prepared or launched"));
+
+    // THE RUNTIME'S HOST IS RUNNING WITH NO LAUNCH HOLDING IT: asked before anything is prepared,
+    // and nothing is stopped.
+    LaunchDoors running;
+    running.running = true;
+    CHECK(develop::launch(facts, usual, running.world()) == 1);
+    CHECK(running.asked == std::vector<std::string>{claim, in_use, "let go"});
+    CHECK(running.ran.empty());
+    CHECK(running.said_words("is running, and no launch holds its runtime"));
+    CHECK(running.said_words("nothing was prepared, launched or stopped"));
+
+    // THE RUNTIME SCRIPT REFUSED -- its words were its own, above -- and CMAKE THAT NEVER RAN.
+    LaunchDoors refused;
+    refused.prepare_status = 1;
+    CHECK(develop::launch(facts, usual, refused.world()) == 1);
+    CHECK(refused.asked == std::vector<std::string>{claim, in_use, "run /tools/cmake", "let go"});
+    CHECK(refused.said_words("the runtime was not prepared"));
+    LaunchDoors absent;
+    absent.prepare_starts = false;
+    CHECK(develop::launch(facts, usual, absent.world()) == 1);
+    CHECK(absent.asked == std::vector<std::string>{claim, in_use, "run /tools/cmake", "let go"});
+    CHECK(absent.said_words("could not run /tools/cmake"));
+
+    // THE PROJECT PATH IS NO DIRECTORY, and a host that would not start.
+    LaunchDoors filed;
+    filed.directory_refusal = "is there and is not a directory";
+    CHECK(develop::launch(facts, usual, filed.world()) == 1);
+    CHECK(filed.asked == std::vector<std::string>{claim, in_use, "run /tools/cmake",
+                                                  "directory /tree/workshop-project", "let go"});
+    CHECK(filed.said_words("is there and is not a directory -- nothing was launched"));
+    LaunchDoors unstarted;
+    unstarted.host_starts = false;
+    CHECK(develop::launch(facts, usual, unstarted.world()) == 1);
+    CHECK(unstarted.ran.size() == 2);
+    CHECK(unstarted.asked.back() == "let go");
+    CHECK(unstarted.said_words("did not start"));
+
+    // AN ARGUMENT IT DOES NOT KNOW, and a flag with no directory.
+    LaunchDoors misspoken;
+    const develop::Choice unknown = develop::choose({"--host", "/tree/workshop/zengine-workshop"}, facts);
+    CHECK_FALSE(unknown.ok);
+    CHECK(develop::launch(facts, unknown, misspoken.world()) == 2);
+    CHECK(misspoken.asked.empty());
+    CHECK(misspoken.ran.empty());
+    CHECK_FALSE(develop::choose({"--runtime"}, facts).ok);
+}
+
+TEST_CASE("an image a running program holds reads as in use and a file nobody holds does not, and the project directory is made when absent and refused when it is a file") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-in-use");
+    const std::filesystem::path idle = scratch.path() / "zengine-workshop.exe";
+    put_file(idle, "not running");
+    CHECK_FALSE(develop::image_in_use(idle.string()));
+    CHECK(slurp(idle.string()) == "not running");
+    CHECK_FALSE(develop::image_in_use((scratch.path() / "absent.exe").string()));
+#if defined(_WIN32)
+    // THIS SUITE'S OWN IMAGE IS RUNNING, and Windows will not open a running image for writing.
+    // (Linux says ETXTBSY only where its kernel still denies that write, so it is not pinned there.)
+    char own[MAX_PATH];
+    const DWORD length = ::GetModuleFileNameA(nullptr, own, MAX_PATH);
+    REQUIRE(length > 0);
+    REQUIRE(length < MAX_PATH);
+    CHECK(develop::image_in_use(std::string(own, length)));
+#endif
+
+    const std::filesystem::path project = scratch.path() / "made" / "project";
+    CHECK(develop::project_directory(project.string()).empty());
+    CHECK(std::filesystem::is_directory(project));
+    put_file(project / "workshop.json", "a maker's document");
+    CHECK(develop::project_directory(project.string()).empty());
+    CHECK(slurp((project / "workshop.json").string()) == "a maker's document");
+    CHECK(develop::project_directory(idle.string()) == "is there and is not a directory");
+}
+
+TEST_CASE("a runtime's claim is named for its directory however it is spelled, made yet or not, and two runtimes are two claims") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-claim-name");
+    const std::filesystem::path made = scratch.path() / "made";
+    std::filesystem::create_directories(made);
+    const std::string name = develop::runtime_claim_name(made.generic_string());
+    CHECK(develop::runtime_claim_name(made.generic_string() + "/") == name);
+    CHECK(develop::runtime_claim_name(made.string()) == name);
+    CHECK(develop::runtime_claim_name((made / ".").generic_string()) == name);
+    CHECK(develop::runtime_claim_name((scratch.path() / "elsewhere" / ".." / "made").generic_string()) ==
+          name);
+
+    // A RUNTIME NOT MADE YET is named without anything being made, and keeps its name once it is.
+    const std::filesystem::path unmade = scratch.path() / "not-yet" / "runtime";
+    const std::string later = develop::runtime_claim_name(unmade.generic_string());
+    CHECK(develop::runtime_claim_name(
+              (scratch.path() / "not-yet" / "x" / ".." / "runtime").generic_string() + "/") == later);
+    CHECK_FALSE(std::filesystem::exists(scratch.path() / "not-yet"));
+    std::filesystem::create_directories(unmade);
+    CHECK(develop::runtime_claim_name(unmade.generic_string()) == later);
+    CHECK(later != name);
+
+#if defined(_WIN32)
+    // A DIRECTORY IN OTHER CASE IS THE SAME DIRECTORY on Windows, and the claim is a mutex's name.
+    std::string shouted = made.string();
+    for (char& c : shouted) {
+        if (c >= 'a' && c <= 'z') {
+            c = static_cast<char>(c - 'a' + 'A');
+        }
+    }
+    CHECK(develop::runtime_claim_name(shouted) == name);
+    CHECK(name.rfind("Local\\zengine-workshop-develop-", 0) == 0);
+#else
+    // A LINK TO THE DIRECTORY IS THE DIRECTORY, and the claim is a lock file of this user's.
+    std::filesystem::create_directory_symlink(made, scratch.path() / "linked");
+    CHECK(develop::runtime_claim_name((scratch.path() / "linked").generic_string()) == name);
+    CHECK(name.find("/zengine-workshop-develop-" + std::to_string(::geteuid()) + "-") !=
+          std::string::npos);
+    CHECK(name.size() > 5);
+    CHECK(name.compare(name.size() - 5, 5, ".lock") == 0);
+#endif
+}
+
+// ---- the development launch as separate processes (WL-CODE-08) ------------------------------
+
+/// A LAUNCH PROCESS, HELD TO ITS END: what it said, drained as it runs so it never waits on a full
+/// pipe, and how it ended.
+struct HeldLaunch {
+    zengine::builder::RunningRecipe process;
+    std::string said;
+    bool ended = false;
+    std::int64_t status = -1;
+
+    void look() {
+        if (ended) {
+            return;
+        }
+        const zengine::builder::RunLook seen = process.look();
+        said += seen.fresh;
+        if (seen.ended) {
+            ended = true;
+            status = seen.never_ran ? -1 : seen.status;
+        }
+    }
+};
+
+/// The lines of a file that begin with a word, 0 when it is absent.
+inline int lines_saying(const std::filesystem::path& file, const std::string& word) {
+    std::error_code ec;
+    if (!std::filesystem::exists(file, ec)) {
+        return 0;
+    }
+    const std::string text = slurp(file.string());
+    int count = 0;
+    for (std::size_t at = 0; at < text.size();) {
+        const std::size_t end = std::min(text.find('\n', at), text.size());
+        if (text.compare(at, word.size(), word) == 0) {
+            ++count;
+        }
+        at = end + 1;
+    }
+    return count;
+}
+
+/// Until `done` holds, or a minute passes, looking at every held launch meanwhile. A case never
+/// waits on a clock for something to happen: it waits for the thing, with a bound for failure.
+inline bool until_launches(const std::vector<HeldLaunch*>& held, const std::function<bool()>& done,
+                           int seconds = 60) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
+    for (;;) {
+        for (HeldLaunch* h : held) {
+            h->look();
+        }
+        if (done()) {
+            return true;
+        }
+        if (std::chrono::steady_clock::now() > deadline) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+}
+
+/// A file created without asserting anything, for a cleanup that runs while a case unwinds.
+inline void open_gate(const std::filesystem::path& gate) {
+    std::error_code ec;
+    if (std::filesystem::is_directory(gate.parent_path(), ec)) {
+        std::ofstream(gate, std::ios::binary) << "open";
+    }
+}
+
+/// HOW A CASE'S PREPARATION SCRIPT GOES. Each writes `entered` into its marker first, `waiting`
+/// when it reaches its gate, and `left` when it is done.
+enum class Preparation {
+    gated,    ///< waits at its gate, then runs the runtime rules: held before it has prepared
+    prepared, ///< runs the runtime rules, then waits at its gate: held after it has prepared
+    failing,  ///< fails straight away, as a runtime script that refuses does
+};
+
+/// The words a launch says when another launch holds its runtime, and when a host no launch holds
+/// is running from it.
+inline constexpr const char* kHeldWords = "another launch holds the runtime";
+inline constexpr const char* kUnheldWords = "is running, and no launch holds its runtime";
+
+/// SEPARATE LAUNCHES OVER ONE FIXTURE BUILD TREE: the stand-in host, a plan and a catalog, and
+/// preparation scripts that write into a marker, wait at a gate the case opens, and run the real
+/// runtime rules. A case holds a launch inside its preparation -- where two launches used to pass
+/// each other -- for exactly as long as it needs, counts preparations by the marker, and counts
+/// hosts by the `started` and `ended` lines each writes to `hosts.log` in its project directory.
+struct LaunchFixture {
+    std::filesystem::path root;
+    std::filesystem::path build;
+    std::string host_name;
+    std::vector<std::filesystem::path> gates;
+    std::deque<HeldLaunch> launches; ///< a deque: a launch a case holds keeps its address
+
+    explicit LaunchFixture(const std::filesystem::path& at) : root(at), build(at / "build") {
+        std::filesystem::create_directories(build / "workshop");
+        const std::filesystem::path host(WORKSHOP_LAUNCH_FIXTURE_HOST);
+        host_name = host.filename().string();
+        std::filesystem::copy_file(host, build / "workshop" / host_name,
+                                   std::filesystem::copy_options::overwrite_existing);
+        put_file(build / "workshop" / "plan.json", "a plan");
+        put_file(build / "workshop" / "catalog.json", "a catalog");
+    }
+
+    /// EVERY GATE OPENS AND EVERY LAUNCH ENDS BEFORE THE DIRECTORY GOES, even when a case fails:
+    /// a host still waiting would hold its runtime's image and its project directory open.
+    ~LaunchFixture() {
+        for (const std::filesystem::path& gate : gates) {
+            open_gate(gate);
+        }
+        std::vector<HeldLaunch*> all;
+        for (HeldLaunch& launch : launches) {
+            all.push_back(&launch);
+        }
+        (void)until_launches(all, [&] {
+            return std::all_of(all.begin(), all.end(), [](HeldLaunch* h) { return h->ended; });
+        });
+    }
+
+    /// The gate a case opens, remembered so the fixture opens it too on the way out.
+    std::filesystem::path gate(const std::filesystem::path& at) {
+        gates.push_back(at);
+        return at;
+    }
+
+    /// A preparation script: the marker, and the gate before or after `workshop/prepare-runtime.cmake`.
+    std::string script(const std::string& name, const std::filesystem::path& marker,
+                       const std::filesystem::path& gate_at,
+                       Preparation how = Preparation::gated) const {
+        const std::string copies = (build / "workshop" / host_name).generic_string() + ";" +
+                                   (build / "workshop" / "plan.json").generic_string() + ";" +
+                                   (build / "workshop" / "catalog.json").generic_string();
+        const std::string mark = "file(APPEND \"" + marker.generic_string() + "\" ";
+        const std::string wait = mark + "\"waiting\\n\")\n"
+                                 "set(zengine_waited 0)\n"
+                                 "while(NOT EXISTS \"" + gate_at.generic_string() + "\")\n"
+                                 "  if(zengine_waited GREATER 1200)\n"
+                                 "    message(FATAL_ERROR \"the case never opened the gate\")\n"
+                                 "  endif()\n"
+                                 "  execute_process(COMMAND \"${CMAKE_COMMAND}\" -E sleep 0.05)\n"
+                                 "  math(EXPR zengine_waited \"${zengine_waited} + 1\")\n"
+                                 "endwhile()\n";
+        const std::string rules =
+            "set(zengine_build \"" + build.generic_string() + "\")\n"
+            "set(zengine_source \"" + (root / "src").generic_string() + "\")\n"
+            "set(zengine_configuration \"Debug\")\n"
+            "set(zengine_default_runtime \"" + (root / "unnamed").generic_string() + "\")\n"
+            "set(zengine_copies \"" + copies + "\")\n"
+            "set(zengine_replaceable \"\")\n"
+            "include(\"" WORKSHOP_DEVELOPMENT_RUNTIME_RULES "\")\n";
+        std::string text = "cmake_minimum_required(VERSION 3.16)\n" + mark + "\"entered\\n\")\n";
+        if (how == Preparation::failing) {
+            text += "message(FATAL_ERROR \"the case's preparation fails\")\n";
+        } else {
+            text += how == Preparation::gated ? wait + rules : rules + wait;
+            text += mark + "\"left\\n\")\n";
+        }
+        const std::filesystem::path path = root / (name + ".cmake");
+        put_file(path, text);
+        return path.generic_string();
+    }
+
+    /// Start a program as its own process -- a launch, or a host started without one -- and hold it
+    /// for as long as the fixture lives.
+    HeldLaunch& hold(const zengine::builder::BuildCommand& command) {
+        zengine::builder::RecipeStart begun = zengine::builder::start_recipe(command);
+        REQUIRE_MESSAGE(begun.started, begun.trouble);
+        launches.emplace_back();
+        launches.back().process = std::move(begun.process);
+        return launches.back();
+    }
+
+    /// Start one launch, as a Run starts one, with a case's script, runtime, project and host name.
+    HeldLaunch& start(const std::string& script_path, const std::string& runtime,
+                      const std::string& project, const std::string& host = std::string()) {
+        zengine::builder::BuildCommand run;
+        run.program = WORKSHOP_LAUNCH_FIXTURE_DRIVER;
+        run.args = {"--cmake",   WORKSHOP_CMAKE_PROGRAM, "--script", script_path, "--host",
+                    host.empty() ? host_name : host, "--runtime", runtime, "--project", project};
+        return hold(run);
+    }
+
+    /// END A HELD PROCESS AS A CRASH OR A STOPPED RUN ENDS ONE: terminated from outside, so nothing
+    /// in it runs on the way out and nothing lets a claim it held go but the system. What it
+    /// started itself is not ended with it.
+    static void end_abruptly(HeldLaunch& held) {
+        held.process.abandon();
+        held.ended = true;
+        held.status = -1;
+    }
+};
+
+TEST_CASE("two launches of one runtime that overlap before its host starts: exactly one prepares and starts it, and the other refuses without preparing, whether the runtime was absent or already made") {
+    for (const bool made_before : {false, true}) {
+        const char* const mode = made_before ? "the runtime was already made" : "the runtime was absent";
+        INFO(mode);
+        TempDir scratch(made_before ? "dev-race-made" : "dev-race-absent");
+        LaunchFixture fixture(scratch.path());
+        const std::filesystem::path runtime = scratch.path() / "runtime";
+        const std::filesystem::path project = scratch.path() / "project";
+        const std::filesystem::path hosts = project / "hosts.log";
+        const std::filesystem::path marker = scratch.path() / "entered.log";
+        const std::filesystem::path gate = fixture.gate(scratch.path() / "gate");
+        const std::filesystem::path host_gate = fixture.gate(project / "host-gate");
+        const std::string script = fixture.script("prepare", marker, gate);
+        if (made_before) {
+            put_file(gate, "open");
+            const zengine::builder::RunResult made =
+                run_cmake_script({"-DZEN_RUNTIME=" + runtime.generic_string(), "-P", script});
+            REQUIRE_MESSAGE(made.status == 0, made.output);
+            std::filesystem::remove(gate);
+            std::filesystem::remove(marker);
+        }
+
+        HeldLaunch& first = fixture.start(script, runtime.generic_string(), project.generic_string());
+        REQUIRE(until_launches({&first}, [&] { return lines_saying(marker, "entered") == 1; }));
+        // THE SECOND LAUNCH DECIDES WHILE THE FIRST IS HELD INSIDE ITS PREPARATION: it ends, or it
+        // goes into preparation too and writes a second `entered`. Only then does the gate open.
+        HeldLaunch& second = fixture.start(script, runtime.generic_string(), project.generic_string());
+        REQUIRE(until_launches({&first, &second},
+                               [&] { return second.ended || lines_saying(marker, "entered") == 2; }));
+        put_file(gate, "open");
+        REQUIRE(until_launches({&first, &second}, [&] { return lines_saying(hosts, "started") >= 1; }));
+        (void)until_launches({&first, &second}, [&] { return second.ended; });
+
+        INFO("the second launch said: ", second.said);
+        CHECK(lines_saying(marker, "entered") == 1);
+        CHECK(lines_saying(hosts, "started") == 1);
+        CHECK(second.ended);
+        CHECK(second.status == 1);
+        CHECK(second.said.find(kHeldWords) != std::string::npos);
+        put_file(host_gate, "open");
+        REQUIRE(until_launches({&first, &second}, [&] { return first.ended && second.ended; }));
+        CHECK(first.status == 0);
+        CHECK(lines_saying(hosts, "started") == 1);
+    }
+}
+
+TEST_CASE("a launch holds its runtime until the Workshop it started has exited: a launch meanwhile is refused and prepares nothing, and a launch after the exit prepares and starts it again") {
+    TempDir scratch("dev-held");
+    LaunchFixture fixture(scratch.path());
+    const std::string runtime = (scratch.path() / "runtime").generic_string();
+    const std::filesystem::path project = scratch.path() / "project";
+    const std::filesystem::path hosts = project / "hosts.log";
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path gate = scratch.path() / "gate";
+    const std::filesystem::path host_gate = fixture.gate(project / "host-gate");
+    put_file(gate, "open");
+    const std::string script = fixture.script("prepare", marker, gate);
+
+    HeldLaunch& first = fixture.start(script, runtime, project.generic_string());
+    REQUIRE(until_launches({&first}, [&] { return first.ended || lines_saying(hosts, "started") == 1; }));
+    REQUIRE_MESSAGE(!first.ended, first.said);
+    // ITS WORKSHOP IS RUNNING, AND THE LAUNCH THAT STARTED IT IS STILL WAITING ON IT.
+    HeldLaunch& meanwhile = fixture.start(script, runtime, project.generic_string());
+    REQUIRE(until_launches({&first, &meanwhile}, [&] { return meanwhile.ended; }));
+    INFO("the launch meanwhile said: ", meanwhile.said);
+    CHECK(meanwhile.status == 1);
+    CHECK(meanwhile.said.find(kHeldWords) != std::string::npos);
+    CHECK(lines_saying(marker, "entered") == 1);
+    CHECK(lines_saying(hosts, "started") == 1);
+    CHECK_FALSE(first.ended);
+
+    put_file(host_gate, "open");
+    REQUIRE(until_launches({&first}, [&] { return first.ended; }));
+    CHECK(first.status == 0);
+    HeldLaunch& after = fixture.start(script, runtime, project.generic_string());
+    REQUIRE(until_launches({&after}, [&] { return after.ended; }));
+    INFO("the launch after said: ", after.said);
+    CHECK(after.status == 0);
+    CHECK(lines_saying(marker, "entered") == 2);
+    CHECK(lines_saying(hosts, "started") == 2);
+}
+
+TEST_CASE("a launch whose preparation fails, or whose Workshop does not start, lets its runtime go as it ends: the next launch prepares it and starts it") {
+    TempDir scratch("dev-let-go");
+    LaunchFixture fixture(scratch.path());
+    const std::string runtime = (scratch.path() / "runtime").generic_string();
+    const std::filesystem::path project = scratch.path() / "project";
+    const std::filesystem::path hosts = project / "hosts.log";
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path gate = scratch.path() / "gate";
+    put_file(gate, "open");
+    std::filesystem::create_directories(project);
+    put_file(project / "host-gate", "open"); // every host here exits as soon as it has started
+    const std::string failing = fixture.script("failing", marker, gate, Preparation::failing);
+    const std::string script = fixture.script("prepare", marker, gate);
+    const auto end_of = [](HeldLaunch& launch) {
+        REQUIRE(until_launches({&launch}, [&] { return launch.ended; }));
+    };
+
+    HeldLaunch& failed = fixture.start(failing, runtime, project.generic_string());
+    end_of(failed);
+    INFO("the failed launch said: ", failed.said);
+    CHECK(failed.status == 1);
+    CHECK(failed.said.find("the runtime was not prepared") != std::string::npos);
+    CHECK(lines_saying(hosts, "started") == 0);
+    HeldLaunch& retried = fixture.start(script, runtime, project.generic_string());
+    end_of(retried);
+    INFO("the launch after it said: ", retried.said);
+    CHECK(retried.status == 0);
+    CHECK(lines_saying(hosts, "started") == 1);
+
+    // A WORKSHOP THAT DOES NOT START: this launch names a host the runtime does not have.
+    HeldLaunch& unstarted = fixture.start(script, runtime, project.generic_string(), "no-such-host.exe");
+    end_of(unstarted);
+    INFO("the launch whose host did not start said: ", unstarted.said);
+    CHECK(unstarted.status == 1);
+    CHECK(unstarted.said.find("the runtime's Workshop did not start") != std::string::npos);
+    HeldLaunch& again = fixture.start(script, runtime, project.generic_string());
+    end_of(again);
+    INFO("the launch after that said: ", again.said);
+    CHECK(again.status == 0);
+    CHECK(lines_saying(hosts, "started") == 2);
+    CHECK(lines_saying(marker, "entered") == 4);
+}
+
+/// SOMETHING ELSE WHERE A RUNTIME'S CLAIM GOES, for as long as it lives: on Windows an event under
+/// the mutex's name, which the system will not make a mutex under; on POSIX a directory at the lock
+/// file's path, which cannot be opened as one.
+struct ClaimInTheWay {
+    std::string name;
+#if defined(_WIN32)
+    HANDLE event;
+    explicit ClaimInTheWay(std::string at)
+        : name(std::move(at)), event(::CreateEventA(nullptr, TRUE, FALSE, name.c_str())) {}
+    ~ClaimInTheWay() {
+        if (event != nullptr) {
+            ::CloseHandle(event);
+        }
+    }
+    bool there() const { return event != nullptr; }
+#else
+    explicit ClaimInTheWay(std::string at) : name(std::move(at)) {
+        std::error_code ec;
+        std::filesystem::create_directory(name, ec);
+    }
+    ~ClaimInTheWay() {
+        std::error_code ec;
+        std::filesystem::remove(name, ec);
+    }
+    bool there() const {
+        std::error_code ec;
+        return std::filesystem::is_directory(name, ec);
+    }
+#endif
+    ClaimInTheWay(const ClaimInTheWay&) = delete;
+    ClaimInTheWay& operator=(const ClaimInTheWay&) = delete;
+};
+
+TEST_CASE("a launch that cannot make its runtime's claim prepares nothing and launches nothing, and says why") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-unclaimed");
+    LaunchFixture fixture(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+    const std::filesystem::path project = scratch.path() / "project";
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path gate = scratch.path() / "gate";
+    put_file(gate, "open");
+    const std::string script = fixture.script("prepare", marker, gate);
+    {
+        const ClaimInTheWay in_the_way(develop::runtime_claim_name(runtime.generic_string()));
+        REQUIRE(in_the_way.there());
+        HeldLaunch& refused = fixture.start(script, runtime.generic_string(), project.generic_string());
+        REQUIRE(until_launches({&refused}, [&] { return refused.ended; }));
+        INFO("the refused launch said: ", refused.said);
+        CHECK(refused.status == 1);
+        CHECK(refused.said.find("could not claim the runtime " + runtime.generic_string()) !=
+              std::string::npos);
+        CHECK(refused.said.find(in_the_way.name) != std::string::npos);
+        CHECK(lines_saying(marker, "entered") == 0);
+        CHECK_FALSE(std::filesystem::exists(runtime));
+        CHECK_FALSE(std::filesystem::exists(project));
+    }
+    // WHAT WAS IN THE WAY HAS GONE, AND THE SAME LAUNCH GOES THROUGH.
+    std::filesystem::create_directories(project);
+    put_file(project / "host-gate", "open");
+    HeldLaunch& claimed = fixture.start(script, runtime.generic_string(), project.generic_string());
+    REQUIRE(until_launches({&claimed}, [&] { return claimed.ended; }));
+    INFO("the launch after said: ", claimed.said);
+    CHECK(claimed.status == 0);
+    CHECK(lines_saying(project / "hosts.log", "started") == 1);
+}
+
+TEST_CASE("a launch that dies holding its runtime lets it go with its process, and a Workshop a dead launch left open is refused by the in-use check and stopped by nobody") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-died");
+    LaunchFixture fixture(scratch.path());
+    const std::string runtime = (scratch.path() / "runtime").generic_string();
+    const std::string host = runtime + "/" + fixture.host_name;
+    const std::filesystem::path project = scratch.path() / "project";
+    const std::filesystem::path hosts = project / "hosts.log";
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path open = scratch.path() / "open-gate";
+    const std::filesystem::path held_gate = fixture.gate(scratch.path() / "held-gate");
+    const std::filesystem::path host_gate = fixture.gate(project / "host-gate");
+    put_file(open, "open");
+    const std::string straight = fixture.script("straight", marker, open);
+    // HELD AFTER IT HAS PREPARED, so the script that outlives its launch -- still at its gate --
+    // has nothing left to do to the runtime when the gate opens.
+    const std::string held = fixture.script("held", marker, held_gate, Preparation::prepared);
+
+    // DEAD INSIDE ITS PREPARATION.
+    HeldLaunch& dying = fixture.start(held, runtime, project.generic_string());
+    REQUIRE(until_launches({&dying}, [&] { return dying.ended || lines_saying(marker, "waiting") == 1; }));
+    REQUIRE_MESSAGE(!dying.ended, dying.said);
+    HeldLaunch& while_alive = fixture.start(straight, runtime, project.generic_string());
+    REQUIRE(until_launches({&dying, &while_alive}, [&] { return while_alive.ended; }));
+    CHECK(while_alive.status == 1);
+    CHECK(while_alive.said.find(kHeldWords) != std::string::npos);
+    LaunchFixture::end_abruptly(dying);
+    HeldLaunch& next = fixture.start(straight, runtime, project.generic_string());
+    REQUIRE(until_launches({&next}, [&] { return next.ended || lines_saying(hosts, "started") == 1; }));
+    INFO("the launch after the death said: ", next.said);
+    REQUIRE_FALSE(next.ended);
+    put_file(held_gate, "open");
+    CHECK(until_launches({&next}, [&] { return lines_saying(marker, "left") == 2; }));
+
+    // DEAD WHILE ITS WORKSHOP RUNS: the claim goes with the launch, and the Workshop stays open.
+    LaunchFixture::end_abruptly(next);
+    const bool seen_running = develop::image_in_use(host);
+#if defined(_WIN32)
+    CHECK(seen_running);
+#endif
+    if (seen_running) {
+        HeldLaunch& beside = fixture.start(straight, runtime, project.generic_string());
+        REQUIRE(until_launches({&beside}, [&] { return beside.ended; }));
+        INFO("the launch beside the Workshop left open said: ", beside.said);
+        CHECK(beside.status == 1);
+        CHECK(beside.said.find(kUnheldWords) != std::string::npos);
+        CHECK(lines_saying(marker, "entered") == 2);
+    } else {
+        MESSAGE("this kernel opens a running image for writing, so a Workshop no launch holds is not "
+                "seen from here; that refusal is pinned where the in-use check is answered");
+    }
+    CHECK(lines_saying(hosts, "ended") == 0);
+    put_file(host_gate, "open");
+    REQUIRE(until_launches({}, [&] {
+        return lines_saying(hosts, "ended") == 1 && !develop::image_in_use(host);
+    }));
+    HeldLaunch& last = fixture.start(straight, runtime, project.generic_string());
+    REQUIRE(until_launches({&last}, [&] { return last.ended; }));
+    INFO("the last launch said: ", last.said);
+    CHECK(last.status == 0);
+    CHECK(lines_saying(hosts, "started") == 2);
+}
+
+TEST_CASE("a Workshop started from a runtime without a launch holds no claim, and while it runs a launch is refused by the in-use check and stops nothing") {
+    namespace develop = zengine::workshop::develop;
+    TempDir scratch("dev-direct");
+    LaunchFixture fixture(scratch.path());
+    const std::filesystem::path runtime = scratch.path() / "runtime";
+    const std::filesystem::path project = scratch.path() / "project";
+    const std::filesystem::path hosts = project / "hosts.log";
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path gate = scratch.path() / "gate";
+    const std::filesystem::path host_gate = fixture.gate(project / "host-gate");
+    put_file(gate, "open");
+    const std::string script = fixture.script("prepare", marker, gate);
+    const zengine::builder::RunResult made =
+        run_cmake_script({"-DZEN_RUNTIME=" + runtime.generic_string(), "-P", script});
+    REQUIRE_MESSAGE(made.status == 0, made.output);
+    std::filesystem::create_directories(project);
+
+    // STARTED AS A MAKER MIGHT START IT FROM A SHELL: the runtime's own host, with no launch.
+    zengine::builder::BuildCommand direct;
+    direct.program = (runtime / fixture.host_name).string();
+    direct.dir = project.string();
+    HeldLaunch& workshop = fixture.hold(direct);
+    REQUIRE(until_launches({&workshop},
+                           [&] { return workshop.ended || lines_saying(hosts, "started") == 1; }));
+    REQUIRE_FALSE(workshop.ended);
+    const bool seen_running = develop::image_in_use(direct.program);
+#if defined(_WIN32)
+    CHECK(seen_running);
+#endif
+    if (seen_running) {
+        HeldLaunch& beside = fixture.start(script, runtime.generic_string(), project.generic_string());
+        REQUIRE(until_launches({&workshop, &beside}, [&] { return beside.ended; }));
+        INFO("the launch beside it said: ", beside.said);
+        CHECK(beside.status == 1);
+        CHECK(beside.said.find(kUnheldWords) != std::string::npos);
+        CHECK(lines_saying(marker, "entered") == 1);
+        CHECK_FALSE(workshop.ended);
+    } else {
+        MESSAGE("this kernel opens a running image for writing, so a Workshop no launch holds is not "
+                "seen from here; that refusal is pinned where the in-use check is answered");
+    }
+    put_file(host_gate, "open");
+    REQUIRE(until_launches({&workshop}, [&] { return workshop.ended; }));
+    CHECK(workshop.status == 0);
+    HeldLaunch& after = fixture.start(script, runtime.generic_string(), project.generic_string());
+    REQUIRE(until_launches({&after}, [&] { return after.ended; }));
+    INFO("the launch after it said: ", after.said);
+    CHECK(after.status == 0);
+    CHECK(lines_saying(hosts, "started") == 2);
+}
+
+TEST_CASE("launches of two runtimes do not wait on each other, and one runtime spelled another way is still the runtime its launch holds") {
+    TempDir scratch("dev-two-runtimes");
+    LaunchFixture fixture(scratch.path());
+    const std::filesystem::path runtimes = scratch.path() / "runtimes";
+    std::filesystem::create_directories(runtimes);
+    const std::filesystem::path marker = scratch.path() / "entered.log";
+    const std::filesystem::path gate = fixture.gate(scratch.path() / "gate");
+    const std::string script = fixture.script("prepare", marker, gate);
+    const std::filesystem::path project_one = scratch.path() / "project-one";
+    const std::filesystem::path project_two = scratch.path() / "project-two";
+    const std::filesystem::path gate_one = fixture.gate(project_one / "host-gate");
+    const std::filesystem::path gate_two = fixture.gate(project_two / "host-gate");
+
+    HeldLaunch& one = fixture.start(script, (runtimes / "one").generic_string(), project_one.generic_string());
+    REQUIRE(until_launches({&one}, [&] { return lines_saying(marker, "entered") == 1; }));
+    // ANOTHER RUNTIME'S LAUNCH GOES INTO ITS PREPARATION WHILE THE FIRST IS HELD IN ITS OWN.
+    HeldLaunch& two = fixture.start(script, (runtimes / "two").generic_string(), project_two.generic_string());
+    REQUIRE(until_launches({&one, &two}, [&] { return two.ended || lines_saying(marker, "entered") == 2; }));
+    INFO("the other runtime's launch said: ", two.said);
+    CHECK_FALSE(two.ended);
+
+    // THE FIRST RUNTIME AGAIN, SPELLED ANOTHER WAY: refused as held, before it prepares anything.
+#if defined(_WIN32)
+    std::string respelled = (runtimes / "one").string();
+    for (char& c : respelled) {
+        if (c >= 'a' && c <= 'z') {
+            c = static_cast<char>(c - 'a' + 'A');
+        }
+    }
+    respelled += "\\";
+#else
+    std::filesystem::create_directory_symlink(runtimes, scratch.path() / "linked");
+    const std::string respelled = (scratch.path() / "linked" / "." / "one").generic_string() + "/";
+#endif
+    HeldLaunch& again = fixture.start(script, respelled, project_one.generic_string());
+    REQUIRE(until_launches({&one, &two, &again},
+                           [&] { return again.ended || lines_saying(marker, "entered") == 3; }));
+    INFO("the launch of the respelled runtime said: ", again.said);
+    CHECK(again.status == 1);
+    CHECK(again.said.find(kHeldWords) != std::string::npos);
+    CHECK(lines_saying(marker, "entered") == 2);
+
+    put_file(gate, "open");
+    REQUIRE(until_launches({&one, &two, &again}, [&] {
+        return lines_saying(project_one / "hosts.log", "started") >= 1 &&
+               lines_saying(project_two / "hosts.log", "started") >= 1;
+    }));
+    put_file(gate_one, "open");
+    put_file(gate_two, "open");
+    REQUIRE(until_launches({&one, &two, &again}, [&] { return one.ended && two.ended && again.ended; }));
+    CHECK(one.status == 0);
+    CHECK(two.status == 0);
+    CHECK(lines_saying(project_one / "hosts.log", "started") == 1);
+    CHECK(lines_saying(project_two / "hosts.log", "started") == 1);
 }
 
 // ============================================================================

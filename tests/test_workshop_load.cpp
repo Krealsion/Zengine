@@ -4447,7 +4447,8 @@ struct ReloadRig {
             r.id = "recipe-" + std::string(stem);
             r.artifact = stem;
             r.artifact_dir = products().generic_string();
-            r.cmake_target = zengine::builder::CMakeTargetRecipe{"/a/tree", stem, std::string()};
+            r.cmake_target = zengine::builder::CMakeTargetRecipe{"/a/tree", stem, std::string(),
+                                                                 std::string()};
             built.push_back(r);
         }
         recipes.hold("products.json", built, &so_of);
@@ -4567,6 +4568,16 @@ TEST_CASE("RELOAD-1: a live weave-only row reloads in place -- same WeaveId, sta
 
     // "THE MAKER REBUILT IT": the product is a copy of the same image, in `products/`.
     rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
+    // WHAT EARLIER RUNS OF THIS BINARY LEFT IN THE RELOAD DIRECTORY: a reload's copy is a file
+    // nothing wrote before, so it is none of these (WL-PROJ-16).
+    std::vector<std::string> left;
+    {
+        std::error_code listed;
+        for (const std::filesystem::directory_entry& e : std::filesystem::directory_iterator(
+                 stage().dir / "zengine-plain-weave.reloads", listed)) {
+            left.push_back(e.path().generic_string());
+        }
+    }
     rig.offer("zengine-plain-weave");
 
     // THE SAME WEAVE, STILL THERE, WITH THE STATE IT HAD.
@@ -4591,12 +4602,14 @@ TEST_CASE("RELOAD-1: a live weave-only row reloads in place -- same WeaveId, sta
     // is exactly what it was: the previous image.
     const load::ResolvedArtifact& row = rig.executor.resolved()[0];
     CHECK(row.image != rig.plan_file("zengine-plain-weave"));
-    CHECK(row.image.find("zengine-plain-weave.reloads/zengine-plain-weave-1") !=
+    CHECK(row.image.find("zengine-plain-weave.reloads/zengine-plain-weave-" +
+                         std::to_string(rig.staging.reloads) + kArtifactSuffix) !=
           std::string::npos);
     CHECK(std::filesystem::exists(std::filesystem::path(row.image)));
+    CHECK(std::find(left.begin(), left.end(), row.image) == left.end());
     CHECK(row.previous == rig.plan_file("zengine-plain-weave"));
     CHECK_FALSE(row.default_image);
-    CHECK(rig.staging.reloads == 1);
+    CHECK(rig.staging.reloads >= 1);
     // ...AND THE WEAVE STILL ANSWERS: a second forged room is refused and counted by the
     // reloaded code.
     forge_room(rig.bus, before);
@@ -4924,6 +4937,67 @@ TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibl
 // the row is authored behind the frontier; under a conversation, a refusal or a plan that
 // never began it is refused in words. Nothing here writes a file; the host's writer
 // (`workshop/authoring.hpp`) asks this door FIRST and writes the project plan after.
+
+TEST_CASE("a reload's copy is a file nothing wrote before, and a name another process took is passed over") {
+    // TWO WORKSHOPS FROM ONE HOST DIRECTORY EACH COUNT RELOADS FROM ONE. The first reload of this
+    // process meets `<stem>-1` already there -- another process's running image, or the one it
+    // will revert to -- and must not write over it: it takes the next free name, and the bytes
+    // under `-1` are the other process's still. A promotion's kept copy passes over taken names
+    // the same way.
+    const std::filesystem::path scratch = stage().dir / "fresh-reload";
+    std::error_code cleared;
+    std::filesystem::remove_all(scratch, cleared);
+    const std::filesystem::path host = scratch / "runtime";
+    const std::filesystem::path out = scratch / "build" / "attention-pane";
+    std::filesystem::create_directories(host / "zengine-attention-pane.reloads");
+    std::filesystem::create_directories(out);
+    const std::string product = so_of(out.generic_string(), "zengine-attention-pane");
+    write_file(product, "this build's image\n");
+    const std::filesystem::path taken(
+        so_of((host / "zengine-attention-pane.reloads").generic_string(),
+                           "zengine-attention-pane-1"));
+    write_file(taken.generic_string(), "another process's running image\n");
+
+    zengine::builder::Recipe recipe;
+    recipe.id = "attention";
+    recipe.artifact = "zengine-attention-pane";
+    recipe.artifact_dir = out.generic_string();
+    recipe.cmake_target = zengine::builder::CMakeTargetRecipe{"/zen/build", "zengine-attention-pane",
+                                                              std::string(), std::string()};
+    workshop::CurrentRecipes owner;
+    owner.hold("/zen/development-build-recipes.json", {recipe}, &so_of);
+    workshop::staging::Host here{host.generic_string(), &owner, &so_of, 0};
+
+    const load::PlanExecutor::Staged first = workshop::staging::stage(here, "zengine-attention-pane",
+                                                            "attention", /*reload=*/true);
+    REQUIRE_MESSAGE(first.ok, first.refusal);
+    CHECK(first.path == std::filesystem::path(so_of(
+                            (host / "zengine-attention-pane.reloads").generic_string(),
+                            "zengine-attention-pane-2"))
+                            .generic_string());
+    CHECK(file_text(taken.generic_string()) == "another process's running image\n");
+    CHECK(file_text(first.path) == "this build's image\n");
+
+    // A SECOND PROCESS, COUNTING FROM ONE TOO, PASSES OVER BOTH.
+    workshop::staging::Host there{host.generic_string(), &owner, &so_of, 0};
+    const load::PlanExecutor::Staged second = workshop::staging::stage(there, "zengine-attention-pane",
+                                                             "attention", /*reload=*/true);
+    REQUIRE_MESSAGE(second.ok, second.refusal);
+    CHECK(second.path.find("zengine-attention-pane-3") != std::string::npos);
+    CHECK(file_text(first.path) == "this build's image\n");
+
+    // ...AND A PROMOTION KEEPS WHAT IT WRITES OVER UNDER A NAME NOBODY HOLDS EITHER.
+    write_file(so_of(host.generic_string(), "zengine-attention-pane"), "the default\n");
+    const load::PlanExecutor::Promoted promoted =
+        workshop::staging::promote(there, "zengine-attention-pane", second.path);
+    REQUIRE_MESSAGE(promoted.ok, promoted.detail);
+    CHECK(promoted.kept.find("zengine-attention-pane-4-promoted-over") != std::string::npos);
+    CHECK(file_text(promoted.kept) == "the default\n");
+    CHECK(file_text(so_of(host.generic_string(), "zengine-attention-pane")) ==
+          "this build's image\n");
+    CHECK(file_text(taken.generic_string()) == "another process's running image\n");
+}
+
 
 TEST_CASE("LOAD-IT: `append` in Complete performs the new row by the ordinary three steps, and "
           "Complete means complete again") {

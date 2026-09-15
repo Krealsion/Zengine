@@ -163,15 +163,15 @@ inline constexpr const char* kBuilderRole = "zengine.builder";
 /// else may.
 inline constexpr const char* kBuildRunnerRole = "zengine.build-runner";
 
-/// The most output one `BuildOutput` carries.
+/// The most output one `BuildOutput` carries, in bytes.
 ///
-/// A BOUND ON A MESSAGE, NOT ON A BUILD. The runner drains everything it can see
-/// each time it looks and publishes what it drained; this is what keeps any one
-/// fact a reasonable size when a build says a great deal between two looks. The
-/// OLDEST characters are the ones dropped -- the end of a build's output is the
-/// part that says what went wrong -- and how many were dropped travels with the
-/// message rather than being swallowed, because a bounded surface that pretended
-/// to be complete would trade a memory lie for an observability one.
+/// A BOUND ON A MESSAGE, NOT ON A BUILD, AND NOTHING IS DROPPED TO KEEP IT. The runner
+/// drains what it can see each time it looks and says ALL of it, in as many messages of
+/// at most this many bytes as that takes, in order -- so a burst of compiler output
+/// between two looks costs messages, never lines. It used to keep only a look's last
+/// 2,048 characters and count the rest, and the rest was routinely the compiler's reason:
+/// a count of what was lost is honest, and still not the words a maker needed.
+// WL-OUT-01 -- agents/workshop/build-output.md
 inline constexpr std::size_t kMaxOutputChars = 2048u;
 
 /// Where a build stands, as ONE value, so a presentation asks one question.
@@ -317,62 +317,43 @@ struct LookAtBuilds {
 /// visible half of this package's split, so a helper that both halves need
 /// belongs on the side neither of them is refused.
 inline std::string tail_lines(const std::string& text, std::size_t how_many) {
+    // THE LAST `how_many` LINES THAT SAY SOMETHING. A blank line is not what a maker
+    // meant by "the last line" at the end of the output, and it is not one in the middle
+    // either: a compiler's error block ends in two of them, and counting those spent the
+    // whole tail on nothing (measured when `BuildOutput` began carrying the bytes whole).
+    std::vector<std::string> kept;
     std::size_t end = text.size();
-    while (end > 0 && (text[end - 1] == '\n' || text[end - 1] == '\r')) {
-        --end;
-    }
-    if (end == 0) {
-        return {};
-    }
-    std::size_t start = end;
-    std::size_t taken = 0;
-    while (start > 0 && taken < how_many) {
-        const std::size_t nl = text.rfind('\n', start - 1);
+    while (end > 0 && kept.size() < how_many) {
+        const std::size_t nl = text.rfind('\n', end - 1);
+        const std::size_t start = nl == std::string::npos ? 0 : nl + 1;
+        std::string line;
+        for (std::size_t i = start; i < end; ++i) {
+            const char c = text[i];
+            line += (c == '\r' || c == '\t') ? ' ' : c;
+        }
+        while (!line.empty() && line.back() == ' ') {
+            line.pop_back();
+        }
+        if (!line.empty()) {
+            kept.push_back(std::move(line));
+        }
         if (nl == std::string::npos) {
-            start = 0;
-            ++taken;
             break;
         }
-        start = nl;
-        ++taken;
-        if (start == 0) {
-            break;
-        }
+        end = nl;
     }
-    if (start < end && text[start] == '\n') {
-        ++start;
-    }
-    const std::string block = text.substr(start, end - start);
     // ONE LINE, WITH THE LINE BREAKS STILL VISIBLE AS BREAKS. A message that
     // travels as one string still has to say where the build's own lines ended:
     // turning them into spaces produced `Built target SDL3-shared [100%] Built
     // target zengine-snake` in the first live run, which reads as one sentence
     // that never happened. ` | ` is the smallest mark that keeps them apart.
     std::string out;
-    std::string line;
-    const auto flush = [&out, &line] {
-        while (!line.empty() && line.back() == ' ') {
-            line.pop_back();
-        }
-        if (line.empty()) {
-            return;
-        }
+    for (std::size_t i = kept.size(); i > 0; --i) {
         if (!out.empty()) {
             out += " | ";
         }
-        out += line;
-        line.clear();
-    };
-    for (const char c : block) {
-        if (c == '\n') {
-            flush();
-        } else if (c == '\r' || c == '\t') {
-            line += ' ';
-        } else {
-            line += c;
-        }
+        out += kept[i - 1];
     }
-    flush();
     return out;
 }
 
@@ -454,20 +435,22 @@ struct BuildStarted {
     ZEN_SHAPE(BuildStarted, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(command));
 };
 
-/// A RUNNING PROCESS SAID SOMETHING -- output observed since the last look, and
-/// never anything already reported.
+/// A RUNNING PROCESS SAID SOMETHING -- the next bytes of its output, and never anything
+/// already reported.
 ///
-/// `dropped` is how many characters of THIS observation did not fit in `text`
-/// (`kMaxOutputChars` above). It is on the wire rather than swallowed for the
-/// same reason `loom::BoundedHistory` exposes its eviction count: a reader that
-/// is shown a bounded thing has to be able to tell that it is bounded.
+/// v3: `text` IS THE OUTPUT ITSELF, NOT A SUMMARY OF IT. The child's bytes, in the order
+/// it wrote them, line breaks included; consecutive messages about one operation are
+/// consecutive pieces of one stream, and where one message ends carries no meaning (a
+/// line longer than `kMaxOutputChars` continues in the next). v2 joined a look's lines
+/// with ` | ` and kept the last 2,048 characters of the join, with `dropped` counting the
+/// rest; a reader could neither find a line's end nor recover what was dropped, so the
+/// join and the drop both went, and with nothing dropped there is nothing to count.
+// WL-OUT-01 -- agents/workshop/build-output.md
 struct BuildOutput {
     std::int64_t op = 0;
     std::string recipe;
     std::string text;
-    std::int64_t dropped = 0;
-    ZEN_SHAPE(BuildOutput, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(text),
-              ZEN_FIELD(dropped));
+    ZEN_SHAPE(BuildOutput, 3, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(text));
 };
 
 /// A PROCESS EXITED, and was reaped. The end of one operation.
@@ -551,6 +534,76 @@ struct BuildStatus {
               ZEN_FIELD(status), ZEN_FIELD(command), ZEN_FIELD(detail), ZEN_FIELD(builds),
               ZEN_FIELD(op), ZEN_FIELD(chunks), ZEN_FIELD(realize), ZEN_FIELD(realization),
               ZEN_FIELD(realized_detail), ZEN_FIELD(default_image));
+};
+
+// ---- what one operation said, read back --------------------------------------------------
+
+/// How many operations' output the tool keeps: the one it is following and the ones before
+/// it, newest last. A fifth build forgets the first's words, and a reader asking for them is
+/// told so rather than handed another operation's.
+inline constexpr std::size_t kKeptOperations = 4u;
+
+/// The most of one operation's output the tool keeps, in bytes: its FIRST lines up to
+/// `kKeptHeadBytes` and its LAST lines up to `kKeptTailBytes`, with what fell between them
+/// counted. Both ends, because a compiler's first error is near the start of a failure and
+/// a build tool's verdict at the end; neither is a guess about which line matters.
+inline constexpr std::size_t kKeptHeadBytes = 32u * 1024u;
+inline constexpr std::size_t kKeptTailBytes = 64u * 1024u;
+
+/// The longest one kept line may be, in bytes. A longer one keeps this much and counts the
+/// rest (`BuildOutputSaid::cut`): a single command echo can run to several kilobytes, and one
+/// such line must not spend a whole end of the record.
+inline constexpr std::size_t kMaxKeptLineBytes = 4096u;
+
+/// The most lines, and bytes, one answer carries -- a page, never the record.
+inline constexpr std::size_t kMaxOutputPageLines = 64u;
+inline constexpr std::size_t kMaxOutputPageBytes = 16u * 1024u;
+
+/// ASK THE TOOL FOR A PAGE OF ONE OPERATION'S OUTPUT.
+///
+/// BY OPERATION, NEVER BY RECIPE: an operation is the one build that said these lines, so a
+/// reader bound to `op` #7 goes on reading #7's words whatever is chosen, built or realized
+/// afterwards. `from` is a line number, counted from 1 over every line the operation said, and
+/// 0 asks for the page that ends at its last line; `lines` is how many the reader has room
+/// for, bounded by the tool.
+// WL-OUT-02 -- agents/workshop/build-output.md
+struct BuildOutputRequested {
+    std::int64_t op = 0;
+    std::int64_t from = 1;
+    std::int64_t lines = 0;
+    ZEN_SHAPE(BuildOutputRequested, 1, ZEN_FIELD(op), ZEN_FIELD(from), ZEN_FIELD(lines));
+};
+
+/// WHAT THE TOOL KEEPS OF ONE OPERATION'S OUTPUT, ONE PAGE OF IT.
+///
+/// `kept` false means the tool holds nothing for `op` -- never built here, or forgotten
+/// behind `kKeptOperations` newer ones -- and every other field but `ops` is empty. The page
+/// is `text`, whole lines as the build wrote them (bytes, a trailing CR removed), numbered
+/// from `first`; `said` is how many lines the operation has said so far. Lines the tool no
+/// longer keeps are `omitted` of them starting at line `omitted_from`, and a page that
+/// crosses that gap stops before it: the reader is told where the words are missing instead
+/// of shown two ends as one. `cut` is how many bytes over-long lines on THIS page lost.
+/// `ended` says the operation will say no more; `outcome` and `status` are the build's own.
+// WL-OUT-02 -- agents/workshop/build-output.md
+struct BuildOutputSaid {
+    std::int64_t op = 0;
+    bool kept = false;
+    std::string recipe;
+    std::string artifact;
+    std::int64_t outcome = outcome::kNeverBuilt;
+    std::int64_t status = 0;
+    bool ended = false;
+    std::int64_t said = 0;
+    std::int64_t first = 0;
+    std::vector<std::string> text;
+    std::int64_t omitted = 0;
+    std::int64_t omitted_from = 0;
+    std::int64_t cut = 0;
+    std::vector<std::int64_t> ops; ///< every operation the tool keeps, oldest first
+    ZEN_SHAPE(BuildOutputSaid, 1, ZEN_FIELD(op), ZEN_FIELD(kept), ZEN_FIELD(recipe),
+              ZEN_FIELD(artifact), ZEN_FIELD(outcome), ZEN_FIELD(status), ZEN_FIELD(ended),
+              ZEN_FIELD(said), ZEN_FIELD(first), ZEN_FIELD(text), ZEN_FIELD(omitted),
+              ZEN_FIELD(omitted_from), ZEN_FIELD(cut), ZEN_FIELD(ops));
 };
 
 /// ONE ROW OF WHAT CAN BE BUILT HERE.

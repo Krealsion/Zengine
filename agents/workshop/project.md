@@ -224,7 +224,7 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-16 — A live weave-only row reloads in place from an image off the loaded path
 
-LAW — A single-source build lands in its workspace; the host stages the product to the plan's file (a first load) or off it (a reload); `B` is one action in two states; promote and revert are the owner's.
+LAW — A single-source build lands in its workspace; a host stages a product at the plan's file (first load) or a new file off it (reload); `B` is one action in two states; promote and revert are the owner's.
 
 MEANS
 - `complete_recipes` completes an empty single-source `artifact_dir` to `<workspace>/out`;
@@ -236,14 +236,17 @@ DOES NOT MEAN
 - that a provider+weave row is reloaded — refused until unmount-and-remount exists.
 
 PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/staging.hpp` `stage`,
-`promote`; `workshop/load_execute.hpp` `PlanExecutor::reload`, `PlanExecutor::promote`,
+`promote`, `copy_fresh`; `workshop/load_execute.hpp` `PlanExecutor::reload`,
+`PlanExecutor::promote`,
 `PlanExecutor::revert`, `reload_refusal_words`; `builder-pane/pane.cpp` `build_realize`,
 `promote_image`, `revert_image`; `builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
 `tests/test_workshop_files.cpp` case
 `"RELOAD-1: a single-source recipe's product lands in its workspace, never on the loaded path"`;
 `tests/test_workshop_load.cpp` case `"RELOAD-1: a live weave-only row reloads in place -- same
-WeaveId, state kept, Ack settles it"`, case `"RELOAD-1: promote writes the running image into the
-plan's file, sibling then rename, and revert reloads the image before the last reload"`;
+WeaveId, state kept, Ack settles it"`, case `"a reload's copy is a file nothing wrote before, and
+a name another process took is passed over"`, case `"RELOAD-1: promote writes the
+running image into the plan's file, sibling then rename, and revert reloads the image before the
+last reload"`;
 `tests/test_workshop_panes_builder.cpp` case
 `"BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it"`, case
 `"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`, case

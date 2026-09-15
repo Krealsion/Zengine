@@ -10,8 +10,8 @@ door, one meaning for a relative source"). `EditorState::recipe` was write-only 
 **Decision.** `open_source(path, mail)` is the one door and it takes a path: normalize against
 the project, same-path reveal, dirty refusal, bounded read, `source_in`, trial-seat, install with
 `doc_epoch++` and a viewport reset, focus and sentence. Files hands it a row's path;
-`edit_source` keeps only the Builder half — which recipe, the `cmake_target` refusal, the host's
-answer over the completed catalog. Identity is a normalized spelling, not a filesystem object.
+`edit_source` keeps only the Builder half — which recipe, the refusal of a recipe that names no
+file, the host's answer over the completed catalog. Identity is a normalized spelling, not a filesystem object.
 Where the overlay stack has no slot left the door refuses and names the remedy.
 
 **Alternatives considered.**

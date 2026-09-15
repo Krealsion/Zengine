@@ -63,13 +63,15 @@ inline bld::Recipe single_recipe(const std::string& id, const std::string& artif
     return out;
 }
 
-inline bld::Recipe target_recipe(const std::string& id, const std::string& artifact) {
+inline bld::Recipe target_recipe(const std::string& id, const std::string& artifact,
+                                 const std::string& entry = std::string()) {
     bld::Recipe out;
     out.id = id;
     out.artifact = artifact;
     bld::CMakeTargetRecipe tree;
     tree.build_dir = "/project/build";
     tree.target = artifact;
+    tree.entry = entry;
     out.cmake_target = tree;
     return out;
 }
@@ -306,11 +308,15 @@ struct CodeRig {
     void mount_project_door() {
         r.host.frontier = [this] { return frontier; };
         marks_path = (root / "workshop-marks.json").generic_string();
-        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path, r.host.frontier);
+        // ...AND IT ANSWERS WHICH FILE A RECIPE NAMES by whatever rule a case wired into
+        // `host.recipe_source` -- none, unless a case wires the host's own.
+        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path, r.host.frontier,
+                                                  ProjectDoor::Names{}, r.host.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
+        say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);
@@ -483,6 +489,18 @@ TEST_CASE("the code behind an office is found by the weave holding it, never by 
         CHECK(code.artifact.empty());
         CHECK(code.recipes.empty());
     }
+    SUBCASE("a CMake target names the editing entry its author wrote, and one that wrote none names no file") {
+        const std::vector<bld::Recipe> entries{target_recipe("tree-with", "second",
+                                                             "/project/second/pane.cpp"),
+                                               target_recipe("tree-without", "second")};
+        const HostContext::CodeSource code =
+            provenance::code_source_of("office.a", loom::WeaveId{7}, rows, entries);
+        REQUIRE(code.recipes.size() == 2);
+        CHECK(code.recipes[0].kind == "cmake_target");
+        CHECK(code.recipes[0].source == "/project/second/pane.cpp");
+        CHECK(code.recipes[1].kind == "cmake_target");
+        CHECK(code.recipes[1].source.empty()); // nothing is guessed from the target or the stem
+    }
     SUBCASE("an artifact that also supplies operators says why a rebuild cannot reload in place") {
         const HostContext::CodeSource code =
             provenance::code_source_of("office.c", loom::WeaveId{9}, rows, recipes);
@@ -635,8 +653,9 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
         c.point_at(tally_ref());
         c.choose_edit_code();
         CHECK(c.r.session().notice_is_bad);
-        CHECK(c.notice().find("`tally-tree` is a cmake_target recipe") != std::string::npos);
-        CHECK(c.notice().find("not from one source file") != std::string::npos);
+        CHECK(c.notice().find("`tally-tree` is a cmake_target recipe with no editing entry") !=
+              std::string::npos);
+        CHECK(c.notice().find("give it an `entry`") != std::string::npos);
         CHECK(c.r.opening->state().last_path.empty());
         CHECK(c.watch->heard.empty());
     }
@@ -1114,6 +1133,65 @@ TEST_CASE("a finished build left unloaded keeps its button through Edit Code: it
         CHECK(c.tool->builds[2] == "tally");
         CHECK(c.tool->realizes[2]);
     }
+}
+
+// ============================================================================
+// A CMake target's editing entry: the same join, the same opening, both doors (WL-CODE-05)
+// ============================================================================
+
+TEST_CASE("Edit Code opens a CMake target recipe's editing entry through the opening office, and the Builder follows that recipe") {
+    // THE SHIPPED PANES' ROUTE, ON THE EXAMPLE'S IMAGE: one recipe produces the pane's artifact,
+    // and it is a CMake target that names where its code begins. Nothing about the opening, the
+    // reading published or the Builder's choice differs from a single source -- the entry is the
+    // file, and the build stays `--target`.
+    CodeRig c("code-entry");
+    c.hold({target_recipe("skin", "zengine-skin"), target_recipe("tally-tree", kTallyStem, c.source)});
+    c.open();
+    const std::int64_t committed_before = c.r.opening->state().committed;
+    REQUIRE(c.text_of(builder_ref()).find("skin -> zengine-skin") != std::string::npos);
+
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+
+    CHECK(c.r.opening->state().committed == committed_before + 1);
+    CHECK(c.r.opening->state().last_path == c.source);
+    CHECK(c.editor_status().find("tally.cpp") != std::string::npos);
+    CHECK_FALSE(c.r.session().notice_is_bad);
+    CHECK(c.notice().find("opened the source of Tally -- recipe `tally-tree`") != std::string::npos);
+    REQUIRE(c.watch->heard.size() == 1);
+    CHECK(c.watch->heard[0].recipe == "tally-tree");
+    CHECK(c.watch->heard[0].source == c.source);
+    CHECK(c.text_of(builder_ref()).find("tally-tree -> zengine-example-tally") != std::string::npos);
+    CHECK(c.tool->builds.empty());
+}
+
+TEST_CASE("the Builder's e opens a CMake target recipe's editing entry by the rule Edit Code reads, and one with none says so") {
+    // BOTH DOORS READ ONE RULE (`provenance::recipe_source_of`), wired over the catalog in force
+    // exactly as the host wires it: the Builder's `e` asks the project office by the recipe's
+    // name, and the answer is the entry that recipe's author wrote -- or the recipe file's words.
+    CodeRig c("code-entry-e");
+    c.hold({target_recipe("tally-tree", kTallyStem, c.source), target_recipe("skin", "zengine-skin")});
+    c.r.host.recipe_source = [&c](const std::string& id) {
+        return provenance::recipe_source_of(c.r.host_recipes.all(), id);
+    };
+    c.open();
+
+    c.press_into(builder_ref());
+    REQUIRE(c.text_of(builder_ref()).find("tally-tree -> zengine-example-tally") != std::string::npos);
+    const std::int64_t committed_before = c.r.opening->state().committed;
+    c.letter(input::scan::kE, "e");
+    CHECK(c.r.opening->state().committed == committed_before + 1);
+    CHECK(c.r.opening->state().last_path == c.source);
+    CHECK(c.editor_status().find("tally.cpp") != std::string::npos);
+
+    // THE RECIPE THAT NAMES NO ENTRY OPENS NOTHING, AND SAYS WHICH RECIPE AND WHY.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kC, "c");
+    REQUIRE(c.text_of(builder_ref()).find("skin -> zengine-skin") != std::string::npos);
+    c.letter(input::scan::kE, "e");
+    CHECK(c.r.opening->state().committed == committed_before + 1);
+    CHECK(c.text_of(builder_ref()).find("`skin` is a cmake_target recipe -- it names no source "
+                                        "file or editing entry to open") != std::string::npos);
 }
 
 TEST_CASE("Edit Code bound to a key in command mode names no pane, says where the gesture lives, and opens nothing") {

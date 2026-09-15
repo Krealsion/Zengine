@@ -135,7 +135,11 @@ std::string so_in(std::string_view dir, std::string_view stem) {
 ///
 /// It is an ORDINARY WEAVE that accepts the two publications the Builder makes, prints
 /// them, and sets a flag when the conversation it is following has no more to say. It
-/// commands nothing and asks nothing: a presentation, exactly as the Builder panel is.
+/// commands nothing: a presentation, exactly as the Builder pane is -- and, as that pane's
+/// reader does, it asks the tool for what the build it followed SAID once that build has
+/// ended, by the operation's number, and prints every line of the page it is given. That is
+/// the road a maker reads a compiler's reason by (WL-OUT-02), so it is the road this lane reads
+/// it by; a status's few last lines are the build's ending, not its reason.
 struct ReporterState {
     std::int64_t heard = 0;
     ZEN_SHAPE(ReporterState, 1, ZEN_FIELD(heard));
@@ -143,9 +147,11 @@ struct ReporterState {
 
 class Reporter
     : public loom::WeaveBase<Reporter, ReporterState,
-                             loom::Accept<builder::BuildStatus, builder::RecipeCatalog>,
+                             loom::Accept<builder::BuildStatus, builder::RecipeCatalog,
+                                          builder::BuildOutputSaid>,
                              loom::Emit<builder::BuildRequested, builder::PromoteArtifact,
-                                        builder::RevertArtifact>> {
+                                        builder::RevertArtifact,
+                                        builder::BuildOutputRequested>> {
 public:
     /// `stop` IS THE HOST'S OWN DOOR, handed over exactly as `HostContext::request_stop`
     /// is: this weave decides that the conversation it was following is over, and the
@@ -205,6 +211,16 @@ public:
         if (builder::still_going(said.outcome)) {
             return;
         }
+        // THE BUILD HAS ENDED: ASK WHAT IT SAID, once per operation, by its number.
+        if (said.op != 0 && said.op != output_op_) {
+            output_op_ = said.op;
+            output_pending_ = true;
+            (void)mail.send_to_role(builder::kBuilderRole,
+                                    builder::BuildOutputRequested{
+                                        said.op, 1,
+                                        static_cast<std::int64_t>(builder::kMaxOutputPageLines)},
+                                    ++output_asks_);
+        }
         // THE BUILD IS OVER. Whether this conversation is over depends on whether a
         // second question was asked -- which is exactly the two-latch distinction the
         // Builder panel draws, said here without a screen.
@@ -232,9 +248,28 @@ public:
             (void)mail.publish(builder::RevertArtifact{said.artifact});
             return;
         }
-        done = true;
-        if (stop_) {
-            stop_();
+        finish();
+    }
+
+    /// ONE PAGE OF WHAT THE BUILD SAID, printed line by line as the tool kept it.
+    void on(const builder::BuildOutputSaid& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || mail.correlation() != output_asks_) {
+            return;
+        }
+        const std::int64_t last_line = said.first + static_cast<std::int64_t>(said.text.size()) - 1;
+        std::printf("witness: output #%lld kept=%s lines %lld-%lld of %lld, %lld not kept, "
+                    "%lld cut\n",
+                    static_cast<long long>(said.op), said.kept ? "yes" : "no",
+                    static_cast<long long>(said.first), static_cast<long long>(last_line),
+                    static_cast<long long>(said.said), static_cast<long long>(said.omitted),
+                    static_cast<long long>(said.cut));
+        for (const std::string& line : said.text) {
+            std::printf("witness: said: %s\n", line.c_str());
+        }
+        std::fflush(stdout);
+        output_pending_ = false;
+        if (finish_when_heard_) {
+            finish();
         }
     }
 
@@ -249,7 +284,23 @@ private:
     bool promoted_ = false;
     bool reverted_ = false;
     bool asked_ = false;
+    std::int64_t output_op_ = 0;       ///< the operation whose output was asked for
+    std::uint64_t output_asks_ = 0;    ///< the correlation of that ask
+    bool output_pending_ = false;      ///< asked and not yet answered
+    bool finish_when_heard_ = false;   ///< the conversation is over but for that answer
     std::function<void()> stop_;
+
+    /// THE CONVERSATION IS OVER -- unless the page of what its build said is still coming.
+    void finish() {
+        if (output_pending_) {
+            finish_when_heard_ = true;
+            return;
+        }
+        done = true;
+        if (stop_) {
+            stop_();
+        }
+    }
 };
 
 struct Arguments {
@@ -381,6 +432,8 @@ int main(int argc, char** argv) {
                               builder::RecipeCatalog::zen_version);
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
+    order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
+                              builder::BuildOutputSaid::zen_version);
     (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),
@@ -448,6 +501,8 @@ int main(int argc, char** argv) {
                         builder::kBuilderRole);
     speak.allow_to_role(builder::StatusRequested::zen_name,
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
+    speak.allow_to_role(builder::BuildOutputRequested::zen_name,
+                        builder::BuildOutputRequested::zen_version, builder::kBuilderRole);
     speak.allow_to_any(builder::PromoteArtifact::zen_name, builder::PromoteArtifact::zen_version);
     speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
     Reporter* reporter = nullptr;

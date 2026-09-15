@@ -1045,7 +1045,7 @@ maker                             doctest           always  26
 # the host's choice is the thing being pinned. The same phase's other change to this suite --
 # `drain` bounded by a wall clock instead of by two million looks -- moved no floor and added
 # no case: the same population, no longer able to fail for having looked too fast.
-builder                           doctest           always  55
+builder                           doctest           always  59
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that
@@ -1557,10 +1557,10 @@ builder                           doctest           always  55
 workshop_document                 doctest           always  104
 workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  546
+workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  136
-workshop_files                    doctest           always  41
+workshop_load                     doctest           always  137
+workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
