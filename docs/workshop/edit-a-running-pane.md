@@ -165,7 +165,7 @@ Make a typo, save, and `b`. The Builder says `FAILED` on its `last` row and
 Tally keeps running the code it had. Your edit is still in the Editor, saved.
 
 The `last` row ends `-- read output`. Press **`l`** in the Builder: it shows that build's own
-lines, as the compiler wrote them, under a header naming the build — `↓` and `End` move down to
+lines, as the build wrote them, under a header naming the build — `↓` and `End` move down to
 the error, which names the file, the line and the column, and `→` pans along a long line. `Escape`
 gives the Builder's rows back ([reading what a build said](builder.md#reading-what-a-build-said)).
 Fix it in the Editor, save, and `b` again: the reload goes ahead as if nothing had happened.

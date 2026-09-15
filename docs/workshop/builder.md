@@ -223,7 +223,9 @@ spelled or not kept, then one row per line of its output, as it was written.
 - **It is spelled in what a screen can draw.** A compiler's typographic quotes and dashes are
   shown as their ASCII twins, any other character that cannot be drawn as `?`, and terminal colour
   sequences not at all; the header counts them. Paths, line and column numbers and the caret line
-  under a source line read exactly as written.
+  under a source line read exactly as written. What is kept is what the build process wrote: on
+  Windows, Ninja re-encodes non-ASCII output it passes on, so a compiler's quotes can arrive as
+  other characters, and read as `?`.
 - **It reads; it does not act.** It builds nothing, opens no file and moves no caret. A build that
   worked whose load was refused reads as *succeeded* — the refusal is the realize row's.
 

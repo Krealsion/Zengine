@@ -1311,11 +1311,52 @@ TEST_CASE("a failing build's OWN last words reach the office that asked (BLD-1)"
 
 namespace {
 
-std::string read_bytes(const std::filesystem::path& at) {
+/// The fixture's own file, byte for byte -- read only where a case can say the build's bytes are
+/// that file's (not on Windows, below), hence `[[maybe_unused]]` rather than a second spelling.
+[[maybe_unused]] std::string read_bytes(const std::filesystem::path& at) {
     std::ifstream in(at, std::ios::binary);
     std::ostringstream held;
     held << in.rdbuf();
     return held.str();
+}
+
+/// WHAT A BUILD OF `target` WRITES, read straight off its own pipe by the process primitive and
+/// nothing above it -- the bytes the runner and the tool are claimed to carry, so the ORACLE for
+/// both. It is not the fixture's file: on Windows CMake's `file(WRITE)` ends each line CR LF and
+/// the build tool between the fixture and this pipe re-encodes non-ASCII bytes it passes on
+/// (Ninja, measured), so what a build SAYS there is not what the file holds, and what a build says
+/// is the claim. Where nothing stands between them the two agree, and a case says so.
+std::string what_the_build_wrote(const std::string& target) {
+    const PreparedBuild prepared = prepare(cmake_recipe("oracle", target), kCMake);
+    REQUIRE_MESSAGE(prepared.trouble.empty(), prepared.trouble);
+    RecipeStart begun = start_recipe(prepared.command);
+    REQUIRE_MESSAGE(begun.started, begun.trouble);
+    const Drained seen = drain(begun.process);
+    REQUIRE(seen.ended);
+    return seen.said;
+}
+
+/// THE LINES A RECORD KEEPS OF `wrote`, by `KeptOutput`'s rule said again plainly: split at each
+/// line break, a line cut at `kMaxKeptLineBytes`, and a CR left at the end of what is kept taken
+/// as the break's; a last line with no break is still a line.
+std::vector<std::string> kept_lines_of(const std::string& wrote) {
+    std::vector<std::string> lines;
+    std::size_t at = 0;
+    while (at < wrote.size()) {
+        const std::size_t nl = wrote.find('\n', at);
+        std::string line =
+            wrote.substr(at, nl == std::string::npos ? std::string::npos : nl - at)
+                .substr(0, kMaxKeptLineBytes);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        lines.push_back(std::move(line));
+        if (nl == std::string::npos) {
+            break;
+        }
+        at = nl + 1;
+    }
+    return lines;
 }
 
 /// A PAGE OF OPERATION `op`, asked of the rig's Builder office by a reader weave mounted for it
@@ -1343,6 +1384,8 @@ TEST_CASE("the runner says every byte a build writes, in order, in pieces no big
     // their last 2,048 characters, the rest counted away; the diagnostic here holds a 5,000-byte
     // command echo, so that rule would have lost the lines in front of it. Now every byte arrives,
     // a message is at most `kMaxOutputChars`, and a line longer than that continues in the next.
+    // The oracle is read FIRST, so a build tree that had anything to settle settles in it.
+    const std::string wrote = what_the_build_wrote("fixture-diagnostic");
     Bench bench({cmake_recipe("diag", "fixture-diagnostic")});
     bench.order("diag");
     bench.beat_until_idle();
@@ -1356,12 +1399,18 @@ TEST_CASE("the runner says every byte a build writes, in order, in pieces no big
         at_bound = at_bound || o.text.size() == kMaxOutputChars;
     }
     CHECK(at_bound); // the long line really was carried in more than one message
-    const std::string written = read_bytes(kDiagnosticOut);
-    REQUIRE(written.size() > 2 * kMaxOutputChars);
-    CHECK(bench.foreman->text_of(op).find(written) != std::string::npos);
+    // EVERY BYTE, IN ORDER: what the runner said about the operation IS what the build wrote.
+    REQUIRE(wrote.size() > 2 * kMaxOutputChars);
+    CHECK(bench.foreman->text_of(op) == wrote);
+#if !defined(_WIN32)
+    // ...AND WHERE NOTHING STANDS BETWEEN THE FIXTURE AND THE PIPE, that is the fixture's file whole.
+    CHECK(wrote.find(read_bytes(kDiagnosticOut)) != std::string::npos);
+#endif
 }
 
-TEST_CASE("a failed build's own lines are kept by its operation, and a page reads them as the compiler wrote them") {
+TEST_CASE("a failed build's own lines are kept by its operation, and a page reads them as the build wrote them") {
+    // THE ORACLE FIRST: the same build's bytes, read straight off its own pipe.
+    const std::string wrote = what_the_build_wrote("fixture-diagnostic");
     Live live({cmake_recipe("diag", "fixture-diagnostic")});
     live.tell_tool(BuildRequested{"diag"});
     live.carry_until_over();
@@ -1380,20 +1429,31 @@ TEST_CASE("a failed build's own lines are kept by its operation, and a page read
     CHECK(page.omitted == 0);
     REQUIRE(page.said == static_cast<std::int64_t>(page.text.size()));
 
-    // THE COMPILER'S OWN LINE, BYTE FOR BYTE: its path with a space, its line and column, and its
-    // UTF-8 quotes (E2 80 98 / E2 80 99) -- kept as written, never spelled, never judged.
-    const std::string error_line = "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: "
-                                   "error: \xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope";
-    CHECK(std::find(page.text.begin(), page.text.end(), error_line) != page.text.end());
-    // ...AND A CR LF LINE ENDS WHERE ITS TEXT DOES: the CR is the break's, not the line's.
+    // EVERY LINE AS THE BUILD WROTE IT, IN ORDER: a CR that ends a line is the break's, a line past
+    // `kMaxKeptLineBytes` is cut, and nothing is spelled, judged or reordered.
+    CHECK(page.text == kept_lines_of(wrote));
+
+    // THE COMPILER'S LINE IS AMONG THEM, found by what no transport changes: its path with a
+    // space, its line and column, and its reason.
+    const std::string at = "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: error: ";
+    const auto error = std::find_if(page.text.begin(), page.text.end(),
+                                    [&at](const std::string& l) { return l.rfind(at, 0) == 0; });
+    REQUIRE(error != page.text.end());
+    CHECK(error->find("was not declared in this scope") != std::string::npos);
+#if !defined(_WIN32)
+    // WHERE NOTHING STANDS BETWEEN THE FIXTURE AND THE PIPE it is the compiler's line byte for byte,
+    // UTF-8 quotes (E2 80 98 / E2 80 99) included -- and the fixture's one CR LF line ends where its
+    // text does. (On Windows the file itself is written CR LF throughout and Ninja re-encodes the
+    // quotes it passes on; the lines above are still exactly what reached the pipe.)
+    CHECK(*error == at + "\xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope");
     CHECK(std::find(page.text.begin(), page.text.end(),
                     "pane.cpp(416): error C2065: 'oops': undeclared identifier") != page.text.end());
+#endif
     // ...AND THE COMMAND ECHO KEEPS ITS FIRST 4,096 BYTES, AND THE PAGE SAYS HOW MANY IT LOST.
-    const std::string written = read_bytes(kDiagnosticOut);
-    const std::size_t echo_start = written.find("/usr/bin/c++ ");
+    const std::size_t echo_start = wrote.find("/usr/bin/c++ ");
     REQUIRE(echo_start != std::string::npos);
-    const std::size_t echo_end = written.find('\n', echo_start);
-    const std::string echo = written.substr(echo_start, echo_end - echo_start);
+    const std::size_t echo_end = wrote.find('\n', echo_start);
+    const std::string echo = wrote.substr(echo_start, echo_end - echo_start);
     REQUIRE(echo.size() > kMaxKeptLineBytes);
     const auto kept_echo =
         std::find_if(page.text.begin(), page.text.end(),

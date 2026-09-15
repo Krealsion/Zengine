@@ -16,7 +16,8 @@ MEANS
 - a status's `detail` is the last lines that say something, joined with ` | `; blanks spend none.
 
 DOES NOT MEAN
-- that the bus keeps a build's output: the tool keeps it, bounded (WL-OUT-02).
+- that the bus keeps a build's output: the tool keeps it, bounded (WL-OUT-02);
+- that the bytes are a compiler's: they are the build's, as any tool it runs re-encoded them.
 
 PROVEN BY — `builder/runner.hpp` `output_piece`, `BuildRunnerWeave::look_at_held`;
 `builder/vocabulary.hpp` `kMaxOutputChars`, `BuildOutput`, `tail_lines`;
@@ -42,7 +43,7 @@ PROVEN BY — `builder/weave.hpp` `KeptOutput`, `page_of`, `on(BuildOutputReques
 `kKeptOperations`, `kKeptHeadBytes`, `kKeptTailBytes`, `kMaxKeptLineBytes`,
 `kMaxOutputPageLines`, `kMaxOutputPageBytes`; `workshop/workshop.cpp` `BuildOutputSaid`;
 `tests/test_builder.cpp` case `"a failed build's own lines are kept by its operation, and a page
-reads them as the compiler wrote them"`, case `"a kept record holds both ends of a long output,
+reads them as the build wrote them"`, case `"a kept record holds both ends of a long output,
 numbers the gap, and never pages across it"`, case `"the tool keeps the last few operations'
 output, and an operation it let go is said, not replaced"`.
 WHY — `agents/decisions/a-build-keeps-its-own-words.md`
@@ -94,3 +95,5 @@ WHY — `agents/decisions/a-build-keeps-its-own-words.md`
   counted, not kept (WL-OUT-02).
 - That a spelled row is the bytes the compiler wrote: it is what a canvas can draw of them, and
   the header says how many characters were spelled (WL-OUT-03).
+- That a compiler's non-ASCII words arrive as it wrote them on every platform: on Windows Ninja
+  re-encodes the output it passes on, and the kept bytes are what reached the pipe (WL-OUT-01).
