@@ -440,11 +440,12 @@ public:
     /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
     /// and only for an id `answers` admitted in the mode the pane is in.
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
-        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND MEANS ITS OWN THINGS BY THEM. Return
-        // (`files.open`) commits a chooser row or an authoring field; Escape
-        // (`files.cancel`) backs out whole; the browser's other verbs mean nothing until the
-        // mode closes. One gesture map for the pane, because a pane is one keyboard context
-        // -- see `vocabulary.hpp` for why there is no second commit id.
+        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND EACH OF ITS OPERATIONS HAS AN ID OF ITS OWN.
+        // Return is `files.choose` in the chooser, `files.commit-field` on the line and
+        // `files.open` while browsing, so an id resolved against one mode and delivered in the
+        // next is one `answers` refuses, never the next mode's operation (`vocabulary.hpp`).
+        // Escape (`files.cancel`) backs out whole; the browser's other verbs mean nothing until
+        // the mode closes.
         if (chooser_.open) {
             if (asked.id == files::kActionUp) {
                 if (chooser_.cursor > 0) {
@@ -454,7 +455,7 @@ public:
                 if (chooser_.cursor + 1 < chooser_.candidates.size()) {
                     ++chooser_.cursor;
                 }
-            } else if (asked.id == files::kActionOpen) {
+            } else if (asked.id == files::kActionChoose) {
                 chooser_choose(mail);
                 return;
             } else if (asked.id == files::kActionCancel) {
@@ -468,7 +469,7 @@ public:
             return;
         }
         if (authoring_.open) {
-            if (asked.id == files::kActionOpen) {
+            if (asked.id == files::kActionCommitField) {
                 authoring_commit(mail);
                 return;
             }
@@ -652,11 +653,12 @@ private:
 
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     ///
-    /// ⭐ A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE. The built-in had
+    /// ⭐ A MODE IS NOT A KEYBOARD CONTEXT OF WORKSHOP'S; IT IS A DECLARATION. The built-in had
     /// three contexts (`kFiles`, `kRecipeChooser`, `kAuthoring`) and could bind Return and
     /// Backspace differently in each; a pane's rows are joined into ONE map under its
     /// runtime handle, and the collision law refuses a second row on a gesture already
-    /// taken. Two ways out existed, and only one of them keeps the maker's keys:
+    /// taken in the declaration in force. Two ways out existed, and only one of them keeps
+    /// the maker's keys:
     ///
     ///   - move the defaults apart, so `files.parent` stops being Backspace -- which is
     ///     exactly the promise this migration was made to keep, and
@@ -668,8 +670,11 @@ private:
     /// mode nothing has claimed it. `PaneActions` is a REPLACEMENT (WL-KEY-15): the host
     /// re-joins the map, so what leaves the declaration also leaves the keymap.
     ///
-    /// AND THE IDS NEVER MOVE. `files.parent` is `files.parent` in every mode that declares
-    /// it, so a maker's authored override for it is applied wherever it is in force.
+    /// AND AN ID IS ONE OPERATION. `files.parent` is `files.parent` in every mode that declares
+    /// it, so a maker's authored override for it is applied wherever it is in force; and an
+    /// operation only one mode has -- each mode's Return -- is an id only that mode declares, so
+    /// an id resolved before the mode changed is refused by `answers`, never acted on as
+    /// another mode's operation.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = files::kProjectFilesPane;
@@ -687,7 +692,7 @@ private:
         };
         // ---- The authoring line owns the keyboard, except for two rows -----------------
         if (authoring_.open) {
-            row(files::kActionOpen, "commit this field", input::scan::kReturn);
+            row(files::kActionCommitField, "commit this field", input::scan::kReturn);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
             return rows;
         }
@@ -695,7 +700,7 @@ private:
         if (chooser_.open) {
             row(files::kActionUp, "row up", input::scan::kUp);
             row(files::kActionDown, "row down", input::scan::kDown);
-            row(files::kActionOpen, "choose this", input::scan::kReturn);
+            row(files::kActionChoose, "choose this", input::scan::kReturn);
             row(files::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }

@@ -999,6 +999,17 @@ one is unchanged and will stay unchanged, so a pane built against it keeps worki
 button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
 arrival *is* that gesture.
 
+**One id means one operation, in every mode.** A pane with modes — a list, a chooser, a line being
+typed — declares only the current mode's rows and sends `PaneActions` again whenever its mode
+changes; each declaration replaces the last. Give an operation that only one mode has an id of its
+own, even when it shares a default key with another mode's: the Files pane's Return is
+`files.open` while browsing, `files.choose` in its chooser and `files.commit-field` on its recipe
+line, all on Return and never declared together. Keep one id across modes only where it means the
+same thing in each, as `files.cancel` backs out of whichever mode is open. Workshop names a key by
+the rows it holds when it reads the key, so an id can reach you after your pane has moved on: if the
+mode you are in does not declare it, do nothing with it, and leave what your pane shows as it was
+([Files](../workshop/files.md#moving-around) shows the same from a maker's side).
+
 The mechanics of [A5](#a5-add-interaction-only-when-you-need-it), [A6](#a6-share-one-semantic-operation-between-the-pointer-and-a-hotkey)
 and [A7](#a7-use-a-component-when-it-owns-a-useful-invariant) — the press chain, `command()`, a
 mode in Workshop's session — are compiled-in only; a pane reaches the same abilities through the

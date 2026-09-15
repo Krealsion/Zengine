@@ -210,23 +210,24 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 authors a recipe row in-pane, and the host writes it"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
-## WL-FILES-16 — A pane is one keyboard context, so its rows are what is true now
+## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
 
-LAW — The pane declares its actions with the ids a maker's keymap already knows and re-declares them when its mode changes; a key the declaration does not claim reaches it as a key.
+LAW — The pane declares only its mode's rows, one id per operation, with the ids a maker's keymap names, re-declared as the mode changes; a key they do not claim reaches it as a key.
 
 MEANS
-- a pane's rows join into ONE map, and the collision law refuses two rows on one gesture;
-- so there is no second commit id: Return is `files.open`, and what it means is the pane's;
-- while the line has the keyboard only two rows are declared, so Backspace still deletes.
+- only the rows in force collide, so each mode's Return is an id of its own;
+- an id not in the rows in force is no act; one still there (up, down, cancel) keeps its meaning;
+- while the line has the keys only two rows are declared, so Backspace still deletes.
 
 PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
-`kActionOpen`, `kActionCancel`; `workshop/keymap.hpp` `join_pane_rows`;
+`kActionOpen`, `kActionChoose`, `kActionCommitField`; `workshop/keymap.hpp` `join_pane_rows`;
 `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the pane declares its rows with the ids
 a maker's keymap already knows"`, case `"FILES-WEAVE: the authoring line takes raw keys, and
 Escape abandons it whole"`, case `"an id Files does not declare in the mode it is in is no act: an
 unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the
 same poll leave the notice standing through a new room, and a declared id that moves nothing still
-spends it"`.
+spends it"`, case `"an id Files resolved in one mode is no act in the next"`, case `"each Files
+mode's Return is its own id, and a keymap moves each alone"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 
 ## WL-FILES-17 — Three doors, and what crosses them is a value

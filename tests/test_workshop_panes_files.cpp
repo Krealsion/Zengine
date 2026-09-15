@@ -126,9 +126,10 @@ inline std::int64_t cursor_said(const std::vector<std::string>& rows) {
 /// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: the row each `PanePressed` delivered to the
 /// weave carried, the version it crossed in and the routing fact a second version states, how
 /// many opens the weave attempted -- delivered, or refused at dispatch -- and the exact path of
-/// each one delivered. A case states the provider row it aimed at, where Workshop said the keys
-/// were, and the file an activation asked for, rather than inferring any of them from the pane's
-/// answer. A press is read by field name, so one tap reads either version.
+/// each one delivered, every action id delivered to it, and the recipe id of every authored row
+/// it sent. A case states the provider row it aimed at, where Workshop said the keys were, the id
+/// a key was resolved as and the file an activation asked for, rather than inferring any of them
+/// from the pane's answer. A press is read by field name, so one tap reads either version.
 struct SeamTap {
     loom::Switchboard& bus;
     loom::WeaveId browser;
@@ -143,6 +144,8 @@ struct SeamTap {
     std::size_t rooms = 0;
     std::size_t attempts = 0;
     std::vector<std::string> requested;
+    std::vector<std::string> ids;      ///< every `PaneActionRequested` id delivered, in order
+    std::vector<std::string> authored; ///< every delivered `RecipeAuthorRequested`, by recipe id
 
     SeamTap(loom::Switchboard& b, loom::WeaveId weave) : bus(b), browser(weave) {
         id = bus.add_observer([this](const loom::BusEvent& ev) {
@@ -171,6 +174,14 @@ struct SeamTap {
                 ++attempts;
                 if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
                     requested.push_back(loom::from_value<OpenSourceRequested>(*ev.payload).path);
+                }
+            }
+            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
+                if (ev.target == browser && ev.schema_name == PaneActionRequested::zen_name) {
+                    ids.push_back(loom::from_value<PaneActionRequested>(*ev.payload).id);
+                }
+                if (ev.sender == browser && ev.schema_name == RecipeAuthorRequested::zen_name) {
+                    authored.push_back(loom::from_value<RecipeAuthorRequested>(*ev.payload).id);
                 }
             }
         });
@@ -1680,10 +1691,11 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     f.letter(input::scan::kA, "a");
     f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
     REQUIRE(any_row(f.shown(), "Return commits a field"));
-    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionOpen};
-    REQUIRE(f.declared() == line_ids);
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+    CHECK(f.declared() == line_ids);
     const auto line_stands = [&f, &line_ids] {
         CHECK(any_row(f.shown(), "Return commits a field"));
+        CHECK(any_row(f.shown(), "recipe name> "));
         CHECK(f.declared() == line_ids);
         CHECK(f.recipes.all().empty());
     };
@@ -1698,13 +1710,16 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     f.regrant();
     line_stands();
 
-    // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN.
-    const PaneRig::OfficeAction refresh =
-        f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, files::kActionRefresh);
-    REQUIRE(refresh.delivered);
-    line_stands();
-    f.regrant();
-    line_stands();
+    // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN -- its open among
+    // them, which is Return while browsing and never the line's commit.
+    for (const char* browsing : {files::kActionRefresh, files::kActionOpen}) {
+        const PaneRig::OfficeAction said =
+            f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, browsing);
+        REQUIRE(said.delivered);
+        line_stands();
+        f.regrant();
+        line_stands();
+    }
 
     // ESCAPE TWICE IN ONE POLL: the line's cancel, then a cancel Workshop resolved against the
     // line's rows, arriving when the browser declares none. The first cancel's answer stands.
@@ -1727,6 +1742,328 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     f.regrant();
     CHECK(f.first().rfind("Files", 0) == 0);
     CHECK(f.recipes.all().empty());
+}
+
+TEST_CASE("an id Files resolved in one mode is no act in the next") {
+    // ⭐ A KEY QUEUED BEHIND A MODE CHANGE IS STILL THE OPERATION IT WAS RESOLVED AS. Workshop
+    // resolves every key of a poll against the rows in force before the pane has declared its
+    // next ones, so a Return queued behind Escape crosses as the closing mode's own id. While
+    // that id was `files.open` in every mode, the browser took it as its own and opened the file
+    // under its cursor. Each mode's Return is an id of its own, and one the rows in force do not
+    // declare is no act.
+    //
+    // THE KEYS ARE QUEUED AND THEN DRAINED ONCE (`enqueue_key`, `settle`). A helper that drained
+    // between them would let the pane's next declaration arrive first, and nothing would race.
+    const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
+                                               files::kActionDown, files::kActionUp};
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+    const auto burst = [](FilesRig& f, std::int64_t first, std::int64_t second) {
+        f.enqueue_key(first);
+        f.enqueue_key(second);
+        f.settle();
+    };
+    // NOTHING WAS OPENED: no ask left the browser, and the Editor did not come onto the desk.
+    const auto opened_nothing = [](FilesRig& f, const SeamTap& tap) {
+        CHECK(tap.attempts == 0);
+        CHECK(tap.requested.empty());
+        CHECK_FALSE(f.r.session().panels.has(f.editor_kind()));
+    };
+    // THE ANSWER THE PANE LEADS WITH, before and after a new room.
+    const auto leads = [](FilesRig& f, const std::string& notice) {
+        CHECK(f.first().find(notice) == 0);
+        f.regrant();
+        CHECK(f.first().find(notice) == 0);
+    };
+
+    SUBCASE("Escape then Return over the line: cancelled, and nothing opens") {
+        FilesRig f("files-race-line");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.open(160, 48, /*with_editor=*/true);
+        REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0); // what a browsing open would open
+        f.letter(input::scan::kA, "a");
+        f.r.key(input::scan::kReturn); // the one candidate: the line opens
+        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        SeamTap tap(f.r.bus, f.files_id());
+        burst(f, input::scan::kEscape, input::scan::kReturn);
+        CHECK(tap.ids == std::vector<std::string>{files::kActionCancel, files::kActionCommitField});
+        opened_nothing(f, tap);
+        CHECK(tap.authored.empty());
+        CHECK(f.recipes.all().empty());
+        CHECK(any_row(f.declared(), files::kActionOpen)); // the browser's rows are in force
+        leads(f, "no recipe was written");
+        CHECK(f.at_cursor().rfind("oven.cpp", 0) == 0);
+    }
+    SUBCASE("Escape then Return over the chooser: cancelled, and nothing opens") {
+        FilesRig f("files-race-chooser");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.open(160, 48, /*with_editor=*/true);
+        REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0);
+        f.letter(input::scan::kA, "a");
+        REQUIRE(any_row(f.shown(), "pick something buildable"));
+        SeamTap tap(f.r.bus, f.files_id());
+        burst(f, input::scan::kEscape, input::scan::kReturn);
+        CHECK(tap.ids == std::vector<std::string>{files::kActionCancel, files::kActionChoose});
+        opened_nothing(f, tap);
+        CHECK(tap.authored.empty());
+        CHECK(any_row(f.declared(), files::kActionOpen));
+        leads(f, "no recipe was authored");
+    }
+    SUBCASE("two Returns over the chooser: one choice, and the line keeps its first field") {
+        FilesRig f("files-race-choose");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.open(160, 48, /*with_editor=*/true);
+        f.letter(input::scan::kA, "a");
+        REQUIRE(any_row(f.shown(), "pick something buildable"));
+        SeamTap tap(f.r.bus, f.files_id());
+        burst(f, input::scan::kReturn, input::scan::kReturn);
+        CHECK(tap.ids == std::vector<std::string>{files::kActionChoose, files::kActionChoose});
+        CHECK(f.declared() == line_ids);
+        CHECK(any_row(f.shown(), "recipe name> oven"));
+        CHECK_FALSE(any_row(f.shown(), "artifact stem>"));
+        opened_nothing(f, tap);
+        CHECK(tap.authored.empty());
+        leads(f, "a source file: oven.cpp -- Return commits a field");
+        CHECK(any_row(f.shown(), "recipe name> oven"));
+    }
+    SUBCASE("two Returns on the line's last field: one recipe, and nothing opens") {
+        FilesRig f("files-race-last");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+        f.open(160, 48, /*with_editor=*/true);
+        f.point_at("recipes.json");
+        f.letter(input::scan::kU, "u");
+        REQUIRE(f.recipes.all().size() == 1);
+        f.point_at("oven.cpp");
+        f.letter(input::scan::kA, "a");
+        f.r.key(input::scan::kReturn);
+        for (const char* typed : {"oven", "zengine-oven", "loom", "loom::kernel"}) {
+            for (int i = 0; i < 64; ++i) {
+                f.r.key(input::scan::kBackspace);
+            }
+            f.r.text(typed);
+            if (std::string(typed) != "loom::kernel") {
+                f.r.key(input::scan::kReturn);
+            }
+        }
+        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"));
+        SeamTap tap(f.r.bus, f.files_id());
+        burst(f, input::scan::kReturn, input::scan::kReturn);
+        CHECK(tap.ids ==
+              std::vector<std::string>{files::kActionCommitField, files::kActionCommitField});
+        CHECK(tap.authored == std::vector<std::string>{"oven"});
+        CHECK(f.recipes.all().size() == 2);
+        opened_nothing(f, tap);
+        CHECK(any_row(f.declared(), files::kActionOpen));
+        leads(f, "authored recipe `oven`");
+    }
+    SUBCASE("`a` then Return while browsing: the chooser opens, and nothing is chosen") {
+        FilesRig f("files-race-pick");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.open(160, 48, /*with_editor=*/true);
+        REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0);
+        SeamTap tap(f.r.bus, f.files_id());
+        burst(f, input::scan::kA, input::scan::kReturn);
+        CHECK(tap.ids == std::vector<std::string>{files::kActionPickBuildable, files::kActionOpen});
+        CHECK(f.declared() == chooser_ids);
+        opened_nothing(f, tap);
+        CHECK(tap.authored.empty());
+        leads(f, "pick something buildable -- Return authors a recipe");
+        CHECK(any_row(f.shown(), "> oven.cpp"));
+    }
+}
+
+TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone") {
+    // ⭐ THREE OPERATIONS ON ONE KEY, NEVER DECLARED TOGETHER. The collision law judges the rows in
+    // force, and the pane replaces them whenever its mode changes, so Return can be `files.open`,
+    // `files.choose` or `files.commit-field` without two of them meeting. What a maker's keymap
+    // names is the operation: `files.open` is the browser's enter-or-edit, as it was when the
+    // browser was this host's, and moves nothing else.
+    //
+    // WHICH ROW A GESTURE REQUESTS IS ASKED OF THE EFFECTIVE KEYMAP (`pane_action_for`), and what
+    // the legend says is read off the band a maker sees: two readers of the one join.
+    const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
+                                               files::kActionDown, files::kActionUp};
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+    const auto requests = [](FilesRig& f, std::int64_t scancode, std::int64_t modifiers) {
+        const PaneRow* row = f.r.session().keymap.pane_action_for(f.kind, scancode, modifiers);
+        return row != nullptr ? row->id : std::string();
+    };
+    const auto legend_says = [](FilesRig& f, const std::string& pair) {
+        const std::vector<std::string> band = band_lines(f.r);
+        REQUIRE(band.size() == 2);
+        return band[1].find(pair) != std::string::npos;
+    };
+    // ADMITTED WHOLE: the pane's row keeps a declaration only when the join accepted it, and the
+    // keymap then holds exactly those rows for the pane.
+    const auto admitted = [](FilesRig& f, const std::vector<std::string>& ids) {
+        CHECK(f.declared() == ids);
+        const PaneRows* rows = f.r.session().keymap.pane_rows(f.kind);
+        REQUIRE(rows != nullptr);
+        CHECK(rows->rows.size() == ids.size());
+    };
+
+    SUBCASE("the defaults: Return is each mode's own row, and the legend names it") {
+        FilesRig f("files-mode-rows");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.open();
+        const auto browsing = [&] {
+            const std::vector<std::string> ids = f.declared();
+            CHECK(any_row(ids, files::kActionOpen));
+            CHECK_FALSE(any_row(ids, files::kActionChoose));
+            CHECK_FALSE(any_row(ids, files::kActionCommitField));
+            CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionOpen);
+            CHECK(legend_says(f, "enter enter or edit"));
+        };
+        browsing();
+        f.letter(input::scan::kA, "a");
+        admitted(f, chooser_ids);
+        CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionChoose);
+        CHECK(legend_says(f, "enter choose this"));
+        CHECK_FALSE(legend_says(f, "enter or edit"));
+        f.r.key(input::scan::kReturn);
+        admitted(f, line_ids);
+        CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionCommitField);
+        CHECK(legend_says(f, "enter commit this field"));
+        f.r.key(input::scan::kEscape);
+        browsing();
+    }
+    SUBCASE("a keymap file: each override moves its own operation, and waits while its mode is shut") {
+        TempDir keys("files-mode-keys");
+        const std::string path = keys.file("keymap.json");
+        const std::string written = keymap_file_text(
+            "default", {{files::kActionOpen, "o"},
+                        {files::kActionChoose, "c"},
+                        {files::kActionCommitField, "ctrl+j"}});
+        write_keymap_file(path, written);
+        FilesRig f("files-mode-keys");
+        put_file(f.root / "oven.cpp", "// a maker's weave\n");
+        f.r.host.keymap_path = path;
+        f.open(160, 48, /*with_editor=*/true);
+        SeamTap tap(f.r.bus, f.files_id());
+
+        // BROWSING: `o` is the open and Return requests nothing. The chooser's and the line's rows
+        // name ids nobody declares yet, so they are kept as written and applied to nothing.
+        REQUIRE(f.r.session().keymap.authored.size() == 3);
+        CHECK(requests(f, input::scan::kO, input::mod::kNone) == files::kActionOpen);
+        CHECK(requests(f, input::scan::kReturn, input::mod::kNone).empty());
+        CHECK(requests(f, input::scan::kC, input::mod::kNone).empty());
+        CHECK(requests(f, input::scan::kJ, input::mod::kCtrl).empty());
+        CHECK(legend_says(f, "o enter or edit"));
+        CHECK(keymap_persist::to_text(f.r.session().keymap) == written);
+        f.r.key(input::scan::kReturn); // the default this maker moved away from: a key, no act
+        CHECK(tap.ids.empty());
+
+        // THE CHOOSER: its own override is in force, and neither Return nor the browser's `o` is.
+        f.letter(input::scan::kA, "a");
+        admitted(f, chooser_ids);
+        CHECK(requests(f, input::scan::kC, input::mod::kNone) == files::kActionChoose);
+        CHECK(requests(f, input::scan::kReturn, input::mod::kNone).empty());
+        CHECK(requests(f, input::scan::kO, input::mod::kNone).empty());
+        CHECK(legend_says(f, "c choose this"));
+        f.r.key(input::scan::kReturn);
+        f.letter(input::scan::kO, "o");
+        CHECK(any_row(f.shown(), "pick something buildable"));
+        f.letter(input::scan::kC, "c");
+        admitted(f, line_ids);
+        CHECK(any_row(f.shown(), "recipe name> oven"));
+
+        // THE LINE: `ctrl+j` commits the field, and Return is a key the line does not take.
+        CHECK(requests(f, input::scan::kJ, input::mod::kCtrl) == files::kActionCommitField);
+        CHECK(requests(f, input::scan::kReturn, input::mod::kNone).empty());
+        CHECK(legend_says(f, "^j commit this field"));
+        f.r.key(input::scan::kReturn);
+        CHECK(any_row(f.shown(), "recipe name> oven"));
+        f.r.key(input::scan::kJ, input::mod::kCtrl);
+        CHECK(any_row(f.shown(), "artifact stem> oven"));
+
+        // OUT, AND THE BROWSER'S OWN OVERRIDE OPENS THE FILE UNDER THE CURSOR, IN THE EDITOR.
+        f.r.key(input::scan::kEscape);
+        REQUIRE(f.first().rfind("no recipe was written", 0) == 0);
+        CHECK(tap.attempts == 0);
+        f.letter(input::scan::kO, "o");
+        REQUIRE(tap.requested.size() == 1);
+        CHECK(tap.requested[0] == (f.root / "oven.cpp").generic_string());
+        CHECK(f.r.session().panels.has(f.editor_kind()));
+        CHECK(tap.ids == std::vector<std::string>{files::kActionPickBuildable, files::kActionChoose,
+                                                  files::kActionCommitField, files::kActionCancel,
+                                                  files::kActionOpen});
+        CHECK(tap.authored.empty());
+        // ...AND WHAT A SAVE WOULD WRITE IS STILL WHAT THE MAKER WROTE, all three rows in order.
+        CHECK(keymap_persist::to_text(f.r.session().keymap) == written);
+    }
+}
+
+TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write one recipe and cancel, and Return then opens the file") {
+    // ⭐ THE ORDINARY PATH UNDER EACH MODE'S OWN ID, OBSERVED WHERE EACH OPERATION LANDS: the id
+    // each key crossed as, the one authored row the host's writer received and put in the catalog
+    // in force, and the file the browser's open put in the Editor. A key pressed after its mode's
+    // rows have arrived means what the legend said it would.
+    FilesRig f("files-deliberate");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    f.open(160, 48, /*with_editor=*/true);
+    f.point_at("recipes.json");
+    f.letter(input::scan::kU, "u");
+    REQUIRE(f.recipes.all().size() == 1);
+    f.point_at("oven.cpp");
+    SeamTap tap(f.r.bus, f.files_id());
+    const auto clear_line = [&f] {
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+    };
+
+    // CHOOSE.
+    f.letter(input::scan::kA, "a");
+    f.r.key(input::scan::kReturn);
+    CHECK(tap.ids == std::vector<std::string>{files::kActionPickBuildable, files::kActionChoose});
+    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+
+    // VALIDATE: a required field left blank is refused where it stands, and nothing is sent.
+    clear_line();
+    f.r.key(input::scan::kReturn);
+    CHECK(f.first().rfind("recipe name is required -- nothing was written", 0) == 0);
+    CHECK(any_row(f.shown(), "recipe name> "));
+    CHECK(tap.authored.empty());
+
+    // EDIT AND PROGRESS: the next field suggests the name, and each Return commits one field.
+    f.r.text("oven");
+    f.r.key(input::scan::kReturn);
+    CHECK(any_row(f.shown(), "artifact stem> oven"));
+    for (const char* typed : {"zengine-oven", "loom", "loom::kernel"}) {
+        clear_line();
+        f.r.text(typed);
+        f.r.key(input::scan::kReturn);
+    }
+
+    // SUBMIT, EXACTLY ONCE, AND THE HOST WROTE IT.
+    CHECK(tap.authored == std::vector<std::string>{"oven"});
+    REQUIRE(f.recipes.all().size() == 2);
+    CHECK(f.recipes.all()[1].id == "oven");
+    CHECK(slurp((f.root / "recipes.json").generic_string()).find("zengine-oven") !=
+          std::string::npos);
+    CHECK(f.first().find("authored recipe `oven`") != std::string::npos);
+
+    // CANCEL: a second pick, a candidate chosen, and Escape abandons the line whole.
+    f.letter(input::scan::kA, "a");
+    f.r.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    f.r.key(input::scan::kEscape);
+    CHECK(f.first().rfind("no recipe was written", 0) == 0);
+    CHECK(tap.authored.size() == 1);
+    CHECK(f.recipes.all().size() == 2);
+
+    // ...AND RETURN WHILE BROWSING IS THE BROWSER'S OPEN: the file under the cursor, in the Editor.
+    REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0);
+    REQUIRE_FALSE(f.r.session().panels.has(f.editor_kind()));
+    CHECK(tap.attempts == 0);
+    f.r.key(input::scan::kReturn);
+    CHECK(tap.ids.back() == files::kActionOpen);
+    REQUIRE(tap.requested.size() == 1);
+    CHECK(tap.requested[0] == (f.root / "oven.cpp").generic_string());
+    const std::int64_t editor = f.editor_kind();
+    REQUIRE(f.r.session().panels.has(editor));
+    CHECK(f.editor_status().find("oven.cpp") != std::string::npos);
 }
 
 // ============================================================================
