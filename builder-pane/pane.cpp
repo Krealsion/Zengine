@@ -812,12 +812,11 @@ private:
         }
         (void)mail.publish(builder::RevertArtifact{shown_.artifact});
         awaiting_realization_ = true;
-        // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture: the source a maker saved is
-        // still the edited one, and the next build builds it. A running image and a saved file are
-        // two facts, and a maker reading only the pane would otherwise take one for the other.
+        // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture and inside one row: the source
+        // a maker saved is still the edited one, and the next build builds it. A running image and
+        // a saved file are two facts, and a maker reading only the pane would take one for the other.
         notice_ = "asked to revert `" + shown_.artifact +
-                  "` -- the image before the last reload runs again, state kept; the saved source "
-                  "is not reverted, and the next build builds it";
+                  "`: the previous image runs, state kept; saved source unchanged";
         say(mail);
     }
 

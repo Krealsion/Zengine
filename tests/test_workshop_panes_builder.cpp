@@ -689,6 +689,8 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the buil
     b.r.key(input::scan::kR, input::mod::kShift);
     REQUIRE(b.tool->reverts.size() == 1);
     CHECK(b.tool->reverts[0] == "zengine-snake");
+    // ...and the revert's sentence says what it leaves alone: the source the maker saved.
+    CHECK(b.text().find("saved source unchanged") != std::string::npos);
 }
 
 // ============================================================================

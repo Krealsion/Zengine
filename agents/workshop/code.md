@@ -83,7 +83,9 @@ MEANS
 PROVEN BY — `builder-pane/pane.cpp` `on(PaneSourceOpened)`; `builder-pane/vocabulary.hpp`
 `BuilderPaneState::chosen`; `tests/test_workshop_panes_code.cpp` case `"the Builder pane follows
 an opened pane source only when Workshop's office said so"`, case `"Edit Code opens the pointed
-pane's one source through the opening office, and the Builder follows its recipe"`.
+pane's one source through the opening office, and the Builder follows its recipe"`, case `"the
+Builder's choice from Edit Code is not a pick between producers: the frontier action still
+asks"`.
 WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## Do not assume

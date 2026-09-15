@@ -24,6 +24,7 @@
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
+#include "workshop/pane_doors.hpp"
 #include "workshop/provenance.hpp"
 
 #include <filesystem>
@@ -147,6 +148,10 @@ public:
 struct CodeRig {
     TempDir dir;
     std::filesystem::path root;
+    /// What the read-only project door answers about realization's frontier, settable by a case.
+    /// Declared BEFORE the rig, so the door the rig's bus owns never outlives what it reads.
+    ProjectFrontier frontier{};
+    std::string marks_path;
     PaneRig r;
     CodeTool* tool = nullptr;
     SourceWatch* watch = nullptr;
@@ -192,6 +197,7 @@ struct CodeRig {
         r.wire_code_source();
         mount_watch();
         mount_asker();
+        mount_project_door();
         load::LoadPlan plan;
         plan.artifacts.push_back(row(kEditorStem, kEditorOffice));
         plan.artifacts.push_back(row(bpane::kBuilderPaneStem, bpane::kBuilderPaneRole));
@@ -222,6 +228,21 @@ struct CodeRig {
         out.stem = stem;
         out.weave = load::WeaveIntent{role};
         return out;
+    }
+
+    /// THE READ-ONLY PROJECT OFFICE, answering the frontier this rig holds -- the door the
+    /// Builder pane asks what the project is waiting on.
+    void mount_project_door() {
+        r.host.frontier = [this] { return frontier; };
+        marks_path = (root / "workshop-marks.json").generic_string();
+        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path, r.host.frontier);
+        ProjectDoor* raw = door.get();
+        loom::Grant say;
+        say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+        say.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
+        const loom::WeaveId id =
+            r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
+        raw->zen_set_self(id);
     }
 
     void mount_watch() {
@@ -664,7 +685,9 @@ TEST_CASE("an open no opening office could take is refused at dispatch by that a
         // THE FORGERIES, both as an office of their own: an accepted `SourceOpened` that answers
         // no ask of the desk's, and a `zen.DispatchRefused` naming the live attempt exactly.
         c.asker_says([desk, attempt](DoorAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kDoorAskerOffice).send(desk, SourceOpened{true, std::string()});
+            // ...with the correlation of the desk's one ask (its first: this rig's only Edit
+            // Code), so what refuses it is Loom's word that it is no answer, not a number.
+            (void)mail.as_role(kDoorAskerOffice).send(desk, SourceOpened{true, std::string()}, 1);
             loom::DispatchRefused forged;
             forged.attempt = std::to_string(attempt);
             forged.role = kOpeningRole;
@@ -780,6 +803,32 @@ TEST_CASE("the Builder pane follows an opened pane source only when Workshop's o
     c.point_at(tally_ref());
     c.choose_edit_code();
     CHECK(c.text_of(builder_ref()).find("tally -> zengine-example-tally") != std::string::npos);
+}
+
+TEST_CASE("the Builder's choice from Edit Code is not a pick between producers: the frontier action still asks") {
+    CodeRig c("code-not-a-pick");
+    c.hold({single_recipe("tally-a", kTallyStem, c.source)});
+    c.open();
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally") != std::string::npos);
+
+    // A SECOND PRODUCER ARRIVES, AND THE PROJECT IS WAITING ON THE ARTIFACT BOTH PRODUCE.
+    const std::filesystem::path other = c.root / "tally_b.cpp";
+    put_bytes(other, std::string("int b;") + '\n');
+    c.hold({single_recipe("tally-a", kTallyStem, c.source),
+            single_recipe("tally-b", kTallyStem, spelled(other))});
+    c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.r.extent(210, 64); // a new room: the Builder asks the tool again and hears both
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally") != std::string::npos);
+
+    // THE FRONTIER ACTION: several producers, and the one Edit Code chose is no pick of the maker's.
+    c.press_into(builder_ref());
+    c.r.key(input::scan::kF);
+    c.r.text("f");
+    CHECK(c.tool->builds.empty());
+    CHECK(c.text_of(builder_ref()).find("2 recipes produce `zengine-example-tally`") !=
+          std::string::npos);
 }
 
 TEST_CASE("Edit Code bound to a key in command mode names no pane, says where the gesture lives, and opens nothing") {
