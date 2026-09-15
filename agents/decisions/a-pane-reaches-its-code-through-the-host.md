@@ -21,6 +21,16 @@ only while the code is unchanged, it publishes a reading the Builder pane follow
   nobody's intent; pinned by the several-recipes subcase of case `"code that cannot be named is
   said in words -- no recipe, several, a CMake target, a weave the plan did not load -- and
   nothing is opened"`.
+- *Moving the Builder's choice and leaving its pick a flag* — tried: a `c` pick of another recipe
+  then stood for the moved choice and `f` built it; pinned by case `"a pick of another recipe does
+  not follow Edit Code's choice: the frontier action still asks between producers"`. The pick is
+  the recipe's name, so a pick of the same recipe still stands without a second `c`.
+- *The Builder saying the pane reloads in place* — tried: it said so beside the owner's refusal;
+  pinned by case `"the Builder's words after Edit Code promise no reload: an owner's refusal stands
+  alone, and an eligible pane still reads how to build it"`. It says its own switch instead.
+- *Carrying the reload refusal in `PaneSourceOpened`* — argued: Workshop's notice already says
+  the owner's words at that moment, and a copy would make the Builder hold eligibility it does
+  not own.
 - *Addressing the Builder pane's office from the desk* — argued: the host names no pane's
   office, `StandingConditions`' rule; a publication any presenter may follow keeps that true.
 - *A source field on `cmake_target` recipes* — argued: a recipe format change for panes this
