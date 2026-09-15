@@ -20,8 +20,15 @@
 // product to where it will be opened from:
 //
 //     an initial realization   ->  the file the plan resolves the stem to
-//     a reload in place        ->  <host>/<stem>.reloads/<stem>-<n>.<suffix>, n a
-//                                  per-process counter; nothing here prunes them
+//     a reload in place        ->  <host>/<stem>.reloads/<stem>-<n>.<suffix>, n the first
+//                                  number past this process's counter whose file is not
+//                                  there; nothing here prunes them
+//
+// ⚠ A RELOAD'S COPY IS A FILE NOTHING HAS WRITTEN BEFORE. The counter is per process, and two
+// Workshops run from one host directory each count from one: taking `<stem>-1` by removing what
+// was there would put this process's bytes under a path the other one is running, or will revert
+// to -- a silent swap of somebody else's image. So a per-operation path is created, never
+// replaced, and a name that is already there is passed over for the next one.
 //
 // A source that IS its destination is no copy. Every other case copies through an
 // `error_code`, and the operating system's words are the refusal.
@@ -73,6 +80,42 @@ inline std::error_code copy_over(const std::filesystem::path& from,
     return ec;
 }
 
+/// How many taken names a fresh per-operation path passes over before it says why not. A bound
+/// on a loop over a directory a maker can fill, not a limit on reloads: each pass is one name.
+inline constexpr std::size_t kFreshNameTries = 4096;
+
+/// COPY `from` TO A PER-OPERATION PATH IN `reloads` THAT NO FILE HOLDS YET -- `<stem>-<n><tail>`,
+/// n counting on from `counter` -- and say where. `copy_file` with no overwrite option refuses
+/// an existing destination (`file_exists`, which MinGW answers for every existing file), so a
+/// name another process took between the look and the copy is passed over too; any other refusal
+/// is the operating system's, in its words. Empty `path` means nothing was copied.
+inline std::filesystem::path copy_fresh(const std::filesystem::path& from,
+                                        const std::filesystem::path& reloads,
+                                        const std::string& stem, const std::string& tail,
+                                        std::size_t& counter, std::error_code& refused) {
+    for (std::size_t tries = 0; tries < kFreshNameTries; ++tries) {
+        ++counter;
+        const std::filesystem::path to =
+            reloads / (stem + "-" + std::to_string(counter) + tail);
+        std::error_code looked;
+        if (std::filesystem::exists(to, looked) || looked) {
+            continue;
+        }
+        std::error_code copied;
+        std::filesystem::copy_file(from, to, copied);
+        if (!copied) {
+            refused.clear();
+            return to;
+        }
+        if (copied != std::errc::file_exists) {
+            refused = copied;
+            return std::filesystem::path();
+        }
+    }
+    refused = std::make_error_code(std::errc::file_exists);
+    return std::filesystem::path();
+}
+
 /// PUT THE PRODUCT OF `recipe` WHERE `stem` WILL BE OPENED FROM. The signature is the
 /// owner's `StageArtifact` seam, with the host's own facts in front.
 // WL-PROJ-16 -- agents/workshop/project.md
@@ -107,9 +150,17 @@ inline load::PlanExecutor::Staged stage(Host& host, const std::string& stem,
             out.refusal = "could not make " + reloads.generic_string() + ": " + made.message();
             return out;
         }
-        ++host.reloads;
-        destination = reloads / (stem + "-" + std::to_string(host.reloads) +
-                                 plain.extension().string());
+        std::error_code refused;
+        const std::filesystem::path fresh = copy_fresh(
+            source, reloads, stem, plain.extension().string(), host.reloads, refused);
+        if (fresh.empty()) {
+            out.refusal = "could not copy " + source.generic_string() + " to a new file in " +
+                          reloads.generic_string() + ": " + refused.message();
+            return out;
+        }
+        out.ok = true;
+        out.path = fresh.generic_string();
+        return out;
     }
     if (source.lexically_normal() == destination.lexically_normal()) {
         out.ok = true;
@@ -175,14 +226,13 @@ inline load::PlanExecutor::Promoted promote(Host& host, const std::string& stem,
             out.detail = "could not make " + reloads.generic_string() + ": " + made.message();
             return out;
         }
-        ++host.reloads;
+        std::error_code aside;
         const std::filesystem::path kept =
-            reloads / (stem + "-" + std::to_string(host.reloads) + "-promoted-over" +
-                       target.extension().string());
-        const std::error_code aside = copy_over(target, kept);
-        if (aside) {
-            out.detail = "could not keep " + target.generic_string() + " aside at " +
-                         kept.generic_string() + ": " + aside.message();
+            copy_fresh(target, reloads, stem, "-promoted-over" + target.extension().string(),
+                       host.reloads, aside);
+        if (kept.empty()) {
+            out.detail = "could not keep " + target.generic_string() + " aside in " +
+                         reloads.generic_string() + ": " + aside.message();
             return out;
         }
         out.kept = kept.generic_string();

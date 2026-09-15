@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Introspection provider — a loadable weave that offers Workshop three
+// The Introspection provider -- a loadable weave that offers Workshop three
 // read-only panes showing what the system it is running in actually is.
 //
 // IT IS A TOOL AND NOT A FIXTURE. `tests/weavelib/workshop_hello.cpp` proved the
@@ -108,7 +108,7 @@
 // host resolves through, so no contributor declares a kind, no identity is parsed,
 // and no registration flag exists to disagree with.
 //
-// ⚠ AND BROWSING STILL RUNS NOTHING, structurally rather than by discipline. This
+// (!) AND BROWSING STILL RUNS NOTHING, structurally rather than by discipline. This
 // image links no operator target: there is no `op::Catalog` here, no `OperatorDef`,
 // no callable and no `evaluate` to reach. EVALUATION LEAVES AS A MESSAGE, once, when
 // a maker explicitly asks -- `SampleRequested` to `zengine.sources`, whose door runs
@@ -654,11 +654,11 @@ public:
     /// no gesture activates it. That also keeps every bare key out of a command
     /// namespace this pane would otherwise have to invent.
     ///
-    /// ⚠ REFUSED WHOLE, AT THIS PANE'S DOOR. `TextBox::type` admits any UTF-8, and
+    /// (!) REFUSED WHOLE, AT THIS PANE'S DOOR. `TextBox::type` admits any UTF-8, and
     /// the external row contract is printable ASCII -- Workshop refuses a whole
     /// `PaneContent` for ONE byte a canvas cannot draw. So a chunk with any
     /// inadmissible byte is declined entirely rather than filtered: a maker who
-    /// pasted `naïve` gets none of it rather than `nave`, and the pane keeps
+    /// pasted `naive` gets none of it rather than `nave`, and the pane keeps
     /// speaking. (The shipped Composer has the same latent exposure; it is a
     /// different owner and is recorded rather than repaired here.)
     void on(const PaneTextInput& typed, loom::Mail& mail) {
@@ -914,7 +914,7 @@ private:
 
     /// SAY WHAT POWERS NOW SHOWS -- the ONE place its projection is rebuilt.
     ///
-    /// ⚠ THE CARET'S WINDOW IS RECONCILED FIRST, against the SAME capacity the chrome
+    /// (!) THE CARET'S WINDOW IS RECONCILED FIRST, against the SAME capacity the chrome
     /// row is about to cut the query with (`query_capacity`, which both spend). HD-4
     /// paid for learning that a second copy of a window's capacity is right until the
     /// first line long enough to scroll.

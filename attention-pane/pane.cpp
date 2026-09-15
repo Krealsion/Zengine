@@ -10,7 +10,7 @@
 // picker, arranged on the desk, and holding the keyboard only while a maker has pressed
 // into it.
 //
-// ⚠ WHAT IT SHOWS IT DOES NOT DERIVE, AND CANNOT. Every row of this pane is the HOST's
+// (!) WHAT IT SHOWS IT DOES NOT DERIVE, AND CANNOT. Every row of this pane is the HOST's
 // reading of the host's own state: two files it read at boot and could not use, a pane that
 // refused an update, a pane the maker authored that no cell of the screen is showing, and
 // the row realization is stopped at. None of it is a fact this image could go and get, and a
@@ -19,7 +19,7 @@
 // changes, and that publication is the one new sentence this whole arc adds
 // (`workshop/attention_seam_vocabulary.hpp`).
 //
-// ⚠ AND WHAT THIS PANE OWNS IS EXACTLY ONE THING: which statements the maker has hidden.
+// (!) AND WHAT THIS PANE OWNS IS EXACTLY ONE THING: which statements the maker has hidden.
 // Everything else on the screen is somebody else's fact, held for as long as the last
 // publication, replaced whole by the next one. A pane that kept a copy would be a second
 // owner of the truth, which is the defect the built-in's own projection was written to
@@ -83,7 +83,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // that cut its rows one character differently after the migration would be a view a maker
 // could see had changed, for no reason they were told about.
 //
-// ⚠ AND THEY ARE NOT COPIED HERE ANY MORE. This file's own note called the third copy a seam
+// (!) AND THEY ARE NOT COPIED HERE ANY MORE. This file's own note called the third copy a seam
 // and predicted the header that would close it; `workshop/pane_text.hpp` is that header, and
 // it arrived when the fifth package would have made a fifth copy. Nothing about the functions
 // changed and this pane gained no base class for using them.
@@ -179,7 +179,7 @@ public:
 
     /// WORKSHOP GRANTS THE PANE ITS ROOM -- the one beat on which this view draws.
     ///
-    /// ⚠ AND IT ASKS FOR NOTHING HERE, WHICH IS THIS PANE ALONE AMONG THE THREE. The Files
+    /// (!) AND IT ASKS FOR NOTHING HERE, WHICH IS THIS PANE ALONE AMONG THE THREE. The Files
     /// browser asks where this run began and the Builder asks what the tool is; both have a
     /// question whose answer is stable enough to be worth re-asking at a grant. This pane
     /// has no question at all: what it shows arrives when it changes and nowhere else, so a
@@ -276,7 +276,7 @@ private:
     /// `attention.up`, `attention.down` and `attention.dismiss`. A maker who moved one in
     /// their keymap file finds it moved here, which is the whole promise of the migration.
     ///
-    /// ⚠ AND THERE IS NO MODE, SO THERE IS ONE DECLARATION. Files and the Builder re-declare
+    /// (!) AND THERE IS NO MODE, SO THERE IS ONE DECLARATION. Files and the Builder re-declare
     /// per mode because each has a line a maker types into; this view has no text and no
     /// second state, so its rows are the same rows always. A bare letter is legal for the
     /// reason it was legal in the built-in's own context: nothing in this pane takes text.
@@ -399,7 +399,7 @@ private:
 
     template <class Push>
     void say_view(Push&& push) {
-        // ⚠ THE HEADER NO LONGER SPELLS ITS OWN KEYS, and that is a subtraction rather than
+        // (!) THE HEADER NO LONGER SPELLS ITS OWN KEYS, and that is a subtraction rather than
         // a loss. The built-in wrote `d hides one, Escape closes` into its own first row
         // because a maker had no other way to learn a mode's gestures; a pane's declared
         // rows are in the band's legend and in the hotkey view under this pane's own

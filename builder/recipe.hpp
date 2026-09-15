@@ -148,10 +148,18 @@ struct BuildCommand {
 /// `config` is for a MULTI-CONFIG generator and is empty everywhere else. It is
 /// passed straight to `cmake --build --config`, which single-config generators accept
 /// and ignore, so one recipe is legal against either kind of tree.
+///
+/// `entry` IS WHERE A READER OF THIS ARTIFACT'S CODE BEGINS, and empty means the recipe
+/// names none. It is an EDITING ENTRY POINT and nothing more: not the target's sources,
+/// not its translation units, not every file its behaviour depends on -- a CMake project
+/// knows those and a recipe does not restate them. Nothing builds from it and nothing
+/// derives it: the build is still `--target`, and a recipe that names no entry has no file
+/// for anything to open, which is said rather than guessed from the target's name.
 struct CMakeTargetRecipe {
     std::string build_dir; ///< a CONFIGURED CMake build tree
     std::string target;    ///< the target in it that produces this recipe's artifact
     std::string config;    ///< a multi-config generator's configuration, or empty
+    std::string entry;     ///< the source file editing starts from, or empty
 
     friend bool operator==(const CMakeTargetRecipe&, const CMakeTargetRecipe&) = default;
 };
@@ -409,6 +417,12 @@ inline std::string check_recipe(const Recipe& r) {
             if (!cfg.empty()) {
                 return "recipe `" + r.id + "`: `" + r.cmake_target->config +
                        "` is not a CMake configuration name";
+            }
+        }
+        if (!r.cmake_target->entry.empty()) {
+            const std::string entry = check_recipe_path("an editing entry", r.cmake_target->entry);
+            if (!entry.empty()) {
+                return "recipe `" + r.id + "`: " + entry;
             }
         }
         return std::string();

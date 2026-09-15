@@ -167,7 +167,8 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`Shift+r`** | **revert** — run the image before the last reload again, state kept (below) |
 | **`o`** | **load it** — put the chosen recipe's artifact into this project's plan, with a role you type, and load it now when its product is already built ([below](#loading-a-built-artifact-into-the-plan)) |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
-| **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
+| **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — a `single_source` recipe's source, or a `cmake_target` recipe's editing entry ([below](#an-existing-cmake-target)); a `cmake_target` recipe with no entry names no file and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
+| **`l`** | **read output** — the lines the build the pane names actually said, in the pane, bound to that build ([below](#reading-what-a-build-said)) |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
@@ -190,11 +191,46 @@ failed, and both are ordinary.
 **A long refusal is cut on that row, and on the notice, and those are the only two places it is
 shown.** Each of them is one row, and a load refused deep in the Loom — a shape that changed, a
 schema name a copied weave still shares — says more than one row holds, and there is no
-gesture anywhere that reads past a cut row
+gesture anywhere that reads past a cut realize row or notice
 ([why](panes.md#reading-a-value-the-pane-had-to-cut--retired)). Launch with `--log <path>`
 ([arguments](getting-started.md#arguments)) and the whole sentence is kept: that journal holds
 every realization answer — refused, realized, promoted, reverted — carrying the words the layer
 that refused actually said.
+
+### Reading what a build said
+
+The `said` row is the last few lines of a build. When those are not the lines that matter — a
+compiler's reason is usually further up — press **`l`**. The pane becomes a reader for **that
+build**: a header naming it, how it ended, which lines are showing and whether anything was cut,
+spelled or not kept, then one row per line of its output, as it was written.
+
+| key | while reading |
+|---|---|
+| `↑` `↓`, the wheel | one line up or down; the wheel a few at a time |
+| `Home` / `End` | the first line, or the last lines (and it follows new ones) |
+| `←` `→` | pan by half the pane's width, for a long line |
+| `[` / `]` | the build before, or after, this one |
+| `Escape` | close it; the build rows come back |
+
+- **It stays with its build.** A newer build, another recipe chosen or a status about a different
+  build moves nothing it shows. A reloaded Builder pane is not reading; `l` opens it again.
+- **The build tool keeps it, bounded, and in memory only.** The runner passes on every byte a build
+  writes, in order. The tool keeps the output of its last few operations and, of a long one, both
+  ends, with the lines between counted rather than kept; a line too long to keep is cut and
+  counted; a build it no longer keeps says so rather than showing another's lines. The bounds are
+  `kKeptOperations`, `kKeptHeadBytes`, `kKeptTailBytes` and `kMaxKeptLineBytes` in
+  `builder/vocabulary.hpp`. No file is written and a restart keeps nothing.
+- **It is spelled in what a screen can draw.** A compiler's typographic quotes and dashes are
+  shown as their ASCII twins, any other character that cannot be drawn as `?`, and terminal colour
+  sequences not at all; the header counts them. Paths, line and column numbers and the caret line
+  under a source line read exactly as written. What is kept is what the build process wrote: on
+  Windows, Ninja re-encodes non-ASCII output it passes on, so a compiler's quotes can arrive as
+  other characters, and read as `?`.
+- **It reads; it does not act.** It builds nothing, opens no file and moves no caret. A build that
+  worked whose load was refused reads as *succeeded* — the refusal is the realize row's.
+
+[Develop Workshop](develop-workshop.md#a-build-that-fails) walks through a failed build read this
+way.
 
 ## The project frontier
 
@@ -243,7 +279,8 @@ cmake --build <build tree> --target <target>
   "artifact_dir": "/path/to/build/snake",
   "cmake_target": [ { "build_dir": "/path/to/build",
                       "target": "zengine-skin-tui-block",
-                      "config": "" } ],
+                      "config": "",
+                      "entry": "" } ],
   "single_source": [] }
 ```
 
@@ -259,6 +296,22 @@ of the package that declares it: in Zengine's own tree this skin is aimed at the
 runtime directory, because that host resolves the weaves it loads from beside its own binary —
 so the shipped recipe is generated from the target rather than from a guess about the layout. If
 a build of yours succeeds and the Builder answers `NO ARTIFACT`, this is the field to check.
+
+`entry` is the **editing entry**: the one source file a reader of this artifact starts at — the
+file `e` and `edit code` open. It is not a list of what the target compiles and makes no claim to
+be; the CMake project says that. Empty means the recipe names no file, and opening its source is
+refused in words rather than guessed from the target's name. A relative entry means the project
+directory, completed once when the catalog is read, exactly like a single source's `source`.
+Zengine's own configure writes a catalog of these for the panes it ships, with each pane's own
+source as the entry ([develop Workshop](develop-workshop.md)).
+
+**The catalog file is version 2**, the version that has `entry`. A version-1 catalog — every
+catalog written before entries existed — is read whole: every row, with no entry on any CMake
+target. Workshop never rewrites a file on its own; the first time `a` appends a row to a
+version-1 catalog, the whole file is written as version 2, each old CMake row with an empty
+entry, and a Workshop that reads only version 1 then refuses that file by its number. A later
+version is refused by its number, and a version-2 file with a row that lacks `entry` is refused
+rather than read as "no entry".
 
 ### One source file
 
@@ -342,7 +395,9 @@ plan's file and loaded, exactly as it always was. A row that is **already live**
 **reloaded in place**:
 
 - the host copies the rebuilt product to a per-operation path beside itself
-  (`<stem>.reloads/<stem>-<n>`), off the file the process has mapped;
+  (`<stem>.reloads/<stem>-<n>`), off the file the process has mapped — and to a name no file
+  already has, so a copy never lands on one an earlier run left behind or another Workshop
+  sharing that directory has loaded;
 - the realization owner asks the Weave Manager for `zen.ReloadWeave` over that copy, bracketed
   by the same operator offer a load carries;
 - the Loom swaps the code behind the **same `WeaveId`** and carries the weave's **state** across.
@@ -415,8 +470,9 @@ leaves the row waiting until you load it: nothing is realized because a file app
 
 - A recipe row is *added* from Files (`a`) and *edited or removed* in a text editor. There is
   no recipe editor: what you can change at run time is one appended row, or *which whole
-  catalog file* is in force. (A `single_source` recipe's **source** opens in Workshop's own
-  editor with `e`, or with `edit code` on the pane its artifact draws; any other project file —
+  catalog file* is in force. (A `single_source` recipe's **source**, or a `cmake_target`
+  recipe's **entry**, opens in Workshop's own editor with `e`, or with `edit code` on the pane its
+  artifact draws; any other project file —
   a recipe catalog included — opens from the [Files](files.md) pane, see
   [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine

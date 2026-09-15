@@ -10,7 +10,7 @@
 // property drafts). Now it is a weave beside the Skin, the Timer, the browser, the Builder
 // and Attention.
 //
-// ⚠ THE DOCUMENT DID NOT COME WITH IT, AND THAT IS THE MIGRATION'S DECISION.
+// (!) THE DOCUMENT DID NOT COME WITH IT, AND THAT IS THE MIGRATION'S DECISION.
 // `WorkshopDoc` is the HOST's -- the workspace plane paints it, the pointer drags it, `^s`
 // writes it, the status slot counts it, a restore replaces it. This pane is one reader of it
 // and the one that shows it as a list. So what crosses is a PICTURE the host derives
@@ -20,7 +20,7 @@
 // (`DocumentCommitRequested`). Nothing in this image can touch a document; it can ask, and be
 // refused in the document's own words -- or learn from Loom that the ask never arrived.
 //
-// ⚠ AND THE PICTURE IS PUBLISHED RATHER THAN ASKED FOR, which is this migration's one new
+// (!) AND THE PICTURE IS PUBLISHED RATHER THAN ASKED FOR, which is this migration's one new
 // sentence. WL-DOC-14 requires the canvas, the object list and the inspector to agree after
 // every gesture, and the document changes under this pane constantly with no gesture into it
 // at all -- a drag on the workspace, a nudge, a create, a restore, a workspace refit. A pane
@@ -32,7 +32,7 @@
 // that the rows are SAID as values into a room this pane is granted, instead of being written
 // into a region this pane resolved for itself.
 //
-// ⚠ WHAT THE MOVE COSTS IS THE DRAFT'S CARET. `PaneContent` is rows and a caret is a
+// (!) WHAT THE MOVE COSTS IS THE DRAFT'S CARET. `PaneContent` is rows and a caret is a
 // `SurfaceTextRegion` fact a pane cannot send, so a maker typing a property value sees the
 // text and no insertion point -- the same documented loss the project browser's authoring
 // line and the Powers query already carry, and the reason the Editor's migration is the
@@ -100,7 +100,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // migration would be a panel a maker could see had changed, for no reason they were told
 // about.
 //
-// ⚠ THE FOURTH COPY OF `fit` IS GONE, AND SO ARE THE OTHER THREE. This file's first stage said
+// (!) THE FOURTH COPY OF `fit` IS GONE, AND SO ARE THE OTHER THREE. This file's first stage said
 // it was the fourth package to carry these and that a header owning no lifecycle and hiding no
 // bus would hold them honestly; `workshop/pane_text.hpp` is that header. It arrived when the
 // Terminal would have made the fifth copy, and nothing about the functions changed for moving.
@@ -322,7 +322,7 @@ public:
         }
         known_ = said;
         heard_ = true;
-        // ⚠ A DRAFT WHOSE SUBJECT IS NO LONGER SHOWN IS ABANDONED, and it is the one thing this
+        // (!) A DRAFT WHOSE SUBJECT IS NO LONGER SHOWN IS ABANDONED, and it is the one thing this
         // pane drops without being asked -- so it says so. The rows are the SELECTION's, and the
         // host names what they address: another object, another layout or a document loaded
         // since -- identical bytes included -- is another name, even where `Name` sits on the same
@@ -629,7 +629,7 @@ private:
     /// correlation nothing waits on and is dropped unread, its sentence already spent by the act
     /// that asked again -- and cannot replace the commit's.
     ///
-    /// ⚠ THE TICKET IS KEPT (WL-INFO-13). One that is not valid means nothing was queued: no
+    /// (!) THE TICKET IS KEPT (WL-INFO-13). One that is not valid means nothing was queued: no
     /// answer and no refusal notice can follow, so the record is released at once and the pane says
     /// so.
     void ask(DocumentActRequested request, loom::Mail& mail) {
@@ -685,7 +685,7 @@ private:
             }
             return;
         }
-        // ⚠ ANY OTHER DRAFT IS EDITS NO WRITE COVERS -- this one typed into after Return, or a
+        // (!) ANY OTHER DRAFT IS EDITS NO WRITE COVERS -- this one typed into after Return, or a
         // newer one -- so the answer closes, alters and marks none of them, and says it as the
         // earlier commit's. With no draft open, the draft that sent it is over: the write was
         // never the draft's to take back, and the account replaces only the sentence that
@@ -965,7 +965,7 @@ private:
             // reach this state with their own hand, and a panel that merely goes blank is
             // indistinguishable from a tool that has broken.
             //
-            // ⚠ AND IT IS SAID WHATEVER THE SHARE IS, which is a repair rather than a
+            // (!) AND IT IS SAID WHATEVER THE SHARE IS, which is a repair rather than a
             // preference. `share_body_rows` gives an EMPTY list a share of zero -- it wants
             // nothing, so it is offered nothing -- and this row was behind `share > 0`, so
             // the one document state the sentence exists for was the one state it never

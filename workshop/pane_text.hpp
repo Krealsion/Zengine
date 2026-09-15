@@ -138,6 +138,122 @@ inline std::string drawable(std::string text) {
     return text;
 }
 
+/// A LINE SOMEBODY ELSE WROTE, SPELLED IN WHAT A CANVAS CAN DRAW -- and how many characters
+/// had to be spelled (`spelled`, when given, is increased by that many).
+///
+/// `drawable` repairs a pane's own words a byte at a time; this is for words a pane only
+/// CARRIES -- a compiler's diagnostic, an owner's refusal -- which arrive as UTF-8 and must stay
+/// readable. So it reads characters, not bytes: the punctuation compilers and build tools print
+/// becomes its ASCII twin (the quotes `'` and `"`, the dashes `-`, the ellipsis `...`, a
+/// no-break space ` `, the guillemets `<<` `>>`); a tab is a space; every other character a
+/// canvas cannot draw is one `?`, a malformed byte included; and a terminal escape sequence
+/// (ESC, `[`, its parameters and its final byte) is left out whole. Every one of those but the
+/// tab is counted, so a reader can be told that what they see was spelled, and how much of it.
+/// The line's printable ASCII passes through untouched, which is every path and line number.
+// WL-OUT-03 -- agents/workshop/build-output.md
+inline std::string ascii_spelling(const std::string& text, std::size_t* spelled = nullptr) {
+    std::string out;
+    out.reserve(text.size());
+    std::size_t count = 0;
+    const std::size_t n = text.size();
+    std::size_t i = 0;
+    while (i < n) {
+        const unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b >= 0x20u && b < 0x7Fu) {
+            out += static_cast<char>(b);
+            ++i;
+            continue;
+        }
+        if (b == '\t') {
+            out += ' ';
+            ++i;
+            continue;
+        }
+        if (b == 0x1Bu) {
+            // AN ESCAPE SEQUENCE IS A TERMINAL'S INSTRUCTION, NOT TEXT: a CSI one is left out to
+            // its final byte, and a lone ESC by itself.
+            ++count;
+            ++i;
+            if (i < n && text[i] == '[') {
+                ++i;
+                while (i < n) {
+                    const unsigned char c = static_cast<unsigned char>(text[i]);
+                    ++i;
+                    if (c >= 0x40u && c <= 0x7Eu) {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        std::size_t width = 0;
+        std::uint32_t cp = 0;
+        if (b >= 0xC2u && b <= 0xDFu) {
+            width = 2;
+            cp = b & 0x1Fu;
+        } else if (b >= 0xE0u && b <= 0xEFu) {
+            width = 3;
+            cp = b & 0x0Fu;
+        } else if (b >= 0xF0u && b <= 0xF4u) {
+            width = 4;
+            cp = b & 0x07u;
+        }
+        bool whole = width != 0 && i + width <= n;
+        for (std::size_t k = 1; whole && k < width; ++k) {
+            const unsigned char c = static_cast<unsigned char>(text[i + k]);
+            if ((c & 0xC0u) != 0x80u) {
+                whole = false;
+            } else {
+                cp = (cp << 6) | (c & 0x3Fu);
+            }
+        }
+        ++count;
+        if (!whole) {
+            out += '?';
+            ++i;
+            continue;
+        }
+        i += width;
+        switch (cp) {
+        case 0x2018: case 0x2019: case 0x201A: case 0x201B: case 0x2032:
+            out += '\'';
+            break;
+        case 0x201C: case 0x201D: case 0x201E: case 0x201F: case 0x2033:
+            out += '"';
+            break;
+        case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014: case 0x2015:
+        case 0x2212:
+            out += '-';
+            break;
+        case 0x2026:
+            out += "...";
+            break;
+        case 0x00A0: case 0x2002: case 0x2003: case 0x2009: case 0x202F:
+            out += ' ';
+            break;
+        case 0x00AB:
+            out += "<<";
+            break;
+        case 0x00BB:
+            out += ">>";
+            break;
+        case 0x2039:
+            out += '<';
+            break;
+        case 0x203A:
+            out += '>';
+            break;
+        default:
+            out += '?';
+            break;
+        }
+    }
+    if (spelled != nullptr) {
+        *spelled += count;
+    }
+    return out;
+}
+
 /// ...AND THE SAME QUESTION ASKED THE OTHER WAY, AT THE OTHER DOOR: is this text, WHOLE,
 /// something a canvas can draw?
 ///

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Message Composer — a loadable weave that offers Workshop one pane in which a
+// The Message Composer -- a loadable weave that offers Workshop one pane in which a
 // maker writes a real Loom message to a real target, from that target's own real
 // accepted vocabulary, with nothing about the message hard-coded anywhere.
 //
@@ -190,7 +190,7 @@ public:
             // Terminal and paste into a field here. The writes counter is untouched: it
             // counts THIS pane's copies, which is what keeps the publish below from
             // echoing another participant's copy back at the bus (TEXT-0). Since QR-11
-            // this is the mirror's ONLY feed — the platform's clipboard is read at paste
+            // this is the mirror's ONLY feed -- the platform's clipboard is read at paste
             // time, through the Skin, never watched.
             clip_.text = loom::from_value<surface::ClipboardCopy>(in.payload).text;
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardText>(), shape)) {
@@ -330,10 +330,10 @@ private:
         if (key.pane != kComposePane) {
             return;
         }
-        // THE FIELD'S OWN VOCABULARY FIRST (TEXT-0) — the fourth of the four switches the
+        // THE FIELD'S OWN VOCABULARY FIRST (TEXT-0) -- the fourth of the four switches the
         // component call collapsed, and the one this weave was about to make a fifth of.
         // A copy the field took is then said to the process once, from the same
-        // writes-comparison Workshop makes around its own chain — and a PASTE the field
+        // writes-comparison Workshop makes around its own chain -- and a PASTE the field
         // requested is asked for the same way (QR-11): the component bumps
         // `paste_requests` instead of pasting, this weave asks the Skin for the platform
         // clipboard's current text, and the answer lands in the field that asked or
@@ -511,7 +511,7 @@ private:
     void ask(loom::Mail& mail) {
         // ONE CORRELATION SEQUENCE FOR THIS WHOLE WEAVE (QR-11): minted from the clipboard
         // book so the discovery conversation can never share a number with an open paste
-        // ask — two counters beside each other is how an answer to one conversation
+        // ask -- two counters beside each other is how an answer to one conversation
         // settles the other (`AskBook::mint_correlation`'s own warning).
         pending_ = clip_asks_.mint_correlation();
         awaiting_ = true;
@@ -705,17 +705,17 @@ private:
         zengine::composer::cycle(*d, kind);
     }
 
-    /// The editing keys, spent on the `TextBox` under the cursor — HD-5's component,
+    /// The editing keys, spent on the `TextBox` under the cursor -- HD-5's component,
     /// fourth consumer, now through the vocabulary the component owns (TEXT-0): the six
     /// gestures this used to spell, and selection, clipboard, word movement and history
     /// behind them, one call. QR-2's bool: false means "not the field's", so a chord this
     /// pane binds (or ignores) still reaches its own switch.
     ///
     /// THE HONEST LIMIT, stated where the capability lives: the pane seam carries ROWS and
-    /// no spans (`PaneContent`'s own discipline — a provider supplies no geometry), so a
+    /// no spans (`PaneContent`'s own discipline -- a provider supplies no geometry), so a
     /// selection in a field here moves the caret character to its active end and cannot be
     /// shown as a highlight until the seam can carry one. The mechanics are uniform anyway
-    /// — typing replaces what Shift+arrows swept, and Ctrl+Z takes it back — because a
+    /// -- typing replaces what Shift+arrows swept, and Ctrl+Z takes it back -- because a
     /// vocabulary that shrank per consumer would be four vocabularies again.
     bool edit_field(std::int64_t scancode, std::int64_t modifiers) {
         zengine::composer::FieldDraft* d = field_under_cursor();
@@ -726,7 +726,7 @@ private:
     }
 
     /// ONE PASTE STILL IN FLIGHT, and the field it belongs to (QR-11). The generation
-    /// says WHICH form (open_form and back_to_catalog bump it — "a new choice replaces
+    /// says WHICH form (open_form and back_to_catalog bump it -- "a new choice replaces
     /// the draft whole", so text asked for by one form must not land in the next, even a
     /// re-opened form of the same shape); the index says which field; the epoch says the
     /// field's box has not been reset under it (`TextBox::draft_epoch`).
@@ -738,8 +738,8 @@ private:
     };
 
     /// ASK THE SKIN WHAT THE PLATFORM CLIPBOARD HOLDS, because the field under the
-    /// cursor consumed a paste request (QR-11). The same conversation Workshop has —
-    /// the Medium owns the platform clipboard in both directions — held in this asker's
+    /// cursor consumed a paste request (QR-11). The same conversation Workshop has --
+    /// the Medium owns the platform clipboard in both directions -- held in this asker's
     /// own book: refused at capacity with the outstanding pastes untouched, and the
     /// dropped paste's truthful outcome is that nothing is inserted.
     void begin_clipboard_paste(loom::Mail& mail) {
@@ -764,11 +764,11 @@ private:
                           opened.correlation);
     }
 
-    /// THE SKIN'S ANSWER TO A PASTE THIS PANE REQUESTED — the one road foreign clipboard
+    /// THE SKIN'S ANSWER TO A PASTE THIS PANE REQUESTED -- the one road foreign clipboard
     /// text has into this provider, walked only under a maker's paste (QR-11; Workshop's
     /// `on(ClipboardText)` states the shared law). `answers_ask()` plus the book's own
     /// settlement, then the field that asked must still be standing: same form
-    /// (generation), same field, same draft in its box (epoch), still present — the same
+    /// (generation), same field, same draft in its box (epoch), still present -- the same
     /// gate `edit_field` spends. Anything else discards the payload whole; a paste is
     /// never redirected to whichever field holds the cursor later.
     void on_clipboard_text(const surface::ClipboardText& a, loom::Mail& mail) {
@@ -925,7 +925,7 @@ private:
     std::uint64_t pending_ = 0; ///< the outstanding discovery question, if any
     bool awaiting_ = false;
     /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT (QR-11), and the fields each one
-    /// belongs to. Per incarnation, like every other transient here — and the book's
+    /// belongs to. Per incarnation, like every other transient here -- and the book's
     /// counter is this weave's ONE correlation sequence: the discovery ask above mints
     /// from it too (`mint_correlation`), so no two of this weave's conversations can
     /// share a number.
@@ -938,12 +938,12 @@ private:
     /// Fractional wheel notches not yet worth a row (QR-18) -- interaction state, transient
     /// for the cursor's own reason.
     double wheel_ = 0.0;
-    /// THE CLIPBOARD THIS PANE'S FIELDS OPERATE ON (TEXT-0) — transient for the draft's own
+    /// THE CLIPBOARD THIS PANE'S FIELDS OPERATE ON (TEXT-0) -- transient for the draft's own
     /// reason: what a maker copied is part of what they are doing, and a revived
     /// incarnation holding a dead pane has no business resurrecting it. A MIRROR of the
     /// freshest copy said IN this process (its own copies, other participants'
-    /// `ClipboardCopy`) — since QR-11 nothing watches the platform's clipboard; a paste
-    /// reads it through the Skin at the moment it is requested — so copy-in-the-Terminal,
+    /// `ClipboardCopy`) -- since QR-11 nothing watches the platform's clipboard; a paste
+    /// reads it through the Skin at the moment it is requested -- so copy-in-the-Terminal,
     /// paste-here works wherever the process's clipboard story does.
     zengine::component::Clipboard clip_;
     /// WHAT THIS PANE IS CURRENTLY SHOWING, and the map from its rows back to the
