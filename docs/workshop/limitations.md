@@ -196,6 +196,26 @@ replacing it is the Loom's prepared replacement with an authored migration, whic
 not host yet. No automatic build-on-missing and no reload on a file appearing: a maker presses a
 key. Detail in [Builder](builder.md).
 
+**A build's own words are read in the Builder, from memory.** `l` shows what a build said, bound
+to that build. The build tool keeps only its last few operations, and of a long build the
+beginning and the end with the middle counted; nothing is written to a file, searched, or kept
+across a restart, and a row shows what a canvas can draw of a compiler's characters, counted.
+[Reading what a build said](builder.md#reading-what-a-build-said).
+
+**Workshop's own panes are changed from inside Workshop only through a development setup** — a
+development catalog and a runtime copied from one configured Zengine build tree
+([develop Workshop](develop-workshop.md)). That covers the pane weaves Zengine ships. The host
+executable, the skins, the input readers, the Timer and the operator providers are not rebuilt or
+reloaded from inside Workshop, and a development runtime is not an installed Workshop that updates
+itself.
+
+**Artifacts are still named by stem beside the host.** A project's built pane is kept beside the
+Workshop that loaded it (`tally.so`, `tally.reloads/`), not in the project, so two projects run
+from one Workshop build directory stage into — and a promotion in either writes — the same files;
+a reload's copy takes a name no file already has, so the two never load each other's reload copies,
+but the promoted file is shared. A development setup gives each build tree a runtime of its own
+and so does not share them.
+
 ### The source editor holds one file at a time, in plain ASCII
 
 **Workshop can open, edit and save any file this process can read** — from the
@@ -358,7 +378,7 @@ outside printable ASCII is still visible and still not openable.
 | roll back one artifact's partial record | **yes** — one artifact is the atomic unit |
 | roll back a whole plan | **no** — earlier artifacts stay; you are told which artifact stopped it and what still stands |
 | unload a weave at run time | **no** from Workshop |
-| reload a weave in place — same shapes, same `WeaveId`, state kept | **yes** — from the Builder, for a weave-only row this project built; the rebuilt image lands off the loaded file, and promote / revert say which image a restart loads |
+| reload a weave in place — same shapes, same `WeaveId`, state kept | **yes** — from the Builder, for a weave-only row this project built, Workshop's own pane weaves included in a [development setup](develop-workshop.md); the rebuilt image lands off the loaded file, and promote / revert say which image a restart loads |
 | replace a weave whose shape changed, or migrate its state | **no** — a prepared replacement with an authored migration is the maker's, and Workshop does not host one yet |
 | reload an artifact that also supplies operators | **no** — refused in words until unmount-and-remount exists |
 

@@ -96,10 +96,12 @@
 //   - it does not hold a build tree, a source path, a package prefix or a link
 //     list. It holds an identity, an artifact stem and the one file that stem
 //     means -- which is exactly what its two questions need and no more.
-//   - it does not keep the build log. It keeps a bounded tail of what the current
-//     operation has said -- enough for the rows a panel has -- and the whole
-//     stream stays on the bus, where a later presentation phase can pick it up
-//     without this weave having become a log server.
+//   - it does not keep a build log. It keeps, for each of its last few operations
+//     (`kKeptOperations`), a bounded head and tail of the lines that operation said,
+//     with what fell between them counted, and it answers a page of one operation's
+//     lines to whoever asks by that operation's number (`BuildOutputRequested`). That
+//     is the reading a maker needs to find a compiler's reason without leaving
+//     Workshop; it is not a file, not a history across runs and not a search.
 //   - it does not poll, ask "is it done yet?", or hold a timer. It hears. The
 //     one participant that polls anything is the runner, on its own handles.
 //   - it does not load, unload, replace or reload anything, and it holds no
@@ -120,6 +122,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -128,17 +131,164 @@
 
 namespace zengine::builder {
 
-/// The most of one operation's output this tool remembers.
+/// The most of one operation's output this tool remembers for its STATUS.
 ///
-/// It is a WORKING TAIL and not a log: what a presentation is given is the last
-/// few lines of it, and what anybody who wants the whole stream should read is
-/// the `BuildOutput` facts themselves, which is where all of it is. The OLDEST
-/// characters are dropped, for the reason that rule is always chosen here -- the
-/// end of a build's output is the part that says what went wrong.
+/// It is a WORKING TAIL and not the record: what a status carries is the last few lines
+/// of it. The operation's lines, both ends of them, are `KeptOutput`'s, below. The
+/// OLDEST characters are dropped, for the reason that rule is always chosen here -- the
+/// end of a build's output is the part that says how it ended.
 inline constexpr std::size_t kMaxRemembered = 8u * 1024u;
 
 /// How many of those lines a published status carries.
 inline constexpr std::size_t kDetailLines = 3;
+
+/// ONE LINE AN OPERATION SAID, AS KEPT: its bytes up to `kMaxKeptLineBytes`, and how many
+/// more it had.
+struct KeptLine {
+    std::string text;
+    std::int64_t cut = 0;
+};
+
+/// WHAT ONE OPERATION SAID, KEPT BOUNDED AT BOTH ENDS.
+///
+/// THE FIRST LINES ARE KEPT UNTIL `kKeptHeadBytes` IS SPENT, AND THE LAST UNTIL
+/// `kKeptTailBytes` IS; a line that falls out of the tail is counted in `omitted`, so line
+/// numbers stay the operation's own: lines 1..head, then `omitted` not kept, then the tail
+/// up to `said`. Bytes arrive in pieces (`BuildOutput` v3) and a line is taken when its
+/// break arrives, or when the operation ends. A trailing CR is the line break's, not the
+/// line's. Nothing here reads, judges or reorders what a line says.
+// WL-OUT-02 -- agents/workshop/build-output.md
+struct KeptOutput {
+    std::int64_t op = 0;
+    std::string recipe;
+    std::string artifact;
+    std::int64_t outcome = outcome::kRunning;
+    std::int64_t status = 0;
+    bool ended = false;
+    std::int64_t said = 0;
+    std::vector<KeptLine> head;
+    std::size_t head_bytes = 0;
+    bool head_closed = false;
+    std::deque<KeptLine> tail;
+    std::size_t tail_bytes = 0;
+    std::int64_t omitted = 0;
+    std::string pending;         ///< the start of a line whose break has not arrived
+    std::int64_t pending_cut = 0; ///< bytes of that line past `kMaxKeptLineBytes`
+
+    /// The next bytes of the operation's output.
+    void take(const std::string& text) {
+        std::size_t at = 0;
+        while (at < text.size()) {
+            const std::size_t nl = text.find('\n', at);
+            const std::size_t end = nl == std::string::npos ? text.size() : nl;
+            const std::size_t room =
+                pending.size() < kMaxKeptLineBytes ? kMaxKeptLineBytes - pending.size() : 0;
+            const std::size_t piece = end - at;
+            const std::size_t kept = piece < room ? piece : room;
+            pending.append(text, at, kept);
+            pending_cut += static_cast<std::int64_t>(piece - kept);
+            if (nl == std::string::npos) {
+                return;
+            }
+            line();
+            at = nl + 1;
+        }
+    }
+
+    /// The operation will say no more: a last line with no break is still a line.
+    void end(std::int64_t how, std::int64_t exit_status) {
+        if (!pending.empty() || pending_cut != 0) {
+            line();
+        }
+        ended = true;
+        outcome = how;
+        status = exit_status;
+    }
+
+    /// The line number the tail's first kept line has, or `said + 1` when the tail is empty.
+    std::int64_t tail_from() const {
+        return static_cast<std::int64_t>(head.size()) + omitted + 1;
+    }
+
+private:
+    void line() {
+        KeptLine kept{std::move(pending), pending_cut};
+        pending.clear();
+        pending_cut = 0;
+        if (!kept.text.empty() && kept.text.back() == '\r') {
+            kept.text.pop_back();
+        }
+        ++said;
+        if (!head_closed && head_bytes + kept.text.size() <= kKeptHeadBytes) {
+            head_bytes += kept.text.size();
+            head.push_back(std::move(kept));
+            return;
+        }
+        head_closed = true;
+        tail_bytes += kept.text.size();
+        tail.push_back(std::move(kept));
+        while (tail_bytes > kKeptTailBytes && tail.size() > 1) {
+            tail_bytes -= tail.front().text.size();
+            tail.pop_front();
+            ++omitted;
+        }
+    }
+};
+
+/// A PAGE OF `kept`, from line `from`, of at most `lines` lines and `kMaxOutputPageBytes`
+/// bytes (at least one line when there is one). A page that would cross the lines no longer
+/// kept stops before them, and a page asked for inside them begins after them. `from` 0 is
+/// the page that ends at the last line said so far -- a reader following a running build.
+// WL-OUT-02 -- agents/workshop/build-output.md
+inline BuildOutputSaid page_of(const KeptOutput& kept, std::int64_t from, std::int64_t lines) {
+    BuildOutputSaid out;
+    out.op = kept.op;
+    out.kept = true;
+    out.recipe = kept.recipe;
+    out.artifact = kept.artifact;
+    out.outcome = kept.outcome;
+    out.status = kept.status;
+    out.ended = kept.ended;
+    out.said = kept.said;
+    out.omitted = kept.omitted;
+    out.omitted_from = kept.omitted == 0 ? 0 : static_cast<std::int64_t>(kept.head.size()) + 1;
+    const std::int64_t want =
+        lines < 1 ? 1
+                  : (lines > static_cast<std::int64_t>(kMaxOutputPageLines)
+                         ? static_cast<std::int64_t>(kMaxOutputPageLines)
+                         : lines);
+    std::int64_t at = from;
+    if (at == 0) {
+        at = kept.said - want + 1;
+    }
+    if (at < 1) {
+        at = 1;
+    }
+    const std::int64_t head = static_cast<std::int64_t>(kept.head.size());
+    if (at > head && at < kept.tail_from()) {
+        at = kept.tail_from(); // inside the gap: the page begins after it
+    }
+    out.first = at;
+    std::size_t bytes = 0;
+    while (at <= kept.said && static_cast<std::int64_t>(out.text.size()) < want) {
+        const KeptLine* line = nullptr;
+        if (at <= head) {
+            line = &kept.head[static_cast<std::size_t>(at - 1)];
+        } else if (at >= kept.tail_from()) {
+            line = &kept.tail[static_cast<std::size_t>(at - kept.tail_from())];
+        } else {
+            break; // the gap: stop before it
+        }
+        if (!out.text.empty() && bytes + line->text.size() > kMaxOutputPageBytes) {
+            break;
+        }
+        bytes += line->text.size();
+        out.cut += line->cut;
+        out.text.push_back(line->text);
+        ++at;
+    }
+    return out;
+}
 
 /// WHAT A FILE LOOKED LIKE AT ONE MOMENT.
 ///
@@ -217,8 +367,10 @@ class BuilderWeave
     : public loom::WeaveBase<BuilderWeave, BuilderState,
                              loom::Accept<BuildRequested, StatusRequested, BuildStarted,
                                           BuildOutput, BuildFinished, BuildNotStarted,
-                                          ArtifactRealized, ArtifactPromoted>,
-                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact>> {
+                                          ArtifactRealized, ArtifactPromoted,
+                                          BuildOutputRequested>,
+                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact,
+                                        BuildOutputSaid>> {
 public:
     /// THE RECIPE VIEWS ARE READ FROM THEIR OWNER, WHICH IS THE HOST, and they are a
     /// plain member rather than part of the weave's state -- the runner's reason, one
@@ -370,19 +522,52 @@ public:
         state_.chunks = 0;
         state_.detail.clear();
         remembered_.clear();
+        // THE OPERATION'S OWN RECORD BEGINS HERE, under its own number, and the oldest one
+        // kept is let go when there would be more than `kKeptOperations`.
+        KeptOutput record;
+        record.op = began.op;
+        record.recipe = began.recipe;
+        record.artifact = state_.artifact;
+        kept_.push_back(std::move(record));
+        while (kept_.size() > kKeptOperations) {
+            kept_.erase(kept_.begin());
+        }
         say(mail);
     }
 
     /// IT SAID SOMETHING. Folded in and republished, which is what makes a
-    /// running build visibly alive rather than merely believed to be.
+    /// running build visibly alive rather than merely believed to be -- and kept, in
+    /// the operation's own record, which is what makes it readable afterwards.
     void on(const BuildOutput& said, loom::Mail& mail) {
         if (!mine(said.recipe) || !about_current(said.op)) {
             return;
         }
         ++state_.chunks;
         remember(said.text);
+        if (KeptOutput* record = kept(said.op)) {
+            record->take(said.text);
+        }
         state_.detail = tail_lines(remembered_, kDetailLines);
         say(mail);
+    }
+
+    /// A PAGE OF ONE OPERATION'S OUTPUT, ANSWERED BY THAT OPERATION'S NUMBER.
+    ///
+    /// Read-only and bounded: it answers the asker and changes nothing about any build. An
+    /// operation this tool does not keep is `kept` false, with the numbers it does keep -- a
+    /// reader bound to an operation is never handed another operation's lines instead.
+    // WL-OUT-02 -- agents/workshop/build-output.md
+    void on(const BuildOutputRequested& asked, loom::Mail& mail) {
+        BuildOutputSaid out;
+        if (const KeptOutput* record = kept(asked.op)) {
+            out = page_of(*record, asked.from, asked.lines);
+        } else {
+            out.op = asked.op;
+        }
+        for (const KeptOutput& record : kept_) {
+            out.ops.push_back(record.op);
+        }
+        (void)mail.answer(std::move(out));
     }
 
     /// IT EXITED -- AND ONLY NOW IS THERE AN ARTIFACT QUESTION TO ASK.
@@ -400,6 +585,7 @@ public:
         if (done.status != 0) {
             state_.outcome = outcome::kFailed;
             state_.detail = said;
+            end_record(done.op);
             if (state_.realize) {
                 // A FAILED BUILD OFFERS NOTHING. Said in the status rather than left
                 // as an absence, because a maker who pressed BUILD & REALIZE is owed
@@ -426,6 +612,7 @@ public:
             state_.detail = "the build succeeded and `" + state_.artifact + "` is not at " +
                             (path_.empty() ? std::string("(no recipe)") : path_) +
                             (said.empty() ? std::string() : " | " + said);
+            end_record(done.op);
             if (state_.realize) {
                 state_.realization = realization::kRefused;
                 state_.realized_detail = "the expected artifact was not produced, so nothing "
@@ -436,6 +623,7 @@ public:
         }
         state_.outcome = outcome::kSucceeded;
         built_ = done.recipe;
+        end_record(done.op);
         const bool moved = !(after == before_);
         state_.detail = std::string(moved ? "built " : "already up to date: ") +
                         state_.artifact + (said.empty() ? std::string() : " | " + said);
@@ -472,6 +660,7 @@ public:
             state_.command = never.command;
         }
         state_.detail = never.trouble;
+        end_record(never.op);
         if (state_.realize) {
             state_.realization = realization::kRefused;
             state_.realized_detail = "no build ran, so nothing was offered to the project";
@@ -581,11 +770,33 @@ private:
         return false;
     }
 
+    /// THE STATUS'S WORKING TAIL, in the bytes the build wrote: a piece of output is the next
+    /// bytes of one stream (`BuildOutput` v3), so nothing is inserted between two pieces.
     void remember(const std::string& text) {
         remembered_ += text;
-        remembered_ += '\n';
         if (remembered_.size() > kMaxRemembered) {
             remembered_.erase(0, remembered_.size() - kMaxRemembered);
+        }
+    }
+
+    /// THE RECORD THIS TOOL KEEPS FOR OPERATION `op`, or null.
+    KeptOutput* kept(std::int64_t op) {
+        if (op == 0) {
+            return nullptr;
+        }
+        for (KeptOutput& record : kept_) {
+            if (record.op == op) {
+                return &record;
+            }
+        }
+        return nullptr;
+    }
+
+    /// THE OPERATION ENDED, with the outcome this tool judged: its record says so, and a last
+    /// line with no break is taken.
+    void end_record(std::int64_t op) {
+        if (KeptOutput* record = kept(op)) {
+            record->end(state_.outcome, state_.status);
         }
     }
 
@@ -631,6 +842,12 @@ private:
     /// The last recipe this tool saw succeed -- which is how it knows whether the
     /// command it is still showing is about the recipe now being asked for.
     std::string built_;
+
+    /// WHAT EACH OF THE LAST `kKeptOperations` OPERATIONS SAID, oldest first. A plain member
+    /// and not state, for `remembered_`'s reason: it is answered by asking, one bounded page
+    /// at a time, and a poke-writable copy would be a second answer to "what did it say".
+    // WL-OUT-02 -- agents/workshop/build-output.md
+    std::vector<KeptOutput> kept_;
 };
 
 } // namespace zengine::builder

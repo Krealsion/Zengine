@@ -381,6 +381,8 @@ int main(int argc, char** argv) {
                               builder::RecipeCatalog::zen_version);
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
+    order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
+                              builder::BuildOutputSaid::zen_version);
     (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),

@@ -93,6 +93,25 @@ inline constexpr const char* kActionRecipeNext = "builder.recipe";
 inline constexpr const char* kActionRecipeBack = "builder.recipe-back";
 inline constexpr const char* kActionFrontier = "builder.frontier";
 inline constexpr const char* kActionEditSource = "builder.edit-source";
+/// READ WHAT A BUILD SAID: the pane becomes a reader bound to one operation's output until
+/// it is closed (WL-OUT-04). New with this action, so no maker's keymap names it yet.
+inline constexpr const char* kActionOutput = "builder.output";
+
+// ---- The output reader, as the pane's own mode ------------------------------------------
+//
+// THE ROLE LINE'S ARRANGEMENT, ONE MODE OVER: while the reader is open the pane declares these
+// rows and no others, so the arrows scroll and pan instead of meaning nothing, and every build
+// verb is out of reach until Escape closes it -- a reader cannot build by a slip of the hand.
+
+inline constexpr const char* kActionOutputUp = "builder.output-up";
+inline constexpr const char* kActionOutputDown = "builder.output-down";
+inline constexpr const char* kActionOutputFirst = "builder.output-first";
+inline constexpr const char* kActionOutputLast = "builder.output-last";
+inline constexpr const char* kActionOutputLeft = "builder.output-left";
+inline constexpr const char* kActionOutputRight = "builder.output-right";
+inline constexpr const char* kActionOutputOlder = "builder.output-older";
+inline constexpr const char* kActionOutputNewer = "builder.output-newer";
+inline constexpr const char* kActionOutputClose = "builder.output-close";
 
 // ---- The role line, as the pane's own mode ----------------------------------------------
 //
@@ -130,7 +149,9 @@ inline constexpr const char* kActionCancel = "authoring.cancel"; ///< abandon th
 ///
 /// IT CARRIES NO MODE. The role line is work in flight that a reload is entitled to drop,
 /// exactly as the Editor's live draft is: a reload lands with the pane where it was and no
-/// half-typed role, which is the honest answer for a mode that was mid-gesture.
+/// half-typed role, which is the honest answer for a mode that was mid-gesture. The output
+/// reader is the same: a reloaded pane is not reading, and what the build said is still the
+/// tool's to answer when the maker opens it again.
 ///
 /// AND IT CARRIES NO `awaiting`. That latch is "I asked and have not been answered" -- a fact
 /// about an ask this incarnation made (WL-PROJ-11). A reloaded image made no such ask, so

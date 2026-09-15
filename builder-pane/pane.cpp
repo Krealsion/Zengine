@@ -12,7 +12,7 @@
 // already names an artifact, the file a recipe was authored from -- it ASKS for, through the
 // doors `workshop/builder_seam_vocabulary.hpp` spells. What crosses the seam is values.
 //
-// ⚠ AND ITS KEYS ARE ITS OWN NOW (VD-22). `b` was a command-mode row: it built from
+// (!) AND ITS KEYS ARE ITS OWN NOW (VD-22). `b` was a command-mode row: it built from
 // anywhere in Workshop, as long as a Builder panel happened to be open. A pane's rows are
 // active only while the pane holds the keyboard, so a maker PRESSES INTO the Builder and
 // then builds. Nothing does something by default from anywhere; buttons, hover-to-focus and
@@ -69,6 +69,7 @@ using ws::PaneKey;
 using ws::PaneOffered;
 using ws::PaneRoom;
 using ws::PaneTextInput;
+using ws::PaneWheel;
 using ws::PlanNames;
 using ws::PlanNamesRequested;
 using ws::PlanRowRequested;
@@ -96,11 +97,12 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // could see had changed, for no reason they were told about. `files.cpp` carries `fit` for
 // exactly this reason, one pane over.
 
-// ⚠ AND THEY ARE NOT COPIED HERE ANY MORE. `workshop/pane_text.hpp` holds the functions four
+// (!) AND THEY ARE NOT COPIED HERE ANY MORE. `workshop/pane_text.hpp` holds the functions four
 // packages each carried a copy of. Nothing about them changed for moving, with one measured
 // exception written down in that header: `wrap` spends ONE space on a break rather than a run
 // of them, which is what two of the four copies did and what this one did not.
 
+using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::pad;
 using zengine::workshop::pane_text::wrap;
@@ -167,12 +169,13 @@ class BuilderPaneWeave
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, PaneSourceOpened>,
+                       surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
+                       PaneWheel>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -193,7 +196,7 @@ public:
     /// keep: what the tool is (`StatusRequested`, which the tool answers with BOTH its
     /// catalog and its status -- the republish door) and what the project is waiting on.
     ///
-    /// ⚠ IT ASKS EVERY TIME, and that is the point. The built-in asked when its panel
+    /// (!) IT ASKS EVERY TIME, and that is the point. The built-in asked when its panel
     /// opened and kept the answer on the panel until the panel was closed (WL-PROJ-12); a
     /// pane is granted a room when it opens and whenever its prose capacity changes, and
     /// each of those is a moment at which a picture this pane did not derive may be stale.
@@ -292,6 +295,14 @@ public:
             }
             return;
         }
+        if (output_.open) {
+            read_output(asked.id, mail);
+            return;
+        }
+        if (asked.id == pane::kActionOutput) {
+            open_output(mail);
+            return;
+        }
         if (asked.id == pane::kActionBuild) {
             build_now(mail, state_.arm);
         } else if (asked.id == pane::kActionBuildRealize) {
@@ -344,7 +355,44 @@ public:
             awaiting_realization_ = false;
             notice_ = realize_words(said);
         }
+        // A READER BOUND TO THIS OPERATION HEARS THAT IT SAID MORE, OR ENDED: the page it shows
+        // is asked for again, where it is. A reader bound to another operation is not moved.
+        if (output_.open && said.op == output_.op) {
+            ask_page(mail);
+        }
         say(mail);
+    }
+
+    /// THE TOOL'S PAGE OF THE OPERATION THIS READER IS BOUND TO -- the answer to the one page
+    /// ask outstanding, and nothing else: a stale answer, or one for a reader since closed or
+    /// rebound, settles nothing (WL-OUT-04).
+    void on(const builder::BuildOutputSaid& said, loom::Mail& mail) {
+        if (!mail.answers_ask() || !output_.ask.awaiting ||
+            mail.correlation() != output_.ask.pending) {
+            return;
+        }
+        output_.ask = Ask{};
+        if (!output_.open || said.op != output_.op) {
+            return;
+        }
+        output_.page = said;
+        output_.heard = true;
+        say(mail);
+    }
+
+    /// THE WHEEL SCROLLS THE READER, three lines a notch, the Editor's measure. Outside the
+    /// reader it means nothing here.
+    void on(const PaneWheel& wheel, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kBuilderPane ||
+            !output_.open) {
+            return;
+        }
+        output_.wheel += wheel.dy * 3.0;
+        const std::int64_t lines = static_cast<std::int64_t>(output_.wheel);
+        output_.wheel -= static_cast<double>(lines);
+        if (lines != 0) {
+            scroll(-lines, mail);
+        }
     }
 
     /// WHAT THIS PROJECT CAN BUILD, and -- since v2 -- which authored file said so.
@@ -371,7 +419,7 @@ public:
 
     // ---- What the host answers ------------------------------------------------------
 
-    /// ⚠ THE ANSWER THIS PANE ASKED FOR MUST NOT ERASE WHAT IT JUST SAID. Every gesture here
+    /// (!) THE ANSWER THIS PANE ASKED FOR MUST NOT ERASE WHAT IT JUST SAID. Every gesture here
     /// writes a notice, says its rows, and asks the frontier again -- and the answer arrives
     /// on the same drain, so an unconditional re-say would publish a second, notice-less
     /// picture over the first and a maker would see no sentence at all. That is exactly the
@@ -454,7 +502,7 @@ public:
     /// accepted answer carries the one absolute path, and the pane spends it at the Editor's
     /// door at once, in the same turn, holding nothing of it afterwards.
     ///
-    /// ⚠ READ AGAINST THE ROW IT ASKED ABOUT. The answer echoes the recipe; if the maker's
+    /// (!) READ AGAINST THE ROW IT ASKED ABOUT. The answer echoes the recipe; if the maker's
     /// choice has moved on since the ask (a catalog republished under the cursor), the file
     /// it names is still the file of the recipe they pressed `e` on, which is what they
     /// asked for -- the notice names it so the picture cannot mislead.
@@ -538,15 +586,15 @@ public:
     /// that source belongs to, visibly, so the next build is that pane's without the maker
     /// finding its recipe by name. Nothing is built, armed or realized: those stay gestures.
     ///
-    /// ⚠ THE OFFICE IS READ BEFORE A WORD IS: the reading changes this pane's standing choice,
+    /// (!) THE OFFICE IS READ BEFORE A WORD IS: the reading changes this pane's standing choice,
     /// so a publication that was not authored as Workshop's office moves nothing.
     ///
-    /// ⚠ NO PICK FOLLOWS THE CHOICE. `picked` is the recipe the maker named with `c`
+    /// (!) NO PICK FOLLOWS THE CHOICE. `picked` is the recipe the maker named with `c`
     /// (WL-PROJ-14), and this reading names the one recipe the host found; moving the choice to it
     /// leaves any earlier pick naming the recipe it was, so the frontier action cannot spend a
     /// pick of another recipe for this one -- and a pick of this very recipe still stands.
     ///
-    /// ⚠ AND IT PROMISES NO RELOAD. Whether a rebuilt image reloads the pane in place is the
+    /// (!) AND IT PROMISES NO RELOAD. Whether a rebuilt image reloads the pane in place is the
     /// realization owner's to say, and nothing here was told it: `PaneSourceOpened` carries no
     /// eligibility, and Workshop's own notice carries the owner's words. What this pane does know
     /// is its own standing load after build -- which the realize row stops showing once a load has
@@ -621,7 +669,7 @@ private:
 
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     ///
-    /// ⭐ A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE (WL-FILES-16). The
+    /// (*) A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE (WL-FILES-16). The
     /// built-in's role line lived in a Workshop context of its own (`KeyContext::kAuthoring`)
     /// and could bind Return and Escape there without touching command mode; a pane's rows
     /// are joined into ONE map under its runtime handle. So while a maker is typing a role,
@@ -653,6 +701,18 @@ private:
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
+        if (output_.open) {
+            row(pane::kActionOutputUp, "line up", input::scan::kUp);
+            row(pane::kActionOutputDown, "line down", input::scan::kDown);
+            row(pane::kActionOutputFirst, "first line", input::scan::kHome);
+            row(pane::kActionOutputLast, "last lines", input::scan::kEnd);
+            row(pane::kActionOutputLeft, "pan left", input::scan::kLeft);
+            row(pane::kActionOutputRight, "pan right", input::scan::kRight);
+            row(pane::kActionOutputOlder, "older build", input::scan::kLeftBracket);
+            row(pane::kActionOutputNewer, "newer build", input::scan::kRightBracket);
+            row(pane::kActionOutputClose, "close output", input::scan::kEscape);
+            return rows;
+        }
         // ---- THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME DEFAULTS the
         // built-in shipped (workshop/keymap.hpp's command-mode rows, before this migration),
         // so every maker's authored keymap keeps working across it.
@@ -665,6 +725,7 @@ private:
         row(pane::kActionRecipeBack, "recipe back", input::scan::kC, input::mod::kShift);
         row(pane::kActionFrontier, "frontier", input::scan::kF);
         row(pane::kActionEditSource, "edit source", input::scan::kE);
+        row(pane::kActionOutput, "read output", input::scan::kL);
         return rows;
     }
 
@@ -977,7 +1038,7 @@ private:
     /// missing file, a dirty buffer -- comes back as its owner's own sentence and lands in
     /// this pane's row.
     ///
-    /// ⚠ THE HOST USED TO DO BOTH HALVES BEHIND ONE ASK, while it held the Editor. The
+    /// (!) THE HOST USED TO DO BOTH HALVES BEHIND ONE ASK, while it held the Editor. The
     /// document is the Editor weave's now, and a host that relayed the open onward would
     /// have to name the Editor's office -- so the resolution stayed with the catalog's owner
     /// and the opening went to the document's, and this pane carries one path from the one
@@ -1019,6 +1080,218 @@ private:
                           opened.correlation);
     }
 
+    // ---- The output reader (WL-OUT-04) ------------------------------------------------------
+
+    /// OPEN THE READER ON THE OPERATION THE TOOL'S PICTURE IS ABOUT, from its first line. It is
+    /// bound to that operation's number from here on: a later build, a new choice or a catalog
+    /// moves nothing it shows, and the tool's words about another operation are never shown
+    /// under this one's header.
+    // WL-OUT-04 -- agents/workshop/build-output.md
+    void open_output(loom::Mail& mail) {
+        if (!heard_) {
+            notice_ = "the Builder has not said what it builds yet -- there is no output to read";
+            say(mail);
+            return;
+        }
+        if (shown_.op == 0) {
+            notice_ = "no build has started in this Workshop -- there is no output to read";
+            say(mail);
+            return;
+        }
+        bind_output(shown_.op, mail);
+    }
+
+    void bind_output(std::int64_t op, loom::Mail& mail) {
+        const bool was_open = output_.open;
+        output_ = Output{};
+        output_.open = true;
+        output_.op = op;
+        output_.top = 1;
+        if (!was_open) {
+            declare(mail);
+        }
+        ask_page(mail);
+        say(mail);
+    }
+
+    void close_output(loom::Mail& mail) {
+        output_ = Output{};
+        declare(mail);
+        say(mail);
+    }
+
+    /// ONE OF THE READER'S ROWS. Every id moves the view or closes it, and asks the tool again
+    /// for the page the view now starts at; none reaches a build.
+    void read_output(const std::string& id, loom::Mail& mail) {
+        if (id == pane::kActionOutputClose) {
+            close_output(mail);
+        } else if (id == pane::kActionOutputUp) {
+            scroll(-1, mail);
+        } else if (id == pane::kActionOutputDown) {
+            scroll(1, mail);
+        } else if (id == pane::kActionOutputFirst) {
+            output_.top = 1;
+            ask_page(mail);
+            say(mail);
+        } else if (id == pane::kActionOutputLast) {
+            output_.top = 0; // the page that ends at the last line, following what comes
+            ask_page(mail);
+            say(mail);
+        } else if (id == pane::kActionOutputLeft || id == pane::kActionOutputRight) {
+            const std::int64_t step = columns_ > 8 ? columns_ / 2 : 4;
+            if (id == pane::kActionOutputLeft) {
+                output_.pan = output_.pan > step ? output_.pan - step : 0;
+            } else {
+                output_.pan += step;
+            }
+            say(mail);
+        } else if (id == pane::kActionOutputOlder || id == pane::kActionOutputNewer) {
+            const std::vector<std::int64_t>& ops = output_.page.ops;
+            std::size_t at = ops.size();
+            for (std::size_t i = 0; i < ops.size(); ++i) {
+                if (ops[i] == output_.op) {
+                    at = i;
+                }
+            }
+            const bool older = id == pane::kActionOutputOlder;
+            if (at < ops.size() && older && at > 0) {
+                bind_output(ops[at - 1], mail);
+            } else if (at < ops.size() && !older && at + 1 < ops.size()) {
+                bind_output(ops[at + 1], mail);
+            } else {
+                notice_ = older ? "no older build's output is kept"
+                                : "no newer build's output is kept";
+                say(mail);
+            }
+        }
+    }
+
+    /// MOVE THE VIEW BY `by` LINES, over the operation's own line numbers: a move into the lines
+    /// the tool no longer keeps lands on the far side of them, and the view never starts past the
+    /// last line said. From the following end, a move up starts where the shown page began.
+    void scroll(std::int64_t by, loom::Mail& mail) {
+        const builder::BuildOutputSaid& p = output_.page;
+        std::int64_t top = output_.top == 0 ? (p.first > 0 ? p.first : 1) : output_.top;
+        top += by;
+        if (p.omitted > 0 && top >= p.omitted_from && top < p.omitted_from + p.omitted) {
+            top = by > 0 ? p.omitted_from + p.omitted : p.omitted_from - 1;
+        }
+        if (top > p.said) {
+            top = p.said;
+        }
+        if (top < 1) {
+            top = 1;
+        }
+        if (top == output_.top) {
+            return;
+        }
+        output_.top = top;
+        ask_page(mail);
+        say(mail);
+    }
+
+    /// ASK THE TOOL FOR THE PAGE THE VIEW STARTS AT, as many lines as the room shows. One ask
+    /// outstanding: a newer one replaces the older, whose answer then settles nothing.
+    void ask_page(loom::Mail& mail) {
+        const std::int64_t lines = output_body_rows() > 0 ? output_body_rows() : 1;
+        output_.ask.pending = ++asked_;
+        output_.ask.awaiting = true;
+        (void)mail.as_role(pane::kBuilderPaneRole)
+            .send_to_role(builder::kBuilderRole,
+                          builder::BuildOutputRequested{output_.op, output_.top, lines},
+                          output_.ask.pending);
+    }
+
+    /// The rows the reader's lines may spend: the room, less its header, less a notice.
+    std::int64_t output_body_rows() const {
+        return rows_ - 1 - (notice_.empty() ? 0 : 1);
+    }
+
+    /// THE READER'S ROWS. One header naming the operation, how it ended and which lines show;
+    /// then the lines, each on ONE row, cut at the width with a mark and panned by the arrows,
+    /// so a caret line stays under the line it points into and a long command echo costs one
+    /// row. Every line is spelled in ASCII (`ascii_spelling`), and the header says how many
+    /// characters that spelled on the rows shown. A gap the tool no longer keeps is a row of its
+    /// own, never two ends shown as one.
+    // WL-OUT-04 -- agents/workshop/build-output.md
+    void say_output(std::vector<surface::SurfaceTextRow>& out) {
+        const builder::BuildOutputSaid& p = output_.page;
+        const std::string number = "#" + std::to_string(output_.op);
+        std::string head = "output " + number;
+        if (!output_.heard) {
+            out.push_back(surface::SurfaceTextRow{fit(head + " -- asking the Builder", columns_),
+                                                  surface::role::kAccent});
+            return;
+        }
+        if (!p.kept) {
+            std::string keeps;
+            for (const std::int64_t op : p.ops) {
+                keeps += (keeps.empty() ? "#" : ", #") + std::to_string(op);
+            }
+            out.push_back(surface::SurfaceTextRow{
+                fit(head + " -- not kept any more: this Builder keeps the output of " +
+                        (keeps.empty() ? std::string("no build") : keeps),
+                    columns_),
+                surface::role::kAlert});
+            return;
+        }
+        std::vector<surface::SurfaceTextRow> body;
+        std::size_t spelled = 0;
+        const std::int64_t room = output_body_rows();
+        const std::int64_t asked_from = output_.top == 0 ? p.first : output_.top;
+        if (p.omitted > 0 && p.first > asked_from && p.first == p.omitted_from + p.omitted) {
+            body.push_back(surface::SurfaceTextRow{
+                fit("... " + std::to_string(p.omitted) + " lines not kept ...", columns_),
+                surface::role::kMuted});
+        }
+        std::int64_t last = p.first - 1;
+        for (const std::string& line : p.text) {
+            if (static_cast<std::int64_t>(body.size()) >= room) {
+                break;
+            }
+            std::string shown = ascii_spelling(line, &spelled);
+            const std::size_t pan = static_cast<std::size_t>(output_.pan);
+            shown = shown.size() > pan ? shown.substr(pan) : std::string();
+            body.push_back(surface::SurfaceTextRow{fit(std::move(shown), columns_),
+                                                   surface::role::kFill});
+            ++last;
+        }
+        if (p.omitted > 0 && last + 1 == p.omitted_from &&
+            static_cast<std::int64_t>(body.size()) < room) {
+            body.push_back(surface::SurfaceTextRow{
+                fit("... " + std::to_string(p.omitted) + " lines not kept ...", columns_),
+                surface::role::kMuted});
+        }
+        head += " " + p.recipe + " -- " + builder::name_of_outcome(p.outcome);
+        if (p.ended && (p.outcome == builder::outcome::kFailed ||
+                        p.outcome == builder::outcome::kSucceeded)) {
+            head += ", exit " + std::to_string(p.status);
+        }
+        head += p.said == 0 ? std::string(" -- no lines")
+                            : " -- lines " + std::to_string(p.first) + "-" +
+                                  std::to_string(last < p.first ? p.first : last) + " of " +
+                                  std::to_string(p.said) + (p.ended ? "" : " so far");
+        if (p.omitted > 0) {
+            head += ", " + std::to_string(p.omitted) + " not kept";
+        }
+        if (spelled > 0) {
+            head += ", " + std::to_string(spelled) + " characters spelled in ASCII";
+        }
+        if (p.cut > 0) {
+            head += ", " + std::to_string(p.cut) + " bytes cut from long lines";
+        }
+        if (output_.pan > 0) {
+            head += ", from column " + std::to_string(output_.pan + 1);
+        }
+        if (shown_.op != 0 && shown_.op != output_.op) {
+            head += " -- build #" + std::to_string(shown_.op) + " is newer";
+        }
+        out.push_back(surface::SurfaceTextRow{fit(head, columns_), surface::role::kAccent});
+        for (surface::SurfaceTextRow& row : body) {
+            out.push_back(std::move(row));
+        }
+    }
+
     // ---- The two sentences a settled build produces -----------------------------------
 
     static std::string build_words(const builder::BuildStatus& s) {
@@ -1047,13 +1320,15 @@ private:
         std::vector<surface::SurfaceTextRow> out;
         if (role_.open) {
             say_role(out);
+        } else if (output_.open) {
+            say_output(out);
         } else {
             say_builder(out);
         }
         // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
         // only its own room, so its first row carries it.
         //
-        // ⚠ IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
+        // (!) IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
         // correction the seam forced. One gesture here produces SEVERAL publications in one
         // drain -- it writes a notice, says its rows, and asks a door whose answer arrives on
         // the same turn and says them again -- and Workshop keeps only the last picture. A
@@ -1062,9 +1337,13 @@ private:
         // (`u` on a catalog produced no visible row at all). So the sentence stands until the
         // maker does something else, which is also the honest reading of it: it is the answer
         // to their last act.
+        // (!) AND IT IS SPELLED IN WHAT A CANVAS DRAWS. A notice carries other owners' words -- a
+        // compiler's line in a build's detail, an owner's refusal -- and one byte Workshop's
+        // canvas cannot draw refuses this pane's whole picture (`judge_content`), which would
+        // blank the Builder at the one moment it has something to say (WL-OUT-03).
         if (!notice_.empty() && static_cast<std::int64_t>(out.size()) < rows_) {
-            out.insert(out.begin(),
-                       surface::SurfaceTextRow{fit(notice_, columns_), surface::role::kAccent});
+            out.insert(out.begin(), surface::SurfaceTextRow{fit(ascii_spelling(notice_), columns_),
+                                                            surface::role::kAccent});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
@@ -1087,7 +1366,7 @@ private:
         }
     }
 
-    /// ⭐ THE COMPOSITION IS `paint_builder`'S, MOVED. The panel is one region and its rows
+    /// (*) THE COMPOSITION IS `paint_builder`'S, MOVED. The panel is one region and its rows
     /// are composed against the budget: nine facts do not fit five rows, so each fact carries
     /// a SURVIVAL PRIORITY and the rule is
     ///
@@ -1183,8 +1462,14 @@ private:
         // still the previous build's while a new one runs, and showing that would answer
         // "what happened on the last build" with a sentence about the wrong build.
         const bool named_op = s.op != 0;
+        // A BUILD THAT DID NOT PRODUCE ITS ARTIFACT POINTS AT ITS OWN WORDS, by the action's label:
+        // the `said` rows keep its last lines, and the reader keeps every line the tool kept.
+        const bool unproduced = s.outcome == builder::outcome::kFailed ||
+                                s.outcome == builder::outcome::kNoArtifact ||
+                                s.outcome == builder::outcome::kNotStarted;
         const std::string carried =
-            named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) + " out"
+            named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) +
+                           " out" + (unproduced ? std::string(" -- read output") : std::string())
                      : std::string();
         const bool unanswered = awaiting_ && s.outcome != builder::outcome::kRunning;
         facts.push_back(
@@ -1269,7 +1554,7 @@ private:
     /// wrapped LAST, into exactly the rows that survived. A dropped fact is dropped WHOLE --
     /// nothing substitutes for it, and the rows that remain neither move nor reword.
     ///
-    /// ⚠ THE BUDGET IS ONE ROW SMALLER WHEN THERE IS A NOTICE, because a pane has no band to
+    /// (!) THE BUDGET IS ONE ROW SMALLER WHEN THERE IS A NOTICE, because a pane has no band to
     /// write one on: `say` inserts it in front and the whole content is cut to the room, so
     /// the composition is asked for one fewer row rather than having its last row silently
     /// dropped after the fact.
@@ -1297,7 +1582,9 @@ private:
         }
         std::vector<std::string> said;
         if (said_kept > 0) {
-            said = panel_block("said", said_detail.empty() ? std::string("--") : said_detail,
+            said = panel_block("said",
+                               said_detail.empty() ? std::string("--")
+                                                   : ascii_spelling(said_detail),
                                said_kept, columns_);
         }
         std::size_t said_at = 0;
@@ -1305,7 +1592,7 @@ private:
             if (f.priority >= cut) {
                 continue;
             }
-            std::string text = f.text.empty() ? said[said_at++] : std::move(f.text);
+            std::string text = f.text.empty() ? said[said_at++] : ascii_spelling(f.text);
             out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns_), f.role});
         }
     }
@@ -1366,6 +1653,21 @@ private:
         std::string recipe; ///< the chosen recipe, whose product this may load
         component::TextBox line;
     } role_;
+
+    /// THE OUTPUT READER: which operation it is bound to, where its view starts, and the one
+    /// page the tool last answered for it. A member and not state, like the role line -- a
+    /// reloaded pane is not reading, and nothing here is a copy the tool could disagree with
+    /// for longer than one page.
+    struct Output {
+        bool open = false;
+        std::int64_t op = 0;    ///< the operation this reader is bound to
+        std::int64_t top = 1;   ///< the first line number in view; 0 follows the last line
+        std::int64_t pan = 0;   ///< the first column in view
+        double wheel = 0.0;     ///< notches not yet worth a whole line
+        bool heard = false;     ///< the tool has answered a page for this binding
+        Ask ask;                ///< the page asked for and not yet answered
+        builder::BuildOutputSaid page{};
+    } output_;
 
     component::Clipboard clip_;
     loom::AskBook clip_asks_{1};

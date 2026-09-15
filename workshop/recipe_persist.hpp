@@ -33,8 +33,10 @@ namespace builder = zengine::builder;
 /// of its four files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-build-recipes";
 
-/// The only build-recipe format version this build reads or writes.
-inline constexpr std::int64_t kFormatVersion = 1;
+/// The build-recipe format version this build WRITES. It reads this one and version 1
+/// (`v1` below), whose `cmake_target` rows carry no editing entry.
+// WL-CODE-05 -- agents/workshop/code.md
+inline constexpr std::int64_t kFormatVersion = 2;
 
 /// THE CATALOG WORKSHOP SHIPS, by the name it is staged under BESIDE THE EXECUTABLE.
 // WL-PROJ-15 -- agents/workshop/project.md
@@ -78,14 +80,17 @@ inline constexpr std::uintmax_t kMaxRecipeBytes = 1u << 16;
 
 // ---- The file's own shapes -----------------------------------------------------
 
-/// AN EXISTING CMAKE TARGET, AS WRITTEN.
+/// AN EXISTING CMAKE TARGET, AS WRITTEN -- and, since version 2, where editing its code
+/// begins. `entry` is an ordinary string whose empty value is the absence: admission has no
+/// optional, so a row that names no entry says `""`, exactly as `config` does.
 struct WorkshopCMakeTarget {
     std::string build_dir;
     std::string target;
     std::string config;
+    std::string entry;
 
-    ZEN_SHAPE(WorkshopCMakeTarget, 1, ZEN_FIELD(build_dir), ZEN_FIELD(target),
-              ZEN_FIELD(config));
+    ZEN_SHAPE(WorkshopCMakeTarget, 2, ZEN_FIELD(build_dir), ZEN_FIELD(target),
+              ZEN_FIELD(config), ZEN_FIELD(entry));
 };
 
 /// ONE SOURCE FILE, AS WRITTEN.
@@ -109,7 +114,7 @@ struct WorkshopRecipe {
     std::vector<WorkshopCMakeTarget> cmake_target;
     std::vector<WorkshopSingleSource> single_source;
 
-    ZEN_SHAPE(WorkshopRecipe, 1, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+    ZEN_SHAPE(WorkshopRecipe, 2, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
               ZEN_FIELD(artifact_dir), ZEN_FIELD(cmake_target), ZEN_FIELD(single_source));
 };
 
@@ -119,9 +124,72 @@ struct WorkshopRecipeFile {
     std::int64_t format_version = 0;
     std::vector<WorkshopRecipe> recipes;
 
+    ZEN_SHAPE(WorkshopRecipeFile, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(recipes));
+};
+
+// ---- VERSION 1, RETAINED FOR READING -----------------------------------------------------
+//
+// A CATALOG IS A FILE A MAKER NAMED, WITH NO SESSION TO RIDE, so the old shapes stay beside
+// the reader (the setup file's reason, `agents/decisions/setup-format-v3.md`) rather than
+// moving to a conversion provider. Version 1's `cmake_target` row is version 2's without an
+// entry, and a version-1 file reads as exactly that: every row, no entry. Nothing writes it.
+// WL-CODE-05 -- agents/workshop/code.md
+namespace v1 {
+
+struct WorkshopCMakeTarget {
+    std::string build_dir;
+    std::string target;
+    std::string config;
+
+    ZEN_SHAPE(WorkshopCMakeTarget, 1, ZEN_FIELD(build_dir), ZEN_FIELD(target),
+              ZEN_FIELD(config));
+};
+
+struct WorkshopRecipe {
+    std::string recipe;
+    std::string artifact;
+    std::string artifact_dir;
+    std::vector<WorkshopCMakeTarget> cmake_target;
+    std::vector<WorkshopSingleSource> single_source;
+
+    ZEN_SHAPE(WorkshopRecipe, 1, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+              ZEN_FIELD(artifact_dir), ZEN_FIELD(cmake_target), ZEN_FIELD(single_source));
+};
+
+struct WorkshopRecipeFile {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<WorkshopRecipe> recipes;
+
     ZEN_SHAPE(WorkshopRecipeFile, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(recipes));
 };
+
+/// A version-1 catalog as the current shapes say it: the same rows, and no entry anywhere.
+/// The format claim is carried as it was written, so the checks after admission judge the
+/// file's own words and not a translation's.
+inline recipe_persist::WorkshopRecipeFile current(const WorkshopRecipeFile& old) {
+    recipe_persist::WorkshopRecipeFile now;
+    now.format = old.format;
+    now.format_version = old.format_version;
+    now.recipes.reserve(old.recipes.size());
+    for (const WorkshopRecipe& row : old.recipes) {
+        recipe_persist::WorkshopRecipe converted;
+        converted.recipe = row.recipe;
+        converted.artifact = row.artifact;
+        converted.artifact_dir = row.artifact_dir;
+        for (const WorkshopCMakeTarget& t : row.cmake_target) {
+            converted.cmake_target.push_back(
+                recipe_persist::WorkshopCMakeTarget{t.build_dir, t.target, t.config, std::string()});
+        }
+        converted.single_source = row.single_source;
+        now.recipes.push_back(std::move(converted));
+    }
+    return now;
+}
+
+} // namespace v1
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE CATALOG FORMAT VERSION ARE ONE NUMBER.
 /// `load_persist.hpp`'s decision, for its reason: there is no history in which the two
@@ -150,8 +218,10 @@ inline WorkshopRecipeFile to_file(const std::vector<builder::Recipe>& recipes) {
         row.artifact = r.artifact;
         row.artifact_dir = r.artifact_dir;
         if (r.cmake_target.has_value()) {
-            row.cmake_target.push_back(WorkshopCMakeTarget{
-                r.cmake_target->build_dir, r.cmake_target->target, r.cmake_target->config});
+            row.cmake_target.push_back(WorkshopCMakeTarget{r.cmake_target->build_dir,
+                                                           r.cmake_target->target,
+                                                           r.cmake_target->config,
+                                                           r.cmake_target->entry});
         }
         if (r.single_source.has_value()) {
             row.single_source.push_back(WorkshopSingleSource{
@@ -182,8 +252,9 @@ struct LoadedRecipes {
 /// WHAT TO SAY ABOUT A CATALOG VERSION THIS BUILD DOES NOT READ. One sentence, one
 /// place, so the two doors that can meet a wrong version cannot word it differently.
 inline std::string wrong_version(std::int64_t found) {
-    return "build recipes version " + std::to_string(found) +
-           " -- this Workshop reads version " + std::to_string(kFormatVersion);
+    return "build recipes version " + std::to_string(found) + " -- this Workshop reads versions " +
+           std::to_string(v1::WorkshopRecipeFile::zen_version) + " and " +
+           std::to_string(kFormatVersion);
 }
 
 /// EVERY LAW THE FILE'S OWN GRAMMAR ADDS on top of the recipe law -- which is exactly
@@ -201,7 +272,13 @@ inline Written check_recipe_file(const WorkshopRecipe& row) {
 
 /// Text to a catalog. Total: every input is either a catalog or a refusal with a
 /// reason, and nothing here throws.
-// WL-PROJ-04 -- agents/workshop/project.md
+///
+/// THE VERSION IS ANSWERED FROM THE CLAIM, BEFORE ANY ROW IS JUDGED. A version-1 claim is
+/// admitted against version 1's own retained shapes -- full strength, an unknown field still
+/// refused -- and read as the current rows with no entry; a version-2 claim against the
+/// current shapes; every other version is refused by its number. So a version-1 file is
+/// never reported as "a row is missing `entry`", a true sentence about a false cause.
+// WL-PROJ-04 -- agents/workshop/project.md; WL-CODE-05 -- agents/workshop/code.md
 inline LoadedRecipes from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -210,24 +287,41 @@ inline LoadedRecipes from_text(std::string_view bytes) {
         return LoadedRecipes::no("not a Workshop build-recipe catalog: " +
                                  refused.first_error().message());
     }
-    if (claim.claimed_name() == std::string(WorkshopRecipeFile::zen_name) &&
-        claim.claimed_version() != WorkshopRecipeFile::zen_version) {
-        return LoadedRecipes::no(
-            wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
+    const bool named = claim.claimed_name() == std::string(WorkshopRecipeFile::zen_name);
+    WorkshopRecipeFile file;
+    std::int64_t claimed = kFormatVersion;
+    if (named && claim.claimed_version() == v1::WorkshopRecipeFile::zen_version) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v1::WorkshopRecipeFile>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedRecipes::no(old.first_error().message());
+        }
+        file = v1::current(loom::from_value<v1::WorkshopRecipeFile>(old.value()));
+        claimed = static_cast<std::int64_t>(v1::WorkshopRecipeFile::zen_version);
+    } else {
+        if (named && claim.claimed_version() != WorkshopRecipeFile::zen_version) {
+            return LoadedRecipes::no(
+                wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
+        }
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<WorkshopRecipeFile>(), loom::Report::FirstError);
+        if (!admitted.ok()) {
+            return LoadedRecipes::no(admitted.first_error().message());
+        }
+        file = loom::from_value<WorkshopRecipeFile>(admitted.value());
     }
-    const loom::Admission admitted =
-        loom::admit(claim, loom::schema_of<WorkshopRecipeFile>(), loom::Report::FirstError);
-    if (!admitted.ok()) {
-        return LoadedRecipes::no(admitted.first_error().message());
-    }
-
-    const WorkshopRecipeFile file = loom::from_value<WorkshopRecipeFile>(admitted.value());
     if (file.format != kFormat) {
         return LoadedRecipes::no("not a Workshop build-recipe catalog: it says it is `" +
                                  file.format + "`");
     }
-    if (file.format_version != kFormatVersion) {
-        return LoadedRecipes::no(wrong_version(file.format_version));
+    // THE FORMAT FIELD AGREES WITH THE ENVELOPE IT ARRIVED IN, or the file is refused naming
+    // both numbers: an envelope of one version and a field of another is not a catalog either
+    // reader was written for, and neither number alone says what is wrong with it.
+    if (file.format_version != claimed) {
+        return LoadedRecipes::no("build recipes say version " +
+                                 std::to_string(file.format_version) +
+                                 " inside a version-" + std::to_string(claimed) +
+                                 " envelope -- a catalog is one version");
     }
 
     std::vector<builder::Recipe> candidate;
@@ -244,7 +338,8 @@ inline LoadedRecipes from_text(std::string_view bytes) {
         if (!row.cmake_target.empty()) {
             r.cmake_target = builder::CMakeTargetRecipe{row.cmake_target.front().build_dir,
                                                         row.cmake_target.front().target,
-                                                        row.cmake_target.front().config};
+                                                        row.cmake_target.front().config,
+                                                        row.cmake_target.front().entry};
         }
         if (!row.single_source.empty()) {
             r.single_source = builder::SingleSourceRecipe{
@@ -283,7 +378,12 @@ inline Written save_file(const std::string& path, const std::vector<builder::Rec
 /// staging copy, at the moment a maker asks for it. A `cmake_target` recipe's empty
 /// `artifact_dir` still completes to the host's directory: that project puts its file
 /// where it puts it, and a recipe that names nowhere else means beside the host.
+///
+/// A `cmake_target` recipe's EDITING ENTRY IS A SOURCE THE SAME WAY: a relative one is the
+/// project's file, completed against the captured project exactly as a single source is, and
+/// an absolute one is left as written. An empty entry stays empty -- the absence is the answer.
 // WL-PROJ-02, WL-PROJ-16 -- agents/workshop/project.md
+// WL-CODE-05 -- agents/workshop/code.md
 inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::string& host_dir,
                              const std::string& project_dir) {
     for (builder::Recipe& r : recipes) {
@@ -296,6 +396,9 @@ inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::s
             }
             r.single_source->source =
                 persist::resolved_against(project_dir, r.single_source->source);
+        }
+        if (r.cmake_target.has_value() && !r.cmake_target->entry.empty()) {
+            r.cmake_target->entry = persist::resolved_against(project_dir, r.cmake_target->entry);
         }
         if (r.artifact_dir.empty()) {
             r.artifact_dir = host_dir;

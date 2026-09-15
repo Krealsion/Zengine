@@ -182,8 +182,8 @@ public:
         if (named.source.empty()) {
             (void)mail.answer(RecipeSourceSaid{asked.recipe, false,
                                                "`" + asked.recipe + "` is a " + named.kind +
-                                                   " recipe -- it names no single source file "
-                                                   "to edit",
+                                                   " recipe -- it names no source file or "
+                                                   "editing entry to open",
                                                std::string()});
             return;
         }

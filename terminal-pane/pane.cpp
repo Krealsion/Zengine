@@ -10,7 +10,7 @@
 // constants, six `Screen` fields, and a paint plane after every pane). Now it is a weave
 // beside the Skin, the Timer, the browser, the Builder, Attention and Info.
 //
-// ⚠ THE PARTICIPANT DID NOT COME WITH IT, AND THAT IS MEASURED RATHER THAN PREFERRED.
+// (!) THE PARTICIPANT DID NOT COME WITH IT, AND THAT IS MEASURED RATHER THAN PREFERRED.
 // `loom::TerminalSession` is not driven by any message in the interface it has TODAY -- its
 // handler sends nothing, by construction, and the only shapes it accepts are the three answer
 // doors its host declared -- and this work adds no Loom sentence, so under that constraint it
@@ -21,13 +21,13 @@
 // (`TerminalActRequested`), and one READ (`TerminalCompletionRequested`). Nothing in this
 // image can speak as that participant; it can ask it to speak, and be told what happened.
 //
-// ⚠ AND THE CARET CAME ACROSS, WHICH IS THIS MIGRATION'S ONE NEW SENTENCE. `PaneCaret` is
+// (!) AND THE CARET CAME ACROSS, WHICH IS THIS MIGRATION'S ONE NEW SENTENCE. `PaneCaret` is
 // published beside the rows by a pane that has a caret, and merged by Workshop into the
 // region it assembles -- so the line a maker is typing has an insertion point and a
 // selection again, on SDL as the bar between glyphs. The Editor's migration reuses it
 // unchanged; the four panes that have no caret say nothing and pay nothing.
 //
-// ⚠ WHAT THE MOVE COSTS IS THE SELECTION DRAG. The built-in swept a selection across its
+// (!) WHAT THE MOVE COSTS IS THE SELECTION DRAG. The built-in swept a selection across its
 // line by re-resolving every pointer motion against the row (`text_drag_place::
 // kTerminalLine`). A pane is sent a PRESS and is sent no motion and no release, so a sweep
 // is not a gesture this seam has: a press places the caret, a second press in the same word
@@ -276,7 +276,7 @@ public:
     /// WHAT COULD BE SAID NEXT. The answer is the participant's; which candidate the maker
     /// is standing on is this pane's, and survives a recomputation on its own rule.
     ///
-    /// ⚠ AND FIRST: IS IT STILL ABOUT THIS LINE? The correlation says which question this
+    /// (!) AND FIRST: IS IT STILL ABOUT THIS LINE? The correlation says which question this
     /// answers; it does not say the question still stands. Between the ask and the answer a
     /// maker can empty the line, move the caret off its end, submit, or type -- and an
     /// answer about the line as it WAS is a list of candidates for a word nobody is typing.
@@ -505,14 +505,14 @@ public:
     /// THE SKIN'S ANSWER TO A PASTE THIS PANE ASKED FOR (QR-11) -- the one road foreign
     /// clipboard text has into this line, walked only under a maker's own gesture.
     ///
-    /// ⚠ TWO QUESTIONS, AND THE CORRELATION ANSWERS ONLY THE FIRST. It says this is the
+    /// (!) TWO QUESTIONS, AND THE CORRELATION ANSWERS ONLY THE FIRST. It says this is the
     /// answer to an ask this incarnation made. It does not say the line that asked still
     /// exists -- and between the ask and the answer a maker can abandon the command whole
     /// and start a different one, which is `clear` and a new draft. Text asked for by a
     /// draft that has ended lands nowhere, which is the law every other box in this
     /// repository already keeps (`files/`, `introspection/`, `composer/`, WL-TEXT-09).
     ///
-    /// ⚠ AND IT GOES IN THROUGH `TextBox::paste`, WHICH IS THE COMPONENT'S OWN DOOR FOR
+    /// (!) AND IT GOES IN THROUGH `TextBox::paste`, WHICH IS THE COMPONENT'S OWN DOOR FOR
     /// THIS. The migration reached for `type` instead and lost two things the built-in had,
     /// both invisible until a maker did the next thing:
     ///
@@ -572,7 +572,7 @@ private:
 
     /// WHAT THIS PANE ANSWERS TO -- five rows, and they never change.
     ///
-    /// ⚠ UNLIKE INFO'S AND FILES', THIS DECLARATION HAS NO MODES. Those panes re-declare
+    /// (!) UNLIKE INFO'S AND FILES', THIS DECLARATION HAS NO MODES. Those panes re-declare
     /// because a draft has to take Return and Escape away from the rows they otherwise mean.
     /// Here the line is ALWAYS open -- it is the pane -- so Return always submits and Escape
     /// always means "back". Every other key reaches the line as an ordinary `PaneKey`, which
@@ -635,7 +635,7 @@ private:
     /// ASK WHAT COULD BE SAID NEXT -- at most one question outstanding, and never from a
     /// place the answer could not be about.
     ///
-    /// ⚠ EVERY EXIT FROM HERE LEAVES THE OFFER APPLYING TO THE LINE THAT IS THERE. The three
+    /// (!) EVERY EXIT FROM HERE LEAVES THE OFFER APPLYING TO THE LINE THAT IS THERE. The three
     /// silences below are answers this pane composed about the line as it is now, so each one
     /// re-stamps `offered_about_`; the ask stamps `asked_about_` instead, so the answer that
     /// comes back can be measured against the line it comes back to.
@@ -762,7 +762,7 @@ private:
     /// list is drawn as well as before a candidate is taken, because a list drawn under a
     /// line it is not about is a wrong answer whether or not anybody presses Tab.
     ///
-    /// ⚠ THE COST IS A PUBLICATION WITH NO LIST while a fresh answer is in flight, and it is
+    /// (!) THE COST IS A PUBLICATION WITH NO LIST while a fresh answer is in flight, and it is
     /// the price of the seam: the completion used to be a function call and is a round trip
     /// now. DO NOT read "the host drains to idle" as "nobody sees it" -- the drain says the
     /// ask and its answer are spent in one turn, and says nothing about what the Skin was
@@ -785,7 +785,7 @@ private:
     /// own share rule, which exists because a list that grew to fill the pane would answer
     /// the second question by erasing the first.
     ///
-    /// ⚠ EVERY ROW HERE IS BUDGETED BEFORE IT IS COMPOSED, and that is the correction the
+    /// (!) EVERY ROW HERE IS BUDGETED BEFORE IT IS COMPOSED, and that is the correction the
     /// notice taught: a row added after the budget was spent has to take one back, the row
     /// it takes back is the last one composed, and the last one composed is the input line.
     void say(loom::Mail& mail) {

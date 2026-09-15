@@ -64,7 +64,10 @@ than resolved by precedence, because a precedence rule is a thing a maker has to
 refusal is a thing they are told.
 
 - **`CMakeTargetRecipe`** — a configured build tree and a target in it. The action is
-  `cmake --build <tree> --target <target>`, with `--config` when the recipe authors one.
+  `cmake --build <tree> --target <target>`, with `--config` when the recipe authors one. Its
+  `entry` is the one source a reader of the artifact starts at, or empty; it takes no part in the
+  build, is checked by the same path law as a single source, and is never inferred from a target
+  name ([Workshop's Builder](../workshop/builder.md#an-existing-cmake-target)).
 - **`SingleSourceRecipe`** — one `.cpp`, some package prefixes, some exported target names to
   link, optionally a build tree to borrow a toolchain from, and where to generate.
 
@@ -221,6 +224,35 @@ still runs inside an ordinary handler, on the ordinary Loom execution thread, wi
 
 No kernel and no loadable weave: both weaves are mounted in-process by whichever host wants
 them, exactly as Workshop's own weave is.
+
+## What a build said is kept by its operation
+
+A build's output is the one thing a maker reads to find out *why*, so it is carried whole from
+the process to the tool, and kept there by the operation that said it.
+
+- **The runner loses nothing.** Each look's ready bytes leave the runner in order, in as many
+  `BuildOutput` messages as they need, none longer than `kMaxOutputChars`; a message ends at a
+  line break where one fits, and a longer line continues in the next. Nothing is joined, cut or
+  counted away on the way, and what a look leaves in the pipe (`kMaxLookBytes`) is read by the
+  next look.
+- **The tool keeps each operation's lines, bounded.** `BuilderWeave` keeps the output of its last
+  `kKeptOperations` operations. Of each, it keeps the lines at the beginning within
+  `kKeptHeadBytes` and at the end within `kKeptTailBytes`, and counts the lines between; a line
+  longer than `kMaxKeptLineBytes` is cut, and counted. A carriage return that ends a line is
+  taken as the break. Nothing is written to a file.
+- **A page is asked for by operation.** `BuildOutputRequested{op, from, lines}` is answered with
+  one `BuildOutputSaid`: at most `kMaxOutputPageLines` lines and `kMaxOutputPageBytes` bytes,
+  numbered as the build said them, with the counts of what was not kept and cut, how the
+  operation ended, and which operations are kept. `from` 0 asks for the page that ends at the
+  last line. A page never runs across the lines not kept: asked inside them, it begins after.
+  An operation let go is answered `kept` false, with the numbers the tool still has, and never
+  with another operation's lines.
+- **A status's `detail` is the tail that says something.** It is the last lines of the output
+  that are not blank, joined with ` | `, so a CMake error's two trailing blank lines do not spend
+  it.
+- **What a presentation shows is its own spelling.** The kept bytes are the process's. A pane
+  that shows them spells each row in what its canvas can draw and says how many characters it
+  spelled (`workshop/pane_text.hpp` `ascii_spelling`); the tool's record is never changed by that.
 
 ## What is not here
 

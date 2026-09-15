@@ -47,6 +47,7 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -85,6 +86,9 @@ const char* const kFixtureTree = ZENGINE_TEST_FIXTURE_TREE;
 const char* const kFixtureTreeB = ZENGINE_TEST_FIXTURE_TREE_B;
 const char* const kFixtureArtifacts = ZENGINE_TEST_FIXTURE_ARTIFACTS;
 const char* const kArtifactSuffix = ZENGINE_TEST_ARTIFACT_SUFFIX;
+/// THE BYTES `fixture-diagnostic` WRITES, and then prints (tests/diagnostic_build.cmake): what a
+/// case compares the kept output with.
+const char* const kDiagnosticOut = ZENGINE_TEST_DIAGNOSTIC_OUT;
 
 /// A COMMAND that takes a while and says several things while it does.
 ///
@@ -133,7 +137,7 @@ Recipe cmake_recipe(const std::string& id, const std::string& target,
     r.id = id;
     r.artifact = artifact;
     r.artifact_dir = kFixtureArtifacts;
-    r.cmake_target = CMakeTargetRecipe{kFixtureTree, target, std::string()};
+    r.cmake_target = CMakeTargetRecipe{kFixtureTree, target, std::string(), std::string()};
     return r;
 }
 
@@ -348,14 +352,14 @@ public:
         never.push_back(n);
     }
 
-    /// Everything said about ONE operation, in order, joined -- the question
-    /// "did this operation's output stay this operation's?" asked directly.
+    /// Everything said about ONE operation, in order, as the one stream it is -- the question
+    /// "did this operation's output stay this operation's?" asked directly. Pieces are
+    /// concatenated and nothing is put between them (`BuildOutput` v3).
     std::string text_of(std::int64_t op) const {
         std::string all;
         for (const BuildOutput& o : output) {
             if (o.op == op) {
                 all += o.text;
-                all += '\n';
             }
         }
         return all;
@@ -365,6 +369,42 @@ public:
     std::vector<BuildOutput> output;
     std::vector<BuildFinished> finished;
     std::vector<BuildNotStarted> never;
+};
+
+/// A READER OF WHAT ONE OPERATION SAID, asking the Builder office by the operation's number as a
+/// presentation does -- one correlated ask at a time -- and keeping every page it is answered.
+struct ReadPage {
+    std::int64_t op = 0;
+    std::int64_t from = 1;
+    std::int64_t lines = static_cast<std::int64_t>(kMaxOutputPageLines);
+    ZEN_SHAPE(ReadPage, 1, ZEN_FIELD(op), ZEN_FIELD(from), ZEN_FIELD(lines));
+};
+
+struct OutputReaderState {
+    std::int64_t pages = 0;
+    ZEN_SHAPE(OutputReaderState, 1, ZEN_FIELD(pages));
+};
+
+class OutputReader : public loom::WeaveBase<OutputReader, OutputReaderState,
+                                            loom::Accept<BuildOutputSaid, ReadPage>,
+                                            loom::Emit<BuildOutputRequested>> {
+public:
+    void on(const ReadPage& r, loom::Mail& mail) {
+        (void)mail.send_to_role(kBuilderRole, BuildOutputRequested{r.op, r.from, r.lines},
+                                ++asked_);
+    }
+    void on(const BuildOutputSaid& page, loom::Mail& mail) {
+        if (!mail.answers_ask() || mail.correlation() != asked_) {
+            return;
+        }
+        ++state_.pages;
+        pages.push_back(page);
+    }
+    std::vector<BuildOutputSaid> pages;
+    loom::WeaveId id{};
+
+private:
+    std::uint64_t asked_ = 0;
 };
 
 /// A TALLY THAT OUTLIVES THE BUS.
@@ -523,6 +563,7 @@ loom::Grant tool_grant() {
     g.allow_to_any(BuildStatus::zen_name, BuildStatus::zen_version);
     g.allow_to_any(RecipeCatalog::zen_name, RecipeCatalog::zen_version);
     g.allow_to_any(OfferArtifact::zen_name, OfferArtifact::zen_version);
+    g.allow_to_any(BuildOutputSaid::zen_name, BuildOutputSaid::zen_version);
     return g;
 }
 
@@ -706,11 +747,11 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
                              .build();
     CHECK(schema_of<BuildStarted>()->content_id() == started->content_id());
 
-    const auto output = SchemaBuilder("BuildOutput", 2)
+    // v3: THE BYTES THEMSELVES, in pieces, and no count of what was dropped -- nothing is.
+    const auto output = SchemaBuilder("BuildOutput", 3)
                             .field("op", Kind::Int)
                             .field("recipe", Kind::Text)
                             .field("text", Kind::Text)
-                            .field("dropped", Kind::Int)
                             .build();
     CHECK(schema_of<BuildOutput>()->content_id() == output->content_id());
 
@@ -877,6 +918,10 @@ TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
     CHECK(tail_lines("\n\n\n", 3).empty());
     // Trailing blank lines are not what a maker meant by "the last line".
     CHECK(tail_lines("only\n\n\n", 2) == "only");
+    // ...and neither are blank lines in the middle: a compiler's error block ends in two, and
+    // counting them spent a three-line tail on the build tool's last word alone.
+    CHECK(tail_lines("CMake Error at x.cmake:3 (message):\n  asked to fail\n\n\nninja: stopped.\n",
+                     3) == "CMake Error at x.cmake:3 (message): |   asked to fail | ninja: stopped.");
 }
 
 TEST_CASE("a fragment waits for its newline, and the ending releases it") {
@@ -1260,6 +1305,196 @@ TEST_CASE("a failing build's OWN last words reach the office that asked (BLD-1)"
     CHECK(bench.foreman->text_of(op).find("asked to fail") != std::string::npos);
 }
 
+// ============================================================================
+// Tier 3b -- what a build said, kept by its operation and read back (WL-OUT-01, WL-OUT-02)
+// ============================================================================
+
+namespace {
+
+std::string read_bytes(const std::filesystem::path& at) {
+    std::ifstream in(at, std::ios::binary);
+    std::ostringstream held;
+    held << in.rdbuf();
+    return held.str();
+}
+
+/// A PAGE OF OPERATION `op`, asked of the rig's Builder office by a reader weave mounted for it
+/// on the first ask -- a correlated ask, as a presentation makes one.
+BuildOutputSaid page_from(Live& live, OutputReader*& reader, std::int64_t op, std::int64_t from,
+                          std::int64_t lines) {
+    if (reader == nullptr) {
+        loom::Grant ask;
+        ask.allow_to_role(BuildOutputRequested::zen_name, BuildOutputRequested::zen_version,
+                          kBuilderRole);
+        const loom::WeaveId id = mount_plain<OutputReader>(live.bus, std::move(ask), &reader);
+        reader->id = id;
+    }
+    const std::size_t before = reader->pages.size();
+    (void)live.bus.send(reader->id, loom::Message(loom::to_value(ReadPage{op, from, lines})));
+    live.bus.drain_until_idle();
+    REQUIRE(reader->pages.size() == before + 1);
+    return reader->pages.back();
+}
+
+} // namespace
+
+TEST_CASE("the runner says every byte a build writes, in order, in pieces no bigger than a message") {
+    // THE DROP IT USED TO MAKE, AS A CASE. A look's ready lines were joined with ` | ` and cut to
+    // their last 2,048 characters, the rest counted away; the diagnostic here holds a 5,000-byte
+    // command echo, so that rule would have lost the lines in front of it. Now every byte arrives,
+    // a message is at most `kMaxOutputChars`, and a line longer than that continues in the next.
+    Bench bench({cmake_recipe("diag", "fixture-diagnostic")});
+    bench.order("diag");
+    bench.beat_until_idle();
+
+    REQUIRE(bench.foreman->finished.size() == 1);
+    CHECK(bench.foreman->finished[0].status != 0);
+    const std::int64_t op = bench.foreman->finished[0].op;
+    bool at_bound = false;
+    for (const BuildOutput& o : bench.foreman->output) {
+        CHECK(o.text.size() <= kMaxOutputChars);
+        at_bound = at_bound || o.text.size() == kMaxOutputChars;
+    }
+    CHECK(at_bound); // the long line really was carried in more than one message
+    const std::string written = read_bytes(kDiagnosticOut);
+    REQUIRE(written.size() > 2 * kMaxOutputChars);
+    CHECK(bench.foreman->text_of(op).find(written) != std::string::npos);
+}
+
+TEST_CASE("a failed build's own lines are kept by its operation, and a page reads them as the compiler wrote them") {
+    Live live({cmake_recipe("diag", "fixture-diagnostic")});
+    live.tell_tool(BuildRequested{"diag"});
+    live.carry_until_over();
+    const BuildStatus& done = live.ears->last();
+    REQUIRE(done.outcome == outcome::kFailed);
+
+    OutputReader* reader = nullptr;
+    const BuildOutputSaid page = page_from(live, reader, done.op, 1, 64);
+    CHECK(page.kept);
+    CHECK(page.op == done.op);
+    CHECK(page.recipe == "diag");
+    CHECK(page.outcome == outcome::kFailed);
+    CHECK(page.status == done.status);
+    CHECK(page.ended);
+    CHECK(page.first == 1);
+    CHECK(page.omitted == 0);
+    REQUIRE(page.said == static_cast<std::int64_t>(page.text.size()));
+
+    // THE COMPILER'S OWN LINE, BYTE FOR BYTE: its path with a space, its line and column, and its
+    // UTF-8 quotes (E2 80 98 / E2 80 99) -- kept as written, never spelled, never judged.
+    const std::string error_line = "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: "
+                                   "error: \xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope";
+    CHECK(std::find(page.text.begin(), page.text.end(), error_line) != page.text.end());
+    // ...AND A CR LF LINE ENDS WHERE ITS TEXT DOES: the CR is the break's, not the line's.
+    CHECK(std::find(page.text.begin(), page.text.end(),
+                    "pane.cpp(416): error C2065: 'oops': undeclared identifier") != page.text.end());
+    // ...AND THE COMMAND ECHO KEEPS ITS FIRST 4,096 BYTES, AND THE PAGE SAYS HOW MANY IT LOST.
+    const std::string written = read_bytes(kDiagnosticOut);
+    const std::size_t echo_start = written.find("/usr/bin/c++ ");
+    REQUIRE(echo_start != std::string::npos);
+    const std::size_t echo_end = written.find('\n', echo_start);
+    const std::string echo = written.substr(echo_start, echo_end - echo_start);
+    REQUIRE(echo.size() > kMaxKeptLineBytes);
+    const auto kept_echo =
+        std::find_if(page.text.begin(), page.text.end(),
+                     [](const std::string& l) { return l.rfind("/usr/bin/c++ ", 0) == 0; });
+    REQUIRE(kept_echo != page.text.end());
+    CHECK(*kept_echo == echo.substr(0, kMaxKeptLineBytes));
+    CHECK(page.cut == static_cast<std::int64_t>(echo.size() - kMaxKeptLineBytes));
+
+    // A PAGE IS BOUNDED BY WHAT THE READER HAS ROOM FOR, and numbered from where it begins.
+    const BuildOutputSaid two = page_from(live, reader, done.op, 3, 2);
+    REQUIRE(two.text.size() == 2);
+    CHECK(two.first == 3);
+    CHECK(two.text[0] == page.text[2]);
+    // ...AND FROM 0 IS THE PAGE THAT ENDS AT THE LAST LINE.
+    const BuildOutputSaid last = page_from(live, reader, done.op, 0, 2);
+    REQUIRE(last.text.size() == 2);
+    CHECK(last.first == page.said - 1);
+    CHECK(last.text[1] == page.text.back());
+}
+
+TEST_CASE("a kept record holds both ends of a long output, numbers the gap, and never pages across it") {
+    // PURE ARITHMETIC OVER THE RECORD, fed in pieces that split lines, the way `BuildOutput` v3
+    // arrives. 200 lines of 1,024 bytes and one short one: the head keeps 32 (32 KiB), the tail
+    // what fits in 64 KiB (63 of them and the short line), and the 105 between are counted.
+    KeptOutput kept;
+    kept.op = 7;
+    std::string all;
+    for (int i = 1; i <= 200; ++i) {
+        std::string line = "line " + std::to_string(i) + " ";
+        line.resize(1024, '.');
+        all += line + (i % 16 == 0 ? "\r\n" : "\n");
+    }
+    for (std::size_t at = 0; at < all.size(); at += 777) {
+        kept.take(all.substr(at, 777));
+    }
+    kept.take("the last word, with no break");
+    kept.end(outcome::kFailed, 2);
+
+    CHECK(kept.said == 201);
+    CHECK(kept.head.size() == 32);
+    CHECK(kept.omitted == 105);
+    CHECK(kept.tail.size() == 64);
+    CHECK(kept.tail_from() == 138);
+    CHECK(kept.tail.back().text == "the last word, with no break");
+    CHECK(kept.head[15].text.size() == 1024); // line 16 ended CR LF, and its text is 1,024 bytes
+
+    const BuildOutputSaid before_gap = page_of(kept, 30, 10);
+    CHECK(before_gap.first == 30);
+    CHECK(before_gap.text.size() == 3); // lines 30-32, and it stops at the gap
+    CHECK(before_gap.omitted == 105);
+    CHECK(before_gap.omitted_from == 33);
+
+    const BuildOutputSaid in_gap = page_of(kept, 40, 10);
+    CHECK(in_gap.first == 138); // asked inside the gap, it begins after it
+    REQUIRE(in_gap.text.size() == 10);
+    CHECK(in_gap.text[0].rfind("line 138 ", 0) == 0);
+
+    const BuildOutputSaid at_end = page_of(kept, 0, 5);
+    CHECK(at_end.first == 197);
+    REQUIRE(at_end.text.size() == 5);
+    CHECK(at_end.text.back() == "the last word, with no break");
+    CHECK(at_end.ended);
+    CHECK(at_end.status == 2);
+
+    // A PAGE IS BOUNDED TWICE: by lines, and by bytes -- sixteen of these lines are 16 KiB.
+    const BuildOutputSaid wide = page_of(kept, 138, 1000);
+    CHECK(wide.text.size() == kMaxOutputPageBytes / 1024);
+    KeptOutput short_lines;
+    for (int i = 0; i < 100; ++i) {
+        short_lines.take("short\n");
+    }
+    CHECK(page_of(short_lines, 1, 1000).text.size() == kMaxOutputPageLines);
+}
+
+TEST_CASE("the tool keeps the last few operations' output, and an operation it let go is said, not replaced") {
+    Live live({cmake_recipe("quick", "fixture-quick")});
+    for (std::size_t i = 0; i <= kKeptOperations; ++i) {
+        live.tell_tool(BuildRequested{"quick"});
+        live.carry_until_over();
+        REQUIRE(live.ears->last().outcome == outcome::kSucceeded);
+    }
+    const std::int64_t newest = live.ears->last().op;
+    OutputReader* reader = nullptr;
+    const BuildOutputSaid gone = page_from(live, reader, 1, 1, 8);
+    CHECK_FALSE(gone.kept);
+    CHECK(gone.op == 1);
+    CHECK(gone.text.empty());
+    REQUIRE(gone.ops.size() == kKeptOperations);
+    CHECK(gone.ops.front() == 2);
+    CHECK(gone.ops.back() == newest);
+
+    const BuildOutputSaid here = page_from(live, reader, newest, 1, 8);
+    CHECK(here.kept);
+    CHECK(here.outcome == outcome::kSucceeded);
+    bool said_it = false;
+    for (const std::string& line : here.text) {
+        said_it = said_it || line.find("nothing to build, said quickly") != std::string::npos;
+    }
+    CHECK(said_it);
+}
+
 TEST_CASE("a build that never starts is not a build that failed") {
     // THE WAY A RECIPE FAILS TO BECOME A PROCESS CHANGED WITH BLD-1, and this case
     // followed it. A recipe cannot name a program, so "the program is not there" is
@@ -1374,7 +1609,7 @@ TEST_CASE("an observation about somebody else's work is counted, never adopted")
     // THE SECOND HALF OF THE SAME QUESTION: this tool's own target, but an
     // operation it is not following. Folding that in would mix two builds'
     // output into one picture.
-    live.tell_tool(BuildOutput{99, "greet", "output from a build nobody here asked for", 0});
+    live.tell_tool(BuildOutput{99, "greet", "output from a build nobody here asked for"});
     CHECK(live.ears->said.empty());
     CHECK(live.tool->known().stray == 2);
 }
@@ -1788,14 +2023,16 @@ TEST_CASE("BLD-1 law: a recipe needs a name, an artifact and exactly one mechani
     CHECK(check_recipe(neither).find("names no build mechanism") != std::string::npos);
 
     Recipe both = neither;
-    both.cmake_target = CMakeTargetRecipe{kFixtureTree, "fixture-quick", std::string()};
+    both.cmake_target =
+        CMakeTargetRecipe{kFixtureTree, "fixture-quick", std::string(), std::string()};
     both.single_source =
         SingleSourceRecipe{"/tmp/x.cpp", {}, {"loom::switchboard"}, std::string(), std::string()};
     CHECK(check_recipe(both).find("two build mechanisms") != std::string::npos);
 
     // A CMake recipe that names a tree and no target in it says nothing.
     Recipe headless = neither;
-    headless.cmake_target = CMakeTargetRecipe{kFixtureTree, std::string(), std::string()};
+    headless.cmake_target =
+        CMakeTargetRecipe{kFixtureTree, std::string(), std::string(), std::string()};
     CHECK(check_recipe(headless).find("no target") != std::string::npos);
 
     // ...and a single-source recipe that links nothing would fail later and less

@@ -264,7 +264,7 @@ public:
     /// listing is a snapshot re-enumerated here (WL-FILES-12); if this run has no origin
     /// yet, the room grant is also when the browser first asks the host where it began.
     ///
-    /// ⚠ AND A GRANT IS NOT A MAKER'S ACT, so it keeps the maker's selection. A room moves for
+    /// (!) AND A GRANT IS NOT A MAKER'S ACT, so it keeps the maker's selection. A room moves for
     /// reasons that have nothing to do with the listing -- a resized surface, a dragged edge, and
     /// the title row a hidden-titles pane gets back with the keys, which arrives right behind the
     /// press that selected -- and resetting the cursor there undid that press.
@@ -588,7 +588,7 @@ public:
     /// built-in's `files_build_settled`, one image over -- gated on the outcome being one a
     /// build will not leave, so a mid-build status does not re-walk the directory.
     ///
-    /// ⚠ AND GATED ON A BUILD HAVING ACTUALLY HAPPENED, which the built-in got for free and
+    /// (!) AND GATED ON A BUILD HAVING ACTUALLY HAPPENED, which the built-in got for free and
     /// this pane has to ask for. `BuildStatus` is published for two different reasons: a
     /// build settling, and somebody merely ASKING what the state is -- and this pane asks,
     /// itself, right after an accepted catalog choice. Without this gate that answer looked
@@ -653,7 +653,7 @@ private:
 
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     ///
-    /// ⭐ A MODE IS NOT A KEYBOARD CONTEXT OF WORKSHOP'S; IT IS A DECLARATION. The built-in had
+    /// (*) A MODE IS NOT A KEYBOARD CONTEXT OF WORKSHOP'S; IT IS A DECLARATION. The built-in had
     /// three contexts (`kFiles`, `kRecipeChooser`, `kAuthoring`) and could bind Return and
     /// Backspace differently in each; a pane's rows are joined into ONE map under its
     /// runtime handle, and the collision law refuses a second row on a gesture already
@@ -897,7 +897,7 @@ private:
         // the Editor's own office (which still relays to the same manager); only the address
         // moved, and every refusal still lands in this pane's own row.
         //
-        // ⚠ THE TICKET IS KEPT, NOT DISCARDED (WL-OPEN-07). A valid ticket says the send was
+        // (!) THE TICKET IS KEPT, NOT DISCARDED (WL-OPEN-07). A valid ticket says the send was
         // queued and nothing more; the bus's later, authenticated word that exactly this
         // attempt was refused before any handler ran -- no opening office is held, or it is
         // held behind a claim it could not apply -- reaches `on(loom::DispatchRefused)` and is

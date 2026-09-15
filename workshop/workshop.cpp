@@ -583,17 +583,12 @@ int main(int argc, char** argv) {
     // onward by value. Nothing is handed onward by value any more, so it captures the
     // owner and reads it when asked: the same shape `frontier` has, and the reason the
     // editor's answer cannot outlive the catalog it came from.
+    //
+    // ...AND THE RULE IT ANSWERS BY IS ONE FUNCTION (`provenance::recipe_source_of`), beside the
+    // join Edit Code reads, so a single source and a CMake target's editing entry are read the
+    // same way by both doors, and a suite asks the rule this host wires.
     host.recipe_source = [&current_recipes](const std::string& id) {
-        HostContext::RecipeSource out;
-        const builder::Recipe* found = builder::recipe_named(current_recipes.all(), id);
-        if (found != nullptr) {
-            out.known = true;
-            out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
-            if (found->single_source.has_value()) {
-                out.source = found->single_source->source;
-            }
-        }
-        return out;
+        return provenance::recipe_source_of(current_recipes.all(), id);
     };
     std::fflush(stdout);
 
@@ -1006,6 +1001,11 @@ int main(int argc, char** argv) {
     // phase, and this is deliberately not it.
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
+    // ...AND ITS ANSWER TO "WHAT DID OPERATION #N SAY": one bounded page, to whoever asked. It
+    // reads a record the tool already keeps and reaches no runner, file or process
+    // (WL-OUT-02).
+    order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
+                              builder::BuildOutputSaid::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
         bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
         current_recipes.source());

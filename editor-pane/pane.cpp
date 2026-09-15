@@ -13,7 +13,7 @@
 // weave beside the Skin, the Timer, Files, the Builder, Attention, Info and the Terminal --
 // the last of the built-ins this arc set out to move.
 //
-// ⚠ THE DOCUMENT CAME WITH IT, AND THAT IS THE DIFFERENCE FROM EVERY EARLIER MIGRATION.
+// (!) THE DOCUMENT CAME WITH IT, AND THAT IS THE DIFFERENCE FROM EVERY EARLIER MIGRATION.
 // Files left the project root with the host, the Builder left the tool, the Terminal left the
 // participant; each pane presents a subject somebody else owns and asks about it. The
 // Editor's subject is the buffer a maker types into, and a pane that presented a buffer the
@@ -23,7 +23,7 @@
 // is a source request, a preparation, a quit answer, rows and a caret. What the host keeps is
 // room, focus, membership and the exit DECISION -- which it now makes by asking.
 //
-// ⚠ A REPLACEABLE PANE IS THE CUSTODIAN OF UNSAVED WORK, DELIBERATELY, and three things make
+// (!) A REPLACEABLE PANE IS THE CUSTODIAN OF UNSAVED WORK, DELIBERATELY, and three things make
 // that a design rather than an accident. Presentation and custody are two lifetimes here
 // exactly as they were: hiding, covering, moving, reordering or removing the PANE touches
 // this weave not at all, because Workshop closes a presentation and sends no unload. A
@@ -33,7 +33,7 @@
 // source refuses the exit exactly as it did when the host could read it. What is NOT
 // claimed is what was never claimed: process death still loses drafts.
 //
-// ⚠ WHAT MOVED ACROSS A MESSAGE BOUNDARY, AND WHAT DID NOT. Save stayed one synchronous
+// (!) WHAT MOVED ACROSS A MESSAGE BOUNDARY, AND WHAT DID NOT. Save stayed one synchronous
 // call inside this weave: the write, then the saved comparison, with no delivery between
 // them, so a success is about the bytes that were written and can never mark a later edit
 // clean. What became a round trip is the PASTE (the Skin answers later; the answer is pinned
@@ -173,7 +173,7 @@ class EditorPaneWeave
     /// for it. Not a document: nothing reads it, paints it or edits it. It becomes the
     /// document only in `on_claim_published`, when the bus has published that identity.
     ///
-    /// ⚠ NOTHING IS HELD FOR IT. Input to the current document applies to the current
+    /// (!) NOTHING IS HELD FOR IT. Input to the current document applies to the current
     /// document, immediately and in order; an edit moves this weave's claim, and the bus
     /// aborts the operation whose offer was made against the previous revision. A refused,
     /// superseded or aborted operation drops the candidate and nothing else.
@@ -235,7 +235,7 @@ public:
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
 
-    /// ⚠ THERE IS NO `snapshot()` HERE, AND ITS ABSENCE IS THE POINT (VD-26). This pane used
+    /// (!) THERE IS NO `snapshot()` HERE, AND ITS ABSENCE IS THE POINT (VD-26). This pane used
     /// to build the shape from the live buffer at the moment Loom asked and leave `state_`
     /// untouched -- two truths, of which Loom reads the WRONG one for `zen.PokeRead`: the
     /// poke doors are answered off `state_` before any handler runs, so a pane holding an
@@ -297,7 +297,7 @@ public:
             return; // not Loom's answer to the question this pane asked
         }
         project_dir_ = said.project_dir;
-        // ⭐ THE FACT A RELATIVE SPELLING TURNS ON (VD-26). An owner that has not answered
+        // (*) THE FACT A RELATIVE SPELLING TURNS ON (VD-26). An owner that has not answered
         // and an owner that authoritatively named no project are different, and only the
         // second one is permission to spell a relative path against the process. This flag
         // is what tells them apart; before it, an unanswered door left `project_dir_` empty
@@ -423,7 +423,7 @@ public:
     /// travels back so the desk can admit it as the trial's content. Nothing here is
     /// readable, paintable or editable, and the current document stays all three.
     ///
-    /// ⚠ THE OFFER CAN BE REFUSED BY THE BUS -- the operation is not this weave's, or the
+    /// (!) THE OFFER CAN BE REFUSED BY THE BUS -- the operation is not this weave's, or the
     /// document's claim already moved since the operation bound it -- and a refused offer
     /// is answered as one: no candidate is kept for an operation that cannot commit.
     void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
@@ -532,7 +532,7 @@ public:
     /// so a poke, a snapshot or a message queued behind the commitment finds the new document
     /// and never the old one. Rows are said at the end of the next delivery.
     ///
-    /// ⚠ AN IDENTITY THIS INCARNATION DID NOT PREPARE IS NOT INSTALLED, AND IS ANSWERED SO.
+    /// (!) AN IDENTITY THIS INCARNATION DID NOT PREPARE IS NOT INSTALLED, AND IS ANSWERED SO.
     /// The operation bound the incarnation that prepared the candidate; the candidate does
     /// not ride a reload; so a successor reloaded over a predecessor that could not apply
     /// the publication is shown it with no candidate to install. The honest answer is to
@@ -610,7 +610,7 @@ public:
     /// with (WL-EDIT-08), at `first_col + column` of the whole line, which is the one
     /// subtraction a horizontal viewport adds to a hit test.
     ///
-    /// ⚠ AND IT DECIDES WHETHER A SWEEP IS UNDER WAY (VD-26, WL-EDIT-16). Workshop takes
+    /// (!) AND IT DECIDES WHETHER A SWEEP IS UNDER WAY (VD-26, WL-EDIT-16). Workshop takes
     /// hold of this pane for the length of the button whenever a press named ANY row of the
     /// body -- it owns physical routing and does not read this pane's rows to learn what
     /// they mean -- so the motions of a focus-only press arrive here exactly as a real
@@ -619,7 +619,7 @@ public:
     /// on the status row followed by a drag into the document extended a selection from
     /// wherever the caret had been left.
     ///
-    /// ⚠ AND IT LEAVES THE NOTICE ROW ALONE, WHICH IS GEOMETRY AND NOT MANNERS. Clearing a
+    /// (!) AND IT LEAVES THE NOTICE ROW ALONE, WHICH IS GEOMETRY AND NOT MANNERS. Clearing a
     /// standing notice moves the document up one row; a press and the motions that follow it
     /// were measured by the maker's hand against ONE picture, and the poll that delivers
     /// them can deliver the motion after the press. A pointer gesture therefore changes no
@@ -849,7 +849,7 @@ public:
     /// paste, because relocating the text to wherever the caret is now would be answering a
     /// question the maker no longer asked.
     ///
-    /// ⚠ THE OUTSTANDING PASTE IS CLEARED THE MOMENT ITS AUTHENTICATED ANSWER IS CONSUMED --
+    /// (!) THE OUTSTANDING PASTE IS CLEARED THE MOMENT ITS AUTHENTICATED ANSWER IS CONSUMED --
     /// before the payload is judged -- so a stale answer (the source moved) leaves no paste
     /// in flight behind it, and a fresh opening is eligible right after it.
     void on(const surface::ClipboardText& a, loom::Mail& mail) {
@@ -902,7 +902,7 @@ private:
     /// change. Everything else a maker presses reaches the buffer as an ordinary `PaneKey`,
     /// which is what lets Backspace erase and ctrl+z undo without either being anybody's row.
     void declare(loom::Mail& mail) {
-        // ⚠ THE SECOND VERSION OF THE DECLARATION, because this pane owns one of Workshop's
+        // (!) THE SECOND VERSION OF THE DECLARATION, because this pane owns one of Workshop's
         // actions and version one has no field to say so (VD-27). Every pane that owns
         // nothing keeps declaring version one, unchanged and unrebuilt.
         ws::v2::PaneActions actions;
@@ -911,7 +911,7 @@ private:
                                     std::int64_t mods, const char* stands_for = "") {
             actions.rows.push_back(ws::v2::PaneActionRow{id, label, sc, mods, stands_for});
         };
-        // ⭐ AND THE SAVE ROW SAYS WHAT IT STANDS IN FOR (VD-26, WL-KEY-15). This pane holds a
+        // (*) AND THE SAVE ROW SAYS WHAT IT STANDS IN FOR (VD-26, WL-KEY-15). This pane holds a
         // document of its own, so while its keys are the maker's, `document.save` is not the
         // operation they are asking for -- and saying so by NAME is what keeps that true when
         // a maker moves either row's key. It is also what lets this row keep `ctrl+s`: the
@@ -1122,7 +1122,7 @@ private:
     /// THE DOCUMENT A SNAPSHOT CARRIED, PUT BACK (see `revive`). `restore_selection` clamps a
     /// pair that outran the bytes; the viewport offsets are clamped by the next reconcile.
     ///
-    /// ⚠ NO PASTE AND NO CANDIDATE COME BACK, deliberately: both were the old incarnation's
+    /// (!) NO PASTE AND NO CANDIDATE COME BACK, deliberately: both were the old incarnation's
     /// conversations, and their answers arrive to a pane that is no longer waiting. A fresh
     /// opening is eligible at once.
     void restore_from_state() {
@@ -1162,7 +1162,7 @@ private:
         e_.first_col = state_.first_col < 0 ? 0 : state_.first_col;
         e_.wheel_accum = 0.0;
         e_.follow_caret = false;
-        // ⭐ THE ROOM THE DOCUMENT WAS LAST LOOKED AT THROUGH, CARRIED (VD-26). Zeroing these
+        // (*) THE ROOM THE DOCUMENT WAS LAST LOOKED AT THROUGH, CARRIED (VD-26). Zeroing these
         // made the first grant after a revival differ from the last room before it, which is
         // exactly what `reconcile` calls a resize -- so an unchanged room pulled the viewport
         // back to the caret and a maker who had scrolled somewhere lost the place they were
@@ -1245,7 +1245,7 @@ private:
     /// the offsets always, follow the caret when a gesture asked or THE GRANTED ROOM changed,
     /// and deliberately not after the wheel.
     ///
-    /// ⚠ THE GRANTED ROOM, AND NOT THE ROWS THE DOCUMENT WAS LEFT (VD-27). A notice appearing
+    /// (!) THE GRANTED ROOM, AND NOT THE ROWS THE DOCUMENT WAS LEFT (VD-27). A notice appearing
     /// or clearing changes the second and not the first, and a maker who scrolled somewhere
     /// to read did not ask to be taken back to the caret because this pane had something to
     /// say. A genuine resize still follows, because that is what these two numbers are.
@@ -1518,7 +1518,7 @@ private:
         state_.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
         state_.first_row = static_cast<std::int64_t>(e_.first_row);
         state_.first_col = e_.first_col;
-        // ⚠ THE BYTES' OWN REVISION, NOT THE BUFFER'S (VD-27). `revision()` moves when the
+        // (!) THE BYTES' OWN REVISION, NOT THE BUFFER'S (VD-27). `revision()` moves when the
         // CARET moves, because a pending paste has to notice that; keying the mirror on it
         // rebuilt a four-megabyte string on an arrow key, a press and every motion of a
         // drag, with every byte identical. `content_revision()` moves when the lines do.
