@@ -181,6 +181,31 @@ struct SourceOpened {
     ZEN_SHAPE(SourceOpened, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal));
 };
 
+// ---- A pane's code, reached from the pane ---------------------------------------
+
+/// THE SOURCE BEHIND A PANE'S RUNNING CODE IS OPEN, BECAUSE A MAKER ASKED FROM THAT PANE.
+/// Published `to_any` as Workshop's office, once, when the open its contextual Edit Code asked
+/// for was accepted AND the host still named the same code behind the pane: the office's holder
+/// realized from `artifact`, exactly one authored recipe producing it, and `source` that
+/// recipe's one file. A refused, superseded or changed open publishes nothing.
+///
+/// PUBLISHED AND NOT ADDRESSED, for `StandingConditions`' reason: the host cannot name the
+/// Builder pane's office, and which weave presents build choices is the load plan's business.
+/// Whoever holds a choice of recipe may follow it; the Builder pane chooses `recipe`, visibly.
+///
+/// ⚠ A READING, NOT AN ORDER. It says what was opened and why; it starts no build, arms no
+/// realization and names no reload. Those stay the maker's next gestures, in the Builder.
+struct PaneSourceOpened {
+    std::string office;   ///< the pane's provider office, as Loom stamped its offer
+    std::string pane;     ///< the pane key, in that office's namespace
+    std::string name;     ///< what the maker sees the pane called
+    std::string artifact; ///< the artifact the office's running code was realized from
+    std::string recipe;   ///< the one authored recipe that produces it
+    std::string source;   ///< the file now open: that recipe's single source
+    ZEN_SHAPE(PaneSourceOpened, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
+              ZEN_FIELD(artifact), ZEN_FIELD(recipe), ZEN_FIELD(source));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP

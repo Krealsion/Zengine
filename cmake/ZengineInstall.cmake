@@ -68,7 +68,7 @@ include(CMakePackageConfigHelpers)
 # ---- The exported targets, and what linking each one grants ------------------------------
 #
 # The test every row below had to pass is "what user-facing capability does linking this
-# grant" -- not "does something else in the tree need it". Eight passed. What did NOT is at
+# grant" -- not "does something else in the tree need it". Nine passed. What did NOT is at
 # the bottom of this file, with the reason, because a boundary that only records its inside
 # is half a boundary.
 #
@@ -91,6 +91,9 @@ include(CMakePackageConfigHelpers)
 #                               image, and dress a catalog for an artifact that has none.
 #   zengine::operator-consumer  spend a host's operator truth from inside a loaded image --
 #                               the C table and the handle, and deliberately no catalog.
+#   zengine::pane               offer Workshop a pane and speak its protocol from a weave:
+#                               the offer, the granted room, the rows, the gestures and the
+#                               declared actions -- the one header, and none of Workshop.
 #
 # EXPORT_NAME is what makes `zengine::surface` mean the same thing from this tree and from an
 # installed prefix. Without it the house would link `zengine-surface-vocabulary` and a guest
@@ -103,7 +106,8 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-ui-vocabulary
     zengine-component
     zengine-operator
-    zengine-operator-consumer)
+    zengine-operator-consumer
+    zengine-pane-vocabulary)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -113,6 +117,7 @@ set_target_properties(zengine-ui-vocabulary       PROPERTIES EXPORT_NAME ui)
 set_target_properties(zengine-component           PROPERTIES EXPORT_NAME component)
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
+set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
 
 # Every one of them is an INTERFACE target, so nothing is installed here but the target
 # definitions themselves; the headers go below and there is no library to place.
@@ -161,8 +166,12 @@ set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/provider.hpp
                                       operator/provider_abi.h
                                       operator/provider_host.hpp)
+# The pane protocol's one header, installed under the directory it lives in so the stranger's
+# spelling is `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is. Nothing else
+# under workshop/ is public: the host, its seams and its doors stay this repository's.
+set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp)
 
-foreach(pkg IN ITEMS activation timer surface input ui component operator)
+foreach(pkg IN ITEMS activation timer surface input ui component operator workshop)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
@@ -256,10 +265,12 @@ install(FILES
 # ---- What is deliberately NOT in the package, and why -------------------------------------
 #
 # zengine-workshop-vocabulary, zengine-workshop-load
-#     Workshop's own surface. An office-authored external pane is a real seam and it is
-#     documented, but the guide states in its own words that no installation or plugin path
-#     exists for one yet -- so exporting the headers would advertise a road with no end.
-#     It joins the package on the day a pane can arrive through one.
+#     Workshop's own surface: its screen, its session, its seams to the host's doors, the
+#     load plan and its executor. The PANE PROTOCOL left this set the day a pane could arrive
+#     through a road with an end -- a load-plan row a maker authors names the artifact, and a
+#     one-file recipe builds it from this package -- and it is exported alone, as
+#     `zengine::pane`, above. What stays here is Workshop being Workshop, which no stranger
+#     needs in order to offer it a pane.
 #
 # zengine-builder-vocabulary
 #     The Builder package ships no artifact of its own; its consumers are the Workshop host,

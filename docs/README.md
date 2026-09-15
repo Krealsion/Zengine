@@ -36,6 +36,7 @@ Every page below has one reader purpose, named.
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds, authoring a recipe from Files, load after build, reload in place, and loading a built artifact into the plan |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
 | [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
+| [workshop/edit-a-running-pane.md](workshop/edit-a-running-pane.md) | **walkthrough**: right-click a running pane, edit its code, build and reload it in place, then revert or promote — with the Tally example |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
 
 ## Reference — exact contracts

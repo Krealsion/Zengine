@@ -170,6 +170,11 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 
+**Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
+of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
+recipe, visibly, and says the source is open. It builds, arms and loads nothing — `b` and
+`Shift`+`b` stay yours ([edit a running pane](edit-a-running-pane.md)).
+
 The pane shows the office it presents and the catalog in force, the chosen recipe and what it
 makes, where the last build got to (with its
 operation number and how many times the runner has been heard about it), the exit status, what
@@ -404,8 +409,9 @@ leaves the row waiting until you load it: nothing is realized because a file app
 - A recipe row is *added* from Files (`a`) and *edited or removed* in a text editor. There is
   no recipe editor: what you can change at run time is one appended row, or *which whole
   catalog file* is in force. (A `single_source` recipe's **source** opens in Workshop's own
-  editor with `e`; any other project file — a recipe catalog included — opens from the
-  [Files](files.md) pane, see [the source editor](editor.md).)
+  editor with `e`, or with `edit code` on the pane its artifact draws; any other project file —
+  a recipe catalog included — opens from the [Files](files.md) pane, see
+  [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
 - A rebuilt weave whose **shape** changed does not enter the running project: the refusal

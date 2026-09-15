@@ -1897,11 +1897,13 @@ TEST_CASE("CTX-0: a right press over a provider's pane crosses the seam not at a
     // ...and asking about a pane did not point the keyboard at it.
     CHECK(r.session().panels.keyboard == keyboard_before);
 
-    // The population offered ABOUT it is Workshop's arrangement vocabulary -- rows that
-    // act on the rectangle, never on the provider's content.
+    // The population offered ABOUT it is Workshop's arrangement vocabulary and Edit Code --
+    // rows that act on the rectangle, or ask the host what code stands behind the office, and
+    // never on the provider's content.
     const std::vector<ContextEntry> rows = context_population(context_subject::kPane, "");
-    REQUIRE(rows.size() == 4);
-    CHECK(rows[3].row->act == Act::kManageRemove);
+    REQUIRE(rows.size() == 5);
+    CHECK(rows[3].row->act == Act::kEditCode);
+    CHECK(rows[4].row->act == Act::kManageRemove);
 }
 
 TEST_CASE("CTX-0: input spent on the open surface reaches no provider") {

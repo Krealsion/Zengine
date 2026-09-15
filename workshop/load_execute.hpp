@@ -433,6 +433,16 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
         said = "the rebuilt '" + stem + "' did not open; the running weave is unchanged";
     } else if (says("library create() returned null")) {
         said = "the rebuilt '" + stem + "' produced no weave; the running weave is unchanged";
+    } else if (says("new library refused:") &&
+               loom_words.find("is already published with a different shape") !=
+                   std::string::npos) {
+        // A SHAPE CHANGED AND KEPT ITS NAME AND VERSION. One process holds one meaning per name
+        // and version, so the Loom refuses the new library before any state is compared, and
+        // "refused to construct" would bury the one fact a maker acts on: which edit did it.
+        said = "the rebuilt '" + stem +
+               "' changed a shape but kept its name and version, and this process already holds "
+               "the old meaning, so the running weave was left as it is. Put the shape back to "
+               "reload in place; a changed shape needs a new version and a prepared replacement";
     } else if (says("new library refused:")) {
         said = "the rebuilt '" + stem +
                "' refused to construct; the running weave is unchanged";
@@ -451,6 +461,26 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
         said = "the kernel's control door refused the reload of '" + stem + "'";
     }
     return said + " (Loom: " + loom_words + ")";
+}
+
+/// CAN A REBUILT IMAGE OF THIS RESOLVED ROW BE RELOADED IN PLACE AT ALL? The two rules that are
+/// about the ROW rather than about an image -- it loaded a weave, and it mounted no provider --
+/// in the owner's words, or empty when neither refuses. `PlanExecutor::reloadable` spends it
+/// at a reload; a host reads it to tell a maker, before an edit, whether a rebuild can reach
+/// the running code. One rule, so the early sentence and the refusal cannot disagree.
+inline std::string reload_refusal(const ResolvedArtifact& done) {
+    if (!done.weave_loaded) {
+        return "artifact '" + done.stem +
+               "' loaded no weave in this run: a provider's contribution is not reloaded in "
+               "place (unmount-and-remount is not built), and there is no weave to reload";
+    }
+    if (done.provider_mounted) {
+        return "artifact '" + done.stem +
+               "' also supplies operators to the catalog; reloading its weave would leave the "
+               "catalog on the old image, and unmount-and-remount is not built. The running "
+               "weave is unchanged";
+    }
+    return std::string();
 }
 
 // ---- The weave that asks, and hears the answer --------------------------------
@@ -1634,20 +1664,8 @@ private:
     /// the ROW rather than about the image: it loaded a weave, and it mounted no
     /// provider. `started` true means yes; false carries the words.
     Asked reloadable(const ResolvedArtifact& done) const {
-        if (!done.weave_loaded) {
-            return Asked{false, "artifact '" + done.stem +
-                                    "' loaded no weave in this run: a provider's contribution "
-                                    "is not reloaded in place (unmount-and-remount is not "
-                                    "built), and there is no weave to reload"};
-        }
-        if (done.provider_mounted) {
-            return Asked{false, "artifact '" + done.stem +
-                                    "' also supplies operators to the catalog; reloading its "
-                                    "weave would leave the catalog on the old image, and "
-                                    "unmount-and-remount is not built. The running weave is "
-                                    "unchanged"};
-        }
-        return Asked{true, std::string()};
+        std::string refused = reload_refusal(done);
+        return refused.empty() ? Asked{true, std::string()} : Asked{false, std::move(refused)};
     }
 
     /// RELOAD A LIVE ROW FROM ITS REBUILT PRODUCT. The host stages the product off the

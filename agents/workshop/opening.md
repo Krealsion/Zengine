@@ -13,7 +13,7 @@ LAW — The native `OpeningManager` owns one open intent, its exact participants
 MEANS
 - the manager holds no document, no rows, no room, no focus and no pointer into either owner;
 - it asks the desk for a trial and an admission, the Editor for a preparation, and commits;
-- Files and the Builder ask `zengine.opening`; `zengine.editor` relays with the asker's right.
+- Files, the Builder and Edit Code ask `zengine.opening`; `zengine.editor` relays, asker's right.
 
 DOES NOT MEAN
 - that ordinary panes acquire this ceremony: a pane's reveal is still its own ask.

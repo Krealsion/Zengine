@@ -3,8 +3,8 @@
 //
 // EVERY EXPORTED TARGET AND EVERY INSTALLED PUBLIC HEADER, USED FROM OUTSIDE.
 //
-// The oven proves one capability end to end. This proves the other seven exist as more than
-// a line in an export set: it includes all twenty-four installed headers, links all eight
+// The oven proves one capability end to end. This proves the other eight exist as more than
+// a line in an export set: it includes all twenty-six installed headers, links all nine
 // exported targets, and does something real with each -- so a header that quietly stopped
 // being self-contained, a target that lost a dependency it needed, or a package installed
 // with a piece missing fails HERE rather than for the first stranger who reaches for it.
@@ -25,11 +25,13 @@
 #include "operator/host_abi.h"
 #include "operator/host_surface.hpp"
 #include "operator/image.hpp"
+#include "operator/migration.hpp"
 #include "operator/operator.hpp"
 #include "operator/primitives.hpp"
 #include "operator/provider.hpp"
 #include "operator/provider_abi.h"
 #include "operator/provider_host.hpp"
+#include "operator/source.hpp"
 
 #include "surface/cells.hpp"
 #include "surface/pointing.hpp"
@@ -42,6 +44,8 @@
 
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
+
+#include "workshop/pane_vocabulary.hpp"
 
 #include <cstdio>
 #include <string>
@@ -182,6 +186,29 @@ void operator_surface() {
     check(!host.bound(), "an unbound OperatorHost has no host truth to spend");
 }
 
+// ---- zengine::pane ---------------------------------------------------------------------
+void pane_surface() {
+    namespace ws = zengine::workshop;
+    // What a one-file pane says first, and what Workshop grants it: the protocol's own shapes,
+    // spelled from the installed header, with no Workshop behind them. A schema identity is
+    // what crosses, so the names are what a stranger's weave and Workshop agree on.
+    const ws::PaneOffered offer{"tally", "Tally", "a count that survives a reload"};
+    check(offer.pane == "tally", "a pane offer names the pane it offers");
+    check(loom::schema_of<ws::PaneOffered>()->name() == "PaneOffered",
+          "and crosses under the protocol's own schema name");
+
+    ws::PaneContent said;
+    said.pane = offer.pane;
+    said.rows.push_back(zengine::surface::SurfaceTextRow{"Tally: 3"});
+    check(said.rows.size() == 1, "a pane's content is surface rows, reused rather than mirrored");
+
+    ws::PaneActions actions;
+    actions.pane = offer.pane;
+    actions.rows.push_back(
+        ws::PaneActionRow{"tally.add", "add one", zengine::input::scan::kSpace, 0});
+    check(actions.rows.front().id == "tally.add", "a declared action is an id a keymap can move");
+}
+
 } // namespace
 
 int main() {
@@ -193,11 +220,12 @@ int main() {
     ui_surface();
     component_surface();
     operator_surface();
+    pane_surface();
 
     if (failures != 0) {
         std::fprintf(stderr, "public surface: %d check(s) failed\n", failures);
         return 1;
     }
-    std::printf("public surface: eight exported targets used, twenty-four headers included\n");
+    std::printf("public surface: nine exported targets used, twenty-six headers included\n");
     return 0;
 }

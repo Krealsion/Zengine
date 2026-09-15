@@ -23,7 +23,7 @@
 #   2. does the installed package name any path back to the machine that built it
 #   3. does any installed public material assume this project's development environment
 #   4. does an unrelated project outside both trees configure with find_package(zengine)
-#   5. do all eight exported targets compile and run from the installed headers
+#   5. do all nine exported targets compile and run from the installed headers
 #   6. does a real weave build, load and drive the installed Timer service -- and does the
 #      successful run look successful, while the same program's real failure still speaks
 #   7. does the same package still work after the prefix is MOVED

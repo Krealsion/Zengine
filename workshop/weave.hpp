@@ -99,6 +99,36 @@ struct HostContext {
     // WL-PROJ-02 -- agents/workshop/project.md
     std::function<RecipeSource(const std::string&)> recipe_source;
 
+    /// WHAT STANDS BEHIND ONE OFFICE'S RUNNING CODE, answered by the HOST from the three owners
+    /// that each know one edge, at the moment of the ask, and kept by nobody:
+    ///
+    ///     office   -> the weave holding it now           the bus
+    ///     weave    -> the artifact it was realized from   the realization owner's row
+    ///     artifact -> every recipe that produces it       the recipe catalog in force
+    ///
+    /// Empty fields are absences a sentence names: nobody holds the office, the plan's owner
+    /// loaded no such weave, no recipe produces the artifact. Choosing among several recipes
+    /// is not the answer's; neither is opening anything.
+    // WL-CODE-01 -- agents/workshop/code.md
+    struct CodeSource {
+        /// ONE AUTHORED RECIPE THAT PRODUCES THE ARTIFACT. `source` is the file a single-source
+        /// recipe compiles, completed as the build reads it -- an editing entry point, not a
+        /// list of what that build includes -- and empty for a `cmake_target` recipe, which
+        /// names a configured tree and a target and no one file.
+        struct Recipe {
+            std::string id;
+            std::string kind;   ///< `single_source` or `cmake_target`, the recipe file's words
+            std::string source; ///< empty when the kind names no single source
+        };
+        std::string office;          ///< the office asked about
+        std::int64_t weave = 0;      ///< its holder at the ask; 0 when nobody holds it
+        std::string artifact;        ///< the stem that weave was realized from; empty if none
+        std::string reload;          ///< why a rebuilt image cannot reload in place; empty if it can
+        std::vector<Recipe> recipes; ///< every authored recipe producing `artifact`, catalog order
+    };
+    // WL-CODE-01 -- agents/workshop/code.md
+    std::function<CodeSource(const std::string& office)> code_source;
+
     /// WHAT A MAKER'S CHOICE OF AUTHORED CATALOG ANSWERED.
     // WL-PROJ-05, WL-PROJ-09 -- agents/workshop/project.md
     struct RecipeSwap {
@@ -278,7 +308,11 @@ class WorkshopWeave
                                           zengine::workshop::PresentationTrialRequested,
                                           zengine::workshop::PresentationAdmitRequested,
                                           zengine::workshop::ManagedOpenSettled,
-                                          zengine::workshop::ManagedOpenProgress>,
+                                          zengine::workshop::ManagedOpenProgress,
+                                          // a pane's Edit Code: the open it asked for, and
+                                          // Loom's word that the ask was refused at dispatch
+                                          zengine::workshop::SourceOpened,
+                                          loom::DispatchRefused>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
@@ -303,7 +337,9 @@ class WorkshopWeave
                                         zengine::workshop::TerminalActed,
                                         zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::PresentationTrial,
-                                        zengine::workshop::PresentationAdmitted>,
+                                        zengine::workshop::PresentationAdmitted,
+                                        zengine::workshop::OpenSourceRequested,
+                                        zengine::workshop::PaneSourceOpened>,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
@@ -435,6 +471,18 @@ public:
 
     /// SPEND ONE CHOSEN ACTION against the captured subject.
     void spend_context_choice(Act a, const ContextMenu& spent, loom::Mail& mail);
+
+    /// EDIT CODE: reach the authored source of the captured pane's running code, and open it
+    /// through the managed opening -- or say, in words, what is missing and how to provide it.
+    void edit_code(const PaneRef& ref, loom::Mail& mail);
+
+    /// THE OPEN EDIT CODE ASKED FOR CAME TO SOMETHING: read against the one ask this desk holds,
+    /// re-resolved before the Builder is told anything.
+    void on(const SourceOpened& said, loom::Mail& mail);
+
+    /// LOOM'S WORD THAT ONE OF THIS DESK'S SENDS WAS REFUSED BEFORE ANY HANDLER RAN. Only the
+    /// Edit Code ask's exact attempt settles anything; every other refused send is silence.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail);
 
     /// A BUTTON-1 PRESS WHILE THE SURFACE IS OPEN.
     void context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
@@ -1362,6 +1410,24 @@ private:
     /// ask (its correlation), how many answers are still owed, what the refusals said, and
     /// the gestures held meanwhile. None of it is durable and none of it survives the quit:
     /// the last answer, or a delivery Loom refused, ends it (`refuse_quit`, `finish_quit`).
+    /// THE ONE EDIT CODE OPEN IN FLIGHT: the pane it was spent on, the code the host named for it
+    /// at the spend, and the ticket Loom handed back. Not durable: a reload of this desk is not a
+    /// thing, and a newer Edit Code replaces it (the manager then answers the older ask, and that
+    /// answer matches nothing here).
+    // WL-CODE-03 -- agents/workshop/code.md
+    struct CodeOpen {
+        bool live = false;
+        std::uint64_t ask = 0;      ///< the correlation the answer must carry
+        loom::Ticket attempt{};     ///< the queued send, matched by Loom's refusal notice
+        PaneRef pane;
+        std::string name;           ///< what the maker sees the pane called
+        HostContext::CodeSource code; ///< the host's answer at the spend
+        std::string recipe;         ///< the one recipe whose source was asked for
+        std::string source;
+    };
+    CodeOpen code_open_;
+    std::uint64_t code_asks_ = 0;
+
     bool quitting_ = false;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;

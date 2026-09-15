@@ -50,9 +50,9 @@ and the verification discipline (see [Test discipline](docs/contributing/build-a
 What is not, stated plainly:
 
 - **The installable package covers the library, not Workshop.** `find_package(zengine)`
-  exports eight capability targets and installs the loadable artifacts they need. Workshop
-  itself, the SDL-backed skin and input reader, and the external-pane vocabularies are
-  deliberately not in it — see [Using Zengine from another
+  exports nine capability targets — the pane protocol a one-file Workshop pane speaks among them
+  — and installs the loadable artifacts they need. Workshop itself and the SDL-backed skin and
+  input reader are deliberately not in it — see [Using Zengine from another
   project](docs/getting-started.md#using-zengine-from-another-project).
 - **Linux/WSL with GCC is the only fully-supported configuration.** Windows builds a
   documented subset; the Loom's OS sandbox is Linux-only. See [supported

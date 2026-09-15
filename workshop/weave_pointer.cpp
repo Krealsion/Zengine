@@ -158,6 +158,9 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kManageResetPlace:
     case Act::kManageResetWidth:
     case Act::kManageResetHeight:
+    // ...AND THE POINTED PANE'S CODE, through the same seam: the captured reference, never the
+    // selection or the keyboard's pane, and nothing is selected, focused or seated on the way.
+    case Act::kEditCode:
     case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
     // -- the pointed object -------------------------------------------------------
     case Act::kObjectDelete: context_delete_object(spent.object); break;
