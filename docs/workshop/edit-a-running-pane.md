@@ -106,8 +106,8 @@ names — the one a restart loads — is untouched. That is what `NOT DEFAULT` m
 
 - **`Shift`+`r` reverts.** The image before the last reload runs again, in the same weave, count
   kept: Tally says `Tally: 3`. **Your saved source is not reverted** — `tally.cpp` still says
-  `Count`, the notice says so, and the next `b` builds it again. To go back in the source too,
-  change the file back (the Editor's `Ctrl`+`z` undoes an unsaved edit) and build.
+  `Count`, the Builder's notice says `saved source unchanged`, and the next `b` builds it again.
+  To go back in the source too, change the file back and build.
 - **`Shift`+`p` promotes.** The running image is written into the file the plan names, so the
   next launch runs it; the realize row says `promoted: the next launch runs the image weave #…
   is running now`. A count lives in the running weave, so a fresh launch starts again at
