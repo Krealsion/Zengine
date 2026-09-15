@@ -571,6 +571,22 @@ TEST_CASE("BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not i
     // Back to the catalog's own first row -- which is where the pane put them, not where
     // they went, so the frontier action must not read it as an explicit pick (below).
     CHECK(b.text().find("one -> a  (1/2)") != std::string::npos);
+
+    // ...AND THE PICK WENT WITH ITS RECIPE. `two` comes back as the one producer of what the
+    // project waits on, `f` chooses it, and a second producer arrives: the pick the maker made
+    // before `two` left is no pick between the two.
+    b.frontier.waiting = true;
+    b.frontier.artifact = "b";
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    b.letter(input::scan::kF, "f");
+    REQUIRE(b.tool->asked.size() == 1);
+    REQUIRE(b.tool->asked[0] == "two");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"four", "b"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    b.letter(input::scan::kF, "f");
+    CHECK(b.tool->asked.size() == 1);
+    CHECK(b.text().find("2 recipes produce `b`") != std::string::npos);
 }
 
 TEST_CASE("BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing") {
@@ -689,6 +705,8 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the buil
     b.r.key(input::scan::kR, input::mod::kShift);
     REQUIRE(b.tool->reverts.size() == 1);
     CHECK(b.tool->reverts[0] == "zengine-snake");
+    // ...and the revert's sentence says what it leaves alone: the source the maker saved.
+    CHECK(b.text().find("saved source unchanged") != std::string::npos);
 }
 
 // ============================================================================
@@ -758,6 +776,29 @@ TEST_CASE("BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between r
     b.letter(input::scan::kF, "f");
     REQUIRE(b.tool->asked.size() == 1);
     CHECK(b.tool->asked[0] == "two");
+}
+
+TEST_CASE("BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries no pick of another recipe") {
+    BuilderRig b("bld-f-took");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.frontier.waiting = true;
+    b.frontier.artifact = "a";
+    b.open();
+
+    b.letter(input::scan::kC, "c"); // an explicit pick: `two`, which does not produce `a`
+    REQUIRE(b.text().find("two -> b  (2/2)") != std::string::npos);
+    // ONE PRODUCER: `f` chooses it, visibly, and builds it -- the gesture's own choice, not the maker's.
+    b.letter(input::scan::kF, "f");
+    REQUIRE(b.tool->asked.size() == 1);
+    REQUIRE(b.tool->asked[0] == "one");
+    REQUIRE(b.text().find("one -> a  (1/2)") != std::string::npos);
+
+    // A SECOND PRODUCER ARRIVES: the pick still names `two`, so nothing picked stands between them.
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "a"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    b.letter(input::scan::kF, "f");
+    CHECK(b.tool->asked.size() == 1);
+    CHECK(b.text().find("2 recipes produce `a` (`one`, `three`)") != std::string::npos);
 }
 
 // ============================================================================

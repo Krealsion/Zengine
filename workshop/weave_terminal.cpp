@@ -271,6 +271,16 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
         break;
     }
     case Act::kQuit: quit(mail); break;
+    // EDIT CODE BOUND TO A KEY NAMES NO PANE, so it acts on none. Command mode's subject is the
+    // selected object or the room (`open_context_ambient`), never a pane, and guessing one --
+    // the selected pane, the keyboard's -- would be the pointing/selecting collapse WL-CTX-01
+    // refuses. The key still does something truthful: it says where the gesture lives
+    // (agents/workshop/code.md).
+    case Act::kEditCode:
+        say("edit code follows a pane you point at -- right-press the pane, then choose edit "
+            "code",
+            true);
+        break;
     default: break;
     }
 }

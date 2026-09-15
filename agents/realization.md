@@ -407,10 +407,12 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
   cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately
   not artifacts, and a case pins the acceptance). With several matches `f` refuses and names
-  them; what it may spend is the maker's own standing pick — `picked`, written ONLY by `c` and
-  released when a catalog arrival no longer holds the chosen recipe — because the catalog's own
-  first row is nobody's choice. The falsifier stages the FIRST catalog row as a match: "use
-  entry zero" and "read the default as a pick" both send an ask the case forbids.
+  them; what it may spend is the maker's own standing pick — `picked`, the recipe `c` named,
+  written ONLY by `c`, standing only while that recipe is still the choice, and released when a
+  catalog arrival no longer holds it — because the catalog's own first row is nobody's choice,
+  and neither is a choice Edit Code or `f` itself moved. The falsifier stages the FIRST catalog
+  row as a match: "use entry zero" and "read the default as a pick" both send an ask the case
+  forbids.
 - **THE `project` ROW EXISTS EXACTLY WHILE THE FRONTIER DOES.** `waiting <stem> (<recipe |
   N recipes | no recipe>, blocks <n>)`, taking the third `said` row only while waiting; with
   no frontier the pane is byte-for-byte BLD-1a's, because absence of a pending frontier is

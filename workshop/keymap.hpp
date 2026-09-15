@@ -193,6 +193,7 @@ enum class Act : std::uint8_t {
     kLayoutMoveRight,
     kArrangeDesk,
     kPaneTitles,
+    kEditCode,
     // ⭐ THE SOURCE EDITOR'S FOUR CONTROLS WERE HERE. `kEditorSave`, `kEditorNewline`,
     // `kEditorTab` and `kEditorDiscard` were the built-in's policy keys; the Editor pane
     // declares the same four ids as its own `PaneActionRow`s (`editor-pane/vocabulary.hpp`),
@@ -435,6 +436,12 @@ inline constexpr ActionRow kActionCatalog[] = {
      kNoGesture},
     {Act::kLayoutMoveRight, "layout.move-right", "move layout right", KeyContext::kCommand,
      kNoGesture},
+    // ...AND ONE MORE THAT ANSWERS TO NO KEY, for the same reasons. Edit Code is reached from a
+    // PANE's contextual menu, on the pane a maker pointed at, and command mode cannot
+    // truthfully name a pane (it names the selected object, or the room). It is declared so the
+    // contextual row references an id and a maker's keymap file can name it; bound, it says
+    // where the gesture lives rather than acting on some pane it guessed.
+    {Act::kEditCode, "pane.edit-code", "edit code", KeyContext::kCommand, kNoGesture},
     // ARRANGE THE DESK: the global arrangement scope. The IDENTITY is the old
     // `workshop.manage` -- a maker's authored override for it keeps working -- and what
     // changed is the meaning's scope: it opens the desk-wide arrangement state, never a

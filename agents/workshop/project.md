@@ -102,7 +102,7 @@ LAW — The Builder pane holds the chosen recipe as a NAME, so a republished cat
 
 MEANS
 - the name is the pane's durable state, so a reload keeps a choice an index would have lost;
-- `picked` stays the pane's own: how a selection was made is not changed by a reordering.
+- `picked` is a name too: a reordering keeps it, and a catalog without its recipe releases it.
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder-pane/pane.cpp`
 `named_row`, `cursor_row`; `tests/test_workshop_panes_builder.cpp`
@@ -193,15 +193,16 @@ LAW — `f` ASKS the host for the frontier, compares that artifact with each cat
 
 MEANS
 - the catalog's order is nobody's intent: the refusal names the candidates; the pick is `c`'s;
-- `picked` tells an explicit pick from the catalog's own first row, which is nobody's choice;
+- `picked` names the recipe `c` chose, and stands only while that recipe is still the choice;
 - there is no second build path, no direct load and no new sentence on the bus.
 
-PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`;
-`workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
+PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
+`choose_recipe`; `workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
 `ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
 `"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
 `"BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier"`, case
-`"BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes"`.
+`"BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes"`, case
+`"BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries no pick of another recipe"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable

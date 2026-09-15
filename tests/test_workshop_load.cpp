@@ -4744,6 +4744,11 @@ TEST_CASE("RELOAD-1: every Loom reload refusal has a maker's sentence, and an un
         {"open failed: dlopen said no", "did not open"},
         {"library create() returned null", "produced no weave"},
         {"new library refused: no host", "refused to construct"},
+        // ...and the one a maker meets by editing a state field without bumping its version:
+        // the registry refuses the new library's shape before any state is compared.
+        {"new library refused: schema 'TallyState' v1 is already published with a different "
+         "shape (published schemas are immutable)",
+         "changed a shape but kept its name and version"},
         {"snapshot of the live weave failed: bad", "could not be snapshotted"},
         {"revive after swap was refused", "could not take the saved state"},
         {"the reload ended a prepared replacement that had bound this weave as its candidate",
