@@ -137,7 +137,7 @@ realize  REFUSED -- the build failed, so nothing was offered to the project
 
 and Attention keeps running the code it had. Your edit is still in the file, saved.
 
-**Press `l` (*read output*).** The Builder shows that build's own lines, the way the compiler wrote
+**Press `l` (*read output*).** The Builder shows that build's own lines, the way the build wrote
 them, with a header saying which build they belong to:
 
 ```
@@ -172,7 +172,8 @@ What the reader shows, and what it does not:
 - **It is spelled in what the screen can draw.** A compiler's curly quotes and dashes are shown as
   their plain ASCII twins, any other character that cannot be drawn as `?`, and colour codes not at
   all — and the header counts them. A path, a line and column and the caret line under the source
-  read exactly as written.
+  read exactly as written. On Windows, Ninja re-encodes the non-ASCII characters it passes on, so
+  a compiler's quotes can arrive as other characters and read as `?`.
 
 **A build that worked and a load that was refused are two answers.** Take one message out of the
 `loom::Accept<…>` list near the top of `attention-pane/pane.cpp` — `PaneActionRequested`, say —

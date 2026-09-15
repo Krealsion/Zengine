@@ -199,7 +199,9 @@ key. Detail in [Builder](builder.md).
 **A build's own words are read in the Builder, from memory.** `l` shows what a build said, bound
 to that build. The build tool keeps only its last few operations, and of a long build the
 beginning and the end with the middle counted; nothing is written to a file, searched, or kept
-across a restart, and a row shows what a canvas can draw of a compiler's characters, counted.
+across a restart, and a row shows what a canvas can draw of a compiler's characters, counted. On
+Windows, Ninja has already re-encoded a compiler's non-ASCII characters by the time Workshop reads
+them, so its quotes read as `?`.
 [Reading what a build said](builder.md#reading-what-a-build-said).
 
 **Workshop's own panes are changed from inside Workshop only through a development setup** — a

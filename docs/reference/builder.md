@@ -250,9 +250,11 @@ the process to the tool, and kept there by the operation that said it.
 - **A status's `detail` is the tail that says something.** It is the last lines of the output
   that are not blank, joined with ` | `, so a CMake error's two trailing blank lines do not spend
   it.
-- **What a presentation shows is its own spelling.** The kept bytes are the process's. A pane
-  that shows them spells each row in what its canvas can draw and says how many characters it
-  spelled (`workshop/pane_text.hpp` `ascii_spelling`); the tool's record is never changed by that.
+- **What a presentation shows is its own spelling.** The kept bytes are the process's: what the
+  build wrote to the runner's pipe, after whatever the tools it runs did to them (on Windows, Ninja
+  re-encodes non-ASCII output it passes on). A pane that shows them spells each row in what its
+  canvas can draw and says how many characters it spelled (`workshop/pane_text.hpp`
+  `ascii_spelling`); the tool's record is never changed by that.
 
 ## What is not here
 
