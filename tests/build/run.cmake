@@ -447,8 +447,16 @@ if(broke_code EQUAL 0)
 endif()
 zen_expect("${broke}" "compile or link FAILED"
            "the driver did not tell a compile failure from a configure failure")
-zen_expect("${broke}" "this_symbol_does_not_exist_anywhere"
-           "the compiler's own diagnostic did not reach the maker")
+# THE COMPILER'S REASON REACHES THE MAKER THROUGH WHAT THE BUILD SAID, KEPT BY ITS OPERATION --
+# the page the Builder's reader shows (WL-OUT-02), which the witness asks for once the build has
+# ended -- and not through a status's last lines, which the driver's own footer spends.
+string(REGEX MATCH "witness: said: [^\n]*this_symbol_does_not_exist_anywhere" zen_reason
+       "${broke}")
+if(NOT zen_reason)
+    message(FATAL_ERROR "build witness: the compiler's own diagnostic did not reach the maker "
+                        "through the build's kept output\n  expected a `witness: said:` line "
+                        "naming: this_symbol_does_not_exist_anywhere")
+endif()
 zen_expect("${broke}" "RESULT build=FAILED" "a compile error was not reported as a failure")
 zen_expect_not("${broke}" "realization=realized" "a failed build was realized")
 zen_expect_not("${broke}" "realization=offered" "a failed build offered its artifact")
