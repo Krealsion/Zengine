@@ -25,6 +25,7 @@
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
+#include "workshop/pane_text.hpp"
 #include "workshop/provenance.hpp"
 
 #include <filesystem>
@@ -74,24 +75,42 @@ inline bld::Recipe target_recipe(const std::string& id, const std::string& artif
 }
 
 /// A STAND-IN FOR THE BUILDER TOOL: it answers the pane's status ask with the catalog a case
-/// set, which is all a pane needs to hold a recipe choice. The real tool is `test_builder.cpp`'s.
+/// set and the picture it holds, keeps every build asked of it with its realize intention, and
+/// says its picture again when a case settles a build. The real tool is `test_builder.cpp`'s.
 struct CodeToolState {
     std::int64_t answered = 0;
     ZEN_SHAPE(CodeToolState, 1, ZEN_FIELD(answered));
 };
 
-class CodeTool : public loom::WeaveBase<CodeTool, CodeToolState,
-                                        loom::Accept<bld::StatusRequested, bld::BuildRequested>,
-                                        loom::Emit<bld::BuildStatus, bld::RecipeCatalog>> {
+class CodeTool
+    : public loom::WeaveBase<CodeTool, CodeToolState,
+                             loom::Accept<bld::StatusRequested, bld::BuildRequested, SeatDo>,
+                             loom::Emit<bld::BuildStatus, bld::RecipeCatalog>> {
 public:
     bld::RecipeCatalog catalog{};
+    bld::BuildStatus status{};
     std::vector<std::string> builds;
+    std::vector<bool> realizes;
     void on(const bld::StatusRequested&, loom::Mail& mail) {
         ++state_.answered;
         (void)mail.publish(catalog);
-        (void)mail.publish(bld::BuildStatus{});
+        (void)mail.publish(status);
     }
-    void on(const bld::BuildRequested& asked, loom::Mail&) { builds.push_back(asked.recipe); }
+    /// A BUILD TAKEN IS NOT A BUILD SETTLED: the picture says `asked`, as the real tool's does, so
+    /// the pane keeps watching until a case settles it on the tool's own beat.
+    void on(const bld::BuildRequested& asked, loom::Mail& mail) {
+        builds.push_back(asked.recipe);
+        realizes.push_back(asked.realize);
+        status = bld::BuildStatus{};
+        status.recipe = asked.recipe;
+        status.realize = asked.realize;
+        status.builds = static_cast<std::int64_t>(builds.size());
+        status.outcome = bld::outcome::kAsked;
+        status.realization = asked.realize ? bld::realization::kAsked : bld::realization::kNotAsked;
+        (void)mail.publish(status);
+    }
+    /// SAY THE PICTURE UNASKED -- how the real tool republishes once a build settles.
+    void on(const SeatDo&, loom::Mail& mail) { (void)mail.publish(status); }
 };
 
 /// WHOEVER HEARS WHAT WORKSHOP PUBLISHES ABOUT AN OPENED PANE SOURCE, and as whom it was said.
@@ -154,6 +173,7 @@ struct CodeRig {
     std::string marks_path;
     PaneRig r;
     CodeTool* tool = nullptr;
+    loom::WeaveId tool_id{};
     SourceWatch* watch = nullptr;
     loom::WeaveId watch_id{};
     DoorAsker* asker = nullptr;
@@ -174,6 +194,57 @@ struct CodeRig {
         const loom::WeaveId id =
             r.bus.register_weave(std::move(held), std::move(say), std::string(bld::kBuilderRole));
         tool->zen_set_self(id);
+        tool_id = id;
+    }
+
+    /// THE LAST BUILD SETTLES: the tool's picture says how the build and its realization ended,
+    /// about the artifact named, and the tool says it unasked, as the real one does.
+    void settle(std::int64_t outcome, std::int64_t realization, const std::string& artifact) {
+        tool->status.outcome = outcome;
+        tool->status.realization = realization;
+        tool->status.artifact = artifact;
+        (void)r.bus.send(tool_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+    }
+
+    /// EVERY BUILD THE TOOL WAS ASKED FOR, in order, with its intention -- the words of a failure.
+    std::string sent() const {
+        std::string out;
+        for (std::size_t i = 0; i < tool->builds.size(); ++i) {
+            out += (out.empty() ? "" : ", ") + tool->builds[i] +
+                   (tool->realizes[i] ? " (realize)" : " (plain)");
+        }
+        return out.empty() ? std::string("none") : out;
+    }
+
+    /// A LETTER OF THE BUILDER'S OWN ROWS, as a backend reports one: the key, then its character.
+    void letter(std::int64_t scancode, const char* typed) {
+        r.key(scancode);
+        r.text(typed);
+    }
+
+    /// GIVE THE BUILDER AN AUTHORED WIDTH, so a sentence longer than its default room can be read
+    /// whole; a new surface extent is the repaint that grants the pane its new room.
+    void widen_builder(std::int64_t cells) {
+        const Written wrote =
+            author_pane_size(r.session().setup.active, builder_ref(),
+                             PaneSize{pane_unit::kSubcells, subs(cells)}, PaneSize{});
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        r.extent(cells + 60, 64);
+        const ExternalPane* seat = r.session().panels.external_pane(kind_of(builder_ref()));
+        REQUIRE(seat != nullptr);
+        REQUIRE(seat->columns >= cells - 4);
+    }
+
+    /// THE BUILDER'S ROW THAT BEGINS WITH `head`, whole as painted -- or empty.
+    std::string builder_row(const char* head) {
+        for (const std::string& row : rows_of(builder_ref())) {
+            if (row.rfind(head, 0) == 0) {
+                return row;
+            }
+        }
+        return std::string();
     }
 
     /// THE CATALOG IN FORCE: held by the host's recipe owner, and published by the tool as the
@@ -829,6 +900,220 @@ TEST_CASE("the Builder's choice from Edit Code is not a pick between producers: 
     CHECK(c.tool->builds.empty());
     CHECK(c.text_of(builder_ref()).find("2 recipes produce `zengine-example-tally`") !=
           std::string::npos);
+}
+
+TEST_CASE("a pick of another recipe does not follow Edit Code's choice: the frontier action still asks between producers") {
+    CodeRig c("code-stale-pick");
+    c.hold({single_recipe("tally-a", kTallyStem, c.source), target_recipe("skin", "zengine-skin")});
+    c.open();
+
+    // AN EXPLICIT PICK, BY THE BUILDER'S OWN `c`: from the catalog's first row to the skin.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kC, "c");
+    REQUIRE(c.text_of(builder_ref()).find("skin -> zengine-skin  (2/2)") != std::string::npos);
+
+    // EDIT CODE ON TALLY: the open takes, and the Builder's choice moves to `tally-a`.
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(c.notice().find("opened the source of Tally") != std::string::npos);
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (1/2)") !=
+            std::string::npos);
+
+    // A SECOND PRODUCER OF TALLY'S ARTIFACT JOINS THE RECIPES THERE WERE, AND THE PROJECT WAITS ON IT.
+    const std::filesystem::path other = c.root / "tally_b.cpp";
+    put_bytes(other, std::string("int b;") + '\n');
+    c.hold({single_recipe("tally-a", kTallyStem, c.source), target_recipe("skin", "zengine-skin"),
+            single_recipe("tally-b", kTallyStem, spelled(other))});
+    c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.r.extent(210, 64); // a new room: the Builder asks the tool again and hears all three
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (1/3)") !=
+            std::string::npos);
+
+    // THE PICK NAMED THE SKIN, AND THE CHOICE LEFT IT: nothing the maker picked stands between the two.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kF, "f");
+    INFO("builds sent: ", c.sent());
+    CHECK(c.tool->builds.empty());
+    CHECK(c.text_of(builder_ref()).find("2 recipes produce `zengine-example-tally` (`tally-a`, "
+                                        "`tally-b`)") != std::string::npos);
+}
+
+TEST_CASE("a pick of the recipe Edit Code chose still stands: the frontier action builds it without another pick") {
+    CodeRig c("code-same-pick");
+    c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally-a", kTallyStem, c.source)});
+    c.open();
+
+    // THE MAKER PICKS `tally-a` THEMSELVES, and then Edit Code on Tally chooses the same recipe.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kC, "c");
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (2/2)") !=
+            std::string::npos);
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(c.notice().find("opened the source of Tally") != std::string::npos);
+
+    const std::filesystem::path other = c.root / "tally_b.cpp";
+    put_bytes(other, std::string("int b;") + '\n');
+    c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally-a", kTallyStem, c.source),
+            single_recipe("tally-b", kTallyStem, spelled(other))});
+    c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.r.extent(210, 64);
+    REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (2/3)") !=
+            std::string::npos);
+
+    // THE PICK NAMES THE RECIPE STILL CHOSEN, SO IT IS SPENT: one build, with the load aboard.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kF, "f");
+    REQUIRE(c.tool->builds.size() == 1);
+    CHECK(c.tool->builds[0] == "tally-a");
+    CHECK(c.tool->realizes[0]);
+}
+
+TEST_CASE("the Builder's words after Edit Code promise no reload: an owner's refusal stands alone, and an eligible pane still reads how to build it") {
+    SUBCASE("the realization owner refuses a reload in place for this artifact") {
+        CodeRig c("code-no-promise");
+        c.hold({single_recipe("tally", kTallyStem, c.source)});
+        c.open();
+        // THE OWNER'S ANSWER, CONTROLLED: the real holder, artifact, recipe and source, with the
+        // reload rule of a realized row that loaded a weave AND mounted an operator provider. The
+        // example exports no provider; this is the owner's word supplied, not Tally's.
+        const std::function<HostContext::CodeSource(const std::string&)> real =
+            c.r.host.code_source;
+        c.r.host.code_source = [real](const std::string& office) {
+            HostContext::CodeSource code = real(office);
+            if (!code.artifact.empty()) {
+                load::ResolvedArtifact row;
+                row.stem = code.artifact;
+                row.weave_loaded = true;
+                row.provider_mounted = true;
+                code.reload = load::reload_refusal(row);
+            }
+            return code;
+        };
+        c.point_at(tally_ref());
+        c.choose_edit_code();
+        c.widen_builder(180);
+
+        CHECK(c.notice().find("a rebuild will not reload in place: artifact "
+                              "'zengine-example-tally' also supplies operators") !=
+              std::string::npos);
+        const std::string said = c.builder_row("build recipe: ");
+        INFO("the Builder's row: ", said);
+        INFO("Workshop's notice: ", c.notice());
+        REQUIRE(said.find("build recipe: tally -> zengine-example-tally -- the source of Tally is "
+                          "open in the Editor") != std::string::npos);
+        CHECK(said.find(pane_text::kElided) == std::string::npos); // read whole
+        CHECK(said.find("in place") == std::string::npos);
+        CHECK(said.find("reloads") == std::string::npos);
+        CHECK(c.tool->builds.empty());
+    }
+    SUBCASE("the ordinary eligible example") {
+        CodeRig c("code-eligible-words");
+        c.hold({single_recipe("tally", kTallyStem, c.source)});
+        c.open();
+        c.point_at(tally_ref());
+        c.choose_edit_code();
+        c.widen_builder(180);
+
+        CHECK(c.notice().find("save, then build it in the Builder with load after build, and Tally "
+                              "reloads in place") != std::string::npos);
+        const std::string said = c.builder_row("build recipe: ");
+        INFO("the Builder's row: ", said);
+        CHECK(said.find(pane_text::kElided) == std::string::npos);
+        CHECK(said.find("save it, then build (load after build: off)") != std::string::npos);
+        CHECK(c.tool->builds.empty());
+    }
+}
+
+TEST_CASE("load after build stays as the maker set it across Edit Code: the Builder says which, and the next loop's b alone offers its build") {
+    CodeRig c("code-standing-arm");
+    c.hold({single_recipe("tally", kTallyStem, c.source)});
+    c.open();
+    c.widen_builder(180);
+
+    // THE FIRST LOOP OF A RUN: Edit Code, and the Builder says load after build is off.
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    CHECK(c.builder_row("build recipe: ").find("(load after build: off)") != std::string::npos);
+    c.press_into(builder_ref());
+    c.r.key(input::scan::kB, input::mod::kShift);
+    CHECK(c.builder_row("load after build: ").rfind("load after build: on", 0) == 0);
+    c.letter(input::scan::kB, "b");
+    REQUIRE(c.tool->realizes.size() == 1);
+    CHECK(c.tool->realizes[0]);
+    c.settle(bld::outcome::kSucceeded, bld::realization::kRealized, kTallyStem);
+    // ...WHERE THE REALIZE ROW NOW SAYS WHAT THE LOAD DID, and not whether the switch is on.
+    CHECK(c.builder_row("realize  ").rfind("realize  realized", 0) == 0);
+
+    // THE NEXT LOOP: Edit Code again, and the Builder's words say the switch the maker left on.
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(c.notice().find("opened the source of Tally") != std::string::npos);
+    CHECK(c.builder_row("build recipe: ").find("(load after build: on)") != std::string::npos);
+    c.press_into(builder_ref());
+
+    SUBCASE("b alone offers the build") {
+        c.letter(input::scan::kB, "b");
+        INFO("builds sent: ", c.sent());
+        REQUIRE(c.tool->realizes.size() == 2);
+        CHECK(c.tool->realizes[1]);
+        // ...AND WHILE IT RUNS THE REALIZE ROW SAYS A LOAD WAS ASKED FOR.
+        CHECK(c.builder_row("realize  ").rfind("realize  asked", 0) == 0);
+    }
+    SUBCASE("Shift+b first turns it off, says so, and b then only builds") {
+        c.r.key(input::scan::kB, input::mod::kShift);
+        CHECK(c.builder_row("load after build: ").rfind("load after build: off", 0) == 0);
+        c.letter(input::scan::kB, "b");
+        INFO("builds sent: ", c.sent());
+        REQUIRE(c.tool->realizes.size() == 2);
+        CHECK_FALSE(c.tool->realizes[1]);
+        CHECK(c.builder_row("realize  ").rfind("realize  -- (load-after-build arms it)", 0) == 0);
+    }
+}
+
+TEST_CASE("a finished build left unloaded keeps its button through Edit Code: it loads that build's own recipe, and b first makes it the chosen recipe's") {
+    CodeRig c("code-ready-face");
+    c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally", kTallyStem, c.source)});
+    c.open();
+    c.widen_builder(180);
+
+    // A PLAIN BUILD OF THE CATALOG'S FIRST ROW, finished and loaded by nobody.
+    c.press_into(builder_ref());
+    c.letter(input::scan::kB, "b");
+    REQUIRE(c.tool->builds.size() == 1);
+    REQUIRE(c.tool->builds[0] == "skin");
+    REQUIRE_FALSE(c.tool->realizes[0]);
+    c.settle(bld::outcome::kSucceeded, bld::realization::kNotAsked, "zengine-skin");
+    REQUIRE(c.builder_row("realize  ").find("(load-after-build loads zengine-skin now)") !=
+            std::string::npos);
+
+    // EDIT CODE CHOOSES TALLY'S RECIPE, AND THE ROW STILL NAMES THE BUILD THAT IS READY.
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(c.builder_row("recipe   ").find("tally -> zengine-example-tally") != std::string::npos);
+    CHECK(c.builder_row("realize  ").find("(load-after-build loads zengine-skin now)") !=
+          std::string::npos);
+    c.press_into(builder_ref());
+
+    SUBCASE("Shift+b is the button, and it spends the finished build's recipe, not the choice") {
+        c.r.key(input::scan::kB, input::mod::kShift);
+        REQUIRE(c.tool->builds.size() == 2);
+        CHECK(c.tool->builds[1] == "skin");
+        CHECK(c.tool->realizes[1]);
+    }
+    SUBCASE("b builds the chosen recipe, and then the button names and loads that one") {
+        c.letter(input::scan::kB, "b");
+        REQUIRE(c.tool->builds.size() == 2);
+        CHECK(c.tool->builds[1] == "tally");
+        CHECK_FALSE(c.tool->realizes[1]);
+        c.settle(bld::outcome::kSucceeded, bld::realization::kNotAsked, kTallyStem);
+        REQUIRE(c.builder_row("realize  ").find("(load-after-build loads zengine-example-tally now)") !=
+                std::string::npos);
+        c.r.key(input::scan::kB, input::mod::kShift);
+        REQUIRE(c.tool->builds.size() == 3);
+        CHECK(c.tool->builds[2] == "tally");
+        CHECK(c.tool->realizes[2]);
+    }
 }
 
 TEST_CASE("Edit Code bound to a key in command mode names no pane, says where the gesture lives, and opens nothing") {

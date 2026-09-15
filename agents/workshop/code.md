@@ -74,18 +74,31 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-04 — The Builder pane follows Workshop's reading by recipe name, and nothing more
 
-LAW — Hearing `PaneSourceOpened` as Workshop's office, the Builder pane chooses its recipe and says so; it writes no `picked`, sends no build, and ignores the shape from any other office.
+LAW — Hearing `PaneSourceOpened` as Workshop's office, the Builder pane chooses its recipe and says so with its own load after build; no pick follows, no build is sent, and other offices are ignored.
 
 MEANS
+- a pick of another recipe stops standing, as the choice left it; a pick of this recipe stands;
 - a catalog the pane heard that lacks the recipe is a disagreement said, and nothing is chosen;
 - a catalog not yet heard takes the name, which its arrival keeps or releases (WL-PROJ-07).
 
-PROVEN BY — `builder-pane/pane.cpp` `on(PaneSourceOpened)`; `builder-pane/vocabulary.hpp`
-`BuilderPaneState::chosen`; `tests/test_workshop_panes_code.cpp` case `"the Builder pane follows
-an opened pane source only when Workshop's office said so"`, case `"Edit Code opens the pointed
+DOES NOT MEAN
+- that the next build reloads the pane: eligibility is the owner's, and Workshop's notice says it;
+- that a finished build's button now loads this recipe: it loads the build that finished.
+
+PROVEN BY — `builder-pane/pane.cpp` `on(PaneSourceOpened)`, `finish_frontier_build`,
+`build_realize`; `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`,
+`BuilderPaneState::arm`; `tests/test_workshop_panes_code.cpp` case `"the Builder pane follows an
+opened pane source only when Workshop's office said so"`, case `"Edit Code opens the pointed
 pane's one source through the opening office, and the Builder follows its recipe"`, case `"the
 Builder's choice from Edit Code is not a pick between producers: the frontier action still
-asks"`.
+asks"`, case `"a pick of another recipe does not follow Edit Code's choice: the frontier action
+still asks between producers"`, case `"a pick of the recipe Edit Code chose still stands: the
+frontier action builds it without another pick"`, case `"the Builder's words after Edit Code
+promise no reload: an owner's refusal stands alone, and an eligible pane still reads how to build
+it"`, case `"load after build stays as the maker set it across Edit Code: the Builder says which,
+and the next loop's b alone offers its build"`, case `"a finished build left unloaded keeps its
+button through Edit Code: it loads that build's own recipe, and b first makes it the chosen
+recipe's"`.
 WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## Do not assume
