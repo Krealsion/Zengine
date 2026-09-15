@@ -164,7 +164,7 @@ nothing:
 
 | the notice starts | because | what to do |
 |---|---|---|
-| `no build recipe produces …, the artifact behind …` | no recipe in the catalog makes the artifact that pane runs from — every pane Zengine itself ships, before you write one | author a recipe for its source with `a` in Files |
+| `no build recipe produces …, the artifact behind …` | no recipe in the catalog makes the artifact that pane runs from | for a one-file pane of your own, author its recipe with `a` in Files. Every pane Zengine ships says this too, and there is no recipe to author for those yet ([below](#what-this-does-not-do)) |
 | `2 recipes build …` | several recipes make that artifact, and choosing between them is yours | choose one in the Builder with `c`, then `e` there opens its source |
 | `recipe … is a cmake_target recipe` | that recipe builds an existing CMake target, which names a build tree, not one file | open the file you mean from Files |
 | `… is part of Workshop itself` | the pane is one Workshop draws | there is no separate code to open |
