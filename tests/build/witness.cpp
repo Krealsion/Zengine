@@ -68,6 +68,7 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -400,7 +401,8 @@ int main(int argc, char** argv) {
     loom::Switchboard bus;
     op::Catalog operators;
     op::OperatorHostSurface operator_host(operators);
-    loom::Kernel kernel(bus);
+    loom::Kernel kernel(
+        bus, loom::trust_every_artifact("this witness loads only what it just built"));
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
