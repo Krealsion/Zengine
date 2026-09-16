@@ -35,6 +35,7 @@
 #include <zen/history/logger.hpp>
 #include <zen/history/recorder.hpp>
 #include <zen/host/terminal_wiring.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
@@ -820,7 +821,30 @@ int main(int argc, char** argv) {
 
     op::OperatorHostSurface operator_host(operators);
 
-    loom::Kernel kernel(bus);
+    // ---- WHAT AN AUTHORED PLAN'S ARTIFACTS MAY DO ----------------------------
+    //
+    // The Loom no longer mints a grant for anything it can open. `Kernel::load` asks
+    // the host's admission policy, and a Kernel nobody configured admits nothing --
+    // so this line is where Workshop's posture toward its own plan stops being the
+    // Kernel's silence and becomes Workshop's sentence.
+    //
+    // IT SAYS EXACTLY WHAT WAS TRUE BEFORE, OUT LOUD. Every artifact this host loads
+    // arrives by an authored plan row that named a path, and the authority it gets is
+    // the permissive bus sends the Kernel used to bind invisibly. Nothing about what
+    // any pane or tool may say has changed, and nothing was narrowed by stealth.
+    //
+    // AND IT IS NOT WHERE THE REAL DECISION BELONGS. The plan row is a request at
+    // best -- editing a text file gives no power -- and the shape this wants is a row
+    // that carries what its artifact is asking for, decided by a policy seat the maker
+    // can see and overrule. That is Workshop's grammar to design, not the Loom's to
+    // impose, and it is tracked as its own work. Until it exists, this string is the
+    // honest statement of the trust this host is extending, in the one place a reader
+    // will look for it.
+    loom::Kernel kernel(bus,
+                        loom::trust_every_artifact(
+                            "Workshop admits every artifact its authored load plan names; "
+                            "a per-row request and a maker-visible policy seat are the "
+                            "shape this is waiting for"));
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 

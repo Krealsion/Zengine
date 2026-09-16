@@ -54,6 +54,7 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -335,7 +336,10 @@ int main() {
     std::fflush(stdout);
 
     loom::Switchboard bus;
-    loom::Kernel kernel(bus);
+    // The demo loads exactly the artifacts its own build just produced, so it says
+    // so rather than relying on a default the Loom no longer has.
+    loom::Kernel kernel(
+        bus, loom::trust_every_artifact("the snake demo loads only its own build output"));
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
