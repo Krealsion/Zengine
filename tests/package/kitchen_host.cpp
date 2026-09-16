@@ -32,6 +32,7 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -155,7 +156,8 @@ int main(int argc, char** argv) {
     }
 
     loom::Switchboard bus;
-    loom::Kernel kernel(bus);
+    loom::Kernel kernel(
+        bus, loom::trust_every_artifact("this witness loads only what it just built"));
     // WHAT THE OBSERVER SAW, kept so the program can answer for it rather than leaving a
     // human to read stderr. Nothing here interprets: it counts refusals and remembers the
     // last one's shape and address exactly as Loom reported them.
