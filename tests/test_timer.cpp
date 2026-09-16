@@ -62,6 +62,7 @@
 #include <vector>
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -542,7 +543,8 @@ struct CaughtLetter {
 
 struct Rig {
     loom::Switchboard bus;
-    loom::Kernel kernel{bus};
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
     Seen seen;
@@ -3196,7 +3198,8 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
     // would wait forever, on a working bus, and the operator would see a load
     // that succeeded and a service that never spoke.
     loom::Switchboard bus;
-    loom::Kernel kernel{bus};
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
     const loom::WeaveId control = loom::mount_control(kernel, bus);
 
     Seen seen;

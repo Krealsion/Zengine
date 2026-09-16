@@ -50,6 +50,7 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -601,7 +602,8 @@ struct ProviderRig {
     loom::Switchboard bus;
     op::Catalog catalog;
     op::OperatorHostSurface operators{catalog};
-    loom::Kernel kernel{bus};
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
 };
@@ -1050,7 +1052,11 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
 
     const std::size_t catalog = host.find("op::Catalog operators;");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
-    const std::size_t kernel = host.find("loom::Kernel kernel(bus)");
+    // The DECLARATION, not its argument list. The Kernel now names the host's
+    // admission policy at construction, so the arguments wrap -- and the claim here
+    // is an order of declaration, which a tripwire that also pinned a line width
+    // would stop being about.
+    const std::size_t kernel = host.find("loom::Kernel kernel(");
     const std::size_t executor = host.find("load::PlanExecutor executor(");
     const std::size_t run = host.find("executor.begin(read_plan.plan)");
     REQUIRE(catalog != std::string::npos);

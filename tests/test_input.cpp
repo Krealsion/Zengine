@@ -43,6 +43,7 @@
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
 #include <zen/kernel/control.hpp>
+#include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -286,7 +287,8 @@ private:
 
 struct Rig {
     loom::Switchboard bus;
-    loom::Kernel kernel{bus};
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
     Seen seen;
