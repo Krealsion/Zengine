@@ -1613,13 +1613,50 @@ builder                           doctest           always  59
 
 workshop_document                 doctest           always  104
 workshop_screen                   doctest           always  173
-workshop_panels                   doctest           always  113
-workshop_panes                    doctest           always  553
+# EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
+# workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the
+# shape of the work: the Terminal pane's own interaction, one completer unit case, and two Neovim
+# profile cases of which one needs no Neovim at all.
+#
+#   workshop_panes   553 -> 581  the seam, the same rig. HISTORY (10), in
+#                                `test_workshop_panes_terminal.cpp`: the founder's own witness
+#                                (empty line, Up, Up, Enter runs nothing until the next Enter), the
+#                                Tab analogue, the four ways another key leaves a recall, the ends
+#                                of history, Escape's cancel, a composed command keeping the arrows
+#                                for its list, commands-only and eviction, undo and a copy after a
+#                                lock, a paste that does not land in a recalled line, and a
+#                                completion answer no recall or lock may take though the bytes
+#                                match. READING THE RECORD (10): a long entry read whole by
+#                                scrolling, both markers, new output while reading, three ways back
+#                                to the newest, a resize re-wrapping under the entry being read, the
+#                                entry being read evicted, eight small rooms, a list growing under a
+#                                scrolled view, the wheel, and reading keys leaving a recall alone.
+#                                DISCOVERY (3): the offices and weaves on the bus with what each is
+#                                and a reading per ask, a removed id refused by Loom and not
+#                                retargeted, an office reaching its holder at delivery. ESCAPE (5):
+#                                the Terminal's layers and a word the maker typed past
+#                                (`..._terminal.cpp`), a pane keeping Escape until it says the
+#                                Escape was unspent and the three words that move nothing
+#                                (`..._input.cpp`), and a pane with no key door put down by Escape
+#                                (`..._attention.cpp`).
+#   workshop_panels  113 -> 114  the completer over a value: the address offering everyone, the
+#                                offices held now and the weaves registered now, each with what it
+#                                is, filtered by what has been typed.
+#   workshop_neovim  7 -> 8      always: a profile that is neither `clean` nor `user` and names no
+#                                init file refuses the switch before any Neovim starts, naming the
+#                                variable and where it looked -- measured against a real Neovim's
+#                                own `E282`, and provable with the fixture.
+#   workshop_neovim  10 -> 12    behind the gate: the profile a maker names is the configuration
+#                                that runs and the pane says which one, and Escape in the Neovim
+#                                pane is Neovim's with the pane still selected.
+#
+workshop_panels                   doctest           always  114
+workshop_panes                    doctest           always  581
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  143
 workshop_editor_switch            doctest           always  11
-workshop_neovim                   doctest           always  7
-workshop_neovim                   doctest           neovim  10
+workshop_neovim                   doctest           always  8
+workshop_neovim                   doctest           neovim  12
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
