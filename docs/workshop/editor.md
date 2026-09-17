@@ -4,6 +4,10 @@
 it like an ordinary text document, save exactly what you meant to save, and continue through
 the existing build-and-realize loop without leaving the application.
 
+**Neovim can be the Editor instead.** Both shipped plans author a second editor for the same
+office, and a maker switches between them while working, carrying the document: see
+[Neovim in Workshop](neovim.md). This page is the standard Editor.
+
 The Editor is a **loaded pane** (`zengine-editor-pane`, named by both shipped load plans), like
 Files, the Builder and the Terminal. It arrives in the picker (`p`) as `Editor`, is moved,
 resized, covered and removed like any other pane, and its row in a saved setup comes back like

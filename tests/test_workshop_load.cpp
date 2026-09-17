@@ -1180,6 +1180,11 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[12].weave.has_value());
     CHECK(p.artifacts[12].weave->role == "zengine.editor");
     CHECK_FALSE(p.artifacts[12].provider.has_value());
+    // ...AND THE EDITOR'S OFFICE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
+    // and the Neovim-backed one, which is loaded only when a maker switches to it.
+    REQUIRE(p.choices.size() == 2);
+    CHECK(p.choices[0] == load::ChoiceIntent{"zengine.editor", "standard", "zengine-editor-pane"});
+    CHECK(p.choices[1] == load::ChoiceIntent{"zengine.editor", "neovim", "zengine-neovim-editor"});
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row

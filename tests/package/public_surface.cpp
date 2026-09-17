@@ -4,7 +4,7 @@
 // EVERY EXPORTED TARGET AND EVERY INSTALLED PUBLIC HEADER, USED FROM OUTSIDE.
 //
 // The oven proves one capability end to end. This proves the other eight exist as more than
-// a line in an export set: it includes all twenty-six installed headers, links all nine
+// a line in an export set: it includes all twenty-seven installed headers, links all ten
 // exported targets, and does something real with each -- so a header that quietly stopped
 // being self-contained, a target that lost a dependency it needed, or a package installed
 // with a piece missing fails HERE rather than for the first stranger who reaches for it.
@@ -19,6 +19,8 @@
 #include "input/input_weave.hpp"
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
+
+#include "neovim-editor/vocabulary.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
@@ -209,6 +211,18 @@ void pane_surface() {
     check(actions.rows.front().id == "tally.add", "a declared action is an id a keymap can move");
 }
 
+// ---- zengine::neovim -------------------------------------------------------------------
+void neovim_surface() {
+    namespace nve = zengine::neovim_editor;
+    const nve::NeovimStartRequested start{"notes.txt", std::string()};
+    check(start.path == "notes.txt", "a start names the file Neovim opens");
+    check(std::string(nve::NeovimStartRequested::zen_name) == "NeovimStartRequested",
+          "the ask is spelled as a console types it");
+    const nve::NeovimStopRequested stop{true};
+    check(stop.discard, "a stop can say to lose unsaved work");
+    check(std::string(nve::kEditorOffice) == "zengine.editor", "it answers at the Editor's office");
+}
+
 } // namespace
 
 int main() {
@@ -221,11 +235,12 @@ int main() {
     component_surface();
     operator_surface();
     pane_surface();
+    neovim_surface();
 
     if (failures != 0) {
         std::fprintf(stderr, "public surface: %d check(s) failed\n", failures);
         return 1;
     }
-    std::printf("public surface: nine exported targets used, twenty-six headers included\n");
+    std::printf("public surface: ten exported targets used, twenty-seven headers included\n");
     return 0;
 }
