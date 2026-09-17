@@ -145,26 +145,47 @@ std::int64_t WorkshopWeave::keyboard_pane() const {
     return zengine::workshop::keyboard_pane(session_.panels);
 }
 
-// WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
+// WL-KEY-15 -- agents/workshop/keyboard.md; WL-ARR-16 -- agents/workshop/arrangement.md
+bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                                  loom::Mail& mail) {
     const RuntimePane* row = session_.panels.runtime.of_kind(kind);
     if (row == nullptr) {
-        return;
+        return false;
     }
+    const bool escape = k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone;
+    // THIS ESCAPE'S OWN NUMBER, and only an Escape gets one: it is the identity an answer has
+    // to echo, carried in Loom's envelope the way a relay carries a forwarded ask's (the
+    // settlement pair -- WHICH conversation, and WHO is speaking). Nothing else about the
+    // keystroke changes, and no published shape gains a field.
+    const std::uint64_t answering = escape ? ++escape_asks_ : 0;
     // THE PANE'S OWN ROWS FIRST, against the EFFECTIVE map -- the maker's override where
     // one is authored, the pane's default otherwise. A match crosses as the id and NOT as
     // the key: one keystroke, one sentence, and the pane acts on a name.
     if (const PaneRow* action =
             session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
         (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider, PaneActionRequested{row->pane, action->id});
+            .send_to_role(row->provider, PaneActionRequested{row->pane, action->id}, answering);
         note_routed(kind);
-        return;
+        if (escape) {
+            escape_sent_ = EscapeSent{kind, gestures_, answering};
+        }
+        return true;
+    }
+    // AN ESCAPE NOTHING ON THE FAR SIDE COULD SPEND: the office's holder accepts no key and the
+    // pane declared no row for it, so a send would only be refused at Loom's gate. That is the
+    // holder's own declaration read off the bus -- not a guess from silence -- and the key is
+    // this host's to answer. A host that cannot say sends it as before.
+    if (escape && host_->holder_accepts &&
+        !host_->holder_accepts(row->provider, *loom::schema_of<PaneKey>())) {
+        return false;
     }
     (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers});
+        .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers}, answering);
     note_routed(kind);
+    if (escape) {
+        escape_sent_ = EscapeSent{kind, gestures_, answering};
+    }
+    return true;
 }
 
 void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
@@ -183,6 +204,38 @@ void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::Poin
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneWheel{row->pane, w.dx, w.dy});
     note_routed(kind);
+}
+
+// WL-ARR-15 -- agents/workshop/arrangement.md
+void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return;
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, said.pane);
+    if (row == nullptr) {
+        return; // a pane this office never offered is no pane of the desk's
+    }
+    const std::int64_t kind = row->kind;
+    // THE PARTICULAR ESCAPE THIS ANSWERS, FIRST. Matching current state cannot identify the
+    // event being answered: a second Escape leaves this pane selected, typed into and the
+    // maker's latest gesture all over again, and the first Escape's answer would be spent on
+    // the second's record. The number is the one this host minted for that one keystroke, so
+    // an answer to an Escape that is over matches nothing -- and zero, which is what an
+    // answer echoing nothing carries, is never an Escape.
+    if (mail.correlation() == 0 || mail.correlation() != escape_sent_.answering) {
+        return;
+    }
+    // STILL THE MAKER'S LATEST GESTURE, INTO THIS PANE, WHICH STILL HAS THE DESK AND THE KEYS.
+    // A key, text, press or wheel since leaves this about an Escape that is no longer what the
+    // maker did last, and putting a pane down under a later gesture would act on a stale word.
+    if (escape_sent_.kind != kind || escape_sent_.gesture != gestures_ ||
+        session_.panels.selected != kind || typing_pane(session_) != kind) {
+        return;
+    }
+    escape_sent_ = EscapeSent{};
+    unselect_pane();
+    repaint(mail);
 }
 
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md

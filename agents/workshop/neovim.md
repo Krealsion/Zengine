@@ -147,6 +147,26 @@ case `"from a Loom with no Workshop, Neovim listens for a second terminal, says 
 only when nothing is lost"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
+## WL-NVIM-09 — Which Neovim and which configuration, judged before a start
+
+LAW — `ZENGINE_NEOVIM` names the program and `ZENGINE_NEOVIM_PROFILE` the configuration -- `clean`, `user`, or an init file resolved against this process's own directory -- judged before a Neovim is started.
+
+MEANS
+- a value that is neither word and names no file is refused, naming where it looked;
+- a running Neovim's pane says the profile in a word beside its mode; an answer says it whole;
+- nothing else names either -- no shape, poke or plan row -- so the environment is the one owner.
+
+DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
+project's: it follows the directory this process was started in, where the maker set the variable.
+
+PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag`,
+`profile_words`, `choice_from_environment`, `kProfileVariable`, `kProgramVariable`;
+`neovim-editor/pane.cpp` `start`, `status_text`, `started_words`;
+`tests/test_workshop_neovim.cpp` case `"a profile that is neither clean nor user and names no
+init file refuses the switch before starting Neovim"`, case `"the profile a maker names is the
+configuration that runs and the pane says which one it is"`.
+WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+
 ## Do not assume
 
 - That the gated cases ran on a lane with no Neovim: they are behind the `neovim` gate, and the

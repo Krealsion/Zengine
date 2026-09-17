@@ -816,6 +816,10 @@ struct Live {
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         };
+        host.destinations = [this] {
+            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
+                                                                  : loom::WeaveId{});
+        };
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
@@ -2128,7 +2132,7 @@ class ProviderSeat
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
-                                        v2::PaneActions, PaneCaret>> {
+                                        v2::PaneActions, PaneCaret, PaneEscapeUnspent>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2169,6 +2173,7 @@ public:
         ++said;
         keys.push_back(k);
         key_authors.push_back(std::string(mail.authored_role()));
+        key_asks.push_back(mail.correlation());
     }
     void on(const PaneTextInput& t, loom::Mail& mail) {
         ++state_.said;
@@ -2203,6 +2208,33 @@ public:
     }
     void say(loom::Mail& mail, const PaneContent& c) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
+    /// the case about authorship rather than about the gesture. Echoed under the number the
+    /// LATEST Escape arrived on, which is what a pane answering the key it was just handed
+    /// does; `unspent_answering` is for a case that answers an older one on purpose, and
+    /// `unspent_anonymously` for one that echoes nothing at all.
+    void unspent(loom::Mail& mail, const std::string& pane) {
+        unspent_answering(mail, pane, latest_escape_ask());
+    }
+    void unspent_answering(loom::Mail& mail, const std::string& pane, std::uint64_t answering) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane},
+                                                 answering);
+    }
+    void unspent_anonymously(loom::Mail& mail, const std::string& pane) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, 0);
+    }
+    void unspent_personally(loom::Mail& mail, const std::string& pane) {
+        (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, latest_escape_ask());
+    }
+    /// THE NUMBER THE LAST ESCAPE THIS SEAT WAS SENT CAME UNDER, or zero if it was sent none.
+    std::uint64_t latest_escape_ask() const {
+        for (std::size_t i = keys.size(); i-- > 0;) {
+            if (keys[i].scancode == zengine::input::scan::kEscape && i < key_asks.size()) {
+                return key_asks[i];
+            }
+        }
+        return 0;
     }
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
@@ -2246,6 +2278,10 @@ public:
     std::vector<std::string> press_authors;
     std::vector<PaneKey> keys;
     std::vector<std::string> key_authors;
+    /// THE CORRELATION EACH KEY ARRIVED UNDER, beside `keys` index for index. Workshop stamps
+    /// one on an Escape and nothing else, and an answer that does not echo it is about no
+    /// Escape at all.
+    std::vector<std::uint64_t> key_asks;
     std::vector<PaneTextInput> typed;
     std::vector<std::string> text_authors;
     std::vector<PaneWheel> wheels;
@@ -2471,6 +2507,12 @@ struct PaneRig {
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         };
+        // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
+        // wires it. A case that wants a host listing nothing empties `host.destinations`.
+        host.destinations = [this] {
+            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
+                                                                  : loom::WeaveId{});
+        };
         register_workshop(std::move(weave));
         return w;
     }
@@ -2616,7 +2658,9 @@ struct PaneRig {
     /// ⚠ IT IS MOUNTED HERE AND NOT IN THE PANE, which is the seam's whole shape: the pane
     /// under test cannot construct one of these, cannot reach this one, and cannot speak as
     /// it. Every case below drives the pane and then asks THIS object what it heard.
-    loom::TerminalSession* mount_terminal(int shapes = 0) {
+    /// `widen` also lets it say `SurfaceText` to any target, so a case can address a weave by id
+    /// and measure what the BUS says about the target rather than what the grant does.
+    loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
             .accepts(loom::schema_of<loom::Ack>())
@@ -2629,6 +2673,10 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
                             surface::kSkinRole);
+        if (widen) {
+            grant.allow_to_any(surface::SurfaceText::zen_name,
+                               surface::SurfaceText::zen_version);
+        }
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
@@ -2655,6 +2703,8 @@ struct PaneRig {
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         // ...and where its caret is, which is the arc's second host-facing pane sentence.
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
+        // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down.
+        grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
         // claim under test is that a PROVIDER refuses a press it did not get from
         // Workshop -- a refusal the bus made unreachable would prove nothing.

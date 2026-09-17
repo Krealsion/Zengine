@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <set>
 #include <sstream>
 
 namespace {
@@ -67,10 +68,10 @@ struct TerminalRig {
     /// `PaneRef` for it exists in any file a maker has written. So it arrives the way Files,
     /// the Builder and Attention did: a stranger a maker opens from the picker.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
-              bool participant = true) {
+              bool participant = true, bool widen = false) {
         r.mount_workshop();
         if (participant) {
-            me = r.mount_terminal(shapes);
+            me = r.mount_terminal(shapes, widen);
         }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
@@ -151,6 +152,21 @@ struct TerminalRig {
                         seat()->rows);
     }
 
+    /// ...AND A WIDTH, the same way: a pane's side chrome is two cells of the authored box.
+    void give_room(std::int64_t rows, std::int64_t columns) {
+        const Written wrote =
+            author_pane_size(r.session().setup.active, pane_terminal_ref(),
+                             PaneSize{pane_unit::kSubcells, subs(columns + 2)},
+                             PaneSize{pane_unit::kSubcells, subs(rows + 3)});
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        focus();
+        REQUIRE(seat() != nullptr);
+        REQUIRE_MESSAGE(seat()->rows == rows, "asked for ", rows, " rows and was granted ",
+                        seat()->rows);
+        REQUIRE_MESSAGE(seat()->columns == columns, "asked for ", columns,
+                        " columns and was granted ", seat()->columns);
+    }
+
     // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
     //
     // ⚠ THE ONLY WAY A CASE HERE CAN SAY "WHILE THAT ANSWER WAS IN FLIGHT". Every helper
@@ -185,6 +201,18 @@ struct TerminalRig {
     }
 
     void submit() { r.key(input::scan::kReturn); }
+
+    /// EMPTY THE LINE AND KEEP THE KEYS. Escape sheds one layer per press -- a list, then the
+    /// line, then the pane itself -- so a case that wants an empty line presses it until the
+    /// prompt is back and never once more.
+    void clear_line() {
+        for (int i = 0; i < 2 && input_text().find("Tab: what can this terminal say?") ==
+                                     std::string::npos; ++i) {
+            r.key(input::scan::kEscape);
+        }
+        REQUIRE(input_text().find("Tab: what can this terminal say?") != std::string::npos);
+        REQUIRE(r.session().panels.keyboard == kind);
+    }
 
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
@@ -278,9 +306,11 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     TerminalRig t;
     t.open();
     const std::vector<std::string> ids = t.declared();
-    // sorted: back, complete, next, previous, submit
+    // sorted: back, complete, newest, next, oldest, previous, scroll-down, scroll-up, submit
     CHECK(ids == std::vector<std::string>{pane::kActionBack, pane::kActionComplete,
-                                          pane::kActionDown, pane::kActionUp,
+                                          pane::kActionNewest, pane::kActionDown,
+                                          pane::kActionOldest, pane::kActionUp,
+                                          pane::kActionScrollDown, pane::kActionScrollUp,
                                           pane::kActionSubmit});
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
@@ -298,9 +328,16 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     CHECK(gesture_of(pane::kActionUp).first == input::scan::kUp);
     CHECK(gesture_of(pane::kActionDown).first == input::scan::kDown);
     CHECK(gesture_of(pane::kActionBack).first == input::scan::kEscape);
-    for (const v2::PaneActionRow& a : row->actions) {
-        CHECK(a.modifiers == input::mod::kNone);
+    for (const char* id : {pane::kActionSubmit, pane::kActionComplete, pane::kActionUp,
+                           pane::kActionDown, pane::kActionBack}) {
+        CHECK(gesture_of(id).second == input::mod::kNone);
     }
+    // THE FOUR READING KEYS ARE CTRL CHORDS, so plain Up and Down stay history and completion's.
+    using G = std::pair<std::int64_t, std::int64_t>;
+    CHECK(gesture_of(pane::kActionScrollUp) == G{input::scan::kUp, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionScrollDown) == G{input::scan::kDown, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionOldest) == G{input::scan::kHome, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionNewest) == G{input::scan::kEnd, input::mod::kCtrl});
 }
 
 TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere else") {
@@ -521,11 +558,28 @@ TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that
         t.type("line " + std::to_string(i));
         t.submit();
     }
+    // ROWS ABOVE THE VIEW, counted in rows and said at its top -- nothing below it while it follows.
     const std::int64_t marker = t.row_of("... ");
     REQUIRE(marker >= 0);
-    CHECK(t.shown()[static_cast<std::size_t>(marker)].find("earlier") != std::string::npos);
+    CHECK(t.shown()[static_cast<std::size_t>(marker)].find("more rows above") != std::string::npos);
+    CHECK(marker < t.input_row());
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.text().find("dropped for good") == std::string::npos);
     // The whole record is still the participant's; the pane showed a tail of it.
     CHECK(t.record().size() > 40);
+
+    // ...AND ENTRIES THE PARTICIPANT EVICTED ARE THE OTHER SENSE, said beside it and never
+    // reachable by scrolling: the oldest kept row says so too.
+    for (int i = 40; i < 140; ++i) {
+        t.type("line " + std::to_string(i));
+        t.submit();
+    }
+    REQUIRE(t.r.said_transcripts.back().dropped > 0);
+    const std::string dropped = std::to_string(t.r.said_transcripts.back().dropped) +
+                                " older entries dropped for good";
+    CHECK(t.text().find(dropped) != std::string::npos);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    CHECK(t.text().find("[the oldest kept]; " + dropped) != std::string::npos);
 }
 
 // ============================================================================
@@ -1096,12 +1150,9 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
 
-    // TWICE, because the first Escape dismisses a LIST if one is open and only then
-    // clears: a case that leaned on which branch it took would change meaning under
-    // the completer.
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
-    REQUIRE(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+    // AS MANY AS THE LAYERS THERE ARE, and not one more: the first Escape dismisses a LIST if
+    // one is open and only then clears, and an Escape with nothing left puts the pane down.
+    t.clear_line();
     skin->platform = "a\tb\nc";
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> a b c", 0) == 0);
@@ -1110,8 +1161,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
     // draws it as a space -- so a maker would submit something other than what they read.
     // This pane's typed door already refuses one; the difference here is that the door speaks.
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
+    t.clear_line();
     t.type("hold");
     skin->platform = "na\xC3\xAFve";
     t.r.key(input::scan::kV, input::mod::kCtrl);
@@ -1134,8 +1184,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> gone", 0) == 0);
     CHECK(t.input_text().find("hold") == std::string::npos);
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
+    t.clear_line();
     t.type("hold");
 
     // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10) -- the terminal
@@ -1146,4 +1195,830 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kEnd);
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> holdhold", 0) == 0);
+}
+
+// ============================================================================
+// COMMAND HISTORY — the participant's own record, walked by the pane
+// ============================================================================
+//
+// ⚠ EVERY COUNT BELOW IS READ OFF THE PARTICIPANT, never off the pane: how many lines it was
+// asked to run is its own `command` entries. "Recalling authors nothing" is a claim about what the
+// participant heard, and a pane that merely drew the right rows could not keep it.
+
+namespace {
+
+std::size_t commands_run(TerminalRig& t) {
+    std::size_t n = 0;
+    for (const loom::TranscriptEntry& e : t.record()) {
+        n += e.kind == loom::TranscriptKind::LocalCommand ? 1 : 0;
+    }
+    return n;
+}
+
+std::string last_command(TerminalRig& t) {
+    std::string text;
+    for (const loom::TranscriptEntry& e : t.record()) {
+        if (e.kind == loom::TranscriptKind::LocalCommand) {
+            text = e.text;
+        }
+    }
+    return text;
+}
+
+void run(TerminalRig& t, const std::string& line) {
+    t.type(line);
+    t.submit();
+}
+
+} // namespace
+
+TEST_CASE("on an empty line Up Up Enter leaves the older command ready to edit and runs nothing until the next Enter runs it") {
+    // ⭐ THE FOUNDER'S WITNESS. Enter on a recalled line locks it in and does nothing else: no
+    // submission, and no list asked for -- the line `first` would draw "no verb begins with" if
+    // the lock had asked.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "first");
+    run(t, "second");
+    const std::size_t before = commands_run(t);
+    REQUIRE(before == 2);
+
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text().rfind("> second", 0) == 0);
+    CHECK(t.text().find("history 1 of 2") != std::string::npos);
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.text().find("history 2 of 2") != std::string::npos);
+
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before);
+    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.text().find("history ") == std::string::npos);
+    CHECK(t.text().find("no verb begins with") == std::string::npos);
+    CHECK(t.seat()->caret_col == 2 + 5);
+
+    // AND THE LOCK IS ONE OF THE "DIFFERENT KEYS" OF THE RULE: the arrows belong to completion
+    // again, so this Up does not recall `second` and does not re-enter browsing.
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.text().find("history ") == std::string::npos);
+
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "first");
+}
+
+TEST_CASE("Tab on a recalled line locks it in with no candidate taken and no list asked and the next two Tabs ask and then accept") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "send #1 ");
+    const std::size_t before = commands_run(t);
+
+    t.r.key(input::scan::kUp);
+    REQUIRE(t.input_text().rfind("> send #1 ", 0) == 0);
+    t.r.key(input::scan::kTab); // the lock
+    CHECK(commands_run(t) == before);
+    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.text().find("SurfaceText v1") == std::string::npos);
+
+    t.r.key(input::scan::kUp); // the same rule after a Tab lock: no recall, no browsing
+    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.text().find("history ") == std::string::npos);
+
+    t.r.key(input::scan::kTab); // nothing on screen: ask
+    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.row_of("> SurfaceText v1") >= 0);
+    t.r.key(input::scan::kUp); // a list on screen: the arrows are its cursor
+    CHECK(t.input_text() == "> send #1 ");
+    t.r.key(input::scan::kTab); // a list on screen: accept
+    CHECK(t.input_text().rfind("> send #1 SurfaceText 1 ", 0) == 0);
+    CHECK(commands_run(t) == before);
+}
+
+TEST_CASE("any other key leaves a recall and does its own work once: typing or a caret key or an erase or a shifted letter") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "alpha");
+    run(t, "beta");
+
+    SUBCASE("typing appends once, and Up then belongs to the command being composed") {
+        t.r.key(input::scan::kUp);
+        t.type("x");
+        CHECK(t.input_text().rfind("> betax", 0) == 0);
+        CHECK(t.input_text().find("betaxx") == std::string::npos);
+        t.r.key(input::scan::kUp);
+        CHECK(t.input_text().rfind("> betax", 0) == 0);
+        CHECK(t.text().find("history ") == std::string::npos);
+    }
+    SUBCASE("a caret key moves the caret once and ends the recall") {
+        t.r.key(input::scan::kUp);
+        t.r.key(input::scan::kLeft);
+        CHECK(t.seat()->caret_col == 2 + 3);
+        CHECK(t.input_text().rfind("> beta", 0) == 0);
+        t.r.key(input::scan::kUp);
+        CHECK(t.input_text().rfind("> beta", 0) == 0);
+        CHECK(t.input_text().find("alpha") == std::string::npos);
+    }
+    SUBCASE("an erase erases one character") {
+        t.r.key(input::scan::kUp);
+        t.r.key(input::scan::kBackspace);
+        CHECK(t.input_text().rfind("> bet", 0) == 0);
+        CHECK(t.input_text().find("beta") == std::string::npos);
+    }
+    SUBCASE("a shifted letter, delivered as the key and its text in one poll, lands once") {
+        t.r.key(input::scan::kUp);
+        t.enqueue_key(input::scan::kB, input::mod::kShift);
+        t.enqueue_text("B");
+        t.settle();
+        CHECK(t.input_text().rfind("> betaB", 0) == 0);
+        CHECK(t.input_text().find("BB") == std::string::npos);
+    }
+}
+
+TEST_CASE("history says where its ends are and past the newest is the line before the recall") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    const std::string prompt = t.input_text();
+
+    t.r.key(input::scan::kUp);
+    CHECK(t.text().find("no command to recall yet") != std::string::npos);
+    CHECK(t.input_text() == prompt);
+
+    // A RUN OF ONE COMMAND IS WALKED AS ONE, and a repeat after something else is its own step.
+    run(t, "a");
+    run(t, "a");
+    run(t, "b");
+    run(t, "a");
+    t.r.key(input::scan::kDown);
+    CHECK(t.text().find("nothing newer") != std::string::npos);
+    CHECK(t.input_text() == prompt);
+
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> a");
+    CHECK(t.text().find("history 1 of 3") != std::string::npos);
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> b");
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> a");
+    CHECK(t.text().find("history 3 of 3") != std::string::npos);
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> a");
+    CHECK(t.text().find("the oldest command") != std::string::npos);
+
+    t.r.key(input::scan::kDown);
+    CHECK(t.input_text() == "> b");
+    t.r.key(input::scan::kDown);
+    CHECK(t.input_text() == "> a");
+    t.r.key(input::scan::kDown);
+    CHECK(t.input_text() == prompt);
+    CHECK(t.text().find("history ") == std::string::npos);
+}
+
+TEST_CASE("Escape on a recalled line goes back to the line before the recall and keeps the keys") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "only");
+    const std::string prompt = t.input_text();
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kUp);
+    REQUIRE(t.input_text() == "> only");
+    t.r.key(input::scan::kEscape);
+    CHECK(t.input_text() == prompt);
+    CHECK(t.text().find("history ") == std::string::npos);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(commands_run(t) == before);
+    // ...AND THE RECALL WAS A LAYER: with it gone, the next Escape is the pane's own.
+    t.r.key(input::scan::kEscape);
+    CHECK(t.r.session().panels.selected == kNoPaneKind);
+}
+
+TEST_CASE("a command being composed keeps Up and Down for its completion list and its draft is untouched") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "older");
+    t.type("s");
+    REQUIRE(t.row_of("> send") >= 0);
+    t.r.key(input::scan::kUp);
+    t.r.key(input::scan::kDown);
+    CHECK(t.input_text() == "> s");
+    CHECK(t.text().find("history ") == std::string::npos);
+
+    // ...AND A LIST ASKED FOR ON AN EMPTY LINE IS A COMMAND BEING COMPOSED TOO: its Down moves the
+    // list's own cursor, from `send` to `ask`, and recalls nothing.
+    t.r.key(input::scan::kBackspace);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.row_of("> send") >= 0);
+    t.r.key(input::scan::kDown);
+    CHECK(t.row_of("> ask") >= 0);
+    CHECK(t.row_of("> send") < 0);
+    CHECK(t.input_text().find("older") == std::string::npos);
+    CHECK(t.text().find("history ") == std::string::npos);
+}
+
+TEST_CASE("history is the participant's commands only and eviction bounds it") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    // EVERY LINE BELOW IS A COMMAND AND A NOTICE, so the record holds twice as many entries as
+    // commands -- and 140 of them overflow its 256 entries.
+    for (int i = 0; i < 140; ++i) {
+        run(t, "c" + std::to_string(i));
+    }
+    REQUIRE(commands_run(t) == 128);
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> c139");
+    CHECK(t.text().find("history 1 of 128") != std::string::npos);
+    for (int i = 0; i < 127; ++i) {
+        t.r.key(input::scan::kUp);
+    }
+    CHECK(t.input_text() == "> c12");
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text() == "> c12");
+    CHECK(t.text().find("the oldest kept; 24 older entries dropped for good") !=
+          std::string::npos);
+}
+
+TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops at the recalled text and whose copy reaches the process") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    run(t, "beta");
+    t.r.key(input::scan::kUp);
+    t.r.key(input::scan::kTab);
+    t.type("xy");
+    REQUIRE(t.input_text() == "> betaxy");
+    t.r.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(t.input_text() == "> beta");
+    t.r.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(t.input_text() == "> beta");
+
+    t.r.key(input::scan::kA, input::mod::kCtrl);
+    t.r.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(skin->platform == "beta");
+}
+
+TEST_CASE("a paste asked for before a recall does not land in the recalled line") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    SkinSeat* skin = t.r.mount_skin_seat();
+    REQUIRE(skin != nullptr);
+    run(t, "beta");
+    skin->platform = "OLD";
+    t.enqueue_key(input::scan::kV, input::mod::kCtrl);
+    t.enqueue_key(input::scan::kUp);
+    t.settle();
+    CHECK(skin->clipboard_reads == 1);
+    CHECK(t.input_text() == "> beta");
+}
+
+TEST_CASE("a completion answer asked before a recall is neither shown on the recalled line nor taken by its lock though the bytes match") {
+    // ⭐ CORRELATION BY LINE AND CARET ALONE WOULD TAKE THIS ANSWER. It was asked about `send ` with
+    // the caret at 5; the line is then cleared and `send ` is recalled with the caret at 5 -- the
+    // same bytes, a different intent. Staged in one poll so the answer lands after both.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "send ");
+    t.type("send");
+    t.enqueue_text(" ");
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_key(input::scan::kUp);
+    t.settle();
+    CHECK(t.input_text() == "> send ");
+    CHECK(t.text().find("history 1 of 1") != std::string::npos);
+    CHECK(t.text().find("where it goes") == std::string::npos);
+
+    // ...AND AGAIN WITH THE LOCK IN THE SAME POLL: the answer arrives after the lock, and the next
+    // Tab still asks rather than taking a candidate from it.
+    t.r.key(input::scan::kEscape);
+    t.type("send");
+    t.enqueue_text(" ");
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_key(input::scan::kUp);
+    t.enqueue_key(input::scan::kTab);
+    t.settle();
+    CHECK(t.input_text() == "> send ");
+    CHECK(t.text().find("where it goes") == std::string::npos);
+    t.r.key(input::scan::kTab);
+    CHECK(t.input_text() == "> send ");
+    CHECK(t.text().find("where it goes") != std::string::npos);
+}
+
+// ============================================================================
+// READING THE RECORD — a view onto every wrapped row, and what it is not showing
+// ============================================================================
+//
+// ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT ITSELF (`record_notice`), because output a maker did
+// not submit is exactly the case that matters: a submit follows the newest output by design. A
+// chord the line never takes (Alt+Left, spent as nothing) then gives Workshop a repaint, which is
+// where the host says the new picture.
+
+namespace {
+
+/// Every row of a notice carries its own name, so any wrapped row of it says which entry it is.
+std::string named_notice(const std::string& name, int words) {
+    std::string text;
+    for (int i = 0; i < words; ++i) {
+        text += (i == 0 ? "" : " ") + name;
+    }
+    return text;
+}
+
+void poke(TerminalRig& t) { t.r.key(input::scan::kLeft, input::mod::kAlt); }
+
+/// Thirty long notices, each twenty words of its own name.
+void thirty_notices(TerminalRig& t) {
+    for (int i = 0; i < 30; ++i) {
+        t.me->record_notice(named_notice("n" + std::to_string(i), 20));
+    }
+    poke(t);
+}
+
+/// The number a marker row states, or -1.
+std::int64_t marker_count(TerminalRig& t, const std::string& words) {
+    for (const std::string& row : t.shown()) {
+        const std::size_t at = row.find(words);
+        if (row.rfind("... ", 0) == 0 && at != std::string::npos && at > 4) {
+            return std::stoll(row.substr(4, at - 4));
+        }
+    }
+    return -1;
+}
+
+/// Which named notice a wrapped row belongs to: its first word that is a name (`n3`, `m44`), past
+/// the `-- ` a notice's first row starts with.
+std::string entry_of_row(const std::string& row) {
+    std::istringstream words(row);
+    std::string word;
+    while (words >> word) {
+        if (word.size() >= 2 && (word[0] == 'n' || word[0] == 'm') &&
+            std::all_of(word.begin() + 1, word.end(), [](char c) { return c >= '0' && c <= '9'; })) {
+            return word;
+        }
+    }
+    return std::string();
+}
+
+/// The first row of the view: the row under the marker that says what is above it.
+std::string first_read_row(TerminalRig& t) {
+    const std::vector<std::string> rows = t.shown();
+    for (std::size_t i = 0; i + 1 < rows.size(); ++i) {
+        if (rows[i].rfind("... ", 0) == 0 || rows[i].rfind("[the ", 0) == 0) {
+            return rows[i + 1];
+        }
+    }
+    return std::string();
+}
+
+} // namespace
+
+TEST_CASE("a long entry is read whole by scrolling and no row of it is clipped for good") {
+    // AT START THE VIEW TOOK THE NEWEST ENTRIES THAT FIT WHOLE, so this command -- wrapped taller
+    // than the room its own notice left -- was never on screen at all.
+    TerminalRig t;
+    t.open();
+    t.give_room(10, 40);
+    std::string line;
+    for (int i = 0; i < 60; ++i) {
+        line += (i < 10 ? "w0" : "w") + std::to_string(i) + " ";
+    }
+    run(t, line);
+    std::set<std::string> seen;
+    const auto collect = [&t, &seen] {
+        for (const std::string& row : t.shown()) {
+            std::istringstream words(row);
+            std::string word;
+            while (words >> word) {
+                if (word.size() == 3 && word[0] == 'w') {
+                    seen.insert(word);
+                }
+            }
+        }
+    };
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    collect();
+    for (int i = 0; i < 20; ++i) {
+        t.r.key(input::scan::kDown, input::mod::kCtrl);
+        collect();
+    }
+    for (int i = 0; i < 60; ++i) {
+        CAPTURE(i);
+        CHECK(seen.count((i < 10 ? "w0" : "w") + std::to_string(i)) == 1);
+    }
+}
+
+TEST_CASE("a view scrolled into the middle says the rows above at its top and the rows below at its bottom") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    CHECK(marker_count(t, " more rows above") > 0);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t above = marker_count(t, " more rows above");
+    const std::int64_t below = marker_count(t, " more rows below");
+    REQUIRE(above > 0);
+    REQUIRE(below > 0);
+    CHECK(t.row_of("... " + std::to_string(above)) < t.row_of("... " + std::to_string(below)));
+    CHECK(t.row_of("... " + std::to_string(below)) < t.input_row());
+    CHECK(t.text().find("press here for the newest") != std::string::npos);
+
+    // A PAGE IS COUNTED IN ROWS BOTH WAYS: what one marker gives up, the other gains.
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t above2 = marker_count(t, " more rows above");
+    const std::int64_t below2 = marker_count(t, " more rows below");
+    CHECK(above - above2 == below2 - below);
+    CHECK(above - above2 > 0);
+}
+
+TEST_CASE("new output leaves a scrolled view where it is and counts itself below while a following view shows it") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::string first = first_read_row(t);
+    const std::int64_t below = marker_count(t, " more rows below");
+    REQUIRE_FALSE(first.empty());
+    REQUIRE(below > 0);
+
+    t.me->record_notice("fresh output one");
+    poke(t);
+    CHECK(first_read_row(t) == first);
+    CHECK(marker_count(t, " more rows below") == below + 1);
+    CHECK(t.text().find("fresh output one") == std::string::npos);
+
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("fresh output one") != std::string::npos);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    t.me->record_notice("fresh output two");
+    poke(t);
+    CHECK(t.text().find("fresh output two") != std::string::npos);
+}
+
+TEST_CASE("the newest output is one press on the row below the view or Ctrl+End or a submit away") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t marker =
+        t.row_of("... " + std::to_string(marker_count(t, " more rows below")));
+    REQUIRE(marker >= 0);
+    t.press_row(marker);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.text().find("n29") != std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    REQUIRE(t.text().find("more rows below") != std::string::npos);
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    REQUIRE(t.text().find("more rows below") != std::string::npos);
+    run(t, "ask");
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.row_of("> ask") >= 0);
+}
+
+TEST_CASE("a resize re-wraps under the entry being read and the line and its caret stay usable") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    t.r.key(input::scan::kDown, input::mod::kCtrl);
+    const std::string entry = entry_of_row(first_read_row(t));
+    INFO(t.text());
+    REQUIRE_FALSE(entry.empty());
+    t.type("abc");
+
+    t.give_room(12, 40);
+    CHECK(entry_of_row(first_read_row(t)) == entry);
+    CHECK(t.input_text().rfind("> abc", 0) == 0);
+    CHECK(t.seat()->caret_row == t.input_row());
+    t.press_row(t.input_row(), 2 + 1);
+    CHECK(t.seat()->caret_col == 2 + 1);
+
+    t.give_room(8, 70);
+    CHECK(entry_of_row(first_read_row(t)) == entry);
+    CHECK(t.seat()->caret_row == t.input_row());
+}
+
+TEST_CASE("when the entry being read is evicted the view moves to the oldest kept and says why") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    for (int i = 0; i < 10; ++i) {
+        t.me->record_notice(named_notice("n" + std::to_string(i), 20));
+    }
+    poke(t);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    INFO(t.text());
+    REQUIRE(entry_of_row(first_read_row(t)) == "n0");
+    for (int i = 0; i < 300; ++i) {
+        t.me->record_notice(named_notice("m" + std::to_string(i), 3));
+    }
+    poke(t);
+    // 310 entries into a record of 256: the 54 oldest are gone, and the oldest kept is m44.
+    CHECK(t.text().find("... what you were reading was dropped for good") != std::string::npos);
+    CHECK(entry_of_row(first_read_row(t)) == "m44");
+    t.r.key(input::scan::kDown, input::mod::kCtrl);
+    CHECK(t.text().find("what you were reading was dropped for good") == std::string::npos);
+}
+
+TEST_CASE("in every small room the line is the last row and its caret and press agree while reading and composing") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    t.type("s");
+    for (std::int64_t rows = 1; rows <= 8; ++rows) {
+        CAPTURE(rows);
+        t.give_room(rows, 60);
+        const std::vector<std::string> shown = t.shown();
+        REQUIRE(static_cast<std::int64_t>(shown.size()) == rows);
+        CHECK(shown.back().rfind("> s", 0) == 0);
+        CHECK(t.seat()->caret_row == rows - 1);
+        // WHAT IS BELOW IS SAID IN EVERY ROOM THAT HAS A ROW ABOVE THE VIEW -- on a row of its own
+        // once the view is two rows tall, and on the row above the view before that.
+        if (rows >= 3) {
+            CHECK(t.text().find("more rows below") != std::string::npos);
+        }
+        if (rows >= 3 && rows <= 6) {
+            const std::int64_t above = t.row_of("... ");
+            REQUIRE(above >= 0);
+            CHECK(shown[static_cast<std::size_t>(above)].find("more rows above -- ") !=
+                  std::string::npos);
+        }
+        t.press_row(rows - 1, 2);
+        CHECK(t.seat()->caret_col == 2);
+        t.r.key(input::scan::kEnd);
+    }
+}
+
+TEST_CASE("a list growing under a scrolled view takes rows from its bottom and leaves its top and the line") {
+    TerminalRig t;
+    t.open();
+    t.give_room(16, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::string first = first_read_row(t);
+    REQUIRE_FALSE(first.empty());
+    t.r.key(input::scan::kTab); // a list of both verbs on the empty line
+    REQUIRE(t.row_of("> send") >= 0);
+    CHECK(first_read_row(t) == first);
+    CHECK(t.input_row() == static_cast<std::int64_t>(t.shown().size()) - 1);
+    CHECK(t.seat()->caret_row == t.input_row());
+}
+
+TEST_CASE("the wheel reads the record three rows a notch and moves nothing else") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    const std::int64_t above = marker_count(t, " more rows above");
+    REQUIRE(above > 3);
+    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
+    CHECK(marker_count(t, " more rows above") == above - 3);
+    CHECK(t.text().find("more rows below") != std::string::npos);
+    t.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
+    CHECK(marker_count(t, " more rows above") == above);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+}
+
+TEST_CASE("reading keys leave a recall and the line as they were") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    run(t, "first");
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kUp);
+    REQUIRE(t.text().find("history 1 of 1") != std::string::npos);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("history 1 of 1") != std::string::npos);
+    CHECK(t.input_text() == "> first");
+    t.r.key(input::scan::kReturn); // still a lock, not a run
+    CHECK(commands_run(t) == before);
+}
+
+// ============================================================================
+// WHERE A LINE CAN GO — read off the bus by the host at every ask
+// ============================================================================
+
+namespace {
+
+/// A WEAVE THAT RECORDS WHAT REACHES IT, seated in `office` -- the skin seat's own class, in an
+/// office of the case's choosing, so a delivery or its absence is a measurement.
+struct Probe {
+    SkinSeat* seat = nullptr;
+    loom::WeaveId id{};
+};
+
+Probe mount_probe(TerminalRig& t, const std::string& office) {
+    auto seat = std::make_unique<SkinSeat>();
+    Probe p;
+    p.seat = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
+    p.id = t.r.bus.register_weave(std::move(seat), std::move(grant), office);
+    p.seat->zen_set_self(p.id);
+    return p;
+}
+
+bool heard_slot(const SkinSeat& seat, const std::string& slot) {
+    for (const surface::SurfaceText& one : seat.heard) {
+        if (one.slot == slot) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("the address lists the offices and weaves on the bus now with what each is and every ask reads the bus again") {
+    TerminalRig t;
+    t.open();
+    t.give_room(30, 120);
+    // THE POPULATION IS THE BUS'S, NOT THE LOAD PLAN'S: Workshop itself and the terminal
+    // participant are in-process weaves no library row names, and both are listed.
+    t.type("send ");
+    CHECK(t.row_of("  @zengine.workshop") >= 0);
+    const std::string self = "#" + std::to_string(t.r.terminal_id.value);
+    t.type(self);
+    CHECK(t.text().find(self + "   no office; accepts zen.Ack, zen.Refused") != std::string::npos);
+    CHECK(t.text().find("(this terminal)") != std::string::npos);
+    for (std::size_t i = 0; i < self.size(); ++i) {
+        t.r.key(input::scan::kBackspace);
+    }
+
+    // ADDITION: nobody holds the office, then a weave takes it, and the next keystroke's ask sees it.
+    t.type("@zengine.pro");
+    CHECK(t.text().find("'@zengine.pro' is an address; nothing on this bus answers to it now") !=
+          std::string::npos);
+    const Probe first = mount_probe(t, "zengine.probe");
+    t.type("b");
+    CHECK(t.row_of("> @zengine.probe") >= 0);
+    CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") != std::string::npos);
+
+    // REPLACEMENT: the office moves to another weave, and the list names the new holder only.
+    (void)t.r.bus.unregister_weave(first.id);
+    const Probe second = mount_probe(t, "zengine.probe");
+    t.type("e");
+    CHECK(t.text().find("held by #" + std::to_string(second.id.value) + " now") != std::string::npos);
+    CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") == std::string::npos);
+
+    // REMOVAL: the office is empty again, and nothing is offered for it.
+    (void)t.r.bus.unregister_weave(second.id);
+    t.r.key(input::scan::kBackspace);
+    CHECK(t.row_of("> @zengine.probe") < 0);
+    CHECK(t.text().find("nothing on this bus answers to it now") != std::string::npos);
+}
+
+TEST_CASE("an id chosen from the list and gone before the line is sent leaves the participant's refusal and reaches no other weave") {
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/true, /*widen=*/true);
+    t.give_room(30, 120);
+    const Probe gone = mount_probe(t, "zengine.probe");
+    const Probe other = mount_probe(t, "zengine.other");
+    const std::string id = std::to_string(gone.id.value);
+    t.type("send #" + id);
+    REQUIRE(t.row_of("> #" + id) >= 0);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.input_text() == "> send #" + id + " ");
+
+    (void)t.r.bus.unregister_weave(gone.id);
+    t.type("SurfaceText 1 slot=gone text=x");
+    t.submit();
+
+    // NOT RETARGETED: no weave heard the slot, and the office it held is empty rather than moved.
+    CHECK_FALSE(heard_slot(*other.seat, "gone"));
+    // ATTRIBUTED BY LOOM: the send was authored, and its refusal came back to the participant that
+    // authored it, naming the id it was addressed to and why.
+    const std::vector<loom::TranscriptEntry> record = t.record();
+    REQUIRE(record.size() >= 3);
+    CHECK(record[record.size() - 2].kind == loom::TranscriptKind::Submitted);
+    const loom::TranscriptEntry& back = record.back();
+    REQUIRE(back.dispatch_refusal != nullptr);
+    CHECK(back.dispatch_refusal->send.target == id);
+    CHECK(back.dispatch_refusal->send.shape == "SurfaceText");
+    CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
+}
+
+TEST_CASE("an office chosen from the list reaches whoever holds it at delivery and a vacated office is refused not retargeted") {
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/true, /*widen=*/true);
+    t.give_room(30, 120);
+    const Probe old_holder = mount_probe(t, "zengine.probe");
+    t.type("send @zengine.probe");
+    REQUIRE(t.row_of("> @zengine.probe") >= 0);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.input_text() == "> send @zengine.probe ");
+
+    // TURNOVER: the office changes hands before the send. The line names the office, the list said
+    // it reaches whoever holds it when sent, and it does: the new holder, never the old weave.
+    (void)t.r.bus.unregister_weave(old_holder.id);
+    const Probe new_holder = mount_probe(t, "zengine.probe");
+    t.type("SurfaceText 1 slot=turnover text=x");
+    t.submit();
+    CHECK(heard_slot(*new_holder.seat, "turnover"));
+
+    // VACATED: nobody holds it now, so the send is refused where the maker reads, and the weave
+    // that used to hold it hears nothing.
+    (void)t.r.bus.unregister_weave(new_holder.id);
+    const Probe elsewhere = mount_probe(t, "zengine.elsewhere");
+    run(t, "send @zengine.probe SurfaceText 1 slot=vacated text=x");
+    CHECK_FALSE(heard_slot(*elsewhere.seat, "vacated"));
+    const loom::TranscriptEntry back = t.record().back();
+    REQUIRE(back.dispatch_refusal != nullptr);
+    CHECK(back.dispatch_refusal->send.role == "zengine.probe");
+    CHECK(back.dispatch_refusal->send.target.empty());
+    CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
+}
+
+
+// ============================================================================
+// ESCAPE — one layer at a time, and the last one is the pane itself
+// ============================================================================
+
+TEST_CASE("Escape sheds the list then the line then the pane itself and moves nothing else") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    const std::size_t panes = t.r.session().panels.open.size();
+    const Setup desk = t.r.session().setup.active;
+    t.type("s");
+    REQUIRE(t.row_of("> send") >= 0);
+
+    t.r.key(input::scan::kEscape); // the list
+    CHECK(t.row_of("> send") < 0);
+    CHECK(t.input_text().rfind("> s", 0) == 0);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+
+    t.r.key(input::scan::kEscape); // the line
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panels.selected == t.kind);
+
+    t.r.key(input::scan::kEscape); // the pane
+    CHECK(t.r.session().panels.selected == kNoPaneKind);
+    CHECK(t.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(keyboard_context(t.r.session()) == KeyContext::kCommand);
+    CHECK(t.r.last_notice().find("unselected") != std::string::npos);
+    // NOTHING ELSE MOVED: the pane is open where it was, the desk is byte-identical, and the
+    // pane still holds its own line and record.
+    CHECK(t.r.session().panels.open.size() == panes);
+    CHECK(t.r.session().setup.active == desk);
+    CHECK(t.r.session().panels.has(t.kind));
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+}
+
+TEST_CASE("a second Escape does not lend its identity to the first Escape's answer") {
+    // QUEUED-INPUT REGRESSION. One poll: Escape on an empty line (unspent), a character (a draft),
+    // then Escape again (spent clearing that draft). The FIRST Escape's answer is still in flight
+    // behind those gestures, and it is about an Escape that is over. It must move nothing: the
+    // pane keeps the desk and the keys, and the only thing the second Escape did is clear the
+    // draft it was pressed on.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_text("x");
+    t.enqueue_key(input::scan::kEscape);
+    t.settle();
+    CHECK(t.r.session().panels.selected == t.kind);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.input_text().find('x') == std::string::npos); // the draft the second Escape cleared
+}
+
+TEST_CASE("an unspent Escape the maker has already typed past moves nothing") {
+    // ONE POLL: Escape on a line with nothing left to shed, then a character. The pane says the
+    // Escape was unspent, and by the time that word reaches Workshop the maker has typed -- so the
+    // keys are still the pane's and the character is on its line.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_text("x");
+    t.settle();
+    CHECK(t.r.session().panels.selected == t.kind);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.input_text().rfind("> x", 0) == 0);
 }

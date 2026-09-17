@@ -11,6 +11,7 @@
 
 
 
+#include "complete.hpp" // the completer's values, and where a line can go
 #include "persist.hpp"
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
@@ -84,6 +85,12 @@ struct HostContext {
     /// Empty answers no, and every such sentence then crosses in its first version.
     // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+
+    /// WHERE A TERMINAL LINE CAN BE ADDRESSED RIGHT NOW, read by the host off the bus at the call
+    /// (`bus_destinations` is the answer both the host and a suite wire) and kept nowhere. Empty is
+    /// a host that lists nothing, and the completer then offers the address forms.
+    // WL-TERM-16 -- agents/workshop/terminal.md
+    std::function<std::vector<Destination>()> destinations;
 
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
     /// HOST -- through the read-only project office (`pane_doors.hpp`), to the Builder pane,
@@ -279,6 +286,12 @@ struct HostContext {
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape);
 
+/// THE HOST'S ANSWER TO `HostContext::destinations`, READ OFF `bus` AT THE CALL: every registered
+/// weave that is not a sealed candidate, with the office it holds now, the names of the shapes it
+/// accepts and whether it is alive -- and `self` marked, the participant a line runs as. A
+/// reading, not a registry or a tap: it keeps nothing and observes no traffic.
+std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self);
+
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopDoc,
@@ -300,6 +313,7 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneContent,
                                           zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
+                                          zengine::workshop::PaneEscapeUnspent,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
@@ -582,6 +596,11 @@ public:
     /// delivery is the acquisition's commitment point, and the host holds nothing across it:
     /// no record, no reservation, no settle to wait for (pane_vocabulary.hpp says why).
     void on(const PaneRevealRequested& asked, loom::Mail& mail);
+
+    /// A PANE'S WORD THAT THE ESCAPE IT WAS SENT HAD NOTHING MORE SPECIFIC TO DO THERE: put that
+    /// pane down, exactly as a bare Escape in command mode would -- but only while the pane still
+    /// has the desk and the keys and that Escape is still the last gesture this host handled.
+    void on(const PaneEscapeUnspent& said, loom::Mail& mail);
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
@@ -1302,8 +1321,11 @@ private:
     /// A GESTURE THIS PANE DECLARED A ROW FOR CROSSES AS THE RESOLVED ID (WL-KEY-15):
     /// `PaneActionRequested{pane, id}` instead of the key, so the maker's override reaches
     /// the pane and the pane never re-derives a binding it cannot see. Every other key
-    /// crosses as `PaneKey` exactly as before.
-    void external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
+    /// crosses as `PaneKey` exactly as before -- except a bare Escape to a pane whose holder has
+    /// no door for a key and declared no row for it, which nothing on the far side could spend:
+    /// that crosses as nothing, and Escape's own last meaning answers. Answers whether a sentence
+    /// crossed.
+    bool external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                       loom::Mail& mail);
 
     /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY: `external_press`'s shape for
@@ -1433,6 +1455,24 @@ private:
     std::uint64_t code_asks_ = 0;
 
     bool quitting_ = false;
+    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button, the wheel -- counted, so a pane's
+    /// word about one of them can be asked whether it is still about the latest.
+    std::uint64_t gestures_ = 0;
+    /// THE LAST BARE ESCAPE SENT TO A PANE: which pane, which gesture it was, and the
+    /// correlation it went out under -- the identity an answer must echo to be about THAT
+    /// Escape. Current desk state cannot identify an event: a second Escape leaves the pane,
+    /// the selection and the gesture count all matching again, so the first Escape's answer
+    /// would borrow the second's record without this.
+    struct EscapeSent {
+        std::int64_t kind = kNoPaneKind;
+        std::uint64_t gesture = 0;
+        std::uint64_t answering = 0;
+    };
+    EscapeSent escape_sent_;
+    /// THE NUMBERS THOSE ESCAPES GO OUT UNDER, minted here and nowhere else. Monotonic from
+    /// one, so zero is never an Escape: an answer that echoes nothing answers nothing. Gaps
+    /// are meaningless -- an Escape this host answers itself burns a number and sends none.
+    std::uint64_t escape_asks_ = 0;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;

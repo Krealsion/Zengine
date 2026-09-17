@@ -24,16 +24,37 @@ types into keeps Escape while it holds the keys.
   state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"QR-18/SC-1+SC-3:
   Escape clears the ordinary selection last, and the Pane Editor's subject stands"`.
 - *Shedding the selection while the source editor or an external pane holds the keys* —
-  rejected: the editor's Escape is a pinned no-op (a habitual Esc must not hand the next `d` to
-  command mode), and a focused external pane has already been sent the key with no `consumed`
-  coming back, so Workshop cannot see it decline; pinned by case `"QR-18/SC-1+SC-2: a focused
-  external pane keeps Escape; a press on a pane that takes no text, then Escape, puts the
-  selection down"`.
+  rejected, and still rejected for the editors: their Escape is a pinned no-op or Neovim's own (a
+  habitual Esc must not hand the next `d` to command mode). What changed is that a pane may now
+  SAY the Escape it was sent was unspent (`PaneEscapeUnspent`, WL-ARR-15) and be put down for it,
+  while that Escape is still the maker's latest gesture, and that an Escape whose holder has no
+  key door crosses as nothing and is answered here (WL-ARR-16). Neither reads silence as
+  permission; pinned by case `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a
+  pane that takes no text, then Escape, puts the selection down"` and by case `"a pane that takes
+  keys keeps Escape until it says the Escape was unspent"`.
+
+**A correction, and the lesson under it.** The first `PaneEscapeUnspent` carried only its pane,
+and Workshop judged it against *current desk state*: this pane selected, still typed into, and the
+last gesture still that Escape. A queued-input probe exposed the missing identity: Escape on an
+empty Terminal, text, then Escape again, all before dispatch settles. The second Escape clears
+the draft, but the first Escape's delayed answer matches the new record and puts the pane down.
+In ordinary separated input, the first Escape correctly deselects immediately. Missing identity
+causes the defect; the queued ordering exposes it. **Matching current state does not identify
+the event being answered.** The repair gives each bare Escape a correlation, minted by this host
+and carried in Loom's envelope on whichever message delivers it. The answer must echo that one -- the same
+pair a relay settles on (WHICH conversation, and WHO is speaking, bus-stamped). No published shape
+gained a field, and the single delivery per action or key is unchanged. Zero answers nothing, an
+older number answers nothing, and a spent number is spent. Pinned by case `"a second Escape does
+not lend its identity to the first Escape's answer"` and case `"an answer to an Escape that is over
+cannot borrow the next Escape's identity"`.
 
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
-fourth writer of `Panels::selected`. The way out of a typing place is the way in: press a pane
-that takes no text (every desk has Layouts) or the workspace, then Escape. The picker remains
-how presence changes.
+fourth writer of `Panels::selected`. A pane that takes text keeps Escape unless it says otherwise:
+the Terminal sheds its list, then its line, then itself, and the two editors keep every Escape, so
+the way out of them is the way in -- press a pane that takes no text (every desk has Layouts) or
+the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to
+swallow it at Loom's gate. The picker remains how presence changes.
 
 **Laws supported.** [WL-ARR-13](../workshop/arrangement.md),
-[WL-ARR-14](../workshop/arrangement.md).
+[WL-ARR-14](../workshop/arrangement.md), [WL-ARR-15](../workshop/arrangement.md),
+[WL-ARR-16](../workshop/arrangement.md).

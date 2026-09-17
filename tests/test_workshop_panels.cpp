@@ -166,6 +166,46 @@ TEST_CASE("an address offers the three forms and never pretends to know the valu
     CHECK(bare.heading.find("#12, @office or *") != std::string::npos);
 }
 
+TEST_CASE("with the bus read the address offers everyone then each office held now then each weave registered now with what it is") {
+    // ⭐ REAL DESTINATIONS, BY IDENTITY. The host reads the bus at the ask and hands the completer
+    // a value; the completer orders it (offices by name, weaves by id) and says what each one is,
+    // so a maker chooses `#7` because it is the timer's office and not because 7 looked right.
+    loom::TerminalSession me("t", workshop_vocab());
+    const std::vector<Destination> reachable{
+        Destination{7, "zengine.timer", {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
+        Destination{3, "", {"Ack", "Refused"}, true, true},
+        Destination{12, "zengine.skin", {"SurfaceText"}, false, false},
+    };
+    const Completion at = complete_line(me, "send ", &reachable);
+    CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.skin", "@zengine.timer", "#3", "#7",
+                                                   "#12"});
+    CHECK(at.candidates[1].insert == "@zengine.skin ");
+    CHECK(at.candidates[3].insert == "#3 ");
+    CHECK(at.candidates[1].detail == "held by #12 now; reaches whoever holds it when sent");
+    CHECK(at.candidates[3].detail == "no office; accepts Ack, Refused (this terminal)");
+    CHECK(at.candidates[4].detail == "@zengine.timer; accepts TimerRequested, TimerCancelled, Drive +1");
+    CHECK(at.candidates[5].detail == "@zengine.skin; accepts SurfaceText (dead now)");
+    // KNOWING ONE IS NEITHER PERMISSION NOR A PROMISE, and the list says so.
+    CHECK(at.heading.find("not permission, nor a promise at send") != std::string::npos);
+
+    // WHAT HAS BEEN TYPED FILTERS BY THE SPELLING, SIGIL INCLUDED.
+    CHECK(displays(complete_line(me, "send @zengine.t", &reachable)) ==
+          std::vector<std::string>{"@zengine.timer"});
+    CHECK(displays(complete_line(me, "send #1", &reachable)) == std::vector<std::string>{"#12"});
+    CHECK(displays(complete_line(me, "send #", &reachable)) ==
+          std::vector<std::string>{"#3", "#7", "#12"});
+    const Completion nobody = complete_line(me, "send #99", &reachable);
+    CHECK(nobody.candidates.empty());
+    CHECK(nobody.heading == "'#99' is an address; nothing on this bus answers to it now");
+    CHECK(complete_line(me, "send @", &reachable).heading.find("where it goes") != std::string::npos);
+    CHECK(complete_line(me, "send 12", &reachable).heading.find("#12, @office or *") !=
+          std::string::npos);
+
+    // AN EMPTY BUS IS STILL A READING: everyone, and nothing else.
+    const std::vector<Destination> none;
+    CHECK(displays(complete_line(me, "send ", &none)) == std::vector<std::string>{"*"});
+}
+
 TEST_CASE("shape candidates are the catalog, in the host's order, and versions stay apart") {
     loom::TerminalSession me("t", workshop_vocab());
 
