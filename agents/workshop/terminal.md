@@ -71,7 +71,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 LAW — The completer reads which slot the maker is standing in — verb, address, shape, version, arguments — and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
 
 MEANS
-- an address offers three forms and never pretends to know the values;
+- an address offers `*` and what the host read off the bus (WL-TERM-16), or the forms without;
 - shapes are the catalog in the host's order; arguments offer field names, never values;
 - a quoted token is left alone: the quote is not on the line the completer sees.
 
@@ -193,3 +193,28 @@ PROVEN BY — `terminal-pane/pane.cpp` `here`, `moved`, `offer_applies`, `ask_co
 is gone is neither shown nor taken"`, case `"TERM-W20b: an answer for a caret that has since
 moved does not reopen the list"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
+
+## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
+
+LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, office now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+
+MEANS
+- offices are listed by name and weaves by id, each with what it is; the participant is marked;
+- a weave loaded, removed or replaced shows on the next ask: nothing kept the last reading;
+- it observes no traffic and holds nothing between asks: a reading, not a tap or a registry.
+
+DOES NOT MEAN
+- permission to send: a grant is per shape, and a listed weave may refuse or be refused;
+- that it is there at send: a removed id is Loom's refusal, an office reaches its holder then.
+
+PROVEN BY — `workshop/complete.hpp` `Destination`, `destination_detail`, `complete_line`,
+`CandidateKind`; `workshop/weave_terminal.cpp` `bus_destinations`,
+`on(TerminalCompletionRequested)`; `workshop/weave.hpp` `HostContext::destinations`;
+`tests/test_workshop_panels.cpp` case `"with the bus read the address offers everyone then each
+office held now then each weave registered now with what it is"`;
+`tests/test_workshop_panes_terminal.cpp` case `"the address lists the offices and weaves on the
+bus now with what each is and every ask reads the bus again"`, case `"an id chosen from the list
+and gone before the line is sent leaves the participant's refusal and reaches no other weave"`,
+case `"an office chosen from the list reaches whoever holds it at delivery and a vacated office is
+refused not retargeted"`.
+WHY — `agents/decisions/destinations-are-read-off-the-bus.md`

@@ -83,7 +83,17 @@ void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mai
     // only path that authors goes through the participant's own channel, which a const
     // reference cannot touch. This is the call that runs on every keystroke, and it is the
     // one that must never send.
-    const Completion c = complete_line(*host_->terminal, asked.line);
+    // WHERE A LINE CAN GO IS READ ONLY WHEN THE LINE IS AT ITS ADDRESS -- off the bus, now, by the
+    // host that holds it -- and handed to the completer as a value it keeps no longer than the
+    // answer. Every other keystroke reads nothing more than it did.
+    std::vector<Destination> reachable;
+    const bool listing = host_->destinations &&
+                         read_command_line(asked.line).slot == LineSlot::Address;
+    if (listing) {
+        reachable = host_->destinations();
+    }
+    const Completion c =
+        complete_line(*host_->terminal, asked.line, listing ? &reachable : nullptr);
     out.open = c.open;
     out.slot = slot_name(c.slot);
     out.partial = c.partial;
@@ -96,6 +106,28 @@ void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mai
     // NO REPAINT. Nothing about this host changed: the participant was read and not
     // written, and what the answer becomes on a screen is the pane's own `PaneContent`,
     // which repaints on its own arrival like every other pane's.
+}
+
+// WL-TERM-16 -- agents/workshop/terminal.md
+std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self) {
+    std::vector<Destination> out;
+    for (const loom::WeaveId id : bus.list_weaves()) {
+        if (bus.sealed(id)) {
+            continue; // a prepared candidate is outside the world: nothing can be sent to it
+        }
+        Destination d;
+        d.id = id.value;
+        d.office = bus.role_of(id);
+        d.alive = bus.alive(id);
+        d.self = self.valid() && id == self;
+        for (const std::shared_ptr<const loom::Schema>& door : bus.accepted_schemas(id)) {
+            if (door != nullptr) {
+                d.accepts.push_back(door->name());
+            }
+        }
+        out.push_back(std::move(d));
+    }
+    return out;
 }
 
 // WL-TERM-04 -- agents/workshop/terminal.md
