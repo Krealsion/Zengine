@@ -38,8 +38,8 @@ nothing. A press in the pane is the pane's.
   values"`.
 - *Shift+Space as the toggle* — retired: a POSIX terminal reports no modifier for Space at all
   (`7b64b73`).
-- *Fitting lines rather than entries* — rejected; pinned by case `"a pane fits ENTRIES, not
-  lines, and says what it could not show"`.
+- *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
+  record through a view of wrapped rows ([the record is read through a view](the-record-is-read-through-a-view.md)).
 - *Clearing the presentation context on a fresh skin's hello* — measured, not blessed; pinned by
   case `"a fresh skin's hello does NOT clear the presentation context -- measured, not
   blessed"`.

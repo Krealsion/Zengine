@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <set>
 #include <sstream>
 
 namespace {
@@ -293,9 +294,11 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     TerminalRig t;
     t.open();
     const std::vector<std::string> ids = t.declared();
-    // sorted: back, complete, next, previous, submit
+    // sorted: back, complete, newest, next, oldest, previous, scroll-down, scroll-up, submit
     CHECK(ids == std::vector<std::string>{pane::kActionBack, pane::kActionComplete,
-                                          pane::kActionDown, pane::kActionUp,
+                                          pane::kActionNewest, pane::kActionDown,
+                                          pane::kActionOldest, pane::kActionUp,
+                                          pane::kActionScrollDown, pane::kActionScrollUp,
                                           pane::kActionSubmit});
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
@@ -313,9 +316,16 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     CHECK(gesture_of(pane::kActionUp).first == input::scan::kUp);
     CHECK(gesture_of(pane::kActionDown).first == input::scan::kDown);
     CHECK(gesture_of(pane::kActionBack).first == input::scan::kEscape);
-    for (const v2::PaneActionRow& a : row->actions) {
-        CHECK(a.modifiers == input::mod::kNone);
+    for (const char* id : {pane::kActionSubmit, pane::kActionComplete, pane::kActionUp,
+                           pane::kActionDown, pane::kActionBack}) {
+        CHECK(gesture_of(id).second == input::mod::kNone);
     }
+    // THE FOUR READING KEYS ARE CTRL CHORDS, so plain Up and Down stay history and completion's.
+    using G = std::pair<std::int64_t, std::int64_t>;
+    CHECK(gesture_of(pane::kActionScrollUp) == G{input::scan::kUp, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionScrollDown) == G{input::scan::kDown, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionOldest) == G{input::scan::kHome, input::mod::kCtrl});
+    CHECK(gesture_of(pane::kActionNewest) == G{input::scan::kEnd, input::mod::kCtrl});
 }
 
 TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere else") {
@@ -536,11 +546,28 @@ TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that
         t.type("line " + std::to_string(i));
         t.submit();
     }
+    // ROWS ABOVE THE VIEW, counted in rows and said at its top -- nothing below it while it follows.
     const std::int64_t marker = t.row_of("... ");
     REQUIRE(marker >= 0);
-    CHECK(t.shown()[static_cast<std::size_t>(marker)].find("earlier") != std::string::npos);
+    CHECK(t.shown()[static_cast<std::size_t>(marker)].find("more rows above") != std::string::npos);
+    CHECK(marker < t.input_row());
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.text().find("dropped for good") == std::string::npos);
     // The whole record is still the participant's; the pane showed a tail of it.
     CHECK(t.record().size() > 40);
+
+    // ...AND ENTRIES THE PARTICIPANT EVICTED ARE THE OTHER SENSE, said beside it and never
+    // reachable by scrolling: the oldest kept row says so too.
+    for (int i = 40; i < 140; ++i) {
+        t.type("line " + std::to_string(i));
+        t.submit();
+    }
+    REQUIRE(t.r.said_transcripts.back().dropped > 0);
+    const std::string dropped = std::to_string(t.r.said_transcripts.back().dropped) +
+                                " older entries dropped for good";
+    CHECK(t.text().find(dropped) != std::string::npos);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    CHECK(t.text().find("[the oldest kept]; " + dropped) != std::string::npos);
 }
 
 // ============================================================================
@@ -1462,4 +1489,309 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
     t.r.key(input::scan::kTab);
     CHECK(t.input_text() == "> send ");
     CHECK(t.text().find("where it goes") != std::string::npos);
+}
+
+// ============================================================================
+// READING THE RECORD — a view onto every wrapped row, and what it is not showing
+// ============================================================================
+//
+// ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT ITSELF (`record_notice`), because output a maker did
+// not submit is exactly the case that matters: a submit follows the newest output by design. A
+// chord the line never takes (Alt+Left, spent as nothing) then gives Workshop a repaint, which is
+// where the host says the new picture.
+
+namespace {
+
+/// Every row of a notice carries its own name, so any wrapped row of it says which entry it is.
+std::string named_notice(const std::string& name, int words) {
+    std::string text;
+    for (int i = 0; i < words; ++i) {
+        text += (i == 0 ? "" : " ") + name;
+    }
+    return text;
+}
+
+void poke(TerminalRig& t) { t.r.key(input::scan::kLeft, input::mod::kAlt); }
+
+/// Thirty long notices, each twenty words of its own name.
+void thirty_notices(TerminalRig& t) {
+    for (int i = 0; i < 30; ++i) {
+        t.me->record_notice(named_notice("n" + std::to_string(i), 20));
+    }
+    poke(t);
+}
+
+/// The number a marker row states, or -1.
+std::int64_t marker_count(TerminalRig& t, const std::string& words) {
+    for (const std::string& row : t.shown()) {
+        const std::size_t at = row.find(words);
+        if (row.rfind("... ", 0) == 0 && at != std::string::npos && at > 4) {
+            return std::stoll(row.substr(4, at - 4));
+        }
+    }
+    return -1;
+}
+
+/// Which named notice a wrapped row belongs to: its first word that is a name (`n3`, `m44`), past
+/// the `-- ` a notice's first row starts with.
+std::string entry_of_row(const std::string& row) {
+    std::istringstream words(row);
+    std::string word;
+    while (words >> word) {
+        if (word.size() >= 2 && (word[0] == 'n' || word[0] == 'm') &&
+            std::all_of(word.begin() + 1, word.end(), [](char c) { return c >= '0' && c <= '9'; })) {
+            return word;
+        }
+    }
+    return std::string();
+}
+
+/// The first row of the view: the row under the marker that says what is above it.
+std::string first_read_row(TerminalRig& t) {
+    const std::vector<std::string> rows = t.shown();
+    for (std::size_t i = 0; i + 1 < rows.size(); ++i) {
+        if (rows[i].rfind("... ", 0) == 0 || rows[i].rfind("[the ", 0) == 0) {
+            return rows[i + 1];
+        }
+    }
+    return std::string();
+}
+
+} // namespace
+
+TEST_CASE("a long entry is read whole by scrolling and no row of it is clipped for good") {
+    // AT START THE VIEW TOOK THE NEWEST ENTRIES THAT FIT WHOLE, so this command -- wrapped taller
+    // than the room its own notice left -- was never on screen at all.
+    TerminalRig t;
+    t.open();
+    t.give_room(10, 40);
+    std::string line;
+    for (int i = 0; i < 60; ++i) {
+        line += (i < 10 ? "w0" : "w") + std::to_string(i) + " ";
+    }
+    run(t, line);
+    std::set<std::string> seen;
+    const auto collect = [&t, &seen] {
+        for (const std::string& row : t.shown()) {
+            std::istringstream words(row);
+            std::string word;
+            while (words >> word) {
+                if (word.size() == 3 && word[0] == 'w') {
+                    seen.insert(word);
+                }
+            }
+        }
+    };
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    collect();
+    for (int i = 0; i < 20; ++i) {
+        t.r.key(input::scan::kDown, input::mod::kCtrl);
+        collect();
+    }
+    for (int i = 0; i < 60; ++i) {
+        CAPTURE(i);
+        CHECK(seen.count((i < 10 ? "w0" : "w") + std::to_string(i)) == 1);
+    }
+}
+
+TEST_CASE("a view scrolled into the middle says the rows above at its top and the rows below at its bottom") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    CHECK(marker_count(t, " more rows above") > 0);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t above = marker_count(t, " more rows above");
+    const std::int64_t below = marker_count(t, " more rows below");
+    REQUIRE(above > 0);
+    REQUIRE(below > 0);
+    CHECK(t.row_of("... " + std::to_string(above)) < t.row_of("... " + std::to_string(below)));
+    CHECK(t.row_of("... " + std::to_string(below)) < t.input_row());
+    CHECK(t.text().find("press here for the newest") != std::string::npos);
+
+    // A PAGE IS COUNTED IN ROWS BOTH WAYS: what one marker gives up, the other gains.
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t above2 = marker_count(t, " more rows above");
+    const std::int64_t below2 = marker_count(t, " more rows below");
+    CHECK(above - above2 == below2 - below);
+    CHECK(above - above2 > 0);
+}
+
+TEST_CASE("new output leaves a scrolled view where it is and counts itself below while a following view shows it") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::string first = first_read_row(t);
+    const std::int64_t below = marker_count(t, " more rows below");
+    REQUIRE_FALSE(first.empty());
+    REQUIRE(below > 0);
+
+    t.me->record_notice("fresh output one");
+    poke(t);
+    CHECK(first_read_row(t) == first);
+    CHECK(marker_count(t, " more rows below") == below + 1);
+    CHECK(t.text().find("fresh output one") == std::string::npos);
+
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("fresh output one") != std::string::npos);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    t.me->record_notice("fresh output two");
+    poke(t);
+    CHECK(t.text().find("fresh output two") != std::string::npos);
+}
+
+TEST_CASE("the newest output is one press on the row below the view or Ctrl+End or a submit away") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::int64_t marker =
+        t.row_of("... " + std::to_string(marker_count(t, " more rows below")));
+    REQUIRE(marker >= 0);
+    t.press_row(marker);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.text().find("n29") != std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    REQUIRE(t.text().find("more rows below") != std::string::npos);
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    REQUIRE(t.text().find("more rows below") != std::string::npos);
+    run(t, "ask");
+    CHECK(t.text().find("more rows below") == std::string::npos);
+    CHECK(t.row_of("> ask") >= 0);
+}
+
+TEST_CASE("a resize re-wraps under the entry being read and the line and its caret stay usable") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    t.r.key(input::scan::kDown, input::mod::kCtrl);
+    const std::string entry = entry_of_row(first_read_row(t));
+    INFO(t.text());
+    REQUIRE_FALSE(entry.empty());
+    t.type("abc");
+
+    t.give_room(12, 40);
+    CHECK(entry_of_row(first_read_row(t)) == entry);
+    CHECK(t.input_text().rfind("> abc", 0) == 0);
+    CHECK(t.seat()->caret_row == t.input_row());
+    t.press_row(t.input_row(), 2 + 1);
+    CHECK(t.seat()->caret_col == 2 + 1);
+
+    t.give_room(8, 70);
+    CHECK(entry_of_row(first_read_row(t)) == entry);
+    CHECK(t.seat()->caret_row == t.input_row());
+}
+
+TEST_CASE("when the entry being read is evicted the view moves to the oldest kept and says why") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    for (int i = 0; i < 10; ++i) {
+        t.me->record_notice(named_notice("n" + std::to_string(i), 20));
+    }
+    poke(t);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    INFO(t.text());
+    REQUIRE(entry_of_row(first_read_row(t)) == "n0");
+    for (int i = 0; i < 300; ++i) {
+        t.me->record_notice(named_notice("m" + std::to_string(i), 3));
+    }
+    poke(t);
+    // 310 entries into a record of 256: the 54 oldest are gone, and the oldest kept is m44.
+    CHECK(t.text().find("... what you were reading was dropped for good") != std::string::npos);
+    CHECK(entry_of_row(first_read_row(t)) == "m44");
+    t.r.key(input::scan::kDown, input::mod::kCtrl);
+    CHECK(t.text().find("what you were reading was dropped for good") == std::string::npos);
+}
+
+TEST_CASE("in every small room the line is the last row and its caret and press agree while reading and composing") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    t.type("s");
+    for (std::int64_t rows = 1; rows <= 8; ++rows) {
+        CAPTURE(rows);
+        t.give_room(rows, 60);
+        const std::vector<std::string> shown = t.shown();
+        REQUIRE(static_cast<std::int64_t>(shown.size()) == rows);
+        CHECK(shown.back().rfind("> s", 0) == 0);
+        CHECK(t.seat()->caret_row == rows - 1);
+        // WHAT IS BELOW IS SAID IN EVERY ROOM THAT HAS A ROW ABOVE THE VIEW -- on a row of its own
+        // once the view is two rows tall, and on the row above the view before that.
+        if (rows >= 3) {
+            CHECK(t.text().find("more rows below") != std::string::npos);
+        }
+        if (rows >= 3 && rows <= 6) {
+            const std::int64_t above = t.row_of("... ");
+            REQUIRE(above >= 0);
+            CHECK(shown[static_cast<std::size_t>(above)].find("more rows above -- ") !=
+                  std::string::npos);
+        }
+        t.press_row(rows - 1, 2);
+        CHECK(t.seat()->caret_col == 2);
+        t.r.key(input::scan::kEnd);
+    }
+}
+
+TEST_CASE("a list growing under a scrolled view takes rows from its bottom and leaves its top and the line") {
+    TerminalRig t;
+    t.open();
+    t.give_room(16, 60);
+    thirty_notices(t);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    const std::string first = first_read_row(t);
+    REQUIRE_FALSE(first.empty());
+    t.r.key(input::scan::kTab); // a list of both verbs on the empty line
+    REQUIRE(t.row_of("> send") >= 0);
+    CHECK(first_read_row(t) == first);
+    CHECK(t.input_row() == static_cast<std::int64_t>(t.shown().size()) - 1);
+    CHECK(t.seat()->caret_row == t.input_row());
+}
+
+TEST_CASE("the wheel reads the record three rows a notch and moves nothing else") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    const std::int64_t above = marker_count(t, " more rows above");
+    REQUIRE(above > 3);
+    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
+    CHECK(marker_count(t, " more rows above") == above - 3);
+    CHECK(t.text().find("more rows below") != std::string::npos);
+    t.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
+    CHECK(marker_count(t, " more rows above") == above);
+    CHECK(t.text().find("more rows below") == std::string::npos);
+}
+
+TEST_CASE("reading keys leave a recall and the line as they were") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+    run(t, "first");
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kUp);
+    REQUIRE(t.text().find("history 1 of 1") != std::string::npos);
+    t.r.key(input::scan::kUp, input::mod::kCtrl);
+    t.r.key(input::scan::kHome, input::mod::kCtrl);
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    CHECK(t.text().find("history 1 of 1") != std::string::npos);
+    CHECK(t.input_text() == "> first");
+    t.r.key(input::scan::kReturn); // still a lock, not a run
+    CHECK(commands_run(t) == before);
 }
