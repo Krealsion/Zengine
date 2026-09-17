@@ -291,6 +291,11 @@ struct ResolvedArtifact {
     /// runs the old code next launch, and the sentence they read says so rather than
     /// leaving it to be discovered.
     bool default_image = false;
+    /// THE AUTHORED CHOICE THIS ROW'S OFFICE MOVED TO, or empty (`record_choice_holder`). A row
+    /// whose office a switch moved is not running -- `weave_loaded` is false and `weave` names
+    /// nothing -- and says where its office went; its image, and the image before its last
+    /// reload, are kept, so switching back runs the code the maker last had.
+    std::string switched_to;
 };
 
 /// WHAT EXECUTING A WHOLE PLAN PRODUCED, or precisely where it stopped.
@@ -400,7 +405,19 @@ enum class Realization : std::uint8_t {
 /// because at the owner's level the fact is the one `Realization::Loading` already
 /// names: one Manager conversation outstanding, nothing else answerable. The row keeps
 /// its resolved fields while it holds this token.
-enum class RowState : std::uint8_t { Authored, Pending, Loading, Resolved, Refused, Reloading };
+///
+/// `Switched` IS THE SEVENTH, and a switch's (`record_choice_holder`): the row resolved, and the
+/// office it held was moved to another authored choice. It is not `Refused` (nothing refused) and
+/// not `Resolved` (nothing of it is running).
+enum class RowState : std::uint8_t {
+    Authored,
+    Pending,
+    Loading,
+    Resolved,
+    Refused,
+    Reloading,
+    Switched
+};
 
 /// THE KERNEL'S REASON FOR REFUSING A RELOAD, SAID IN A MAKER'S WORDS (RELOAD-1).
 ///
@@ -469,6 +486,11 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
 /// at a reload; a host reads it to tell a maker, before an edit, whether a rebuild can reach
 /// the running code. One rule, so the early sentence and the refusal cannot disagree.
 inline std::string reload_refusal(const ResolvedArtifact& done) {
+    if (!done.switched_to.empty()) {
+        return "artifact '" + done.stem + "' is not running: its office " + done.role +
+               " is held by the authored choice '" + done.switched_to +
+               "'; switch back to it before reloading it";
+    }
     if (!done.weave_loaded) {
         return "artifact '" + done.stem +
                "' loaded no weave in this run: a provider's contribution is not reloaded in "
@@ -1365,6 +1387,95 @@ public:
         return Appended{true, std::string(), said};
     }
 
+    // ---- An office moved between authored choices (the editor switch) ----------------
+
+    /// WHAT RECORDING A SWITCH CAME TO: nothing moved and `refusal` says why, or the rows say
+    /// where the office is now.
+    struct Recorded {
+        bool accepted = false;
+        std::string refusal;
+    };
+
+    /// THE IMAGE A CHOICE'S ARTIFACT RUNS FROM WHEN A SWITCH LOADS IT: the image its row last ran
+    /// -- a maker's reloaded code survives a switch away and back -- or the plan's own file for an
+    /// artifact this run has not run.
+    std::string image_of(const std::string& stem) const {
+        for (const ResolvedArtifact& done : resolved_) {
+            if (done.stem == stem && !done.image.empty()) {
+                return done.image;
+            }
+        }
+        return path_of_(stem);
+    }
+
+    /// AN OFFICE WITH AUTHORED CHOICES IS NOW HELD BY `weave`, loaded from `image` for the choice
+    /// whose artifact is `stem` -- recorded by the switch that committed it, after Loom's admission
+    /// moved the office. The row that held the office is `switched` to that choice; the choice's
+    /// row is resolved with the admitted weave: the plan's own row when `artifacts` names it (a
+    /// switch back), else a row this owner keeps for the choice. So Edit Code, a rebuild's reload
+    /// and the arrangement all find the running code by the weave that runs it.
+    ///
+    /// Refused, changing nothing, for a stem the plan authors as no choice for `role`, and while a
+    /// load or a reload conversation is open (its answer would settle a row this moved).
+    // WL-SWITCH-02 -- agents/workshop/editor-switch.md
+    Recorded record_choice_holder(const std::string& role, const std::string& stem,
+                                  loom::WeaveId weave, const std::string& image) {
+        bool authored = false;
+        for (const ChoiceIntent& c : plan_.choices) {
+            authored = authored || (c.role == role && c.stem == stem);
+        }
+        if (!authored) {
+            return Recorded{false, "this project authors no choice '" + stem + "' for " + role};
+        }
+        if (state_ == Realization::Loading || state_ == Realization::Advancing) {
+            return Recorded{false, why_not_asked_now()};
+        }
+        // EVERY ROW THE OFFICE IS NOT HELD BY NOW names where it is -- also one a switch left
+        // earlier, whose word would otherwise still name the choice that held it then.
+        for (ResolvedArtifact& done : resolved_) {
+            if (done.role == role && done.stem != stem) {
+                done.weave_loaded = false;
+                done.weave = loom::WeaveId{};
+                done.switched_to = stem;
+            }
+        }
+        for (ResolvedArtifact& done : resolved_) {
+            if (done.stem != stem) {
+                continue;
+            }
+            done.weave_loaded = true;
+            done.weave = weave;
+            done.role = role;
+            done.switched_to.clear();
+            if (done.image != image) {
+                done.image = image;
+                done.default_image = image == path_of_(stem) ||
+                                     (!done.promoted_from.empty() && image == done.promoted_from);
+            }
+            return Recorded{true, std::string()};
+        }
+        ResolvedArtifact row;
+        row.stem = stem;
+        row.weave_loaded = true;
+        row.weave = weave;
+        row.role = role;
+        row.image = image;
+        row.default_image = image == path_of_(stem);
+        resolved_.push_back(std::move(row));
+        return Recorded{true, std::string()};
+    }
+
+    /// WHICH AUTHORED CHOICE FOR `role` IS RUNNING NOW, by its artifact: the resolved, not
+    /// switched-away row loaded into `role`, or empty.
+    std::string choice_holder(const std::string& role) const {
+        for (const ResolvedArtifact& done : resolved_) {
+            if (done.role == role && done.weave_loaded && done.switched_to.empty()) {
+                return done.stem;
+            }
+        }
+        return std::string();
+    }
+
     /// IS THIS ROW'S RUNNING IMAGE THE FILE A RESTART LOADS? False for a stem this run
     /// did not resolve -- the answer a refusal about it carries.
     bool default_image_of(const std::string& stem) const noexcept {
@@ -1462,7 +1573,7 @@ public:
         }
         for (const ResolvedArtifact& done : resolved_) {
             if (done.stem == stem) {
-                return RowState::Resolved;
+                return done.switched_to.empty() ? RowState::Resolved : RowState::Switched;
             }
         }
         if (current_.stem == stem && state_ == Realization::Failed) {
