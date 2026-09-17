@@ -415,6 +415,40 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     CHECK(file_text(s.root / "carry.txt") == "alpha beta\n\tgamma\n"); // nothing was saved on the way
 }
 
+TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") {
+    // THE ONE ESCAPE WORKSHOP NEVER TAKES. A pane that keeps Escape says nothing to Workshop about
+    // it, so the selection and the keys stay where the maker put them -- and Escape is Neovim's in
+    // the only way that can be measured: the mode it leaves, and a Normal-mode command that then
+    // works. Workshop learns nothing about modes to make this true.
+    SwitchRig s("nvim-escape");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim());
+    const SourceOpened opened = open_through_office(s, "esc.txt", "alpha\nbeta\n");
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    const EditorSwitchAnswered answered = switch_live(s, "neovim");
+    REQUIRE_MESSAGE(answered.outcome == switch_outcome::kSwitched, answered.detail);
+    REQUIRE(beat_until(s, [&] { return s.shows("alpha"); }));
+
+    focus(s);
+    REQUIRE(s.r.session().panels.selected == s.kind);
+    s.type("ixyz");
+    REQUIRE(beat_until(s, [&] { return s.shows("xyzalpha"); }));
+    REQUIRE(beat_until(s, [&] { return s.shows("INSERT"); }));
+
+    s.r.key(input::scan::kEscape);
+    // NEOVIM TOOK IT: the mode it reports is Normal again, and the pane is still the maker's.
+    CHECK(beat_until(s, [&] { return s.shows("NORMAL"); }));
+    CHECK(s.r.session().panels.selected == s.kind);
+    CHECK(s.r.session().panels.keyboard == s.kind);
+
+    // ...AND A NORMAL-MODE COMMAND PROVES IT RATHER THAN THE STATUS ROW ALONE: `dd` deletes the
+    // line, which insert mode would have typed instead.
+    s.type("dd");
+    CHECK(beat_until(s, [&] { return !s.shows("xyzalpha"); }));
+    CHECK(s.shows("beta"));
+    CHECK(s.r.session().panels.selected == s.kind);
+}
+
 TEST_CASE("a selection crosses to Neovim as Visual and comes back as the same range, in its direction") {
     SwitchRig s("nvim-selection");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);

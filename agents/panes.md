@@ -116,10 +116,19 @@ screen says so, is Workshop routing law
   `zen.DescribeAccepted`, which is the door that already answers exactly that question.
 - **No key release, no focus-changed shape, no capture, no hotkey registration, no IME.** The
   shape's ARRIVAL is the gesture, SEL-0's rule one gesture on.
-- **A focused pane owns Escape (QR-18).** Workshop's final Escape meaning — put the selected
-  pane down — is never spent while an external pane holds the keys: the key has crossed, no
-  `consumed` comes back, and the Composer spends it (form → catalog, keep typing). The maker
-  leaves such a pane by pressing a pane that takes no text, then Escape.
+- **A focused pane owns Escape, and says so by keeping quiet (QR-18, WL-ARR-15).** The key
+  crosses and no `consumed` comes back, so Workshop cannot see a pane decline it: the Composer
+  spends it (form → catalog, keep typing) and the editors keep every Escape. A pane that had
+  nothing more specific to do may SAY so — `PaneEscapeUnspent{pane}`, provider → Workshop as the
+  office that offered it — and Workshop then spends its own last Escape meaning, putting that pane
+  down, while the pane still has the desk and the keys and that Escape is still the last gesture
+  the host handled. There is no answer and no retry; a later key, text, press or wheel makes the
+  word stale. The Terminal says it with no recall, no list and an empty line.
+  **And a bare Escape is not sent at all** when the office's holder accepts no `PaneKey` and the
+  pane declared no row for it (`holder_accepts`, the same reading the press's version comes from):
+  nothing could have spent it, so Escape's last meaning answers at once (WL-ARR-16). That is a
+  declaration read off the bus, never an inference from silence. The maker leaves a pane that keeps
+  Escape by pressing a pane that takes no text, then Escape.
 
 ## The wheel crosses as one shape (QR-18)
 

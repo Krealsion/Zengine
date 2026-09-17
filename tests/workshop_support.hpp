@@ -2132,7 +2132,7 @@ class ProviderSeat
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                                           PaneTextInput, PaneWheel, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, PanePressed, PaneActions,
-                                        v2::PaneActions, PaneCaret>> {
+                                        v2::PaneActions, PaneCaret, PaneEscapeUnspent>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -2207,6 +2207,14 @@ public:
     }
     void say(loom::Mail& mail, const PaneContent& c) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
+    /// the case about authorship rather than about the gesture.
+    void unspent(loom::Mail& mail, const std::string& pane) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane});
+    }
+    void unspent_personally(loom::Mail& mail, const std::string& pane) {
+        (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane});
     }
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
@@ -2671,6 +2679,8 @@ struct PaneRig {
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         // ...and where its caret is, which is the arc's second host-facing pane sentence.
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
+        // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down.
+        grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
         // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
         // claim under test is that a PROVIDER refuses a press it did not get from
         // Workshop -- a refusal the bus made unreachable would prove nothing.
