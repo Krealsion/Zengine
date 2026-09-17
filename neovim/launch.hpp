@@ -29,7 +29,9 @@
 #include "neovim/child.hpp"
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -59,6 +61,52 @@ inline LaunchChoice choice_from_environment() {
         out.profile = p;
     }
     return out;
+}
+
+/// WHAT THE PROFILE NAMES, JUDGED BEFORE ANY NEOVIM IS STARTED.
+///
+/// `clean` and `user` are the two spellings; anything else is an init FILE. A relative one is
+/// resolved against the directory this process was started in -- where the maker set the variable
+/// -- and never against Neovim's own working directory, which is the project's and would make the
+/// same variable mean different files in two launches.
+///
+/// AND A NAME THAT IS NEITHER SPELLING AND NAMES NO FILE IS REFUSED HERE. Handed to Neovim it
+/// becomes `-u <name>`: Neovim prints `E282: Cannot read from "..."` into a prompt and carries on
+/// with no configuration at all (measured on 0.11.6) -- a third configuration nobody chose, behind
+/// a refusal that blames the maker's own init file.
+struct ProfileChoice {
+    bool ok = true;
+    std::string refusal;  ///< why not, naming the variable and where the file was looked for
+    std::string resolved; ///< the absolute init file, for a file profile; empty for the two words
+};
+
+inline ProfileChoice check_profile(const LaunchChoice& c) {
+    ProfileChoice out;
+    if (c.profile == "clean" || c.profile == "user") {
+        return out;
+    }
+    std::error_code where;
+    const std::filesystem::path named(c.profile);
+    const std::filesystem::path at =
+        named.is_absolute() ? named : std::filesystem::current_path(where) / named;
+    std::error_code is;
+    if (!where && std::filesystem::is_regular_file(at, is)) {
+        out.resolved = at.generic_string();
+        return out;
+    }
+    out.ok = false;
+    out.refusal = std::string(kProfileVariable) + " is `" + c.profile +
+                  "`, which is neither `clean` nor `user` and names no init file (looked for " +
+                  at.generic_string() + ") -- Neovim was not started";
+    return out;
+}
+
+/// THE PROFILE IN ONE WORD, for a status row a maker reads while Neovim runs.
+inline std::string profile_tag(const LaunchChoice& c) {
+    if (c.profile == "clean" || c.profile == "user") {
+        return c.profile;
+    }
+    return "init file";
 }
 
 /// The profile's words, for status and refusals.

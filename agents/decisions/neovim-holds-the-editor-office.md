@@ -34,4 +34,5 @@ opts in. A copy and a paste cross through the Skin exactly as the standard Edito
 **Laws supported.** [WL-NVIM-01](../workshop/neovim.md), [WL-NVIM-02](../workshop/neovim.md),
 [WL-NVIM-03](../workshop/neovim.md), [WL-NVIM-04](../workshop/neovim.md),
 [WL-NVIM-05](../workshop/neovim.md), [WL-NVIM-06](../workshop/neovim.md),
-[WL-NVIM-07](../workshop/neovim.md), [WL-NVIM-08](../workshop/neovim.md).
+[WL-NVIM-07](../workshop/neovim.md), [WL-NVIM-08](../workshop/neovim.md),
+[WL-NVIM-09](../workshop/neovim.md).
