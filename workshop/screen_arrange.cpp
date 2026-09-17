@@ -205,8 +205,14 @@ std::int64_t typing_pane(const Session& s) {
     return keyboard_pane(s.panels);
 }
 
+// ⭐ WAS `escape_may_shed_selection`, AND THE RENAME IS THE MIGRATION (WL-DESK-02). The
+// predicate never was about Escape: it is about WHERE THE KEYS WENT -- a list or nothing, as
+// against a place a maker types into, which keeps its own keys while it holds them. Escape was
+// simply the only gesture that had ever asked. Now that the application's default rows are a
+// declared, replaceable set, any of them is answered exactly here, under exactly this test.
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
-bool escape_may_shed_selection(KeyContext c) {
+// WL-DESK-02 -- agents/workshop/desktop.md
+bool default_row_context(KeyContext c) {
     return c == KeyContext::kPaneEditor || c == KeyContext::kCommand;
 }
 

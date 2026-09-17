@@ -3062,10 +3062,17 @@ TEST_CASE("QR-18/SC-7: a wheel in an overlap reaches only the pane visibly in fr
 
 TEST_CASE("QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes "
           "no text, then Escape, puts the selection down") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     // MUTATION (F1): removing the final Escape branch -- `selected` stays `kInfo` below.
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
@@ -3154,9 +3161,16 @@ TEST_CASE("QR-18/SC-5: the Composer's windowed catalog is reached by the wheel")
 // ============================================================================
 
 TEST_CASE("a pane that takes keys keeps Escape until it says the Escape was unspent") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
@@ -3184,9 +3198,16 @@ TEST_CASE("a pane that takes keys keeps Escape until it says the Escape was unsp
 }
 
 TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's identity") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
@@ -3236,9 +3257,16 @@ TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's i
 }
 
 TEST_CASE("only an Escape is sent under a number, and a pane may answer the one it holds") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
@@ -3261,9 +3289,16 @@ TEST_CASE("only an Escape is sent under a number, and a pane may answer the one 
 }
 
 TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or about another pane") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);

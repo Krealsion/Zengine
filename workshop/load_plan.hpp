@@ -187,6 +187,28 @@ struct ArtifactIntent {
     std::string stem;
     std::optional<ProviderIntent> provider;
     std::optional<WeaveIntent> weave;
+    /// ⭐ MAY THIS PROJECT STAND WITHOUT THIS ROW? (P-WORK-22, format version 3.)
+    ///
+    /// THE DISTINCTION IS ESSENTIAL STARTUP AGAINST RECOVERABLE TOOL AVAILABILITY, and it is
+    /// AUTHORED because only the plan knows which is which. The shipped plan's third row is the
+    /// SKIN: a Workshop that survived its refusal would have no painter and no input -- a live
+    /// process a maker can neither see nor quit -- so that row stops everything, exactly as
+    /// every row did before this. The pane rows are the other kind: a Workshop with no Info
+    /// pane is a Workshop, and ending it denies the maker the one surface that could have told
+    /// them which artifact to build.
+    ///
+    /// ⚠ IT IS NOT "SKIP WHAT FAILS", AND THE DIFFERENCE IS THE WHOLE POLICY. A row is stepped
+    /// over only because a maker WROTE that it may be; the rows behind it are still performed
+    /// in authored order, nothing is reordered, no dependency is inferred and no authority is
+    /// relaxed -- an optional row that refuses is refused, recorded by name with the refusing
+    /// layer's own sentence, and reported as an unavailable tool. `allow_any()` and "continue
+    /// past every failure" are the two things this field is written to not be.
+    ///
+    /// ⚠ AND IT CANNOT RESCUE A ROW SOMETHING BEHIND IT NEEDS. Order is still the dependency
+    /// model (there is no solver): a maker who marks a row optional is saying that the rows
+    /// after it can stand without it, and if that is untrue the later row refuses on its own
+    /// and is judged on its own terms.
+    bool optional = false;
 
     friend bool operator==(const ArtifactIntent&, const ArtifactIntent&) = default;
 };

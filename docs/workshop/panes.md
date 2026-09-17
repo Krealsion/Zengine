@@ -42,6 +42,40 @@ The picker paints a whole pane's worth of rows even when it has fewer to show, s
 picker over a taller pane cannot leave that pane's last rows showing beneath it — one box
 saying two unrelated things.
 
+## Launching — the Panes list, and `Ctrl`+`t`
+
+The picker above answers one question: *is this pane present?* **Launching answers a different
+one: put me in this tool.** They are different sentences and they have different owners — the
+picker is Workshop's mode, and launching belongs to the **desktop**, a tool that arrives by a row
+in your load plan and that you can edit and rebuild.
+
+Press **`Ctrl`+`p`** to open the **Panes** list, or **`Ctrl`+`t`** to go straight to the
+Terminal. Both work while your hands are inside another pane — that is the difference from `p`,
+which is command mode's and so does nothing while you are typing somewhere.
+
+In the Panes list, `↑` `↓` choose a row and `Enter` launches it:
+
+```
+PANES -- 8
+  [open] Layouts
+> [    ] Builder          a closed tool: Enter opens it and puts you in it
+  [open] Terminal         already here: Enter takes you to it, and closes nothing
+  [gone] Info             nothing is offering this pane in this Workshop
+  [room] Files            authored open, and this screen has no room to seat it
+```
+
+**Launching never toggles.** Pressing `Enter` on an open tool — or `Ctrl`+`t` while the Terminal
+is already up — selects it and gives it the keyboard. It does not close it, does not take it out
+of your setup, and never unloads the weave behind it. To remove a pane, use the picker.
+
+**Launching never loads anything.** A `[gone]` row is a pane nothing in this Workshop is
+offering: a provider that is not in your load plan, or one whose artifact could not be loaded at
+startup. Workshop tells you which, and leaves it to you to build it and launch again — it will
+not go looking for a file on your behalf.
+
+The empty room shows the same news. What you read in the workspace behind your panes is the
+desktop's own, including a line naming any tool that is not here.
+
 ## Every pane has an edge, and one of them is yours
 
 Each pane draws a **visible boundary** inside its own rectangle, and each surface spends the

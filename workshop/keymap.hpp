@@ -870,10 +870,29 @@ struct ParsedGesture {
 };
 
 // WL-KEY-14 -- agents/workshop/keyboard.md
+// WL-DESK-08 -- agents/workshop/desktop.md
 inline ParsedGesture parse_gesture(std::string_view text) {
     ParsedGesture out;
     if (text.empty()) {
         out.refusal = "a gesture cannot be empty";
+        return out;
+    }
+    // ⭐ `none` IS A GESTURE A MAKER MAY AUTHOR, AND IT IS THE ONE THAT ANSWERS TO NO KEY.
+    // Four rows shipped unbound already (`layout.rename` and its three neighbours), so a row
+    // with no gesture was always a legal state of this keymap; what was missing was a way for a
+    // maker to PUT a row into it. Without that, "replace or disable an application default" had
+    // only half an answer -- a maker could move Escape-to-deselect onto another key, and could
+    // not say that they want it gone.
+    //
+    // ⚠ AND IT IS A DISABLE, NOT A DELETE. The row is still declared, still listed in the
+    // hotkey view, and still names its action for a later edit; what it has is `kNoGesture`,
+    // which `action_for` refuses to match before it compares anything (`is_bound`). Nothing
+    // reactivates a hard-wired copy behind it, because after this arc there is no hard-wired
+    // copy: Escape-to-deselect is an application row like any other, and a disabled one does
+    // nothing at all.
+    if (text == "none") {
+        out.accepted = true;
+        out.gesture = kNoGesture;
         return out;
     }
     std::int64_t mods = 0;
@@ -1051,6 +1070,36 @@ struct PaneRows {
     std::vector<PaneRow> rows;
 };
 
+/// ⭐ ONE APPLICATION ROW A PARTICIPATING OWNER DECLARED, AS IT IS IN FORCE -- the id the
+/// declarer will be asked for, the label a legend prints, the gesture that requests it now
+/// (the maker's authored override when the file names the id, the declared default
+/// otherwise), and WHERE IN THE CHAIN it is answered.
+///
+/// IT HAS NO `Act` AND NO `KeyContext`, exactly as a `PaneRow` has neither, and for the same
+/// reason: there is no dispatch site in the host -- execution belongs to the declarer, reached
+/// by `AppActionRequested` carrying `id`. What it has instead of a `KeyContext` is
+/// `precedence`, because an application row's scope is not a mode: it is every mode, and the
+/// only question is whether it is asked BEFORE the keys cross to a pane or AFTER nothing more
+/// specific claimed them (`app_precedence`, desktop_seam_vocabulary.hpp).
+///
+/// ⚠ `supersedes` IS NOT HERE, AND ITS ABSENCE IS THE LAW. A pane stands in for an APPLICATION
+/// row by naming the row's id on its own `v2::PaneActionRow::supersedes` -- the supersession
+/// travels in one direction, from the specific to the general, so an application row cannot
+/// take a gesture away from a pane by declaring that it owns it.
+// WL-DESK-07 -- agents/workshop/desktop.md
+struct AppRow {
+    std::string id;
+    std::string label;
+    Gesture gesture;
+    std::int64_t precedence = 0; ///< `app_precedence::kAboveModes` / `kDefault`
+};
+
+/// HOW MANY APPLICATION ROWS ONE DECLARATION MAY CARRY. A pane's bound, one shape over, and
+/// deliberately the same number: a declarer that needs more than this many gestures above every
+/// mode is not declaring application defaults, it is claiming the keyboard.
+// WL-DESK-07 -- agents/workshop/desktop.md
+inline constexpr std::size_t kMaxAppActionRows = 32;
+
 /// HOW MANY ROWS ONE PANE MAY DECLARE. The picker's catalog bound, one shape over
 /// (`kMaxPaneCatalogEntries`, panel.hpp): a runtime-catalog policy, deliberately its own
 /// constant, bounding what a chatty provider can make this session retain and a legend
@@ -1096,6 +1145,17 @@ struct Keymap {
     /// none of it back, and a file read replaces none of it -- the loader re-joins.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     std::vector<PaneRows> panes;
+    /// ⭐ THE APPLICATION ROWS THE PARTICIPATING DEFAULTS OWNER DECLARED, AS THEY ARE IN
+    /// FORCE -- joined by `join_app_rows` from one office's declaration and from `authored`,
+    /// and re-joined whenever either side changes. DERIVED, like `overrides` and `panes`: a
+    /// save writes none of it back, and a file read replaces none of it.
+    ///
+    /// EMPTY IS THE HONEST DEFAULT AND NOT A FALLBACK. A Workshop whose desktop weave never
+    /// loaded has no application rows, which means `Ctrl+t` does nothing and Escape sheds no
+    /// selection -- and the band, the hotkey view and the backdrop all say why. There is no
+    /// compiled-in copy waiting behind this vector.
+    // WL-DESK-07 -- agents/workshop/desktop.md
+    std::vector<AppRow> app;
 
     /// The rows one pane holds in force, or nullptr for a pane that declared none.
     const PaneRows* pane_rows(std::int64_t pane) const noexcept {
@@ -1242,6 +1302,57 @@ struct Keymap {
             }
         }
         return Act::kNone;
+    }
+
+    /// ⭐ WHICH APPLICATION ROW OF THIS PRECEDENCE CLASS THIS GESTURE REQUESTS, or nullptr.
+    ///
+    /// THE TWO GUARDS ARE `action_for`'S, FOR `action_for`'S REASONS. A key this build cannot
+    /// name requests nothing -- otherwise an unnamed key would match every row a maker
+    /// disabled with `none` and run the first. And a row whose id the pane holding the
+    /// keyboard has declared it stands in for is not requestable while that pane has them:
+    /// the same `pane_supersedes` the host's own `kUnlessOwned` rows are judged by, by ID and
+    /// never by gesture, so a maker who moved either row moved neither row's meaning.
+    ///
+    /// ⚠ SUPERSESSION APPLIES TO BOTH CLASSES. A `kDefault` row is asked last, but "last" is
+    /// not "after the pane declined it" -- the pane never tells Workshop whether it spent a
+    /// key (WL-ARR-15), so the only honest exclusion is the declared one.
+    // WL-DESK-07 -- agents/workshop/desktop.md
+    const AppRow* app_action_for(std::int64_t precedence, KeyContext current,
+                                 std::int64_t scancode, std::int64_t modifiers,
+                                 std::int64_t keyboard_pane = -1) const noexcept {
+        const Gesture pressed{scancode, modifiers};
+        if (!is_bound(pressed)) {
+            return nullptr;
+        }
+        for (const AppRow& row : app) {
+            if (row.precedence != precedence || row.gesture != pressed) {
+                continue;
+            }
+            if (pane_supersedes(owner_of(current, keyboard_pane), row.id)) {
+                continue;
+            }
+            return &row;
+        }
+        return nullptr;
+    }
+
+    /// Is this application row requestable at this moment? The legend's half of the question
+    /// above, so a band cannot advertise a key the chain will not run.
+    // WL-DESK-07 -- agents/workshop/desktop.md
+    bool app_row_active(const AppRow& row, KeyContext current,
+                        std::int64_t keyboard_pane) const noexcept {
+        return is_bound(row.gesture) &&
+               !pane_supersedes(owner_of(current, keyboard_pane), row.id);
+    }
+
+    /// The application row an id names, or nullptr.
+    const AppRow* app_row_of_id(std::string_view id) const noexcept {
+        for (const AppRow& row : app) {
+            if (row.id == id) {
+                return &row;
+            }
+        }
+        return nullptr;
     }
 
     /// Does this gesture spell this action's effective binding, in any context? The one
@@ -1481,12 +1592,24 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         }
         if (!d.supersedes.empty()) {
             const ActionRow* stands_for = row_of_id(d.supersedes);
-            if (stands_for == nullptr) {
+            // ⭐ ...OR AN APPLICATION ROW OF THE ABOVE-THE-MODES CLASS (WL-DESK-07). Those are
+            // the rows that would otherwise take a gesture from a pane holding the keyboard,
+            // so those are exactly the rows a pane must be able to stand in for. A
+            // DEFAULT-class row is asked only where the keys did not cross to this pane, so
+            // there is nothing there to stand in for -- and saying so is refused rather than
+            // accepted-and-ignored.
+            const AppRow* app_stands_for = k.app_row_of_id(d.supersedes);
+            if (stands_for == nullptr && app_stands_for == nullptr) {
                 return Written::no("`" + d.id + "`: `" + d.supersedes +
-                                   "` is not one of Workshop's action ids -- a row can only "
-                                   "stand in for an action that exists");
+                                   "` is not an action id this Workshop knows -- a row can "
+                                   "only stand in for an action that exists");
             }
-            if (stands_for->context != KeyContext::kUnlessOwned) {
+            if (app_stands_for != nullptr && app_stands_for->precedence != 0) {
+                return Written::no("`" + d.id + "`: `" + d.supersedes +
+                                   "` is answered only where the keys did not reach this "
+                                   "pane, so there is nothing here to stand in for");
+            }
+            if (stands_for != nullptr && stands_for->context != KeyContext::kUnlessOwned) {
                 return Written::no("`" + d.id + "`: `" + d.supersedes +
                                    "` is not an action a pane may own -- only the rows "
                                    "Workshop declares a pane can stand in for");
@@ -1541,6 +1664,23 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                 return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
             }
         }
+        // ...AND AGAINST THE APPLICATION ROWS (WL-DESK-07). An application row is active in
+        // every context, so it meets every pane's rows exactly as a `kUnlessOwned` host row
+        // does -- and it stands down for this pane under the same declaration, by the same
+        // name. A pane that wants `ctrl+t` for itself says `supersedes: "desktop.terminal"`;
+        // one that merely takes it is refused, in the same sentence the file's own law says.
+        for (const AppRow& row : k.app) {
+            // A DEFAULT-CLASS ROW IS ASKED ONLY WHERE THE KEYS DID NOT CROSS TO THIS PANE, so
+            // it and this pane's row can never both fire -- the same asymmetry `join_app_rows`
+            // writes from the other side.
+            if (row.precedence != 0 || !is_bound(row.gesture) ||
+                superseded_here(rows, row.id)) {
+                continue;
+            }
+            if (row.gesture == rows[i].gesture) {
+                return Written::no(collision_sentence(rows[i].gesture, row.id, rows[i].id));
+            }
+        }
     }
     for (PaneRows& p : k.panes) {
         if (p.pane == pane) {
@@ -1549,6 +1689,143 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         }
     }
     k.panes.push_back(PaneRows{pane, std::move(rows)});
+    return Written::ok();
+}
+
+/// ⭐ JOIN THE APPLICATION ROWS ONE PARTICIPATING OWNER DECLARED (WL-DESK-07).
+///
+/// `join_pane_rows` one scope out, and deliberately the same shape of function: the same text
+/// bounds, the same namespace rule, the same authored-override application, the same collision
+/// law and the same atomic outcome. What differs is what the rows are judged AGAINST -- an
+/// application row is active in every context, so it meets every host row and every pane's rows
+/// rather than only the ones a pane's context intersects.
+///
+/// ⚠ THE PANES ARE JUDGED AGAINST THE NEW ROWS, NOT ONLY THE NEW ROWS AGAINST THE PANES. A
+/// declaration arriving after a pane's would otherwise take a gesture the pane is already
+/// holding and leave both live. The caller re-joins the panes after this returns (`rejoin_pane_rows`);
+/// what THIS function refuses is a declaration that collides with rows already in force, so
+/// both arrival orders end with one gesture meaning one thing.
+// WL-DESK-07 -- agents/workshop/desktop.md
+inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
+    if (declared.size() > kMaxAppActionRows) {
+        return Written::no("an application declares at most " +
+                           std::to_string(kMaxAppActionRows) + " actions -- this one declared " +
+                           std::to_string(declared.size()));
+    }
+    std::vector<AppRow> rows;
+    rows.reserve(declared.size());
+    for (const AppRow& d : declared) {
+        const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
+        if (!id.accepted) {
+            return id;
+        }
+        const Written label =
+            check_pane_action_text(d.label, "label", kMaxPaneActionLabelLen, true);
+        if (!label.accepted) {
+            return Written::no("`" + d.id + "`: " + label.refusal);
+        }
+        if (row_of_id(d.id) != nullptr) {
+            return Written::no("`" + d.id +
+                               "` is Workshop's own action id -- an application's ids live in "
+                               "its own namespace");
+        }
+        for (const AppRow& earlier : rows) {
+            if (earlier.id == d.id) {
+                return Written::no("`" + d.id + "` is declared twice -- one row per action");
+            }
+        }
+        if (d.precedence != 0 && d.precedence != 1) {
+            // A PRECEDENCE THIS BUILD CANNOT NAME IS NOT GUESSED (VD-21's "refuse rather than
+            // pretend"). Defaulting it to "above every mode" would give a row written against
+            // a later protocol the strongest position in the chain by accident.
+            return Written::no("`" + d.id + "`: precedence " + std::to_string(d.precedence) +
+                               " is not one this Workshop knows (0 above the modes, 1 default)");
+        }
+        constexpr std::int64_t kKnown = mod::kCtrl | mod::kShift | mod::kAlt | mod::kSuper;
+        if ((d.gesture.modifiers & ~kKnown) != 0) {
+            return Written::no("`" + d.id + "`: modifier bits this keymap does not know");
+        }
+        if (d.gesture.scancode == scan::kUnknown) {
+            if (d.gesture.modifiers != mod::kNone) {
+                return Written::no("`" + d.id +
+                                   "`: a row with no default key cannot carry modifiers");
+            }
+        } else if (key_name_of(d.gesture.scancode) == nullptr) {
+            return Written::no("`" + d.id + "`: scancode " +
+                               std::to_string(d.gesture.scancode) +
+                               " is not a key this keymap can name");
+        }
+        rows.push_back(d);
+    }
+    // THE MAKER'S OWN FILE, applied to the ids it names -- including `none`, which is how a
+    // maker DISABLES an application default rather than moving it (WL-DESK-07).
+    for (AppRow& row : rows) {
+        bool moved = false;
+        for (const AuthoredOverride& o : k.authored) {
+            if (o.action != row.id) {
+                continue;
+            }
+            if (moved) {
+                return Written::no("`" + row.id + "` is authored twice -- one gesture per action");
+            }
+            const ParsedGesture parsed = parse_gesture(o.gesture);
+            if (!parsed.accepted) {
+                return Written::no("`" + row.id + "`: " + parsed.refusal);
+            }
+            row.gesture = parsed.gesture;
+            moved = true;
+        }
+    }
+    // THE COLLISION LAW, over the effective map: these rows against the host's own, against
+    // each other, and against every pane's rows in force. Same words as the file's.
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (!is_bound(rows[i].gesture)) {
+            continue; // a disabled row collides with nothing -- it answers to no key
+        }
+        // ⚠ AND THE PRECEDENCE CLASS DECIDES WHO IT CAN COLLIDE WITH, which is the whole
+        // reason there are two classes rather than one.
+        //
+        // AN ABOVE-THE-MODES ROW IS ANSWERED BEFORE EVERY HOST ROW BELOW THE FIVE and before
+        // the keys cross to a pane, so it MEETS all of them: two declarations that could both
+        // fire on one gesture, which is exactly what the collision law is about.
+        //
+        // A DEFAULT ROW MEETS NONE OF THEM, and that is a fact about the chain rather than a
+        // leniency. It is asked only where the resolved context claimed nothing
+        // (`action_for(...) == kNone`) and only where the keys did not cross to a pane that
+        // took them -- so a host row and a default row on one gesture cannot both fire, and
+        // neither can a pane's row and a default row. `picker.close` on Escape and
+        // `desktop.deselect` on Escape is the shipped instance of this: while the picker is
+        // open Escape closes it, everywhere else it puts the selection down, and refusing the
+        // pair would have made the second unauthorable.
+        if (rows[i].precedence == 0) {
+            for (const ActionRow& host : kActionCatalog) {
+                if (k.row_gesture(host) == rows[i].gesture) {
+                    return Written::no(
+                        collision_sentence(rows[i].gesture, host.id, rows[i].id));
+                }
+            }
+            for (const PaneRows& p : k.panes) {
+                if (superseded_here(p.rows, rows[i].id)) {
+                    continue; // that pane stands in for this row; inside it, it is not live
+                }
+                for (const PaneRow& pane_row : p.rows) {
+                    if (pane_row.gesture == rows[i].gesture) {
+                        return Written::no(
+                            collision_sentence(rows[i].gesture, rows[i].id, pane_row.id));
+                    }
+                }
+            }
+        }
+        // ...AND AGAINST EACH OTHER, IN THE SAME CLASS. Two application rows of one class on
+        // one gesture are two declarations that could both fire, whichever class it is.
+        for (std::size_t j = i + 1; j < rows.size(); ++j) {
+            if (rows[j].precedence == rows[i].precedence &&
+                rows[j].gesture == rows[i].gesture) {
+                return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
+            }
+        }
+    }
+    k.app = std::move(rows);
     return Written::ok();
 }
 

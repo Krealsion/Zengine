@@ -909,8 +909,15 @@ struct Session {
     bool place_maximized = false;
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
-    std::vector<Row> rows;    ///< the inspector, rebuilt when the selection changes
+    std::vector<Row> rows;    ///< the inspector, rebuilt when the subject changes
     RowsSubject subject;      ///< what `rows` address, named (WL-DOC-21)
+    /// ⭐ WHAT STANDS IN THE EMPTY ROOM -- the rows the participating desktop said, painted
+    /// behind every pane where the prototype object canvas used to draw its rectangles.
+    ///
+    /// HELD BY THE HOST AND OWNED BY NOBODY HERE. Replaced whole by the next `DesktopFace`,
+    /// never merged, never persisted, and empty until the desktop has said something -- which
+    /// is the honest picture of a Workshop whose desktop did not load (WL-DESK-05).
+    std::vector<surface::SurfaceTextRow> backdrop;
     Drag drag;                ///< a pointer drag in flight, if any
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
@@ -1014,7 +1021,7 @@ KeyContext keyboard_context(const Session& s);
 std::int64_t typing_pane(const Session& s);
 
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
-bool escape_may_shed_selection(KeyContext c);
+bool default_row_context(KeyContext c);
 
 // ---- Spelling the effective bindings -----------------------------------------------------
 

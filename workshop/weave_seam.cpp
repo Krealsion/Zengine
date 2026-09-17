@@ -109,7 +109,11 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     // exactly what they were.
     const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
-        say(admitted.written.refusal, true);
+        // ⭐ AND THE DECLARER IS TOLD (BL-WORK-04). The band names the pane and the reason for
+        // the MAKER; this sentence names them for the PROVIDER, which is the party that can do
+        // something about it. Both say the same words, because two wordings of one refusal is
+        // two refusals to reconcile.
+        say_actions_refused(std::string(office), pane, admitted.written.refusal, mail);
         repaint(mail);
         return;
     }
@@ -117,9 +121,11 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
         const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
-        say((row != nullptr ? row->name + " @" + row->provider + ": " : std::string()) +
-                joined.refusal,
-            true);
+        say_actions_refused(std::string(office), pane,
+                            (row != nullptr ? row->name + " @" + row->provider + ": "
+                                            : std::string()) +
+                                joined.refusal,
+                            mail);
         repaint(mail);
         return;
     }
@@ -135,8 +141,17 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
+void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
     session_.keymap.panes.clear();
+    // ⚠ THE PANE ROWS ARE COLLECTED BEFORE ANY REFUSAL IS SENT, and the copy is why. Telling a
+    // provider inside this walk would let a re-declaration arriving in that delivery mutate
+    // `entries` while the loop still holds its place in it.
+    struct Dropped {
+        std::string office;
+        std::string pane;
+        std::string refusal;
+    };
+    std::vector<Dropped> told;
     for (const RuntimePane& row : session_.panels.runtime.entries) {
         if (row.actions.empty()) {
             continue;
@@ -149,7 +164,17 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
         if (!refusals.empty()) {
             refusals += "; ";
         }
-        refusals += row.name + " @" + row.provider + ": " + joined.refusal;
+        const std::string said = row.name + " @" + row.provider + ": " + joined.refusal;
+        refusals += said;
+        told.push_back(Dropped{row.provider, row.pane, said});
+    }
+    // ⭐ A RE-JOIN THAT DROPS A PANE'S ROWS IS A REJECTION LIKE ANY OTHER (BL-WORK-04), and
+    // this one is the rejection a provider is LEAST able to see coming: its declaration was
+    // accepted, and a keymap file read afterwards took the gesture away. Nothing about being
+    // told mandates a recovery -- the pane may re-declare elsewhere, or simply know.
+    for (const Dropped& d : told) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(d.office, ActionsRefused{d.pane, d.refusal});
     }
 }
 

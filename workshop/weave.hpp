@@ -16,6 +16,7 @@
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
+#include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
@@ -242,8 +243,18 @@ struct HostContext {
     UndeliveredQuits undelivered_quits;
 
     /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
+    ///
+    /// ⚠ IT CAN GROW AFTER THE FIRST PICTURE, WHICH IS NEW AND IS WHY THE COUNTER BELOW
+    /// EXISTS. Realization settles inside an ordinary delivery, with the host loop already
+    /// running and the first surface possibly already up -- so an optional plan row that
+    /// refuses lands here AFTER `on(SurfaceReady)` took the list. A weave that read it once
+    /// would show every condition the boot knew about except the ones the boot discovered.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::vector<Condition> standing_conditions;
+    /// HOW MANY TIMES THAT LIST HAS BEEN ADDED TO. Compared rather than the list itself, so
+    /// the common repaint costs one integer; `establish` is keyed and idempotent, so taking
+    /// the list again when it moves re-establishes nothing that was already there.
+    std::uint64_t conditions_generation = 0;
 
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
@@ -318,6 +329,13 @@ class WorkshopWeave
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::DocumentCommitRequested,
+                                          // the participating owner of the application's
+                                          // default behaviour: what it declares, and what
+                                          // it asks this host to open or focus
+                                          zengine::workshop::AppActions,
+                                          zengine::workshop::PaneLaunchRequested,
+                                          zengine::workshop::DeselectRequested,
+                                          zengine::workshop::DesktopFace,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
@@ -343,6 +361,10 @@ class WorkshopWeave
                                         zengine::workshop::PaneWheel,
                                         zengine::workshop::PaneDragged,
                                         zengine::workshop::PaneActionRequested,
+                                        zengine::workshop::AppActionRequested,
+                                        zengine::workshop::ActionsRefused,
+                                        zengine::workshop::PaneLaunchAnswered,
+                                        zengine::workshop::PaneInventory,
                                         zengine::workshop::PaneQuitRequested,
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
@@ -363,7 +385,7 @@ public:
     explicit WorkshopWeave(HostContext& host);
 
     /// READ THE MAKER'S KEYMAP, OR STAND ON THE DEFAULTS.
-    void load_keymap();
+    void load_keymap(loom::Mail& mail);
 
     /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
     void load_prefs();
@@ -588,7 +610,47 @@ public:
     /// overrides are owed to that pane's rows too. A pane whose rows the file's bindings
     /// now collide with keeps no rows, and the refusal is said once with the load's word.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void rejoin_pane_rows(std::string& refusals);
+    void rejoin_pane_rows(std::string& refusals, loom::Mail& mail);
+
+    // ---- The participating owner of the application's default behaviour (WL-DESK) --------
+
+    /// THE DESKTOP DECLARES WHAT THE APPLICATION ANSWERS TO, above every mode and after
+    /// every mode. Judged whole by `join_app_rows` under the same collision law a pane's
+    /// rows meet; a refusal is said on the band AND sent back to the declaring office
+    /// (`ActionsRefused`), and changes nothing that was already in force.
+    void on(const AppActions& actions, loom::Mail& mail);
+
+    /// OPEN THIS PANE, OR PUT THE MAKER IN IT. Resolved against the ONE inventory, seated
+    /// through the same door the launcher and a restore share, and answered either way.
+    void on(const PaneLaunchRequested& asked, loom::Mail& mail);
+
+    /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
+    /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
+    void on(const DesktopFace& face, loom::Mail& mail);
+
+    /// THE DESKTOP'S ANSWER TO ONE OF ITS OWN REQUESTED ROWS: put the maker's selection down.
+    /// Judged against the particular ask it echoes and the gesture that raised it, exactly as
+    /// a pane's unspent Escape is (WL-ARR-15) -- an answer to a keystroke that is over acts on
+    /// nothing.
+    void on(const DeselectRequested& asked, loom::Mail& mail);
+
+    /// ASK THE APPLICATION-DEFAULTS OWNER FOR ONE OF ITS DECLARED ROWS, under a number minted
+    /// for this one keystroke. The one door both dispatch positions spend.
+    void request_app_action(const std::string& id, loom::Mail& mail);
+
+    /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
+    /// and every host-side caller spend, so "launch" means one thing.
+    PaneLaunchAnswered launch_pane(const PaneRef& ref, loom::Mail& mail);
+
+    /// SAY THE ONE INVENTORY OUT LOUD, if what it says has changed since the last time.
+    /// Compared before it is published, for `DocumentShown`'s reason: a presenter that is
+    /// told the same thing twice repaints for nothing.
+    void publish_inventory(loom::Mail& mail);
+
+    /// TELL A DECLARING OFFICE THAT ITS DECLARATION WAS REFUSED, and say the same sentence on
+    /// the band (BL-WORK-04). Workshop owns the fact; the provider owns its recovery.
+    void say_actions_refused(const std::string& office, const std::string& pane,
+                             const std::string& refusal, loom::Mail& mail);
 
     /// SEAT THE PANE THAT ASKS, IN THIS DELIVERY, OR REFUSE WITH NOTHING MOVED. Judged through
     /// the picker's own trial seat; on a seat the pane is authored if it was not, selected,
@@ -1469,6 +1531,17 @@ private:
         std::uint64_t answering = 0;
     };
     EscapeSent escape_sent_;
+    /// ⭐ THE ONE APPLICATION ROW THIS HOST IS WAITING ON AN ANSWER TO, and the keystroke it
+    /// was raised by. `escape_sent_` one owner over, and for its exact reason: the desktop's
+    /// reply arrives in a later delivery, by which time the maker may have pressed again, put
+    /// a different pane down or picked a different one up. An answer that does not echo THIS
+    /// number, or arrives after another gesture, acts on nothing.
+    struct AppAsked {
+        std::uint64_t gesture = 0;
+        std::uint64_t answering = 0;
+    };
+    AppAsked app_asked_;
+    std::uint64_t app_asks_ = 0;
     /// THE NUMBERS THOSE ESCAPES GO OUT UNDER, minted here and nowhere else. Monotonic from
     /// one, so zero is never an Escape: an answer that echoes nothing answers nothing. Gaps
     /// are meaningless -- an Escape this host answers itself burns a number and sends none.
@@ -1509,6 +1582,15 @@ private:
     bool pane_loaded_ = false;
     bool pane_refused_ = false;
     std::string keymap_word_;
+    /// THE APPLICATION ROWS THE DESKTOP LAST DECLARED, AS IT DECLARED THEM -- retained for the
+    /// same reason a pane's declaration is retained on its catalog row: a keymap file read
+    /// afterwards is owed the maker's overrides over these ids too, so the declaration has to
+    /// survive the join it was admitted by (WL-DESK-07).
+    std::vector<AppActionRow> app_actions_;
+    /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged.
+    std::vector<InventoryPane> inventory_said_;
+    /// Which generation of the host's standing list this weave has taken.
+    std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 

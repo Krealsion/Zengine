@@ -324,6 +324,17 @@ struct Executed {
     /// plan describes is not standing yet.
     std::string waiting_on;
 
+    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER (P-WORK-22). Each is the
+    /// refusing layer's own sentence with the artifact and the step written in front of it --
+    /// the same string `refusal` would have carried had the row not been authored optional.
+    ///
+    /// ⚠ IT DOES NOT MAKE `ok` FALSE, AND THAT IS THE POLICY, NOT AN OVERSIGHT. A plan whose
+    /// optional rows refused and whose required rows all settled IS realized: the project the
+    /// maker authored said these rows may be missing. What this vector buys is that "may be
+    /// missing" never becomes "was silently missing" -- every one of them is named, with its
+    /// reason, to whoever is reporting.
+    std::vector<std::string> unavailable;
+
     explicit operator bool() const noexcept { return ok; }
 };
 
@@ -1109,6 +1120,13 @@ public:
         offer_.reset();
         if (answers_->refused) {
             fail("weave load refused: " + answers_->reason);
+            // AN OPTIONAL ROW THAT REFUSED LEAVES THE OWNER ADVANCING, and this is the walk
+            // being resumed from the delivery the refusal arrived in -- the same two lines
+            // the accepted path below spends.
+            if (state_ == Realization::Advancing) {
+                ++cursor_;
+                advance();
+            }
             return;
         }
         current_.weave_loaded = true;
@@ -1611,8 +1629,14 @@ public:
         out.refusal = refusal_;
         out.resolved = resolved_;
         out.waiting_on = waiting_on();
+        out.unavailable = unavailable_;
         return out;
     }
+
+    /// THE OPTIONAL ROWS THIS RUN COULD NOT PERFORM, in the order it met them. Read by the
+    /// host that reports them and by the presentation that explains them; never cleared, because
+    /// a tool that was not there at boot was not there at boot however the run continues.
+    const std::vector<std::string>& unavailable() const noexcept { return unavailable_; }
 
     /// UNMOUNT ONE RECORD'S PROVIDER CONTRIBUTION, and only that record's.
     ///
@@ -1961,6 +1985,26 @@ private:
     void fail(const std::string& why) {
         (void)unmount(current_);
         const std::string said = "artifact '" + current_.stem + "': " + why;
+        // ⭐ AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL, NOT A REFUSED PROJECT
+        // (P-WORK-22). The maker AUTHORED that this project stands without this row, so the
+        // walk carries on -- with the row's own mount rolled back above, its refusal recorded
+        // by name, and every row behind it still performed in authored order.
+        //
+        // ⚠ THE FRONTIER IS NOT MOVED HERE. `state_` going back to `Advancing` is what tells
+        // the caller the row was stepped over, and the caller is the one that advances it --
+        // `advance`'s loop and the load-answer path both do, and doing it here as well would
+        // step over the row behind this one too.
+        //
+        // ⚠ AND IT IS NOT REACHED BY AN ON-DEMAND REALIZATION, which has its own answer below
+        // and must keep it: a maker who asked for one artifact and was refused is owed the
+        // refusal as the outcome of their gesture, whatever the plan says about the row.
+        if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
+            plan_.artifacts[cursor_].optional) {
+            unavailable_.push_back(said);
+            current_ = ResolvedArtifact{};
+            state_ = Realization::Advancing;
+            return;
+        }
         if (on_demand_) {
             realized_ = Realized{true, current_.stem, false, said};
             on_demand_ = false;
@@ -2030,6 +2074,8 @@ private:
     LoadPlan plan_;
     /// WHICH AUTHORED ROW IS BEING REALIZED. It was `run()`'s loop index.
     std::size_t cursor_ = 0;
+    /// ⭐ THE OPTIONAL ROWS THAT REFUSED, each with the refusing layer's own sentence.
+    std::vector<std::string> unavailable_;
     /// THE ROW BEING BUILT. It was `perform()`'s `ResolvedArtifact& done`.
     ResolvedArtifact current_;
     /// THE OFFER AROUND THE CURRENT LOAD -- the one thing here whose LIFETIME, rather

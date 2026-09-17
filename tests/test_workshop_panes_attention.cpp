@@ -554,12 +554,19 @@ TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was g
 // true by construction and is not pinned for THIS pane.
 
 TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and nothing is sent") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     // ⭐ NOT SILENCE, A DECLARATION. Workshop reads the office holder's accept-set -- the same
     // answer it reads to choose a press's version -- and a holder with no `PaneKey` door could not
     // have spent this Escape whatever it wanted. Attention is such a pane: it declares three rows,
     // none of them Escape's, and accepts no key.
     AttentionRig a;
     a.open();
+    mount_desktop(a.r);
     REQUIRE(a.r.session().panels.selected == a.kind);
     REQUIRE(a.r.session().panels.keyboard == a.kind);
     const std::size_t panes = a.r.session().panels.open.size();

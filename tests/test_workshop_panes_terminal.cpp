@@ -1382,6 +1382,10 @@ TEST_CASE("Escape on a recalled line goes back to the line before the recall and
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
+    // ⭐ THE PARTY THAT OWNS ESCAPE'S LAST MEANING (WL-DESK-02). It is a declared application
+    // row now, so this case supplies the declarer; what the pane does with Escape while it
+    // holds the keys is unchanged and is what the lines below still assert.
+    mount_desktop(t.r);
     run(t, "only");
     const std::string prompt = t.input_text();
     const std::size_t before = commands_run(t);
@@ -1962,6 +1966,10 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
+    // ⭐ THE PARTY THAT OWNS ESCAPE'S LAST MEANING (WL-DESK-02). It is a declared application
+    // row now, so this case supplies the declarer; what the pane does with Escape while it
+    // holds the keys is unchanged and is what the lines below still assert.
+    mount_desktop(t.r);
     const std::size_t panes = t.r.session().panels.open.size();
     const Setup desk = t.r.session().setup.active;
     t.type("s");

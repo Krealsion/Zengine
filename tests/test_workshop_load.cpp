@@ -1061,11 +1061,11 @@ TEST_CASE("a field the shape does not declare is refused rather than ignored") {
 
 TEST_CASE("a file from another version is refused by ITS NUMBER, before its rows are judged") {
     const load_persist::LoadedPlan no = load_persist::from_text(
-        R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
-        R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[]}})");
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[]}})");
     CHECK_FALSE(no.outcome.accepted);
-    CHECK(no.outcome.refusal.find("load plan version 3") != std::string::npos);
-    CHECK(no.outcome.refusal.find("reads versions 1 and 2") != std::string::npos);
+    CHECK(no.outcome.refusal.find("load plan version 4") != std::string::npos);
+    CHECK(no.outcome.refusal.find("reads versions 1, 2 and 3") != std::string::npos);
 }
 
 TEST_CASE("a forged file whose envelope is this version and whose FIELD is not still refuses") {
@@ -1127,7 +1127,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 13); // ...and the Editor pane joined them (VD-25)
+    REQUIRE(p.artifacts.size() == 14); // ...and the Desktop joined them (WL-DESK-01)
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1141,45 +1141,67 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     // the ONLY thing that makes it present in a run is this line in an editable file. A
     // maker who removes it gets a Workshop with no Files pane and no error, which is what
     // "a pane arrives by a plan row" has always meant for every other tool.
-    CHECK(p.artifacts[7].stem == "zengine-files");
+    // ⭐ ...AND THE DESKTOP, WHICH IS WHY EVERY ROW BELOW MOVED BY ONE. What this row loads
+    // is the party that owns the application's DEFAULTS -- which gestures open which tool,
+    // what Escape means where nothing more specific claimed it, and what stands in the empty
+    // room. Remove the line and Workshop still runs, still paints, still quits: it simply has
+    // no application defaults and an empty floor, which is the whole of what "the shell is
+    // replaceable" has to mean (WL-DESK-01).
+    CHECK(p.artifacts[7].stem == "zengine-desktop-pane");
     REQUIRE(p.artifacts[7].weave.has_value());
-    CHECK(p.artifacts[7].weave->role == "zengine.files");
+    CHECK(p.artifacts[7].weave->role == "zengine.desktop");
     CHECK_FALSE(p.artifacts[7].provider.has_value());
+    CHECK(p.artifacts[8].stem == "zengine-files");
+    REQUIRE(p.artifacts[8].weave.has_value());
+    CHECK(p.artifacts[8].weave->role == "zengine.files");
+    CHECK_FALSE(p.artifacts[8].provider.has_value());
     // ⭐ ...AND SO DOES THE BUILDER PANE, which is the second built-in to arrive this way.
     // The TOOL is still mounted in this host's `main` and is not in this file at all; what
     // this row loads is the SEAT a maker sits in to spend it. Remove the line and Workshop
     // still builds -- there is simply nothing on the screen that can ask it to, which is
     // exactly what "a pane arrives by a plan row" means.
-    CHECK(p.artifacts[8].stem == "zengine-builder-pane");
-    REQUIRE(p.artifacts[8].weave.has_value());
-    CHECK(p.artifacts[8].weave->role == "zengine.builder-pane");
-    CHECK_FALSE(p.artifacts[8].provider.has_value());
+    CHECK(p.artifacts[9].stem == "zengine-builder-pane");
+    REQUIRE(p.artifacts[9].weave.has_value());
+    CHECK(p.artifacts[9].weave->role == "zengine.builder-pane");
+    CHECK_FALSE(p.artifacts[9].provider.has_value());
     // ⭐ ...AND THE ATTENTION PANE, the third, and the first that was never a built-in PANE
     // at all. What is currently true was CHROME -- an overlay a global chord opened, drawn
     // into a popup this host resolved for itself, nameable by no file. It is a row here now,
     // which means a maker can remove it: a Workshop with no Attention pane still knows every
     // condition and still says the loudest one on the compact indicator, and there is simply
     // nothing on the desk that lists them.
-    CHECK(p.artifacts[9].stem == "zengine-attention-pane");
-    REQUIRE(p.artifacts[9].weave.has_value());
-    CHECK(p.artifacts[9].weave->role == "zengine.attention");
-    CHECK_FALSE(p.artifacts[9].provider.has_value());
+    CHECK(p.artifacts[10].stem == "zengine-attention-pane");
+    REQUIRE(p.artifacts[10].weave.has_value());
+    CHECK(p.artifacts[10].weave->role == "zengine.attention");
+    CHECK_FALSE(p.artifacts[10].provider.has_value());
     // ...AND THE TERMINAL PANE, the fifth and last of the migrations, and the first that was
     // never a pane OR chrome: it was a MODE, opened by a global chord, owning the keyboard
     // and the pointer whole, drawn on a plane after every pane so nothing a maker arranged
     // could stand in front of it. It is a row here now, which means a maker can remove it: a
     // Workshop with no Terminal pane still MOUNTS the participant and still prints its
     // identity at boot, and there is simply nothing on the desk that can type at it.
-    CHECK(p.artifacts[11].stem == "zengine-terminal-pane");
-    REQUIRE(p.artifacts[11].weave.has_value());
-    CHECK(p.artifacts[11].weave->role == "zengine.terminal");
-    CHECK_FALSE(p.artifacts[11].provider.has_value());
+    CHECK(p.artifacts[12].stem == "zengine-terminal-pane");
+    REQUIRE(p.artifacts[12].weave.has_value());
+    CHECK(p.artifacts[12].weave->role == "zengine.terminal");
+    CHECK_FALSE(p.artifacts[12].provider.has_value());
     // ...AND THE EDITOR PANE, thirteenth and last of the migrations: the image that holds a
     // maker's source document, a weave in the room like every other pane's.
-    CHECK(p.artifacts[12].stem == "zengine-editor-pane");
-    REQUIRE(p.artifacts[12].weave.has_value());
-    CHECK(p.artifacts[12].weave->role == "zengine.editor");
-    CHECK_FALSE(p.artifacts[12].provider.has_value());
+    CHECK(p.artifacts[13].stem == "zengine-editor-pane");
+    REQUIRE(p.artifacts[13].weave.has_value());
+    CHECK(p.artifacts[13].weave->role == "zengine.editor");
+    CHECK_FALSE(p.artifacts[13].provider.has_value());
+    // ⭐ AND THE SHIPPED PLAN AUTHORS THE ESSENTIAL/RECOVERABLE SPLIT (P-WORK-22). The
+    // services a Workshop cannot be seen, driven or timed without stop everything; every
+    // PANE is a tool a maker can be told about instead. This is the authored policy, not an
+    // inference: the file says it row by row, and a maker who disagrees edits the file.
+    for (std::size_t i = 0; i < 5; ++i) {
+        CAPTURE(p.artifacts[i].stem);
+        CHECK_FALSE(p.artifacts[i].optional); // operators, session history, skin, input, timer
+    }
+    for (std::size_t i = 5; i < p.artifacts.size(); ++i) {
+        CAPTURE(p.artifacts[i].stem);
+        CHECK(p.artifacts[i].optional);
+    }
     // ...AND THE EDITOR'S OFFICE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
     // and the Neovim-backed one, which is loaded only when a maker switches to it.
     REQUIRE(p.choices.size() == 2);

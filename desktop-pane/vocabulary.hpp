@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+#ifndef ZENGINE_DESKTOP_PANE_VOCABULARY_HPP
+#define ZENGINE_DESKTOP_PANE_VOCABULARY_HPP
+
+// The Desktop's DURABLE NAMES -- the office it holds, the one pane it offers, the ids its
+// declared actions answer to, and the state a same-shape reload keeps.
+//
+// WHAT THIS WEAVE IS. It owns the behaviour an application supplies by default: which gestures
+// open or focus which tool, what happens to a selection when nothing more specific claims the
+// key, what a maker reads in an empty room, and what to say about a tool that is not there. All
+// of that used to be compiled into the host -- a global row in `kActionCatalog`, a hard-coded
+// line at the end of the key handler, an overlay picker, and a prototype rectangle document.
+//
+// WHAT IT IS NOT. It is not the host and it is not the fixed root. It holds no authority the
+// Weaver did not give it, opens nothing the host's inventory does not already hold, loads no
+// artifact, and cannot keep a maker from leaving. A Workshop whose desktop refused to load is a
+// Workshop with no application defaults -- which the band, the hotkey view and the baseline
+// console all say, and which a maker recovers from by fixing the artifact and launching again.
+//
+// (!) AND IT IS AN ORDINARY WEAVE. It is built by an ordinary recipe, loaded by an ordinary plan
+// row, reachable from Edit Code like any pane, and REPLACEABLE in place through the ordinary
+// realization loop: change what it declares or what its floor says, build it, reload it, and
+// the application's defaults are the new image's. Nothing about being the desktop makes it
+// harder to replace than the Attention pane.
+
+#include <zen/weave/shape.hpp>
+
+#include <cstdint>
+
+namespace zengine::desktop_pane {
+
+/// THE OFFICE THIS WEAVE HOLDS. It is spelled in the host too
+/// (`workshop/desktop_seam_vocabulary.hpp`'s `kDesktopRole`), because the host must know which
+/// role to ask for a declared row -- and a suite pins the two spellings against each other.
+inline constexpr const char* kDesktopRole = "zengine.desktop";
+
+/// THE ONE PANE THIS WEAVE OFFERS: the launcher. Every pane this Workshop knows about, whether
+/// it is open, and whether anything is offering it -- and Return on a row launches it.
+///
+/// (*) IT REPLACES THE `p` PICKER OVERLAY, and the difference is not cosmetic. The picker was a
+/// MODE the host owned: it took the keyboard whole, it toggled participation (pressing a row
+/// for an open pane removed it), and nothing could replace it. This is a pane: it is arranged
+/// on the desk like any other, it holds the keys only while a maker has pressed into it, and
+/// what its Return means is this weave's to change.
+inline constexpr const char* kLauncherPane = "launcher";
+inline constexpr const char* kLauncherName = "Panes";
+inline constexpr const char* kLauncherSummary = "open or focus a tool";
+
+/// THE LIBRARY STEM A HOST BOOTS. Not part of any protocol and not durable the way the office
+/// is -- it is a file name, here because the host's boot plan and the suite's loader must agree.
+inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
+
+// ---- The APPLICATION actions this weave declares (`AppActions`) ---------------------------
+
+/// OPEN OR FOCUS THE TERMINAL. (*) `Ctrl+t` IS BACK, and it is back as something different from
+/// what it was: the retired `workshop.terminal` was a GLOBAL row in the host's own catalog that
+/// opened an overlay the host compiled. This is an application row a participating weave
+/// declares, pointed at an ordinary pane through the host's launch door -- so a maker can move
+/// it, disable it, or replace the weave that declares it.
+inline constexpr const char* kActionTerminal = "desktop.terminal";
+
+/// OPEN OR FOCUS THE LAUNCHER. The discoverable default the picker's `p` never was: `p` was a
+/// bare letter in one mode, so it did nothing while a maker's hands were in a pane.
+inline constexpr const char* kActionPanes = "desktop.panes";
+
+/// PUT THE MAKER'S SELECTION DOWN. The host's old hard-coded last word for Escape, declared:
+/// same gesture, same position in the chain, owned by a weave a maker can replace -- and
+/// disabled outright by a maker who writes `desktop.deselect = none` in their keymap file.
+inline constexpr const char* kActionDeselect = "desktop.deselect";
+
+// ---- The actions its own pane declares (`PaneActions`) -------------------------------------
+
+inline constexpr const char* kActionUp = "launcher.up";       ///< the row cursor, up
+inline constexpr const char* kActionDown = "launcher.down";   ///< ...and down
+inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the row under it
+
+/// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
+///
+/// ONE FIELD, AND IT IS THE ONLY THING HERE THAT IS THE MAKER'S POSITION. The inventory this
+/// pane lists is the host's reading, re-said whenever it changes; a copy kept across a reload
+/// would present a picture derived before this image existed. The cursor is kept for the Info
+/// pane's reason: the row order is stable, so the row a maker was standing on is still that row.
+struct DesktopState {
+    std::int64_t cursor = 0; ///< which inventory row the maker is on
+    ZEN_SHAPE(DesktopState, 1, ZEN_FIELD(cursor));
+};
+
+} // namespace zengine::desktop_pane
+
+#endif // ZENGINE_DESKTOP_PANE_VOCABULARY_HPP

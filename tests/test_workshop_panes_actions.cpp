@@ -328,7 +328,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
                                           kSomePane + 1) == Act::kSaveDocument);
         // AN ID WORKSHOP DOES NOT DECLARE, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
         CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
-                  .find("not one of Workshop's action ids") != std::string::npos);
+                  .find("not an action id this Workshop knows") != std::string::npos);
         CHECK(refused({declared("x.k", "k", input::scan::kUnknown, input::mod::kNone,
                                 "workshop.hotkeys")})
                   .find("not an action a pane may own") != std::string::npos);
@@ -1144,5 +1144,225 @@ TEST_CASE("two builds of one published version cannot both register, and that is
         loom::SchemaClaimScope current = vocabulary.claim(
             {loom::schema_of<PaneActions>(), loom::schema_of<v2::PaneActions>()});
         CHECK(true); // no conflict: one identity for v1, a different one for v2
+    }
+}
+
+// =============================================================================
+// THE DESKTOP SEAM — the application's own defaults, declared by a participant
+//
+// The desktop register owns these laws. What these cases are about is the OWNERSHIP move: every
+// behaviour below existed before this arc as a line compiled into the host, and what is
+// asserted is that it now belongs to a party a maker can replace, with the chain's order
+// unchanged.
+// =============================================================================
+
+TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes, and reaches "
+          "its declarer as the resolved id") {
+    // MUTATION (D1): deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
+    // MUTATION (D2): joining app rows without applying `authored` -- the moved-key half fails.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    DesktopSeat* desk = mount_desktop(t);
+    REQUIRE(desk != nullptr);
+    REQUIRE(t.session().keymap.app.size() == 3);
+
+    // ⭐ CTRL+T IS BACK, AND IT IS A PARTICIPANT'S ROW. The retired `workshop.terminal` was a
+    // global in this host's own closed catalog; this one is spelled in a weave.
+    t.key(input::scan::kT, input::mod::kCtrl);
+    REQUIRE(desk->asked().size() == 1);
+    CHECK(desk->asked()[0] == DesktopSeat::kTerminalId);
+
+    // ...AND IT IS ANSWERED ABOVE THE MODES, which is the whole difference from a pane's row:
+    // the maker's hands are in a pane, and the chord still reaches the desktop.
+    const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
+    REQUIRE(kind != kNoPaneKind);
+    open_pane(t, PaneRef{"zengine.hello", "hello"});
+    const ui::Rect body = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
+            .rect);
+    t.press_canvas(body.x + 1, body.y + 1);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPane);
+    t.key(input::scan::kT, input::mod::kCtrl);
+    REQUIRE(desk->asked().size() == 2);
+    CHECK(desk->asked()[1] == DesktopSeat::kTerminalId);
+}
+
+TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none` disables it") {
+    // MUTATION (D3): dropping the `none` arm of `parse_gesture` -- the disable half goes red.
+    // MUTATION (D4): dropping the override loop in `join_app_rows` -- the moved half goes red.
+    //
+    // THE FILE'S OWN ROUND TRIP IS THE CASE ABOVE'S, over a pane's rows. What is new here is
+    // that an APPLICATION row is owed the same treatment: the maker's file names ids nobody
+    // has declared yet, they are preserved unjudged (WL-KEY-06), and the join applies them.
+    Keymap k;
+    k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+y"});
+    k.authored.push_back(AuthoredOverride{"desktop.deselect", "none"});
+    const Written joined = join_app_rows(
+        k, std::vector<AppRow>{
+               AppRow{"desktop.terminal", "terminal",
+                      Gesture{input::scan::kT, input::mod::kCtrl}, 0},
+               AppRow{"desktop.deselect", "put down",
+                      Gesture{input::scan::kEscape, input::mod::kNone}, 1}});
+    REQUIRE_MESSAGE(joined.accepted, joined.refusal);
+    REQUIRE(k.app.size() == 2);
+
+    const AppRow* moved = k.app_row_of_id("desktop.terminal");
+    REQUIRE(moved != nullptr);
+    CHECK(moved->gesture.scancode == input::scan::kY);
+    CHECK(moved->gesture.modifiers == input::mod::kCtrl);
+    // THE OLD GESTURE REQUESTS NOTHING NOW, and the authored one requests the row.
+    CHECK(k.app_action_for(0, KeyContext::kCommand, input::scan::kT, input::mod::kCtrl) ==
+          nullptr);
+    const AppRow* by_key =
+        k.app_action_for(0, KeyContext::kCommand, input::scan::kY, input::mod::kCtrl);
+    REQUIRE(by_key != nullptr);
+    CHECK(by_key->id == "desktop.terminal");
+
+    // ⭐ AND A DISABLED DEFAULT IS DISABLED, WITH NO COMPILED-IN COPY BEHIND IT. The row is
+    // still declared, still listed and still nameable for a later edit; what it has is no
+    // key, so `app_action_for` refuses it before it compares anything (`is_bound`).
+    const AppRow* off = k.app_row_of_id("desktop.deselect");
+    REQUIRE(off != nullptr);
+    CHECK_FALSE(is_bound(off->gesture));
+    CHECK(k.app_action_for(1, KeyContext::kCommand, input::scan::kEscape, input::mod::kNone) ==
+          nullptr);
+}
+
+TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only an answer that "
+          "echoes the ask puts the selection down") {
+    // MUTATION (D5): dropping the correlation test in `on(DeselectRequested)` -- the stale
+    // answer below puts the selection down and the case goes red.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    DesktopSeat* desk = mount_desktop(t);
+    REQUIRE(desk != nullptr);
+    const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
+    REQUIRE(kind != kNoPaneKind);
+    open_pane(t, PaneRef{"zengine.hello", "hello"});
+    // PICKED UP THE WAY A MAKER PICKS A PANE UP, so what is put down below is a selection this
+    // desk actually made.
+    const ui::Rect body = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
+            .rect);
+    t.press_canvas(body.x + 1, body.y + 1);
+    REQUIRE(t.session().panels.selected == kind);
+    // ...and the keys are put down again, so Escape is command mode's rather than the pane's.
+    release_keys(t);
+    REQUIRE(t.session().panels.selected == kind);
+
+    // AN ANSWER THAT ECHOES NOTHING IS NOT AN ANSWER: zero is never an ask.
+    desktop_does(t, desk, [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 0); });
+    CHECK(t.session().panels.selected == kind);
+    // ...AND NEITHER IS ONE THAT ECHOES A NUMBER THIS HOST NEVER MINTED.
+    desktop_does(t, desk,
+                 [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 9999); });
+    CHECK(t.session().panels.selected == kind);
+
+    // THE WHOLE PATH, IN ORDER: the key resolves to the declared row, the host asks its owner
+    // under a number minted for this keystroke, the owner answers echoing it, and only then
+    // is the selection put down.
+    t.key(input::scan::kEscape);
+    REQUIRE(desk->asked().size() == 1);
+    CHECK(desk->asked()[0] == DesktopSeat::kDeselectId);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+}
+
+TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name") {
+    Keymap k;
+    // AN ABOVE-THE-MODES ROW MEETS EVERY HOST ROW: `ctrl+k` is `workshop.hotkeys`.
+    {
+        Keymap candidate = k;
+        const Written no = join_app_rows(
+            candidate, std::vector<AppRow>{AppRow{"x.hot", "x", Gesture{input::scan::kK, input::mod::kCtrl}, 0}});
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal.find("workshop.hotkeys") != std::string::npos);
+        CHECK(candidate.app.empty()); // atomic: a refusal joins nothing
+    }
+    // ⭐ A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: the picker
+    // owns Escape while it is open, the default row owns it where nothing did.
+    {
+        Keymap candidate = k;
+        const Written yes = join_app_rows(
+            candidate,
+            std::vector<AppRow>{AppRow{"x.esc", "x", Gesture{input::scan::kEscape, input::mod::kNone}, 1}});
+        CHECK(yes.accepted);
+        CHECK(candidate.app.size() == 1);
+    }
+    // TWO ROWS OF ONE CLASS ON ONE GESTURE IS A COLLISION; two of different classes is not.
+    {
+        Keymap candidate = k;
+        const Written no = join_app_rows(
+            candidate,
+            std::vector<AppRow>{
+                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0},
+                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0}});
+        CHECK_FALSE(no.accepted);
+    }
+    {
+        Keymap candidate = k;
+        const Written yes = join_app_rows(
+            candidate,
+            std::vector<AppRow>{
+                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0},
+                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kNone}, 1}});
+        CHECK(yes.accepted);
+    }
+    // A PRECEDENCE THIS BUILD CANNOT NAME IS REFUSED RATHER THAN GUESSED.
+    {
+        Keymap candidate = k;
+        const Written no = join_app_rows(
+            candidate,
+            std::vector<AppRow>{
+                AppRow{"x.c", "c", Gesture{input::scan::kGrave, input::mod::kNone}, 7}});
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal.find("precedence 7") != std::string::npos);
+    }
+    // A WORKSHOP ID IS REFUSED: an application's ids live in its own namespace.
+    {
+        Keymap candidate = k;
+        const Written no = join_app_rows(
+            candidate, std::vector<AppRow>{AppRow{"workshop.quit", "q",
+                                                  Gesture{input::scan::kSlash,
+                                                          input::mod::kNone},
+                                                  0}});
+        CHECK_FALSE(no.accepted);
+    }
+}
+
+TEST_CASE("WL-KEY-16: a pane's row and an above-the-modes application row collide unless the "
+          "pane declares it stands in, in both arrival orders") {
+    const auto row = [](const char* id, std::int64_t sc, std::int64_t mods,
+                        const char* supersedes) {
+        v2::PaneActionRow r;
+        r.id = id;
+        r.label = "x";
+        r.scancode = sc;
+        r.modifiers = mods;
+        r.supersedes = supersedes;
+        return r;
+    };
+    // THE APPLICATION ROW FIRST, THEN THE PANE'S: refused.
+    {
+        Keymap k;
+        REQUIRE(join_app_rows(k, std::vector<AppRow>{
+                                     AppRow{"desktop.terminal", "t",
+                                            Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
+                    .accepted);
+        const Written no =
+            join_pane_rows(k, 1024, {row("p.tag", input::scan::kT, input::mod::kCtrl, "")});
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal.find("desktop.terminal") != std::string::npos);
+    }
+    // THE PANE'S FIRST, THEN THE APPLICATION ROW: refused, in the same words.
+    {
+        Keymap k;
+        REQUIRE(
+            join_pane_rows(k, 1024, {row("p.tag", input::scan::kT, input::mod::kCtrl, "")})
+                .accepted);
+        const Written no = join_app_rows(
+            k, std::vector<AppRow>{AppRow{"desktop.terminal", "t",
+                                          Gesture{input::scan::kT, input::mod::kCtrl}, 0}});
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal.find("desktop.terminal") != std::string::npos);
     }
 }
