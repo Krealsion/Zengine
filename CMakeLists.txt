@@ -564,6 +564,10 @@ add_subdirectory(terminal-pane)
 # zengine-workshop-vocabulary, zengine-component and zengine-input-vocabulary, it is staged
 # beside the host, and the boot plan names its artifact.
 add_subdirectory(editor-pane)
+# ...and the Neovim-backed Editor beside it, for the same reason: it links
+# zengine-workshop-vocabulary and zengine-neovim, and a load plan may author it as a choice for
+# the Editor's office, so it must be a TARGET before workshop/ stages what plans name.
+add_subdirectory(neovim-editor)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

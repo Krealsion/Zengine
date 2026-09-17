@@ -7,6 +7,8 @@
 // (`neovim_live`) is where Neovim's own behaviour is pinned.
 //
 //     neovim-fixture <mode>
+//     neovim-fixture --embed ...        (as a weave starts Neovim: the mode is
+//                                        ZENGINE_NEOVIM_FIXTURE_MODE, or `ok`)
 //
 //   ok          api level 13, attaches, installs the "module", answers `nvim_get_mode`, echoes
 //               `nvim_input` back as a `redraw` flush, and exits 0 on `qa!`
@@ -109,7 +111,12 @@ int main(int argc, char** argv) {
     (void)_setmode(_fileno(stdin), _O_BINARY);
     (void)_setmode(_fileno(stdout), _O_BINARY);
 #endif
-    const std::string mode = argc > 1 ? argv[1] : "ok";
+    // STARTED AS NEOVIM IS STARTED -- by a weave's launch line, whose first argument is `--embed`
+    // -- the mode is the environment's: a case sets it before the weave starts its "Neovim".
+    const char* from_env = std::getenv("ZENGINE_NEOVIM_FIXTURE_MODE");
+    const std::string mode = argc > 1 && argv[1][0] != '-' ? std::string(argv[1])
+                             : from_env != nullptr && *from_env != '\0' ? std::string(from_env)
+                                                                         : std::string("ok");
     mp::Limits limits;
     mp::Decoder decoder(limits);
     char buf[4096];

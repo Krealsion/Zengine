@@ -157,8 +157,13 @@ function M.prepare(path, rows)
   if not buf then return refused end
   return { buf = buf, name = vim.api.nvim_buf_get_name(buf), existed = existed,
            modified = vim.bo[buf].modified, tick = vim.api.nvim_buf_get_changedtick(buf),
-           line_count = vim.api.nvim_buf_line_count(buf),
+           fileformat = vim.bo[buf].fileformat, line_count = vim.api.nvim_buf_line_count(buf),
            lines = vim.api.nvim_buf_get_lines(buf, 0, rows, false) }
+end
+
+-- LOOK AT the document from a viewport (1-based `topline`); Neovim keeps the cursor visible.
+function M.view(topline, leftcol)
+  return pcall(vim.fn.winrestview, { topline = topline, leftcol = leftcol })
 end
 
 -- SHOW a prepared buffer in the current window.
@@ -211,6 +216,7 @@ inline constexpr const char* kShow = "return zengine_neovim.show(...)";
 inline constexpr const char* kDiscard = "return zengine_neovim.discard(...)";
 inline constexpr const char* kUnsaved = "return zengine_neovim.unsaved()";
 inline constexpr const char* kDocFacts = "return zengine_neovim.doc_facts()";
+inline constexpr const char* kView = "return zengine_neovim.view(...)";
 
 } // namespace zengine::neovim::lua
 

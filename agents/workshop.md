@@ -29,6 +29,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | the Editor pane weave and its document, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
+| the Neovim-backed Editor: its screen and keys, the transfer both ways, its losses, waiting on Neovim, a second terminal | [neovim](workshop/neovim.md) `WL-NVIM` |
 | a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, Workshop's own panes as a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
@@ -43,7 +44,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 `weave.hpp`'s functions are in `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`,
 compiled once, and a `// WL-` pointer sits with the body — a prototype carries none.
 
-**Where a case goes.** Workshop's tests are eight suites, one per area, and a new case belongs
+**Where a case goes.** Workshop's tests are nine suites, one per area, and a new case belongs
 to the one whose subject it proves;
 [`verification/population.md`](verification/population.md#where-a-case-goes) names them and
 which register each witnesses.
