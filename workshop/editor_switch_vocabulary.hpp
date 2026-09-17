@@ -100,17 +100,24 @@ struct EditorSwitchAnswered {
               ZEN_FIELD(resets), ZEN_FIELD(notes), ZEN_FIELD(choices));
 };
 
-/// WHAT A SWITCH UNDER WAY IS DOING, published: its stage in a word (`judging`, `awaiting-
-/// confirmation`, `warming`, `boundary`, `adopting`, `committing`, `proving`), whom it waits on,
-/// and whether one is pending at all -- `pending` false retracts the condition.
+/// WHAT A SWITCH IS DOING, AND WHAT IT CAME TO, published: while it is under way, its stage in a
+/// word (`judging`, `awaiting-confirmation`, `warming`, `boundary`, `adopting`, `proving`,
+/// `retiring`), whom it waits on, and -- awaiting confirmation -- the consent a maker types; when it
+/// ends (`pending` false), the outcome and its words, exactly as the answer says them. Every answer
+/// the office gives is published this way, so a maker who asked from a Terminal that shows no
+/// answer's fields still reads what came of it on the desk.
 struct EditorSwitchProgress {
     std::int64_t op = 0;
     std::string destination;
     std::string stage;
     std::string awaiting;
     bool pending = false;
+    std::string consent;
+    std::string outcome;
+    std::string detail;
     ZEN_SHAPE(EditorSwitchProgress, 1, ZEN_FIELD(op), ZEN_FIELD(destination), ZEN_FIELD(stage),
-              ZEN_FIELD(awaiting), ZEN_FIELD(pending));
+              ZEN_FIELD(awaiting), ZEN_FIELD(pending), ZEN_FIELD(consent), ZEN_FIELD(outcome),
+              ZEN_FIELD(detail));
 };
 
 } // namespace zengine::workshop

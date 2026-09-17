@@ -11,7 +11,7 @@ switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 LAW — The Neovim-backed Editor holds `zengine.editor` with the Editor's pane key and answers the doors the standard Editor answers, so Files, the Builder and Edit Code reach it by reaching the office.
 
 MEANS
-- an open is prepared hidden and shown at the publication; a showing Neovim refuses is Declined;
+- an open is loaded hidden, its claim unmoved, and shown at the publication, or Declined in words;
 - the old door relays to the opening manager with the requester's right kept;
 - while its pane holds the keys, `^s` writes the buffer and `^o` is Neovim's own jump back.
 
@@ -21,8 +21,11 @@ DOES NOT MEAN
 PROVEN BY — `neovim-editor/pane.cpp` `NeovimEditorWeave`, `on(PrepareSourceRequested)`,
 `on_claim_published`, `on(OpenSourceRequested)`, `declare`, `on(PaneActionRequested)`;
 `neovim-editor/vocabulary.hpp` `kEditorOffice`, `kEditorPane`, `kActionWrite`, `kActionJumpOlder`;
-`workshop/keymap.hpp` `kActionCatalog`; `tests/test_workshop_neovim.cpp` case `"an open through
-the office shows the file in Neovim, and the save chord writes it"`;
+`workshop/keymap.hpp` `kActionCatalog`; `neovim/lua.hpp` `kModule`;
+`tests/test_workshop_neovim.cpp` case `"an open through the office shows the file in Neovim, and
+the save chord writes it"`, case `"after a switch to Neovim, an open through the office shows
+another file in Neovim, beside the unsaved one"`; `tests/test_neovim_live.cpp` case `"preparing a
+file hidden leaves the heard document the one Neovim shows"`;
 `tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order, and
 a refusal writes nothing"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
@@ -86,10 +89,13 @@ LAW — The flow is never waited on; a question is asked within a bound beside N
 
 MEANS
 - a warm-up that never answers keeps the switch pending and cancellable; its candidate goes too;
-- with no Neovim the pane says so, an open is refused in words, and the quit is permitted.
+- with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
+- the beat is ordered in the Timer's own words, and a beat the Timer refuses is said on the pane.
 
 PROVEN BY — `neovim/host.hpp` `Host::call_now`, `Host::start`; `neovim-editor/pane.cpp`
-`on(EditorWarmRequested)`, `settle_warm`, `lua_now`, `ensure_running`;
+`on(EditorWarmRequested)`, `settle_warm`, `lua_now`, `ensure_running`, `ensure_beat`,
+`on(TimerResolution)`; `tests/test_workshop_neovim.cpp` case `"the Neovim editor orders its beat
+in words the Timer reads, and a refused beat is said on its pane"`;
 `tests/test_workshop_neovim.cpp` case `"a Neovim choice whose program is not there refuses the
 switch in words, and the standard Editor keeps editing"`, case `"a Neovim older than 0.11 refuses
 the switch naming its version"`, case `"a Neovim that stops at a prompt while starting refuses the

@@ -44,7 +44,12 @@ M.doc_facts = doc_facts
 local group = vim.api.nvim_create_augroup('zengine_neovim', { clear = true })
 vim.api.nvim_create_autocmd({ 'BufEnter', 'BufModifiedSet', 'TextChanged', 'TextChangedI',
                               'TextChangedP', 'BufWritePost', 'BufFilePost' }, {
-  group = group, callback = function() notify('zengine_doc', doc_facts()) end })
+  group = group, callback = function()
+    -- A BUFFER LOADED WHERE NO WINDOW SHOWS IT runs its autocommands in Neovim's autocommand
+    -- window, current there for the moment (measured: BufEnter fires) -- not the maker's document.
+    if vim.fn.win_gettype() == 'autocmd' then return end
+    notify('zengine_doc', doc_facts())
+  end })
 vim.api.nvim_create_autocmd('ModeChanged', {
   group = group, callback = function() notify('zengine_mode', vim.api.nvim_get_mode().mode) end })
 vim.api.nvim_create_autocmd('VimLeavePre', {

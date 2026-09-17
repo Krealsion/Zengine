@@ -124,13 +124,15 @@ LAW — The host mounts the coordinator over its managed pane's office and grant
 
 MEANS
 - the documented lines are typed against the host's own widening, `let_terminal_switch_editors`;
-- the desk keeps a condition only when the switch's office said it, and drops it when it ends.
+- the desk keeps a condition only when the switch's office said it, and drops it when it ends;
+- every answer is said on the notice line; a question for consent shows the line that confirms it.
 
 DOES NOT MEAN
 - that the host names an editor artifact: its managed pane's office, and the plan's choices.
 
 PROVEN BY — `workshop/workshop.cpp` `EditorSwitchHost`, `let_terminal_switch_editors`,
-`editor_switch_grant`; `workshop/editor_switch.hpp` `let_terminal_switch_editors`, `progress`;
+`editor_switch_grant`; `workshop/editor_switch.hpp` `let_terminal_switch_editors`, `progress`,
+`publish_said`;
 `workshop/weave_managed.cpp` `on(EditorSwitchProgress)`; `tests/test_workshop_editor_switch.cpp`
 case `"the documented Terminal lines, typed through Workshop's own door, ask, confirm and switch,
 and the desk shows the switch while it stands"`.

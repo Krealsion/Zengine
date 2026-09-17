@@ -1032,9 +1032,10 @@
 # notation, the file-bytes and position arithmetic including an exhaustive placement sweep, the
 # launch line, the Windows quoting rule (pinned against the Builder's where it is compiled), and
 # the conversation owner against a scriptable fake through a clean start and end and seven
-# failures, a forced end and a bounded call. `neovim_live` (gate `neovim`, 11) is only what a
+# failures, a forced end and a bounded call. `neovim_live` (gate `neovim`, 12) is only what a
 # real Neovim can say -- measured green on Windows 0.11.6 and Linux 0.11.6 and 0.12.5 before it
-# was registered.
+# was registered; its twelfth case, a file loaded hidden not heard as the document, came with
+# the live switch's first running Workshop.
 #
 # A LOAD PLAN'S CHOICES raised ONE floor -- workshop_load 137 -> 143 -- and moved no other.
 #
@@ -1062,13 +1063,15 @@
 # THE NEOVIM-BACKED EDITOR added ONE ENTRY in two rows, the `sdl` rule an eighth time, and moved
 # no floor.
 #
-#   workshop_neovim (always, 6)  the Neovim editor as the Editor's office with no usable Neovim: a
+#   workshop_neovim (always, 7)  the Neovim editor as the Editor's office with no usable Neovim: a
 #                               program that is not there, one too old, one that stops at a prompt
 #                               and one that never answers (the fake `neovim-fixture`), the office
-#                               held with no Neovim at all, and a reload refused while one runs.
-#   workshop_neovim (neovim, 9)  a real Neovim: a document carried there and back exactly with
+#                               held with no Neovim at all, a reload refused while one runs, and the
+#                               beat ordered in words the Timer reads, a refused beat said.
+#   workshop_neovim (neovim, 10) a real Neovim: a document carried there and back exactly with
 #                               Neovim editing between, a selection both ways, an open through the
-#                               office with the save chord writing, the quit asking, another
+#                               office with the save chord writing, an open right after a switch
+#                               with the Timer's beats between its turns, the quit asking, another
 #                               modified buffer named for consent, `:qa` from inside, the clipboard
 #                               both ways, an unfinished count reset and a prompt refusing, and the
 #                               baseline journey's second terminal.
@@ -1076,7 +1079,7 @@
 # entry                           kind              gate    detail
 smoke                             program           always
 neovim                            doctest           always  21
-neovim_live                       doctest           neovim  11
+neovim_live                       doctest           neovim  12
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
@@ -1615,8 +1618,8 @@ workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  143
 workshop_editor_switch            doctest           always  11
-workshop_neovim                   doctest           always  6
-workshop_neovim                   doctest           neovim  9
+workshop_neovim                   doctest           always  7
+workshop_neovim                   doctest           neovim  10
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

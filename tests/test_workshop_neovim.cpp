@@ -195,6 +195,41 @@ public:
     }
 };
 
+/// THE TIMER, AS FAR AS AN ORDER GOES: it records what it was asked and answers it by the Timer's
+/// own rule for reading an order's continuity (`continuity_from`) -- refused when that rule cannot
+/// read it, or when the case says to refuse.
+class TimerSeat : public loom::WeaveBase<TimerSeat, SeenState,
+                                         loom::Accept<zengine::timer::EnsureTimer, zengine::timer::CancelTimer>,
+                                         loom::Emit<zengine::timer::TimerResolution>> {
+public:
+    std::vector<zengine::timer::EnsureTimer> orders;
+    bool refuse = false;
+
+    void on(const zengine::timer::EnsureTimer& order, loom::Mail& mail) {
+        orders.push_back(order);
+        namespace timer = zengine::timer;
+        const bool readable = timer::continuity_from(order.preferred).has_value();
+        const bool refused = refuse || !readable;
+        (void)mail.send(mail.sender(),
+                        timer::TimerResolution{order.id,
+                                               refused ? timer::kResolutionRefused : timer::kResolutionRestarted,
+                                               refused ? (readable ? "refused by the case" : "unknown continuity preference")
+                                                       : "restarted"});
+    }
+    void on(const zengine::timer::CancelTimer&, loom::Mail&) {}
+};
+
+TimerSeat* mount_timer(SwitchRig& s) {
+    auto held = std::make_unique<TimerSeat>();
+    TimerSeat* raw = held.get();
+    loom::Grant grant;
+    grant.allow_to_any(zengine::timer::TimerResolution::zen_name, zengine::timer::TimerResolution::zen_version);
+    const loom::WeaveId id = s.r.bus.register_weave(std::move(held), std::move(grant),
+                                                    std::string(zengine::timer::kTimerRole));
+    raw->zen_set_self(id);
+    return raw;
+}
+
 /// WORKSHOP'S ORDERLY QUIT, the maker's way: keys back to the workspace, then `q`.
 bool quit_by_key(SwitchRig& s) {
     s.r.press_cell(0, screen_of(s.r.session()).h - 1);
@@ -281,6 +316,32 @@ TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pa
     CHECK_FALSE(opened.accepted);
     CHECK_MESSAGE(opened.refusal.find("Neovim is not available") != std::string::npos, opened.refusal);
     CHECK(quit_by_key(s));
+}
+
+TEST_CASE("the Neovim editor orders its beat in words the Timer reads, and a refused beat is said on its pane") {
+    SwitchRig s("nvim-beat");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "ok");
+    TimerSeat* timer = nullptr;
+    s.before_plan = [&] { timer = mount_timer(s); };
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(timer != nullptr);
+    REQUIRE(timer->orders.size() == 1);
+    const zengine::timer::EnsureTimer& order = timer->orders.front();
+    CHECK(order.id == "zengine.neovim-editor.beat");
+    CHECK(order.delay_ms == 10);
+    CHECK(order.repeat);
+    CHECK(zengine::timer::continuity_from(order.preferred).has_value());
+    CHECK(zengine::timer::continuity_from(order.fallback).has_value());
+    CHECK_FALSE(s.shows("refused this editor's beat"));
+
+    // A TIMER THAT SAYS NO is said where the maker is looking.
+    timer->refuse = true;
+    const std::size_t before = timer->orders.size();
+    (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerReady{}), loom::WeaveId{},
+                                                 loom::WeaveId{}, 0));
+    s.r.bus.drain_until_idle();
+    REQUIRE(timer->orders.size() == before + 1);
+    CHECK_MESSAGE(s.shows("the Timer refused this editor's beat"), s.status());
 }
 
 TEST_CASE("a reload of the Neovim editor is refused while its Neovim runs, said on its pane, and Neovim keeps running") {
@@ -384,6 +445,44 @@ TEST_CASE("an open through the office shows the file in Neovim, and the save cho
     s.r.key(input::scan::kS, input::mod::kCtrl);
     REQUIRE(beat_until(s, [&] { return s.read("modified") == "false"; }));
     CHECK(file_text(s.root / "open.txt") == "new first line\n");
+}
+
+TEST_CASE("after a switch to Neovim, an open through the office shows another file in Neovim, beside the unsaved one") {
+    SwitchRig s("nvim-open-after-switch");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim());
+    (void)s.open_file("first.txt", "first\n");
+    s.press_doc(0, 0);
+    s.type("x");
+    REQUIRE(switch_live(s, "neovim").outcome == switch_outcome::kSwitched);
+    REQUIRE(beat_until(s, [&] { return s.shows("xfirst"); }));
+    // THE TIMER DOES NOT WAIT FOR AN OPEN: a beat reaches the office between every turn of the
+    // opening's conversation, as it does in a running Workshop. Loading the file hidden must not
+    // move the document's claim while the opening binds it (measured: it did, and every such open
+    // was refused as "the desk changed").
+    put_bytes(s.root / "second.txt", "second\n");
+    const std::string second = spelled(s.root / "second.txt");
+    const std::size_t before = s.asker->opens.size();
+    s.enqueue([second](SwitchAsker&, loom::Mail& mail) {
+        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kOpeningRole, OpenSourceRequested{second});
+    });
+    for (int turn = 0; turn < 400 && s.asker->opens.size() == before; ++turn) {
+        (void)s.r.bus.pump_pending();
+        (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{
+                                                         "zengine.neovim-editor.beat"}),
+                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    s.r.bus.drain_until_idle();
+    REQUIRE(s.asker->opens.size() == before + 1);
+    const SourceOpened opened = s.asker->opens.back();
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    CHECK(s.read("path") == second);
+    CHECK(beat_until(s, [&] { return s.shows("second"); }));
+    // ...AND THE CARRIED WORK STAYS IN NEOVIM, UNSAVED, BESIDE IT: the orderly quit names it.
+    CHECK_FALSE(quit_by_key(s));
+    CHECK(s.r.session().notice.find("first.txt") != std::string::npos);
+    CHECK(file_text(s.root / "first.txt") == "first\n");
 }
 
 TEST_CASE("the orderly quit is refused while Neovim holds unsaved changes, naming the file, and permitted once written") {
