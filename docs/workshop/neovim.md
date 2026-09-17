@@ -90,7 +90,7 @@ document and your desk are as they were, and the editor you were in tells you on
 | `Neovim's current buffer is not a file` | go to a file's buffer (a help or terminal buffer cannot be carried) |
 | `... has no file name` | write it somewhere first (`:w name`) |
 | `the standard Editor cannot carry ...` | the document holds bytes the standard Editor does not edit (outside printable ASCII) |
-| `... is under way (warming)` | a switch is still in progress; wait for its answer, or cancel it |
+| `switch ... is under way (<stage>)` | a switch is still in progress; wait for its answer, or cancel it |
 
 A pending **count** in Neovim (you typed `3` and stopped) is not a refusal: the switch cancels it
 the way Escape would, and says so among the resets. While a switch is under way, the Attention pane
@@ -154,7 +154,8 @@ from a **second terminal**, so `loom-host` keeps its console.
    }
    ```
 
-   On Windows the files end in `.dll`.
+   On Windows the files end in `.dll`, and a MinGW build finds its C++ runtime the way a MinGW
+   `loom-host.exe` does: with the toolchain's `bin` directory on `PATH`.
 2. Start `loom-host` in the directory your files are in. Both are refused until you approve them,
    and the Neovim editor's beat needs the Timer to speak, so decide all of it at once:
 
@@ -180,9 +181,11 @@ from a **second terminal**, so `loom-host` keeps its console.
      sent.  reply -> m3  Neovim 0.11.6 (clean (no user configuration)) is listening at /tmp/zengine-neovim-4242-1.sock editing /home/you/notes/notes.txt -- attach its interface with: nvim --server /tmp/zengine-neovim-4242-1.sock --remote-ui
    ```
 
+   On Windows the address is a named pipe: `\\.\pipe\zengine-neovim-4242-1`.
 4. In a **second terminal**, run the line the answer ends with, and edit: `:w` writes. `:detach`
-   in that interface, or closing the second terminal, leaves Neovim running for the next attach.
-   **`:q` there quits Neovim itself**, as it would anywhere: it is Neovim's last window.
+   in that interface, or closing the second terminal, leaves Neovim running for the next attach
+   (Neovim does not support `:detach` on Windows yet; close the terminal there). **`:q` there quits
+   Neovim itself**, as it would anywhere: it is Neovim's last window.
 5. Back at `loom>`:
 
    ```text
