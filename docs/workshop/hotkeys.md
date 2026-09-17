@@ -23,6 +23,44 @@ each remappable on its own.
 A remap changes how an action is **requested**, never what it may do or who performs it. The
 keymap holds names and gestures only; the operations stay with their owners.
 
+## Keys the application supplies — and how to take them away
+
+Some keys are not Workshop's at all. **Which tool a chord opens, and what a key means where
+nothing more specific claimed it, belong to the desktop** — a tool that arrives by a row in your
+load plan like every other, and that you can edit, rebuild or replace. Out of the box it supplies
+three:
+
+| key | what it does |
+|---|---|
+| `Ctrl`+`t` | open the Terminal, or put you in it if it is already open |
+| `Ctrl`+`p` | open the Panes list, or put you in it |
+| `Esc` | put down the pane you have selected, where nothing more specific wanted the key |
+
+The first two are answered **above every mode**: they work while your hands are in a pane, which
+is the whole point of a key that opens a tool. A pane that must own one of them says so by name,
+and then the chord is the pane's for as long as that pane has the keyboard — that is a
+declaration, not a guess, so it survives you moving either key.
+
+`Esc` is answered **last**, exactly where it always was: every mode, overlay, draft and focused
+pane answers its own `Esc` first, and only a press nothing claimed puts the selected pane down.
+Neovim's `Esc` is still Neovim's.
+
+**Remap them like any other key**, by id — `desktop.terminal`, `desktop.panes`,
+`desktop.deselect` — and **switch one off** by binding it to `none`:
+
+```json
+{ "action": "desktop.deselect", "gesture": "none" }
+```
+
+The row stays in the hotkey view with no key beside it, and nothing takes over for it. There is
+no second copy of the behaviour inside Workshop waiting to answer — which is what makes these
+defaults genuinely yours. If you ever want a different set, change the desktop's own source
+(`desktop-pane/pane.cpp`) and rebuild it: everything on this list is declared there.
+
+**A Workshop with no desktop still runs.** If that row of your load plan cannot be loaded, the
+launch says so, the condition stands in Attention for the whole run, and the empty room is
+blank — you simply have no application defaults until you build it and launch again.
+
 ## The hotkey view — `Ctrl`+`k`
 
 `Ctrl`+`k` opens a full list of what the keyboard means **right now**, **beside the pane you

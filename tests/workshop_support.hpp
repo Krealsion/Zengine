@@ -2554,6 +2554,15 @@ struct PaneRig {
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+        // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
+        // a request for a declared row belongs to the office that declared it, and a refusal of a
+        // declaration belongs to the party that made it; a broadcast of either would tell every
+        // listening weave what another provider's keys are. `PaneInventory` is published, for
+        // `StandingConditions`' reason: which weave presents it is the load plan's business.
+        speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
+        speak.allow_to_any(ActionsRefused::zen_name, ActionsRefused::zen_version);
+        speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
+        speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
         // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
         // Editor door's answer used to be granted here and is not: the door is the Editor
         // weave's now, and this host answers nothing about a source.
@@ -3588,6 +3597,125 @@ inline constexpr const char* kComposePane = zengine::composer::kComposePane;
 inline constexpr const char* kTimerOffice = zengine::timer::kTimerRole;
 
 inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
+
+// ---- A STAND-IN DESKTOP: the participating owner of the application's defaults ------------
+//
+// ⭐ WHY EVERY CASE ABOUT ESCAPE NOW NEEDS ONE. Escape-to-deselect used to be a line at the end
+// of `on(KeyPressed)` and was therefore true of any host at all. It is a DECLARED application
+// row now (WL-DESK-02), so a Workshop with no desktop has no such row and Escape does nothing
+// -- which is the whole content of "a maker can disable an application default". A case that
+// still asserts the deselect is asserting the RELOCATED path, and must supply the party that
+// now owns it.
+//
+// ⚠ IT IS A STAND-IN AND NOT THE SHIPPED WEAVE. It declares the shipped weave's own three ids
+// on the shipped weave's own gestures, and answers the deselect row the shipped weave's way --
+// echoing the number the ask arrived under. What it is not is `desktop-pane/pane.cpp`: the
+// suites that load that image are the pane-seam suites, and this is for the hundreds of cases
+// that need the behaviour without a second process.
+class DesktopSeat
+    : public loom::WeaveBase<DesktopSeat, SeatState,
+                             loom::Accept<AppActionRequested, ActionsRefused, SeatDo>,
+                             loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested>> {
+public:
+    void on(const AppActionRequested& asked, loom::Mail& mail) {
+        asked_.push_back(asked.id);
+        if (asked.id == kDeselectId) {
+            // ECHOED UNDER THE NUMBER IT ARRIVED ON, which is what makes this answer about
+            // THIS keystroke and no other.
+            (void)mail.as_role(kDesktopRole)
+                .send_to_role(kWorkshopProvider, DeselectRequested{}, mail.correlation());
+        }
+    }
+    /// ⭐ WHAT WORKSHOP SAID WHEN IT REFUSED THIS PARTY'S DECLARATION (BL-WORK-04). Kept, never
+    /// acted on -- a declarer's recovery is its own, and this one's is to remember.
+    void on(const ActionsRefused& said, loom::Mail&) { refusals_.push_back(said.refusal); }
+
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(DesktopSeat&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+
+    void declare(loom::Mail& mail, const AppActions& a) {
+        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopProvider, a);
+    }
+    /// Declared PERSONALLY, from the very weave holding the office. Holding is not
+    /// speaking-for (MSG-07), and Workshop drops it for the offer's reason.
+    void declare_personally(loom::Mail& mail, const AppActions& a) {
+        (void)mail.send_to_role(kWorkshopProvider, a);
+    }
+    void launch(loom::Mail& mail, const std::string& office, const std::string& pane) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, PaneLaunchRequested{office, pane});
+    }
+    /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
+    /// answer to an ask that is over, and about one that echoes nothing at all.
+    void deselect_answering(loom::Mail& mail, std::uint64_t answering) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, DeselectRequested{}, answering);
+    }
+
+    const std::vector<std::string>& asked() const { return asked_; }
+    const std::vector<std::string>& refusals() const { return refusals_; }
+
+    std::function<void(DesktopSeat&, loom::Mail&)> next;
+
+    static constexpr const char* kDeselectId = "desktop.deselect";
+    static constexpr const char* kTerminalId = "desktop.terminal";
+    static constexpr const char* kPanesId = "desktop.panes";
+
+private:
+    std::vector<std::string> asked_;
+    std::vector<std::string> refusals_;
+};
+
+/// THE THREE ROWS THE SHIPPED DESKTOP DECLARES, spelled once so a case and the product cannot
+/// come to disagree about what the defaults are.
+inline AppActions shipped_app_actions() {
+    AppActions a;
+    a.rows.push_back(AppActionRow{DesktopSeat::kTerminalId, "terminal", zengine::input::scan::kT,
+                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
+    a.rows.push_back(AppActionRow{DesktopSeat::kPanesId, "panes", zengine::input::scan::kP,
+                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
+    a.rows.push_back(AppActionRow{DesktopSeat::kDeselectId, "put down",
+                                  zengine::input::scan::kEscape, zengine::input::mod::kNone,
+                                  app_precedence::kDefault});
+    return a;
+}
+
+/// SEAT A STAND-IN DESKTOP AND LET IT DECLARE. Returns the seat, so a case can read what it
+/// was asked for and what Workshop refused it.
+template <class Rig>
+inline DesktopSeat* mount_desktop(Rig& t, AppActions rows = shipped_app_actions()) {
+    auto seat = std::make_unique<DesktopSeat>();
+    DesktopSeat* raw = seat.get();
+    loom::Grant grant;
+    grant.allow_to_role(AppActions::zen_name, AppActions::zen_version, kWorkshopProvider);
+    grant.allow_to_role(DeselectRequested::zen_name, DeselectRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
+                        kWorkshopProvider);
+    const loom::WeaveId id =
+        t.bus.register_weave(std::move(seat), std::move(grant), std::string(kDesktopRole));
+    raw->zen_set_self(id);
+    raw->next = [rows](DesktopSeat& d, loom::Mail& m) { d.declare(m, rows); };
+    (void)t.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                       loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    return raw;
+}
+
+/// RUN ONE SENTENCE FROM THE STAND-IN DESKTOP, inside its own delivery, and drain.
+template <class Rig>
+inline void desktop_does(Rig& t, DesktopSeat* seat,
+                         std::function<void(DesktopSeat&, loom::Mail&)> what) {
+    REQUIRE(seat != nullptr);
+    seat->next = std::move(what);
+    t.publish(loom::to_value(SeatDo{}));
+}
+
 
 /// Open an external pane belonging to a seat in `office`, and answer with its kind.
 /// The seat offers, Workshop admits, the picker opens it, and the room is granted --

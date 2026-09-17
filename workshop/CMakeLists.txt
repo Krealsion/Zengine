@@ -185,6 +185,7 @@ add_library(zengine-workshop-logic STATIC
     screen_reveal.cpp
     screen_terminal.cpp
     weave_arrange.cpp
+    weave_desktop.cpp
     weave_document.cpp
     weave_external.cpp
     weave_handlers.cpp
@@ -446,6 +447,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
+                               zengine-desktop-pane
                                zengine-info-pane zengine-terminal-pane
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
@@ -554,7 +556,8 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
 # readers and the Timer are services every pane stands on, and the two providers are not weaves;
 # none of them gets a row, so building one from here is not offered. Which rows a running
 # Workshop may RELOAD is still the realization owner's to say, row by row, at the reload.
-set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-editor-pane
+set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-desktop-pane
+                                 zengine-editor-pane
                                  zengine-neovim-editor zengine-files zengine-info-pane
                                  zengine-terminal-pane
                                  zengine-introspection zengine-composer)

@@ -227,6 +227,30 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // while changing no authored value at all.
     rect(kWorkspaceX, kWorkspaceY, s.workspace_w, s.workspace_h, surface::role::kMuted);
 
+    // ⭐ THE ROOM'S FLOOR -- what the participating desktop said stands in the empty workspace
+    // (WL-DESK-05).
+    //
+    // WRITTEN BEFORE THE SCENE, so the prototype canvas's rectangles cover it rather than the
+    // other way round. That ordering is the TRANSITION being visible rather than hidden: the
+    // canvas is selected for retirement and its responsibilities have not all been rehomed yet
+    // (Info still inspects its objects), so this arc puts the floor in and leaves the canvas
+    // standing ON it. When the canvas goes, nothing here changes -- the scene loop below is
+    // deleted and the floor is what the room shows.
+    //
+    // ⚠ WORKSHOP COMPOSES NOTHING HERE. The rows are the desktop's own words, painted at the
+    // place and in the roles it said, clipped to the room the host owns. A host that edited
+    // them would be a host with a desktop compiled into it again -- which is the whole of what
+    // this seam removed. An empty `backdrop` is the honest picture of a Workshop whose desktop
+    // has not spoken, or never loaded, and it paints nothing at all.
+    for (std::size_t i = 0; i < s.backdrop.size(); ++i) {
+        const std::int64_t y = kWorkspaceY + 1 + static_cast<std::int64_t>(i);
+        if (y >= kWorkspaceY + s.workspace_h) {
+            break; // the room ran out; the rest is not drawn and nothing is invented
+        }
+        const surface::SurfaceTextRow& row = s.backdrop[i];
+        label(kWorkspaceX + 2, y, detail::fit(row.text, s.workspace_w - 4), row.role);
+    }
+
     // The scene: the authored elements, as this workspace places them. Painting
     // walks the SCENE, not the document -- so a rectangle on screen is by
     // construction a rectangle the hit test can find.

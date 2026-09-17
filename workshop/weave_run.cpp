@@ -24,6 +24,13 @@ std::int64_t WorkshopWeave::interaction_now() const {
 }
 
 void WorkshopWeave::repaint(loom::Mail& mail) {
+    // ⚠ WHAT THE HOST HAS LEARNED SINCE THE LAST PICTURE, FIRST. The boot's own discoveries --
+    // an optional plan row that refused, and so a tool that is not in this Workshop -- settle
+    // inside a delivery that can arrive after the first surface did (`HostContext`). One
+    // integer compared; the list is re-taken only when it moved, and `establish` is keyed.
+    if (conditions_taken_ != host_->conditions_generation) {
+        take_host_conditions();
+    }
     refresh_inspector(); // and a draft's window is only true against the room it has now
     refresh_setup_name(); // ...and so is the name editor's, against the same room
     refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading

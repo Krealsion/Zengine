@@ -24,7 +24,7 @@ WorkshopWeave::WorkshopWeave(HostContext& host) : host_(&host) {
 }
 
 // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
-void WorkshopWeave::load_keymap() {
+void WorkshopWeave::load_keymap(loom::Mail& mail) {
     if (keymap_loaded_) {
         return;
     }
@@ -57,7 +57,7 @@ void WorkshopWeave::load_keymap() {
     // collide with is the party judged, so both load orders end the same way -- the file
     // in force, that pane's rows refused in words (WL-KEY-15).
     std::string refused;
-    rejoin_pane_rows(refused);
+    rejoin_pane_rows(refused, mail);
     if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
         keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +
                        std::to_string(session_.keymap.authored.size()) + " override" +
@@ -127,6 +127,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
 
 // WL-ATTN-01, WL-ATTN-02 -- agents/workshop/attention.md
 void WorkshopWeave::take_host_conditions() {
+    conditions_taken_ = host_->conditions_generation;
     for (const Condition& c : host_->standing_conditions) {
         session_.conditions.establish(c);
     }
@@ -143,7 +144,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) 
     // and the room it is trying to get BACK is the second -- a want, not a floor.
     // Reversing the two costs a maker the ability to shrink their window, which is a
     // stranger thing to lose to a continuity feature than anything it could have bought.
-    load_keymap();
+    load_keymap(mail);
     // The prefs beside it, BEFORE the first paint: the first band and the
     // first pane headers a maker reads are already wearing their own preference.
     load_prefs();
@@ -265,6 +266,12 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
         Act::kNone) {
         swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+    } else if (session_.keymap.app_action_for(app_precedence::kAboveModes, ctx, k.scancode,
+                                             k.modifiers, keyboard_pane()) != nullptr) {
+        // ⭐ AN APPLICATION ROW IS A BINDING TOO (WL-DESK-07), and its printable trigger owes the
+        // same swallow every other binding's does: a maker whose desktop puts a launch on a
+        // bare letter must not also type that letter into whatever is taking text.
+        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
     } else if (ctx == KeyContext::kPane &&
                session_.keymap.pane_action_for(keyboard_pane(), k.scancode, k.modifiers) !=
                    nullptr) {
@@ -332,6 +339,27 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // which draft asked, and `begin_clipboard_paste` opens the conversation with the
     // Skin. The text lands a turn later, in that draft or nowhere
     // (`on(ClipboardText)`).
+    // ⭐ AND THE APPLICATION'S OWN ROWS, ABOVE EVERY MODE (WL-DESK-07, WL-DESK-02).
+    //
+    // HERE, AND THE POSITION IS THE DECLARED PRECEDENCE. It is BELOW this host's five
+    // above-mode rows -- quit, the document pair, the hotkey view -- because those are the
+    // host's own and a participating desktop may not take the door a maker leaves by. It is
+    // BELOW the hotkey view's swallow, because a maker reading a key list must not be
+    // executing it. And it is ABOVE the mode chain, which is the whole point: a launch
+    // binding that only worked when nothing was happening would not be one.
+    //
+    // ⚠ WHAT KEEPS THIS FROM TAKING A PANE'S KEYS IS A DECLARATION, NOT SILENCE. A pane that
+    // must own the gesture says so by name on its own row, and `app_action_for` applies the
+    // same `pane_supersedes` the host's `kUnlessOwned` rows are judged by. Nothing here reads
+    // whether a pane "would have" wanted the key: the seam carries no such fact and inferring
+    // one from quiet is exactly what WL-ARR-15 forbids.
+    if (const AppRow* row = session_.keymap.app_action_for(app_precedence::kAboveModes, ctx,
+                                                           k.scancode, k.modifiers,
+                                                           keyboard_pane())) {
+        request_app_action(row->id, mail);
+        repaint(mail);
+        return;
+    }
     const std::uint64_t copied_before = session_.clipboard.writes;
     const std::uint64_t pastes_before = session_.clipboard.paste_requests;
     bool crossed = true; // whether a key sent to a pane crossed at all (`external_key`)
@@ -361,7 +389,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // provider state, no file.
     //
     // A PLACE A MAKER TYPES INTO KEEPS ESCAPE WHILE IT HOLDS THE KEYS
-    // (`escape_may_shed_selection`). The Editor pane's Escape is a pinned no-op in its own
+    // (`default_row_context`). The Editor pane's Escape is a pinned no-op in its own
     // image -- a maker's habitual Esc must not hand the next `d` to command mode. A
     // focused external pane has already been sent the key and Workshop cannot see
     // whether it spent it: the seam carries no `consumed`, by design, and the
@@ -378,12 +406,21 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // both declarations rather than silence: its holder has no door for a key, so nothing
     // crossed and this line answers now; or the pane says it had nothing to do with the Escape
     // it was sent (`PaneEscapeUnspent`), and that answers when it arrives.
-    if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone &&
-        (escape_may_shed_selection(ctx) || (ctx == KeyContext::kPane && !crossed)) &&
+    //
+    // ⭐ AND WHAT IT MEANS IS THE DESKTOP'S NOW, NOT THIS FILE'S (WL-DESK-02). Every sentence
+    // above is still true -- the position in the chain, the contexts, the maker's own binding
+    // answering first -- and what changed is the last word: instead of shedding the selection
+    // here, this host REQUESTS the application row of the default precedence class, and the
+    // participating desktop decides. A desktop that declares no such row leaves Escape doing
+    // nothing here, which is what "disable an application default" has to mean if it means
+    // anything; there is no compiled-in copy behind this line any more.
+    if ((default_row_context(ctx) || (ctx == KeyContext::kPane && !crossed)) &&
         session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) ==
-            Act::kNone &&
-        session_.panels.selected != kNoPaneKind) {
-        unselect_pane();
+            Act::kNone) {
+        if (const AppRow* row = session_.keymap.app_action_for(
+                app_precedence::kDefault, ctx, k.scancode, k.modifiers, keyboard_pane())) {
+            request_app_action(row->id, mail);
+        }
     }
     if (session_.clipboard.writes != copied_before) {
         mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});

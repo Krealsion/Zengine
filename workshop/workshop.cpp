@@ -1207,6 +1207,15 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+    // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
+    // a request for a declared row belongs to the office that declared it, and a refusal of a
+    // declaration belongs to the party that made it; a broadcast of either would tell every
+    // listening weave what another provider's keys are. `PaneInventory` is published, for
+    // `StandingConditions`' reason: which weave presents it is the load plan's business.
+    speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
+    speak.allow_to_any(ActionsRefused::zen_name, ActionsRefused::zen_version);
+    speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
+    speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition
@@ -1436,6 +1445,30 @@ int main(int argc, char** argv) {
                             "authored participation is performed then -- every authored row "
                             "after it is waiting on this one)\n",
                             done.waiting_on.c_str());
+            }
+            // ---- ...AND THE TOOLS THAT ARE NOT HERE, NAMED (P-WORK-22) -----------
+            //
+            // AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL. The maker authored that
+            // this project stands without it, so this Workshop is running -- and the one
+            // thing that must not happen is for the row to be missing quietly. It is said
+            // on stdout with the refusing layer's own sentence, AND established as a
+            // STANDING CONDITION, because "this tool is not in this Workshop" stays true for
+            // the whole run rather than being a sentence about a moment (WL-ATTN-01).
+            //
+            // ⚠ THIS IS THE RECOVERY SURFACE EXISTING AT ALL. Before it, a tree short one
+            // pane artifact ended the process before anything could say which one -- the
+            // boundary P-WORK-22 names. The desktop's floor, the Attention pane and the
+            // launcher's `[gone]` rows are three readings of these same conditions.
+            for (const std::string& gone : done.unavailable) {
+                std::printf("zengine-workshop - unavailable: %s\n", gone.c_str());
+                zengine::workshop::Condition c;
+                c.key = "load.unavailable/" + gone;
+                c.compact = "a tool is not in this Workshop";
+                c.detail = gone;
+                c.role = zengine::surface::role::kAlert;
+                c.action = "build its artifact, then launch again";
+                host.standing_conditions.push_back(c);
+                ++host.conditions_generation;
             }
             if (done.ok) {
                 std::printf("zengine-workshop - operators: %zu resolvable, from %zu "

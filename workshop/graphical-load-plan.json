@@ -1,80 +1,167 @@
 {
   "zen": 1,
   "schema": "WorkshopLoadFile",
-  "version": 2,
+  "version": 3,
   "fields": {
     "format": "zengine-workshop-load-plan",
-    "format_version": "2",
+    "format_version": "3",
     "artifacts": [
       {
         "artifact": "zengine-operators-basic",
-        "provider": [ { "mode": "normal" } ],
-        "weave": []
+        "provider": [
+          {
+            "mode": "normal"
+          }
+        ],
+        "weave": [],
+        "optional": false
       },
       {
         "artifact": "zengine-workshop-session-history",
-        "provider": [ { "mode": "normal" } ],
-        "weave": []
+        "provider": [
+          {
+            "mode": "normal"
+          }
+        ],
+        "weave": [],
+        "optional": false
       },
       {
         "artifact": "zengine-skin-sdl",
         "provider": [],
-        "weave": [ { "role": "zengine.skin" } ]
+        "weave": [
+          {
+            "role": "zengine.skin"
+          }
+        ],
+        "optional": false
       },
       {
         "artifact": "zengine-input-sdl",
         "provider": [],
-        "weave": [ { "role": "zengine.input" } ]
+        "weave": [
+          {
+            "role": "zengine.input"
+          }
+        ],
+        "optional": false
       },
       {
         "artifact": "zengine-timer",
-        "provider": [ { "mode": "normal" } ],
-        "weave": [ { "role": "zengine.timer" } ]
+        "provider": [
+          {
+            "mode": "normal"
+          }
+        ],
+        "weave": [
+          {
+            "role": "zengine.timer"
+          }
+        ],
+        "optional": false
       },
       {
         "artifact": "zengine-introspection",
         "provider": [],
-        "weave": [ { "role": "zengine.introspection" } ]
+        "weave": [
+          {
+            "role": "zengine.introspection"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-composer",
         "provider": [],
-        "weave": [ { "role": "zengine.composer" } ]
+        "weave": [
+          {
+            "role": "zengine.composer"
+          }
+        ],
+        "optional": true
+      },
+      {
+        "artifact": "zengine-desktop-pane",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.desktop"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-files",
         "provider": [],
-        "weave": [ { "role": "zengine.files" } ]
+        "weave": [
+          {
+            "role": "zengine.files"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-builder-pane",
         "provider": [],
-        "weave": [ { "role": "zengine.builder-pane" } ]
+        "weave": [
+          {
+            "role": "zengine.builder-pane"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-attention-pane",
         "provider": [],
-        "weave": [ { "role": "zengine.attention" } ]
+        "weave": [
+          {
+            "role": "zengine.attention"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-info-pane",
         "provider": [],
-        "weave": [ { "role": "zengine.info" } ]
+        "weave": [
+          {
+            "role": "zengine.info"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-terminal-pane",
         "provider": [],
-        "weave": [ { "role": "zengine.terminal" } ]
+        "weave": [
+          {
+            "role": "zengine.terminal"
+          }
+        ],
+        "optional": true
       },
       {
         "artifact": "zengine-editor-pane",
         "provider": [],
-        "weave": [ { "role": "zengine.editor" } ]
+        "weave": [
+          {
+            "role": "zengine.editor"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [
-      { "role": "zengine.editor", "name": "standard", "artifact": "zengine-editor-pane" },
-      { "role": "zengine.editor", "name": "neovim", "artifact": "zengine-neovim-editor" }
+      {
+        "role": "zengine.editor",
+        "name": "standard",
+        "artifact": "zengine-editor-pane"
+      },
+      {
+        "role": "zengine.editor",
+        "name": "neovim",
+        "artifact": "zengine-neovim-editor"
+      }
     ]
   }
 }

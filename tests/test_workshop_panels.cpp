@@ -3922,10 +3922,17 @@ TEST_CASE("WUX-13: the subject stands across a layout switch, and clears only wh
 
 TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the Pane Editor's "
           "subject stands") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     // MUTATION (F1): removing the final Escape branch -- `selected == kNoPaneKind` below
     // goes red. MUTATION (F2): clearing the subject beside the selection -- the subject
     // check goes red.
     Live t;
+    mount_desktop(t);
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     open_editor(t);
     const PaneRef layouts = ref_of(panel::kLayouts);
@@ -3979,9 +3986,16 @@ TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the P
 }
 
 TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and deselection waits") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     // MUTATION (F3): asking the final fallthrough BEFORE the resolved context -- the
     // picker would still be open, or the draft still live, with the selection already gone.
     Live t;
+    mount_desktop(t);
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
 
     // THE PICKER: a mode above every pane. Select a pane that takes no keys so `p` still
@@ -4026,9 +4040,16 @@ TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and des
 }
 
 TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none") {
+    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
+    // DECLARED application row, so this case supplies the declarer -- and what it proves
+    // is the whole relocated path: the key resolves to the row, the host asks its owner,
+    // the owner answers under the number the ask went out on, and only then is the
+    // selection put down. A Workshop with no desktop has no such row and Escape does
+    // nothing, which is the case beside this one.
     // THE RECOVERY CLAIM. Every cell between the two bands is some pane's, so there is no
     // blank pixel to press; Escape is the way down.
     Live t;
+    mount_desktop(t);
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
