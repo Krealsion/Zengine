@@ -60,7 +60,7 @@ A consent always begins with a letter, so the Terminal reads it as text.
 
 | outcome | meaning |
 |---|---|
-| `switched` | the office moved and the document crossed; `resets` and `notes` say what did not cross exactly |
+| `switched` | the office moved and the document crossed; `resets` and `notes` say what did not cross exactly, and `detail` repeats them |
 | `already-active` | the destination already holds the office; nothing was loaded |
 | `needs-confirmation` | the switch would lose `losses`; nothing was loaded; confirm with `op` and `consent`, or cancel |
 | `refused` | nothing moved; `detail` is the refusing party's own words |

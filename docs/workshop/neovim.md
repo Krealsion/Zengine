@@ -29,9 +29,10 @@ ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
 Workshop starts Neovim in the Editor pane's room, hands it the document -- the file, your unsaved
 edits, the caret, the selection, the scroll position -- and the Editor pane becomes Neovim, in the
 same place on your desk. What came of it is said on Workshop's notice line, in the answer's own
-words -- ``editor switch 1: switched -- switched zengine.editor from `standard` to `neovim` `` --
-and the Terminal's record shows that the answer arrived, with the switch office's weave number:
-`v EditorSwitchAnswered v1 from #14  [Loom: answers ask 1]`.
+words, followed by what did not cross exactly --
+``editor switch 1: switched -- switched zengine.editor from `standard` to `neovim` -- reset: the standard Editor's undo history; ...``
+-- and the Terminal's record shows that the answer arrived, with the switch office's weave
+number: `v EditorSwitchAnswered v1 from #14  [Loom: answers ask 1]`.
 
 Switch back the same way:
 

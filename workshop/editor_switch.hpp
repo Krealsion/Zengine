@@ -339,7 +339,7 @@ public:
             ask.consent = op_.consent;
             ask.losses = op_.losses;
             ask.resets = op_.resets;
-            ask.detail = "switching to `" + op_.destination + "` would lose " + losses_said(op_.losses) +
+            ask.detail = "switching to `" + op_.destination + "` would lose " + one_sentence(op_.losses) +
                          "; confirm with op " + std::to_string(op_.id) + " and consent " + op_.consent + ", or cancel";
             spend(mail, ask);
             return;
@@ -372,7 +372,7 @@ public:
             ask.consent = op_.consent;
             ask.losses = op_.losses;
             ask.detail = "what switching would lose changed before it could begin -- now " +
-                         losses_said(op_.losses) + "; confirm again with op " + std::to_string(op_.id) +
+                         one_sentence(op_.losses) + "; confirm again with op " + std::to_string(op_.id) +
                          " and consent " + op_.consent + ", or cancel";
             spend(mail, ask);
             return;
@@ -596,6 +596,14 @@ private:
         EditorSwitchAnswered done = base_answer(op_.id, switch_outcome::kSwitched, op_.destination);
         done.detail = "switched " + host_.office + " from `" + op_.from + "` to `" +
                       op_.destination + "`";
+        // WHAT DID NOT CROSS EXACTLY, in the words too: a Terminal shows an answer's shape and not
+        // its `resets` or `notes`.
+        if (!op_.resets.empty()) {
+            done.detail += " -- reset: " + one_sentence(op_.resets);
+        }
+        if (!op_.notes.empty()) {
+            done.detail += " -- " + one_sentence(op_.notes);
+        }
         done.resets = op_.resets;
         done.notes = op_.notes;
         spend(mail, done);
@@ -892,11 +900,11 @@ private:
         into.push_back(one);
     }
 
-    /// THE LOSSES, IN ONE SENTENCE: an answer's words are all a Terminal's maker reads of it.
-    static std::string losses_said(const std::vector<std::string>& losses) {
+    /// A LIST, IN ONE SENTENCE: an answer's words are all a Terminal's maker reads of it.
+    static std::string one_sentence(const std::vector<std::string>& items) {
         std::string out;
-        for (const std::string& loss : losses) {
-            out += (out.empty() ? "" : "; ") + loss;
+        for (const std::string& item : items) {
+            out += (out.empty() ? "" : "; ") + item;
         }
         return out;
     }
