@@ -94,6 +94,9 @@ include(CMakePackageConfigHelpers)
 #   zengine::pane               offer Workshop a pane and speak its protocol from a weave:
 #                               the offer, the granted room, the rows, the gestures and the
 #                               declared actions -- the one header, and none of Workshop.
+#   zengine::neovim             ask the Neovim-backed Editor to start Neovim for a second
+#                               terminal, say what it holds, and stop -- the three asks a
+#                               console sends, and none of the hosting library behind them.
 #
 # EXPORT_NAME is what makes `zengine::surface` mean the same thing from this tree and from an
 # installed prefix. Without it the house would link `zengine-surface-vocabulary` and a guest
@@ -107,7 +110,8 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-component
     zengine-operator
     zengine-operator-consumer
-    zengine-pane-vocabulary)
+    zengine-pane-vocabulary
+    zengine-neovim-editor-vocabulary)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -118,6 +122,7 @@ set_target_properties(zengine-component           PROPERTIES EXPORT_NAME compone
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
 set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
+set_target_properties(zengine-neovim-editor-vocabulary PROPERTIES EXPORT_NAME neovim)
 
 # Every one of them is an INTERFACE target, so nothing is installed here but the target
 # definitions themselves; the headers go below and there is no library to place.
@@ -170,8 +175,10 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # spelling is `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is. Nothing else
 # under workshop/ is public: the host, its seams and its doors stay this repository's.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp)
+# ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
+set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 
-foreach(pkg IN ITEMS activation timer surface input ui component operator workshop)
+foreach(pkg IN ITEMS activation timer surface input ui component operator workshop neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
@@ -216,6 +223,9 @@ set(zengine_installable_artifacts
     zengine-input                # weave
     zengine-skin-tui-classic     # weave
     zengine-skin-tui-block       # weave
+    zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim
+                                 # for a second terminal from a Loom with no Workshop; its one
+                                 # runtime need beyond the Loom is a Neovim, found at run time
     zengine-operators-basic)     # provider, not a weave (PROV-0)
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")

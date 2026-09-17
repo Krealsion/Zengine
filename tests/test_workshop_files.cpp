@@ -2269,6 +2269,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         {"zengine-attention-pane", "attention-pane/pane.cpp"},
         {"zengine-builder-pane", "builder-pane/pane.cpp"},
         {"zengine-editor-pane", "editor-pane/pane.cpp"},
+        {"zengine-neovim-editor", "neovim-editor/pane.cpp"},
         {"zengine-files", "files/files.cpp"},
         {"zengine-info-pane", "info-pane/pane.cpp"},
         {"zengine-terminal-pane", "terminal-pane/pane.cpp"},

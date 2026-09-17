@@ -65,6 +65,10 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 - **Filesystem presence is not load authority.** The suite stages a real directory holding
   MORE artifacts than any plan names and proves an unlisted valid provider is neither opened
   nor mounted. A lookup table could not have asked the question.
+- **An office may have authored CHOICES** (format version 2): the artifacts a maker may switch
+  it between, one of which starts; the others load only when a switch asks, and realization
+  records which one holds the office. The law is `WL-SWITCH-01` and `-02`
+  (`agents/workshop/editor-switch.md`); participation is still conferred by the plan alone.
 
 ## Realization is a living owner, not a call (BOOT-0)
 

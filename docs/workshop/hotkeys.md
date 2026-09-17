@@ -125,9 +125,12 @@ allowed an editing chord, because in that class no text field is listening: that
 how `Ctrl`+`c` quits from command mode and copies inside a field, how `Ctrl`+`a` opens the
 current-condition view from command mode and selects all inside one, and and how `Ctrl`+`s` saves
 the document from command mode, from a layout name, from a draft and inside every other pane,
-and is the Editor pane's own `save source` while your keys are in the source. The Editor is the
-one pane that **declares** it stands in for the document's save; that declaration, and not the
-chord, is what decides. Rebind either one and the same thing stays true.
+and is the Editor pane's own `save source` while your keys are in the source. The Editor
+**declares** it stands in for the document's save; that declaration, and not the chord, is what
+decides. Rebind either one and the same thing stays true. `Ctrl`+`o` (open the document) is the
+same kind of action: it opens the document from everywhere, a pane holding your keys included,
+unless that pane declares it stands in for it -- which the Neovim-backed Editor does, so there
+`Ctrl`+`o` is Neovim's own jump back ([Neovim in Workshop](neovim.md)).
 
 **A pane's own rows are judged later, too.** A pane declares its rows when it arrives and may
 declare them again while it runs — Files does whenever its chooser or recipe line opens. Each

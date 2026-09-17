@@ -304,6 +304,33 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 }
 ```
 
+**Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
+each under a name a maker switches to it by. Exactly one row of `artifacts` loads the office and is
+one of its choices; every other choice is loaded only when a switch asks for it. Both shipped plans
+are version 2 and author `standard` and `neovim` for `zengine.editor`. The choices' law, the
+switch and what crosses it are [editor-switch.md](editor-switch.md).
+
+```json
+{
+  "zen": 1,
+  "schema": "WorkshopLoadFile",
+  "version": 2,
+  "fields": {
+    "format": "zengine-workshop-load-plan",
+    "format_version": "2",
+    "artifacts": [ ... ],
+    "choices": [
+      { "role": "zengine.editor", "name": "standard", "artifact": "zengine-editor-pane" },
+      { "role": "zengine.editor", "name": "neovim", "artifact": "zengine-neovim-editor" }
+    ]
+  }
+}
+```
+
+A plan that authors no choices is still written as version 1, byte for byte what it always was, and
+a version-1 file is read exactly as before. A version-2 file with no choices is refused: one plan
+has one spelling.
+
 Two things a hand-author needs to know:
 
 - **`content_id` is optional on the way in.** The canonical writer emits one; a file written by
@@ -315,7 +342,8 @@ Whitespace and indentation are free — the shipped plans are indented for readi
 a loaded plan produces the canonical one-line form, and a second write of a loaded plan is
 byte-identical to the first.
 
-Refused, with the reason: another `format_version` (by its number, before the rows are judged);
+Refused, with the reason: a `format_version` other than 1 or 2 (by its number, before the rows are
+judged);
 a `format` that is not this one; more than one provider or weave surface on one artifact; an
 unrecognised mode word (naming both what was found and what would have worked); a weave
 declaration with no role; an artifact requesting neither surface; a stem that is empty, too long,
