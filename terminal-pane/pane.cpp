@@ -71,6 +71,7 @@ using ws::PaneActions;
 using ws::PaneCaret;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
+using ws::PaneEscapeUnspent;
 using ws::PaneKey;
 using ws::PaneOffered;
 using ws::PanePressed;
@@ -230,8 +231,8 @@ class TerminalPaneWeave
                        PaneTextInput, PaneWheel, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, TerminalActRequested,
-                     TerminalCompletionRequested, surface::ClipboardCopy,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneEscapeUnspent,
+                     TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -512,7 +513,7 @@ public:
         word_press_ = false;
         notice_.clear();
         history_note_.clear();
-        // ⭐ ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
+        // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
         // whole on ending the recall: no submission, no candidate taken, and no list asked for.
         // The next Enter or Tab has its ordinary meaning.
         if (asked.id == pane::kActionSubmit || asked.id == pane::kActionComplete) {
@@ -568,7 +569,7 @@ public:
                 dismissed_at_ = offered_.slot;
                 asked_for_list_ = false;
                 moved();
-            } else {
+            } else if (!composing_nothing()) {
                 // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was made
                 // against a word; there is no longer a word, so keeping it would leave the
                 // list hidden for the whole of the next command with nothing on screen to
@@ -579,6 +580,12 @@ public:
                 moved();
                 remember_line();
                 ask_completion(mail);
+            } else {
+                // (!) NOTHING MORE SPECIFIC IS LEFT: no recall, no list, no line. This Escape was
+                // unspent here, and saying so lets Workshop's own last meaning for it run --
+                // putting this pane down -- if it is still the maker's latest gesture.
+                (void)mail.as_role(pane::kTerminalPaneRole)
+                    .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane});
             }
             say(mail);
         }
@@ -685,7 +692,7 @@ private:
         row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab);
         row(pane::kActionUp, "older command / list up", input::scan::kUp);
         row(pane::kActionDown, "newer command / list down", input::scan::kDown);
-        row(pane::kActionBack, "back: recall, list, line", input::scan::kEscape);
+        row(pane::kActionBack, "back: recall, list, line, desk", input::scan::kEscape);
         const auto chord = [&rows](const char* id, const char* label, std::int64_t sc) {
             rows.push_back(PaneActionRow{id, label, sc, input::mod::kCtrl});
         };

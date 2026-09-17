@@ -202,6 +202,18 @@ struct TerminalRig {
 
     void submit() { r.key(input::scan::kReturn); }
 
+    /// EMPTY THE LINE AND KEEP THE KEYS. Escape sheds one layer per press -- a list, then the
+    /// line, then the pane itself -- so a case that wants an empty line presses it until the
+    /// prompt is back and never once more.
+    void clear_line() {
+        for (int i = 0; i < 2 && input_text().find("Tab: what can this terminal say?") ==
+                                     std::string::npos; ++i) {
+            r.key(input::scan::kEscape);
+        }
+        REQUIRE(input_text().find("Tab: what can this terminal say?") != std::string::npos);
+        REQUIRE(r.session().panels.keyboard == kind);
+    }
+
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
     const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
@@ -1138,12 +1150,9 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
 
-    // TWICE, because the first Escape dismisses a LIST if one is open and only then
-    // clears: a case that leaned on which branch it took would change meaning under
-    // the completer.
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
-    REQUIRE(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+    // AS MANY AS THE LAYERS THERE ARE, and not one more: the first Escape dismisses a LIST if
+    // one is open and only then clears, and an Escape with nothing left puts the pane down.
+    t.clear_line();
     skin->platform = "a\tb\nc";
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> a b c", 0) == 0);
@@ -1152,8 +1161,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
     // draws it as a space -- so a maker would submit something other than what they read.
     // This pane's typed door already refuses one; the difference here is that the door speaks.
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
+    t.clear_line();
     t.type("hold");
     skin->platform = "na\xC3\xAFve";
     t.r.key(input::scan::kV, input::mod::kCtrl);
@@ -1176,8 +1184,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> gone", 0) == 0);
     CHECK(t.input_text().find("hold") == std::string::npos);
-    t.r.key(input::scan::kEscape);
-    t.r.key(input::scan::kEscape);
+    t.clear_line();
     t.type("hold");
 
     // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10) -- the terminal
@@ -1373,6 +1380,9 @@ TEST_CASE("Escape on a recalled line goes back to the line before the recall and
     CHECK(t.text().find("history ") == std::string::npos);
     CHECK(t.r.session().panels.keyboard == t.kind);
     CHECK(commands_run(t) == before);
+    // ...AND THE RECALL WAS A LAYER: with it gone, the next Escape is the pane's own.
+    t.r.key(input::scan::kEscape);
+    CHECK(t.r.session().panels.selected == kNoPaneKind);
 }
 
 TEST_CASE("a command being composed keeps Up and Down for its completion list and its draft is untouched") {
@@ -1929,4 +1939,56 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     CHECK(back.dispatch_refusal->send.role == "zengine.probe");
     CHECK(back.dispatch_refusal->send.target.empty());
     CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
+}
+
+
+// ============================================================================
+// ESCAPE — one layer at a time, and the last one is the pane itself
+// ============================================================================
+
+TEST_CASE("Escape sheds the list then the line then the pane itself and moves nothing else") {
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    const std::size_t panes = t.r.session().panels.open.size();
+    const Setup desk = t.r.session().setup.active;
+    t.type("s");
+    REQUIRE(t.row_of("> send") >= 0);
+
+    t.r.key(input::scan::kEscape); // the list
+    CHECK(t.row_of("> send") < 0);
+    CHECK(t.input_text().rfind("> s", 0) == 0);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+
+    t.r.key(input::scan::kEscape); // the line
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.r.session().panels.selected == t.kind);
+
+    t.r.key(input::scan::kEscape); // the pane
+    CHECK(t.r.session().panels.selected == kNoPaneKind);
+    CHECK(t.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(keyboard_context(t.r.session()) == KeyContext::kCommand);
+    CHECK(t.r.last_notice().find("unselected") != std::string::npos);
+    // NOTHING ELSE MOVED: the pane is open where it was, the desk is byte-identical, and the
+    // pane still holds its own line and record.
+    CHECK(t.r.session().panels.open.size() == panes);
+    CHECK(t.r.session().setup.active == desk);
+    CHECK(t.r.session().panels.has(t.kind));
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+}
+
+TEST_CASE("an unspent Escape the maker has already typed past moves nothing") {
+    // ONE POLL: Escape on a line with nothing left to shed, then a character. The pane says the
+    // Escape was unspent, and by the time that word reaches Workshop the maker has typed -- so the
+    // keys are still the pane's and the character is on its line.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_text("x");
+    t.settle();
+    CHECK(t.r.session().panels.selected == t.kind);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.input_text().rfind("> x", 0) == 0);
 }

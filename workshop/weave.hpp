@@ -313,6 +313,7 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneContent,
                                           zengine::workshop::v2::PaneCaret,
                                           zengine::workshop::PaneRevealRequested,
+                                          zengine::workshop::PaneEscapeUnspent,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
@@ -595,6 +596,11 @@ public:
     /// delivery is the acquisition's commitment point, and the host holds nothing across it:
     /// no record, no reservation, no settle to wait for (pane_vocabulary.hpp says why).
     void on(const PaneRevealRequested& asked, loom::Mail& mail);
+
+    /// A PANE'S WORD THAT THE ESCAPE IT WAS SENT HAD NOTHING MORE SPECIFIC TO DO THERE: put that
+    /// pane down, exactly as a bare Escape in command mode would -- but only while the pane still
+    /// has the desk and the keys and that Escape is still the last gesture this host handled.
+    void on(const PaneEscapeUnspent& said, loom::Mail& mail);
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
@@ -1315,8 +1321,11 @@ private:
     /// A GESTURE THIS PANE DECLARED A ROW FOR CROSSES AS THE RESOLVED ID (WL-KEY-15):
     /// `PaneActionRequested{pane, id}` instead of the key, so the maker's override reaches
     /// the pane and the pane never re-derives a binding it cannot see. Every other key
-    /// crosses as `PaneKey` exactly as before.
-    void external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
+    /// crosses as `PaneKey` exactly as before -- except a bare Escape to a pane whose holder has
+    /// no door for a key and declared no row for it, which nothing on the far side could spend:
+    /// that crosses as nothing, and Escape's own last meaning answers. Answers whether a sentence
+    /// crossed.
+    bool external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                       loom::Mail& mail);
 
     /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY: `external_press`'s shape for
@@ -1446,6 +1455,15 @@ private:
     std::uint64_t code_asks_ = 0;
 
     bool quitting_ = false;
+    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button, the wheel -- counted, so a pane's
+    /// word about one of them can be asked whether it is still about the latest.
+    std::uint64_t gestures_ = 0;
+    /// THE LAST BARE ESCAPE SENT TO A PANE, and which gesture it was.
+    struct EscapeSent {
+        std::int64_t kind = kNoPaneKind;
+        std::uint64_t gesture = 0;
+    };
+    EscapeSent escape_sent_;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;

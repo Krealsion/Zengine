@@ -766,6 +766,24 @@ struct PaneRevealAnswered {
     ZEN_SHAPE(PaneRevealAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(seated), ZEN_FIELD(refusal));
 };
 
+/// THE ESCAPE WORKSHOP SENT THIS PANE HAD NOTHING MORE SPECIFIC TO DO HERE -- so Workshop's own
+/// last meaning for Escape, putting the selected pane down, may run. Provider -> Workshop, as the
+/// office that offered `pane`.
+///
+/// A PANE THAT NEVER SAYS IT KEEPS ESCAPE. Workshop cannot see whether a key was spent, and
+/// silence is not permission: a pane with an Escape of its own -- a draft to cancel, a list to
+/// dismiss, an editor's mode -- spends it and says nothing.
+///
+/// JUDGED AGAINST THE MAKER'S LATEST GESTURE, and applied only while all of it still holds: the
+/// office offered `pane`, `pane` is still selected and still where the keys go, and the last
+/// gesture Workshop handled was the bare Escape it sent that pane. A key, text, a press or the
+/// wheel since then makes this about an Escape that is no longer what the maker did last, and it
+/// moves nothing. There is no answer; what it changes is Workshop's desk, said on its notice line.
+struct PaneEscapeUnspent {
+    std::string pane;
+    ZEN_SHAPE(PaneEscapeUnspent, 1, ZEN_FIELD(pane));
+};
+
 /// MAY THIS WORKSHOP END? -- asked of everyone that can hold a maker's unsaved work, before
 /// an orderly quit stops the bus.
 ///

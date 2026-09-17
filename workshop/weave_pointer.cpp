@@ -267,6 +267,7 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
+    ++gestures_;
     if (!swallow_text_.empty()) {
         const std::string owed = swallow_text_;
         swallow_text_.clear();
@@ -359,6 +360,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         (void)hold_input(std::move(held));
         return;
     }
+    ++gestures_;
     // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
     // open it took every pointer event anywhere -- a press outside its own regions was
     // consumed rather than falling through -- because it was drawn over the room with no
@@ -792,6 +794,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         (void)hold_input(std::move(held));
         return;
     }
+    ++gestures_;
     if (session_.arrange.open || session_.context.open) {
         return;
     }
