@@ -71,6 +71,8 @@
 #   always  every supported test configuration has it; absence is always a defect.
 #   sdl     rides the SDL-backed weaves (ZENGINE_SDL_SKIN=ON, the default; the Windows
 #           stranger lane turns it off). Absent => declared absent, never "passed".
+#   neovim  rides a real Neovim named at configure time (ZENGINE_NEOVIM_PROGRAM). Absent when
+#           none is named; naming one that is not there is a configure error, never a skip.
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
 # is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
@@ -1021,8 +1023,23 @@
 # in the case that reads a converted session and gained no case, and every other suite is
 # untouched by a change confined to session persistence and its history.
 #
+# THE NEOVIM HOSTING LIBRARY added TWO ENTRIES and one gate, and the
+# split is the `sdl` rule stated a seventh time. `neovim` (always, 21) is the hosting library
+# with no Neovim at all: the codec over every type family and across split reads and its three
+# refusals, the conversation's books (ids matched out of order, a stranger id ending it, both
+# bounds), the screen model and its refusals, the projection (block cell, bar caret, Visual
+# through the cursor cell, blockwise row, menu item, row kinds), the ASCII substitutes, the key
+# notation, the file-bytes and position arithmetic including an exhaustive placement sweep, the
+# launch line, the Windows quoting rule (pinned against the Builder's where it is compiled), and
+# the conversation owner against a scriptable fake through a clean start and end and seven
+# failures, a forced end and a bounded call. `neovim_live` (gate `neovim`, 11) is only what a
+# real Neovim can say -- measured green on Windows 0.11.6 and Linux 0.11.6 and 0.12.5 before it
+# was registered.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
+neovim                            doctest           always  21
+neovim_live                       doctest           neovim  11
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
