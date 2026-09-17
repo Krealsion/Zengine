@@ -204,25 +204,28 @@ WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-15 — A pane may say the Escape it was sent was unspent, and is put down
 
-LAW — `PaneEscapeUnspent{pane}` from the office that offered it puts that pane down, while it is still selected, still where the keys go, and answers the last gesture this host handled.
+LAW — `PaneEscapeUnspent{pane}` from the office that offered it, echoing the number its Escape was sent under, puts that pane down while it is still selected, still where the keys go, and still last.
 
 MEANS
 - what is shed is `unselect_pane`'s two lines: nothing closes, and no arrangement moves;
 - a pane that never says it keeps Escape: silence is not permission, and nothing answers it;
-- a key, text, a press or the wheel since then makes the word stale, and it moves nothing.
+- zero, another Escape's number, a spent one, or a later gesture: the word moves nothing.
 
 DOES NOT MEAN — a consumption protocol: it is Escape's own last meaning, asked for by the party
 that knows whether Escape meant anything there.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneEscapeUnspent`; `workshop/weave.hpp`
-`WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::EscapeSent`;
-`workshop/weave_external.cpp` `on(PaneEscapeUnspent)`; `terminal-pane/pane.cpp`
-`composing_nothing`;
+`WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::EscapeSent`,
+`WorkshopWeave::escape_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
+`WorkshopWeave::external_key`; `terminal-pane/pane.cpp` `composing_nothing`;
 `tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until it says the
 Escape was unspent"`, case `"a word about an Escape moves nothing when it is stale or anonymous or
-about another pane"`; `tests/test_workshop_panes_terminal.cpp` case `"Escape sheds the list then
+about another pane"`, case `"an answer to an Escape that is over cannot borrow the next Escape's
+identity"`, case `"only an Escape is sent under a number, and a pane may answer the one it
+holds"`; `tests/test_workshop_panes_terminal.cpp` case `"Escape sheds the list then
 the line then the pane itself and moves nothing else"`, case `"an unspent Escape the maker has
-already typed past moves nothing"`.
+already typed past moves nothing"`, case `"a second Escape does not lend its identity to the first
+Escape's answer"`.
 WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-16 — An Escape no holder could take crosses as nothing, and the last meaning answers

@@ -584,8 +584,13 @@ public:
                 // (!) NOTHING MORE SPECIFIC IS LEFT: no recall, no list, no line. This Escape was
                 // unspent here, and saying so lets Workshop's own last meaning for it run --
                 // putting this pane down -- if it is still the maker's latest gesture.
+                //
+                // ECHOED BACK UNDER THE NUMBER IT ARRIVED ON, which is what makes this word about
+                // THIS Escape and no other. The answer may reach Workshop behind later gestures,
+                // and a later Escape looks exactly like this one from the desk's side.
                 (void)mail.as_role(pane::kTerminalPaneRole)
-                    .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane});
+                    .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane},
+                                  mail.correlation());
             }
             say(mail);
         }

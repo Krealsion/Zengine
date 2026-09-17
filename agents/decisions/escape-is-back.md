@@ -33,6 +33,20 @@ types into keeps Escape while it holds the keys.
   pane that takes no text, then Escape, puts the selection down"` and by case `"a pane that takes
   keys keeps Escape until it says the Escape was unspent"`.
 
+**A correction, and the lesson under it.** The first `PaneEscapeUnspent` carried only its pane,
+and Workshop judged it against *current desk state*: this pane selected, still typed into, and the
+last gesture still that Escape. The founder found what that misses by hand -- press Escape on an
+empty Terminal and wait. A second Escape restores every one of those conditions, so an answer
+written about the FIRST Escape is spent on the second: the pane goes down after an Escape that
+already meant something else. **Matching current state does not identify the event being
+answered.** The repair gives each bare Escape a correlation, minted by this host and carried in
+Loom's envelope on whichever message delivers it, and the answer must echo that one -- the same
+pair a relay settles on (WHICH conversation, and WHO is speaking, bus-stamped). No published shape
+gained a field, and the single delivery per action or key is unchanged. Zero answers nothing, an
+older number answers nothing, and a spent number is spent. Pinned by case `"a second Escape does
+not lend its identity to the first Escape's answer"` and case `"an answer to an Escape that is over
+cannot borrow the next Escape's identity"`.
+
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
 fourth writer of `Panels::selected`. A pane that takes text keeps Escape unless it says otherwise:
 the Terminal sheds its list, then its line, then itself, and the two editors keep every Escape, so

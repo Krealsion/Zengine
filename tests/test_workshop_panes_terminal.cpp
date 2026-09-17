@@ -1990,6 +1990,24 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
     CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
 }
 
+TEST_CASE("a second Escape does not lend its identity to the first Escape's answer") {
+    // THE FOUNDER'S WITNESS. One poll: Escape on an empty line (unspent), a character (a draft),
+    // then Escape again (spent clearing that draft). The FIRST Escape's answer is still in flight
+    // behind those gestures, and it is about an Escape that is over. It must move nothing: the
+    // pane keeps the desk and the keys, and the only thing the second Escape did is clear the
+    // draft it was pressed on.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    t.enqueue_key(input::scan::kEscape);
+    t.enqueue_text("x");
+    t.enqueue_key(input::scan::kEscape);
+    t.settle();
+    CHECK(t.r.session().panels.selected == t.kind);
+    CHECK(t.r.session().panels.keyboard == t.kind);
+    CHECK(t.input_text().find('x') == std::string::npos); // the draft the second Escape cleared
+}
+
 TEST_CASE("an unspent Escape the maker has already typed past moves nothing") {
     // ONE POLL: Escape on a line with nothing left to shed, then a character. The pane says the
     // Escape was unspent, and by the time that word reaches Workshop the maker has typed -- so the

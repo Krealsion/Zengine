@@ -416,6 +416,7 @@ PaneRoom               Workshop  ->  provider   "here is how much prose it gets.
 PaneContent            provider  ->  Workshop   "here is what it says."
 PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unspent here."
+                                                   (under that Escape's own correlation)
 ```
 
 - **`PaneOffered` and `PaneContent` carry no provider field, and the absence is the enforcement.**
@@ -506,10 +507,11 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
 **One key has a way back, and only one.** Workshop's last meaning for `Esc` is to put the selected
 pane down, and while a pane holds the keys Workshop cannot see whether it spent the key — so a pane
 that has something to do with `Esc` keeps it, in silence. A pane that had *nothing* more specific to
-do may say so: `PaneEscapeUnspent{pane}`, sent as the office that offered the pane, after which
-Workshop spends its own meaning for that Escape. It is honoured only while the pane is still
-selected, still where the keys go, and that Escape is still the last gesture Workshop handled — a
-key, some text, a press or the wheel since makes it stale — and there is no answer and no retry. A
+do may say so: `PaneEscapeUnspent{pane}`, sent as the office that offered the pane and **under
+the correlation the Escape arrived on**, after which Workshop spends its own meaning for that
+Escape. It is honoured only while the pane is still selected, still where the keys go, and that
+Escape is still the last gesture Workshop handled — a key, some text, a press or the wheel since
+makes it stale — and there is no answer and no retry. A
 bare `Esc` is not sent at all when the office's holder accepts no `PaneKey` and the pane declared no
 row for it: nothing could have spent it, so Workshop answers at once. That is the holder's own
 accept-set read off the bus, never an inference from a pane's silence.
