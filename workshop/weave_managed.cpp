@@ -452,4 +452,36 @@ void WorkshopWeave::on(const ManagedOpenProgress& said, loom::Mail& mail) {
     repaint(mail);
 }
 
+// WL-SWITCH-07 -- agents/workshop/editor-switch.md
+void WorkshopWeave::on(const EditorSwitchProgress& said, loom::Mail& mail) {
+    if (!mail.authored_from_role(kEditorSwitchRole)) {
+        return;
+    }
+    const std::string key = "editor-switch:" + std::to_string(said.op);
+    if (!said.pending) {
+        session_.conditions.retract(key);
+        repaint(mail);
+        return;
+    }
+    const std::string op = std::to_string(said.op);
+    const std::string cancel = " -- cancel: ask @" + std::string(kEditorSwitchRole) +
+                               " EditorSwitchCancelled 1 op=" + op;
+    std::string detail;
+    if (said.stage == "awaiting-confirmation") {
+        detail = "switching to " + said.destination + " would lose what its answer listed; confirm "
+                 "with op=" + op + " and its consent" + cancel;
+    } else if (said.stage == "boundary" || said.stage == "adopting") {
+        detail = "the Editor holds still while " + said.awaiting + " takes the document; input to it "
+                 "is refused until the switch settles" + cancel;
+    } else if (said.stage == "proving" || said.stage == "retiring") {
+        detail = "the switch has committed; waiting for " + said.awaiting + " to confirm it";
+    } else {
+        detail = "waiting for " + said.awaiting + " (" + said.stage + ") -- your work is untouched" +
+                 cancel;
+    }
+    session_.conditions.establish(Condition{key, "switching the Editor to " + said.destination,
+                                            detail, surface::role::kAccent, std::string()});
+    repaint(mail);
+}
+
 } // namespace zengine::workshop

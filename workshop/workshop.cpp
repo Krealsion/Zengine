@@ -20,6 +20,7 @@
 #include "weave.hpp"
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
+#include "editor_switch.hpp"  // the editor switch this host mounts
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 #include "provenance.hpp"     // what stands behind an office's running code, from three owners
 
@@ -895,6 +896,10 @@ int main(int argc, char** argv) {
     loom::Grant terminal_grant;
     terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
                                  surface::SurfaceText::zen_version, surface::kSkinRole);
+    // ...AND THE FOUR QUESTIONS A MAKER ASKS THE EDITOR SWITCH, to that office and no other, with
+    // its answer accepted back (WL-SWITCH-07). Switching the Editor from the Terminal is an
+    // ordinary authorized ask, and the documented example is typed against exactly this.
+    let_terminal_switch_editors(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));
@@ -1710,6 +1715,42 @@ int main(int argc, char** argv) {
     loom::Grant say_plan;
     say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     mount_in_office<PlanDoor>(bus, std::move(say_plan), kPlanRole, host.append_plan_row);
+
+    // ---- THE EDITOR SWITCH (WL-SWITCH-03, WL-SWITCH-07) -------------------------------------
+    //
+    // One native coordinator in its own office, switching the office of the one pane this host
+    // manages between the choices the PLAN authors for it. This host hands it three things and
+    // names nothing: the bus and the Kernel a prepared replacement is made of -- the host-tier
+    // composition the Loom's own coordinators use -- the office, spelled where this host
+    // already spells the Editor's (`kEditorRole`), and four readings of the realization owner.
+    // Which artifacts may hold the office is the plan's; which one holds it is the owner's
+    // record, written by the switch that moved it. No artifact stem is named on these lines.
+    //
+    // ITS GRANT IS ITS CONVERSATION (`editor_switch_grant`): answers and progress, the
+    // incumbent's questions to that one office, the candidate's to an id Loom gives it, and a
+    // beat from the Timer. Loading, sealing and admitting are the calls it was handed, never
+    // messages. Declared after the realization owner it reads, and owned by the bus like every
+    // other office here -- `host.code_source`'s lifetime claim, one closure over.
+    {
+        EditorSwitchHost switch_host;
+        switch_host.bus = &bus;
+        switch_host.kernel = &kernel;
+        switch_host.office = kEditorRole;
+        switch_host.choices = [&executor] { return executor.plan().choices; };
+        switch_host.holder = [&executor] { return executor.choice_holder(kEditorRole); };
+        switch_host.image_of = [&executor](const std::string& stem) { return executor.image_of(stem); };
+        switch_host.record = [&executor](const std::string& stem, loom::WeaveId weave,
+                                         const std::string& image) {
+            const load::PlanExecutor::Recorded done =
+                executor.record_choice_holder(kEditorRole, stem, weave, image);
+            return done.accepted ? std::string() : done.refusal;
+        };
+        auto switcher = std::make_unique<EditorSwitchCoordinator>(std::move(switch_host));
+        EditorSwitchCoordinator* raw = switcher.get();
+        const loom::WeaveId switching = bus.register_weave(
+            std::move(switcher), editor_switch_grant(kEditorRole), std::string(kEditorSwitchRole));
+        raw->zen_set_self(switching);
+    }
 
     // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST -----------------------------
     //

@@ -1044,6 +1044,21 @@
 #                               realization record -- a recorded switch every reader follows by
 #                               its weave, and a record refused for a stem that is no choice.
 #
+# THE EDITOR SWITCH added ONE ENTRY and moved no floor.
+#
+#   workshop_editor_switch (always, 11)  a LIVE Workshop switching the Editor's office between
+#                               the real Editor and copies of it built under other stems, through
+#                               the real coordinator and Loom's prepared replacement: the carry
+#                               and the way back, already-active, an unknown and an unloadable
+#                               choice, a candidate refusing the document, a silent candidate
+#                               pending and cancelled, a keystroke at the boundary refused and
+#                               counted, a keystroke behind the admission reaching the successor,
+#                               consent asked, made stale and asked again, a superseded
+#                               confirmation, a failure after the commitment kept and
+#                               recovered, and the documented Terminal lines typed through
+#                               Workshop's own door with the desk's condition standing meanwhile.
+#                               No Neovim: those images are this suite's own.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 neovim                            doctest           always  21
@@ -1585,6 +1600,7 @@ workshop_panels                   doctest           always  113
 workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  143
+workshop_editor_switch            doctest           always  11
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
