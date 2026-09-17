@@ -18,6 +18,7 @@
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
+#include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
@@ -309,6 +310,7 @@ class WorkshopWeave
                                           zengine::workshop::PresentationAdmitRequested,
                                           zengine::workshop::ManagedOpenSettled,
                                           zengine::workshop::ManagedOpenProgress,
+                                          zengine::workshop::EditorSwitchProgress,
                                           // a pane's Edit Code: the open it asked for, and
                                           // Loom's word that the ask was refused at dispatch
                                           zengine::workshop::SourceOpened,
@@ -701,6 +703,8 @@ public:
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a maker can read.
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
+    /// WHAT A SWITCH OF THE EDITOR IS WAITING ON, kept the same way, and how to stop it.
+    void on(const EditorSwitchProgress& said, loom::Mail& mail);
     /// THE PUBLICATION HOOK: the trial becomes the desk, all at once, before any observer --
     /// Applied; or DECLINED: a presentation this desk did not prepare, or one it could not
     /// seat, is not applied and never reported as applied; the desk keeps what it has and

@@ -243,6 +243,23 @@ target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_T
 target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
                                                      zengine-input-vocabulary zengine-activation)
 
+# THE EDITOR SWITCH'S OTHER CHOICES, for suite `workshop_editor_switch`: the standard Editor's own
+# source built under other stems, so a switch runs between two real Editors with no Neovim at all
+# -- one plain, three that fail on purpose at exactly one step (a candidate that never answers
+# its warm-up, one that refuses every adoption, one that holds the office and says it does not
+# serve), and one whose switch away loses something that moves with its document, so consent can
+# be asked for and made stale. Each definition compiles into its own image only.
+foreach(switch_variant IN ITEMS "b" "silent" "refusing" "not-live" "losing")
+    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+    target_link_libraries(zengine-editor-pane-${switch_variant}
+        PRIVATE zengine-workshop-vocabulary zengine-component zengine-input-vocabulary
+                zengine-activation)
+endforeach()
+target_compile_definitions(zengine-editor-pane-silent PRIVATE ZENGINE_EDITOR_TEST_SILENT_WARM=1)
+target_compile_definitions(zengine-editor-pane-refusing PRIVATE ZENGINE_EDITOR_TEST_REFUSE_ADOPT=1)
+target_compile_definitions(zengine-editor-pane-not-live PRIVATE ZENGINE_EDITOR_TEST_NOT_LIVE=1)
+target_compile_definitions(zengine-editor-pane-losing PRIVATE ZENGINE_EDITOR_TEST_LOSSES=1)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -1117,6 +1134,17 @@ function(zengine_workshop_suite entry)
     add_dependencies(${target} ${ZENGINE_WORKSHOP_FIXTURES} ${WS_NEEDS})
     zengine_doctest_test(workshop_${entry} ${target})
 endfunction()
+
+# THE EDITOR SWITCH, IN A LIVE WORKSHOP WITH NO NEOVIM: the real Editor and copies of it under
+# other stems (above), switched through the real coordinator and Loom's prepared replacement.
+zengine_workshop_suite(editor_switch SOURCES test_workshop_editor_switch.cpp
+    DEFINITIONS "WORKSHOP_SO_EDITOR_SWITCH_B=\"$<TARGET_FILE:zengine-editor-pane-b>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_SILENT=\"$<TARGET_FILE:zengine-editor-pane-silent>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_REFUSING=\"$<TARGET_FILE:zengine-editor-pane-refusing>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_NOT_LIVE=\"$<TARGET_FILE:zengine-editor-pane-not-live>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_LOSING=\"$<TARGET_FILE:zengine-editor-pane-losing>\""
+    NEEDS zengine-editor-pane zengine-editor-pane-b zengine-editor-pane-silent
+          zengine-editor-pane-refusing zengine-editor-pane-not-live zengine-editor-pane-losing)
 
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""

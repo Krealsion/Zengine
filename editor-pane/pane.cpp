@@ -70,6 +70,8 @@
 #include "editor-pane/vocabulary.hpp"
 
 #include "editor-pane/editor.hpp"
+#include "workshop/editor_handoff_vocabulary.hpp"
+#include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
@@ -103,8 +105,23 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::editor_pane;
 
+using ws::EditorAdopted;
+using ws::EditorAdoptRequested;
 using ws::EditorBuffer;
 using ws::EditorDocument;
+using ws::EditorHandoffEnded;
+using ws::EditorHandoffJudged;
+using ws::EditorHandoffJudgeRequested;
+using ws::EditorHandoffOffered;
+using ws::EditorHandoffRequested;
+using ws::EditorLive;
+using ws::EditorLiveRequested;
+using ws::EditorPreparationTick;
+using ws::EditorRetired;
+using ws::EditorRetireRequested;
+using ws::EditorTransfer;
+using ws::EditorWarmed;
+using ws::EditorWarmRequested;
 using ws::EditorPos;
 using ws::EditorState;
 using ws::ManagedOpenProgress;
@@ -162,11 +179,14 @@ class EditorPaneWeave
                        PaneQuitRequested, OpenSourceRequested, PrepareSourceRequested,
                        ManagedOpenProgress, ManagedOpenSettled, SourceOpened,
                        loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
+                       EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
+                       EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested>,
           loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v2::PaneContent, ws::v2::PaneCaret,
                      PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                      ProjectRootRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>,
+                     surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
+                     EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired>,
           loom::Claims<EditorDocument>> {
     /// ONE PREPARED CANDIDATE: the whole document a managed opening would install, built
     /// beside the current one for one exact operation, and the identity this weave OFFERED
@@ -227,10 +247,15 @@ public:
                      PaneKey, PaneTextInput, PaneWheel, PaneActionRequested, PaneQuitRequested,
                      OpenSourceRequested, PrepareSourceRequested, ManagedOpenProgress,
                      ManagedOpenSettled, SourceOpened, loom::DispatchRefused, ProjectRoot,
-                     surface::ClipboardCopy, surface::ClipboardText>,
+                     surface::ClipboardCopy, surface::ClipboardText, EditorHandoffJudgeRequested,
+                     EditorWarmRequested, EditorPreparationTick, EditorHandoffRequested,
+                     EditorHandoffEnded, EditorAdoptRequested, EditorLiveRequested,
+                     EditorRetireRequested>,
         loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v2::PaneContent, ws::v2::PaneCaret,
                    PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
-                   ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested>,
+                   ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
+                   EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
+                   EditorLive, EditorRetired>,
         loom::Claims<EditorDocument>>;
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
@@ -265,6 +290,14 @@ public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
+        }
+        // A SWITCH'S SUCCESSOR IS ACTIVATED BY ITS ADMISSION, holding the document it adopted
+        // while sealed: it is the Editor from this delivery on, so it offers the pane, and the
+        // desk re-grants the room it seats (WL-SWITCH-05).
+        if (adopted_) {
+            notice((e_.dirty() ? "switched editors -- UNSAVED edits stand in " : "switched editors -- editing ") +
+                       (e_.open_document() ? shown_path() : std::string("no source")),
+                   false);
         }
         announce(mail);
         ask_project_root(mail);
@@ -335,6 +368,13 @@ public:
                 false, "the opening office asks the Editor to prepare a source, not to open "
                        "one -- nothing was relayed for " +
                            asked.path});
+            return;
+        }
+        if (holding_.active) {
+            ++holding_.refused;
+            (void)mail.answer(SourceOpened{false, "the Editor is being switched -- " + asked.path +
+                                                      " was not opened; open it again once the "
+                                                      "switch has settled"});
             return;
         }
         if (relays_.size() >= kMaxRelays) {
@@ -428,6 +468,13 @@ public:
     /// is answered as one: no candidate is kept for an operation that cannot commit.
     void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kOpeningRole)) {
+            return;
+        }
+        if (holding_.active) {
+            ++holding_.refused;
+            (void)mail.answer(not_prepared(asked.op, "the Editor is being switched -- " + asked.path +
+                                                         " was not prepared; open it again once the "
+                                                         "switch has settled"));
             return;
         }
         candidate_ = Candidate{}; // a newer preparation supersedes an older candidate
@@ -594,12 +641,217 @@ public:
     /// document's identity if it moved. One place, mechanically, so no handler can forget
     /// and no read can find the mirror stale.
     void after_delivery(loom::Mail& mail) {
+        mirror_state();
+        // A SEALED CANDIDATE HOLDS NO OFFICE AND IS NOBODY'S PANE YET: it may speak only to its
+        // coordinator, so it says no rows and claims nothing until its admission activates it.
+        if (!activation_.activated()) {
+            return;
+        }
         if (resay_) {
             resay_ = false;
             say(mail);
         }
-        mirror_state();
         claim_document(mail);
+    }
+
+    // ---- A switch: this Editor as the incumbent (WL-SWITCH) ---------------------------------
+
+    /// WHAT WOULD A SWITCH AWAY COST? Nothing the transfer cannot carry -- the standard model IS
+    /// the transfer's model -- so there are no losses to consent to; the undo history and the
+    /// wheel's fraction are reset and said. A state no switch may begin in is refused in words.
+    // WL-SWITCH-04 -- agents/workshop/editor-switch.md
+    void on(const EditorHandoffJudgeRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
+            return;
+        }
+        EditorHandoffJudged judged;
+        judged.op = asked.op;
+        judged.refusal = handoff_refusal();
+        judged.ok = judged.refusal.empty();
+        if (judged.ok) {
+            judged.resets = handoff_resets();
+            judged.losses = handoff_losses();
+            judged.digest = ws::handoff_digest(judged.losses);
+            judged.rows = rows_;
+            judged.columns = columns_;
+            judged.project_dir = project_dir_;
+            judged.project_known = project_known_;
+        }
+        (void)mail.answer(judged);
+    }
+
+    /// THE BOUNDARY: the exact document, and this Editor holds still until it hears the outcome.
+    // WL-SWITCH-04 -- agents/workshop/editor-switch.md
+    void on(const EditorHandoffRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
+            return;
+        }
+        EditorHandoffOffered offered;
+        offered.op = asked.op;
+        offered.refusal = handoff_refusal();
+        if (!offered.refusal.empty()) {
+            (void)mail.answer(offered);
+            return;
+        }
+        holding_ = Holding{true, asked.op, 0};
+        offered.ok = true;
+        offered.losses = handoff_losses();
+        offered.digest = ws::handoff_digest(offered.losses);
+        offered.transfer = transfer_now();
+        offered.resets = handoff_resets();
+        (void)mail.answer(offered);
+    }
+
+    /// NOTHING MOVED: this Editor is still the Editor. It stops holding still and says what it
+    /// refused meanwhile.
+    void on(const EditorHandoffEnded& ended, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kEditorSwitchRole) || !holding_.active ||
+            holding_.op != ended.op) {
+            return;
+        }
+        const std::int64_t refused = holding_.refused;
+        holding_ = Holding{};
+        std::string said = "the editor switch did not happen";
+        if (!ended.why.empty()) {
+            said += " (" + ended.why + ")";
+        }
+        if (refused > 0) {
+            said += " -- " + std::to_string(refused) +
+                    (refused == 1 ? " input was" : " inputs were") +
+                    " not applied while it was being prepared";
+        }
+        notice(said, refused > 0);
+        say(mail);
+    }
+
+    /// RETIRED: say what was refused while holding still. The coordinator unloads this image next.
+    void on(const EditorRetireRequested& asked, loom::Mail& mail) {
+        if (!holding_.active || holding_.op != asked.op) {
+            return;
+        }
+        (void)mail.answer(EditorRetired{asked.op, holding_.refused});
+    }
+
+    // ---- A switch: this Editor as the candidate, sealed --------------------------------------
+
+    /// READY AT ONCE: the standard Editor needs nothing started. What it keeps is the room it
+    /// will be seated in and where the project began.
+    void on(const EditorWarmRequested& asked, loom::Mail& mail) {
+        if (activation_.activated()) {
+            return; // a live Editor is not a candidate
+        }
+#ifdef ZENGINE_EDITOR_TEST_SILENT_WARM
+        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-silent`: a candidate that
+        // keeps its answer right and never spends it, so a switch waits on it for as long as a
+        // case likes. The normal image never defines this.
+        silent_warm_ = mail.defer_answer();
+        return;
+#endif
+        rows_ = asked.rows;
+        columns_ = asked.columns;
+        project_dir_ = asked.project_dir;
+        project_known_ = asked.project_known;
+        (void)mail.answer(EditorWarmed{asked.op, true, std::string(), "the standard Editor"});
+    }
+
+    void on(const EditorPreparationTick&, loom::Mail&) {}
+
+    /// ADOPT THE DOCUMENT, OR SAY EXACTLY WHY NOT. The bytes meet the law a file meets
+    /// (`source_in`), so a document this editor cannot carry truthfully is refused here, while
+    /// nothing has moved, naming the line; the caret and anchor are put back clamped, and the
+    /// generation goes past the incumbent's so no row it said can repaint this one.
+    // WL-SWITCH-05 -- agents/workshop/editor-switch.md
+    void on(const EditorAdoptRequested& asked, loom::Mail& mail) {
+        if (activation_.activated()) {
+            return;
+        }
+        EditorAdopted adopted;
+        adopted.op = asked.op;
+#ifdef ZENGINE_EDITOR_TEST_REFUSE_ADOPT
+        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-refusing`: a candidate that
+        // refuses every document, so a case sees a refusal at adoption with the incumbent holding
+        // still. The normal image never defines this.
+        adopted.refusal = "test instrumentation: this image refuses every adoption";
+        (void)mail.answer(adopted);
+        return;
+#endif
+        const EditorTransfer& t = asked.transfer;
+        project_dir_ = t.project_dir;
+        project_known_ = t.project_known;
+        if (t.path.empty()) {
+            e_ = EditorState{};
+            e_.doc_epoch = t.doc_epoch < 0 ? 1 : static_cast<std::uint64_t>(t.doc_epoch) + 1;
+            adopted_ = true;
+            adopted.ready = true;
+            (void)mail.answer(adopted);
+            return;
+        }
+        ws::SourceIn text = ws::source_in(t.text);
+        if (!text.outcome.accepted) {
+            adopted.refusal = "the standard Editor cannot carry " + t.path + ": " + text.outcome.refusal;
+            (void)mail.answer(adopted);
+            return;
+        }
+        ws::SourceIn saved = ws::source_in(t.saved_text);
+        if (!saved.outcome.accepted) {
+            adopted.refusal = "the standard Editor cannot carry the saved copy of " + t.path + ": " +
+                              saved.outcome.refusal;
+            (void)mail.answer(adopted);
+            return;
+        }
+        if (t.text.size() > ws::kMaxSourceBytes) {
+            adopted.refusal = t.path + " is larger than the standard Editor opens";
+            (void)mail.answer(adopted);
+            return;
+        }
+        EditorState next;
+        next.path = t.path;
+        next.saved_lines = std::move(saved.lines);
+        next.buffer.set_lines(std::move(text.lines));
+        next.convention = text.convention;
+        next.doc_epoch = t.doc_epoch < 0 ? 1 : static_cast<std::uint64_t>(t.doc_epoch) + 1;
+        next.buffer.restore_selection(as_index(t.anchor_row), as_index(t.anchor_byte),
+                                      as_index(t.caret_row), as_index(t.caret_byte));
+        next.first_row = as_index(t.first_row);
+        next.first_col = t.first_col < 0 ? 0 : t.first_col;
+        next.follow_caret = true;
+        if (next.buffer.caret_row() != as_index(t.caret_row) ||
+            next.buffer.caret_byte() != as_index(t.caret_byte) ||
+            next.buffer.anchor_row() != as_index(t.anchor_row) ||
+            next.buffer.anchor_byte() != as_index(t.anchor_byte)) {
+            adopted.notes.push_back("the caret or selection named a place the document does not "
+                                    "have, and was clamped into it");
+        }
+        if (next.dirty() != t.modified) {
+            adopted.notes.push_back(t.modified ? "the document was marked modified and matches its "
+                                                 "saved copy, so it is shown as saved"
+                                               : "the document differs from its saved copy, so it "
+                                                 "is shown as unsaved");
+        }
+        e_ = std::move(next);
+        ++saved_stamp_;
+        adopted_ = true;
+        adopted.ready = true;
+        (void)mail.answer(adopted);
+    }
+
+    /// SERVING? True once this Editor's admission activated it.
+    void on(const EditorLiveRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
+            return;
+        }
+#ifdef ZENGINE_EDITOR_TEST_NOT_LIVE
+        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-not-live`: a successor that
+        // holds the office and says it does not serve, so a case sees a failure after the
+        // commitment. The normal image never defines this.
+        (void)mail.answer(EditorLive{asked.op, false, "test instrumentation: this image never serves"});
+        return;
+#endif
+        (void)mail.answer(EditorLive{asked.op, activation_.activated(),
+                                     activation_.activated()
+                                         ? "the standard Editor holds " +
+                                               (e_.open_document() ? e_.path : std::string("no source"))
+                                         : "the standard Editor was not activated"});
     }
 
     // ---- The pointer ---------------------------------------------------------------------
@@ -630,6 +882,9 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
             return;
         }
+        if (held_still()) {
+            return;
+        }
         drag_ = Drag{};
         if (!e_.open_document() || press.row < chrome_rows_) {
             return;
@@ -658,6 +913,9 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || drag.pane != pane::kEditorPane) {
             return;
         }
+        if (held_still()) {
+            return;
+        }
         if (!e_.open_document() || !drag_.armed) {
             return; // no gesture to extend: this hand took hold of nothing that selects
         }
@@ -683,6 +941,9 @@ public:
     /// while the caret stays put. The next caret gesture brings the view back.
     void on(const PaneWheel& wheel, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kEditorPane) {
+            return;
+        }
+        if (held_still()) {
             return;
         }
         if (!e_.open_document()) {
@@ -724,6 +985,9 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kEditorPane) {
             return;
         }
+        if (held_still()) {
+            return;
+        }
         if (!e_.open_document()) {
             return; // an empty editor has no document for a key to mean anything to
         }
@@ -752,6 +1016,9 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || typed.pane != pane::kEditorPane) {
             return;
         }
+        if (held_still()) {
+            return;
+        }
         if (!e_.open_document() || typed.text.empty()) {
             return;
         }
@@ -772,6 +1039,9 @@ public:
     /// discard. A maker's override moved the key; the id is what arrives.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kEditorPane) {
+            return;
+        }
+        if (held_still()) {
             return;
         }
         if (asked.id == pane::kActionSave) {
@@ -809,6 +1079,12 @@ public:
     /// what makes "clean" a fact rather than a race.
     void on(const PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        if (holding_.active) {
+            (void)mail.answer(PaneQuitAnswered{pane::kEditorPane, false,
+                                               "the Editor is being switched -- quit again once the "
+                                               "switch has settled"});
             return;
         }
         if (candidate_.live) {
@@ -889,6 +1165,77 @@ public:
     }
 
 private:
+    // ---- The switch's helpers ----------------------------------------------------------------
+
+    /// WHILE A SWITCH HOLDS THIS EDITOR STILL, an input that would change the document is counted
+    /// and not applied. True when it was refused.
+    bool held_still() {
+        if (!holding_.active) {
+            return false;
+        }
+        ++holding_.refused;
+        return true;
+    }
+
+    /// A STATE NO SWITCH MAY BEGIN IN, in words; empty when a switch may begin.
+    std::string handoff_refusal() const {
+        if (holding_.active) {
+            return "the Editor is already being switched";
+        }
+        if (candidate_.live) {
+            return "the Editor is still opening " + candidate_.path + " -- switch once it has settled";
+        }
+        if (paste_.awaiting) {
+            return "the Editor is still waiting for a clipboard answer -- switch once it has arrived";
+        }
+        if (!relays_.empty()) {
+            return "the Editor is still relaying an open -- switch once it has settled";
+        }
+        return std::string();
+    }
+
+    static std::vector<std::string> handoff_resets() {
+        return {"the standard Editor's undo history", "the wheel's unspent fraction of a line"};
+    }
+
+    /// WHAT A SWITCH AWAY WOULD LOSE: nothing. The standard model IS the transfer's model, so the
+    /// digest a switch away names is the digest of no losses, whatever the document holds.
+    std::vector<std::string> handoff_losses() const {
+#ifdef ZENGINE_EDITOR_TEST_LOSSES
+        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-losing`: an editor whose
+        // switch away loses something that moves with its document's line count, so a case can
+        // ask for consent and make a given consent stale by typing a line. The normal image never
+        // defines this.
+        if (e_.open_document()) {
+            return {"test instrumentation: " + std::to_string(e_.buffer.lines().size()) + " lines"};
+        }
+#endif
+        return {};
+    }
+
+    EditorTransfer transfer_now() const {
+        EditorTransfer t;
+        t.doc_epoch = static_cast<std::int64_t>(e_.doc_epoch);
+        t.project_dir = project_dir_;
+        t.project_known = project_known_;
+        t.source = "the standard Editor";
+        if (!e_.open_document()) {
+            return t;
+        }
+        t.path = e_.path;
+        t.text = ws::source_text(e_.buffer.lines(), e_.convention);
+        t.saved_text = ws::source_text(e_.saved_lines, e_.convention);
+        t.convention = e_.convention;
+        t.modified = e_.dirty();
+        t.caret_row = static_cast<std::int64_t>(e_.buffer.caret_row());
+        t.caret_byte = static_cast<std::int64_t>(e_.buffer.caret_byte());
+        t.anchor_row = static_cast<std::int64_t>(e_.buffer.anchor_row());
+        t.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
+        t.first_row = static_cast<std::int64_t>(e_.first_row);
+        t.first_col = e_.first_col;
+        return t;
+    }
+
     // ---- Offering and declaring ---------------------------------------------------------
 
     void announce(loom::Mail& mail) {
@@ -1625,6 +1972,22 @@ private:
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
     bool granted_ = false;
+
+    /// A SWITCH HOLDING THIS EDITOR STILL at its boundary: which operation, and how many inputs
+    /// it refused meanwhile. Not in the state shape -- a reload is not a switch, and the hold
+    /// belongs to the incarnation the coordinator is talking to.
+    struct Holding {
+        bool active = false;
+        std::int64_t op = 0;
+        std::int64_t refused = 0;
+    };
+    Holding holding_;
+
+    /// THIS INCARNATION BEGAN AS A SWITCH'S CANDIDATE AND ADOPTED A DOCUMENT while sealed.
+    bool adopted_ = false;
+#ifdef ZENGINE_EDITOR_TEST_SILENT_WARM
+    loom::DeferredAnswer silent_warm_;
+#endif
 };
 
 } // namespace
