@@ -90,13 +90,28 @@ jobs:
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
 
+      # THE `neovim` GATE OPENS HERE, on one Neovim release pinned by its checksum: the suites
+      # that need a real Neovim (`neovim_live`, the gated half of `workshop_neovim`) are part of
+      # this lane's population rather than declared absent. The program is the release's own
+      # tarball, extracted under $RUNNER_TEMP and named at configure time; nothing is installed
+      # on the runner, and every case sandboxes the Neovim it starts.
+      - name: Fetch pinned Neovim 0.11.6
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz
+          echo "2fc90b962327f73a78afbfb8203fd19db8db9cdf4ee5e2bef84704339add89cc  $RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
+
       - name: Configure Zengine as a stranger
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
             -DZEN_LOOM_DEV=OFF \
-            -DBUILD_TESTING=ON
+            -DBUILD_TESTING=ON \
+            -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
 
       - name: Build Zengine
         run: cmake --build build --parallel "$(nproc)"
@@ -196,6 +211,17 @@ jobs:
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
 
+      # The same pinned Neovim as the stranger lane, so the instrumented population is the same
+      # population: the `neovim` gate is open here too.
+      - name: Fetch pinned Neovim 0.11.6
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz
+          echo "2fc90b962327f73a78afbfb8203fd19db8db9cdf4ee5e2bef84704339add89cc  $RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
+
       - name: Configure Zengine as a stranger, instrumented
         run: |
           cmake -S . -B build-san \
@@ -203,7 +229,8 @@ jobs:
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
             -DZEN_LOOM_DEV=OFF \
             -DBUILD_TESTING=ON \
-            -DZENGINE_SANITIZE=ON
+            -DZENGINE_SANITIZE=ON \
+            -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
 
       - name: Build Zengine
         run: cmake --build build-san --parallel "$(nproc)"
@@ -304,8 +331,10 @@ jobs:
         run: cmake --build build-win
 
       # Required, and it verifies the same repository-owned population -- with the
-      # `sdl` gate off, so the SDL-gated suites are contractually smaller here than on
-      # Linux. That difference is declared in tests/test_population.txt, not absorbed
+      # `sdl` and `neovim` gates off, so the SDL-gated suites are contractually smaller here
+      # than on Linux and the Neovim-gated ones are absent (they pass on a local Windows lane
+      # with a Windows Neovim; this runner has none). That difference is declared in
+      # tests/test_population.txt, not absorbed
       # into a slack floor, so a green here means the same test-population thing. The
       # numbers are in that file; a workflow comment that repeated them would be one
       # more copy to go stale, and this one had.

@@ -80,7 +80,7 @@ SEEN — `tests/CMakeLists.txt` `BUILD_TESTING`.
 
 ## VM-POP-11 — The Workshop family is split by subject
 
-METHOD — The Workshop family is eight entries split by SUBJECT; pick the one your change can falsify and build that target alone.
+METHOD — The Workshop family is nine entries split by SUBJECT; pick the one your change can falsify and build that target alone.
 BECAUSE — one file behind one entry had reached thirty thousand lines: thirty seconds of
 compiling before an assertion could run, and a nineteen-second test the scheduler could hand to
 one worker, a floor neither the machine nor the population explained.
@@ -188,3 +188,5 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 | maker-pane | `workshop_panels` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
 | session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
+| editor-switch | `workshop_editor_switch`, then `workshop_load` (the choices, the record) |
+| neovim | `workshop_neovim` (always, and gate `neovim`), then `neovim` and `neovim_live` |

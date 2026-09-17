@@ -107,6 +107,13 @@ inline constexpr std::size_t kMaxPlanArtifacts = 64;
 /// is twenty-four) and bounds what one line of a forged file can push at the loader.
 inline constexpr std::size_t kMaxArtifactStemLen = 64;
 
+/// How many choices one plan may author. Two per switchable office is the use; sixteen bounds a
+/// forged file the way `kMaxPlanArtifacts` does.
+inline constexpr std::size_t kMaxPlanChoices = 16;
+
+/// How long a choice's name may be: a word a maker types.
+inline constexpr std::size_t kMaxChoiceNameLen = 32;
+
 /// How long a weave role may be.
 ///
 /// `kMaxPaneKeyLen`'s number for `kMaxPaneKeyLen`'s reason: a role is a ROUTING NAME
@@ -151,6 +158,27 @@ struct WeaveIntent {
     friend bool operator==(const WeaveIntent&, const WeaveIntent&) = default;
 };
 
+/// ONE AUTHORED ALTERNATIVE FOR AN OFFICE: this artifact may hold `role`, under the name a maker
+/// switches to it by.
+///
+/// A CHOICE IS PARTICIPATION AUTHORED IN ADVANCE, AND ONLY THAT. It loads nothing at startup: the
+/// office starts with the one artifact the plan's `artifacts` list loads into it, and another
+/// choice is loaded only when a switch asks for it by name (`workshop/editor_switch.hpp`). What
+/// the choice buys is that the artifact a switch loads is one the PROJECT named -- the host may
+/// not name an artifact stem, and a switch that could load any file would be exactly the reach
+/// the load plan exists to keep in an authored document.
+///
+/// THE NAME IS A MAKER'S WORD (`standard`, `neovim`), not a stem: it is what they type in the
+/// Terminal and read in an answer, and it stays the same when the artifact behind it is rebuilt
+/// under another stem.
+struct ChoiceIntent {
+    std::string role;
+    std::string name;
+    std::string stem;
+
+    friend bool operator==(const ChoiceIntent&, const ChoiceIntent&) = default;
+};
+
 /// ONE AUTHORED PROJECT PARTICIPANT.
 ///
 /// Both surfaces are optional and independent; an artifact requesting NEITHER is
@@ -170,8 +198,13 @@ struct ArtifactIntent {
 /// primitives; a person wrote them down in the order they must happen, and the host
 /// executes that order. A solver is a later phase and would be a solver over facts
 /// this plan does not carry.
+///
+/// `choices` ARE THE AUTHORED ALTERNATIVES FOR OFFICES (format version 2): which artifacts may
+/// hold an office a maker can switch, and by which names. Empty for every plan that authors none,
+/// and such a plan is written as version 1, byte for byte what it always was.
 struct LoadPlan {
     std::vector<ArtifactIntent> artifacts;
+    std::vector<ChoiceIntent> choices;
 
     friend bool operator==(const LoadPlan&, const LoadPlan&) = default;
 };
@@ -237,6 +270,29 @@ inline Written check_weave_role(const std::string& role) {
     return Written::ok();
 }
 
+/// What a choice may be called: a lowercase letter, then lowercase letters, digits and `-`. A
+/// word the Terminal reads as text in any position of a typed sentence, and one spelling per
+/// meaning (no case to fold).
+inline Written check_choice_name(const std::string& name) {
+    if (name.empty()) {
+        return Written::no("a choice needs a name");
+    }
+    if (name.size() > kMaxChoiceNameLen) {
+        return Written::no("a choice name is at most " + std::to_string(kMaxChoiceNameLen) +
+                           " bytes");
+    }
+    if (name[0] < 'a' || name[0] > 'z') {
+        return Written::no("choice name `" + name + "` must begin with a lowercase letter");
+    }
+    for (const char c : name) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
+            return Written::no("choice name `" + name +
+                               "` may hold only lowercase letters, digits and `-`");
+        }
+    }
+    return Written::ok();
+}
+
 /// EVERY LAW ONE ARTIFACT ROW MEETS, minus the one that is about the WHOLE plan.
 ///
 /// The row cannot see its neighbours, so it cannot answer the duplicate question --
@@ -257,6 +313,108 @@ inline Written check_artifact(const ArtifactIntent& a) {
         }
     }
     return Written::ok();
+}
+
+/// THE CHOICES' OWN LAW, over the whole plan.
+///
+///   each choice      a legal role, a legal name, a legal stem
+///   one per word     a role names each choice once, and each artifact once
+///   one office       an artifact is a choice for one role only
+///   one start        a role with choices has EXACTLY ONE row in `artifacts` loading it, and
+///                    that row's artifact is one of the role's choices -- so the office starts
+///                    held by a choice, and a switch always knows which one it is leaving
+///   weave only       a choice's artifact, where `artifacts` names it, is that start row and
+///                    asks for weave participation alone: a switch moves an office, and it
+///                    would not move a provider's contribution to the catalog with it
+///
+/// A choice NOT named in `artifacts` is legal and is the ordinary case: it is realized only when
+/// a switch asks for it.
+// WL-SWITCH-01 -- agents/workshop/editor-switch.md
+inline Written check_choices(const LoadPlan& plan) {
+    if (plan.choices.size() > kMaxPlanChoices) {
+        return Written::no("a load plan authors at most " + std::to_string(kMaxPlanChoices) +
+                           " choices");
+    }
+    for (std::size_t i = 0; i < plan.choices.size(); ++i) {
+        const ChoiceIntent& c = plan.choices[i];
+        const Written role = check_weave_role(c.role);
+        if (!role.accepted) {
+            return Written::no("choice `" + c.name + "`: " + role.refusal);
+        }
+        const Written name = check_choice_name(c.name);
+        if (!name.accepted) {
+            return name;
+        }
+        const Written stem = check_artifact_stem(c.stem);
+        if (!stem.accepted) {
+            return Written::no("choice `" + c.name + "`: " + stem.refusal);
+        }
+        for (std::size_t k = 0; k < i; ++k) {
+            const ChoiceIntent& e = plan.choices[k];
+            if (e.role == c.role && e.name == c.name) {
+                return Written::no("choice `" + c.name + "` is authored twice for `" + c.role +
+                                   "`");
+            }
+            if (e.role == c.role && e.stem == c.stem) {
+                return Written::no("artifact `" + c.stem + "` is authored twice as a choice for `" +
+                                   c.role + "` (as `" + e.name + "` and as `" + c.name + "`)");
+            }
+            if (e.role != c.role && e.stem == c.stem) {
+                return Written::no("artifact `" + c.stem + "` is a choice for both `" + e.role +
+                                   "` and `" + c.role +
+                                   "`: an artifact is a choice for one office");
+            }
+        }
+    }
+    for (const ChoiceIntent& c : plan.choices) {
+        std::size_t holders = 0;
+        const ArtifactIntent* start = nullptr;
+        for (const ArtifactIntent& a : plan.artifacts) {
+            if (a.weave.has_value() && a.weave->role == c.role) {
+                ++holders;
+                start = &a;
+            }
+        }
+        if (holders != 1 || start == nullptr) {
+            return Written::no("the choices for `" + c.role +
+                               "` need exactly one artifact loaded into it at start, and the "
+                               "plan loads " + std::to_string(holders));
+        }
+        bool start_is_choice = false;
+        for (const ChoiceIntent& d : plan.choices) {
+            start_is_choice = start_is_choice || (d.role == c.role && d.stem == start->stem);
+        }
+        if (!start_is_choice) {
+            return Written::no("artifact `" + start->stem + "` starts in `" + c.role +
+                               "`, which has choices, and is not one of them");
+        }
+        for (const ArtifactIntent& a : plan.artifacts) {
+            if (a.stem != c.stem) {
+                continue;
+            }
+            if (!a.weave.has_value() || a.weave->role != c.role) {
+                return Written::no("artifact `" + c.stem + "` is a choice for `" + c.role +
+                                   "` and is loaded into something else");
+            }
+            if (a.provider.has_value()) {
+                return Written::no("artifact `" + c.stem + "` is a choice for `" + c.role +
+                                   "` and also supplies operators; a switch moves an office, "
+                                   "not a provider's contribution");
+            }
+        }
+    }
+    return Written::ok();
+}
+
+/// THE CHOICES AUTHORED FOR `role`, in authored order (empty when it has none).
+inline std::vector<ChoiceIntent> choices_for(const LoadPlan& plan, const std::string& role) {
+    std::vector<ChoiceIntent> out;
+    for (const ChoiceIntent& c : plan.choices) {
+        if (c.role == role) {
+            out.push_back(c);
+        }
+    }
+    return out;
 }
 
 /// EVERY LAW A WHOLE PLAN MEETS.
@@ -291,7 +449,7 @@ inline Written check_plan(const LoadPlan& plan) {
             }
         }
     }
-    return Written::ok();
+    return check_choices(plan);
 }
 
 } // namespace zengine::workshop::load

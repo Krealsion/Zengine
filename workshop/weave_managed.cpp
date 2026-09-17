@@ -452,4 +452,55 @@ void WorkshopWeave::on(const ManagedOpenProgress& said, loom::Mail& mail) {
     repaint(mail);
 }
 
+// WL-SWITCH-07 -- agents/workshop/editor-switch.md
+void WorkshopWeave::on(const EditorSwitchProgress& said, loom::Mail& mail) {
+    if (!mail.authored_from_role(kEditorSwitchRole)) {
+        return;
+    }
+    const std::string key = "editor-switch:" + std::to_string(said.op);
+    if (!said.pending) {
+        // A STATUS ANSWER ENDS NOTHING: a switch it describes keeps its condition.
+        if (said.outcome != switch_outcome::kStatus) {
+            session_.conditions.retract(key);
+        }
+        // WHAT CAME OF IT, said once where the maker reads: the Terminal a switch is asked from shows
+        // an answer's shape and not its words.
+        if (!said.outcome.empty()) {
+            say("editor switch" + (said.op > 0 ? " " + std::to_string(said.op) : std::string()) + ": " +
+                    said.outcome + (said.detail.empty() ? std::string() : " -- " + said.detail),
+                said.outcome == switch_outcome::kRefused || said.outcome == switch_outcome::kFailedAfterCommit);
+        }
+        repaint(mail);
+        return;
+    }
+    const std::string op = std::to_string(said.op);
+    const std::string cancel = " -- cancel: ask @" + std::string(kEditorSwitchRole) +
+                               " EditorSwitchCancelled 1 op=" + op;
+    std::string detail;
+    if (said.stage == "awaiting-confirmation") {
+        // THE LINE TO TYPE COMES FIRST, because a notice is cut to the band's width.
+        const std::string confirm = "confirm: ask @" + std::string(kEditorSwitchRole) +
+                                    " EditorSwitchConfirmed 1 op=" + op + " consent=" + said.consent;
+        detail = confirm + cancel +
+                 (said.detail.empty() ? " -- switching to " + said.destination + " would lose something"
+                                      : " -- " + said.detail);
+        if (said.outcome == switch_outcome::kNeedsConfirmation) {
+            say("editor switch " + op + ": needs-confirmation -- " + confirm +
+                    (said.detail.empty() ? std::string() : " -- " + said.detail),
+                false);
+        }
+    } else if (said.stage == "boundary" || said.stage == "adopting") {
+        detail = "the Editor holds still while " + said.awaiting + " takes the document; input to it "
+                 "is refused until the switch settles" + cancel;
+    } else if (said.stage == "proving" || said.stage == "retiring") {
+        detail = "the switch has committed; waiting for " + said.awaiting + " to confirm it";
+    } else {
+        detail = "waiting for " + said.awaiting + " (" + said.stage + ") -- your work is untouched" +
+                 cancel;
+    }
+    session_.conditions.establish(Condition{key, "switching the Editor to " + said.destination,
+                                            detail, surface::role::kAccent, std::string()});
+    repaint(mail);
+}
+
 } // namespace zengine::workshop

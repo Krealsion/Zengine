@@ -36,6 +36,7 @@ Every page below has one reader purpose, named.
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
 | [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
+| [workshop/neovim.md](workshop/neovim.md) | **walkthrough**: edit in Neovim inside Workshop, switch the Editor between the standard Editor and Neovim with your unsaved work, and run Neovim from a Loom with no Workshop |
 | [workshop/edit-a-running-pane.md](workshop/edit-a-running-pane.md) | **walkthrough**: right-click a running pane, edit its code, build and reload it in place, then revert or promote — with the Tally example |
 | [workshop/develop-workshop.md](workshop/develop-workshop.md) | **walkthrough**: change a pane Workshop ships from inside Workshop — one Run that launches it, the development catalog and runtime, a failed build read in the Builder, which panes, and what a setup does not follow |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
@@ -54,6 +55,7 @@ Every page below has one reader purpose, named.
 | [reference/timer-continuity.md](reference/timer-continuity.md) | what a schedule does across the service's own replacement |
 | [reference/timer-binding.md](reference/timer-binding.md) | the `TimedWeave` model and its boundary |
 | [reference/load-plan.md](reference/load-plan.md) | the authored load plan: format, execution law, rollback |
+| [reference/editor-switch.md](reference/editor-switch.md) | switching the Editor's office: a plan's choices, the four messages and their answers, the handoff, and exactly what crosses, resets, needs consent or is refused |
 | [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
 | [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
 | [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, how one power may be shadowed then revealed, and how a contribution becomes the conversion that reads an older file |

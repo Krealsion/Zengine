@@ -447,7 +447,7 @@ set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-ti
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-info-pane zengine-terminal-pane
-                               zengine-editor-pane
+                               zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
                                zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)
@@ -555,7 +555,8 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
 # none of them gets a row, so building one from here is not offered. Which rows a running
 # Workshop may RELOAD is still the realization owner's to say, row by row, at the reload.
 set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-editor-pane
-                                 zengine-files zengine-info-pane zengine-terminal-pane
+                                 zengine-neovim-editor zengine-files zengine-info-pane
+                                 zengine-terminal-pane
                                  zengine-introspection zengine-composer)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")

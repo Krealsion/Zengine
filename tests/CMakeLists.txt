@@ -243,6 +243,23 @@ target_compile_definitions(zengine-editor-throwing PRIVATE ZENGINE_EDITOR_TEST_T
 target_link_libraries(zengine-editor-throwing PRIVATE zengine-workshop-vocabulary zengine-component
                                                      zengine-input-vocabulary zengine-activation)
 
+# THE EDITOR SWITCH'S OTHER CHOICES, for suite `workshop_editor_switch`: the standard Editor's own
+# source built under other stems, so a switch runs between two real Editors with no Neovim at all
+# -- one plain, three that fail on purpose at exactly one step (a candidate that never answers
+# its warm-up, one that refuses every adoption, one that holds the office and says it does not
+# serve), and one whose switch away loses something that moves with its document, so consent can
+# be asked for and made stale. Each definition compiles into its own image only.
+foreach(switch_variant IN ITEMS "b" "silent" "refusing" "not-live" "losing")
+    zengine_weave(zengine-editor-pane-${switch_variant} ${PROJECT_SOURCE_DIR}/editor-pane/pane.cpp)
+    target_link_libraries(zengine-editor-pane-${switch_variant}
+        PRIVATE zengine-workshop-vocabulary zengine-component zengine-input-vocabulary
+                zengine-activation)
+endforeach()
+target_compile_definitions(zengine-editor-pane-silent PRIVATE ZENGINE_EDITOR_TEST_SILENT_WARM=1)
+target_compile_definitions(zengine-editor-pane-refusing PRIVATE ZENGINE_EDITOR_TEST_REFUSE_ADOPT=1)
+target_compile_definitions(zengine-editor-pane-not-live PRIVATE ZENGINE_EDITOR_TEST_NOT_LIVE=1)
+target_compile_definitions(zengine-editor-pane-losing PRIVATE ZENGINE_EDITOR_TEST_LOSSES=1)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -516,6 +533,51 @@ if(TARGET zengine-input-sdl)
     set_tests_properties(input PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
+endif()
+
+# ---- The Neovim hosting library -------------------------------------------------------
+#
+# TWO SUITES, AND THE SPLIT IS THE SAME ONE `sdl` DRAWS. `neovim` is everything that is
+# arithmetic, framing or custody -- the codec over every type byte, the conversation's books, the
+# screen model and its projection, the key notation, the document conversions, the launch line,
+# the Windows quoting rule (pinned against the Builder's on Windows) -- plus the conversation
+# owner walked through every way a start can fail by a scriptable fake Neovim. It needs no Neovim
+# and runs on every lane.
+#
+# `neovim_live` is what only a real Neovim can say: a start, a prompt, byte-exact adoption, the
+# position round trip, a projected screen, typing, the clipboard bridge, the swap guard, a clean
+# end. It is registered only when a Neovim is NAMED at configure time, and naming one that is not
+# there is an error rather than a skipped suite -- a gate that silently closed would be the
+# degradation the population contract exists to catch.
+add_executable(zengine-neovim-fixture neovim_fixture.cpp)
+target_link_libraries(zengine-neovim-fixture PRIVATE zengine-neovim zengine-warnings zengine-sanitize)
+
+add_executable(zengine-neovim-tests test_neovim.cpp doctest_main.cpp)
+target_link_libraries(zengine-neovim-tests
+    PRIVATE zengine-neovim zengine-builder-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-neovim-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-neovim-tests PRIVATE
+    "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\"")
+add_dependencies(zengine-neovim-tests zengine-neovim-fixture)
+zengine_doctest_test(neovim zengine-neovim-tests)
+
+set(ZENGINE_NEOVIM_PROGRAM "" CACHE FILEPATH
+    "A Neovim (0.11 or newer) for the neovim-gated live suites; empty registers none")
+if(ZENGINE_NEOVIM_PROGRAM)
+    if(NOT EXISTS "${ZENGINE_NEOVIM_PROGRAM}")
+        message(FATAL_ERROR
+            "zengine: ZENGINE_NEOVIM_PROGRAM names ${ZENGINE_NEOVIM_PROGRAM}, which does not exist. "
+            "The `neovim` gate opens for a Neovim that is there; clear the variable to run without it.")
+    endif()
+    add_executable(zengine-neovim-live-tests test_neovim_live.cpp doctest_main.cpp)
+    target_link_libraries(zengine-neovim-live-tests
+        PRIVATE zengine-neovim zengine-warnings zengine-sanitize)
+    target_include_directories(zengine-neovim-live-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    target_compile_definitions(zengine-neovim-live-tests PRIVATE
+        "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
+    zengine_doctest_test(neovim_live zengine-neovim-live-tests)
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "neovim")
 endif()
 
 # The Surface suite: the skin pattern — golden terminal bytes, the pure SDL
@@ -1072,6 +1134,31 @@ function(zengine_workshop_suite entry)
     add_dependencies(${target} ${ZENGINE_WORKSHOP_FIXTURES} ${WS_NEEDS})
     zengine_doctest_test(workshop_${entry} ${target})
 endfunction()
+
+# THE EDITOR SWITCH, IN A LIVE WORKSHOP WITH NO NEOVIM: the real Editor and copies of it under
+# other stems (above), switched through the real coordinator and Loom's prepared replacement.
+zengine_workshop_suite(editor_switch SOURCES test_workshop_editor_switch.cpp
+    DEFINITIONS "WORKSHOP_SO_EDITOR_SWITCH_B=\"$<TARGET_FILE:zengine-editor-pane-b>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_SILENT=\"$<TARGET_FILE:zengine-editor-pane-silent>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_REFUSING=\"$<TARGET_FILE:zengine-editor-pane-refusing>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_NOT_LIVE=\"$<TARGET_FILE:zengine-editor-pane-not-live>\""
+                "WORKSHOP_SO_EDITOR_SWITCH_LOSING=\"$<TARGET_FILE:zengine-editor-pane-losing>\""
+    NEEDS zengine-editor-pane zengine-editor-pane-b zengine-editor-pane-silent
+          zengine-editor-pane-refusing zengine-editor-pane-not-live zengine-editor-pane-losing)
+
+# THE NEOVIM-BACKED EDITOR IN A LIVE WORKSHOP. Always: the choice with no Neovim, and with a fake
+# one that fails at start in each way a real one can (`neovim-fixture`). Behind the `neovim` gate:
+# the real Neovim named at configure time, carrying documents both ways, editing, opening,
+# quitting, the clipboard and the refusals only a real Neovim can produce.
+set(zengine_neovim_suite_defs
+    "WORKSHOP_SO_NEOVIM_EDITOR=\"$<TARGET_FILE:zengine-neovim-editor>\""
+    "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\"")
+if(ZENGINE_NEOVIM_PROGRAM)
+    list(APPEND zengine_neovim_suite_defs "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
+endif()
+zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp
+    DEFINITIONS ${zengine_neovim_suite_defs}
+    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture)
 
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""

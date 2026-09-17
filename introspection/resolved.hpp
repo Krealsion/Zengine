@@ -112,6 +112,10 @@ inline constexpr const char* kLoadingNow = "(loading)";
 /// at the first refusal -- and its own mount, if it made one, has been rolled back.
 inline constexpr const char* kRefusedRow = "(refused)";
 
+/// A ROW WHOSE OFFICE A SWITCH MOVED to another authored choice: resolved, and not running. The
+/// choice that holds the office is its own row of the same view.
+inline constexpr const char* kSwitchedRow = "(switched: its office is held by another choice)";
+
 /// What an artifact row says where a surface was not authored at all.
 inline constexpr const char* kNoIntent = "none";
 
@@ -231,7 +235,11 @@ artifact_rows(const workshop::ArtifactParticipation& a, std::int64_t columns) {
         // painting them as alerts would make a healthy startup look like six problems.
         const bool loading = a.state == workshop::kLoadingToken;
         const bool refused = a.state == workshop::kRefusedToken;
-        const char* said = loading ? kLoadingNow : (refused ? kRefusedRow : kNotReached);
+        const bool switched = a.state == workshop::kSwitchedToken;
+        const char* said = loading    ? kLoadingNow
+                           : refused  ? kRefusedRow
+                           : switched ? kSwitchedRow
+                                      : kNotReached;
         rows.push_back(surface::SurfaceTextRow{
             fit("    " + std::string(said), columns),
             refused ? surface::role::kAlert : surface::role::kMuted});
