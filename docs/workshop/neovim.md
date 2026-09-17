@@ -154,19 +154,45 @@ from a **second terminal**, so `loom-host` keeps its console.
    ```
 
    On Windows the files end in `.dll`.
-2. Start `loom-host`, approve both with `authority trust zengine-timer` and
-   `authority trust zengine-neovim-editor`, and start it again.
-3. Let the Neovim editor ask the Timer for its beat:
-   `authority allow zengine-neovim-editor EnsureTimer v1 -> role zengine.timer`.
-4. Find its weave number with `weaves`, and ask it to start Neovim on a file:
+2. Start `loom-host` in the directory your files are in. Both are refused until you approve them,
+   and the Neovim editor's beat needs the Timer to speak, so decide all of it at once:
 
    ```text
-   loom> send <weave> NeovimStartRequested 1 path="notes.txt"
+   loom> authority trust zengine-timer
+   loom> authority trust zengine-neovim-editor
+   loom> authority allow zengine-neovim-editor EnsureTimer v1 -> role zengine.timer
+   loom> authority allow zengine-timer Drive v2 -> role zengine.timer
+   loom> authority allow zengine-timer TimerFired v1 -> any target
+   loom> authority allow zengine-timer TimerResolution v1 -> any target
+   loom> quit
    ```
 
-   The answer names the address Neovim listens at and the exact line to attach with.
-5. In a second terminal, run that line -- `nvim --server <address> --remote-ui` -- and edit.
-   `:w` writes. Closing that interface (`:q` in it, or closing the terminal) leaves Neovim running.
-6. Back at `loom>`, `send <weave> NeovimStatusRequested 1` says what Neovim holds, and
-   `send <weave> NeovimStopRequested 1` ends it -- refused while a buffer has unsaved changes, unless
-   you add `discard=true`.
+   Start `loom-host` again: `2 started -- boot COMPLETE`. The Timer settles its own beat when it
+   starts, which is why it starts again after the decisions rather than before them. Without the
+   beat Neovim still runs, but this host notices Neovim ending only when you next ask.
+3. Find the Neovim editor's weave with `weaves` -- the one that accepts `NeovimStartRequested`
+   (weave 6 with this boot file) -- and ask it to start Neovim on a file. The console asks for
+   every field, so name `listen` too; empty chooses an address for you:
+
+   ```text
+   loom> send 6 NeovimStartRequested 1 path="notes.txt" listen=""
+     sent.  reply -> m3  Neovim 0.11.6 (clean (no user configuration)) is listening at /tmp/zengine-neovim-4242-1.sock editing /home/you/notes/notes.txt -- attach its interface with: nvim --server /tmp/zengine-neovim-4242-1.sock --remote-ui
+   ```
+
+4. In a **second terminal**, run the line the answer ends with, and edit: `:w` writes. `:detach`
+   in that interface, or closing the second terminal, leaves Neovim running for the next attach.
+   **`:q` there quits Neovim itself**, as it would anywhere: it is Neovim's last window.
+5. Back at `loom>`:
+
+   ```text
+   loom> send 6 NeovimStatusRequested 1
+     sent.  reply -> m4  Neovim 0.11.6 (clean (no user configuration)) (listening at /tmp/zengine-neovim-4242-1.sock for a remote interface) is editing /home/you/notes/notes.txt, saved, in mode n
+   loom> send 6 NeovimStopRequested 1 discard=false
+     sent.  reply -> m5  Neovim ended (status 0)
+   loom> quit
+   ```
+
+   The stop is refused while a buffer has unsaved changes -- `refused: Neovim holds unsaved changes
+   to ... -- write them first, or stop with discard=true to lose them` -- and `discard=true` ends
+   Neovim anyway. After Neovim has ended, from either side, the status says `Neovim is not
+   running` and why.
