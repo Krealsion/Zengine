@@ -215,8 +215,14 @@ remembers that layout for you either way.
      saw it. Either way nothing was written, your draft and its text stay, and `Enter` sends them
      again. A commit the document received and has not answered yet is still outstanding:
      `Enter` again says `commit not sent`, and nothing gives up on it.
-4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
-   opens or removes, `Esc` cancels. See [panes](panes.md).
+4. **`Ctrl`+`t`** — open the Terminal, or go to it if it is already up. **`Ctrl`+`p`** — open
+   the **Panes** list and go to any tool in it: `↑` `↓` choose, `Enter` opens it and puts you
+   in it, and a tool that is already open is simply where you land. Both work while you are
+   typing in another pane. They come from the **desktop**, a tool you can edit and rebuild
+   like any other, so you can move them, switch them off, or change what they do — see
+   [hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away).
+5. **`p`** — open the pane picker, which is the one place a pane is *removed*: `↑` `↓`
+   choose, `Enter` opens or removes, `Esc` cancels. See [panes](panes.md).
 6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
    with the thing you pointed at, without selecting it. `Enter` chooses, `Esc` closes, and
    **`a`** opens the same menu from the keyboard. See
@@ -238,7 +244,8 @@ remembers that layout for you either way.
 |---|---|
 | objects | `n` new · `d` delete · `Tab` select · `h j k l` move · `Shift`+`h j k l` resize |
 | workspace | `[` `]` narrow / widen by 4 cells |
-| panes | `p` picker · `w` arrange desk · **Pane Manager** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-manager--a-pane-as-a-subject)) · in it, `n` makes a pane of your own, `s` saves it ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
+| launching | `Ctrl`+`t` Terminal · `Ctrl`+`p` the Panes list — from anywhere, even inside a pane ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)) |
+| panes | `p` picker (the one place a pane is removed) · `w` arrange desk · **Pane Manager** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-manager--a-pane-as-a-subject)) · in it, `n` makes a pane of your own, `s` saves it ([Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
