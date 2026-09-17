@@ -280,7 +280,11 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
         }
     }
     inventory_said_ = said.panes;
-    mail.publish(said);
+    // SAID AS THE OFFICE, never personally. A reader has to be able to tell this host's
+    // reading from any weave's opinion, so the publication carries the office stamp and a
+    // presenter refuses an unstamped one -- `say_conditions`' rule, one seam over.
+    // `as_role` adds provenance, never a capability (MSG-07).
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
 // ---- The floor of the empty room ------------------------------------------------------------

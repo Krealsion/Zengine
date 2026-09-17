@@ -61,6 +61,10 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // this is the reading behind it: one sentence per condition, in the host's own order,
     // said only when it changed.
     say_conditions(frontier, mail);
+    // ...AND THE ONE PANE INVENTORY, to whoever is listing it (WL-DESK-04). Same beat, same
+    // rule, same silence when nothing changed: it is derived at every gesture, so the
+    // comparison inside is what keeps a launcher from repainting for nothing.
+    publish_inventory(mail);
     // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, to whoever is listing it. The workspace
     // plane below draws the same document; this is the same truth in the form a pane can
     // read, said on the same beat and by the same rule.
