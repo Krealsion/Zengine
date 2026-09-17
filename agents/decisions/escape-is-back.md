@@ -35,12 +35,13 @@ types into keeps Escape while it holds the keys.
 
 **A correction, and the lesson under it.** The first `PaneEscapeUnspent` carried only its pane,
 and Workshop judged it against *current desk state*: this pane selected, still typed into, and the
-last gesture still that Escape. The founder found what that misses by hand -- press Escape on an
-empty Terminal and wait. A second Escape restores every one of those conditions, so an answer
-written about the FIRST Escape is spent on the second: the pane goes down after an Escape that
-already meant something else. **Matching current state does not identify the event being
-answered.** The repair gives each bare Escape a correlation, minted by this host and carried in
-Loom's envelope on whichever message delivers it, and the answer must echo that one -- the same
+last gesture still that Escape. A queued-input probe exposed the missing identity: Escape on an
+empty Terminal, text, then Escape again, all before dispatch settles. The second Escape clears
+the draft, but the first Escape's delayed answer matches the new record and puts the pane down.
+In ordinary separated input, the first Escape correctly deselects immediately. Missing identity
+causes the defect; the queued ordering exposes it. **Matching current state does not identify
+the event being answered.** The repair gives each bare Escape a correlation, minted by this host
+and carried in Loom's envelope on whichever message delivers it. The answer must echo that one -- the same
 pair a relay settles on (WHICH conversation, and WHO is speaking, bus-stamped). No published shape
 gained a field, and the single delivery per action or key is unchanged. Zero answers nothing, an
 older number answers nothing, and a spent number is spent. Pinned by case `"a second Escape does
