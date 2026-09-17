@@ -71,11 +71,13 @@ using ws::PaneActions;
 using ws::PaneCaret;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
+using ws::PaneEscapeUnspent;
 using ws::PaneKey;
 using ws::PaneOffered;
 using ws::PanePressed;
 using ws::PaneRoom;
 using ws::PaneTextInput;
+using ws::PaneWheel;
 using ws::ShownCandidate;
 using ws::ShownEntry;
 using ws::TerminalActed;
@@ -102,6 +104,9 @@ constexpr std::int64_t kCaretCols = 1;
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the standing
 /// legend, the omission marker and the input row. The built-in's `kTerminalChrome`, carried.
 constexpr std::int64_t kChromeRows = 4;
+
+/// ROWS OF THE RECORD A WHEEL NOTCH READS -- Workshop's own lists' step (`kListWheelRows`).
+constexpr std::int64_t kWheelRows = 3;
 
 // ---- Rendering one participant's record ---------------------------------------------
 //
@@ -156,40 +161,50 @@ std::vector<std::string> entry_wrapped(const ShownEntry& e, std::int64_t width) 
     return wrap(entry_line(e), width);
 }
 
-/// HOW MANY OF THE NEWEST ENTRIES A PANE THIS WIDE AND THIS TALL CAN SHOW WHOLE.
-///
-/// A ROW APIECE IS THE FLOOR, so the first entry is always taken even when it is taller than
-/// the pane -- an empty box is indistinguishable from a broken tool, which is why this
-/// function counts one before it starts refusing.
-std::size_t entries_that_fit(const std::vector<ShownEntry>& entries, std::int64_t width,
-                             std::size_t rows) {
-    std::size_t taken = 0;
-    std::size_t used = 0;
-    for (std::size_t i = entries.size(); i > 0; --i) {
-        const std::size_t cost = entry_wrapped(entries[i - 1], width).size();
-        if (taken > 0 && used + cost > rows) {
-            break;
-        }
-        used += cost;
-        ++taken;
-        if (used >= rows) {
-            break;
+/// THE RECORD AS ROWS OF ONE WIDTH: every entry wrapped, and the row each entry starts on. The
+/// unit a view scrolls by and a marker counts in is a ROW, because a wrapped entry cut at the top
+/// of a view is part of one entry and not one of a number of messages.
+struct WrappedRecord {
+    std::vector<std::string> rows;
+    std::vector<std::int64_t> starts;
+    std::int64_t total() const { return static_cast<std::int64_t>(rows.size()); }
+};
+
+WrappedRecord wrap_record(const std::vector<ShownEntry>& entries, std::int64_t width) {
+    WrappedRecord out;
+    out.starts.reserve(entries.size());
+    for (const ShownEntry& e : entries) {
+        out.starts.push_back(out.total());
+        for (std::string& one : entry_wrapped(e, width)) {
+            out.rows.push_back(std::move(one));
         }
     }
-    return taken;
+    return out;
 }
 
-/// WHAT THE PANE IS NOT SHOWING, in two numbers that are two different facts: entries the
-/// participant still holds above the top of this pane, and entries it has evicted for good.
-std::string omission_text(std::int64_t earlier, std::int64_t dropped) {
-    if (earlier == 0 && dropped == 0) {
-        return "[the whole of this session's record is on screen]";
+/// WHAT IS ABOVE THE VIEW, said at its top: retained rows scrolled past, and -- a different fact --
+/// entries the participant evicted for good, which no scroll reaches.
+std::string omission_text(std::int64_t above, std::int64_t below, std::int64_t dropped, bool lost) {
+    std::string text;
+    if (lost) {
+        text = "... what you were reading was dropped for good";
+    } else if (above > 0) {
+        text = "... " + std::to_string(above) + " more rows above";
+    } else if (dropped == 0) {
+        return below > 0 ? "[the start of this session's record]"
+                         : "[the whole of this session's record is on screen]";
+    } else {
+        text = "[the oldest kept]";
     }
-    std::string text = "... " + std::to_string(earlier) + " earlier";
-    if (dropped > 0) {
-        text += ", " + std::to_string(dropped) + " dropped for good";
+    if (dropped > 0 && !lost) {
+        text += "; " + std::to_string(dropped) + " older entries dropped for good";
     }
     return text;
+}
+
+/// WHAT IS BELOW THE VIEW, said at its bottom, and the way back to the newest output.
+std::string below_text(std::int64_t below) {
+    return "... " + std::to_string(below) + " more rows below -- press here for the newest";
 }
 
 /// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room. The built-in's
@@ -213,11 +228,11 @@ class TerminalPaneWeave
     : public loom::WeaveBase<
           TerminalPaneWeave, pane::TerminalPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
-                       PaneTextInput, PaneActionRequested, TranscriptShown, TerminalActed,
-                       TerminalCompletionOffered, surface::ClipboardCopy,
+                       PaneTextInput, PaneWheel, PaneActionRequested, TranscriptShown,
+                       TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, TerminalActRequested,
-                     TerminalCompletionRequested, surface::ClipboardCopy,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneEscapeUnspent,
+                     TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -255,6 +270,29 @@ public:
         }
         known_ = said;
         heard_ = true;
+        // THE ENTRY BEING READ WAS EVICTED: the view moves to the oldest entry kept, and says why
+        // at its top until the maker scrolls again. Nothing else in a new picture moves the view.
+        if (!reading_.follow && reading_.seq < known_.dropped) {
+            reading_.seq = known_.dropped;
+            reading_.row = 0;
+            reading_.lost = true;
+        }
+        say(mail);
+    }
+
+    /// THE WHEEL READS THE RECORD: three rows a notch, fractions carried, +1 away from the maker
+    /// being older output. Reading moves no line, recall, list or notice.
+    void on(const PaneWheel& wheel, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kTerminalPane) {
+            return;
+        }
+        wheel_ += wheel.dy * static_cast<double>(kWheelRows);
+        const std::int64_t rows = static_cast<std::int64_t>(wheel_);
+        wheel_ -= static_cast<double>(rows);
+        if (rows == 0) {
+            return;
+        }
+        scroll(-rows);
         say(mail);
     }
 
@@ -286,14 +324,15 @@ public:
             return;
         }
         completing_ = false;
-        const bool moved_on = stale_;
-        stale_ = false;
-        if (asked_about_ != here()) {
-            // THE LINE THIS WAS ABOUT IS GONE. The answer is dropped whole -- not shown, so
-            // it cannot be read as being about this line, and not held, so it cannot be
-            // accepted into one -- and the question is put again for the line that IS here,
-            // which is the only party that can say whether there is one to ask.
-            ask_completion(mail);
+        if (asked_intent_ != intent_ || asked_about_ != here()) {
+            // THE INTENT THIS WAS ABOUT IS GONE -- an edit, a clear, a recall, a dismissal or
+            // a lock came between, even if the line's bytes match again. The answer is dropped
+            // whole: not shown, so it cannot be read as being about this line, and not held,
+            // so it cannot be accepted into one. It is asked again only when the intent
+            // standing now wanted a list; a lock and a recall did not.
+            if (wanted_ && wanted_intent_ == intent_) {
+                ask_completion(mail);
+            }
             say(mail);
             return;
         }
@@ -309,6 +348,7 @@ public:
                                    said.partial == offered_.partial;
         offered_ = said;
         offered_about_ = asked_about_;
+        offered_intent_ = asked_intent_;
         if (same_question && !offered_.candidates.empty()) {
             const std::size_t last = offered_.candidates.size() - 1;
             selected_ = selected_ < last ? selected_ : last;
@@ -319,14 +359,6 @@ public:
         // word is a new question, so the list comes back for it.
         if (dismissed_ && offered_.slot != dismissed_at_) {
             dismissed_ = false;
-        }
-        // IF THE LINE MOVED WHILE THE ANSWER WAS IN FLIGHT, ASK AGAIN. At most one question
-        // is outstanding at a time, so a maker typing faster than the drain coalesces into
-        // one further ask rather than a queue of them. (The line moving is normally caught
-        // above; this stands for the paths that move it without changing what `here()` says
-        // -- a room grant between the two, say -- and costs one further ask when it fires.)
-        if (moved_on) {
-            ask_completion(mail);
         }
         say(mail);
     }
@@ -342,6 +374,10 @@ public:
         }
         if (press.row == input_row_ && input_row_ >= 0) {
             notice_.clear();
+            history_note_.clear();
+            // A PRESS ON THE LINE IS AN EDITING ACT, so a recalled line becomes the draft here
+            // and the press then means only what it always means.
+            settle_recall();
             const std::size_t was = line_.caret();
             const bool had_selection = line_.has_selection();
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
@@ -361,12 +397,20 @@ public:
                 word_press_at_ = line_.caret();
             }
             if (line_.caret() != was || had_selection || line_.has_selection()) {
+                moved();
                 ask_completion(mail); // the caret moving changes whether completion may ask
             }
             say(mail);
             return;
         }
         word_press_ = false;
+        // THE ROW BELOW THE VIEW IS THE WAY BACK TO THE NEWEST OUTPUT; the row above it says what
+        // is above and is consumed like the rest of the record.
+        if (press.row == bottom_marker_row_ && bottom_marker_row_ >= 0) {
+            reading_ = Reading{};
+            say(mail);
+            return;
+        }
         if (list_first_row_ >= 0 && press.row >= list_first_row_ &&
             press.row < list_first_row_ + list_row_count_) {
             // ROW 0 OF THE LIST IS THE HEADING and is not a candidate. A press on it is a
@@ -396,9 +440,13 @@ public:
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!line_.consume(key.scancode, key.modifiers, clip_)) {
-            return;
+            return; // a key the line does not take is no act, and ends no recall
         }
         notice_.clear();
+        history_note_.clear();
+        // A KEY THE LINE TOOK ENDS A RECALL, and it has already done its one piece of work on
+        // the recalled line -- which is the draft from here on.
+        settle_recall();
         if (clip_.writes != copied_before) {
             mail.publish(surface::ClipboardCopy{clip_.text});
         }
@@ -408,6 +456,7 @@ public:
         // AN EDIT OR A CARET MOVE CHANGES WHETHER THE COMPLETER MAY BE ASKED, and what it
         // would answer, so both reach the ask. The built-in fell through to `refresh_terminal`
         // here for exactly this reason.
+        moved();
         remember_line();
         ask_completion(mail);
         say(mail);
@@ -422,11 +471,14 @@ public:
         }
         word_press_ = false;
         notice_.clear();
+        history_note_.clear();
+        settle_recall(); // typing onto a recalled line makes it the draft, typed into once
         // AT THE CARET, WHICH IS NOT ALWAYS THE END. `type` is the only door that moves the
         // text and the caret together, so a keystroke in the middle of a line cannot leave
         // one behind. Typing IS the completion gesture.
         line_.type(typed.text);
         asked_for_list_ = false;
+        moved();
         remember_line();
         ask_completion(mail);
         say(mail);
@@ -442,19 +494,48 @@ public:
         if (!answers(asked.id)) {
             return;
         }
+        // THE READING KEYS MOVE THE VIEW AND NOTHING ELSE: not the line, a recall, a list, a
+        // refusal beside the line or the memory that makes a second press select a word.
+        if (asked.id == pane::kActionScrollUp || asked.id == pane::kActionScrollDown ||
+            asked.id == pane::kActionOldest || asked.id == pane::kActionNewest) {
+            if (asked.id == pane::kActionScrollUp) {
+                scroll(-page());
+            } else if (asked.id == pane::kActionScrollDown) {
+                scroll(page());
+            } else if (asked.id == pane::kActionOldest) {
+                scroll(-wrap_record(known_.entries, columns_).total());
+            } else {
+                reading_ = Reading{};
+            }
+            say(mail);
+            return;
+        }
         word_press_ = false;
         notice_.clear();
+        history_note_.clear();
+        // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
+        // whole on ending the recall: no submission, no candidate taken, and no list asked for.
+        // The next Enter or Tab has its ordinary meaning.
+        if (asked.id == pane::kActionSubmit || asked.id == pane::kActionComplete) {
+            if (settle_recall()) {
+                remember_line();
+                say(mail);
+                return;
+            }
+        }
         if (asked.id == pane::kActionSubmit) {
             submit(mail);
             return;
         }
-        if (asked.id == pane::kActionUp) {
-            move_selection(-1);
-            say(mail);
-            return;
-        }
-        if (asked.id == pane::kActionDown) {
-            move_selection(+1);
+        // UP AND DOWN WALK THE HISTORY WHEN NO COMMAND IS BEING COMPOSED, and keep walking it
+        // while a recalled line is browsed; on a command being composed they move the list.
+        if (asked.id == pane::kActionUp || asked.id == pane::kActionDown) {
+            const int by = asked.id == pane::kActionUp ? -1 : +1;
+            if (recall_.active || composing_nothing()) {
+                recall(by, mail);
+                return;
+            }
+            move_selection(by);
             say(mail);
             return;
         }
@@ -464,33 +545,52 @@ public:
             // only gesture discovery needs because every other entry point is typing.
             if (selectable()) {
                 accept_candidate();
+                moved();
                 remember_line();
                 ask_completion(mail);
             } else {
                 asked_for_list_ = true;
                 dismissed_ = false;
+                moved();
                 ask_completion(mail);
             }
             say(mail);
             return;
         }
         if (asked.id == pane::kActionBack) {
-            if (selectable()) {
+            if (recall_.active) {
+                // ESCAPE ON A RECALLED LINE GOES BACK TO THE LINE BEFORE THE RECALL, whole.
+                cancel_recall();
+            } else if (selectable()) {
                 // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted the line
                 // gone presses it again; a maker who wanted only the list gone has not lost
                 // the word they were half-way through.
                 dismissed_ = true;
                 dismissed_at_ = offered_.slot;
                 asked_for_list_ = false;
-            } else {
+                moved();
+            } else if (!composing_nothing()) {
                 // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was made
                 // against a word; there is no longer a word, so keeping it would leave the
                 // list hidden for the whole of the next command with nothing on screen to
                 // explain why.
                 line_.clear(); // ...and the caret with it: `clear` moves both
                 dismissed_ = false;
+                asked_for_list_ = false;
+                moved();
                 remember_line();
                 ask_completion(mail);
+            } else {
+                // (!) NOTHING MORE SPECIFIC IS LEFT: no recall, no list, no line. This Escape was
+                // unspent here, and saying so lets Workshop's own last meaning for it run --
+                // putting this pane down -- if it is still the maker's latest gesture.
+                //
+                // ECHOED BACK UNDER THE NUMBER IT ARRIVED ON, which is what makes this word about
+                // THIS Escape and no other. The answer may reach Workshop behind later gestures,
+                // and a later Escape looks exactly like this one from the desk's side.
+                (void)mail.as_role(pane::kTerminalPaneRole)
+                    .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane},
+                                  mail.correlation());
             }
             say(mail);
         }
@@ -554,6 +654,7 @@ public:
             clip_.text = a.text;
         }
         line_.paste(clip_);
+        moved();
         remember_line();
         ask_completion(mail);
         say(mail);
@@ -570,13 +671,14 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO -- five rows, and they never change.
+    /// WHAT THIS PANE ANSWERS TO -- nine rows, and they never change.
     ///
     /// (!) UNLIKE INFO'S AND FILES', THIS DECLARATION HAS NO MODES. Those panes re-declare
     /// because a draft has to take Return and Escape away from the rows they otherwise mean.
-    /// Here the line is ALWAYS open -- it is the pane -- so Return always submits and Escape
-    /// always means "back". Every other key reaches the line as an ordinary `PaneKey`, which
-    /// is what lets Backspace delete a character rather than meaning anything of this pane's.
+    /// Here the line is ALWAYS open -- it is the pane -- so each id names one gesture whose
+    /// meaning the pane resolves against its own state (a recall, a list, a line). Every other
+    /// key reaches the line as an ordinary `PaneKey`, which is what lets Backspace delete a
+    /// character rather than meaning anything of this pane's.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kTerminalPane;
@@ -584,18 +686,25 @@ private:
         (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, actions);
     }
 
-    /// THE FIVE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
+    /// THE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
     /// acts on and what it said it acts on are one list.
     static std::vector<PaneActionRow> action_rows() {
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc) {
             rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone});
         };
-        row(pane::kActionSubmit, "run the line", input::scan::kReturn);
+        row(pane::kActionSubmit, "run the line / keep a recall", input::scan::kReturn);
         row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab);
-        row(pane::kActionUp, "completion up", input::scan::kUp);
-        row(pane::kActionDown, "completion down", input::scan::kDown);
-        row(pane::kActionBack, "dismiss list / clear line", input::scan::kEscape);
+        row(pane::kActionUp, "older command / list up", input::scan::kUp);
+        row(pane::kActionDown, "newer command / list down", input::scan::kDown);
+        row(pane::kActionBack, "back: recall, list, line, desk", input::scan::kEscape);
+        const auto chord = [&rows](const char* id, const char* label, std::int64_t sc) {
+            rows.push_back(PaneActionRow{id, label, sc, input::mod::kCtrl});
+        };
+        chord(pane::kActionScrollUp, "read older output", input::scan::kUp);
+        chord(pane::kActionScrollDown, "read newer output", input::scan::kDown);
+        chord(pane::kActionOldest, "oldest kept output", input::scan::kHome);
+        chord(pane::kActionNewest, "back to the newest output", input::scan::kEnd);
         return rows;
     }
 
@@ -619,7 +728,10 @@ private:
         asked_for_list_ = false;
         offered_ = TerminalCompletionOffered{};
         selected_ = 0;
+        moved();
         remember_line();
+        // A SUBMITTED LINE IS READ WHERE ITS OUTPUT ARRIVES: the view follows the newest again.
+        reading_ = Reading{};
         if (line.empty()) {
             say(mail);
             return;
@@ -640,9 +752,20 @@ private:
     /// re-stamps `offered_about_`; the ask stamps `asked_about_` instead, so the answer that
     /// comes back can be measured against the line it comes back to.
     void ask_completion(loom::Mail& mail) {
+        wanted_ = true;
+        wanted_intent_ = intent_;
+        if (recall_.active) {
+            // A RECALLED LINE IS BROWSED, NOT COMPOSED: no list is asked for it until the maker
+            // locks it in or edits it.
+            offered_ = TerminalCompletionOffered{};
+            offered_about_ = here();
+            offered_intent_ = intent_;
+            return;
+        }
         if (!known_.attached) {
             offered_ = TerminalCompletionOffered{};
             offered_about_ = here();
+            offered_intent_ = intent_;
             return; // nothing to ask, and a door that would answer "nothing" anyway
         }
         // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE. The
@@ -658,6 +781,7 @@ private:
             offered_.open = true;
             offered_.heading = "completion follows the END of the line -- this caret is inside it";
             offered_about_ = here();
+            offered_intent_ = intent_;
             selected_ = 0;
             return;
         }
@@ -667,14 +791,15 @@ private:
         if (line_.empty() && !asked_for_list_) {
             offered_ = TerminalCompletionOffered{};
             offered_about_ = here();
+            offered_intent_ = intent_;
             selected_ = 0;
             return;
         }
         if (completing_) {
-            stale_ = true; // one question at a time; the answer will re-ask
-            return;
+            return; // one question at a time; its answer is dropped and asked again (`wanted_`)
         }
         asked_about_ = here();
+        asked_intent_ = intent_;
         completion_pending_ = ++asked_;
         completing_ = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
@@ -735,8 +860,185 @@ private:
     }
 
     /// THE ONE PLACE THE KEPT LINE IS WRITTEN. `state_` is what a same-shape reload carries,
-    /// so it is updated wherever the text changes and nowhere else.
-    void remember_line() { state_.line = line_.text(); }
+    /// so it is updated wherever the text changes and nowhere else. A recalled line is browsed
+    /// and not yet adopted, so while one is on the line the kept line is the draft before it.
+    void remember_line() { state_.line = recall_.active ? recall_.before.text() : line_.text(); }
+
+    // ---- Reading the record: the view's top, and the gestures that move it -------------------
+
+    /// THE ROW AT THE TOP OF A VIEW `view` ROWS TALL. Following, the row that puts the newest row
+    /// at the bottom; anchored, the anchor's row -- clamped into the entry a re-wrap may have
+    /// shortened, and never so far down that the view runs past the newest row.
+    std::int64_t view_top(const WrappedRecord& record, std::int64_t view) const {
+        const std::int64_t last = record.total() > view ? record.total() - view : 0;
+        if (reading_.follow) {
+            return last;
+        }
+        const std::int64_t index = reading_.seq - known_.dropped;
+        if (index < 0 || record.starts.empty()) {
+            return 0;
+        }
+        if (index >= static_cast<std::int64_t>(record.starts.size())) {
+            return last;
+        }
+        const std::size_t i = static_cast<std::size_t>(index);
+        const std::int64_t end =
+            i + 1 < record.starts.size() ? record.starts[i + 1] : record.total();
+        const std::int64_t cost = end - record.starts[i];
+        const std::int64_t row = reading_.row < cost ? reading_.row : (cost > 0 ? cost - 1 : 0);
+        const std::int64_t top = record.starts[i] + row;
+        return top < last ? top : last;
+    }
+
+    /// MOVE THE VIEW BY `by` ROWS (negative is older). Reaching the newest row follows it again;
+    /// anywhere else the view is anchored to the entry and row now at its top.
+    void scroll(std::int64_t by) {
+        const WrappedRecord record = wrap_record(known_.entries, columns_);
+        const std::int64_t view = view_rows_ > 0 ? view_rows_ : 1;
+        const std::int64_t last = record.total() > view ? record.total() - view : 0;
+        std::int64_t top = view_top(record, view) + by;
+        top = top < 0 ? 0 : top;
+        reading_.lost = false;
+        if (top >= last) {
+            reading_ = Reading{};
+            return;
+        }
+        std::size_t i = 0;
+        while (i + 1 < record.starts.size() && record.starts[i + 1] <= top) {
+            ++i;
+        }
+        reading_.follow = false;
+        reading_.seq = known_.dropped + static_cast<std::int64_t>(i);
+        reading_.row = top - (record.starts.empty() ? 0 : record.starts[i]);
+    }
+
+    /// A PAGE OF THE VIEW, keeping one row of the page before it in sight.
+    std::int64_t page() const { return view_rows_ > 1 ? view_rows_ - 1 : 1; }
+
+    // ---- Command history: the participant's own record, walked ------------------------------
+
+    /// ONE COMMAND A MAKER CAN RECALL, named by its place in the record's whole history.
+    struct Recallable {
+        std::int64_t seq = 0;
+        std::string text;
+    };
+
+    /// THE COMMANDS THE RECORD HOLDS, NEWEST FIRST. Only `command` entries -- what a
+    /// presentation asked this participant to run, recorded before it was parsed -- and never
+    /// an answer, a notice or a refusal. A run of the same command typed again and again is
+    /// walked as one, as its newest. Bounded by the record's own owner, so a command the
+    /// participant evicted is no longer here, and nothing in this pane keeps a copy of one.
+    std::vector<Recallable> recallable() const {
+        std::vector<Recallable> out;
+        for (std::size_t i = known_.entries.size(); i > 0; --i) {
+            const ShownEntry& e = known_.entries[i - 1];
+            if (e.kind != ws::kEntryCommand || e.text.empty()) {
+                continue;
+            }
+            if (!out.empty() && out.back().text == e.text) {
+                continue;
+            }
+            out.push_back(Recallable{known_.dropped + static_cast<std::int64_t>(i - 1), e.text});
+        }
+        return out;
+    }
+
+    /// NO COMMAND IS BEING COMPOSED: the line is empty and the maker has not asked for a list
+    /// on it. This, or a recall already under way, is when Up and Down mean history.
+    bool composing_nothing() const { return line_.empty() && !asked_for_list_; }
+
+    /// ONE STEP THROUGH HISTORY: -1 older, +1 newer.
+    void recall(int by, loom::Mail& mail) {
+        const std::vector<Recallable> commands = recallable();
+        if (!recall_.active) {
+            if (commands.empty()) {
+                history_note_ = "no command to recall yet";
+            } else if (by > 0) {
+                history_note_ = "nothing newer -- Up recalls the last command";
+            } else {
+                recall_.before = line_;
+                show_recalled(commands.front());
+            }
+            say(mail);
+            return;
+        }
+        const std::string now = line_.text();
+        if (by < 0) {
+            for (const Recallable& c : commands) {
+                if (c.seq < recall_.seq && c.text != now) {
+                    show_recalled(c);
+                    say(mail);
+                    return;
+                }
+            }
+            history_note_ = known_.dropped > 0 ? "the oldest kept; " +
+                                                     std::to_string(known_.dropped) +
+                                                     " older entries dropped for good"
+                                               : "the oldest command";
+            say(mail);
+            return;
+        }
+        for (std::size_t i = commands.size(); i > 0; --i) {
+            const Recallable& c = commands[i - 1];
+            if (c.seq > recall_.seq && c.text != now) {
+                show_recalled(c);
+                say(mail);
+                return;
+            }
+        }
+        // PAST THE NEWEST IS THE LINE BEFORE THE FIRST RECALL, exactly as it was left.
+        cancel_recall();
+        say(mail);
+    }
+
+    void show_recalled(const Recallable& c) {
+        line_.set(c.text, c.text.size());
+        recall_.active = true;
+        recall_.seq = c.seq;
+        dismissed_ = false;
+        asked_for_list_ = false;
+        selected_ = 0;
+        moved();
+        offered_ = TerminalCompletionOffered{};
+        offered_about_ = here();
+        offered_intent_ = intent_;
+    }
+
+    /// THE RECALLED LINE BECOMES THE DRAFT, where it stands, and the line before the recall is
+    /// let go. Answers whether there was a recall to end.
+    bool settle_recall() {
+        if (!recall_.active) {
+            return false;
+        }
+        recall_ = Recall{};
+        moved();
+        return true;
+    }
+
+    /// BACK TO THE DRAFT BEFORE THE FIRST RECALL -- the whole box, so its undo, its caret and
+    /// the draft a paste in flight belongs to come back with its text.
+    void cancel_recall() {
+        line_ = recall_.before;
+        recall_ = Recall{};
+        moved();
+        remember_line();
+    }
+
+    /// WHAT THE ROW ABOVE THE LINE SAYS ABOUT HISTORY, or nothing.
+    std::string history_heading() const {
+        if (!recall_.active) {
+            return history_note_;
+        }
+        const std::vector<Recallable> commands = recallable();
+        std::size_t newer = 0;
+        for (const Recallable& c : commands) {
+            newer += c.seq > recall_.seq ? 1 : 0;
+        }
+        std::string text = "history " + std::to_string(newer + 1) + " of " +
+                           std::to_string(commands.size() > newer ? commands.size() : newer + 1);
+        text += history_note_.empty() ? " -- Enter/Tab: edit, Esc: back" : " -- " + history_note_;
+        return text;
+    }
 
     /// THE LINE A QUESTION ABOUT COMPLETION IS ABOUT. Two of these are kept: what the
     /// OUTSTANDING ask was about (`asked_about_`), and what the offer in hand is about
@@ -769,21 +1071,30 @@ private:
     /// handed on the way. Both canvases are delivered in that same turn, and whether a medium
     /// draws both is the medium's business, unmeasured here. What is bought for it is that no
     /// candidate is ever offered against a line that is not on the screen.
-    bool offer_applies() const { return offered_about_ == here(); }
+    bool offer_applies() const { return offered_intent_ == intent_ && offered_about_ == here(); }
+
+    /// THE MAKER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
+    /// already in flight belongs to, and no wish for a list until an act asks for one.
+    void moved() {
+        ++intent_;
+        wanted_ = false;
+    }
 
     // ---- The rows, and the caret beside them ----------------------------------------------
 
-    /// THE PANE, COMPOSED. Header, legend, transcript, omission, completion list, input row
-    /// -- and the caret published beside them, on the input row.
+    /// THE PANE, COMPOSED. Refusal, header, legend, what is above the view, the view, what is
+    /// below it, the completion list or the history row, input row -- and the caret published
+    /// beside them, on the input row.
     ///
     /// THE ROW BUDGET IS SPENT IN PRIORITY ORDER, because a pane can be granted any height a
     /// maker's arrangement gives it. The input row is first: a Terminal with no line is not a
     /// Terminal. Then a standing refusal, which is the answer to what the maker just did.
-    /// Then the header (whose pane is this), then the omission marker (what am I not
+    /// Then the header (whose pane is this), then the marker above the view (what am I not
     /// seeing), then the legend (what does `^` mean). What is left is split between the
     /// completion list and the transcript, and the list takes at most half -- the built-in's
     /// own share rule, which exists because a list that grew to fill the pane would answer
-    /// the second question by erasing the first.
+    /// the second question by erasing the first. The row below the view is taken from the
+    /// transcript's own share, and only while the maker is reading away from the newest output.
     ///
     /// (!) EVERY ROW HERE IS BUDGETED BEFORE IT IS COMPOSED, and that is the correction the
     /// notice taught: a row added after the budget was spent has to take one back, the row
@@ -848,8 +1159,11 @@ private:
         // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
         // left rather than the other way round.
         const bool list_open = offer_applies() && offered_.open && !dismissed_;
-        std::size_t list_wanted =
-            list_open ? offered_.candidates.size() + 1 /*the heading*/ : 0;
+        // THE ROW ABOVE THE LINE SAYS WHICH COMMAND IS RECALLED when there is no list: browsing
+        // history is a different state from composing, and a maker has to be able to see which.
+        const std::string history = list_open ? std::string() : history_heading();
+        std::size_t list_wanted = list_open ? offered_.candidates.size() + 1 /*the heading*/
+                                            : (history.empty() ? 0 : 1);
         const std::size_t list_ceiling = static_cast<std::size_t>(rest / 2);
         if (list_wanted > list_ceiling) {
             list_wanted = list_ceiling;
@@ -857,44 +1171,52 @@ private:
         // A LIST OF ONE ROW IS A HEADING WITH NO CANDIDATES UNDER IT, and that is a complete
         // answer rather than an empty box -- `kCompletionMinRows` was one for exactly this
         // reason, measured: with a floor of two, `send * s` showed nothing at all.
-        if (list_open && list_wanted == 0 && rest >= 2) {
+        if ((list_open || !history.empty()) && list_wanted == 0 && rest >= 2) {
             list_wanted = 1;
         }
         const std::int64_t transcript_rows = rest - static_cast<std::int64_t>(list_wanted);
 
-        // THE TRANSCRIPT, WRAPPED -- one entry becomes as many rows as its sentence needs.
-        std::int64_t shown_entries = 0;
-        if (transcript_rows > 0) {
-            const std::size_t fits =
-                entries_that_fit(known_.entries, columns_,
-                                 static_cast<std::size_t>(transcript_rows));
-            shown_entries = static_cast<std::int64_t>(fits);
-            std::vector<std::string> lines;
-            for (std::size_t i = known_.entries.size() - fits; i < known_.entries.size(); ++i) {
-                for (std::string& one : entry_wrapped(known_.entries[i], columns_)) {
-                    lines.push_back(std::move(one));
-                }
-            }
-            if (static_cast<std::int64_t>(lines.size()) > transcript_rows) {
-                lines.resize(static_cast<std::size_t>(transcript_rows));
-            }
-            for (std::int64_t i = 0; i < transcript_rows; ++i) {
-                push(i < static_cast<std::int64_t>(lines.size()) ? lines[static_cast<std::size_t>(i)]
-                                                                 : std::string(),
-                     surface::role::kFill);
-            }
+        // THE TRANSCRIPT, WRAPPED AND SCROLLED -- one entry becomes as many rows as its sentence
+        // needs, and the view is a window onto all of them. Following, the newest row is at the
+        // bottom. Scrolled away, a row below the view says how much is below and is the press back
+        // to the newest; where there is no row for it, the top marker says it instead.
+        const WrappedRecord record = wrap_record(known_.entries, columns_);
+        std::int64_t view = transcript_rows > 0 ? transcript_rows : 0;
+        std::int64_t top = view_top(record, view);
+        std::int64_t below = record.total() - (top + view);
+        const bool bottom = !reading_.follow && below > 0 && view >= 2;
+        if (bottom) {
+            view -= 1;
+            top = view_top(record, view);
+            below = record.total() - (top + view);
         }
+        below = below > 0 ? below : 0;
+        view_rows_ = view;
+        top_marker_row_ = -1;
+        bottom_marker_row_ = -1;
         if (omission) {
-            // `earlier` IS THIS PANE'S ARITHMETIC and could be nobody else's: it is the
-            // record's size less what THIS pane decided it could show whole.
-            push(omission_text(static_cast<std::int64_t>(known_.entries.size()) - shown_entries,
-                               known_.dropped),
-                 surface::role::kMuted);
+            top_marker_row_ = static_cast<std::int64_t>(out.size());
+            std::string said = omission_text(top, below, known_.dropped, reading_.lost);
+            if (below > 0 && !bottom) {
+                said += " -- " + std::to_string(below) + " more rows below";
+            }
+            push(std::move(said), surface::role::kMuted);
         }
-        if (list_wanted > 0) {
+        for (std::int64_t i = 0; i < view; ++i) {
+            const std::int64_t at = top + i;
+            push(at < record.total() ? record.rows[static_cast<std::size_t>(at)] : std::string(),
+                 surface::role::kFill);
+        }
+        if (bottom) {
+            bottom_marker_row_ = static_cast<std::int64_t>(out.size());
+            push(below_text(below), surface::role::kMuted);
+        }
+        if (list_wanted > 0 && list_open) {
             list_first_row_ = static_cast<std::int64_t>(out.size());
             list_row_count_ = static_cast<std::int64_t>(list_wanted);
             say_list(list_wanted, push);
+        } else if (list_wanted > 0) {
+            push(history, surface::role::kMuted);
         }
 
         // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
@@ -905,7 +1227,7 @@ private:
         line_.keep_caret_visible(visible > 0 ? visible : 0);
         input_row_ = static_cast<std::int64_t>(out.size());
         const bool prompting = line_.empty() && !list_open;
-        push(prompting ? std::string(">    Tab: what can this terminal say?")
+        push(prompting ? std::string(">    Tab: what can this terminal say?  Up: recall a command")
                        : "> " + line_.visible(visible > 0 ? visible : 0),
              known_.attached ? surface::role::kAccent : surface::role::kAlert);
 
@@ -993,6 +1315,50 @@ private:
     TranscriptShown known_;
     bool heard_ = false;
 
+    /// A RECALLED COMMAND BEING BROWSED, and the line as it stood before the first recall.
+    ///
+    /// Browsing is not composing: the recalled text is on the line, but Up and Down still walk
+    /// the record, and Enter or Tab only lock the line in. `seq` names the entry by its place
+    /// in the record's whole history (`dropped` + index), which eviction does not move.
+    /// `before` is the whole box -- text, undo and draft epoch -- so walking back past the
+    /// newest command, or cancelling, returns exactly the draft that was there.
+    struct Recall {
+        bool active = false;
+        std::int64_t seq = 0;
+        component::TextBox before;
+    };
+    Recall recall_;
+
+    /// WHAT THE ROW ABOVE THE LINE SAYS ABOUT HISTORY, when it says anything: the position
+    /// while browsing, or why Up or Down did nothing. Cleared by the maker's next act.
+    std::string history_note_;
+
+    /// WHERE THE MAKER IS READING THE RECORD. Following the newest output unless they scrolled
+    /// away; then the top row of the view is anchored to an entry by its place in the record's
+    /// whole history and a wrapped row inside it -- so new output leaves the view where it is, a
+    /// resize re-wraps under the same entry, and an eviction moves the view only when the entry
+    /// being read is itself gone (`lost`, said at the top until the next scroll).
+    struct Reading {
+        bool follow = true;
+        std::int64_t seq = 0;
+        std::int64_t row = 0;
+        bool lost = false;
+    };
+    Reading reading_;
+    /// The wheel's notches not yet worth a row.
+    double wheel_ = 0.0;
+    /// HOW TALL THE TRANSCRIPT'S VIEW WAS WHEN LAST SAID -- what a page step is measured in -- and
+    /// where its two markers were, so a press reads the picture it was aimed at.
+    std::int64_t view_rows_ = 0;
+    std::int64_t top_marker_row_ = -1;
+    std::int64_t bottom_marker_row_ = -1;
+
+    /// WHICH INTENT THE LINE IS IN. Bumped by every act that changes what a completion would
+    /// be about -- an edit, a caret move, a dismissal, a clear, a submit, each step of a recall
+    /// and its lock -- so an answer is taken only by the intent that asked for it, even when
+    /// the line's bytes happen to match again.
+    std::uint64_t intent_ = 0;
+
     /// THE LINE BEING TYPED -- and the caret in it, the selection, and which part of it the
     /// row is showing. Its TEXT is the one thing a reload keeps.
     component::TextBox line_;
@@ -1000,6 +1366,7 @@ private:
     /// WHAT THE PARTICIPANT SAID COULD COME NEXT, and which of it the maker is standing on.
     TerminalCompletionOffered offered_;
     Asking offered_about_;
+    std::uint64_t offered_intent_ = 0;
     std::size_t selected_ = 0;
     bool dismissed_ = false;
     std::string dismissed_at_;
@@ -1038,7 +1405,12 @@ private:
     bool completing_ = false;
     std::uint64_t completion_pending_ = 0;
     Asking asked_about_;
-    bool stale_ = false;
+    std::uint64_t asked_intent_ = 0;
+    /// THE INTENT THAT LAST WANTED A LIST. An answer that arrives for an older intent is
+    /// dropped, and asked again only if the intent standing now wants one -- a lock, a recall
+    /// and a submit do not.
+    std::uint64_t wanted_intent_ = 0;
+    bool wanted_ = false;
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;

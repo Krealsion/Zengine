@@ -243,7 +243,8 @@ remembers that layout for you either way.
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
 | other | `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
-| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d`, the **Terminal**'s `Enter` `Tab` `↑` `↓` `Esc` |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](builder.md)'s `b` `c` `f` `o`, the [browser](files.md)'s `u` `m` `a`, [Attention](attention.md)'s `↑` `↓` `d`, the [Terminal](terminal.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
+| leaving a pane | `Esc` where the pane has nothing of its own left to do with it — the [Terminal](terminal.md) after its list and its line — or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
 
 These are the defaults; every application binding can be remapped through the keymap file,
 and the on-screen hints and the hotkey view always spell the effective one

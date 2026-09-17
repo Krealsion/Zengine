@@ -1221,6 +1221,19 @@ private:
     bool start(nv::UiMode mode, std::int64_t rows, std::int64_t cols) {
         start_tried_ = true;
         choice_ = nv::choice_from_environment();
+        // WHICH CONFIGURATION, JUDGED BEFORE A NEOVIM EXISTS. A profile that is neither spelling
+        // and names no file is the maker's own typo, and saying so here is the difference between
+        // a sentence they can act on and Neovim starting bare behind an `E282` prompt.
+        const nv::ProfileChoice judged = nv::check_profile(choice_);
+        if (!judged.ok) {
+            failure_ = judged.refusal;
+            notice(failure_, true);
+            resay_ = true;
+            return false;
+        }
+        if (!judged.resolved.empty()) {
+            choice_.profile = judged.resolved; // said in full wherever the profile is said
+        }
         host_ = std::make_unique<nv::Host>();
         doc_ = nv::DocFacts{};
         nv::Host::Options o;
@@ -1724,7 +1737,11 @@ private:
             return "Neovim is starting (" + nv::profile_words(choice_) + ")";
         }
         const std::string path = doc_path();
-        std::string head = std::string(doc_.modified ? "UNSAVED " : "saved ") + mode_word(host_->mode()) + " -- ";
+        // ...AND WHICH CONFIGURATION IT IS RUNNING, because a maker whose plugins are missing has
+        // no other way to tell `clean` from `user` once Neovim is up (the full words are in the
+        // start and status answers).
+        std::string head = std::string(doc_.modified ? "UNSAVED " : "saved ") +
+                           mode_word(host_->mode()) + " " + nv::profile_tag(choice_) + " -- ";
         return head + (path.empty() ? std::string("no file") : tail_of_path(path, columns - static_cast<std::int64_t>(head.size())));
     }
 

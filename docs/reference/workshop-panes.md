@@ -359,7 +359,8 @@ authored setup                 resolved presentation          session interactio
 - **The host clips; it never rewrites.** A rectangle running past the canvas is legal authored
   intent, drawn and met and granted room for the part this screen has, and saved exactly as the
   maker said it.
-- **Info is an ordinary arranged pane, and the Terminal stays a mode.** `screen_of` reserves
+- **Info is an ordinary arranged pane, and so is the Terminal** (it was a mode until VD-22, and
+  its own page is [workshop/terminal.md](../workshop/terminal.md)). `screen_of` reserves
   nothing across the width: `room_w` is the surface, it is what every share of the workspace
   resolves against, and the right column stands on it. Management authors Info's geometry like
   any other pane's. The shipped default setup is what opens it at the right edge, by naming
@@ -414,6 +415,8 @@ PaneOffered            provider  ->  Workshop   "I have this one."
 PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 PaneContent            provider  ->  Workshop   "here is what it says."
 PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
+PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unspent here."
+                                                   (under that Escape's own correlation)
 ```
 
 - **`PaneOffered` and `PaneContent` carry no provider field, and the absence is the enforcement.**
@@ -501,12 +504,25 @@ PanePressed            Workshop  ->  provider   "a maker pressed here, in that r
   product**: no host boots it. A registration hook would have proved nothing about the ABI it
   exists to exercise.
 
+**One key has a way back, and only one.** Workshop's last meaning for `Esc` is to put the selected
+pane down, and while a pane holds the keys Workshop cannot see whether it spent the key — so a pane
+that has something to do with `Esc` keeps it, in silence. A pane that had *nothing* more specific to
+do may say so: `PaneEscapeUnspent{pane}`, sent as the office that offered the pane and **under
+the correlation the Escape arrived on**, after which Workshop spends its own meaning for that
+Escape. It is honoured only while the pane is still selected, still where the keys go, and that
+Escape is still the last gesture Workshop handled — a key, some text, a press or the wheel since
+makes it stale — and there is no answer and no retry. A
+bare `Esc` is not sent at all when the office's holder accepts no `PaneKey` and the pane declared no
+row for it: nothing could have spent it, so Workshop answers at once. That is the holder's own
+accept-set read off the bus, never an inference from a pane's silence.
+
 Deliberately absent, and each one is a decision: no focus-changed notification, capture, hover,
 release or double-press (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput` to the pane
 a maker last pressed into, the wheel since QR-18 as `PaneWheel` — the notches, forwarded,
 following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
 beside its offer as `PaneActionRequested`, the resolved id in place of the key), and no reply,
-disposition or acknowledgement to any of them; no
+disposition or acknowledgement to any of them except the one above, which answers nothing and is
+about `Esc` alone; no
 multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
 resize handles; no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
@@ -570,8 +586,9 @@ maker presses a visible row
 - **A pane that owns visible room owns pointer refusal for that room**, and Workshop decides that
   by occupancy before it sends anything — WP-R0's split, unchanged: which pane owns a press is
   geometry Workshop already holds, so `consumed` never crosses the wire and nothing waits for a
-  provider. Management chrome still gets first refusal: the picker, the pane-management mode and
-  the Terminal overlay each take the press whole.
+  provider. Management chrome still gets first refusal: the picker and the pane-management mode
+  each take the press whole (the Terminal was a third until it became a pane, and a pane's
+  boundary makes a press its own by geometry).
 - **The press is read against the snapshot the maker actually saw.** Interpreting one asks the
   Weave Manager nothing — the row-to-entry map is returned by the same function that *built* the
   rows, so there is no second calculation to drift. Unload a library under an open pane and press

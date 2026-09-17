@@ -1198,6 +1198,11 @@ int main(int argc, char** argv) {
     host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
         return holder_accepts_on(bus, role, shape);
     };
+    // ...AND WHERE A TERMINAL LINE CAN GO, read off the same bus at the ask: every weave and the
+    // office it holds now. A reading handed over as a value, never the bus and never a tap.
+    host.destinations = [&bus, &host] {
+        return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
+    };
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);

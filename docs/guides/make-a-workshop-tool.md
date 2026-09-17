@@ -982,7 +982,19 @@ were elsewhere or when a picker, a naming line or the hotkey view had them.
 ### What is deliberately absent
 
 Still no focus-changed notification, capture, hover, release or double-press of any kind, and no
-reply, disposition or acknowledgement for a gesture. (A sweep crosses as `PaneDragged`; keys and
+reply, disposition or acknowledgement for a gesture — with one exception, and it is about `Esc`
+alone. Workshop's last meaning for `Esc` is to put the selected pane down, and it cannot see
+whether your pane spent the key, so a pane that has something to do with `Esc` keeps it by saying
+nothing. If yours had **nothing** more specific to do with the one it was just sent — no draft to
+cancel, no list to dismiss, no mode to leave — say so with `PaneEscapeUnspent{pane}`, as the office
+that offered the pane, and Workshop puts your pane down: the maker's keys go back to the desk and
+your pane keeps its rows, its place and its state. **Send it under the correlation of the message
+that handed you the `Esc`** — `mail.correlation()` of the `PaneKey` or `PaneActionRequested` you
+are answering — because that number is what says *which* `Esc` you mean. Workshop mints one per
+bare `Esc`; an answer that echoes nothing, or that echoes an older `Esc`'s number, moves nothing,
+and so does a second copy of one it already spent. Say it only from the `Esc` you were handed and
+only when it meant nothing to you; Workshop ignores it once the maker has typed, pressed or
+scrolled since, and there is no answer to wait for. (A sweep crosses as `PaneDragged`; keys and
 text cross as `PaneKey` and `PaneTextInput` once a maker has pressed into your pane; the wheel
 crosses as `PaneWheel` `{pane, dx, dy}` — the notches over your body, unchanged, whether or not
 you hold the keys.

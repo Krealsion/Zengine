@@ -250,6 +250,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
+    ++gestures_;
     // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
     // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a
     // dispatch arm opens cannot change what THIS keystroke meant.
@@ -333,6 +334,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // (`on(ClipboardText)`).
     const std::uint64_t copied_before = session_.clipboard.writes;
     const std::uint64_t pastes_before = session_.clipboard.paste_requests;
+    bool crossed = true; // whether a key sent to a pane crossed at all (`external_key`)
     switch (ctx) {
     case KeyContext::kArrangePane:
     case KeyContext::kArrangeDesk:
@@ -341,7 +343,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
     case KeyContext::kPicker: picker_key(k, mail); break;
     case KeyContext::kContext: context_key(k, mail); break;
-    case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
+    case KeyContext::kPane: crossed = external_key(keyboard_pane(), k, mail); break;
     case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
     case KeyContext::kDraft: editing_key(k, mail); break;
     default: command(k, mail); break;
@@ -372,8 +374,12 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // gesture must not be authorable into a lockout. A maker who binds Escape to an
     // action in one of these contexts has said what Escape means there; their binding
     // answered above and this line does not.
+    // ...AND A PANE THAT HOLDS THE KEYS ANSWERS FOR ITS OWN ESCAPE, in one of two ways that are
+    // both declarations rather than silence: its holder has no door for a key, so nothing
+    // crossed and this line answers now; or the pane says it had nothing to do with the Escape
+    // it was sent (`PaneEscapeUnspent`), and that answers when it arrives.
     if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone &&
-        escape_may_shed_selection(ctx) &&
+        (escape_may_shed_selection(ctx) || (ctx == KeyContext::kPane && !crossed)) &&
         session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) ==
             Act::kNone &&
         session_.panels.selected != kNoPaneKind) {

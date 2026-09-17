@@ -11,6 +11,7 @@
 #include <zen/terminal/input_lex.hpp>
 #include <zen/terminal/session.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -132,6 +133,8 @@ enum class CandidateKind : std::uint8_t {
     Shape,
     Version,
     Field,
+    Office, ///< `@office`, an office held on the bus now
+    Weave,  ///< `#12`, a weave registered on the bus now
 };
 
 /// ONE THING THE MAKER MAY SAY NEXT.
@@ -144,6 +147,19 @@ struct Candidate {
     std::string shape;         ///< Shape/Version/Field: the schema this is about
     std::uint32_t version = 0; ///< Shape/Version: its version
     bool door = false;         ///< Shape: this participant also ACCEPTS it
+};
+
+/// ONE PLACE A LINE CAN BE ADDRESSED TO RIGHT NOW -- the bus's own facts about one registered
+/// weave, read by the host at the moment a completion is asked for (`bus_destinations`) and kept
+/// by nobody. Knowing a destination is not permission to send to it, and it may be gone by the
+/// time a line is sent.
+// WL-TERM-16 -- agents/workshop/terminal.md
+struct Destination {
+    std::uint64_t id = 0;              ///< the weave's id, what `#12` names
+    std::string office;                ///< the office it holds now, or empty
+    std::vector<std::string> accepts;  ///< the names of the shapes it accepts, in its own order
+    bool alive = true;                 ///< false while the bus holds it dead
+    bool self = false;                 ///< the terminal participant this line runs as
 };
 
 /// EVERYTHING THE PANE KNOWS ABOUT THE LINE BEING TYPED.
@@ -202,6 +218,31 @@ inline std::string missing_summary(const std::vector<loom::FieldDesc>& open) {
     return out;
 }
 
+/// WHAT A WEAVE IS, in the words a maker chooses by: its office, the first shapes it accepts, and
+/// whether it is this terminal or dead now.
+inline std::string destination_detail(const Destination& d) {
+    std::string out = d.office.empty() ? std::string("no office") : "@" + d.office;
+    if (d.accepts.empty()) {
+        out += "; declares no door";
+    } else {
+        out += "; accepts ";
+        const std::size_t shown = d.accepts.size() < 3 ? d.accepts.size() : 3;
+        for (std::size_t i = 0; i < shown; ++i) {
+            out += (i == 0 ? "" : ", ") + d.accepts[i];
+        }
+        if (d.accepts.size() > shown) {
+            out += " +" + std::to_string(d.accepts.size() - shown);
+        }
+    }
+    if (d.self) {
+        out += " (this terminal)";
+    }
+    if (!d.alive) {
+        out += " (dead now)";
+    }
+    return out;
+}
+
 /// The field names already assigned BY NAME earlier on this line.
 // WL-TERM-04 -- agents/workshop/terminal.md
 inline bool named_already(const CommandLine& cl, std::string_view field) {
@@ -220,9 +261,12 @@ inline bool named_already(const CommandLine& cl, std::string_view field) {
 
 // ---- The completer ---------------------------------------------------------------------
 
-/// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far.
+/// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far -- and, for the address,
+/// where a line can go right now when the host read the bus for it (`reachable`; null is a host
+/// that lists nothing, which is offered the address FORMS instead).
 // WL-TERM-04 -- agents/workshop/terminal.md
-inline Completion complete_line(const loom::TerminalSession& me, const std::string& line) {
+inline Completion complete_line(const loom::TerminalSession& me, const std::string& line,
+                                const std::vector<Destination>* reachable = nullptr) {
     const CommandLine cl = read_command_line(line);
     Completion out;
     out.slot = cl.slot;
@@ -258,6 +302,69 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         break;
     }
     case LineSlot::Address: {
+        // ⭐ WHERE A LINE CAN GO NOW, READ OFF THE BUS BY ITS HOST. Everyone, then every office held
+        // now, then every weave registered now -- each with what it is, so a maker chooses by
+        // identity rather than by guessing an id. It is a reading and not a registry: nothing
+        // keeps it, the next ask reads again, and none of it is permission or a promise.
+        if (reachable != nullptr) {
+            const std::string& typed = cl.partial;
+            if (detail::starts_with("*", typed)) {
+                Candidate c;
+                c.kind = CandidateKind::AddressForm;
+                c.insert = "* ";
+                c.display = "*";
+                c.detail = "everyone that accepts the shape";
+                out.candidates.push_back(std::move(c));
+            }
+            std::vector<const Destination*> by_office;
+            std::vector<const Destination*> by_id;
+            for (const Destination& d : *reachable) {
+                by_id.push_back(&d);
+                if (!d.office.empty()) {
+                    by_office.push_back(&d);
+                }
+            }
+            std::sort(by_office.begin(), by_office.end(),
+                      [](const Destination* a, const Destination* b) { return a->office < b->office; });
+            std::sort(by_id.begin(), by_id.end(),
+                      [](const Destination* a, const Destination* b) { return a->id < b->id; });
+            for (const Destination* d : by_office) {
+                const std::string spelling = "@" + d->office;
+                if (!detail::starts_with(spelling, typed)) {
+                    continue;
+                }
+                Candidate c;
+                c.kind = CandidateKind::Office;
+                c.insert = spelling + " ";
+                c.display = spelling;
+                c.detail = "held by #" + std::to_string(d->id) +
+                           " now; reaches whoever holds it when sent";
+                out.candidates.push_back(std::move(c));
+            }
+            for (const Destination* d : by_id) {
+                const std::string spelling = "#" + std::to_string(d->id);
+                if (!detail::starts_with(spelling, typed)) {
+                    continue;
+                }
+                Candidate c;
+                c.kind = CandidateKind::Weave;
+                c.insert = spelling + " ";
+                c.display = spelling;
+                c.detail = detail::destination_detail(*d);
+                out.candidates.push_back(std::move(c));
+            }
+            loom::Address parsed;
+            if (!out.candidates.empty()) {
+                out.heading = "where it goes -- on this bus now; not permission, nor a promise at send";
+            } else if (!typed.empty() && (typed[0] == '#' || typed[0] == '@')) {
+                out.heading = loom::parse_address(typed, parsed)
+                                  ? "'" + typed + "' is an address; nothing on this bus answers to it now"
+                                  : "keep typing -- '" + typed + "' is not an address yet";
+            } else {
+                out.heading = "an address is #12, @office or * -- '" + typed + "' is none";
+            }
+            break;
+        }
         // A SIGIL ALREADY CHOSEN IS A QUESTION THIS PARTICIPANT CANNOT ANSWER, and
         // saying nothing is the honest response -- not "no match", which would
         // claim `#1` is wrong when it is a perfectly good address. What the

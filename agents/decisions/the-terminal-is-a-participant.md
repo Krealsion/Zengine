@@ -32,14 +32,15 @@ nothing. A press in the pane is the pane's.
   the participant it came from"`.
 - *Skipping empty transcript rows* — measured wrong in the first live rasterization; every row
   is written and the case rasterizes through the terminal medium's own pure function (`982f9b9`).
-- *Offering address values, or verbs the submitter does not run* — refused: `#` and `@` are
-  offered as forms with the reason beside them, because knowing a shape is not authority to send
-  one; pinned by case `"an address offers the three forms and never pretends to know the
-  values"`.
+- *Offering address values, or verbs the submitter does not run* — refused then; verbs stay
+  refused, and address values are now read off the bus by the host at each ask
+  ([destinations are read off the bus](destinations-are-read-off-the-bus.md)). A host that lists
+  nothing still offers the forms; pinned by case `"an address offers the three forms and never
+  pretends to know the values"`.
 - *Shift+Space as the toggle* — retired: a POSIX terminal reports no modifier for Space at all
   (`7b64b73`).
-- *Fitting lines rather than entries* — rejected; pinned by case `"a pane fits ENTRIES, not
-  lines, and says what it could not show"`.
+- *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
+  record through a view of wrapped rows ([the record is read through a view](the-record-is-read-through-a-view.md)).
 - *Clearing the presentation context on a fresh skin's hello* — measured, not blessed; pinned by
   case `"a fresh skin's hello does NOT clear the presentation context -- measured, not
   blessed"`.

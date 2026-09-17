@@ -552,3 +552,27 @@ TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was g
 // real Kernel, a real Manager and a staged image. Doing it again for this pane needs that
 // rig, not this one, and this migration bought no new claim about reloading; the shape is
 // true by construction and is not pinned for THIS pane.
+
+TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and nothing is sent") {
+    // ⭐ NOT SILENCE, A DECLARATION. Workshop reads the office holder's accept-set -- the same
+    // answer it reads to choose a press's version -- and a holder with no `PaneKey` door could not
+    // have spent this Escape whatever it wanted. Attention is such a pane: it declares three rows,
+    // none of them Escape's, and accepts no key.
+    AttentionRig a;
+    a.open();
+    REQUIRE(a.r.session().panels.selected == a.kind);
+    REQUIRE(a.r.session().panels.keyboard == a.kind);
+    const std::size_t panes = a.r.session().panels.open.size();
+    const Setup desk = a.r.session().setup.active;
+    const std::vector<std::string> shown = a.shown();
+
+    a.r.key(input::scan::kEscape);
+    CHECK(a.r.session().panels.selected == kNoPaneKind);
+    CHECK(a.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(a.r.last_notice().find("unselected") != std::string::npos);
+    // THE PANE IS UNTOUCHED: open, in the same desk, showing the same rows.
+    CHECK(a.r.session().panels.open.size() == panes);
+    CHECK(a.r.session().setup.active == desk);
+    CHECK(a.r.session().panels.has(a.kind));
+    CHECK(a.shown() == shown);
+}

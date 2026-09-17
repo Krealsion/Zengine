@@ -3147,3 +3147,149 @@ TEST_CASE("QR-18/SC-5: the Composer's windowed catalog is reached by the wheel")
     r.r.wheel_cell(-0.5, cx, cy);
     CHECK(r.rows() != before);
 }
+
+
+// ============================================================================
+// ESCAPE ACROSS THE SEAM (the pane's own word, and a holder with no door for a key)
+// ============================================================================
+
+TEST_CASE("a pane that takes keys keeps Escape until it says the Escape was unspent") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+
+    // IT ACCEPTS KEYS, SO THE ESCAPE CROSSES and nothing on the desk moves: Workshop cannot see
+    // whether it was spent, and does not guess.
+    r.key(input::scan::kEscape);
+    REQUIRE(seat->keys.size() == 1);
+    CHECK(seat->keys[0].scancode == input::scan::kEscape);
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panels.keyboard == kind);
+
+    // ...AND WHEN IT SAYS THE ESCAPE WAS UNSPENT, the pane goes down -- the press-elsewhere
+    // gesture's own two lines, and nothing else.
+    const std::size_t panes = r.session().panels.open.size();
+    const Setup desk = r.session().setup.active;
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panels.keyboard == kNoPaneKind);
+    CHECK(r.last_notice().find("unselected") != std::string::npos);
+    CHECK(r.session().panels.open.size() == panes);
+    CHECK(r.session().setup.active == desk);
+    CHECK(r.session().panels.has(kind));
+}
+
+TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's identity") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+
+    // TWO ESCAPES WITH A KEY BETWEEN THEM, each crossing as a key this pane takes, and each
+    // under a number of its own -- which is the only thing that tells them apart from here.
+    r.key(input::scan::kEscape);
+    const std::uint64_t first = seat->latest_escape_ask();
+    REQUIRE(first != 0);
+    r.key(input::scan::kA);
+    r.key(input::scan::kEscape);
+    const std::uint64_t second = seat->latest_escape_ask();
+    REQUIRE(second != 0);
+    REQUIRE(second != first);
+
+    // THE FIRST ESCAPE'S ANSWER, ARRIVING NOW. Every piece of current state matches: this pane
+    // is selected, it is where the keys go, and an Escape IS the maker's latest gesture. It is
+    // still about an Escape that is over, and a desk that read only its own state would put the
+    // pane down on it.
+    r.drive(seat,
+            [first](ProviderSeat& s, loom::Mail& m) { s.unspent_answering(m, kHelloPane, first); });
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panels.keyboard == kind);
+
+    // AN ANSWER THAT ECHOES NOTHING is about no Escape at all, however current the desk is.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent_anonymously(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kind);
+
+    // ...AND THE SECOND ESCAPE'S OWN ANSWER STILL WORKS, so neither refusal above is a pane
+    // that could no longer be put down at all.
+    r.drive(seat, [second](ProviderSeat& s, loom::Mail& m) {
+        s.unspent_answering(m, kHelloPane, second);
+    });
+    CHECK(r.session().panels.selected == kNoPaneKind);
+    CHECK(r.session().panels.keyboard == kNoPaneKind);
+
+    // A SECOND COPY OF THAT SAME ANSWER IS ALREADY SPENT: the number went with the Escape it
+    // answered, so a duplicate -- a retry, a doubled send, a replay -- moves nothing.
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+    r.drive(seat, [second](ProviderSeat& s, loom::Mail& m) {
+        s.unspent_answering(m, kHelloPane, second);
+    });
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panels.keyboard == kind);
+}
+
+TEST_CASE("only an Escape is sent under a number, and a pane may answer the one it holds") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+
+    // AN ORDINARY KEY CARRIES NOTHING. The number names one conversation -- "was this Escape
+    // yours?" -- and no other keystroke asks a pane anything.
+    r.key(input::scan::kA);
+    REQUIRE(seat->keys.size() == 1);
+    REQUIRE(seat->key_asks.size() == 1);
+    CHECK(seat->key_asks[0] == 0);
+
+    // AN ESCAPE CARRIES ONE, and the pane answers the Escape it is holding rather than a
+    // number of its own choosing.
+    r.key(input::scan::kEscape);
+    REQUIRE(seat->key_asks.size() == 2);
+    CHECK(seat->key_asks[1] != 0);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kNoPaneKind);
+}
+
+TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or about another pane") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    press_body(r, kind);
+    REQUIRE(r.session().panels.selected == kind);
+
+    // NO ESCAPE WAS ROUTED AT ALL: a pane cannot put itself down whenever it likes.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kind);
+
+    // AN ESCAPE OVERTAKEN BY THE MAKER'S NEXT GESTURE: they typed after it, so the word is about
+    // something that is no longer the last thing they did.
+    r.key(input::scan::kEscape);
+    r.text("x");
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().panels.keyboard == kind);
+
+    // ANONYMOUS SPEECH IS NO OFFICE'S WORD, and a pane this office never offered is no pane.
+    r.key(input::scan::kEscape);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent_personally(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kind);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, "no-such-pane"); });
+    CHECK(r.session().panels.selected == kind);
+
+    // ...AND THE ONE THAT IS ALL THREE THINGS AT ONCE STILL WORKS, so the checks above are not a
+    // pane that could never be put down.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
+    CHECK(r.session().panels.selected == kNoPaneKind);
+}

@@ -55,7 +55,7 @@ LAW — This host derives `TranscriptShown` on the repaint, compares it against 
 
 MEANS
 - the picture is the WHOLE record (its owner bounds it); `dropped` is what that owner evicted;
-- what a pane shows whole, and what each entry costs, are the PANE's: `earlier` is not sent;
+- which rows a pane shows, and what is above and below them, are the PANE's (WL-TERM-14);
 - silence when nothing changed terminates the seam: rows answer it, and a repaint follows.
 
 PROVEN BY — `workshop/screen_terminal.cpp` `transcript_shown`, `same_transcript`, `entry_kind`,
@@ -71,7 +71,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 LAW — The completer reads which slot the maker is standing in — verb, address, shape, version, arguments — and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
 
 MEANS
-- an address offers three forms and never pretends to know the values;
+- an address offers `*` and what the host read off the bus (WL-TERM-16), or the forms without;
 - shapes are the catalog in the host's order; arguments offer field names, never values;
 - a quoted token is left alone: the quote is not on the line the completer sees.
 
@@ -127,7 +127,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 LAW — A transcript entry takes as many of the pane's rows as its sentence needs; the core records it whole, so a length is a question about the pane and never about the grammar.
 
-PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `entries_that_fit`,
+PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `wrap_record`,
 `legend_text`, `omission_text`; `workshop/pane_text.hpp` `wrap`;
 `workshop/weave_terminal.cpp` `submit_terminal_line`; `tests/test_workshop_panes_terminal.cpp`
 case `"TERM-W4: a maker presses in, types a line, and the participant runs it"`.
@@ -177,19 +177,44 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-11 — A completion answer applies to the line and caret it was asked about
 
-LAW — An ask records the line and the caret it is about; an answer that comes back to a different line or caret is neither shown nor accepted, and the question is put again for the line that is there.
+LAW — An ask records the intent, line and caret it is about; an answer that comes back to another is neither shown nor accepted, and is asked again only when the intent standing then wants a list.
 
 MEANS
 - correlation says which question an answer is to, never that the question still stands;
-- Escape, a submit, a caret leaving the end and a further keystroke each end one;
+- an edit, a caret move, a dismissal, a clear, a submit, a recall and its lock each end one;
 - the selection still survives a recomputation of the same question (WL-TERM-05).
 
 DOES NOT MEAN — that a maker never sees the gap. The ask and its answer are one turn of the
 host's drain; what a medium draws inside that turn is a different question, and unmeasured.
 
-PROVEN BY — `terminal-pane/pane.cpp` `here`, `offer_applies`, `ask_completion`,
+PROVEN BY — `terminal-pane/pane.cpp` `here`, `moved`, `offer_applies`, `ask_completion`,
 `on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;
 `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a line that
 is gone is neither shown nor taken"`, case `"TERM-W20b: an answer for a caret that has since
 moved does not reopen the list"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
+
+## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
+
+LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, office now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+
+MEANS
+- offices are listed by name and weaves by id, each with what it is; the participant is marked;
+- a weave loaded, removed or replaced shows on the next ask: nothing kept the last reading;
+- it observes no traffic and holds nothing between asks: a reading, not a tap or a registry.
+
+DOES NOT MEAN
+- permission to send: a grant is per shape, and a listed weave may refuse or be refused;
+- that it is there at send: a removed id is Loom's refusal, an office reaches its holder then.
+
+PROVEN BY — `workshop/complete.hpp` `Destination`, `destination_detail`, `complete_line`,
+`CandidateKind`; `workshop/weave_terminal.cpp` `bus_destinations`,
+`on(TerminalCompletionRequested)`; `workshop/weave.hpp` `HostContext::destinations`;
+`tests/test_workshop_panels.cpp` case `"with the bus read the address offers everyone then each
+office held now then each weave registered now with what it is"`;
+`tests/test_workshop_panes_terminal.cpp` case `"the address lists the offices and weaves on the
+bus now with what each is and every ask reads the bus again"`, case `"an id chosen from the list
+and gone before the line is sent leaves the participant's refusal and reaches no other weave"`,
+case `"an office chosen from the list reaches whoever holds it at delivery and a vacated office is
+refused not retargeted"`.
+WHY — `agents/decisions/destinations-are-read-off-the-bus.md`

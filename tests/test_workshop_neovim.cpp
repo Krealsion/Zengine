@@ -267,6 +267,33 @@ TEST_CASE("a Neovim choice whose program is not there refuses the switch in word
     CHECK(s.read("text") == "xkeep\n");
 }
 
+TEST_CASE("a profile that is neither clean nor user and names no init file refuses the switch before starting Neovim") {
+    // MEASURED ON A REAL NEOVIM (0.11.6): `-u User` prints `E282: Cannot read from "User"` into a
+    // prompt and Neovim carries on with NO configuration -- a third configuration nobody chose,
+    // behind a refusal that blames the maker's own init file. So the profile is judged here, and
+    // the refusal names the variable, the value and where the file was looked for.
+    SwitchRig s("nvim-profile-typo");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
+    set_env("ZENGINE_NEOVIM_PROFILE", "User");
+    s.open(standard_and_neovim());
+    (void)s.open_file("p.txt", "one\n");
+
+    const EditorSwitchAnswered answered = switch_live(s, "neovim");
+    CHECK(answered.outcome != switch_outcome::kSwitched);
+    INFO(answered.detail);
+    CHECK(answered.detail.find("ZENGINE_NEOVIM_PROFILE is `User`") != std::string::npos);
+    CHECK(answered.detail.find("neither `clean` nor `user`") != std::string::npos);
+    // A RELATIVE NAME IS RESOLVED WHERE THE MAKER SET IT -- the directory this process was started
+    // in, never Neovim's own working directory (the project's), which would make one variable mean
+    // two files in two launches.
+    const std::string here =
+        (std::filesystem::current_path() / "User").generic_string();
+    CHECK(answered.detail.find(here) != std::string::npos);
+    // ...AND THE STANDARD EDITOR KEPT THE OFFICE AND THE DOCUMENT.
+    CHECK(s.r.plan_->choice_holder(pane::kEditorPaneRole) == pane::kEditorPaneStem);
+    CHECK(s.read("text") == "one\n");
+}
+
 TEST_CASE("a Neovim older than 0.11 refuses the switch naming its version") {
     SwitchRig s("nvim-old");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "old");
@@ -413,6 +440,70 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     CHECK(s.read("caret_byte") == "11");
     CHECK_FALSE(s.r.kernel.is_loaded(nve::kNeovimEditorStem));
     CHECK(file_text(s.root / "carry.txt") == "alpha beta\n\tgamma\n"); // nothing was saved on the way
+}
+
+TEST_CASE("the profile a maker names is the configuration that runs and the pane says which one it is") {
+    // WHICH CONFIGURATION IS ACTIVE is the question a maker asks when their plugins are missing.
+    // An init file named by an absolute path is read (its own option comes back through Neovim),
+    // the pane's status row says `init file`, and the clean default says `clean`.
+    SwitchRig s("nvim-profile-file");
+    const std::filesystem::path init = s.root / "own-init.lua";
+    put_bytes(init, "vim.o.shiftwidth = 7\n");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    set_env("ZENGINE_NEOVIM_PROFILE", init.string());
+    s.open(standard_and_neovim());
+    (void)s.open_file("p.txt", "one\n");
+
+    const EditorSwitchAnswered answered = switch_live(s, "neovim");
+    REQUIRE_MESSAGE(answered.outcome == switch_outcome::kSwitched, answered.detail);
+    REQUIRE(beat_until(s, [&] { return s.shows("one"); }));
+    CHECK(s.read("profile") == init.generic_string());
+    CHECK(answered.detail.find("init file " + init.generic_string()) != std::string::npos);
+    // THE PANE SAYS WHICH CONFIGURATION IS RUNNING, once the switch's own notice is spent (the
+    // status row is where that sentence lives, and a standing notice has the row first).
+    focus(s);
+    s.r.key(input::scan::kEscape);
+    REQUIRE(beat_until(s, [&] { return s.shows("NORMAL"); }));
+    CHECK(s.shows("init file"));
+
+    // ...AND THE FILE WAS READ, asked of Neovim itself rather than inferred from the launch line.
+    s.type(":lua vim.api.nvim_put({tostring(vim.o.shiftwidth)}, 'c', true, true)");
+    s.r.key(input::scan::kReturn);
+    CHECK(beat_until(s, [&] { return s.shows("7"); }));
+}
+
+TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") {
+    // THE ONE ESCAPE WORKSHOP NEVER TAKES. A pane that keeps Escape says nothing to Workshop about
+    // it, so the selection and the keys stay where the maker put them -- and Escape is Neovim's in
+    // the only way that can be measured: the mode it leaves, and a Normal-mode command that then
+    // works. Workshop learns nothing about modes to make this true.
+    SwitchRig s("nvim-escape");
+    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.open(standard_and_neovim());
+    const SourceOpened opened = open_through_office(s, "esc.txt", "alpha\nbeta\n");
+    REQUIRE_MESSAGE(opened.accepted, opened.refusal);
+    const EditorSwitchAnswered answered = switch_live(s, "neovim");
+    REQUIRE_MESSAGE(answered.outcome == switch_outcome::kSwitched, answered.detail);
+    REQUIRE(beat_until(s, [&] { return s.shows("alpha"); }));
+
+    focus(s);
+    REQUIRE(s.r.session().panels.selected == s.kind);
+    s.type("ixyz");
+    REQUIRE(beat_until(s, [&] { return s.shows("xyzalpha"); }));
+    REQUIRE(beat_until(s, [&] { return s.shows("INSERT"); }));
+
+    s.r.key(input::scan::kEscape);
+    // NEOVIM TOOK IT: the mode it reports is Normal again, and the pane is still the maker's.
+    CHECK(beat_until(s, [&] { return s.shows("NORMAL"); }));
+    CHECK(s.r.session().panels.selected == s.kind);
+    CHECK(s.r.session().panels.keyboard == s.kind);
+
+    // ...AND A NORMAL-MODE COMMAND PROVES IT RATHER THAN THE STATUS ROW ALONE: `dd` deletes the
+    // line, which insert mode would have typed instead.
+    s.type("dd");
+    CHECK(beat_until(s, [&] { return !s.shows("xyzalpha"); }));
+    CHECK(s.shows("beta"));
+    CHECK(s.r.session().panels.selected == s.kind);
 }
 
 TEST_CASE("a selection crosses to Neovim as Visual and comes back as the same range, in its direction") {

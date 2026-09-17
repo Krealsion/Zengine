@@ -64,11 +64,19 @@ inline constexpr const char* kTerminalPaneStem = "zengine-terminal-pane";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
 
-inline constexpr const char* kActionSubmit = "terminal.submit";     ///< author the line
-inline constexpr const char* kActionBack = "terminal.back";         ///< dismiss list / clear
-inline constexpr const char* kActionUp = "terminal.previous";       ///< completion up
-inline constexpr const char* kActionDown = "terminal.next";         ///< ...and down
-inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help me here"
+inline constexpr const char* kActionSubmit = "terminal.submit";     ///< author the line, or lock a recall
+inline constexpr const char* kActionBack = "terminal.back";         ///< back: recall, list, line, desk
+inline constexpr const char* kActionUp = "terminal.previous";       ///< older command, or list up
+inline constexpr const char* kActionDown = "terminal.next";         ///< newer command, or list down
+inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help me here", or lock a recall
+
+/// THE RECORD'S FOUR READING KEYS -- a page of the view each way, the oldest kept row and the newest.
+/// On Ctrl with the arrows, Home and End, which every backend reports (the vocabulary has no page
+/// keys) and which leave plain Up and Down to history and completion. The line keeps Home and End.
+inline constexpr const char* kActionScrollUp = "terminal.scroll-up";
+inline constexpr const char* kActionScrollDown = "terminal.scroll-down";
+inline constexpr const char* kActionOldest = "terminal.oldest";
+inline constexpr const char* kActionNewest = "terminal.newest";
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///
