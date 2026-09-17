@@ -593,6 +593,8 @@ TEST_CASE("an unfinished command in Neovim is reset by a switch and said, and a 
         said = said || reset.find("an unfinished command in Neovim") != std::string::npos;
     }
     CHECK_MESSAGE(said, "the cancelled count was not reported");
+    CHECK_MESSAGE(away.detail.find(" -- reset: ") != std::string::npos, away.detail);
+    CHECK_MESSAGE(away.detail.find("an unfinished command in Neovim") != std::string::npos, away.detail);
     CHECK(s.read("text") == "keep\n");
 
     // A PROMPT is the maker's to answer: refused, in words, and the switch takes once it is answered.

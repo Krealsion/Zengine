@@ -196,6 +196,8 @@ TEST_CASE("a keystroke that reaches the incumbent after its boundary is refused,
         reported = reported || note.find("1 input was refused while `standard` held still") != std::string::npos;
     }
     CHECK_MESSAGE(reported, "the refused keystroke was not reported");
+    // ...AND IN THE ANSWER'S WORDS, which are what a Terminal's maker reads.
+    CHECK_MESSAGE(done.detail.find("1 input was refused while `standard` held still") != std::string::npos, done.detail);
 }
 
 TEST_CASE("a keystroke queued behind the commitment reaches the successor, ahead of nothing it could miss") {
