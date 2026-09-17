@@ -28,8 +28,10 @@ ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
 
 Workshop starts Neovim in the Editor pane's room, hands it the document -- the file, your unsaved
 edits, the caret, the selection, the scroll position -- and the Editor pane becomes Neovim, in the
-same place on your desk. The Terminal shows the answer: `switched`, with anything that did not
-cross exactly listed under `resets` and `notes` (the standard Editor's undo history, for one).
+same place on your desk. What came of it is said on Workshop's notice line, in the answer's own
+words -- ``editor switch 1: switched -- switched zengine.editor from `standard` to `neovim` `` --
+and the Terminal's record shows that the answer arrived, with the switch office's weave number:
+`v EditorSwitchAnswered v1 from #14  [Loom: answers ask 1]`.
 
 Switch back the same way:
 
@@ -37,8 +39,9 @@ Switch back the same way:
 ask @zengine.editor-switch EditorSwitchRequested 1 destination=standard
 ```
 
-Asking for the editor you already have is harmless: the answer is `already-active` and nothing is
-loaded. To see where you are:
+Asking for the editor you already have is harmless: the notice says `already-active` and nothing
+is loaded. To see where you are -- which editor holds the office, which are authored, and whether
+a switch is under way, said on the notice line:
 
 ```text
 ask @zengine.editor-switch EditorSwitchStatusRequested 1
@@ -47,8 +50,9 @@ ask @zengine.editor-switch EditorSwitchStatusRequested 1
 ### When a switch asks first
 
 A switch away from Neovim can lose something the standard Editor cannot hold -- **another buffer
-with unsaved changes**, or a **terminal job** running in Neovim. Then nothing is loaded yet, and the
-answer is `needs-confirmation`, naming each loss, with an `op` and a `consent`:
+with unsaved changes**, or a **terminal job** running in Neovim. Then nothing is loaded yet, the
+answer is `needs-confirmation`, and the Attention pane keeps the question standing with the exact
+line that confirms it -- its `op` and its `consent` filled in:
 
 ```text
 ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c

@@ -421,7 +421,17 @@ public:
         pump(mail);
     }
 
-    void on(const timer::TimerResolution&, loom::Mail&) {}
+    /// WHAT THE TIMER DID ABOUT THE BEAT. A refusal is said on the pane: without the beat, Neovim's
+    /// screen reaches the pane only when a key does.
+    void on(const timer::TimerResolution& r, loom::Mail& mail) {
+        if (r.id != kBeatId || r.resolved != timer::kResolutionRefused) {
+            return;
+        }
+        notice("the Timer refused this editor's beat (" + r.reason +
+                   ") -- Neovim's screen is redrawn here only when a key reaches it",
+               true);
+        say(mail);
+    }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
@@ -1553,8 +1563,14 @@ private:
 
     // ---- The beat, the pump and what it observed --------------------------------------------
 
+    /// THE BEAT, ORDERED IN THE TIMER'S OWN WORDS: the binding layer's default continuity -- keep
+    /// the remaining time of a standing schedule, accept a restart -- spelled by the Timer
+    /// vocabulary, because the Timer refuses an order whose continuity it cannot read.
     void ensure_beat(loom::Mail& mail) {
-        (void)mail.send_to_role(timer::kTimerRole, timer::EnsureTimer{kBeatId, kBeatMs, true, std::string(), std::string()});
+        const timer::ContinuityOrder order;
+        (void)mail.send_to_role(timer::kTimerRole,
+                                timer::EnsureTimer{kBeatId, kBeatMs, true, timer::spelling_of(order.preferred),
+                                                   timer::fallback_spelling(order)});
     }
 
     void pump(loom::Mail& mail) {

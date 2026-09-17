@@ -431,6 +431,36 @@ TEST_CASE("typing reaches the buffer, and the owner hears the document change") 
     CHECK(read_bytes(path) == "abc<x>\n");
 }
 
+TEST_CASE("preparing a file hidden leaves the heard document the one Neovim shows") {
+    // LOADING A BUFFER NO WINDOW SHOWS RUNS ITS AUTOCOMMANDS IN NEOVIM'S AUTOCOMMAND WINDOW, where
+    // the prepared buffer is current (measured: BufEnter fires there). What the owner hears must
+    // still be the buffer the maker is editing -- or an open in flight moves the document's claim
+    // and aborts itself.
+    Sandbox box("prepare-hidden");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string current = box.path("current.txt");
+    const std::string hidden = box.path("hidden.txt");
+    write_bytes(current, "one\n");
+    write_bytes(hidden, "two\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, current, "one\nmore\n", true, why).has_value(), why);
+    REQUIRE(until(host, [&host] { return host.doc().modified && host.doc().name.find("current.txt") != std::string::npos; }));
+    const std::int64_t tick = host.doc().tick;
+    nv::Observed seen = host.pump();
+    std::optional<mp::Value> prepared =
+        lua(host, nv::lua::kPrepare, nv::rpc::params(mp::Value::str(hidden), mp::Value::integer(5)), why);
+    REQUIRE_MESSAGE(prepared.has_value(), why);
+    REQUIRE(prepared->get("refused") == nullptr);
+    CHECK(prepared->get("name")->as_str().find("hidden.txt") != std::string::npos);
+    std::string mode_why;
+    REQUIRE(host.call_now("nvim_get_mode", nv::rpc::params(), 2000, mode_why).has_value());
+    seen.merge(host.pump());
+    CHECK(host.doc().name.find("current.txt") != std::string::npos);
+    CHECK(host.doc().modified);
+    CHECK(host.doc().tick == tick);
+}
+
 TEST_CASE("a copy to + is heard, and a paste Neovim asks for is answered late and lands") {
     Sandbox box("clipboard");
     nv::Host host;

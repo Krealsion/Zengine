@@ -224,6 +224,11 @@ public:
             superseded = "switch " + std::to_string(op_.id) + " to `" + op_.destination +
                          "` was awaiting confirmation and was replaced by this one";
             replaced = op_.id;
+            // ITS STANDING QUESTION IS OVER: retracted, and said, before the new switch begins.
+            EditorSwitchAnswered over = base_answer(op_.id, switch_outcome::kSuperseded, op_.destination);
+            over.detail = "switch " + std::to_string(op_.id) + " to `" + op_.destination +
+                          "` was replaced by a newer request before it was confirmed";
+            publish_said(mail, over);
             op_ = Op{};
         } else if (op_.stage != Stage::Idle) {
             answer_now(mail, refused_answer(0, destination->name,
@@ -291,15 +296,21 @@ public:
 
     void on(const EditorSwitchStatusRequested&, loom::Mail& mail) {
         EditorSwitchAnswered said = base_answer(op_.id, switch_outcome::kStatus, op_.destination);
+        std::string authored;
+        for (const std::string& name : said.choices) {
+            authored += (authored.empty() ? "" : ", ") + name;
+        }
+        const std::string holds = (said.active.empty() ? std::string("no authored choice") : "`" + said.active + "`") +
+                                  " holds " + host_.office + " (choices: " + authored + "); ";
         if (op_.stage != Stage::Idle) {
-            said.detail = "switch " + std::to_string(op_.id) + " to `" + op_.destination + "` is " +
+            said.detail = holds + "switch " + std::to_string(op_.id) + " to `" + op_.destination + "` is " +
                           stage_word(op_.stage);
             said.consent = op_.stage == Stage::AwaitingConsent ? op_.consent : std::string();
             said.losses = op_.stage == Stage::AwaitingConsent ? op_.losses : std::vector<std::string>{};
         } else {
-            said.detail = retained_.empty() ? "no switch is under way"
-                                            : "no switch is under way; the retired `" + retained_ +
-                                                  "` is kept after a failure";
+            said.detail = holds + (retained_.empty() ? "no switch is under way"
+                                                     : "no switch is under way; the retired `" + retained_ +
+                                                           "` is kept after a failure");
         }
         answer_now(mail, said);
     }
@@ -730,12 +741,10 @@ private:
         finish(mail);
     }
 
+    /// THE OPERATION IS OVER: nothing stands, and what it came to was already said with its answer.
     void finish(loom::Mail& mail) {
-        const std::int64_t id = op_.id;
-        const std::string destination = op_.destination;
+        (void)mail;
         op_ = Op{};
-        (void)mail.as_role(kEditorSwitchRole)
-            .publish(EditorSwitchProgress{id, destination, std::string(), std::string(), false});
         mirror();
     }
 
@@ -777,6 +786,7 @@ private:
         }
         (void)loom::answer_deferred(op_.asker, mail, said);
         op_.asker = loom::DeferredAnswer{};
+        publish_said(mail, said);
     }
 
     void answer_now(loom::Mail& mail, const EditorSwitchAnswered& said) {
@@ -784,14 +794,40 @@ private:
             ++state_.refused;
         }
         (void)mail.answer(said);
+        publish_said(mail, said);
         mirror();
+    }
+
+    /// WHAT AN ANSWER SAID, PUBLISHED AS THE OFFICE: a switch that is over retracts its condition
+    /// and its outcome is said where the maker reads; a question awaiting confirmation stands with
+    /// the consent it asks for; a status answer is said and retracts nothing.
+    void publish_said(loom::Mail& mail, const EditorSwitchAnswered& said) {
+        EditorSwitchProgress now;
+        now.op = said.op;
+        now.destination = said.destination;
+        now.outcome = said.outcome;
+        now.detail = said.detail;
+        if (said.outcome == switch_outcome::kNeedsConfirmation && op_.stage == Stage::AwaitingConsent &&
+            said.op == op_.id) {
+            now.stage = stage_word(op_.stage);
+            now.awaiting = "the maker's confirmation";
+            now.consent = said.consent;
+            now.pending = true;
+        }
+        (void)mail.as_role(kEditorSwitchRole).publish(now);
     }
 
     /// WHAT THE SWITCH WAITS ON, SAID AS THE OFFICE: a desk keeps it as a standing condition only
     /// when the switch's office said it.
     void progress(loom::Mail& mail, const std::string& awaiting) {
-        (void)mail.as_role(kEditorSwitchRole)
-            .publish(EditorSwitchProgress{op_.id, op_.destination, stage_word(op_.stage), awaiting, true});
+        EditorSwitchProgress now;
+        now.op = op_.id;
+        now.destination = op_.destination;
+        now.stage = stage_word(op_.stage);
+        now.awaiting = awaiting;
+        now.pending = true;
+        now.consent = op_.stage == Stage::AwaitingConsent ? op_.consent : std::string();
+        (void)mail.as_role(kEditorSwitchRole).publish(now);
         mirror();
     }
 

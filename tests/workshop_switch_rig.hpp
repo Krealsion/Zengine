@@ -106,6 +106,9 @@ struct SwitchRig {
     /// HELD HERE, because the project door keeps the path it is handed by reference.
     std::string marks_path;
 
+    /// WHAT A CASE MOUNTS BEFORE THE PLAN RUNS -- a seat an office's first activation must find.
+    std::function<void()> before_plan;
+
     explicit SwitchRig(const char* tag) : dir(tag) {
         root = dir.path();
         r.host.project_dir = root.generic_string();
@@ -127,6 +130,9 @@ struct SwitchRig {
         plan.artifacts.push_back(seat);
         plan.choices = choices;
         REQUIRE(load::check_plan(plan).accepted);
+        if (before_plan) {
+            before_plan();
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         mount_switcher();

@@ -69,9 +69,13 @@ A consent always begins with a letter, so the Terminal reads it as text.
 | `failed-after-commit` | the office moved and the successor did not prove it serves; the retired editor is kept, and the next switch releases it |
 | `status` | the answer to a status request |
 
-While a switch is under way the office publishes `EditorSwitchProgress` v1 (`op`, `destination`,
-`stage`, `awaiting`, `pending`); Workshop keeps it as a standing condition in the Attention pane,
-with the cancel line in its detail.
+Every answer is also published as `EditorSwitchProgress` v1 (`op`, `destination`, `stage`,
+`awaiting`, `pending`, `consent`, `outcome`, `detail`), because the Terminal pane shows an answer's
+shape and not its fields. While a switch is under way (`pending`), Workshop keeps it as a standing
+condition in the Attention pane with the line that cancels it -- and, awaiting confirmation, the
+line that confirms it, consent included. When an answer ends a switch, or answers without one,
+Workshop says `editor switch <op>: <outcome> -- <detail>` on its notice line; a status answer is
+said the same way and ends nothing.
 
 **One switch at a time, and no timeout.** A request while one is under way is refused in words. A
 request while one only awaits confirmation replaces it. A participant that never answers leaves the

@@ -307,6 +307,9 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
     CHECK(status.outcome == switch_outcome::kStatus);
     CHECK(status.active == "losing");
     CHECK(status.choices == std::vector<std::string>{"losing", "twin"});
+    CHECK_MESSAGE(s.r.session().notice ==
+                      "editor switch: status -- `losing` holds zengine.editor (choices: losing, twin); no switch is under way",
+                  s.r.session().notice);
 
     // THE REQUEST LINE: this incumbent loses something, so the answer asks for consent, and the
     // desk keeps the switch as a condition that says how to stop it.
@@ -321,6 +324,10 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
         CHECK(shown->compact == "switching the Editor to twin");
         CHECK(shown->detail.find("ask @zengine.editor-switch EditorSwitchCancelled 1 op=" +
                                  std::to_string(asked.op)) != std::string::npos);
+        // ...AND THE EXACT CONFIRMATION LINE, consent included: the Terminal shows an answer's shape and
+        // not its fields, so the desk is where a maker reads the consent to type.
+        CHECK(shown->detail.find("ask @zengine.editor-switch EditorSwitchConfirmed 1 op=" +
+                                 std::to_string(asked.op) + " consent=" + asked.consent) != std::string::npos);
     }
 
     // THE CONFIRMATION LINE, with the op and consent the answer carried -- a consent begins with a
@@ -332,10 +339,14 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
     CHECK_FALSE(s.holder() == first);
     CHECK(s.read("text") == "typed\n");
     CHECK(condition_by_key(attention_conditions(s.r.session()), key) == nullptr);
+    // WHAT CAME OF IT IS SAID ON THE NOTICE LINE, in the answer's own words.
+    CHECK_MESSAGE(s.r.session().notice.rfind("editor switch " + std::to_string(asked.op) + ": switched -- ", 0) == 0,
+                  s.r.session().notice);
 
-    // AND ASKING FOR WHAT IS ALREADY ACTIVE IS HARMLESS, from the Terminal too.
+    // AND ASKING FOR WHAT IS ALREADY ACTIVE IS HARMLESS, from the Terminal too -- and said so.
     const EditorSwitchAnswered again = s.typed("ask @zengine.editor-switch EditorSwitchRequested 1 destination=twin");
     CHECK(again.outcome == switch_outcome::kAlreadyActive);
+    CHECK_MESSAGE(s.r.session().notice.rfind("editor switch: already-active -- ", 0) == 0, s.r.session().notice);
 }
 
 TEST_CASE("a successor that holds the office and does not serve is a failure after the commitment, and the retired Editor is kept") {
