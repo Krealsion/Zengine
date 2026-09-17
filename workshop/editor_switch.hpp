@@ -339,8 +339,8 @@ public:
             ask.consent = op_.consent;
             ask.losses = op_.losses;
             ask.resets = op_.resets;
-            ask.detail = "switching to `" + op_.destination + "` would lose what is listed; confirm with op " +
-                         std::to_string(op_.id) + " and consent " + op_.consent + ", or cancel";
+            ask.detail = "switching to `" + op_.destination + "` would lose " + losses_said(op_.losses) +
+                         "; confirm with op " + std::to_string(op_.id) + " and consent " + op_.consent + ", or cancel";
             spend(mail, ask);
             return;
         }
@@ -371,8 +371,9 @@ public:
             EditorSwitchAnswered ask = base_answer(op_.id, switch_outcome::kNeedsConfirmation, op_.destination);
             ask.consent = op_.consent;
             ask.losses = op_.losses;
-            ask.detail = "what switching would lose changed before it could begin; confirm again with op " +
-                         std::to_string(op_.id) + " and consent " + op_.consent + ", or cancel";
+            ask.detail = "what switching would lose changed before it could begin -- now " +
+                         losses_said(op_.losses) + "; confirm again with op " + std::to_string(op_.id) +
+                         " and consent " + op_.consent + ", or cancel";
             spend(mail, ask);
             return;
         }
@@ -889,6 +890,15 @@ private:
             }
         }
         into.push_back(one);
+    }
+
+    /// THE LOSSES, IN ONE SENTENCE: an answer's words are all a Terminal's maker reads of it.
+    static std::string losses_said(const std::vector<std::string>& losses) {
+        std::string out;
+        for (const std::string& loss : losses) {
+            out += (out.empty() ? "" : "; ") + loss;
+        }
+        return out;
     }
 
     static const char* stage_word(Stage s) {
