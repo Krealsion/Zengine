@@ -16,7 +16,8 @@ no Workshop at all, with Neovim's own interface in a second terminal. The exact 
   init file to use that one.
 - **The load plan authors the choice.** Both shipped plans name two editors for the Editor's office,
   `standard` (the one that starts) and `neovim`. A plan of your own names them under `choices`
-  ([load plans](load-plans.md)).
+  ([load plans](load-plans.md#making-your-own); the format is
+  [the reference](../reference/load-plan.md#the-file-format)).
 
 ## Switch while you work
 
