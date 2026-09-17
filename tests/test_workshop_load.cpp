@@ -619,6 +619,12 @@ load::ArtifactIntent both(const char* stem, const char* role,
     return a;
 }
 
+/// THE SAME ROW, AUTHORED AS ONE THIS PROJECT STANDS WITHOUT (P-WORK-22).
+load::ArtifactIntent optional(load::ArtifactIntent row) {
+    row.optional = true;
+    return row;
+}
+
 load::LoadPlan plan_of(std::vector<load::ArtifactIntent> rows) {
     load::LoadPlan p;
     p.artifacts = std::move(rows);
@@ -6315,4 +6321,123 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
     CHECK(rig.executor.resolved().size() == 1);
+}
+
+// =============================================================================
+// ESSENTIAL STARTUP AND RECOVERABLE TOOL AVAILABILITY (P-WORK-22)
+//
+// A refused row used to end everything, which meant a tree short one PANE artifact could
+// not open a Workshop that said which one. The distinction is AUTHORED, row by row, because
+// only the plan knows which rows are the painter and which are tools.
+// =============================================================================
+
+TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped over, named, and "
+          "the rows behind it are still performed in authored order") {
+    // MUTATION (P1): dropping the optional arm in `fail` -- the walk stops and `Complete`
+    // below goes red. MUTATION (P2): advancing the cursor inside that arm as well as in the
+    // caller -- the row AFTER the refused one is skipped and `resolved()` goes short.
+    // THE REFUSING ROW IS `zengine-timer` ASKED FOR UNDER A ROLE AN EARLIER ROW ALREADY
+    // TOOK -- BOOT-0's own shape, so what is new here is only the authored flag.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+
+    // THE PROJECT IS REALIZED. The maker authored that it stands without that row, so it
+    // stands: `ok` is true and there is no refusal.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.refusal().empty());
+    CHECK(rig.executor.outcome().ok);
+
+    // ...AND THE ROW IS NAMED, WITH THE REFUSING LAYER'S OWN SENTENCE. "May be missing" never
+    // becomes "was silently missing".
+    REQUIRE(rig.executor.unavailable().size() == 1);
+    CHECK(rig.executor.unavailable()[0].find("artifact 'zengine-timer'") != std::string::npos);
+    CHECK(rig.executor.unavailable()[0].find("weave load refused") != std::string::npos);
+    CHECK(rig.executor.outcome().unavailable.size() == 1);
+
+    // ...AND THE ROW BEHIND IT WAS PERFORMED, in authored order, with nothing reordered.
+    CHECK(rig.executor.state_of("zengine-provider-a") == load::RowState::Resolved);
+    REQUIRE(rig.executor.resolved().size() == 3);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-operators-basic");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
+    CHECK(rig.executor.resolved()[2].stem == "zengine-provider-a");
+    // THE REFUSED ROW'S OWN CONTRIBUTION IS GONE, rolled back inside that delivery.
+    CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
+}
+
+TEST_CASE("a row that is NOT authored optional still stops the plan, and that is the whole "
+          "difference between this policy and skipping what fails") {
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                both("zengine-timer", tmr::kTimerRole),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.refusal().find("artifact 'zengine-timer'") != std::string::npos);
+    CHECK(rig.executor.unavailable().empty());
+    // AND THE ROW BEHIND IT WAS NOT PERFORMED: order is still the dependency model.
+    CHECK(rig.executor.state_of("zengine-provider-a") != load::RowState::Resolved);
+    CHECK(rig.executor.resolved().size() == 2);
+}
+
+TEST_CASE("the optional flag round-trips through the file, and a plan that marks no row "
+          "optional is still written in the version that says it") {
+    const load::LoadPlan marked =
+        plan_of({provides("a"), optional(weaves("b", "r.b")), weaves("c", "r.c")});
+    const std::string text = load_persist::to_text(marked);
+    // THE SMALLEST VERSION THAT SAYS THE PLAN: this one needs version 3.
+    CHECK(text.find("\"format_version\":\"3\"") != std::string::npos);
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    REQUIRE(back.plan.artifacts.size() == 3);
+    CHECK_FALSE(back.plan.artifacts[0].optional);
+    CHECK(back.plan.artifacts[1].optional);
+    CHECK_FALSE(back.plan.artifacts[2].optional);
+    // A SECOND SAVE IS BYTE-IDENTICAL: a load-save round trip edits nothing.
+    CHECK(load_persist::to_text(back.plan) == text);
+
+    // ...AND A PLAN WITH NO OPTIONAL ROW AND NO CHOICE IS STILL VERSION 1, byte for byte what
+    // it always was -- every plan a maker already has is written again unchanged.
+    const load::LoadPlan plain = plan_of({provides("a"), weaves("b", "r.b")});
+    const std::string plain_text = load_persist::to_text(plain);
+    CHECK(plain_text.find("\"format_version\":\"1\"") != std::string::npos);
+    CHECK(load_persist::from_text(plain_text).plan == plain);
+}
+
+TEST_CASE("a version-1 and a version-2 plan are read against their own retained shapes, and "
+          "neither gains an optional row it never authored") {
+    // ⭐ THE FIELD CHANGED THE ROW'S CONTENT-ID, so an old file admitted against this
+    // version's shape would be refused by a field it was never going to have -- a true
+    // sentence about a false cause (Loom GATE-04).
+    const load_persist::LoadedPlan v1 = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":1,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"1","artifacts":[)"
+        R"({"artifact":"a","provider":[{"mode":"normal"}],"weave":[]}]}})");
+    REQUIRE_MESSAGE(v1.outcome.accepted, v1.outcome.refusal);
+    REQUIRE(v1.plan.artifacts.size() == 1);
+    CHECK_FALSE(v1.plan.artifacts[0].optional);
+
+    const load_persist::LoadedPlan v2 = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":2,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"2","artifacts":[)"
+        R"({"artifact":"a","provider":[],"weave":[{"role":"r"}]}],)"
+        R"("choices":[{"role":"r","name":"n","artifact":"a"}]}})");
+    REQUIRE_MESSAGE(v2.outcome.accepted, v2.outcome.refusal);
+    REQUIRE(v2.plan.artifacts.size() == 1);
+    CHECK_FALSE(v2.plan.artifacts[0].optional);
+    CHECK(v2.plan.choices.size() == 1);
+
+    // ...AND A VERSION-3 FILE THAT MARKS NO ROW OPTIONAL IS REFUSED, so one plan has one
+    // spelling and a save never rewrites a file nobody edited.
+    const load_persist::LoadedPlan too_big = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[)"
+        R"({"artifact":"a","provider":[{"mode":"normal"}],"weave":[],"optional":false}],)"
+        R"("choices":[]}})");
+    CHECK_FALSE(too_big.outcome.accepted);
 }
