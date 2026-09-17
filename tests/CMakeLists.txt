@@ -1146,6 +1146,20 @@ zengine_workshop_suite(editor_switch SOURCES test_workshop_editor_switch.cpp
     NEEDS zengine-editor-pane zengine-editor-pane-b zengine-editor-pane-silent
           zengine-editor-pane-refusing zengine-editor-pane-not-live zengine-editor-pane-losing)
 
+# THE NEOVIM-BACKED EDITOR IN A LIVE WORKSHOP. Always: the choice with no Neovim, and with a fake
+# one that fails at start in each way a real one can (`neovim-fixture`). Behind the `neovim` gate:
+# the real Neovim named at configure time, carrying documents both ways, editing, opening,
+# quitting, the clipboard and the refusals only a real Neovim can produce.
+set(zengine_neovim_suite_defs
+    "WORKSHOP_SO_NEOVIM_EDITOR=\"$<TARGET_FILE:zengine-neovim-editor>\""
+    "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\"")
+if(ZENGINE_NEOVIM_PROGRAM)
+    list(APPEND zengine_neovim_suite_defs "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
+endif()
+zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp
+    DEFINITIONS ${zengine_neovim_suite_defs}
+    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture)
+
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
     NEEDS zengine-composer)

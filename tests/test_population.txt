@@ -1059,6 +1059,20 @@
 #                               Workshop's own door with the desk's condition standing meanwhile.
 #                               No Neovim: those images are this suite's own.
 #
+# THE NEOVIM-BACKED EDITOR added ONE ENTRY in two rows, the `sdl` rule an eighth time, and moved
+# no floor.
+#
+#   workshop_neovim (always, 6)  the Neovim editor as the Editor's office with no usable Neovim: a
+#                               program that is not there, one too old, one that stops at a prompt
+#                               and one that never answers (the fake `neovim-fixture`), the office
+#                               held with no Neovim at all, and a reload refused while one runs.
+#   workshop_neovim (neovim, 9)  a real Neovim: a document carried there and back exactly with
+#                               Neovim editing between, a selection both ways, an open through the
+#                               office with the save chord writing, the quit asking, another
+#                               modified buffer named for consent, `:qa` from inside, the clipboard
+#                               both ways, an unfinished count reset and a prompt refusing, and the
+#                               baseline journey's second terminal.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 neovim                            doctest           always  21
@@ -1601,6 +1615,8 @@ workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  143
 workshop_editor_switch            doctest           always  11
+workshop_neovim                   doctest           always  6
+workshop_neovim                   doctest           neovim  9
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

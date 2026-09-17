@@ -304,7 +304,14 @@ inline constexpr ActionRow kActionCatalog[] = {
     // a layout name, a pane draft, Files' line and the Terminal's, as it always did.
     {Act::kSaveDocument, "document.save", "save", KeyContext::kUnlessOwned,
      {scan::kS, mod::kCtrl}},
-    {Act::kOpenDocument, "document.open", "open", KeyContext::kGlobal, {scan::kO, mod::kCtrl}},
+    // `^o` IS `^s`'s KIND NOW, and for `^s`'s reason one editor over: it opens the object
+    // document from everywhere, a pane holding the keys included -- unless that pane declares a
+    // row standing in for it. The Neovim-backed Editor does, because `<C-o>` is Neovim's own jump
+    // back and its one-command escape from Insert, and a maker editing in Neovim who presses it
+    // must not load the object document instead. A pane that declares nothing keeps the old
+    // meaning exactly, the standard Editor included (EDIT-W28).
+    {Act::kOpenDocument, "document.open", "open", KeyContext::kUnlessOwned,
+     {scan::kO, mod::kCtrl}},
     // ⚠ `workshop.terminal` WAS A GLOBAL ROW HERE and left with the overlay it opened
     // (VD-22, VD-24) -- `Ctrl+t`, from anywhere, opening one particular tool. The Terminal
     // is a pane a maker opens from the picker, exactly as Attention's `Ctrl+a` retired when

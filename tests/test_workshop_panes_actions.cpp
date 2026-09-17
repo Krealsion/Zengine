@@ -329,9 +329,20 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         // AN ID WORKSHOP DOES NOT DECLARE, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
         CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
                   .find("not one of Workshop's action ids") != std::string::npos);
-        CHECK(refused({declared("x.o", "o", input::scan::kUnknown, input::mod::kNone,
-                                "document.open")})
+        CHECK(refused({declared("x.k", "k", input::scan::kUnknown, input::mod::kNone,
+                                "workshop.hotkeys")})
                   .find("not an action a pane may own") != std::string::npos);
+        // ...AND `document.open` (^o) IS OWNABLE the way `document.save` is: one declaration buys
+        // it, and only for the pane that made it.
+        const Gesture open = k.gesture_of(Act::kOpenDocument);
+        CHECK(refused({declared("x.o", "jump", open.scancode, open.modifiers)}) ==
+              collision_sentence(open, "document.open", "x.o"));
+        const Keymap with_open = accepted(
+            {declared("x.o", "jump", open.scancode, open.modifiers, kOwnableDocumentOpen)});
+        CHECK(with_open.above_mode_action(KeyContext::kPane, open.scancode, open.modifiers,
+                                          kSomePane) == Act::kNone);
+        CHECK(with_open.above_mode_action(KeyContext::kPane, open.scancode, open.modifiers,
+                                          kSomePane + 1) == Act::kOpenDocument);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
         // holds the keys (WL-FOCUS-09): a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);

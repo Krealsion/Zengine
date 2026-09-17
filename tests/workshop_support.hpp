@@ -2992,6 +2992,12 @@ struct PaneRig {
             return WORKSHOP_SO_EDITOR_SWITCH_LOSING;
         }
 #endif
+#ifdef WORKSHOP_SO_NEOVIM_EDITOR
+        // THE NEOVIM-BACKED EDITOR, for suite `workshop_neovim`.
+        if (stem == "zengine-neovim-editor") {
+            return WORKSHOP_SO_NEOVIM_EDITOR;
+        }
+#endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 

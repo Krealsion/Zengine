@@ -918,7 +918,8 @@ TEST_CASE("EDIT-W3: one physical ^s is the document's save or the source's, by w
     // and that handle is not in this bare keymap.
     CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kS, input::mod::kCtrl) ==
           Act::kSaveDocument);
-    // `^o` stays global -- a pane holding the keys included -- and no pane may own it.
+    // `^o` opens the object document from a pane holding the keys too, while that pane declares
+    // no row standing in for it -- the Editor declares none.
     CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kO, input::mod::kCtrl) ==
           Act::kOpenDocument);
     // ...and the class is a superset of every mode, because what removes it is not a mode.
@@ -928,6 +929,9 @@ TEST_CASE("EDIT-W3: one physical ^s is the document's save or the source's, by w
     // THE PANE PROTOCOL'S SPELLING OF THE ID AND THE HOST'S CATALOG AGREE.
     REQUIRE(row_of_id(kOwnableDocumentSave) != nullptr);
     CHECK(row_of_id(kOwnableDocumentSave)->act == Act::kSaveDocument);
+    REQUIRE(row_of_id(kOwnableDocumentOpen) != nullptr);
+    CHECK(row_of_id(kOwnableDocumentOpen)->act == Act::kOpenDocument);
+    CHECK(row_of_id(kOwnableDocumentOpen)->context == KeyContext::kUnlessOwned);
 
     // LIVE: ^s with the Editor holding the keys saves the SOURCE and not the document.
     EditorRig e("edit-ctrl-s");
