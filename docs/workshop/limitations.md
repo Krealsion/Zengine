@@ -259,12 +259,40 @@ carries your document both ways. The honest bounds today:
 | Non-ASCII on screen? | **drawn as `?`** — each cell is one plain character (box drawing becomes `-`, `|`, `+`); the document itself is untouched |
 | A blockwise selection? | **its cursor's row only** on screen; a switch carries its cursor only, and says so |
 | Several windows, tabs or buffers? | **inside Neovim, yes** — a switch to the standard Editor carries the current buffer, and asks your consent before other unsaved buffers are lost |
-| Your own Neovim configuration? | **opt-in** — Neovim starts clean unless `ZENGINE_NEOVIM_PROFILE=user` |
+| Your own Neovim configuration? | **opt-in** — Neovim starts clean unless `ZENGINE_NEOVIM_PROFILE=user`; the pane's top row says which profile is running, and a name that is neither `clean` nor `user` and names no init file refuses the start ([which configuration is running](neovim.md#which-configuration-is-running)) |
 | A Neovim session across a rebuild of the Neovim editor itself? | **no** — that reload is refused while Neovim runs; quit Neovim or switch editors first |
 | `Ctrl`+`k` inside Neovim? | **no** — it stays Workshop's hotkey view, the keyboard road back to Workshop's controls |
 | A terminal's own paste into Neovim? | **as typing** — Workshop does not yet tell a terminal paste from keys, so paste in Insert mode; in Normal mode the text runs as commands |
 | A copy made before a switch, pasted after it, in a terminal? | **no** — a terminal medium cannot read the system clipboard, and the editor that starts at a switch has seen no earlier copy; the graphical window reads the real clipboard |
 | A switch control in a pane? | **not yet** — the switch is asked from the Terminal pane; a swapper pane and a confirmation dialog are later presentations of the same office |
+
+### The Terminal's history and its record are this run's, and bounded by the participant
+
+The [Terminal](terminal.md) recalls commands with `↑` and `↓` and reads back through its record;
+both live in the participant, and the participant lives as long as the run.
+
+| question | answer |
+|---|---|
+| Is command history kept across launches? | **no** — there is no history file; a new launch starts with none |
+| How far back does it go? | as far as the participant's record keeps, which is the newest **256 entries of every kind** — commands, notices, answers together |
+| Can I scroll to an entry the record dropped? | **no** — the row above the view counts those separately as `dropped for good`, and the view moves to the oldest kept if the entry you were reading is evicted |
+| Does `↑` mean history while I am composing? | **no** — while a command is being composed, or a list was asked for, `↑` `↓` move the list; history is for a line with nothing on it |
+| Can I search the record? | **not yet** — you can walk it by page, wheel or end; there is no find |
+| Can I resize a command's own wrapping? | it wraps to the pane's width; following the newest output shows the **end** of a long entry, and its start is above |
+| Are the reading keys remappable? | **yes** — they are the pane's declared rows (`terminal.scroll-up`, `terminal.scroll-down`, `terminal.oldest`, `terminal.newest`), so the [keymap file](hotkeys.md) moves them |
+
+**Where a line can go is read when you ask, and promises nothing.** At the address, `Tab` lists the
+offices held and the weaves registered **at that moment**, each with what it is. It is not
+permission — authority is per shape and per target — and not a promise the destination is still
+there when you send: a weave that is gone refuses the delivery, on your own record, and is never
+quietly replaced by another. An `@office` reaches whoever holds that office at delivery, which the
+list says beside it.
+
+**`Esc` from a pane that types is the pane's until it has nothing left.** The Terminal sheds its
+list, then its line, then itself. Both editors keep every `Esc` — the standard Editor's does
+nothing by design, Neovim's is Neovim's — so the way out of those is a press elsewhere, which the
+keyboard band names while they hold the keys. A pane that takes no keys at all is put down by `Esc`
+directly.
 
 ### A pane asks for some answers, and an answer can arrive after you have moved on
 
@@ -277,6 +305,7 @@ typing is discarded, silently.**
 | what you did | what you see |
 |---|---|
 | Typed a word, then pressed `Esc` before the suggestions arrived | no list. `Tab` asks again, for the line you have now — it never accepts the suggestion for the word you cancelled |
+| Recalled a command, or kept one with `Enter`, while suggestions were in flight | no list, even when the recalled line reads exactly like the one you asked about: an answer belongs to the intent that asked for it |
 | Moved the caret back into the line while suggestions were in flight | `completion follows the END of the line`, and it stays that way. `End` brings the list back |
 | Pressed `Ctrl`+`V`, then cleared the line and typed a different command | **nothing is pasted**, and nothing says so. Paste again |
 | Pressed `Ctrl`+`V` and kept typing on the same line | the text arrives where your caret is. Typing is an edit, not a new command |

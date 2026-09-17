@@ -36,6 +36,7 @@ Every page below has one reader purpose, named.
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
 | [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
+| [workshop/terminal.md](workshop/terminal.md) | the Terminal pane — type a command to the weaves on this bus, recall one you ran, read back through the record, and choose a destination from what is there |
 | [workshop/neovim.md](workshop/neovim.md) | **walkthrough**: edit in Neovim inside Workshop, switch the Editor between the standard Editor and Neovim with your unsaved work, and run Neovim from a Loom with no Workshop |
 | [workshop/edit-a-running-pane.md](workshop/edit-a-running-pane.md) | **walkthrough**: right-click a running pane, edit its code, build and reload it in place, then revert or promote — with the Tally example |
 | [workshop/develop-workshop.md](workshop/develop-workshop.md) | **walkthrough**: change a pane Workshop ships from inside Workshop — one Run that launches it, the development catalog and runtime, a failed build read in the Builder, which panes, and what a setup does not follow |
