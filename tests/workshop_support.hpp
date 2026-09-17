@@ -816,6 +816,10 @@ struct Live {
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         };
+        host.destinations = [this] {
+            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
+                                                                  : loom::WeaveId{});
+        };
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
@@ -2471,6 +2475,12 @@ struct PaneRig {
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         };
+        // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
+        // wires it. A case that wants a host listing nothing empties `host.destinations`.
+        host.destinations = [this] {
+            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
+                                                                  : loom::WeaveId{});
+        };
         register_workshop(std::move(weave));
         return w;
     }
@@ -2616,7 +2626,9 @@ struct PaneRig {
     /// ⚠ IT IS MOUNTED HERE AND NOT IN THE PANE, which is the seam's whole shape: the pane
     /// under test cannot construct one of these, cannot reach this one, and cannot speak as
     /// it. Every case below drives the pane and then asks THIS object what it heard.
-    loom::TerminalSession* mount_terminal(int shapes = 0) {
+    /// `widen` also lets it say `SurfaceText` to any target, so a case can address a weave by id
+    /// and measure what the BUS says about the target rather than what the grant does.
+    loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
             .accepts(loom::schema_of<loom::Ack>())
@@ -2629,6 +2641,10 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
                             surface::kSkinRole);
+        if (widen) {
+            grant.allow_to_any(surface::SurfaceText::zen_name,
+                               surface::SurfaceText::zen_version);
+        }
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));

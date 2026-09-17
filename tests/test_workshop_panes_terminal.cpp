@@ -68,10 +68,10 @@ struct TerminalRig {
     /// `PaneRef` for it exists in any file a maker has written. So it arrives the way Files,
     /// the Builder and Attention did: a stranger a maker opens from the picker.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
-              bool participant = true) {
+              bool participant = true, bool widen = false) {
         r.mount_workshop();
         if (participant) {
-            me = r.mount_terminal(shapes);
+            me = r.mount_terminal(shapes, widen);
         }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
@@ -1794,4 +1794,139 @@ TEST_CASE("reading keys leave a recall and the line as they were") {
     CHECK(t.input_text() == "> first");
     t.r.key(input::scan::kReturn); // still a lock, not a run
     CHECK(commands_run(t) == before);
+}
+
+// ============================================================================
+// WHERE A LINE CAN GO — read off the bus by the host at every ask
+// ============================================================================
+
+namespace {
+
+/// A WEAVE THAT RECORDS WHAT REACHES IT, seated in `office` -- the skin seat's own class, in an
+/// office of the case's choosing, so a delivery or its absence is a measurement.
+struct Probe {
+    SkinSeat* seat = nullptr;
+    loom::WeaveId id{};
+};
+
+Probe mount_probe(TerminalRig& t, const std::string& office) {
+    auto seat = std::make_unique<SkinSeat>();
+    Probe p;
+    p.seat = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
+    p.id = t.r.bus.register_weave(std::move(seat), std::move(grant), office);
+    p.seat->zen_set_self(p.id);
+    return p;
+}
+
+bool heard_slot(const SkinSeat& seat, const std::string& slot) {
+    for (const surface::SurfaceText& one : seat.heard) {
+        if (one.slot == slot) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("the address lists the offices and weaves on the bus now with what each is and every ask reads the bus again") {
+    TerminalRig t;
+    t.open();
+    t.give_room(30, 120);
+    // THE POPULATION IS THE BUS'S, NOT THE LOAD PLAN'S: Workshop itself and the terminal
+    // participant are in-process weaves no library row names, and both are listed.
+    t.type("send ");
+    CHECK(t.row_of("  @zengine.workshop") >= 0);
+    const std::string self = "#" + std::to_string(t.r.terminal_id.value);
+    t.type(self);
+    CHECK(t.text().find(self + "   no office; accepts zen.Ack, zen.Refused") != std::string::npos);
+    CHECK(t.text().find("(this terminal)") != std::string::npos);
+    for (std::size_t i = 0; i < self.size(); ++i) {
+        t.r.key(input::scan::kBackspace);
+    }
+
+    // ADDITION: nobody holds the office, then a weave takes it, and the next keystroke's ask sees it.
+    t.type("@zengine.pro");
+    CHECK(t.text().find("'@zengine.pro' is an address; nothing on this bus answers to it now") !=
+          std::string::npos);
+    const Probe first = mount_probe(t, "zengine.probe");
+    t.type("b");
+    CHECK(t.row_of("> @zengine.probe") >= 0);
+    CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") != std::string::npos);
+
+    // REPLACEMENT: the office moves to another weave, and the list names the new holder only.
+    (void)t.r.bus.unregister_weave(first.id);
+    const Probe second = mount_probe(t, "zengine.probe");
+    t.type("e");
+    CHECK(t.text().find("held by #" + std::to_string(second.id.value) + " now") != std::string::npos);
+    CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") == std::string::npos);
+
+    // REMOVAL: the office is empty again, and nothing is offered for it.
+    (void)t.r.bus.unregister_weave(second.id);
+    t.r.key(input::scan::kBackspace);
+    CHECK(t.row_of("> @zengine.probe") < 0);
+    CHECK(t.text().find("nothing on this bus answers to it now") != std::string::npos);
+}
+
+TEST_CASE("an id chosen from the list and gone before the line is sent leaves the participant's refusal and reaches no other weave") {
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/true, /*widen=*/true);
+    t.give_room(30, 120);
+    const Probe gone = mount_probe(t, "zengine.probe");
+    const Probe other = mount_probe(t, "zengine.other");
+    const std::string id = std::to_string(gone.id.value);
+    t.type("send #" + id);
+    REQUIRE(t.row_of("> #" + id) >= 0);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.input_text() == "> send #" + id + " ");
+
+    (void)t.r.bus.unregister_weave(gone.id);
+    t.type("SurfaceText 1 slot=gone text=x");
+    t.submit();
+
+    // NOT RETARGETED: no weave heard the slot, and the office it held is empty rather than moved.
+    CHECK_FALSE(heard_slot(*other.seat, "gone"));
+    // ATTRIBUTED BY LOOM: the send was authored, and its refusal came back to the participant that
+    // authored it, naming the id it was addressed to and why.
+    const std::vector<loom::TranscriptEntry> record = t.record();
+    REQUIRE(record.size() >= 3);
+    CHECK(record[record.size() - 2].kind == loom::TranscriptKind::Submitted);
+    const loom::TranscriptEntry& back = record.back();
+    REQUIRE(back.dispatch_refusal != nullptr);
+    CHECK(back.dispatch_refusal->send.target == id);
+    CHECK(back.dispatch_refusal->send.shape == "SurfaceText");
+    CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
+}
+
+TEST_CASE("an office chosen from the list reaches whoever holds it at delivery and a vacated office is refused not retargeted") {
+    TerminalRig t;
+    t.open(160, 48, /*shapes=*/0, /*participant=*/true, /*widen=*/true);
+    t.give_room(30, 120);
+    const Probe old_holder = mount_probe(t, "zengine.probe");
+    t.type("send @zengine.probe");
+    REQUIRE(t.row_of("> @zengine.probe") >= 0);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.input_text() == "> send @zengine.probe ");
+
+    // TURNOVER: the office changes hands before the send. The line names the office, the list said
+    // it reaches whoever holds it when sent, and it does: the new holder, never the old weave.
+    (void)t.r.bus.unregister_weave(old_holder.id);
+    const Probe new_holder = mount_probe(t, "zengine.probe");
+    t.type("SurfaceText 1 slot=turnover text=x");
+    t.submit();
+    CHECK(heard_slot(*new_holder.seat, "turnover"));
+
+    // VACATED: nobody holds it now, so the send is refused where the maker reads, and the weave
+    // that used to hold it hears nothing.
+    (void)t.r.bus.unregister_weave(new_holder.id);
+    const Probe elsewhere = mount_probe(t, "zengine.elsewhere");
+    run(t, "send @zengine.probe SurfaceText 1 slot=vacated text=x");
+    CHECK_FALSE(heard_slot(*elsewhere.seat, "vacated"));
+    const loom::TranscriptEntry back = t.record().back();
+    REQUIRE(back.dispatch_refusal != nullptr);
+    CHECK(back.dispatch_refusal->send.role == "zengine.probe");
+    CHECK(back.dispatch_refusal->send.target.empty());
+    CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
 }

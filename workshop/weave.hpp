@@ -11,6 +11,7 @@
 
 
 
+#include "complete.hpp" // the completer's values, and where a line can go
 #include "persist.hpp"
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
@@ -84,6 +85,12 @@ struct HostContext {
     /// Empty answers no, and every such sentence then crosses in its first version.
     // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+
+    /// WHERE A TERMINAL LINE CAN BE ADDRESSED RIGHT NOW, read by the host off the bus at the call
+    /// (`bus_destinations` is the answer both the host and a suite wire) and kept nowhere. Empty is
+    /// a host that lists nothing, and the completer then offers the address forms.
+    // WL-TERM-16 -- agents/workshop/terminal.md
+    std::function<std::vector<Destination>()> destinations;
 
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
     /// HOST -- through the read-only project office (`pane_doors.hpp`), to the Builder pane,
@@ -278,6 +285,12 @@ struct HostContext {
 /// shape by its accept MODE declares no door here, and is answered no.
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape);
+
+/// THE HOST'S ANSWER TO `HostContext::destinations`, READ OFF `bus` AT THE CALL: every registered
+/// weave that is not a sealed candidate, with the office it holds now, the names of the shapes it
+/// accepts and whether it is alive -- and `self` marked, the participant a line runs as. A
+/// reading, not a registry or a tap: it keeps nothing and observes no traffic.
+std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self);
 
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
