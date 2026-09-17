@@ -158,6 +158,10 @@ SourceOpened open_through_office(SwitchRig& s, const char* name, const std::stri
     return s.asker->opens.back();
 }
 
+// ONLY THE GATED CASES READ A FILE BACK OR TYPE INTO NEOVIM'S PANE: without a Neovim these two
+// would be defined and never used, which a lane with no `neovim` gate refuses (measured: the
+// Windows CI job, `-Werror=unused-function`).
+#if defined(NEOVIM_PROGRAM)
 std::string file_text(const std::filesystem::path& at) {
     std::ifstream in(at, std::ios::binary);
     return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
@@ -165,6 +169,7 @@ std::string file_text(const std::filesystem::path& at) {
 
 /// THE KEYS TO THE PANE: a press on its status row (which moves nothing in it).
 void focus(SwitchRig& s) { press_pane(s.r, s.kind, 0, 0); }
+#endif
 
 /// A CONSOLE, reduced to what the baseline case needs: it asks the office one sentence from inside
 /// its own delivery -- an ask, with the answer right Loom gives an ask -- and keeps what came back.
