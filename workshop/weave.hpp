@@ -1458,12 +1458,21 @@ private:
     /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button, the wheel -- counted, so a pane's
     /// word about one of them can be asked whether it is still about the latest.
     std::uint64_t gestures_ = 0;
-    /// THE LAST BARE ESCAPE SENT TO A PANE, and which gesture it was.
+    /// THE LAST BARE ESCAPE SENT TO A PANE: which pane, which gesture it was, and the
+    /// correlation it went out under -- the identity an answer must echo to be about THAT
+    /// Escape. Current desk state cannot identify an event: a second Escape leaves the pane,
+    /// the selection and the gesture count all matching again, so the first Escape's answer
+    /// would borrow the second's record without this.
     struct EscapeSent {
         std::int64_t kind = kNoPaneKind;
         std::uint64_t gesture = 0;
+        std::uint64_t answering = 0;
     };
     EscapeSent escape_sent_;
+    /// THE NUMBERS THOSE ESCAPES GO OUT UNDER, minted here and nowhere else. Monotonic from
+    /// one, so zero is never an Escape: an answer that echoes nothing answers nothing. Gaps
+    /// are meaningless -- an Escape this host answers itself burns a number and sends none.
+    std::uint64_t escape_asks_ = 0;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;

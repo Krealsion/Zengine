@@ -2173,6 +2173,7 @@ public:
         ++said;
         keys.push_back(k);
         key_authors.push_back(std::string(mail.authored_role()));
+        key_asks.push_back(mail.correlation());
     }
     void on(const PaneTextInput& t, loom::Mail& mail) {
         ++state_.said;
@@ -2209,12 +2210,31 @@ public:
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
     /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
-    /// the case about authorship rather than about the gesture.
+    /// the case about authorship rather than about the gesture. Echoed under the number the
+    /// LATEST Escape arrived on, which is what a pane answering the key it was just handed
+    /// does; `unspent_answering` is for a case that answers an older one on purpose, and
+    /// `unspent_anonymously` for one that echoes nothing at all.
     void unspent(loom::Mail& mail, const std::string& pane) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane});
+        unspent_answering(mail, pane, latest_escape_ask());
+    }
+    void unspent_answering(loom::Mail& mail, const std::string& pane, std::uint64_t answering) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane},
+                                                 answering);
+    }
+    void unspent_anonymously(loom::Mail& mail, const std::string& pane) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, 0);
     }
     void unspent_personally(loom::Mail& mail, const std::string& pane) {
-        (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane});
+        (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, latest_escape_ask());
+    }
+    /// THE NUMBER THE LAST ESCAPE THIS SEAT WAS SENT CAME UNDER, or zero if it was sent none.
+    std::uint64_t latest_escape_ask() const {
+        for (std::size_t i = keys.size(); i-- > 0;) {
+            if (keys[i].scancode == zengine::input::scan::kEscape && i < key_asks.size()) {
+                return key_asks[i];
+            }
+        }
+        return 0;
     }
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
@@ -2258,6 +2278,10 @@ public:
     std::vector<std::string> press_authors;
     std::vector<PaneKey> keys;
     std::vector<std::string> key_authors;
+    /// THE CORRELATION EACH KEY ARRIVED UNDER, beside `keys` index for index. Workshop stamps
+    /// one on an Escape and nothing else, and an answer that does not echo it is about no
+    /// Escape at all.
+    std::vector<std::uint64_t> key_asks;
     std::vector<PaneTextInput> typed;
     std::vector<std::string> text_authors;
     std::vector<PaneWheel> wheels;

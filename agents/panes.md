@@ -120,10 +120,15 @@ screen says so, is Workshop routing law
   crosses and no `consumed` comes back, so Workshop cannot see a pane decline it: the Composer
   spends it (form → catalog, keep typing) and the editors keep every Escape. A pane that had
   nothing more specific to do may SAY so — `PaneEscapeUnspent{pane}`, provider → Workshop as the
-  office that offered it — and Workshop then spends its own last Escape meaning, putting that pane
-  down, while the pane still has the desk and the keys and that Escape is still the last gesture
-  the host handled. There is no answer and no retry; a later key, text, press or wheel makes the
-  word stale. The Terminal says it with no recall, no list and an empty line.
+  office that offered it, **echoing the correlation that Escape arrived under** — and Workshop
+  then spends its own last Escape meaning, putting that pane down, while the pane still has the
+  desk and the keys and that Escape is still the last gesture the host handled. There is no answer
+  and no retry; a later key, text, press or wheel makes the word stale. The Terminal says it with
+  no recall, no list and an empty line. **The correlation is what names the Escape**: Workshop
+  mints one per bare Escape and carries it on whichever message delivers it, because a second
+  Escape restores every other check the first one met, and an answer about the first would
+  otherwise be spent on the second. Zero, an older Escape's number and an already-spent one all
+  move nothing.
   **And a bare Escape is not sent at all** when the office's holder accepts no `PaneKey` and the
   pane declared no row for it (`holder_accepts`, the same reading the press's version comes from):
   nothing could have spent it, so Escape's last meaning answers at once (WL-ARR-16). That is a

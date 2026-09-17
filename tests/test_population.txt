@@ -1639,6 +1639,21 @@ workshop_screen                   doctest           always  173
 #                                Escape was unspent and the three words that move nothing
 #                                (`..._input.cpp`), and a pane with no key door put down by Escape
 #                                (`..._attention.cpp`).
+# THE EVERYDAY-INTERACTION CORRECTION raised that same floor once more -- workshop_panes
+# 581 -> 584 -- and moved no other. An unspent Escape's answer now names the one Escape it
+# answers, and the three are the founder's own witness plus the two that pin the identity at
+# the generic seam:
+#
+#   workshop_panes   581 -> 584  the seam, the same two rigs. The founder's batch (1), in
+#                                `test_workshop_panes_terminal.cpp`: Escape, a character, Escape
+#                                in one poll -- the first Escape's answer arrives behind the
+#                                second and must move nothing. THE IDENTITY (2), in
+#                                `test_workshop_panes_input.cpp`: an answer to an Escape that is
+#                                over cannot borrow the next Escape's number, an answer echoing
+#                                nothing names no Escape, the current one still works and a
+#                                duplicate of it is already spent; and that only an Escape is
+#                                sent under a number at all.
+#
 #   workshop_panels  113 -> 114  the completer over a value: the address offering everyone, the
 #                                offices held now and the weaves registered now, each with what it
 #                                is, filtered by what has been typed.
@@ -1651,7 +1666,7 @@ workshop_screen                   doctest           always  173
 #                                pane is Neovim's with the pane still selected.
 #
 workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  581
+workshop_panes                    doctest           always  584
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  143
 workshop_editor_switch            doctest           always  11
