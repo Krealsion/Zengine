@@ -51,6 +51,7 @@
 #include "workshop/load_plan.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/provenance.hpp"
 #include "workshop/recipes.hpp"
 #include "workshop/staging.hpp"
 
@@ -624,6 +625,12 @@ load::LoadPlan plan_of(std::vector<load::ArtifactIntent> rows) {
     return p;
 }
 
+/// The same plan, authoring these choices.
+load::LoadPlan choosing(load::LoadPlan plan, std::vector<load::ChoiceIntent> choices) {
+    plan.choices = std::move(choices);
+    return plan;
+}
+
 /// A path inside the staging directory. It goes through `stage()` so the directory
 /// exists whatever order doctest runs the cases in -- a case that wrote into a
 /// directory another case happened to create first would be a case that passes
@@ -1054,11 +1061,11 @@ TEST_CASE("a field the shape does not declare is refused rather than ignored") {
 
 TEST_CASE("a file from another version is refused by ITS NUMBER, before its rows are judged") {
     const load_persist::LoadedPlan no = load_persist::from_text(
-        R"({"zen":1,"schema":"WorkshopLoadFile","version":2,"fields":{)"
-        R"("format":"zengine-workshop-load-plan","format_version":"2","artifacts":[]}})");
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[]}})");
     CHECK_FALSE(no.outcome.accepted);
-    CHECK(no.outcome.refusal.find("load plan version 2") != std::string::npos);
-    CHECK(no.outcome.refusal.find("reads version 1") != std::string::npos);
+    CHECK(no.outcome.refusal.find("load plan version 3") != std::string::npos);
+    CHECK(no.outcome.refusal.find("reads versions 1 and 2") != std::string::npos);
 }
 
 TEST_CASE("a forged file whose envelope is this version and whose FIELD is not still refuses") {
@@ -6046,4 +6053,239 @@ TEST_CASE("RELOAD-5: a pane provider built against the published protocol alone 
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[1] == "acted 2: old.up");
 #endif
+}
+
+// =============================================================================
+// 10. CHOICES -- an office a maker can switch, authored as alternatives in the plan
+// =============================================================================
+
+TEST_CASE("a plan authoring no choices is written as version 1, byte for byte what it always was") {
+    const load::LoadPlan p = plan_of({provides("zengine-operators-basic"),
+                                      weaves("zengine-editor-pane", "zengine.editor")});
+    const std::string text = load_persist::to_text(p);
+    CHECK(text.find(R"("version":1)") != std::string::npos);
+    CHECK(text.find(R"("format_version":"1")") != std::string::npos);
+    CHECK(text.find("choices") == std::string::npos);
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    CHECK(back.plan == p);
+    CHECK(load_persist::to_text(back.plan) == text);
+}
+
+TEST_CASE("choices are written as version 2 and read back as the same plan, byte for byte") {
+    const load::LoadPlan p = choosing(
+        plan_of({provides("zengine-operators-basic"),
+                 weaves("zengine-editor-pane", "zengine.editor")}),
+        {load::ChoiceIntent{"zengine.editor", "standard", "zengine-editor-pane"},
+         load::ChoiceIntent{"zengine.editor", "neovim", "zengine-neovim-editor"}});
+    REQUIRE(load::check_plan(p).accepted);
+    const std::string text = load_persist::to_text(p);
+    CHECK(text.find(R"("version":2)") != std::string::npos);
+    CHECK(text.find(R"("format_version":"2")") != std::string::npos);
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    CHECK(back.plan == p);
+    CHECK(load_persist::to_text(back.plan) == text);
+    REQUIRE(load::choices_for(back.plan, "zengine.editor").size() == 2);
+    CHECK(load::choices_for(back.plan, "zengine.editor")[1].name == "neovim");
+    CHECK(load::choices_for(back.plan, "zengine.files").empty());
+
+    // THE FORM A PERSON WRITES, indented and with no content id.
+    const load_persist::LoadedPlan hand = load_persist::from_text(R"({
+        "zen": 1, "schema": "WorkshopLoadFile", "version": 2,
+        "fields": {
+          "format": "zengine-workshop-load-plan",
+          "format_version": "2",
+          "artifacts": [
+            { "artifact": "zengine-editor-pane", "provider": [],
+              "weave": [ { "role": "zengine.editor" } ] }
+          ],
+          "choices": [
+            { "role": "zengine.editor", "name": "standard", "artifact": "zengine-editor-pane" },
+            { "role": "zengine.editor", "name": "neovim", "artifact": "zengine-neovim-editor" }
+          ]
+        }
+      })");
+    REQUIRE_MESSAGE(hand.outcome.accepted, hand.outcome.refusal);
+    CHECK(hand.plan.choices.size() == 2);
+}
+
+TEST_CASE("a version-2 file with no choices is refused, and a version-1 file cannot carry choices") {
+    const load_persist::LoadedPlan empty = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":2,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"2","artifacts":[],"choices":[]}})");
+    CHECK_FALSE(empty.outcome.accepted);
+    CHECK(empty.outcome.refusal.find("written as version 1") != std::string::npos);
+    const load_persist::LoadedPlan smuggled = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":1,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"1","artifacts":[],)"
+        R"("choices":[{"role":"r","name":"a","artifact":"x"}]}})");
+    CHECK_FALSE(smuggled.outcome.accepted);
+    CHECK(smuggled.outcome.refusal.find("choices") != std::string::npos);
+    const load_persist::LoadedPlan crossed = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":2,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"1","artifacts":[],"choices":[]}})");
+    CHECK_FALSE(crossed.outcome.accepted);
+    CHECK(crossed.outcome.refusal.find("load plan version 1") != std::string::npos);
+}
+
+TEST_CASE("the choice law: one start holder that is a choice, one office per artifact, one spelling per word") {
+    const load::ArtifactIntent start = weaves("zengine-editor-pane", "zengine.editor");
+    const load::ChoiceIntent standard{"zengine.editor", "standard", "zengine-editor-pane"};
+    const load::ChoiceIntent neovim{"zengine.editor", "neovim", "zengine-neovim-editor"};
+    CHECK(load::check_plan(choosing(plan_of({start}), {standard, neovim})).accepted);
+    // One choice alone is legal: an office with one authored holder has nothing to switch to.
+    CHECK(load::check_plan(choosing(plan_of({start}), {standard})).accepted);
+
+    struct Refused {
+        const char* why;
+        load::LoadPlan plan;
+        const char* words;
+    };
+    load::ArtifactIntent providing_start = start;
+    providing_start.provider = load::ProviderIntent{};
+    const std::vector<Refused> refused = {
+        {"no start holder", choosing(plan_of({}), {standard, neovim}), "exactly one artifact loaded into it"},
+        {"two start holders",
+         choosing(plan_of({start, weaves("zengine-neovim-editor", "zengine.editor")}), {standard, neovim}),
+         "exactly one artifact loaded into it"},
+        {"the start holder is not a choice", choosing(plan_of({start}), {neovim}), "is not one of them"},
+        {"a name twice",
+         choosing(plan_of({start}), {standard, load::ChoiceIntent{"zengine.editor", "standard", "zengine-x"}}),
+         "authored twice"},
+        {"an artifact twice for one office",
+         choosing(plan_of({start}), {standard, load::ChoiceIntent{"zengine.editor", "again", "zengine-editor-pane"}}),
+         "authored twice as a choice"},
+        {"an artifact for two offices",
+         choosing(plan_of({start, weaves("zengine-files", "zengine.files")}),
+                  {standard, load::ChoiceIntent{"zengine.files", "files", "zengine-files"},
+                   load::ChoiceIntent{"zengine.files", "twin", "zengine-editor-pane"}}),
+         "a choice for both"},
+        {"a choice loaded into another office",
+         choosing(plan_of({start, weaves("zengine-neovim-editor", "zengine.other")}), {standard, neovim}),
+         "loaded into something else"},
+        {"a choice that supplies operators", choosing(plan_of({providing_start}), {standard}),
+         "also supplies operators"},
+        {"a name with a capital", choosing(plan_of({start}), {load::ChoiceIntent{"zengine.editor", "Standard", "zengine-editor-pane"}}),
+         "lowercase letter"},
+        {"a name with a space", choosing(plan_of({start}), {load::ChoiceIntent{"zengine.editor", "neo vim", "zengine-editor-pane"}}),
+         "may hold only"},
+        {"a traversing artifact", choosing(plan_of({start}), {standard, load::ChoiceIntent{"zengine.editor", "evil", "../evil"}}),
+         "path separator"},
+    };
+    for (const Refused& r : refused) {
+        CAPTURE(std::string(r.why));
+        const Written got = load::check_plan(r.plan);
+        CHECK_FALSE(got.accepted);
+        CHECK_MESSAGE(got.refusal.find(r.words) != std::string::npos, got.refusal);
+    }
+}
+
+TEST_CASE("a recorded switch moves an office between its authored choices, and every reader follows the weave") {
+    PlanRig rig;
+    const load::LoadPlan plan = choosing(
+        plan_of({weaves("zengine-plain-weave", "test.plain")}),
+        {load::ChoiceIntent{"test.plain", "plain", "zengine-plain-weave"},
+         load::ChoiceIntent{"test.plain", "other", "zengine-other-weave"},
+         load::ChoiceIntent{"test.plain", "third", "zengine-third-weave"}});
+    const load::Executed done = rig.realize(plan);
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    const loom::WeaveId first = rig.weave_of(done, "zengine-plain-weave");
+    REQUIRE(first.valid());
+    CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
+    CHECK(rig.executor.image_of("zengine-other-weave") == stage().so("zengine-other-weave"));
+
+    // AWAY: the office moves to a choice the plan names only as a choice.
+    const load::PlanExecutor::Recorded away = rig.executor.record_choice_holder(
+        "test.plain", "zengine-other-weave", loom::WeaveId{first.value + 100}, "/staged/other");
+    REQUIRE_MESSAGE(away.accepted, away.refusal);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Switched);
+    CHECK(rig.executor.state_of("zengine-other-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.choice_holder("test.plain") == "zengine-other-weave");
+    CHECK(rig.executor.image_of("zengine-other-weave") == "/staged/other");
+    const load::ResolvedArtifact* plain = nullptr;
+    const load::ResolvedArtifact* other = nullptr;
+    for (const load::ResolvedArtifact& row : rig.executor.resolved()) {
+        plain = row.stem == "zengine-plain-weave" ? &row : plain;
+        other = row.stem == "zengine-other-weave" ? &row : other;
+    }
+    REQUIRE(plain != nullptr);
+    REQUIRE(other != nullptr);
+    CHECK_FALSE(plain->weave_loaded);
+    CHECK(plain->switched_to == "zengine-other-weave");
+    CHECK(load::reload_refusal(*plain).find("held by the authored choice 'zengine-other-weave'") !=
+          std::string::npos);
+    CHECK(other->weave_loaded);
+    CHECK(other->weave.value == first.value + 100);
+    CHECK_FALSE(other->default_image);
+
+    // A rebuild of the row that is not running is refused in words; nothing is reloaded.
+    const load::PlanExecutor::Asked rebuilt = rig.executor.realize("zengine-plain-weave", "plain");
+    CHECK_FALSE(rebuilt.started);
+    CHECK(rebuilt.refusal.find("is not running") != std::string::npos);
+
+    // THE ARRANGEMENT SAYS BOTH: the authored row switched, the choice's own row resolved.
+    const workshop::ResolvedArrangement said = workshop::describe_arrangement(rig.executor, "plan.json");
+    REQUIRE(said.artifacts.size() == 2);
+    CHECK(said.artifacts[0].artifact == "zengine-plain-weave");
+    CHECK(said.artifacts[0].state == std::string(workshop::kSwitchedToken));
+    CHECK(said.artifacts[0].weave == 0);
+    CHECK(said.artifacts[1].artifact == "zengine-other-weave");
+    CHECK(said.artifacts[1].authored_role == "test.plain");
+    CHECK(said.artifacts[1].state == std::string(workshop::kResolvedToken));
+    CHECK(said.artifacts[1].weave == static_cast<std::int64_t>(first.value + 100));
+
+    // EDIT CODE JOINS BY THE WEAVE THAT HOLDS THE OFFICE, so it names the choice now running.
+    const workshop::HostContext::CodeSource code = workshop::provenance::code_source_of(
+        "test.plain", loom::WeaveId{first.value + 100}, rig.executor.resolved(), {});
+    CHECK(code.artifact == "zengine-other-weave");
+    CHECK(code.reload.empty());
+
+    // BACK: the plan's own row is live again with the weave the switch back admitted.
+    const load::PlanExecutor::Recorded back = rig.executor.record_choice_holder(
+        "test.plain", "zengine-plain-weave", loom::WeaveId{first.value + 200}, stage().so("zengine-plain-weave"));
+    REQUIRE_MESSAGE(back.accepted, back.refusal);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.state_of("zengine-other-weave") == load::RowState::Switched);
+    CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
+    const workshop::ResolvedArrangement again = workshop::describe_arrangement(rig.executor, "plan.json");
+    REQUIRE(again.artifacts.size() == 2);
+    CHECK(again.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(again.artifacts[0].weave == static_cast<std::int64_t>(first.value + 200));
+    CHECK(again.artifacts[1].state == std::string(workshop::kSwitchedToken));
+    CHECK(again.artifacts[1].weave == 0);
+    const workshop::HostContext::CodeSource back_code = workshop::provenance::code_source_of(
+        "test.plain", loom::WeaveId{first.value + 200}, rig.executor.resolved(), {});
+    CHECK(back_code.artifact == "zengine-plain-weave");
+
+    // AND ON TO A THIRD: every row the office left names where it is now -- the one a switch
+    // left earlier as much as the one it leaves this time.
+    const load::PlanExecutor::Recorded onward = rig.executor.record_choice_holder(
+        "test.plain", "zengine-third-weave", loom::WeaveId{first.value + 300}, "/staged/third");
+    REQUIRE_MESSAGE(onward.accepted, onward.refusal);
+    CHECK(rig.executor.choice_holder("test.plain") == "zengine-third-weave");
+    for (const load::ResolvedArtifact& row : rig.executor.resolved()) {
+        if (row.stem != "zengine-third-weave") {
+            CHECK_FALSE(row.weave_loaded);
+            CHECK_MESSAGE(row.switched_to == "zengine-third-weave", row.stem);
+        }
+    }
+}
+
+TEST_CASE("a switch is recorded only for an authored choice, and a refused record moves nothing") {
+    PlanRig rig;
+    const load::Executed done = rig.realize(choosing(
+        plan_of({weaves("zengine-plain-weave", "test.plain")}),
+        {load::ChoiceIntent{"test.plain", "plain", "zengine-plain-weave"}}));
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    const load::PlanExecutor::Recorded stranger = rig.executor.record_choice_holder(
+        "test.plain", "zengine-not-authored", loom::WeaveId{999}, "/x");
+    CHECK_FALSE(stranger.accepted);
+    CHECK(stranger.refusal.find("authors no choice 'zengine-not-authored'") != std::string::npos);
+    const load::PlanExecutor::Recorded wrong_office = rig.executor.record_choice_holder(
+        "test.other", "zengine-plain-weave", loom::WeaveId{999}, "/x");
+    CHECK_FALSE(wrong_office.accepted);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
+    CHECK(rig.executor.resolved().size() == 1);
 }

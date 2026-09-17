@@ -1036,6 +1036,14 @@
 # real Neovim can say -- measured green on Windows 0.11.6 and Linux 0.11.6 and 0.12.5 before it
 # was registered.
 #
+# A LOAD PLAN'S CHOICES raised ONE floor -- workshop_load 137 -> 143 -- and moved no other.
+#
+#   workshop_load   137 -> 143  a plan's CHOICES for an office: version 1 kept byte for byte
+#                               when a plan authors none, version 2 round-tripped when it does,
+#                               each version refusing the other's shape, the choice law, and the
+#                               realization record -- a recorded switch every reader follows by
+#                               its weave, and a record refused for a stem that is no choice.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 neovim                            doctest           always  21
@@ -1576,7 +1584,7 @@ workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
 workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  137
+workshop_load                     doctest           always  143
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

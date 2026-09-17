@@ -28,6 +28,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | semantic text in a panel, the Builder's rows, the foot band, a name on material | [regions](workshop/regions.md) `WL-RGN` |
 | the Editor pane weave and its document, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
+| an office's authored choices: a plan's `choices`, and what realization records about which one holds it | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
 | a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, Workshop's own panes as a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
