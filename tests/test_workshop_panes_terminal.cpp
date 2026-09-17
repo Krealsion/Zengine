@@ -1991,7 +1991,7 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
 }
 
 TEST_CASE("a second Escape does not lend its identity to the first Escape's answer") {
-    // THE FOUNDER'S WITNESS. One poll: Escape on an empty line (unspent), a character (a draft),
+    // QUEUED-INPUT REGRESSION. One poll: Escape on an empty line (unspent), a character (a draft),
     // then Escape again (spent clearing that draft). The FIRST Escape's answer is still in flight
     // behind those gestures, and it is about an Escape that is over. It must move nothing: the
     // pane keeps the desk and the keys, and the only thing the second Escape did is clear the
