@@ -1258,6 +1258,12 @@ TEST_CASE("on an empty line Up Up Enter leaves the older command ready to edit a
     CHECK(t.text().find("no verb begins with") == std::string::npos);
     CHECK(t.seat()->caret_col == 2 + 5);
 
+    // AND THE LOCK IS ONE OF THE "DIFFERENT KEYS" OF THE RULE: the arrows belong to completion
+    // again, so this Up does not recall `second` and does not re-enter browsing.
+    t.r.key(input::scan::kUp);
+    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.text().find("history ") == std::string::npos);
+
     t.r.key(input::scan::kReturn);
     CHECK(commands_run(t) == before + 1);
     CHECK(last_command(t) == "first");
@@ -1277,9 +1283,15 @@ TEST_CASE("Tab on a recalled line locks it in with no candidate taken and no lis
     CHECK(t.input_text() == "> send #1 ");
     CHECK(t.text().find("SurfaceText v1") == std::string::npos);
 
+    t.r.key(input::scan::kUp); // the same rule after a Tab lock: no recall, no browsing
+    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.text().find("history ") == std::string::npos);
+
     t.r.key(input::scan::kTab); // nothing on screen: ask
     CHECK(t.input_text() == "> send #1 ");
     CHECK(t.row_of("> SurfaceText v1") >= 0);
+    t.r.key(input::scan::kUp); // a list on screen: the arrows are its cursor
+    CHECK(t.input_text() == "> send #1 ");
     t.r.key(input::scan::kTab); // a list on screen: accept
     CHECK(t.input_text().rfind("> send #1 SurfaceText 1 ", 0) == 0);
     CHECK(commands_run(t) == before);
