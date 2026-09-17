@@ -3619,7 +3619,8 @@ class DesktopSeat
 public:
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         asked_.push_back(asked.id);
-        if (asked.id == kDeselectId) {
+        last_ask_ = mail.correlation();
+        if (asked.id == kDeselectId && autoanswer) {
             // ECHOED UNDER THE NUMBER IT ARRIVED ON, which is what makes this answer about
             // THIS keystroke and no other.
             (void)mail.as_role(kDesktopRole)
@@ -3659,6 +3660,15 @@ public:
 
     const std::vector<std::string>& asked() const { return asked_; }
     const std::vector<std::string>& refusals() const { return refusals_; }
+    /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
+    /// about a DISHONEST one has to be able to miss on purpose.
+    std::uint64_t last_ask() const { return last_ask_; }
+
+    /// WHETHER THIS STAND-IN ANSWERS ITS DESELECT ROW BY ITSELF. Off for the case that has to
+    /// leave an ask outstanding at a known gesture and then answer it wrongly: with the
+    /// automatic answer in the way, the host has already reset its record and the wrong answer
+    /// is refused by the gesture test rather than by the one under examination.
+    bool autoanswer = true;
 
     std::function<void(DesktopSeat&, loom::Mail&)> next;
 
@@ -3669,6 +3679,7 @@ public:
 private:
     std::vector<std::string> asked_;
     std::vector<std::string> refusals_;
+    std::uint64_t last_ask_ = 0;
 };
 
 /// THE THREE ROWS THE SHIPPED DESKTOP DECLARES, spelled once so a case and the product cannot

@@ -1230,41 +1230,60 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
 
 TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only an answer that "
           "echoes the ask puts the selection down") {
-    // MUTATION (D5): dropping the correlation test in `on(DeselectRequested)` -- the stale
-    // answer below puts the selection down and the case goes red.
+    // MUTATION (D5): dropping the correlation test in `on(DeselectRequested)` -- the wrong-number
+    // answer below puts the selection down and the case goes red. MEASURED: an earlier shape of
+    // this case let the STAND-IN answer automatically, which reset the host's record before the
+    // wrong answer arrived -- so the gesture test refused it and D5 stayed GREEN. The ask has to
+    // be left outstanding at a known gesture for this to be a case about correlation at all.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk != nullptr);
+    desk->autoanswer = false;
     const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
     REQUIRE(kind != kNoPaneKind);
     open_pane(t, PaneRef{"zengine.hello", "hello"});
     // PICKED UP THE WAY A MAKER PICKS A PANE UP, so what is put down below is a selection this
-    // desk actually made.
+    // desk actually made; then the keys are put down, so Escape is command mode's.
     const ui::Rect body = cells_covered(
         bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
     t.press_canvas(body.x + 1, body.y + 1);
-    REQUIRE(t.session().panels.selected == kind);
-    // ...and the keys are put down again, so Escape is command mode's rather than the pane's.
     release_keys(t);
     REQUIRE(t.session().panels.selected == kind);
 
-    // AN ANSWER THAT ECHOES NOTHING IS NOT AN ANSWER: zero is never an ask.
-    desktop_does(t, desk, [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 0); });
-    CHECK(t.session().panels.selected == kind);
-    // ...AND NEITHER IS ONE THAT ECHOES A NUMBER THIS HOST NEVER MINTED.
-    desktop_does(t, desk,
-                 [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 9999); });
-    CHECK(t.session().panels.selected == kind);
-
-    // THE WHOLE PATH, IN ORDER: the key resolves to the declared row, the host asks its owner
-    // under a number minted for this keystroke, the owner answers echoing it, and only then
-    // is the selection put down.
+    // THE KEY RESOLVES TO THE DECLARED ROW AND THE HOST ASKS ITS OWNER -- and then waits, with
+    // the ask outstanding and the maker's latest gesture unchanged.
     t.key(input::scan::kEscape);
     REQUIRE(desk->asked().size() == 1);
     CHECK(desk->asked()[0] == DesktopSeat::kDeselectId);
+    const std::uint64_t ask = desk->last_ask();
+    CHECK(ask != 0);
+    CHECK(t.session().panels.selected == kind); // nothing moved on the ask alone
+
+    // AN ANSWER ECHOING A NUMBER THIS HOST NEVER MINTED MOVES NOTHING, at the very gesture the
+    // real ask is outstanding at -- which is the one arrangement in which only the correlation
+    // can tell the two apart.
+    desktop_does(t, desk,
+                 [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask + 7); });
+    CHECK(t.session().panels.selected == kind);
+    // ...AND NEITHER DOES ONE THAT ECHOES NOTHING: zero is never an ask.
+    desktop_does(t, desk, [](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, 0); });
+    CHECK(t.session().panels.selected == kind);
+
+    // THE NUMBER THE ASK WENT OUT UNDER PUTS IT DOWN, and only then.
+    desktop_does(t, desk,
+                 [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask); });
     CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.notice().find("unselected") != std::string::npos);
+
+    // ...AND THE ANSWER IS SPENT: the same number again is about a keystroke that is over.
+    t.press_canvas(body.x + 1, body.y + 1);
+    release_keys(t);
+    REQUIRE(t.session().panels.selected == kind);
+    desktop_does(t, desk,
+                 [ask](DesktopSeat& d, loom::Mail& m) { d.deselect_answering(m, ask); });
+    CHECK(t.session().panels.selected == kind);
 }
 
 TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name") {
