@@ -140,7 +140,7 @@ The header is `neovim-editor/vocabulary.hpp`, exported as `zengine::neovim`.
 | environment | meaning |
 |---|---|
 | `ZENGINE_NEOVIM` | the Neovim program (default: `nvim` on the search path) |
-| `ZENGINE_NEOVIM_PROFILE` | `clean` (default: no configuration, and Neovim's state kept apart under the application name `zengine-neovim-clean`), `user` (your own configuration), or the path of an init file |
+| `ZENGINE_NEOVIM_PROFILE` | `clean` (default: no configuration, and Neovim's state kept apart under the application name `zengine-neovim-clean`), `user` (your own configuration), or the path of an init file — relative to the directory the process was started in. A value that is neither word and names no file refuses the start, naming the variable, the value and where the file was looked for; nothing is started |
 
 Supported: Neovim 0.11 and newer (API level 13). Tested: 0.11.6 and 0.12.5. A newer release runs,
 and says it is untested.

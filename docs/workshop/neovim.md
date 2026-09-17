@@ -13,11 +13,51 @@ no Workshop at all, with Neovim's own interface in a second terminal. The exact 
 - **Your configuration stays yours.** By default Neovim starts **clean**: no `init.lua`, no
   plugins, and its state kept apart from yours under the application name `zengine-neovim-clean`.
   Set `ZENGINE_NEOVIM_PROFILE=user` to start it with your own configuration, or to the path of an
-  init file to use that one.
+  init file to use that one — see [which configuration is running](#which-configuration-is-running)
+  for how to set it, how to check it, and what a mistyped name says.
 - **The load plan authors the choice.** Both shipped plans name two editors for the Editor's office,
   `standard` (the one that starts) and `neovim`. A plan of your own names them under `choices`
   ([load plans](load-plans.md#making-your-own); the format is
   [the reference](../reference/load-plan.md#the-file-format)).
+
+## Which configuration is running
+
+Workshop reads two environment variables when it starts a Neovim, and nothing else names either —
+no message, no load plan row, no settings file:
+
+| variable | what it names |
+|---|---|
+| `ZENGINE_NEOVIM` | the program: a full path, or a name found on your search path (default `nvim`) |
+| `ZENGINE_NEOVIM_PROFILE` | `clean` (the default), `user` (your own configuration), or the path of an init file |
+
+Set them in the shell you launch Workshop from:
+
+```text
+bash/zsh      export ZENGINE_NEOVIM_PROFILE=user
+PowerShell    $env:ZENGINE_NEOVIM_PROFILE = "user"
+cmd.exe       set ZENGINE_NEOVIM_PROFILE=user
+```
+
+A **relative** init path is resolved against the directory you started Workshop in — not against
+your project — so `ZENGINE_NEOVIM_PROFILE=./my-init.lua` means the file you can see from the shell
+you launched in.
+
+**To see which one is running**, read the Neovim pane's top row: it names the profile in one word
+beside Neovim's mode, `saved NORMAL clean -- …`, `UNSAVED INSERT user -- …` or `init file`. The full
+words are in the answer to a switch and to a status ask (`clean (no user configuration)`,
+`user (the maker's own configuration)`, `init file <path>`). Inside Neovim, `:echo $MYVIMRC` is your
+own answer to the same question.
+
+**A name that is neither `clean` nor `user` is treated as an init file**, and if no such file
+exists the switch is refused before Neovim starts:
+
+```text
+editor switch 2: refused -- ZENGINE_NEOVIM_PROFILE is `User`, which is neither `clean` nor `user`
+and names no init file (looked for /home/you/User) -- Neovim was not started
+```
+
+That refusal exists because Neovim itself would have started with **no** configuration at all and
+an `E282: Cannot read from "User"` message — a third configuration you did not choose.
 
 ## Switch while you work
 
@@ -92,6 +132,7 @@ document and your desk are as they were, and the editor you were in tells you on
 | `Neovim is not available: ...` | install Neovim, or set `ZENGINE_NEOVIM` to it |
 | `... older than this Workshop supports` | use Neovim 0.11 or newer |
 | `Neovim stopped at a prompt while starting` | your configuration printed an error; fix it, or use the clean profile |
+| `ZENGINE_NEOVIM_PROFILE is ... and names no init file` | the profile is misspelled, or the init path is not where you are — see [which configuration is running](#which-configuration-is-running) |
 | `Neovim is waiting at a prompt` | answer the prompt in Neovim (usually Enter), then ask again |
 | `Neovim's current buffer is not a file` | go to a file's buffer (a help or terminal buffer cannot be carried) |
 | `... has no file name` | write it somewhere first (`:w name`) |
