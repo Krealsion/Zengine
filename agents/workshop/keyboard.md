@@ -70,8 +70,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
 
 MEANS
-- `document.open`, `workshop.terminal`, `workshop.hotkeys` are global;
-- `workshop.quit` (`^c`) is `kNoText`; `document.save` (`^s`) is `kUnlessOwned`;
+- `workshop.terminal`, `workshop.hotkeys` are global; `workshop.quit` (`^c`) is `kNoText`;
+- `document.save` (`^s`) and `document.open` (`^o`) are `kUnlessOwned`;
 - `Keymap::row_active` is the one answer for all three; every view spends it.
 
 DOES NOT MEAN

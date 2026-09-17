@@ -17,21 +17,24 @@ find_package(zengine 0.1 CONFIG REQUIRED)     # resolves Zengine's Loom dependen
 target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 ```
 
-**Nine exported targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
+**Ten exported targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
 house and a guest spell them identically: `activation`, `timer`, `surface`, `input`, `ui`,
 `component`, `operator`, `operator-consumer`, `pane` (the one header
-`workshop/pane_vocabulary.hpp`, installed under `include/zengine/workshop/`). A plain hyphenated name on a link line means the
+`workshop/pane_vocabulary.hpp`, installed under `include/zengine/workshop/`), `neovim` (the one
+header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
+none of the hosting library behind them). A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Five artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
-by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins, and
-`zengine-operators-basic`. They install as FILES, not as exported targets — an artifact is
+**Six artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
+by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins,
+`zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
+starts one) and `zengine-operators-basic`. They install as FILES, not as exported targets — an artifact is
 opened by path and never linked, and an imported target would offer a link line that must
 never be written.
 
 **ARTIFACT is the noun, and the distinction is load-bearing (QR-5).** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Four of the five above are weaves; `zengine-operators-basic` is a provider and explicitly not
+Five of the six above are weaves; `zengine-operators-basic` is a provider and explicitly not
 a weave (enforced by `zengine_provider()` in the top-level `CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`

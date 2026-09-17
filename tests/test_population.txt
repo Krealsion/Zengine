@@ -71,6 +71,8 @@
 #   always  every supported test configuration has it; absence is always a defect.
 #   sdl     rides the SDL-backed weaves (ZENGINE_SDL_SKIN=ON, the default; the Windows
 #           stranger lane turns it off). Absent => declared absent, never "passed".
+#   neovim  rides a real Neovim named at configure time (ZENGINE_NEOVIM_PROGRAM). Absent when
+#           none is named; naming one that is not there is a configure error, never a skip.
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
 # is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
@@ -1021,8 +1023,63 @@
 # in the case that reads a converted session and gained no case, and every other suite is
 # untouched by a change confined to session persistence and its history.
 #
+# THE NEOVIM HOSTING LIBRARY added TWO ENTRIES and one gate, and the
+# split is the `sdl` rule stated a seventh time. `neovim` (always, 21) is the hosting library
+# with no Neovim at all: the codec over every type family and across split reads and its three
+# refusals, the conversation's books (ids matched out of order, a stranger id ending it, both
+# bounds), the screen model and its refusals, the projection (block cell, bar caret, Visual
+# through the cursor cell, blockwise row, menu item, row kinds), the ASCII substitutes, the key
+# notation, the file-bytes and position arithmetic including an exhaustive placement sweep, the
+# launch line, the Windows quoting rule (pinned against the Builder's where it is compiled), and
+# the conversation owner against a scriptable fake through a clean start and end and seven
+# failures, a forced end and a bounded call. `neovim_live` (gate `neovim`, 12) is only what a
+# real Neovim can say -- measured green on Windows 0.11.6 and Linux 0.11.6 and 0.12.5 before it
+# was registered; its twelfth case, a file loaded hidden not heard as the document, came with
+# the live switch's first running Workshop.
+#
+# A LOAD PLAN'S CHOICES raised ONE floor -- workshop_load 137 -> 143 -- and moved no other.
+#
+#   workshop_load   137 -> 143  a plan's CHOICES for an office: version 1 kept byte for byte
+#                               when a plan authors none, version 2 round-tripped when it does,
+#                               each version refusing the other's shape, the choice law, and the
+#                               realization record -- a recorded switch every reader follows by
+#                               its weave, and a record refused for a stem that is no choice.
+#
+# THE EDITOR SWITCH added ONE ENTRY and moved no floor.
+#
+#   workshop_editor_switch (always, 11)  a LIVE Workshop switching the Editor's office between
+#                               the real Editor and copies of it built under other stems, through
+#                               the real coordinator and Loom's prepared replacement: the carry
+#                               and the way back, already-active, an unknown and an unloadable
+#                               choice, a candidate refusing the document, a silent candidate
+#                               pending and cancelled, a keystroke at the boundary refused and
+#                               counted, a keystroke behind the admission reaching the successor,
+#                               consent asked, made stale and asked again, a superseded
+#                               confirmation, a failure after the commitment kept and
+#                               recovered, and the documented Terminal lines typed through
+#                               Workshop's own door with the desk's condition standing meanwhile.
+#                               No Neovim: those images are this suite's own.
+#
+# THE NEOVIM-BACKED EDITOR added ONE ENTRY in two rows, the `sdl` rule an eighth time, and moved
+# no floor.
+#
+#   workshop_neovim (always, 7)  the Neovim editor as the Editor's office with no usable Neovim: a
+#                               program that is not there, one too old, one that stops at a prompt
+#                               and one that never answers (the fake `neovim-fixture`), the office
+#                               held with no Neovim at all, a reload refused while one runs, and the
+#                               beat ordered in words the Timer reads, a refused beat said.
+#   workshop_neovim (neovim, 10) a real Neovim: a document carried there and back exactly with
+#                               Neovim editing between, a selection both ways, an open through the
+#                               office with the save chord writing, an open right after a switch
+#                               with the Timer's beats between its turns, the quit asking, another
+#                               modified buffer named for consent, `:qa` from inside, the clipboard
+#                               both ways, an unfinished count reset and a prompt refusing, and the
+#                               baseline journey's second terminal.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
+neovim                            doctest           always  21
+neovim_live                       doctest           neovim  12
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
@@ -1559,7 +1616,10 @@ workshop_screen                   doctest           always  173
 workshop_panels                   doctest           always  113
 workshop_panes                    doctest           always  553
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  137
+workshop_load                     doctest           always  143
+workshop_editor_switch            doctest           always  11
+workshop_neovim                   doctest           always  7
+workshop_neovim                   doctest           neovim  10
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation

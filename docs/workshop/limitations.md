@@ -248,6 +248,24 @@ Info's property draft does not yet say one; it can, unchanged, whenever that ima
 touched. What no pane has is a pointer SWEEP: a pane is sent a press and is sent no motion, so
 a word is selected by two presses and a range by `Shift` and the arrow keys.
 
+### Neovim in the Editor pane draws plain text, one range, and no colours
+
+The Editor's office can be held by Neovim instead ([Neovim in Workshop](neovim.md)), and a switch
+carries your document both ways. The honest bounds today:
+
+| question | answer |
+|---|---|
+| Syntax highlighting, search matches, colours? | **no** — the pane protocol carries rows, one caret and one selection range; what Neovim colours is not drawn |
+| Non-ASCII on screen? | **drawn as `?`** — each cell is one plain character (box drawing becomes `-`, `|`, `+`); the document itself is untouched |
+| A blockwise selection? | **its cursor's row only** on screen; a switch carries its cursor only, and says so |
+| Several windows, tabs or buffers? | **inside Neovim, yes** — a switch to the standard Editor carries the current buffer, and asks your consent before other unsaved buffers are lost |
+| Your own Neovim configuration? | **opt-in** — Neovim starts clean unless `ZENGINE_NEOVIM_PROFILE=user` |
+| A Neovim session across a rebuild of the Neovim editor itself? | **no** — that reload is refused while Neovim runs; quit Neovim or switch editors first |
+| `Ctrl`+`k` inside Neovim? | **no** — it stays Workshop's hotkey view, the keyboard road back to Workshop's controls |
+| A terminal's own paste into Neovim? | **as typing** — Workshop does not yet tell a terminal paste from keys, so paste in Insert mode; in Normal mode the text runs as commands |
+| A copy made before a switch, pasted after it, in a terminal? | **no** — a terminal medium cannot read the system clipboard, and the editor that starts at a switch has seen no earlier copy; the graphical window reads the real clipboard |
+| A switch control in a pane? | **not yet** — the switch is asked from the Terminal pane; a swapper pane and a confirmation dialog are later presentations of the same office |
+
 ### A pane asks for some answers, and an answer can arrive after you have moved on
 
 A pane that is its own loaded program cannot call into Workshop; it **asks**, and the answer

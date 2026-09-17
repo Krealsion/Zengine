@@ -442,6 +442,7 @@ struct PaneWheel {
 /// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Workshop's
 /// own catalog is what makes the id real, and a suite pins the two spellings against each other.
 inline constexpr const char* kOwnableDocumentSave = "document.save";
+inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
 struct PaneActionRow {
     std::string id;             ///< the durable action id, in the PANE's own namespace

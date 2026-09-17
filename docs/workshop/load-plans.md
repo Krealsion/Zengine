@@ -53,7 +53,9 @@ They differ in exactly two rows:
 
 Everything else is identical, and Workshop's own code is identical under both. Both plans also
 carry `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
-weave), `zengine-introspection` and `zengine-composer`.
+weave), `zengine-introspection` and `zengine-composer`. And both author two **choices** for the
+Editor's office: `standard`, the row that loads, and `neovim`, loaded only when you switch to it
+([Neovim in Workshop](neovim.md)).
 
 ## Reading a record
 
@@ -93,6 +95,11 @@ Copy a shipped plan and change rows. Two things to know:
 - **Adding a native artifact to a plan is an execution-authority decision, not configuration.**
   A plan row causes code to be loaded into this process. Treat editing one the way you would
   treat editing a list of shared libraries a program will `dlopen` — because that is what it is.
+- **Alternatives for an office are `choices`** (plan format version 2): each names an artifact that
+  may hold the office and the word a maker switches to it by, and exactly one of them is also the
+  row that loads it. Keep both of the shipped plans' Editor choices if you want to switch editors;
+  the format is [the reference's](../reference/load-plan.md#the-file-format), the law
+  [editor-switch.md](../reference/editor-switch.md).
 
 ## When a record fails
 

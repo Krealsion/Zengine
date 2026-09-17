@@ -1,10 +1,10 @@
 {
   "zen": 1,
   "schema": "WorkshopLoadFile",
-  "version": 1,
+  "version": 2,
   "fields": {
     "format": "zengine-workshop-load-plan",
-    "format_version": "1",
+    "format_version": "2",
     "artifacts": [
       {
         "artifact": "zengine-operators-basic",
@@ -71,6 +71,10 @@
         "provider": [],
         "weave": [ { "role": "zengine.editor" } ]
       }
+    ],
+    "choices": [
+      { "role": "zengine.editor", "name": "standard", "artifact": "zengine-editor-pane" },
+      { "role": "zengine.editor", "name": "neovim", "artifact": "zengine-neovim-editor" }
     ]
   }
 }

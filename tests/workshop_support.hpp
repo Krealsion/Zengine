@@ -2974,6 +2974,30 @@ struct PaneRig {
             return WORKSHOP_SO_EDITOR_THROWING;
         }
 #endif
+#ifdef WORKSHOP_SO_EDITOR_SWITCH_B
+        // THE EDITOR SWITCH SUITE'S OTHER CHOICES: the standard Editor built under other stems.
+        if (stem == "zengine-editor-pane-b") {
+            return WORKSHOP_SO_EDITOR_SWITCH_B;
+        }
+        if (stem == "zengine-editor-pane-silent") {
+            return WORKSHOP_SO_EDITOR_SWITCH_SILENT;
+        }
+        if (stem == "zengine-editor-pane-refusing") {
+            return WORKSHOP_SO_EDITOR_SWITCH_REFUSING;
+        }
+        if (stem == "zengine-editor-pane-not-live") {
+            return WORKSHOP_SO_EDITOR_SWITCH_NOT_LIVE;
+        }
+        if (stem == "zengine-editor-pane-losing") {
+            return WORKSHOP_SO_EDITOR_SWITCH_LOSING;
+        }
+#endif
+#ifdef WORKSHOP_SO_NEOVIM_EDITOR
+        // THE NEOVIM-BACKED EDITOR, for suite `workshop_neovim`.
+        if (stem == "zengine-neovim-editor") {
+            return WORKSHOP_SO_NEOVIM_EDITOR;
+        }
+#endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 

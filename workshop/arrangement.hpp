@@ -104,6 +104,7 @@ inline const char* state_token(load::RowState state) {
     case load::RowState::Resolved: return kResolvedToken;
     case load::RowState::Refused: return kRefusedToken;
     case load::RowState::Reloading: return kReloadingToken;
+    case load::RowState::Switched: return kSwitchedToken;
     case load::RowState::Authored: break;
     }
     return kAuthoredToken;
@@ -188,6 +189,30 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
             break;
         }
         out.artifacts.push_back(std::move(row));
+    }
+    // THEN THE CHOICES THAT RAN WITHOUT BEING ARTIFACT ROWS, in authored order: an office a
+    // switch moved is held by one of these, and it is authored intent as much as a row is.
+    for (const load::ChoiceIntent& choice : authored.choices) {
+        bool is_row = false;
+        for (const load::ArtifactIntent& intent : authored.artifacts) {
+            is_row = is_row || intent.stem == choice.stem;
+        }
+        if (is_row) {
+            continue;
+        }
+        for (const load::ResolvedArtifact& done : realization.resolved()) {
+            if (done.stem != choice.stem) {
+                continue;
+            }
+            ArtifactParticipation row;
+            row.artifact = choice.stem;
+            row.authored_role = choice.role;
+            row.state = state_token(realization.state_of(choice.stem));
+            row.weave = done.weave_loaded ? static_cast<std::int64_t>(done.weave.value) : 0;
+            row.offer = done.weave_loaded ? offer_token(done.offer) : kOfferNone;
+            out.artifacts.push_back(std::move(row));
+            break;
+        }
     }
     return out;
 }

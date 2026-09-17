@@ -179,6 +179,10 @@ inline constexpr const char* kRefusedToken = "refused";
 /// weave is live and serving while the kernel decides; a projection that blanked them
 /// would say a running weave was not there.
 inline constexpr const char* kReloadingToken = "reloading";
+/// `switched` IS THE SEVENTH: the row resolved, and the office it held was moved by a switch to
+/// another choice the plan authors for that office. Nothing of the row is running -- it carries
+/// no weave -- and the choice now holding the office is a row of its own in the same answer.
+inline constexpr const char* kSwitchedToken = "switched";
 
 /// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
 ///
@@ -198,7 +202,8 @@ inline constexpr const char* kReloadingToken = "reloading";
 /// ---- WHICH ARE RESOLVED --------------------------------------------------------
 ///
 ///   `state`              where realization has got with this row: `authored`,
-///                        `pending`, `loading`, `resolved`, `refused` or `reloading`
+///                        `pending`, `loading`, `resolved`, `refused`, `reloading` or
+///                        `switched`
 ///   `provider`           the identity THE ARTIFACT DECLARED ABOUT ITSELF when it
 ///                        was mounted -- never the stem, and never what the plan said
 ///   `powers`             how many contributions that mount installed
@@ -254,6 +259,10 @@ struct ArtifactParticipation {
 /// the count honest without a denominator field: the list length is what the plan
 /// declared and each row's `state` is what happened, so `3 of 6` is readable off the value
 /// rather than asserted beside it.
+///
+/// ...THEN ONE ENTRY PER AUTHORED CHOICE THAT RAN WITHOUT BEING AN ARTIFACT ROW: an artifact the
+/// plan names only as a choice for an office, loaded by a switch. It is authored too -- in
+/// `choices` -- and a projection that left it out would show an office held by nothing.
 ///
 /// THE ORDER IS THE PLAN'S AND IS NOT SORTED. Inter-artifact order is authored policy
 /// -- it is where an overlay has to sit after the row it covers -- so a view
