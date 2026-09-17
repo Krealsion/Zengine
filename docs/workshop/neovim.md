@@ -48,6 +48,11 @@ a switch is under way, said on the notice line:
 ask @zengine.editor-switch EditorSwitchStatusRequested 1
 ```
 
+**Which editor you are in** is also on the pane itself: its title reads `Editor @zengine.editor`
+for the standard Editor and `Neovim @zengine.editor` for Neovim, and the top row of Neovim's pane
+names Neovim's mode (`saved NORMAL -- ...`) where the standard Editor names a line and column
+(`saved L1:C1/4 -- ...`).
+
 ### When a switch asks first
 
 A switch away from Neovim can lose something the standard Editor cannot hold -- **another buffer
@@ -119,7 +124,10 @@ buffer, beside any unsaved ones.
 
 **Copy and paste cross with everything else.** A yank to `+` or `*` reaches your clipboard, and a
 paste from `+` or `*` asks for it -- unless your own configuration chose a clipboard provider, which
-is then left alone.
+is then left alone. **In a terminal** Workshop cannot read your system clipboard, so a paste from
+`+` gives the last copy made in Workshop since this Neovim editor started -- a copy made in the
+standard Editor before a switch is not one of them. Your terminal's own paste arrives as typing:
+paste in Insert mode, because in Normal mode the pasted text runs as Normal-mode commands.
 
 **What the pane cannot show.** Every cell is drawn as one plain character, so box drawing becomes
 `-`, `|` and `+` and anything else becomes `?` -- only on screen; the document is untouched. The pane

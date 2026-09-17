@@ -262,6 +262,8 @@ carries your document both ways. The honest bounds today:
 | Your own Neovim configuration? | **opt-in** — Neovim starts clean unless `ZENGINE_NEOVIM_PROFILE=user` |
 | A Neovim session across a rebuild of the Neovim editor itself? | **no** — that reload is refused while Neovim runs; quit Neovim or switch editors first |
 | `Ctrl`+`k` inside Neovim? | **no** — it stays Workshop's hotkey view, the keyboard road back to Workshop's controls |
+| A terminal's own paste into Neovim? | **as typing** — Workshop does not yet tell a terminal paste from keys, so paste in Insert mode; in Normal mode the text runs as commands |
+| A copy made before a switch, pasted after it, in a terminal? | **no** — a terminal medium cannot read the system clipboard, and the editor that starts at a switch has seen no earlier copy; the graphical window reads the real clipboard |
 | A switch control in a pane? | **not yet** — the switch is asked from the Terminal pane; a swapper pane and a confirmation dialog are later presentations of the same office |
 
 ### A pane asks for some answers, and an answer can arrive after you have moved on
