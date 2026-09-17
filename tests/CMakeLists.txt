@@ -518,6 +518,51 @@ if(TARGET zengine-input-sdl)
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
+# ---- The Neovim hosting library -------------------------------------------------------
+#
+# TWO SUITES, AND THE SPLIT IS THE SAME ONE `sdl` DRAWS. `neovim` is everything that is
+# arithmetic, framing or custody -- the codec over every type byte, the conversation's books, the
+# screen model and its projection, the key notation, the document conversions, the launch line,
+# the Windows quoting rule (pinned against the Builder's on Windows) -- plus the conversation
+# owner walked through every way a start can fail by a scriptable fake Neovim. It needs no Neovim
+# and runs on every lane.
+#
+# `neovim_live` is what only a real Neovim can say: a start, a prompt, byte-exact adoption, the
+# position round trip, a projected screen, typing, the clipboard bridge, the swap guard, a clean
+# end. It is registered only when a Neovim is NAMED at configure time, and naming one that is not
+# there is an error rather than a skipped suite -- a gate that silently closed would be the
+# degradation the population contract exists to catch.
+add_executable(zengine-neovim-fixture neovim_fixture.cpp)
+target_link_libraries(zengine-neovim-fixture PRIVATE zengine-neovim zengine-warnings zengine-sanitize)
+
+add_executable(zengine-neovim-tests test_neovim.cpp doctest_main.cpp)
+target_link_libraries(zengine-neovim-tests
+    PRIVATE zengine-neovim zengine-builder-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-neovim-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-neovim-tests PRIVATE
+    "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\"")
+add_dependencies(zengine-neovim-tests zengine-neovim-fixture)
+zengine_doctest_test(neovim zengine-neovim-tests)
+
+set(ZENGINE_NEOVIM_PROGRAM "" CACHE FILEPATH
+    "A Neovim (0.11 or newer) for the neovim-gated live suites; empty registers none")
+if(ZENGINE_NEOVIM_PROGRAM)
+    if(NOT EXISTS "${ZENGINE_NEOVIM_PROGRAM}")
+        message(FATAL_ERROR
+            "zengine: ZENGINE_NEOVIM_PROGRAM names ${ZENGINE_NEOVIM_PROGRAM}, which does not exist. "
+            "The `neovim` gate opens for a Neovim that is there; clear the variable to run without it.")
+    endif()
+    add_executable(zengine-neovim-live-tests test_neovim_live.cpp doctest_main.cpp)
+    target_link_libraries(zengine-neovim-live-tests
+        PRIVATE zengine-neovim zengine-warnings zengine-sanitize)
+    target_include_directories(zengine-neovim-live-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    target_compile_definitions(zengine-neovim-live-tests PRIVATE
+        "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
+    zengine_doctest_test(neovim_live zengine-neovim-live-tests)
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "neovim")
+endif()
+
 # The Surface suite: the skin pattern — golden terminal bytes, the pure SDL
 # plan (pinned on every lane, SDL built or not), the hello handshake, surface
 # ownership, and the linkage pins riding the skin pair. Where the SDL skin is

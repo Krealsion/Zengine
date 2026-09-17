@@ -523,6 +523,9 @@ add_subdirectory(maker)
 add_subdirectory(timer)
 add_subdirectory(surface)
 add_subdirectory(input)
+# The Neovim hosting library: header-only, after the input vocabulary its key notation names,
+# and before every weave -- the Neovim editor weave includes it, and nothing it includes is a weave.
+add_subdirectory(neovim)
 add_subdirectory(ui)
 add_subdirectory(component)
 add_subdirectory(builder)
