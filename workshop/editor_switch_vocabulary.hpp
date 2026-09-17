@@ -19,7 +19,7 @@
 // number is Text, which is why a consent begins with a letter):
 //
 //     ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
-//     ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c
+//     ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c7
 //     ask @zengine.editor-switch EditorSwitchStatusRequested 1
 //
 // THE OUTCOMES, one word each, in `EditorSwitchAnswered::outcome`:

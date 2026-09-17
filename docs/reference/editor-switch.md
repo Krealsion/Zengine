@@ -47,7 +47,7 @@ Typed in Workshop's Terminal pane, exactly:
 
 ```text
 ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
-ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c
+ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c7
 ask @zengine.editor-switch EditorSwitchCancelled 1 op=3
 ask @zengine.editor-switch EditorSwitchStatusRequested 1
 ```
@@ -75,7 +75,10 @@ shape and not its fields. While a switch is under way (`pending`), Workshop keep
 condition in the Attention pane with the line that cancels it -- and, awaiting confirmation, the
 line that confirms it, consent included. When an answer ends a switch, or answers without one,
 Workshop says `editor switch <op>: <outcome> -- <detail>` on its notice line; a status answer is
-said the same way and ends nothing.
+said the same way and ends nothing. A `needs-confirmation` answer is said there too, with the
+confirmation line before its detail -- `editor switch <op>: needs-confirmation -- confirm: ask
+@zengine.editor-switch EditorSwitchConfirmed 1 op=<op> consent=<consent> -- <detail>` -- because
+the notice line is cut to the band's width; its `detail` names each loss.
 
 **One switch at a time, and no timeout.** A request while one is under way is refused in words. A
 request while one only awaits confirmation replaces it. A participant that never answers leaves the

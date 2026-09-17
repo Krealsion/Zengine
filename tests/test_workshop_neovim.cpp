@@ -520,6 +520,7 @@ TEST_CASE("a switch away from Neovim names another modified buffer for consent, 
     REQUIRE_MESSAGE(asked.outcome == switch_outcome::kNeedsConfirmation, asked.detail);
     REQUIRE(asked.losses.size() == 1);
     CHECK(asked.losses[0].find("first.txt") != std::string::npos);
+    CHECK_MESSAGE(asked.detail.find("would lose unsaved changes to ") != std::string::npos, asked.detail);
     const std::size_t before = s.asker->answers.size();
     const std::int64_t op = asked.op;
     const std::string consent = asked.consent;

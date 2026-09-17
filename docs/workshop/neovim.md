@@ -50,15 +50,22 @@ ask @zengine.editor-switch EditorSwitchStatusRequested 1
 ### When a switch asks first
 
 A switch away from Neovim can lose something the standard Editor cannot hold -- **another buffer
-with unsaved changes**, or a **terminal job** running in Neovim. Then nothing is loaded yet, the
-answer is `needs-confirmation`, and the Attention pane keeps the question standing with the exact
-line that confirms it -- its `op` and its `consent` filled in:
+with unsaved changes**, or a **terminal job** running in Neovim. Then nothing is loaded yet, and
+the notice line asks at once: the exact line that confirms, its `op` and its `consent` filled in,
+then what the switch would lose --
 
 ```text
-ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c
+editor switch 3: needs-confirmation -- confirm: ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c7 -- switching to `standard` would lose unsaved changes to ...
 ```
 
-Use the numbers your answer gave. If what would be lost changes before the switch takes -- you
+The Attention pane keeps the same question standing, with the line that cancels it, until you
+answer. Type the confirmation into the Terminal:
+
+```text
+ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c7
+```
+
+Use the numbers your notice gave. If what would be lost changes before the switch takes -- you
 modify another buffer meanwhile -- you are asked again with a new consent, and nothing crosses on
 the old one. To stop instead:
 

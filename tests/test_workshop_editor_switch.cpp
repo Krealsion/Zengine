@@ -329,6 +329,16 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
         CHECK(shown->detail.find("ask @zengine.editor-switch EditorSwitchConfirmed 1 op=" +
                                  std::to_string(asked.op) + " consent=" + asked.consent) != std::string::npos);
     }
+    // ...AND THE NOTICE LINE ASKS AT ONCE, the line to type first -- a notice is cut to the band's
+    // width -- then what the switch would lose, in the answer's words.
+    CHECK_MESSAGE(s.r.session().notice.rfind("editor switch " + std::to_string(asked.op) +
+                                                 ": needs-confirmation -- confirm: ask @zengine.editor-switch "
+                                                 "EditorSwitchConfirmed 1 op=" + std::to_string(asked.op) +
+                                                 " consent=" + asked.consent + " -- ",
+                                             0) == 0,
+                  s.r.session().notice);
+    CHECK(s.r.session().notice.find("would lose test instrumentation: 2 lines") != std::string::npos);
+    CHECK_FALSE(s.r.session().notice_is_bad);
 
     // THE CONFIRMATION LINE, with the op and consent the answer carried -- a consent begins with a
     // letter, so the Terminal's grammar reads it as text.
