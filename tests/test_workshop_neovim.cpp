@@ -376,10 +376,14 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     s.press_doc(0, 6);
     s.type("X");
     REQUIRE(s.read("text") == "alpha Xbeta\n\tgamma\n");
+    REQUIRE(s.seat() != nullptr);
+    const std::int64_t incumbent_generation = s.seat()->content_generation;
 
     const EditorSwitchAnswered away = switch_live(s, "neovim");
     REQUIRE_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
     CHECK(away.active == "neovim");
+    REQUIRE(s.seat() != nullptr);
+    CHECK(s.seat()->content_generation > incumbent_generation); // Neovim's rows pass the standard Editor's
     CHECK(s.r.plan_->choice_holder(pane::kEditorPaneRole) == nve::kNeovimEditorStem);
     CHECK_FALSE(s.r.kernel.is_loaded(pane::kEditorPaneStem));
     CHECK(s.read("path") == path);
@@ -392,9 +396,11 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     s.type("A!");
     s.r.key(input::scan::kEscape);
     REQUIRE(beat_until(s, [&] { return s.shows("alpha Xbeta!"); }));
+    const std::int64_t neovim_generation = s.seat()->content_generation;
 
     const EditorSwitchAnswered back = switch_live(s, "standard");
     REQUIRE_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
+    CHECK(s.seat()->content_generation > neovim_generation); // and the standard Editor's pass Neovim's
     CHECK(s.read("path") == path);
     CHECK(s.read("text") == "alpha Xbeta!\n\tgamma\n");
     CHECK(s.read("saved_text") == "alpha beta\n\tgamma\n");
