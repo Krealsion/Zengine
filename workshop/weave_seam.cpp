@@ -68,7 +68,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     keymap_published_ = false;    // ...and the effective keymap, for the same reason (WL-DESK-11)
     subject_published_ = false;   // ...and the inspector's subject (WL-INFO-14)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
-    // one path -- the same `apply_setup` the picker and a restore go through -- so a
+    // one path -- the same `apply_setup` the doors and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
     // the file having been touched and without a second way to open a panel existing.
     apply_setup(mail);

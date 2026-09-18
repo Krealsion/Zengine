@@ -512,8 +512,8 @@ TEST_CASE("a stacked panel covers the workspace, and may reach the right column"
     (void)mount_tool(t, "zengine-snake");
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
 
-    // WITHOUT A PANEL, the screen carries no stacked rows; the picker's own gesture is
-    // said by the band's legend and the hotkey view since WUX-1, not by a row-0 hint.
+    // WITHOUT A PANEL, the screen carries no stacked rows; the opening gestures are said by
+    // the band's legend and the hotkey view since WUX-1, not by a row-0 hint.
     const surface::SurfaceCanvas bare = t.canvases.back();
     CHECK(stack_text(bare).empty());
 

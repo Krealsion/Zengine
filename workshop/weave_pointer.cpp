@@ -27,8 +27,8 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
         occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
     if (here.occupied) {
         // The setup row that RESOLVES to the pointed presentation -- the durable
-        // identity, never the kind handle (`arrange_press`'s own walk). The picker's
-        // rectangle resolves to no row and falls through to the room.
+        // identity, never the kind handle (`arrange_press`'s own walk). A rectangle no row
+        // resolves to (the picker's was one, until it retired) falls through to the room.
         for (const SetupPane& row : session_.setup.active.panes) {
             const std::optional<std::int64_t> named =
                 resolve_pane(row.ref, session_.panels);
@@ -444,8 +444,8 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // one question
         // about one place, every handler below changes nothing on the path where it
         // declines, and the answer is now needed BEFORE the chain rather than after it.
-        // It is the same pure walk `occupied_at` always was -- the picker first, then
-        // the panes topmost-first, then nothing -- moved, not changed.
+        // It is the same pure walk `occupied_at` always was -- the panes topmost-first,
+        // then nothing (the picker first, while it was) -- moved, not changed.
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
         // ...AND THE PICTURE THE MAKER PRESSED IS READ HERE TOO, BEFORE THE TWO LINES BELOW
@@ -500,7 +500,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // from it through the declared candidacy, rather than the occupancy being
         // tested twice: two reads of one press is how the desk comes to think one
         // pane is in front while the keys go to another. A press that lands on the
-        // workspace, on the picker, on the screen's own furniture or on nothing
+        // workspace, on the screen's own furniture or on nothing
         // clears both by these same two lines.
         session_.panels.selected = here.occupied ? here.kind : kNoPaneKind;
         session_.panels.keyboard =
@@ -528,7 +528,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // two questions that are about the same press.)
         // AND AN EXTERNAL PANE IS THE ONE PRESENTATION WHOSE PRESS GOES SOMEWHERE
         //. It is the SAME occupancy answer -- one geometry walk, one topmost
-        // rule, the picker still first -- asked one further question: this cell belongs
+        // rule -- asked one further question: this cell belongs
         // to a pane Workshop did not compile, so the press is that provider's.
         //
         // CONSUMED EITHER WAY, AND DECIDED HERE RATHER THAN THERE. A pane that owns

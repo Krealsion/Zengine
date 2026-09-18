@@ -141,11 +141,10 @@ LAW — `closed`, `unresolved`, `refused`, `waiting`, `off-room`, `covered`, `op
 
 MEANS
 - a pane with a pixel axis and no tile left is `refused`, because a taller window would not help;
-- two panes that each cover half of a third leave nothing of it showing;
-- the state column is eleven cells (`kPaneStateCols`), because `unresolved` is ten bytes.
+- two panes that each cover half of a third leave nothing of it showing.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
-`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`, `kPaneStateCols`,
+`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`,
 `PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`; `workshop/panel.hpp`
 `Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused pane
 is refused rather than waiting, and it still SEATS"`, case `"WIND-2: two panes that each cover

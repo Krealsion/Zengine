@@ -125,14 +125,8 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
     return true;
 }
 
-std::size_t first_editable(const std::vector<Row>& rows) {
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].editable()) {
-            return i;
-        }
-    }
-    return 0;
-}
+// (`first_editable` WAS HERE -- where a row cursor landed on a fresh list -- and left with the
+// last row cursor this host kept, the host Pane Manager's.)
 
 // ⭐ `workspace_scene`, `inspector_rows`, `refocus` AND `position_of` WERE HERE -- the object
 // document resolved against the workspace, its inspector rows and the name of what they addressed

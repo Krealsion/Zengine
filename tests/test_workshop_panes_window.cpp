@@ -1008,7 +1008,6 @@ TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in eve
                                            pane_state::kOpen};
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(std::string(pane_state_word(all[i])).size() > 0);
-        CHECK(std::string(pane_state_word(all[i])).size() <= kPaneStateCols);
         for (std::size_t j = 0; j < i; ++j) {
             CHECK(std::string(pane_state_word(all[i])) != std::string(pane_state_word(all[j])));
         }

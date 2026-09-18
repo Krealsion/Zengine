@@ -66,7 +66,7 @@ struct TerminalRig {
     /// `default_setup` authors, so its office resolved a row that was already there. No
     /// setup has ever named the Terminal -- it was a bool behind a global chord, and no
     /// `PaneRef` for it exists in any file a maker has written. So it arrives the way Files,
-    /// the Builder and Attention did: a stranger a maker opens from the picker.
+    /// the Builder and Attention did: a stranger a maker opens from the Pane Manager.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
               bool participant = true, bool widen = false) {
         r.mount_workshop();
@@ -343,7 +343,7 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
 TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere else") {
     // ⭐ VD-22, ON THE LAST GLOBAL THAT VIOLATED IT. `workshop.terminal` was `Ctrl+t` from
     // anywhere; `Ctrl+a` went the same way with Attention's overlay. The Terminal is opened
-    // from the picker, and its keys reach it only after a maker has pressed into it.
+    // from the Pane Manager, and its keys reach it only after a maker has pressed into it.
     TerminalRig t;
     t.open();
     // No action row of Workshop's own names the terminal any more.

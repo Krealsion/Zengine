@@ -209,7 +209,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     //
     // ⭐ AND THE TERMINAL'S GLOBAL CHORD WENT THE SAME WAY (VD-22, VD-24). `workshop.terminal`
     // was a GLOBAL row -- the last one that opened one particular pane from anywhere -- and a
-    // pane a maker opens from the picker needs no key of its own, exactly as Attention's
+    // pane a maker opens from the Pane Manager needs no key of its own, exactly as Attention's
     // `Ctrl+a` needed none once the current-condition view became a pane.
     // ⭐ THE EDITOR'S COMMAND-MODE DISCARD WAS HERE AND IS GONE (VD-22, VD-25): a key that
     // acted on the Editor's document from wherever the maker was standing. The Editor is a

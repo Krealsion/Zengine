@@ -878,8 +878,8 @@ inline SecondPane second_pane(EditorRig& e) {
 
 TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an office") {
     // ⭐ THE BUILT-IN'S ROW IS GONE, and what replaces it arrives the way Files, the Builder
-    // and the Terminal did: an offer from an office, admitted into the runtime catalog, picked
-    // from the picker, seated in the stack.
+    // and the Terminal did: an offer from an office, admitted into the runtime catalog,
+    // launched, seated in the stack.
     EditorRig e("edit-offer");
     e.open();
     REQUIRE(e.row() != nullptr);
@@ -1121,7 +1121,7 @@ TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the reque
     // an acquisition: the pane reads and judges the file, asks the desk to seat it, and
     // installs on the desk's word that it did. A screen with no slot therefore leaves the prior
     // document, the authored setup and the file itself exactly as they were, and the
-    // requester -- Files, the Builder -- is answered with the picker's own refusal instead
+    // requester -- Files, the Builder -- is answered with the launch door's own refusal instead
     // of a success it would have to discover was hollow.
     EditorRig e("edit-noroom");
     e.open(160, kMinScreen.h, /*pick_it=*/false);

@@ -26,9 +26,9 @@ MEANS
 - `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `pane_subject_rows`;
-`workshop/weave_inspection.cpp` `refresh_inspected`; `workshop/property.hpp` `Row::section`,
-`Row::display`; `tests/test_workshop_panels.cpp` case `"WUX-13/SC-4+SC-5: the subject's rows say
-identity, then AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
+`workshop/weave_inspection.cpp` `refresh_inspected`; `workshop/property.hpp` `Row::section`;
+`tests/test_workshop_panels.cpp` case `"WUX-13/SC-4+SC-5: the subject's rows say identity, then
+AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door

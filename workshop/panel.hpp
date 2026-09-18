@@ -115,7 +115,7 @@ inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 inline constexpr const char* kInfoPaneProvider = "zengine.info";
 inline constexpr const char* kInfoPaneKey = "info";
 
-/// One entry in the catalog: what a maker sees in the picker, where the thing
+/// One entry in the catalog: what a maker sees in the Pane Manager, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PanelKind {
@@ -123,7 +123,7 @@ struct PanelKind {
     std::int64_t placed_in = placement::kOverlayStack; ///< which of the two places it is in
     const char* provider = kWorkshopProvider; ///< the durable provider/service key
     const char* pane = "";    ///< the durable pane key, in that provider's namespace
-    const char* name = "";    ///< what the picker lists
+    const char* name = "";    ///< what the Pane Manager lists
     const char* summary = ""; ///< one line, so a maker can tell what they are opening
     /// CAN A PRESS INTO THIS BUILT-IN POINT THE KEYBOARD AT IT?
     // WL-FOCUS-02 -- agents/workshop/focus.md
@@ -353,7 +353,7 @@ struct RuntimePane {
     std::int64_t kind = kFirstRuntimeKind; ///< the session-local handle; see `is_runtime_kind`
     std::string provider;                  ///< the Loom-stamped office that offered it
     std::string pane;                      ///< the pane key, in that office's namespace
-    std::string name;                      ///< what the picker lists
+    std::string name;                      ///< what the Pane Manager lists
     std::string summary;                   ///< one line, beside the name
     /// THE ACTIONS THIS PANE DECLARED, as admitted -- retained here, beside the descriptor
     /// they arrived with, so the maker's keymap file can be applied to them whenever it
@@ -382,7 +382,7 @@ struct RuntimePane {
 /// anything.
 ///
 /// Thirty-two against two built-ins leaves thirty distinct runtime `PaneRef`s. It
-/// is four times the tallest picker this composition can show, which is the same
+/// is four times the tallest picker this composition could show, which is the same
 /// argument `kMaxSetupPanes` is chosen by, and it bounds what a chatty or
 /// malicious provider can make this session hold to a few kilobytes.
 // WL-CAT-04 -- agents/workshop/catalog.md
@@ -391,7 +391,7 @@ inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
 /// THE RUNTIME CATALOG, and the mint for its handles.
 ///
 /// ORDER IS FIRST-ACCEPTED-OFFER ORDER and is never sorted -- not by role, not by
-/// name, not by arrival time, not by display text. The combined picker walks the
+/// name, not by arrival time, not by display text. The combined catalog lists the
 /// compile-time catalog and then this, so a maker who opens Workshop twice with
 /// the same providers sees the same list in the same order, and a provider cannot
 /// buy itself the top of the list by choosing a name.
@@ -528,7 +528,7 @@ struct Panels {
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones. It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE
-    /// -- the picker's rows, `occupied_at`'s answer, `bounds_of`'s slot -- is
+    /// -- the inventory's rows, `occupied_at`'s answer, `bounds_of`'s slot -- is
     /// already handed a `Panels`, so putting the catalog anywhere else would have
     /// added a parameter to each of them and given a caller a chance to forget it.
     RuntimeCatalog runtime;
@@ -548,8 +548,8 @@ struct Panels {
     // WL-PANE-03, WL-PANE-10 -- agents/workshop/panes-and-windows.md
     std::vector<std::int64_t> waiting_for_room;
     /// WHICH KEYBOARD-TAKING PANE A MAKER LAST POINTED THE KEYS AT -- an external
-    /// pane, or the Pane Manager -- the keyboard's CANDIDATE, and emphatically not
-    /// its answer.
+    /// pane, the one kind that takes them now -- the keyboard's CANDIDATE, and emphatically
+    /// not its answer.
     // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
 

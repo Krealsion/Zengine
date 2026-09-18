@@ -347,7 +347,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         return false;
     }
     // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one
-    // door the picker and a restore go through, the seat through the same reconcile, the
+    // door the launch and a restore go through, the seat through the same reconcile, the
     // selection and the keys, and the pane's admitted room, rows and caret.
     session_.setup.active = trial_.candidate;
     apply_setup_now();

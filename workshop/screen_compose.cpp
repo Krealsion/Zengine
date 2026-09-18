@@ -113,7 +113,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         const KeyContext ctx = keyboard_context(s);
         const std::int64_t typing = keyboard_pane(s.panels);
         // THE SENTENCE NAMES WHERE AN ORDINARY KEY GOES, WHICH IS NOT ALWAYS THE PANE THE KEYS
-        // ARE POINTED AT. Under the picker, a naming line or the hotkey view that pane is still
+        // ARE POINTED AT. Under a mode -- a naming line, the contextual surface -- that pane is still
         // the candidate -- its title keeps the mark, and the keys return to it when the mode
         // closes -- while every ordinary key is the mode's. `typing_pane` is the answer a
         // press's `keys_went_here` is read from, so the band and the seam say one thing.

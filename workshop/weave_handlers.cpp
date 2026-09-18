@@ -254,7 +254,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
     // was waiting for room; a shrink closes the presentation through the ordinary close
     // door, destroys its cache, and leaves the authored reference exactly where it was.
     // `apply_setup` is the one path either way, so a resize cannot open or close a panel
-    // by some route the picker and a restore do not share.
+    // by some route the doors and a restore do not share.
     apply_setup(mail);
     repaint(mail);
 }
@@ -392,7 +392,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // no binding claiming it, is an Escape nothing more specific owned. Then, if a pane
     // is selected, the selection is the layer it sheds: the press-elsewhere gesture's
     // own two lines, spent without needing an unoccupied pixel to press. Nothing else
-    // moves -- no pane closes, no rank, no geometry, no Pane Editor subject, no
+    // moves -- no pane closes, no rank, no geometry, no inspected subject, no
     // provider state, no file.
     //
     // A PLACE A MAKER TYPES INTO KEEPS ESCAPE WHILE IT HOLDS THE KEYS

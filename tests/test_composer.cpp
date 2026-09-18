@@ -860,8 +860,8 @@ TEST_CASE("MSG-0: the pane's durable names are what a saved setup would hold") {
     CHECK(std::string(cmp::kComposerRole) == "zengine.composer");
     CHECK(std::string(cmp::kComposePane) == "compose");
     CHECK(std::string(cmp::kComposerStem) == "zengine-composer");
-    // ...and the picker's name column is ten cells, so a name longer than that would
-    // reach a maker's eye already cut (INTR-0's lesson, paid rather than rediscovered).
+    // ...and the picker's name column was ten cells, so a name longer than that reached a
+    // maker's eye already cut (INTR-0's lesson, paid rather than rediscovered, and kept).
     CHECK(std::string(cmp::kComposePaneName).size() <= 10u);
     CHECK(std::string(cmp::kComposePaneSummary).size() <= 64u);
 }

@@ -70,7 +70,7 @@ v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scanc
 PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows);
 
 /// Offer a pane AND declare its actions in one breath, as a real provider does, then open
-/// it from the picker. Answers the pane's runtime handle.
+/// it through the launch door. Answers the pane's runtime handle.
 /// ⚠ THESE SEND VERSION ONE, WHICH IS THE POINT (VD-27). The rows are written in the host's
 /// own (later) row type for one spelling across the suite, and NARROWED here to exactly the
 /// four fields a provider built before ownership existed can say. So every case below that is
@@ -1016,7 +1016,7 @@ TEST_CASE("a pane built against the published version one still registers, decla
     // version, on the same host and in the same session. The id retired, and the pane is admitted
     // standing in for nothing: its row is its own. (This rig's screen holds one stack pane, so the
     // old one steps out.)
-    r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk, for the picker
+    r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk
     r.pick(PaneRef{kOtherOffice, "old"});
     REQUIRE_FALSE(r.session().panels.has(kind));
     ProviderSeat* modern = r.mount_provider(kHelloOffice);
@@ -1315,7 +1315,7 @@ TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stan
         CHECK(no.refusal.find("layout.remove") != std::string::npos);
         CHECK(candidate.app.empty()); // atomic: a refusal joins nothing
     }
-    // ⭐ A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: the picker
+    // ⭐ A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: a mode
     // owns Escape while it is open, the default row owns it where nothing did.
     {
         Keymap candidate = k;

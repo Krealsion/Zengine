@@ -1611,7 +1611,7 @@ builder                           doctest           always  59
 #                               file is named by the PROJECT door (`RecipeSourceSaid`), and
 #                               opening it is the Editor's.
 
-workshop_document                 doctest           always  47
+workshop_document                 doctest           always  45
 workshop_screen                   doctest           always  129
 # EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
 # workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the

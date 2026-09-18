@@ -926,7 +926,7 @@ int main(int argc, char** argv) {
     // THE BOOT LINE NAMES THE PARTICIPANT, AND NO LONGER NAMES A KEY. It used to print
     // the gesture that opened the overlay, read through the maker's own keymap so the host
     // and the weave could not disagree about it. There is no such gesture: the Terminal is
-    // a pane in the load plan, opened from the picker and placed by a maker's arrangement,
+    // a pane in the load plan, opened from the Pane Manager and placed by a maker's arrangement,
     // so what this line can honestly say is WHICH IDENTITY the pane speaks as -- which is
     // the fact somebody reading this line is actually after.
     std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
@@ -1071,13 +1071,15 @@ int main(int argc, char** argv) {
     // artifact each is expected to produce; what actually ran reaches the pane the way
     // it has from the participant that ran it, as it starts.
     //
-    // ⚠ `p` OPENS THE PICKER, NOT THE PANEL, and this line said otherwise until now.
-    // The Builder panel was a built-in of this host and `p` put it on the screen; since
-    // the Builder became a weave (`Zengine/builder-pane/`) `p` opens the pane PICKER and
-    // the maker chooses the Builder from it, like every other pane. The first sentence a
-    // newcomer reads is not the place to be one migration out of date.
-    std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
-                "pane picker)\n",
+    // ⚠ THIS LINE HAS NAMED THE WRONG DOOR TWICE, and names no key now. The Builder panel was a
+    // built-in and `p` put it on the screen; then the Builder became a weave and `p` opened the
+    // pane picker, which retired in turn. A maker opens the Builder's pane from the desktop's
+    // Pane Manager like every other pane, and the key that opens the Pane Manager is the
+    // desktop's declaration -- which a maker's keymap may move, and which this line, printed
+    // before the desktop has declared anything, cannot know. The first sentence a newcomer
+    // reads is not the place to be one migration out of date.
+    std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (open its pane from "
+                "the Pane Manager)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
     std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                 std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);

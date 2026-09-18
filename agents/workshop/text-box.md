@@ -6,14 +6,13 @@ that belongs to no consumer. One law per heading; cite by ID. Router:
 
 ## WL-TEXT-01 — Editing text is a component, and it belongs to no consumer
 
-LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; a property draft, the name editor, a Composer field and a pane's line are instances.
+LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; the name editor, a Composer field and a pane's line are instances.
 
 DOES NOT MEAN
 - that it has a focus flag, a filter, a max length, a multiline mode or a blink — it has none;
 - that a fifth absence a competent user trips on is a reflex extraction — it gets the same test.
 
 PROVEN BY — `component/text_box.hpp` `TextBox`, `TextBox::first_visible`, `TextBox::caret`;
-`workshop/property.hpp` `Row`, `Row::editor`, `Row::backspace`, `Row::draft_`;
 `workshop/setup.hpp` `LayoutNaming`;
 `tests/test_component.cpp` case `"component: a TextBox is a value with no identity and no
 policy"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the name editor selects with the
@@ -26,8 +25,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::consume`, `kEditingVocabulary`;
-`workshop/weave_session.cpp` `naming_key`;
-`workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_component.cpp` case `"component:
+`workshop/weave_session.cpp` `naming_key`; `tests/test_component.cpp` case `"component:
 the capacity is an argument, so one box serves two different widths"`, case `"component: consume
 owns exactly the editing vocabulary and declines the rest"`.
 WHY — `agents/decisions/a-component-is-earned.md`
@@ -61,7 +59,7 @@ MEANS
 reconcile above the participant check were its one measurer, and the pane owns both now.
 
 PROVEN BY — `workshop/weave_run.cpp` `repaint`;
-`workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_workshop_panes_terminal.cpp`
+`workshop/weave_document.cpp` `refresh_setup_name`; `tests/test_workshop_panes_terminal.cpp`
 case `"TERM-W12: a press on the input row places the caret where the maker aimed"`;
 `tests/test_component.cpp` case `"HD-4: the window is state, and every operation leaves the
 caret inside it"`.
@@ -76,7 +74,7 @@ MEANS
 - a caret is between characters, so the one after a full row needs somewhere to be.
 
 PROVEN BY — `component/text_box.hpp` `character_boundary_at_or_after`;
-`workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen.hpp` `kPropertyCaretCols`;
+`workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_layouts.cpp` `setup_name_columns`;
 `surface/region.hpp` `project_text_regions`; `tests/test_component.cpp` case `"component: the
 window never begins inside a character, at any capacity"`, case `"HD-4: the window never
 begins inside a character"`.
@@ -91,10 +89,10 @@ MEANS
 - a chord carrying Alt or Super is never the box's.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::consume`, `kEditingVocabulary`, `key`, `mod`;
-`workshop/property.hpp` `Row::consume`; `tests/test_component.cpp` case `"component: consume owns
-exactly the editing vocabulary and declines the rest"`, case `"component: a consumed gesture that
-changes nothing is still consumed"`, case `"KEY-0: the editing vocabulary's declaration rows and
-consume() agree, both ways"`.
+`workshop/weave_session.cpp` `naming_key`; `tests/test_component.cpp` case `"component: consume
+owns exactly the editing vocabulary and declines the rest"`, case `"component: a consumed gesture
+that changes nothing is still consumed"`, case `"KEY-0: the editing vocabulary's declaration rows
+and consume() agree, both ways"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-TEXT-07 — The history is the draft's and dies with it
@@ -125,7 +123,6 @@ LAW — A paste is a request: the component counts it, whoever owns the line nam
 
 MEANS
 - a paste means the platform clipboard's current value, which only the owner can obtain;
-- a property row also needs the same object and label; a `Row::resume` draft keeps its epoch;
 - anything else discards the payload whole; the book holds four asks and refuses a fifth.
 
 DOES NOT MEAN — that the check belongs to this host. `TextBox::draft_epoch` is the boundary made
@@ -138,7 +135,7 @@ PROVEN BY — `component/text_box.hpp` `Clipboard::paste_requests`, `TextBox::pa
 `TextBox::draft_epoch`; `workshop/weave_seam.cpp` `paste_owner_now`, `naming_line`,
 `begin_clipboard_paste`; `workshop/weave.hpp` `WorkshopWeave::paste_asks_`, `AskBook`,
 `PasteOwner`, `PendingPaste`; `workshop/weave_pointer.cpp` `answers_ask`, `on(ClipboardText)`;
-`workshop/property.hpp` `Row::paste`, `Row::resume`; `terminal-pane/pane.cpp` `begin_paste`,
+`terminal-pane/pane.cpp` `begin_paste`,
 `on(ClipboardText)`, `Paste`; `files/files.cpp` `paste_epoch_`; `info-pane/pane.cpp`
 `begin_paste`, `on(ClipboardText)`, `Paste::epoch`; `surface/vocabulary.hpp`
 `ClipboardTextRequested`, `kSkinRole`; `tests/test_workshop_document.cpp` case `"QR-11: paste
@@ -198,9 +195,8 @@ LAW — The caret measurers take the box itself, the visible selection is the on
 MEANS
 - `pasteable_line` flattens foreign bytes into one line, for the byte=column grid's sake.
 
-PROVEN BY — `workshop/screen_info.cpp` `property_selection_columns`, `property_caret_column`;
-`workshop/screen.hpp` `TextSelectionSpan`, `kPropertyMarkCols`, `kPropertyLabelCols`,
-`kPropertyCaretCols`; `component/text_box.hpp` `TextBox`, `TextBox::visible_selection`,
+PROVEN BY — `workshop/screen_layouts.cpp` `paint_layouts`; `component/text_box.hpp` `TextBox`,
+`TextBox::visible_selection`,
 `pasteable_line`; `tests/test_component.cpp` case `"component: the visible selection is the
 span both media may spend"`, case `"component: paste flattens foreign bytes into one line"`.
 WHY — `agents/decisions/the-line-is-a-window.md`
@@ -218,7 +214,7 @@ DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay 
 Terminal asks for no sweep; a pane that never declared a use for the motion is sent one it may
 ignore, and the Editor is the one that spends it.
 
-PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`, `property_value_column`,
+PROVEN BY — `workshop/screen.hpp` `Session::text_drag`, `TextDrag`,
 `text_drag_place`, `kExternalPane`; `workshop/weave_external.cpp` `external_drag`;
 `workshop/weave_pointer.cpp` `on(PointerMoved)`, `end_held_gestures`;
 `component/text_box.hpp` `TextBox::drag_to_column`; `tests/test_component.cpp` case

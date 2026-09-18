@@ -537,8 +537,8 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 // ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 
-/// THE ANSWER `Occupancy` GIVES WHEN WHAT IT MET IS NOT A PANEL AT ALL -- the picker, which
-/// is a presentation with no kind.
+/// THE ANSWER `Occupancy` GIVES WHEN WHAT IT MET IS NO PANE -- the bare room. (The picker was
+/// the other answer, a presentation with no kind, until it retired.)
 ///
 /// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason exactly: a panel kind is
 /// non-negative by construction (every `panel::k*` is, and `kFirstRuntimeKind` is 1024), so
@@ -565,12 +565,12 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) no
 /// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
     bool occupied = false;
-    /// The name a maker reads on those cells -- the catalog's own for a panel, the picker's
-    /// own for the picker. Empty when nothing is there, and never a kind a caller has to
+    /// The name a maker reads on those cells -- the catalog's own for a pane. Empty when
+    /// nothing is there, and never a kind a caller has to
     /// switch on: what it is FOR is a sentence.
     // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     std::string what;
-    /// WHICH PRESENTATION, as a handle -- `kNoKind` for the picker and for nothing at all.
+    /// WHICH PRESENTATION, as a handle -- `kNoKind` for nothing at all.
     // WL-PRESS-04 -- agents/workshop/press-chain.md
     std::int64_t kind = kNoKind;
 };
@@ -733,12 +733,11 @@ struct PaneGesture {
 // WL-TEXT-14 -- agents/workshop/text-box.md
 namespace text_drag_place {
 inline constexpr std::int64_t kNone = 0;
-// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24), and `kEditorBody` WAS 3 AND IS GONE with the
-// Editor: both lines are a pane's now. The remaining values keep their numbers: they are a
-// session's live routing and never durable, but renumbering them would be a diff nobody
-// could read for no gain anybody could measure.
-inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
-inline constexpr std::int64_t kPaneEditorDraft = 4; /// < the Pane Editor's live draft row
+// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24), `kEditorBody` WAS 3 AND IS GONE with the Editor,
+// and `kPropertyDraft` (2) and `kPaneEditorDraft` (4) went with the last property drafts this
+// host held: every line a maker sweeps is a pane's now. The value left keeps its number: it is a
+// session's live routing and never durable, but renumbering it would be a diff nobody could read
+// for no gain anybody could measure.
 /// AN EXTERNAL PANE'S BODY: the press named a row of a pane's granted room, and every motion
 /// until the release crosses the seam as `PaneDragged`, resolved against that pane's body
 /// as it is at each motion. Which pane is `TextDrag::kind`.
@@ -759,31 +758,21 @@ struct TextDrag {
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDoubleClickMs = 400;
 
-/// WHAT THE LAST PRESS ON AN EDITABLE LINE NAMED, so the next one can be a double.
-// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
-struct ClickMemory {
-    bool armed = false;
-    std::int64_t place = text_drag_place::kNone;
-    std::uint64_t epoch = 0;        ///< the draft the press landed in (`draft_epoch`)
-    std::size_t word_begin = 0;     ///< the word it named, in bytes of the whole text...
-    std::size_t word_end = 0;       ///< ...end exclusive; equal ends mean no word
-    std::int64_t at_ms = 0;         ///< `interaction_now_ms()` when it landed
-};
-
-/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK? Pure, total, and the ONE place
-/// the question is decided.
-bool doubles_a_click(const ClickMemory& prior, std::int64_t place, std::uint64_t epoch,
-                            const component::WordSpan& word, std::int64_t now_ms) noexcept;
+// ⭐ `ClickMemory`, `doubles_a_click` AND `click_landed` WERE HERE -- the word-selecting
+// double-click's record, qualification and arming -- and left with `press_selects_word`, their
+// one spender, when the last editable line this host held that took a press retired. A tab's
+// double-click is the one this host still reads, and its record is the one below.
 
 /// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
-// WL-TAB-10 -- agents/workshop/tab-run.md
+// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 struct TabClickMemory {
     bool armed = false;
     std::size_t at = 0;      ///< the position the press landed on
     std::int64_t at_ms = 0;  ///< `interaction_now_ms()` when it landed
 };
 
-/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK ON THE SAME TAB? Pure, total.
+/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK ON THE SAME TAB? Pure, total, and the ONE
+/// place the question is decided.
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                                 std::int64_t now_ms) noexcept;
 
@@ -793,10 +782,6 @@ struct LayoutTabDrag {
     bool active = false;
 };
 
-/// The arming a press leaves behind -- written from the same three facts the test above
-/// reads, so an arming that could not qualify cannot be written.
-ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
-                                const component::WordSpan& word, std::int64_t now_ms) noexcept;
 
 // ⭐ `reveal_place`, `Revealed` AND THE FOUR REVEAL FUNCTIONS LEFT WITH THE INFO PANEL. Reading
 // past an ellipsis was one feature and it was Info's alone: a pointer resting on a truncated
@@ -860,8 +845,7 @@ struct Session {
     /// it changes no selection and no keyboard candidate; the subject it holds is spent
     /// through the owner operations at the moment a row is chosen, and nowhere else.
     ContextMenu context;
-    /// THE DYNAMIC PANELS a maker has opened, and the picker they opened them from
-    /// (panel.hpp).
+    /// THE DYNAMIC PANELS a maker has opened (panel.hpp).
     Panels panels;
     /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
     /// one-line editor over its name (setup.hpp).
@@ -890,9 +874,6 @@ struct Session {
     /// ...and the text selection their pointer is sweeping, if any. The third
     /// gesture record, for the two records' own reason; see `TextDrag`.
     TextDrag text_drag;
-    /// ...and what their LAST press on an editable line named, so the next one can be a
-    /// double-click. See `ClickMemory`: an identity and an instant, no place.
-    ClickMemory click;
     /// ...and what their LAST press on a LAYOUT TAB named, so the next one can be a
     /// double-click. See `TabClickMemory`.
     TabClickMemory tab_click;
@@ -932,7 +913,7 @@ KeyContext keyboard_context(const Session& s);
 /// THE PANE AN ORDINARY KEY GOES TO RIGHT NOW, or `kNoPaneKind` -- the pane the key handler
 /// would hand a keystroke no above-mode row answers: the context is a pane's and no hotkey view
 /// has the keys. Not `keyboard_pane`, which is the pane the keys RETURN to and still names a
-/// pane under an open picker. A press's `keys_went_here` and the band's typing sentence are
+/// pane under an open mode. A press's `keys_went_here` and the band's typing sentence are
 /// both this answer, so what crosses the seam and what the screen says cannot disagree.
 std::int64_t typing_pane(const Session& s);
 
@@ -1115,20 +1096,9 @@ std::string omitted_text(std::size_t how_many, const char* which);
 // painter wrote against, the press was located with and the caret was published at. A pane
 // measures its own row: it is told its room and it decides which of its rows is the prompt.
 
-/// THE VISIBLE SELECTION AS PROSE COLUMNS OF A ROW -- a component's own answer, shifted by
-/// whatever the row puts in front of the text.
-///
-/// ⚠ IT WAS `TerminalSelectionSpan` AND THE TERMINAL IT WAS NAMED FOR IS GONE. Two consumers
-/// remain and neither is a terminal: the Inspector's property draft
-/// (`property_selection_columns`) and the Pane Editor's. The type was never the overlay's --
-/// it is what any row with a prompt in front of its text answers -- so it kept its shape and
-/// lost the name of the first thing that needed it.
-// WL-TEXT-13 -- agents/workshop/text-box.md
-struct TextSelectionSpan {
-    std::int64_t begin = 0;
-    std::int64_t end = 0;
-    bool present = false;
-};
+// ⭐ `TextSelectionSpan` WAS HERE -- the visible selection as prose columns of a row, shifted by
+// whatever the row put in front of its text -- and left with its last consumers, the property
+// drafts. The layout name line shifts its own box's answer by its prompt where it paints it.
 
 // ---- The completion list, inside the pane it belongs to ---------------------------------
 
@@ -1205,9 +1175,8 @@ const char* pane_state_word(std::int64_t state);
 /// function.
 const char* pane_state_remedy(std::int64_t state);
 
-/// HOW WIDE THE STATE COLUMN IS.
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
-inline constexpr std::size_t kPaneStateCols = 11;
+// (`kPaneStateCols`, the picker's state column, WAS HERE and retired with it: the words are read
+// in a subject's `State` row now, which is as wide as the room it is given.)
 
 // (`kPickerNameCols`, the picker's and the host Pane Manager's name column, WAS HERE and retired
 // with both: the desktop's list writes a name last on its row and marks the cut.)
@@ -1447,51 +1416,7 @@ struct ContextPressAt {
 ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                        std::int64_t x, std::int64_t y, const PointedAt& at);
 
-// ---- The Info panel's BODY, resolved ONCE ----
-
-/// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
-/// ⭐ THE PANE MANAGER'S NOW. They were the Info panel's row composition and the Pane Manager
-/// borrowed them; the Info pane carries its own copies in its own image, and what is left
-/// here has one consumer.
-// WL-TEXT-13 -- agents/workshop/text-box.md
-inline constexpr std::int64_t kPropertyMarkCols = 1;
-inline constexpr std::int64_t kPropertyLabelCols = 9;
-
-/// THE COLUMN THE INSERTION POINT SITS IN, kept out of the value's own budget.
-// WL-TEXT-13 -- agents/workshop/text-box.md
-inline constexpr std::int64_t kPropertyCaretCols = 1;
-
-/// "This prose row shows no property" — a marker row, the `PROPERTIES` heading, an object
-/// row, a blank row, or a row nobody has.
-///
-/// A count-sized sentinel rather than a signed index, because every other property position in
-/// this file is a `std::size_t` into `Session::rows` and converting at the boundary is where
-/// an off-by-one hides. `position_of` uses `elements.size()` for the same job one shape over;
-/// this one cannot, because the body's own row population is not the collection being indexed.
-inline constexpr std::size_t kNoProperty = static_cast<std::size_t>(-1);
-
-/// "This prose row shows no object" — a marker row, the `PROPERTIES` heading, a property
-/// row, a blank row, or a row nobody has. `kNoProperty`'s twin, one list over.
-inline constexpr std::size_t kNoObject = static_cast<std::size_t>(-1);
-
-/// "This member is not on screen" — the window is not showing it.
-///
-/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason: a prose row index is non-negative by
-/// construction, so an absence spelled this way cannot collide with a row anybody meant.
-inline constexpr std::int64_t kNoProseRow = -1;
-
-/// HOW MANY PROSE ROWS EACH LIST GETS, and the whole of composition policy.
-// WL-INFO-07 -- agents/workshop/info-body.md
-struct BodyShare {
-    std::size_t objects = 0;    ///< prose rows the OBJECTS list may spend, markers included
-    std::size_t properties = 0; ///< prose rows the property list may spend, markers included
-};
-
-/// TOTAL over all three counts, because the budget comes from a metric that arrived on the bus
-/// and the two demands come from a document a file can have written.
-BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
-                                 std::size_t want_properties);
-
+// ---- The Info panel's BODY ----------------------------------------------------------------
 
 // ⭐ THE INFO PANEL'S PRESENTATION AND ITS CONTROLS ARE DECLARED NOWHERE NOW, BECAUSE THEY ARE
 // NOT THIS HOST'S. `action_row_text`, `InfoBodyPlace`, `inspector_focus`, the four
@@ -1502,61 +1427,13 @@ BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
 // `action_label` -- and `kInfoBodyMinRows` with them. They are `Zengine/info-pane/pane.cpp`'s
 // composition now, and the rows it makes of it cross as `PaneContent` like every other pane's.
 //
-// ⚠ THE CONTROLS WERE KEPT ONE STAGE LONGER THAN THE PAINTER AND ARE DELETED HERE. Nothing in
-// this host called them after `paint_info` left: the availability rule is the pane's, made
-// against facts the pane holds (its own draft, the picture it was shown), and a second copy
-// in the host would be a second answer to a question the host is no longer asked.
-
-/// WHAT A LIST ASKS THE BODY FOR: one row per member, and never zero.
-// WL-INFO-07 -- agents/workshop/info-body.md
-inline constexpr std::size_t list_demand(std::size_t members) noexcept {
-    return members == 0 ? 1 : members;
-}
-
-// ---- One windowed list's rows, mapped both ways ------------------------------------------
-
-/// WHICH PROSE ROW SHOWS ITEM `index` OF A LIST THAT BEGINS AT `first_row`, or `kNoProseRow`
-/// when the window is not showing it.
-std::int64_t prose_row_in_window(const ListWindow& w, std::int64_t first_row,
-                                        std::size_t index);
-
-/// WHICH ITEM A PROSE ROW SHOWS, or `count` positions past the window's own end for a marker
-/// row, a row outside the list's run, or a row nobody has. The inverse of the function above,
-/// and its only inverse; callers turn "not an item" into their own sentinel.
-bool item_at_prose_row(const ListWindow& w, std::int64_t first_row, std::size_t rows,
-                              std::int64_t row, std::size_t& out);
-
-/// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
-/// body has room for.
-std::string property_row_prefix(const Row& row, bool here);
-
-/// THE WHOLE OF WHAT A RESTING ROW WOULD SAY WITH UNLIMITED ROOM -- the mark, the
-/// name and the value entire. A LIVE DRAFT HAS NO SUCH ROW, deliberately: a draft is
-/// windowed by its own component against its own caret, and there is nothing here to reveal
-/// that moving the caret does not already show.
-std::string property_row_full(const Row& row, bool here);
-
-std::string property_row_text(const Row& row, bool here, std::int64_t value_columns);
-
-/// THE CARET'S COLUMN IN A BODY ROW: the mark and the name, plus the component's own answer.
-std::int64_t property_caret_column(const Row& row);
-
-/// Where the cursor belongs on a freshly built row list: the first row a maker can actually
-/// author. Landing it on a read-only row instead would open onto a row whose only possible
-/// answer to "edit this" is a refusal. The Info panel spent it first; the Pane Manager spends
-/// it now, on its own fields.
-std::size_t first_editable(const std::vector<Row>& rows);
-
-/// A PRESSED COLUMN AS A COLUMN OF THE VALUE. Negative to the left of the value, which
-/// `TextBox::position_at_column` reads as "the start of what is shown".
-inline constexpr std::int64_t property_value_column(std::int64_t row_column) noexcept {
-    return row_column - (kPropertyMarkCols + kPropertyLabelCols);
-}
-
-/// THE DRAFT'S VISIBLE SELECTION AS PROSE COLUMNS OF ITS BODY ROW —
-/// `property_caret_column`'s shape for a span.
-TextSelectionSpan property_selection_columns(const Row& row,
-                                                        std::int64_t value_columns);
+// ⚠ AND WHAT OUTLIVED THE PANEL HERE LEFT WITH ITS LAST CONSUMER, THE HOST'S PANE MANAGER.
+// `BodyShare`, `share_body_rows` and `list_demand` (the body's max-min share), `kNoProseRow`,
+// `prose_row_in_window` and `item_at_prose_row` (a window's rows mapped both ways), the property
+// rows' composition -- `kPropertyMarkCols`, `kPropertyLabelCols`, `kPropertyCaretCols`, the three
+// `property_row_*` texts, `property_caret_column`, `property_selection_columns`,
+// `property_value_column` -- and `first_editable`, `kNoProperty` and `kNoObject`. The Info pane
+// carries its own copies of what it spends, in its own image (WL-INFO-07).
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
@@ -1901,7 +1778,7 @@ struct RegionPresentation {
 
 /// THE ONE RESOLUTION OF A REGION: interior origin plus authored place, clipped to the
 /// interior, fitted with the face's metric. Pure, total, and the same call the painter,
-/// the region mark and the Pane Manager's RESOLVED rows spend -- one measurer.
+/// the region mark and a subject's RESOLVED rows spend -- one measurer.
 RegionPresentation present_region(const TextRegion& r, const FineRect& interior,
                                          const Screen& sc);
 
@@ -1963,9 +1840,10 @@ void paint_maker_pane(surface::SurfaceLayer& layer, const Session& s, const Fine
 inline constexpr std::int64_t kRegionMark = surface::role::kAccent;
 
 /// WHICH REGION THE PANE CREATOR IS WORKING ON RIGHT NOW, or nothing -- the open
-/// definition's first region, while the Pane Manager is on this desk and has the maker's
-/// pane as its subject. Derived at every ask, held nowhere: close the manager, choose
-/// another subject, or discard the pane, and the answer is nothing with nothing to clear.
+/// definition's first region, while an inspector has named the maker's pane as its subject.
+/// Derived at every ask, held nowhere: name another subject or discard the pane, and the answer
+/// is nothing with nothing to clear. (Closing the host's Pane Manager cleared it too, until that
+/// manager retired; an inspector's pane closing does not, and the mark stands with the subject.)
 const TextRegion* creator_subject_region(const Session& s);
 
 /// THE REGION MARK: the exact rectangle the region resolved to, filled in the mark's role,

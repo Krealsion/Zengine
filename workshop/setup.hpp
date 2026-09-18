@@ -211,10 +211,10 @@ inline bool resolvable(const PaneRef& ref, const Panels& panels) {
     return resolve_pane(ref, panels).has_value();
 }
 
-// ---- THE COMBINED CATALOG: what the picker offers, built-ins and offers -------
+// ---- THE COMBINED CATALOG: what the Pane Manager lists, built-ins and offers ---
 
-/// ONE ROW OF THE COMBINED PICKER POPULATION -- a compile-time kind or a runtime
-/// one, said in one shape so the picker, the cursor, the selection and the
+/// ONE ROW OF THE COMBINED POPULATION -- a compile-time kind or a runtime
+/// one, said in one shape so the inventory, the doors, the selection and the
 /// pointer all read one list.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 struct CatalogRow {
@@ -224,7 +224,7 @@ struct CatalogRow {
     std::string summary;
 };
 
-/// The one line the picker reads under a maker-made pane's name.
+/// The one line a list reads under a maker-made pane's name.
 inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
 
 /// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
@@ -508,11 +508,11 @@ inline Written check_setup_pane(const SetupPane& row) {
 /// display name or its one-line summary.
 ///
 /// ONE OWNER FOR BOTH, because they are one kind of fact: a short line a maker
-/// reads in the picker, arriving from a party this build has never met. The
+/// reads in the Pane Manager, arriving from a party this build has never met. The
 /// rules are `check_setup_name`'s, minus the one that does not apply -- it must
 /// be there, it must be more than spaces, it must carry no control byte, and it
 /// must be short enough to read. A name that rendered as nothing would leave a
-/// picker row that a maker cannot tell from a blank line; a control byte would
+/// list row that a maker cannot tell from a blank line; a control byte would
 /// move a terminal's cursor out of the row it was given, which is precisely what
 /// a forged offer would try.
 ///
@@ -579,7 +579,7 @@ struct Admission {
 /// A RUNTIME OFFER MAY NOT SHADOW A BUILT-IN. `zengine.workshop/info` offered by
 /// some other office is a different `PaneRef` and is admitted normally; offered
 /// by whoever holds `zengine.workshop` it names the row this build compiled in,
-/// and letting a live message move that row would make the picker's first two
+/// and letting a live message move that row would make the list's first
 /// entries a thing a message could rewrite.
 ///
 /// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
@@ -1284,7 +1284,7 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
 
     // CLOSE FIRST, THROUGH THE EXISTING DOOR. `panels.open` is copied because
     // `close_panel` erases from it, and the per-kind view has to be forgotten by
-    // the same call the picker uses -- a loop that rebuilt the vector directly
+    // the same call the close door spends -- a loop that rebuilt the vector directly
     // would leave a removed Builder's copied status alive beside no Builder.
     const std::vector<Panel> before = panels.open;
     for (const Panel& p : before) {

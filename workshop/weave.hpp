@@ -492,7 +492,7 @@ public:
     /// inherit a stale identity. Silent -- the surface disappearing is the statement.
     void close_context();
 
-    /// The surface's own keys: the picker's four, plus the opener closing it.
+    /// The surface's own four keys, plus the opener closing it.
     void context_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     /// Back out one level, with the cursor landing on the group the maker just left --
@@ -689,7 +689,7 @@ public:
     void rejoin_app_rows(std::string& refusals, loom::Mail& mail);
 
     /// SEAT THE PANE THAT ASKS, IN THIS DELIVERY, OR REFUSE WITH NOTHING MOVED. Judged through
-    /// the picker's own trial seat; on a seat the pane is authored if it was not, selected,
+    /// the launch door's own trial seat; on a seat the pane is authored if it was not, selected,
     /// and the keys are pointed at it before the answer (`PaneRevealAnswered`) is given. This
     /// delivery is the acquisition's commitment point, and the host holds nothing across it:
     /// no record, no reservation, no settle to wait for (pane_vocabulary.hpp says why).
