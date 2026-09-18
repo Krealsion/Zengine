@@ -86,6 +86,8 @@ inline constexpr const char* kActionHotkeys = "desktop.hotkeys";
 inline constexpr const char* kActionUp = "launcher.up";       ///< the row cursor, up
 inline constexpr const char* kActionDown = "launcher.down";   ///< ...and down
 inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the row under it
+/// TAKE THE ROW UNDER IT OFF THE DESK -- participation, never the provider (`PaneCloseRequested`).
+inline constexpr const char* kActionClose = "launcher.close";
 
 inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the list up a row
 inline constexpr const char* kActionKeysDown = "hotkeys.down";   ///< ...and down

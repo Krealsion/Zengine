@@ -39,6 +39,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "desktop-pane/vocabulary.hpp"
 #include "editor-pane/editor.hpp"
 #include "editor-pane/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
@@ -897,6 +898,51 @@ TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spe
           nullptr);
     CHECK(e.r.session().keymap.pane_action_for(e.kind, input::scan::kTab, input::mod::kNone) !=
           nullptr);
+}
+
+TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads nothing: a launch "
+          "finds its unsaved source exactly as it was") {
+    // CLOSING IS PARTICIPATION, AND ONLY PARTICIPATION (WL-DESK-12). The unsaved line is the
+    // Editor weave's, in the Editor's image; taking the pane off the desk takes its room away and
+    // leaves the image, the document and the dirty flag where they were.
+    EditorRig e("edit-close-keeps");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.type("x");
+    REQUIRE(e.dirty());
+    // THE SHIPPED DESKTOP, through the same plan door the Editor came through.
+    load::LoadPlan plan;
+    load::ArtifactIntent desk;
+    desk.stem = zengine::desktop_pane::kDesktopStem;
+    desk.weave = load::WeaveIntent{kDesktopRole};
+    plan.artifacts.push_back(desk);
+    const load::Executed loaded = e.r.run_plan(plan);
+    REQUIRE_MESSAGE(loaded.ok, loaded.refusal);
+
+    e.r.key(input::scan::kP, input::mod::kCtrl); // the launcher, holding the keys
+    const std::vector<CatalogRow> rows =
+        inventory_rows(e.r.session().setup.active, e.r.session().panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == editor_ref() ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        e.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        e.key(input::scan::kDown);
+    }
+    e.key(input::scan::kX);
+    CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
+    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK(e.r.host.holder_accepts(pane::kEditorPaneRole, *loom::schema_of<PaneRoom>()));
+
+    e.key(input::scan::kReturn); // the same row: open or focus
+    REQUIRE(e.r.session().panels.has(e.kind));
+    CHECK(e.dirty());
+    CHECK(e.doc_row(0) == "onex");
 }
 
 TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere") {

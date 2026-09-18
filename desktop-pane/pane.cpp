@@ -75,6 +75,8 @@ using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
 using ws::PaneCatalogRequested;
+using ws::PaneCloseAnswered;
+using ws::PaneCloseRequested;
 using ws::PaneContent;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
@@ -106,7 +108,7 @@ struct ListWindow {
     bool below = false;
 };
 
-// WL-DESK-10 -- agents/workshop/desktop.md
+// WL-DESK-10 -- agents/workshop/desktop-presenting.md
 /// THE WINDOW THAT KEEPS `cursor` VISIBLE in at most `budget` rows, markers included -- the
 /// largest one, and among those the one nearest `hint` (last time's first row), so a list
 /// scrolls by the least it can rather than jumping. The population is bounded (the host's
@@ -157,10 +159,11 @@ class DesktopWeave
     : public loom::WeaveBase<
           DesktopWeave, pane::DesktopState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
-                       AppActionRequested, PaneInventory, PaneLaunchAnswered, ActionsJudged,
-                       ActionsWithdrawn, KeymapShown>,
+                       AppActionRequested, PaneInventory, PaneLaunchAnswered,
+                       PaneCloseAnswered, ActionsJudged, ActionsWithdrawn, KeymapShown>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, AppActions, PaneLaunchRequested,
-                     DeselectRequested, DesktopFace, PaneInventoryRequested, KeymapRequested>> {
+                     PaneCloseRequested, DeselectRequested, DesktopFace,
+                     PaneInventoryRequested, KeymapRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -246,6 +249,8 @@ public:
             step(+1);
         } else if (asked.id == pane::kActionLaunch) {
             launch_cursor(mail);
+        } else if (asked.id == pane::kActionClose) {
+            close_cursor(mail);
         } else {
             return;
         }
@@ -281,6 +286,17 @@ public:
     /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
     /// an answer to a launch the maker has since replaced says nothing about the newer one.
     void on(const PaneLaunchAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask() || mail.correlation() != launches_) {
+            return;
+        }
+        notice_ = answer.refusal;
+        say(mail);
+    }
+
+    /// ...AND WHAT A CLOSE CAME TO, on the same terms: the latest close this image asked for, and
+    /// the host's refusal as the notice. A close that happened needs no sentence here -- the row's
+    /// own mark moves to `[    ]` when the inventory is said again.
+    void on(const PaneCloseAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || mail.correlation() != launches_) {
             return;
         }
@@ -409,13 +425,18 @@ private:
                          input::mod::kNone, ws::app_precedence::kDefault}};
     }
 
-    /// THE LAUNCHER'S OWN THREE. Bare keys are legal here: nothing in this pane takes text.
+    /// THE LAUNCHER'S OWN FOUR. Bare keys are legal here: nothing in this pane takes text.
+    ///
+    /// `x` CLOSES, AND IS NOT RETURN'S SECOND MEANING. The picker toggled on one key, so a maker
+    /// reaching for an open tool could take it off the desk; Return here only ever opens or
+    /// focuses, and taking a pane off is its own deliberate key.
     static std::vector<PaneActionRow> pane_rows() {
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
                               input::mod::kNone},
                 PaneActionRow{pane::kActionLaunch, "open or focus", input::scan::kReturn,
-                              input::mod::kNone}};
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionClose, "close", input::scan::kX, input::mod::kNone}};
     }
 
     /// THE HOTKEYS PANE'S OWN FOUR: a scroll, a row at a time or to either end. Nothing in it takes
@@ -432,7 +453,7 @@ private:
 
     // ---- The cursor, held by identity -------------------------------------------------------
 
-    // WL-DESK-10 -- agents/workshop/desktop.md
+    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
     /// FIND THE ROW THE MAKER WAS ON, in the list as the host just said it. By identity, so a
     /// row inserted above it moves the marker with it; a pane that left the list leaves the
     /// marker where it was, holding nothing, and says so -- Return then waits for a choice
@@ -496,6 +517,23 @@ private:
         notice_.clear();
         // THE IDENTITY THE MARKER HOLDS, not the index: what the maker sees is what opens.
         launch(mail, state_.cursor_office, state_.cursor_pane);
+    }
+
+    void close_cursor(loom::Mail& mail) {
+        if (known_.empty()) {
+            return;
+        }
+        if (lost_ || (state_.cursor_office.empty() && state_.cursor_pane.empty())) {
+            notice_ = "x closed nothing -- choose a row first";
+            return;
+        }
+        notice_.clear();
+        // THE IDENTITY THE MARKER HOLDS, as for a launch; the host judges whether it is on the
+        // desk, because participation is the desk's fact and not this list's copy of it.
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole,
+                          PaneCloseRequested{state_.cursor_office, state_.cursor_pane},
+                          ++launches_);
     }
 
     /// ASK THE HOST TO OPEN OR FOCUS A PANE, under a number of this image's own, so the answer
@@ -805,7 +843,8 @@ private:
     KeymapShown keymap_;
     bool keys_heard_ = false;
     std::size_t keys_top_ = 0;
-    /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH, which the host's answer echoes.
+    /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH OR CLOSE, which the host's answer echoes: one
+    /// counter, so an answer to an older request of either kind is history.
     std::uint64_t launches_ = 0;
 };
 

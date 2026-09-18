@@ -1807,6 +1807,94 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     CHECK(launcher_text(r).find("[gone] Info") == std::string::npos);
 }
 
+TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
+          "of a pane that is not there is refused and opens nothing") {
+    // MUTATION (C1): `close_pane` answering `closed` without taking the row off the desk -- the
+    // pane stays seated. MUTATION (C2): a close that is not on the desk falling through to the
+    // launch door -- the second close opens it.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    DesktopSeat* desk = mount_desktop(r);
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    const PaneRef hello{kHelloOffice, kHelloPane};
+    REQUIRE(r.session().panels.has(kind));
+
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.close(m, kHelloOffice, kHelloPane);
+    });
+    REQUIRE(desk->closed().size() == 1);
+    CHECK(desk->closed().back().closed);
+    CHECK(desk->closed().back().refusal.empty());
+    CHECK_FALSE(has_pane(r.session().setup.active, hello));
+    CHECK_FALSE(r.session().panels.has(kind));
+    CHECK(r.last_notice().rfind("closed ", 0) == 0);
+    // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
+    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<PaneRoom>()));
+    CHECK(r.session().panels.runtime.find(kHelloOffice, kHelloPane) != nullptr);
+
+    // A SECOND CLOSE IS REFUSED IN WORDS, and it opens nothing.
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.close(m, kHelloOffice, kHelloPane);
+    });
+    REQUIRE(desk->closed().size() == 2);
+    CHECK_FALSE(desk->closed().back().closed);
+    CHECK(desk->closed().back().refusal.find("is not on this desk") != std::string::npos);
+    CHECK_FALSE(r.session().panels.has(kind));
+    CHECK(r.session().notice_is_bad);
+
+    // ...AND A LAUNCH BRINGS IT BACK FROM THE SAME PROVIDER, which never went anywhere.
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.launch(m, kHelloOffice, kHelloPane);
+    });
+    REQUIRE_FALSE(desk->launched().empty());
+    CHECK(desk->launched().back().opened);
+    CHECK(r.session().panels.has(kind));
+}
+
+TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return opens it again: "
+          "the mark says which, and the provider never left") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
+    const PaneRef info{"zengine.info", "info"};
+    REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
+
+    r.key(input::scan::kP, input::mod::kCtrl); // the launcher, open and holding the keys
+    const std::vector<CatalogRow> rows =
+        inventory_rows(r.session().setup.active, r.session().panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == info ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        r.key(input::scan::kDown);
+    }
+    REQUIRE(marked_row(r).find("[open] Info") != std::string::npos);
+
+    r.key(input::scan::kX);
+    CHECK_FALSE(has_pane(r.session().setup.active, info));
+    CHECK(marked_row(r).find("[    ] Info") != std::string::npos);
+    CHECK(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+
+    // A SECOND x ON THE SAME ROW: the host's refusal is the launcher's notice, and nothing opened.
+    r.key(input::scan::kX);
+    CHECK(launcher_text(r).find("is not on this desk") != std::string::npos);
+    CHECK_FALSE(has_pane(r.session().setup.active, info));
+
+    r.key(input::scan::kReturn);
+    CHECK(has_pane(r.session().setup.active, info));
+    CHECK(marked_row(r).find("[open] Info") != std::string::npos);
+}
+
 TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, and only for the "
           "attempt it is waiting on") {
     TempDir dir("desktop-own-verdict");

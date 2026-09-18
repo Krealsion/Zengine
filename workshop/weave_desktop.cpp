@@ -296,6 +296,57 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
+// ---- Closing: participation, and nothing behind it ----------------------------------------
+
+std::string WorkshopWeave::inventory_name(const PaneRef& ref) const {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+        if (row.ref == ref) {
+            return row.name;
+        }
+    }
+    return ref.pane;
+}
+
+// WL-DESK-12 -- agents/workshop/desktop.md
+PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail) {
+    PaneCloseAnswered out;
+    out.office = ref.provider;
+    out.pane = ref.pane;
+    // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the maker authored is theirs to take off
+    // whether or not anything offers it -- an unavailable pane's row, or one waiting for room, is
+    // exactly the intent a maker closes to stop asking for it.
+    if (!remove_pane(session_.setup.active, ref)) {
+        out.refusal = inventory_name(ref) + " is not on this desk -- nothing to close, and a "
+                                            "close opens nothing";
+        return out;
+    }
+    // ⚠ AND NOTHING BEHIND IT IS TOUCHED. The presentation leaves with the row (`apply_setup`
+    // reseats the desk); the office's holder, its state and every ask it has outstanding stay
+    // exactly as they were, because participation is the desk's fact and a provider's
+    // lifetime is realization's (VD-21).
+    apply_setup(mail);
+    out.closed = true;
+    return out;
+}
+
+// WL-DESK-12 -- agents/workshop/desktop.md
+void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // an office, and only an office -- the seam's rule for changing the desk
+    }
+    const PaneRef ref{asked.office, asked.pane};
+    const PaneCloseAnswered answer = close_pane(ref, mail);
+    if (!answer.refusal.empty()) {
+        say(answer.refusal, true);
+    } else {
+        say("closed " + inventory_name(ref) +
+                " -- its provider and what it holds are untouched; launching it opens it again",
+            false);
+    }
+    (void)mail.answer(answer);
+    repaint(mail);
+}
+
 // ---- Whether anybody is there to fill a pane -----------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md
@@ -342,7 +393,7 @@ PaneInventory WorkshopWeave::inventory_reading() const {
     return said;
 }
 
-// WL-DESK-09 -- agents/workshop/desktop.md
+// WL-DESK-09 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return; // an office asks; personal speech is answered by nobody, the offer's rule
@@ -405,7 +456,7 @@ bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
 
 } // namespace
 
-// WL-DESK-11 -- agents/workshop/desktop.md
+// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::publish_keymap(loom::Mail& mail) {
     KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
     // COMPARED BEFORE IT IS PUBLISHED, `publish_inventory`'s rule: derived at every gesture,
@@ -418,7 +469,7 @@ void WorkshopWeave::publish_keymap(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
-// WL-DESK-11 -- agents/workshop/desktop.md
+// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return; // an office asks

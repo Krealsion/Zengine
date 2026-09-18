@@ -14,7 +14,7 @@
 
 namespace zengine::workshop {
 
-// WL-DESK-11 -- agents/workshop/desktop.md
+// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     switch (ctx) {
     case KeyContext::kNaming: return "naming a layout";
@@ -62,7 +62,7 @@ std::string spelled(const Gesture& g) { return is_bound(g) ? gesture_word(g) : s
 
 } // namespace
 
-// WL-DESK-11 -- agents/workshop/desktop.md
+// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word) {
     const Keymap& k = s.keymap;
     KeymapShown out;
