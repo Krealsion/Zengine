@@ -201,6 +201,19 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
             break;
         }
     }
+    // ⚠ STILL TO COME IS NOT A REFUSAL'S VERDICT. While the plan row loading the office has not
+    // settled, nothing offers the pane YET, and "not available -- build it, or relaunch" would be
+    // a verdict the run has not reached. The launch is still refused (a launch loads nothing),
+    // in words that say so.
+    const bool pending = host_->office_pending && host_->office_pending(ref.provider);
+    const auto not_yet = [&ref](const std::string& who) {
+        return who + " is not here yet -- this run is still loading `" + ref.provider +
+               "`; launch it again once it has arrived";
+    };
+    if (found == nullptr && pending) {
+        out.refusal = not_yet("`" + ref.pane + "`");
+        return out;
+    }
     if (found == nullptr) {
         // ⚠ AND THIS IS WHERE A LAUNCH DOES NOT LOAD ANYTHING. A pane no provider has offered
         // and no desk has authored is not a pane this Workshop can open; going and finding an
@@ -221,8 +234,9 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         // closed -- and saying "opened" for it would be the presentation claiming a seat it
         // does not have. This is the sentence the desktop's backdrop turns into an
         // explanation a maker can act on.
-        out.refusal = name + " is not available -- `" + ref.provider +
-                      "` is not offering it in this Workshop";
+        out.refusal = pending ? not_yet(name)
+                              : name + " is not available -- `" + ref.provider +
+                                    "` is not offering it in this Workshop";
         return out;
     }
     if (!provider_present(kind, ref)) {
@@ -230,8 +244,10 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         // the desk rows that name it), but nobody holds the office now, so nobody could fill
         // the pane: it would open onto a room nothing answers. Asked of the bus at this
         // instant; presence is all it proves -- not health, and not that a delivery lands.
-        out.refusal = name + " is not available -- nothing holds `" + ref.provider +
-                      "` now; its artifact has to be loaded again (build it, or relaunch)";
+        out.refusal = pending ? not_yet(name)
+                              : name + " is not available -- nothing holds `" + ref.provider +
+                                    "` now; its artifact has to be loaded again (build it, or "
+                                    "relaunch)";
         return out;
     }
     const bool already = session_.panels.has(kind);
@@ -382,6 +398,9 @@ PaneInventory WorkshopWeave::inventory_reading() const {
         // AVAILABLE IS ASKED NOW, of the office's current holder -- not read off the catalog,
         // which remembers every pane ever offered this run and so cannot say who left.
         p.available = row.kind != kNoPaneKind && provider_present(row.kind, row.ref);
+        // ...AND WHETHER THE RUN STILL OWES IT, asked of the realization owner now. Absent and
+        // still to come is not absent and settled: only the second is something to build.
+        p.pending = !p.available && host_->office_pending && host_->office_pending(p.office);
         for (const std::int64_t k : seated.waiting) {
             if (k == row.kind) {
                 p.waiting = true;
@@ -417,7 +436,7 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
             const InventoryPane& b = inventory_said_[i];
             if (a.office != b.office || a.pane != b.pane || a.name != b.name ||
                 a.summary != b.summary || a.open != b.open || a.available != b.available ||
-                a.waiting != b.waiting) {
+                a.waiting != b.waiting || a.pending != b.pending) {
                 same = false;
                 break;
             }

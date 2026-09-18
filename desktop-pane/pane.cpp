@@ -764,12 +764,16 @@ private:
         for (std::size_t i = w.first; i < w.first + w.count; ++i) {
             const InventoryPane& p = known_[i];
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
-            // (!) THREE STATES, NOT TWO, because the host answered three questions. A closed
+            // (!) FOUR STATES, NOT TWO, because the host answered four questions. A closed
             // tool can be opened; an unavailable one cannot, and saying "closed" of it would
-            // send a maker pressing Return at a pane that is never going to appear.
+            // send a maker pressing Return at a pane that is never going to appear; one the run
+            // is still loading is neither, and `[gone]` of it would be a verdict nobody reached.
             std::string mark = p.open ? "[open]" : "[    ]";
             std::int64_t role = p.open ? surface::role::kAccent : surface::role::kFill;
-            if (!p.available) {
+            if (!p.available && p.pending) {
+                mark = "[load]";
+                role = surface::role::kMuted;
+            } else if (!p.available) {
                 mark = "[gone]";
                 role = surface::role::kAlert;
             } else if (p.waiting) {
@@ -955,7 +959,7 @@ private:
         // decided it belongs here.
         std::vector<std::string> gone;
         for (const InventoryPane& p : known_) {
-            if (!p.available) {
+            if (!p.available && !p.pending) { // still to come is not missing
                 gone.push_back(p.name);
             }
         }

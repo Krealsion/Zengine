@@ -255,7 +255,9 @@ struct DeselectRequested {
 /// the maker's own authored participation -- whether this pane is on the desk they are looking
 /// at. `available` is whether anything currently holds the office that offers it. A pane can be
 /// authored-open and unavailable (its provider refused to load, or went away), which is exactly
-/// the state a maker needs explained rather than a row that silently disappears.
+/// the state a maker needs explained rather than a row that silently disappears. `pending` is
+/// the run still owing it: the plan row that loads its office has not settled, so the pane is
+/// not here YET -- a state, not the verdict `available` false would otherwise read as.
 struct InventoryPane {
     std::string office;
     std::string pane;
@@ -264,8 +266,10 @@ struct InventoryPane {
     bool open = false;      ///< participating in the live desk
     bool available = false; ///< some holder of `office` currently offers this pane
     bool waiting = false;   ///< authored open, but this screen has no room to seat it
+    bool pending = false;   ///< not offered YET: the plan row loading `office` has not settled
     ZEN_SHAPE(InventoryPane, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
-              ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(waiting));
+              ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(waiting),
+              ZEN_FIELD(pending));
 };
 
 /// THE WHOLE INVENTORY, SAID BY THE HOST WHENEVER IT CHANGES.

@@ -1825,6 +1825,60 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     CHECK(launcher_text(r).find("[gone] Info") == std::string::npos);
 }
 
+TEST_CASE("a pane the run is still loading is pending, not unavailable: the launcher marks it "
+          "`[load]`, the floor names nothing to build, and a launch says it is not here yet") {
+    // MUTATION (Q1): `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
+    // and the floor tells a maker to build a tool whose plan row has not been reached.
+    // MUTATION (Q3): the floor listing every unavailable row, pending or not -- the floor half.
+    PaneRig r;
+    bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
+    r.host.office_pending = [&info_to_come](std::string_view office) {
+        return info_to_come && office == "zengine.info";
+    };
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    const PaneRef info{"zengine.info", "info"};
+    REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it; nothing offers it
+    const auto floor_text = [&r] {
+        std::string floor;
+        for (const surface::SurfaceTextRow& row : r.session().backdrop) {
+            floor += row.text + "\n";
+        }
+        return floor;
+    };
+
+    r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(launcher_text(r).find("[load] info") != std::string::npos);
+    CHECK(launcher_text(r).find("[gone]") == std::string::npos);
+    CHECK(floor_text().find("unavailable") == std::string::npos);
+
+    // THE LAUNCH IS STILL REFUSED -- a launch loads nothing -- IN WORDS THAT ARE NOT A VERDICT.
+    const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
+                                                        r.session().panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == info ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        r.key(input::scan::kDown);
+    }
+    r.key(input::scan::kReturn);
+    CHECK(r.last_notice().find("is not here yet") != std::string::npos);
+    CHECK(r.last_notice().find("build it") == std::string::npos);
+
+    // ...AND ONCE THE RUN HAS SETTLED WITHOUT IT, THE VERDICT IS SAID: gone, and on the floor.
+    info_to_come = false;
+    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the reading is taken again, now
+    CHECK(launcher_text(r).find("[gone] info") != std::string::npos);
+    CHECK(floor_text().find("unavailable: info") != std::string::npos);
+}
+
 TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
           "of a pane that is not there is refused and opens nothing") {
     // MUTATION (C1): `close_pane` answering `closed` without taking the row off the desk -- the

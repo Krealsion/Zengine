@@ -139,7 +139,9 @@ surplus evenly between a pane and the room underneath it, so the room always kee
 compiles in. Your desk names it, so it is there on a first run, in a fixed place at the right
 edge. Every pane in the shipped plan is **optional**: if your build tree is missing
 `zengine-info-pane.so`, Workshop still starts, prints which artifact it could not load, lists
-Info as `[gone]` in the Pane Manager and keeps the fact in Attention for the whole run. Build
+Info as `[gone]` in the Pane Manager, names it on Workshop's own condition row and keeps the fact
+in Attention for the whole run. (While the run is still loading a tool, its row reads `[load]`:
+on its way, not missing.) Build
 it and launch again. (The host's own infrastructure — the operators, the session history, the
 skin, the input weave and the timer — is required, and a plan missing one of those does not
 start.)

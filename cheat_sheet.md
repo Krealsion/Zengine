@@ -546,7 +546,8 @@ edit, rebuild, remap or switch off), answered even while you type in a pane:
 **Pane Manager** (`Ctrl`+`p`) — the one list of panes, and the place a pane is opened, closed
 and made. `↑` `↓` choose; `Enter` opens it, or goes to it if it is already open; `x` closes it —
 its tool keeps running and keeps what it holds, and `Enter` brings it back. A row reads
-`[open]`, `[    ]` (closed), `[room]` (waiting for room) or `[gone]` (nothing offers it now).
+`[open]`, `[    ]` (closed), `[room]` (waiting for room), `[load]` (its tool is still loading)
+or `[gone]` (nothing offers it now, and the run is not bringing it).
 The Pane Manager is itself a pane: arrange it, close it, or replace the desktop that provides it.
 
 **Pane Creator** (in the Pane Manager) — `n` opens a name line: type (paste works), `Enter`

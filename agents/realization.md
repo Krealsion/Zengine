@@ -164,7 +164,9 @@ begin(plan)                    the ordinary host loop        answered()
   by the artifact (`load.unavailable/<stem>`, `<stem> is not in this Workshop`), which the
   Attention pane lists and the host's own compact row names — the one reading no tool paints.
   The desktop's floor and the Pane Manager's `[gone]` rows read the INVENTORY, not these
-  conditions: they name a missing tool only once an offer or a desk row gave it a row. In a
+  conditions: they name a missing tool only once an offer or a desk row gave it a row, and a
+  row whose office a plan row still owes is `pending` there (`office_pending`), never `[gone]`
+  — the walk has not reached its verdict. In a
   terminal Workshop the skin owns the terminal from its row on, so the console lines after it
   are drawn over. The owner has no opinion about process lifetime, and COMPLETION ends
   nothing.

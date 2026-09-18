@@ -1711,11 +1711,15 @@ workshop_screen                   doctest           always  129
 #                                 host's own condition row -- the one reading that needs no
 #                                 tool, and the only one left when the missing tool is the
 #                                 desktop.
+#   workshop_panes    602 -> 603  a pane the run is still loading is pending, not unavailable:
+#   workshop_load     149 -> 150  `[load]` in the Pane Manager, nothing on the floor, "not here
+#                                 yet" at launch; and the realization owner's answer to whether
+#                                 an office is still to come.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  602
+workshop_panes                    doctest           always  603
 workshop_persistence              doctest           always  156
-workshop_load                     doctest           always  149
+workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
 workshop_neovim                   doctest           neovim  12
