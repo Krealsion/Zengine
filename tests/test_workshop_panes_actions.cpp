@@ -2025,22 +2025,26 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     CHECK(marked_row(r).rfind("? ", 0) == 0);
     CHECK(launcher_text(r).find("removed-pane left the list") != std::string::npos);
 
-    // RETURN AND x, WITH THE PANE MANAGER HOLDING THE KEYS: the keys stay, and the desk is as it was.
-    r.key(input::scan::kP, input::mod::kCtrl);
+    // x AND RETURN, EACH WITH THE PANE MANAGER HOLDING THE KEYS: Info stays on the desk, the keys
+    // stay where they are, and the desk is as it was. Each is pressed from the Pane Manager, so
+    // neither can hide the other by moving the keys first.
     const RuntimePane* manager = s.panels.runtime.find(kDesktopRole, dp::kLauncherPane);
     const RuntimePane* inspector = s.panels.runtime.find(info.provider, info.pane);
     REQUIRE(manager != nullptr);
     REQUIRE(inspector != nullptr);
+    r.key(input::scan::kP, input::mod::kCtrl);
     REQUIRE(s.panels.keyboard == manager->kind);
     const std::vector<SetupPane> desk = s.setup.active.panes;
-    r.key(input::scan::kReturn);
-    CHECK(s.panels.keyboard == manager->kind);
-    CHECK(s.setup.active.panes == desk);
-    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
     r.key(input::scan::kX);
     CHECK(has_pane(s.setup.active, info));
     CHECK(s.setup.active.panes == desk);
     CHECK(launcher_text(r).find("x closed nothing") != std::string::npos);
+    r.key(input::scan::kP, input::mod::kCtrl);
+    REQUIRE(s.panels.keyboard == manager->kind);
+    r.key(input::scan::kReturn);
+    CHECK(s.panels.keyboard == manager->kind);
+    CHECK(s.setup.active.panes == desk);
+    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
 
     // A ROW THE MAKER CHOOSES NOW IS THE CHOICE, and Return obeys it.
     const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
