@@ -1113,6 +1113,37 @@ TEST_CASE("WUX-4: a healthy Workshop says nothing on the attention slot at all")
     CHECK(t.said_conditions.back().rows.empty());
 }
 
+TEST_CASE("an unavailable tool is named by its artifact on the host's own condition row, which "
+          "no tool paints") {
+    // THE CONDITION AN OPTIONAL ROW'S REFUSAL IS (P-WORK-22), as `workshop.cpp` establishes it
+    // for a row the run stepped over. MUTATION (U1): `unavailable_tool` saying a fixed "a tool is not in this
+    // Workshop" -- the slot still reads, and names nothing a maker could build or look for.
+    // MUTATION (U2): keying it by the sentence rather than the artifact -- the key half fails.
+    const std::string said =
+        "artifact 'zengine-desktop-pane': weave load refused: open failed: no such file";
+    const Condition gone = unavailable_tool("zengine-desktop-pane", said);
+    CHECK(gone.key == "load.unavailable/zengine-desktop-pane");
+    CHECK(gone.compact == "zengine-desktop-pane is not in this Workshop");
+    CHECK(gone.detail == said); // the refusing layer's own sentence, whole
+    CHECK(gone.role == surface::role::kAlert);
+    CHECK(gone.action == "build its artifact, then launch again");
+
+    // ...SAID ON THE MEDIUM'S OWN FURNITURE. This rig loads no desktop and no Attention pane --
+    // the case the row exists for: with the desktop missing, nothing can open the pane that
+    // lists conditions, and the compact slot is still read.
+    Live t;
+    t.host.standing_conditions.push_back(gone);
+    t.host.standing_conditions.push_back(
+        unavailable_tool("zengine-files", "artifact 'zengine-files': weave load refused"));
+    ++t.host.conditions_generation;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.attention_note() == "zengine-desktop-pane is not in this Workshop (+1 more)");
+    const std::vector<Condition> now = t.conditions();
+    REQUIRE(now.size() == 2);
+    CHECK(now[0].key == "load.unavailable/zengine-desktop-pane"); // same loudness: by key
+    CHECK(now[1].key == "load.unavailable/zengine-files");
+}
+
 TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
     // FALSIFIER 1 -- a stale held condition: the owner resolves and the presentation
     // wrongly remains. And its inverse, which is the defect that was actually measured: a

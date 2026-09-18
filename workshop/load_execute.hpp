@@ -334,6 +334,9 @@ struct Executed {
     /// missing" never becomes "was silently missing" -- every one of them is named, with its
     /// reason, to whoever is reporting.
     std::vector<std::string> unavailable;
+    /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a maker builds. A condition keyed
+    /// and named by it says WHICH tool is missing on a row no tool paints (`unavailable_tool`).
+    std::vector<std::string> unavailable_stems;
 
     explicit operator bool() const noexcept { return ok; }
 };
@@ -1654,6 +1657,9 @@ public:
         out.resolved = resolved_;
         out.waiting_on = waiting_on();
         out.unavailable = unavailable();
+        for (const SteppedOver& gone : stepped_over_) {
+            out.unavailable_stems.push_back(gone.stem);
+        }
         return out;
     }
 

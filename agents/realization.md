@@ -160,10 +160,14 @@ begin(plan)                    the ordinary host loop        answered()
   this Workshop with exit 4 — expressed as an explicit settle-notice lambda that prints, sets
   `host.quit` and spends `host.request_stop`, because realization settles inside a delivery
   now and there is no call to return a code from. An OPTIONAL row's refusal ends nothing: the
-  host prints `unavailable: <sentence>` and establishes a standing condition
-  (`load.unavailable/...`), which the desktop's floor, the Attention pane and the Pane
-  Manager's `[gone]` rows all read. The owner has no opinion about process lifetime, and
-  COMPLETION ends nothing.
+  host prints `unavailable: <sentence>` and establishes a standing condition keyed and named
+  by the artifact (`load.unavailable/<stem>`, `<stem> is not in this Workshop`), which the
+  Attention pane lists and the host's own compact row names — the one reading no tool paints.
+  The desktop's floor and the Pane Manager's `[gone]` rows read the INVENTORY, not these
+  conditions: they name a missing tool only once an offer or a desk row gave it a row. In a
+  terminal Workshop the skin owns the terminal from its row on, so the console lines after it
+  are drawn over. The owner has no opinion about process lifetime, and COMPLETION ends
+  nothing.
 - **THE CONTROL DOOR PATH IS LOAD-BEARING.** `Kernel::load` is reachable from the host and
   must not be shortcut to: only the control door can announce `zen.Activated`, from inside a
   delivery (`Switchboard::announce_as` is private), so a direct load produces a registered,
