@@ -73,6 +73,13 @@ struct HostContext {
     // WL-ATTN-04 -- agents/workshop/attention.md
     std::function<ProjectFrontier()> frontier;
 
+    /// IS THIS OFFICE STILL TO COME? Answered by the host from the realization owner's rows at the
+    /// moment of the ask and kept nowhere -- a READING, as `frontier` is: true while the plan row
+    /// that loads a weave into it has not settled, so a provider that has not arrived YET is
+    /// pending rather than unavailable. Empty answers no.
+    // WL-DESK-04 -- agents/workshop/desktop.md
+    std::function<bool(std::string_view office)> office_pending;
+
     /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST -- `frontier`'s seam exactly.
     // WL-PTR-01 -- agents/workshop/pointer.md
     std::function<std::int64_t()> interaction_now;

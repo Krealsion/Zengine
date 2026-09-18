@@ -1634,6 +1634,11 @@ int main(int argc, char** argv) {
     host.code_source = [&bus, &executor, &current_recipes](const std::string& office) {
         return provenance::code_source_of(office, bus, executor, current_recipes);
     };
+    // ...AND WHETHER AN OFFICE IS STILL TO COME, the same owner's rows read at the ask: a pane
+    // whose plan row has not settled is pending in the inventory, never unavailable.
+    host.office_pending = [&executor](std::string_view office) {
+        return executor.office_pending(office);
+    };
 
     // ---- THE TWO AUTHORED FILES GAIN A WRITER, THE MAKER'S OWN ACT (PICK-1, LOAD-IT) --
     //

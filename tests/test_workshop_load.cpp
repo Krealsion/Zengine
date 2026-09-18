@@ -6463,6 +6463,24 @@ TEST_CASE("an optional row that refused stays `unavailable` in the owner's own a
     CHECK(unavailable);
 }
 
+TEST_CASE("an office is still to come while a plan row loading it has not settled, and is owed "
+          "nothing once every such row resolved or was stepped over") {
+    // MUTATION (Q2): `office_pending` answering false whatever the rows' states -- the first
+    // half fails before the walk has reached the timer's rows.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    CHECK(rig.executor.office_pending(tmr::kTimerRole)); // authored, and not settled yet
+    CHECK_FALSE(rig.executor.office_pending("zengine.nobody")); // no row loads it at all
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+    // ONE ROW RESOLVED INTO IT AND ONE WAS STEPPED OVER: both settled, so nothing is owed.
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Unavailable);
+    CHECK_FALSE(rig.executor.office_pending(tmr::kTimerRole));
+}
+
 TEST_CASE("a refused required row names its reason and next step through the same projection") {
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),

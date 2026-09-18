@@ -230,6 +230,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -1565,6 +1566,25 @@ public:
 
     /// The authored intent this owner is realizing -- empty until `begin`.
     const LoadPlan& plan() const noexcept { return plan_; }
+
+    /// IS `office` STILL TO COME? True while a plan row that loads a weave into it has not
+    /// settled -- authored and not reached yet, loading, or waiting on a build -- so a tool that
+    /// is only not here YET is never said to be unavailable: pending is not a verdict. A row
+    /// that resolved, switched, refused or was stepped over is settled and answers false.
+    // WL-DESK-04 -- agents/workshop/desktop.md
+    bool office_pending(std::string_view office) const {
+        for (const ArtifactIntent& row : plan_.artifacts) {
+            if (!row.weave.has_value() || row.weave->role != office) {
+                continue;
+            }
+            const RowState now = state_of(row.stem);
+            if (now == RowState::Authored || now == RowState::Loading ||
+                now == RowState::Pending) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// How far realization has got with the plan as a whole.
     Realization state() const noexcept { return state_; }

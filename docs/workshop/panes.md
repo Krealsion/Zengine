@@ -31,6 +31,7 @@ PANES -- 8
   [open] Terminal         already here: Enter takes you to it, and closes nothing
   [gone] Info             nothing is offering this pane in this Workshop
   [room] Files            on the layout, and this screen has no room to seat it
+  [load] Attention        this run has not finished loading its tool yet
 ```
 
 | key | does |
@@ -54,7 +55,10 @@ refused in words, and it opens nothing.
 now: a tool that is not in your load plan, one whose artifact could not be loaded at startup,
 or one whose tool has gone away. Workshop says which, and leaves it to you to build it and
 launch again — it will not go looking for a file on your behalf. The empty room behind your
-panes shows the same news, including a line naming any tool that is not here.
+panes shows the same news, including a line naming any tool that is not here. A `[load]` row is
+not that: its plan row has not been reached yet, so its tool is on its way and nothing is to be
+built. `Enter` on it says it is not here yet, and the row changes by itself when it arrives —
+to `[    ]`, or to `[gone]` if the run settles without it.
 
 A row for a pane this build has never heard of still appears, so a typo can be told from a pane
 you have not installed, and a layout naming an unknown pane can still be closed without

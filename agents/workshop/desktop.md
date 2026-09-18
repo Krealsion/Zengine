@@ -59,7 +59,8 @@ LAW — A launch names a pane by its durable keys; the host resolves it in `inve
 
 MEANS
 - a pane already on the desk is selected and given the keys, and nothing is closed;
-- an unknown name, an unoffered pane, a departed provider and no room are four refusals.
+- an unknown name, an unoffered pane, a departed provider and no room are four refusals;
+- a provider the run is still loading is refused as not here yet, never as something to build.
 
 DOES NOT MEAN
 - that asking confers anything: an unoffered pane loads no artifact and mounts nothing;
@@ -71,15 +72,17 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`, `Pan
 `workshop/setup.hpp` `inventory_rows`; `desktop-pane/vocabulary.hpp` `kActionTerminal`,
 `kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case `"a pane whose
 provider left is unavailable in the launcher and refused at launch, while its identity and the
-desk row naming it stay"`.
+desk row naming it stay"`, case `"a pane the run is still loading is pending, not unavailable:
+the launcher marks it `[load]`, the floor names nothing to build, and a launch says it is not
+here yet"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-04 — The inventory is said out loud, and it is not a second inventory
 
-LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider presence now and room-to-seat as three separate facts.
+LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider presence now, a provider still to come and room-to-seat as separate facts.
 
 MEANS
-- a pane can be authored-open and unavailable, which is the state a maker needs explained;
+- a pane can be authored-open and unavailable, or still owed by the run: two states, one verdict;
 - presence is asked of the office's current holder at every reading, never read off a past offer;
 - the publication is compared before it is sent, so an unchanged reading is silence.
 
@@ -88,11 +91,16 @@ DOES NOT MEAN
 - that presence is health: a holder that accepts a room may never answer it.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `InventoryPane`, `PaneInventory`;
-`workshop/weave.hpp` `publish_inventory`, `inventory_reading`, `provider_present`;
-`workshop/weave_desktop.cpp` `publish_inventory`, `inventory_reading`, `provider_present`;
+`workshop/weave.hpp` `publish_inventory`, `inventory_reading`, `provider_present`,
+`HostContext::office_pending`; `workshop/weave_desktop.cpp` `publish_inventory`,
+`inventory_reading`, `provider_present`; `workshop/load_execute.hpp` `office_pending`;
 `workshop/setup.hpp` `inventory_rows`; `tests/test_workshop_panes_actions.cpp` case `"a pane
 whose provider left is unavailable in the launcher and refused at launch, while its identity and
-the desk row naming it stay"`.
+the desk row naming it stay"`, case `"a pane the run is still loading is pending, not
+unavailable: the launcher marks it `[load]`, the floor names nothing to build, and a launch says
+it is not here yet"`; `tests/test_workshop_load.cpp` case `"an office is still to come while a
+plan row loading it has not settled, and is owed nothing once every such row resolved or was
+stepped over"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-05 — The room's floor is the desktop's words and the host's wall

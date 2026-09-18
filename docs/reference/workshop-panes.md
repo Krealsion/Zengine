@@ -72,7 +72,8 @@ PaneCloseRequested{office, pane}   ->  take its row off the live desk       (unl
 
 Only an office may ask either, and each is answered to the asker. The shipped desktop's Pane
 Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
-(`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[room]`, `[gone]` —
+(`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[room]`, `[load]`
+(still to come: the run has not settled the plan row that loads it), `[gone]` —
 because a door whose current state is invisible is a gesture a maker has to guess at. (The `p`
 picker owned presence with ONE door in both directions — select a closed kind to open it, an open
 one to remove it — until it retired. Launching was built never to toggle for exactly that reason,
