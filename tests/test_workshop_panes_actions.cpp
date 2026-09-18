@@ -2180,6 +2180,145 @@ struct MakerTap {
     MakerTap& operator=(const MakerTap&) = delete;
 };
 
+/// WHAT THE BUS DID WITH ONE SHAPE THE DESKTOP SENT, read off its tap: each refusal of the
+/// desktop's own send (Loom's safe reason, and the attempt it refused), each delivery to anybody,
+/// and each of Loom's notices delivered back to the desktop naming a refused attempt of it.
+struct SendTap {
+    loom::Switchboard& bus;
+    loom::ObserverId tap{};
+    std::vector<std::string> reasons;
+    std::vector<std::uint64_t> attempts;
+    int delivered = 0;
+    int notices = 0;
+    SendTap(loom::Switchboard& on, loom::WeaveId desktop, const char* shape) : bus(on) {
+        tap = bus.add_observer([this, desktop, shape](const loom::BusEvent& ev) {
+            if (ev.schema_name == shape) {
+                if (ev.kind == loom::EventKind::Refused && ev.sender == desktop) {
+                    reasons.push_back(loom::name_of(ev.refusal.reason));
+                    attempts.push_back(ev.seq);
+                } else if (ev.kind == loom::EventKind::Delivered) {
+                    ++delivered;
+                }
+            } else if (ev.kind == loom::EventKind::Delivered && ev.target == desktop &&
+                       ev.schema_name == loom::DispatchRefused::zen_name &&
+                       ev.payload != nullptr &&
+                       loom::from_value<loom::DispatchRefused>(*ev.payload).shape == shape) {
+                ++notices;
+            }
+        });
+    }
+    ~SendTap() { bus.remove_observer(tap); }
+    SendTap(const SendTap&) = delete;
+    SendTap& operator=(const SendTap&) = delete;
+};
+
+/// LOOM REFUSES THE DESKTOP'S NEXT MAKE AT DISPATCH -- Info's `refuse_next_commit`, for the Pane
+/// Creator. The turn stops where the desktop has heard `heard` of Workshop's resolved actions, its
+/// make queued behind them and not delivered; Workshop's weave is killed before that delivery, a
+/// real lifecycle change by the host's own authority, so the bus refuses the queued make and tells
+/// its author by that attempt. Workshop is then revived in place from its own snapshot -- the same
+/// session -- and asks the room who has panes.
+void refuse_next_make(PaneRig& r, int heard) {
+    const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+    loom::Switchboard& bus = r.bus;
+    int actions = 0;
+    bool stopped = false;
+    const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
+        if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == desk &&
+            ev.schema_name == PaneActionRequested::zen_name && ++actions == heard) {
+            stopped = true;
+            bus.stop();
+        }
+    });
+    for (int turns = 0; turns < 16 && !stopped; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(stopped);
+    const std::string bytes = bus.snapshot_bytes(r.workshop_id);
+    bus.kill(r.workshop_id);
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+    REQUIRE(bus.swap_state(r.workshop_id, bytes).revived);
+    r.ready();
+}
+
+/// WHAT A STAND-IN IN WORKSHOP'S OFFICE KEEPS AND SAYS: the launcher's last rows as the office
+/// was told them, and Workshop's resolved name id, said to the desktop under that office.
+struct StandInVoice {
+    std::vector<std::string> rows;
+    void heard(const PaneContent& said, const loom::Mail& mail) {
+        if (!mail.authored_from_role(kDesktopRole) || said.pane != dp::kLauncherPane) {
+            return;
+        }
+        rows.clear();
+        for (const surface::SurfaceTextRow& row : said.rows) {
+            rows.push_back(row.text);
+        }
+    }
+    static void say_name(loom::Mail& mail) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(kDesktopRole, PaneActionRequested{dp::kLauncherPane, kCreatorNameId});
+    }
+};
+
+/// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO MAKER DOOR. With Workshop's
+/// weave off the bus, nothing on it declares `MakerPaneRequested`, so a make meets Loom's seam
+/// before anything is queued.
+class DoorlessDesk
+    : public loom::WeaveBase<DoorlessDesk, SeatState,
+                             loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
+                             loom::Emit<PaneActionRequested>> {
+public:
+    void on(const PaneOffered&, loom::Mail&) {}
+    void on(const PaneActions&, loom::Mail&) {}
+    void on(const PaneContent& said, loom::Mail& mail) { voice.heard(said, mail); }
+    void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
+    StandInVoice voice;
+};
+
+/// ...AND ONE THAT TAKES THE PANE CREATOR'S ASKS AND ANSWERS NOTHING, EVER: delivered silence.
+class SilentDesk
+    : public loom::WeaveBase<SilentDesk, SeatState,
+                             loom::Accept<PaneOffered, PaneActions, PaneContent,
+                                          MakerPaneRequested, SeatDo>,
+                             loom::Emit<PaneActionRequested>> {
+public:
+    void on(const PaneOffered&, loom::Mail&) {}
+    void on(const PaneActions&, loom::Mail&) {}
+    void on(const PaneContent& said, loom::Mail& mail) { voice.heard(said, mail); }
+    void on(const MakerPaneRequested&, loom::Mail&) { ++received; }
+    void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
+    StandInVoice voice;
+    int received = 0;
+};
+
+/// PUT A STAND-IN IN WORKSHOP'S OFFICE, granted to say the launcher's ids to the desktop.
+template <class Office>
+Office* stand_in(PaneRig& r, loom::WeaveId& id) {
+    auto held = std::make_unique<Office>();
+    Office* raw = held.get();
+    loom::Grant say;
+    say.allow_to_role(PaneActionRequested::zen_name, PaneActionRequested::zen_version,
+                      kDesktopRole);
+    id = r.bus.register_weave(std::move(held), std::move(say), std::string(kWorkshopProvider));
+    raw->zen_set_self(id);
+    return raw;
+}
+
+void stand_in_says(PaneRig& r, loom::WeaveId id) {
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                       loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+}
+
+/// A STRANGER: an ordinary weave granted the refusal notice's shape, as any weave may be. What it
+/// sends is its own speech, whatever the payload claims.
+class NoticeStranger : public loom::WeaveBase<NoticeStranger, SeatState, loom::Accept<SeatDo>,
+                                              loom::Emit<loom::DispatchRefused>> {
+public:
+    void on(const SeatDo&, loom::Mail&) {}
+};
+
 } // namespace
 
 TEST_CASE("WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name -- `n` opens its "
@@ -2421,6 +2560,325 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         CHECK(shown.find("new pane: Alpha\n") != std::string::npos);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
     }
+}
+
+namespace {
+
+std::string joined(const std::vector<std::string>& rows) {
+    std::string all;
+    for (const std::string& row : rows) {
+        all += row + "\n";
+    }
+    return all;
+}
+
+} // namespace
+
+TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line and the text typed "
+          "since stand, the reason is said, and once Workshop is back the next Return makes it") {
+    // MUTATION (R1): the desktop deaf to Loom's refusal, as reviewed -- the refused make holds the
+    // Creator's one slot, and the next Return says `make not sent`.
+    // MUTATION (R2): a refusal closing the name line -- the text typed since goes with it.
+    CreatorRig c("creator-make-refused");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Alpha");
+    const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+
+    SUBCASE("the line that asked stands") {
+        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        queue_key(r, input::scan::kReturn);
+        refuse_next_make(r, 1);
+        REQUIRE(makes.attempts.size() == 1);
+        CHECK(makes.reasons == std::vector<std::string>{"TargetUnavailable"});
+        CHECK(makes.delivered == 0);
+        CHECK(makes.notices == 1);
+        CHECK_FALSE(r.session().panels.maker.open());
+        r.extent(150, 44); // a new room: the launcher says its rows to the revived host
+        const std::string refused = launcher_text(r);
+        CHECK(refused.find("make not delivered -- nothing changed (TargetUnavailable)") !=
+              std::string::npos);
+        CHECK(refused.find("new pane: Alpha\n") != std::string::npos);
+        // ...THE LINE TAKES MORE TEXT, AND THE NEXT RETURN IS A FRESH MAKE, NOT ONE HELD BEHIND AN
+        // ANSWER THAT CANNOT COME.
+        type_into(r, "2");
+        MakerTap tap(r.bus, r.workshop_id, desk);
+        r.key(input::scan::kReturn);
+        CHECK(tap.asked == std::vector<std::string>{"Alpha2"});
+        REQUIRE(r.session().panels.maker.open());
+        CHECK(r.session().panels.maker.definition.name == "Alpha2");
+        const std::string made = launcher_text(r);
+        CHECK(made.find("new pane:") == std::string::npos);
+        CHECK(made.find("Pane Creator: Alpha2 is on this layout") != std::string::npos);
+    }
+    SUBCASE("a line closed while it waited") {
+        // Return and Escape: the desktop hears the make and the cancel before the death, so the
+        // cancel promised the make may still be made. Loom's word replaces that promise.
+        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        queue_key(r, input::scan::kReturn);
+        queue_key(r, input::scan::kEscape);
+        refuse_next_make(r, 2);
+        CHECK(makes.delivered == 0);
+        CHECK(makes.notices == 1);
+        r.extent(150, 44);
+        const std::string refused = launcher_text(r);
+        CHECK(refused.find("new pane:") == std::string::npos);
+        CHECK(refused.find("make not delivered -- nothing changed (TargetUnavailable)") !=
+              std::string::npos);
+        CHECK(refused.find("may still be made") == std::string::npos);
+        // ...AND CLOSING THE NEXT LINE CLAIMS NOTHING OUTSTANDING.
+        press_letter(r, input::scan::kN, "n");
+        type_into(r, "Beta");
+        r.key(input::scan::kEscape);
+        CHECK(launcher_text(r).find("no pane was made") != std::string::npos);
+    }
+}
+
+TEST_CASE("a Pane Creator make nothing could queue is released at once and tried afresh, while one "
+          "delivered and never answered stays outstanding: no timeout, no retry, no guess") {
+    // MUTATION (Q1): the ticket discarded -- a make nothing queued holds the slot for good, and the
+    // next name is `make not sent`.
+    CreatorRig c("creator-make-unqueued");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Alpha");
+    const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+    // WORKSHOP'S WEAVE LEAVES THE BUS FOR AN INTERVAL, its session untouched; a stand-in holds its
+    // office meanwhile and says Workshop's resolved name id to the desktop.
+    std::unique_ptr<loom::Weave> workshop = r.take_workshop_off();
+
+    SUBCASE("nothing queued: released at once, and made once the door is back") {
+        REQUIRE(r.bus.resolve_schema(MakerPaneRequested::zen_name,
+                                     MakerPaneRequested::zen_version) == nullptr);
+        loom::WeaveId office_id{};
+        DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
+        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        stand_in_says(r, office_id);
+        CHECK(makes.reasons == std::vector<std::string>{"SeamUnresolved"});
+        CHECK(makes.delivered == 0);
+        CHECK(makes.notices == 0); // nothing was queued, so Loom has nothing to say later
+        const std::string first = joined(office->voice.rows);
+        CHECK(first.find("make not submitted -- nothing was queued") != std::string::npos);
+        CHECK(first.find("new pane: Alpha\n") != std::string::npos);
+        // THE RECORD WAS RELEASED: the next name is attempted again, not held as the second of two.
+        stand_in_says(r, office_id);
+        CHECK(makes.reasons.size() == 2);
+        CHECK(joined(office->voice.rows).find("not sent") == std::string::npos);
+        // THE DOOR COMES BACK: the stand-in leaves, and the same Workshop weave holds the office.
+        REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
+        r.put_workshop_back(std::move(workshop));
+        r.extent(150, 44);
+        CHECK(launcher_text(r).find("new pane: Alpha\n") != std::string::npos);
+        MakerTap tap(r.bus, r.workshop_id, desk);
+        r.key(input::scan::kReturn);
+        CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+        CHECK(r.session().panels.maker.definition.name == "Alpha");
+    }
+    SUBCASE("delivered and never answered: outstanding, and nothing guesses its fate") {
+        loom::WeaveId office_id{};
+        SilentDesk* office = stand_in<SilentDesk>(r, office_id);
+        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        stand_in_says(r, office_id);
+        CHECK(office->received == 1);
+        CHECK(makes.reasons.empty());
+        stand_in_says(r, office_id);
+        CHECK(office->received == 1); // the second is not sent
+        CHECK(joined(office->voice.rows)
+                  .find("make not sent -- an earlier ask is still unanswered") !=
+              std::string::npos);
+        // ...AND WORKSHOP COMING BACK ANSWERS NOTHING THE STAND-IN HEARD: the act stays outstanding.
+        REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
+        r.put_workshop_back(std::move(workshop));
+        r.extent(150, 44);
+        MakerTap tap(r.bus, r.workshop_id, desk);
+        r.key(input::scan::kReturn);
+        CHECK(tap.asked.empty());
+        CHECK_FALSE(r.session().panels.maker.open());
+        CHECK(launcher_text(r).find("make not sent -- an earlier ask is still unanswered") !=
+              std::string::npos);
+    }
+}
+
+TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a forgery naming it "
+          "exactly settles nothing, and a refused paste releases the paste alone") {
+    // MUTATION (F1): provenance not checked -- the forgery releases the make, its answer is then
+    // dropped, and the name said behind it sends a second make.
+    // MUTATION (F2): any notice releasing the make -- the refused paste's notice takes the make's
+    // slot, and the make's answer is dropped.
+    // MUTATION (F3): a refused paste left on its way -- the accepted make keeps a line open that
+    // nothing will ever paste into.
+    SUBCASE("a forgery naming the make exactly") {
+        CreatorRig c("creator-forged-notice");
+        PaneRig& r = c.r;
+        open_launcher(r);
+        press_letter(r, input::scan::kN, "n");
+        type_into(r, "Alpha");
+        const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+        auto held = std::make_unique<NoticeStranger>();
+        NoticeStranger* stranger = held.get();
+        loom::Grant grant;
+        grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
+        const loom::WeaveId stranger_id =
+            r.bus.register_weave(std::move(held), std::move(grant));
+        stranger->zen_set_self(stranger_id);
+        std::vector<std::uint64_t> seqs;
+        std::vector<std::uint64_t> correlations;
+        int forged_delivered = 0;
+        bool stopped = false;
+        const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            if (ev.schema_name == MakerPaneRequested::zen_name) {
+                seqs.push_back(ev.seq);
+                correlations.push_back(ev.correlation);
+            } else if (ev.target == desk && ev.schema_name == loom::DispatchRefused::zen_name &&
+                       ev.sender == stranger_id) {
+                ++forged_delivered;
+            } else if (!stopped && ev.target == desk &&
+                       ev.schema_name == PaneActionRequested::zen_name) {
+                stopped = true;
+                r.bus.stop();
+            }
+        });
+        // THE TURN STOPS WHERE THE DESKTOP HAS HEARD RETURN: its make queued, then its rows.
+        queue_key(r, input::scan::kReturn);
+        for (int turns = 0; turns < 16 && !stopped; ++turns) {
+            (void)r.bus.pump_pending();
+        }
+        REQUIRE(stopped);
+        // ITS ATTEMPT IS TWO SEQUENCES BEFORE THE NEXT ONE -- read off a probe now, and checked
+        // against the make's delivery afterwards.
+        const loom::Ticket probe = r.bus.send(
+            stranger_id,
+            loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        REQUIRE(probe.valid());
+        loom::DispatchRefused forged;
+        forged.attempt = std::to_string(probe.seq - 2);
+        forged.role = kWorkshopProvider;
+        forged.shape = MakerPaneRequested::zen_name;
+        forged.version = MakerPaneRequested::zen_version;
+        forged.reason = "TargetUnavailable";
+        REQUIRE(r.bus
+                    .send_as(stranger_id, desk,
+                             loom::Message(loom::to_value(forged), stranger_id, loom::WeaveId{},
+                                           1))
+                    .valid());
+        // ...AND THE NAME ID AGAIN, queued behind the forgery and ahead of the answer.
+        queue_as_workshop(r, kCreatorNameId);
+        r.bus.drain_until_idle();
+        r.bus.remove_observer(tap);
+        // THE FORGERY WAS DELIVERED, AND IT NAMED THE MAKE THE DOOR THEN RECEIVED, EXACTLY.
+        CHECK(forged_delivered == 1);
+        REQUIRE(seqs.size() == 1); // one make reached the door: the name said behind it was not sent
+        CHECK(seqs.front() == probe.seq - 2);
+        CHECK(correlations.front() == 1);
+        // IT SETTLED NOTHING: the answer came, made the pane, and closed the unchanged line.
+        REQUIRE(r.session().panels.maker.open());
+        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        const std::string shown = launcher_text(r);
+        CHECK(shown.find("not delivered") == std::string::npos);
+        CHECK(shown.find("new pane:") == std::string::npos);
+        CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+    }
+    SUBCASE("a refused paste and a make, in one poll") {
+        CreatorRig c("creator-refused-paste");
+        PaneRig& r = c.r;
+        // THE SKIN'S OFFICE IS HELD BY A WEAVE THAT HAS DIED: a paste is queued, and Loom refuses it
+        // at dispatch -- where a missing shape would have refused it before anything was queued.
+        (void)r.mount_skin_seat();
+        const loom::WeaveId skin = r.bus.role_holder(surface::kSkinRole);
+        REQUIRE(skin.valid());
+        r.bus.kill(skin);
+        open_launcher(r);
+        press_letter(r, input::scan::kN, "n");
+        type_into(r, "Alpha");
+        const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+        SendTap pastes(r.bus, desk, surface::ClipboardTextRequested::zen_name);
+        MakerTap tap(r.bus, r.workshop_id, desk);
+        queue_key(r, input::scan::kV, input::mod::kCtrl);
+        queue_key(r, input::scan::kReturn);
+        r.bus.drain_until_idle();
+        // THE PASTE WAS REFUSED, AND LOOM SAID SO TO THE DESKTOP -- before the make was answered...
+        CHECK(pastes.reasons == std::vector<std::string>{"TargetUnavailable"});
+        CHECK(pastes.notices == 1);
+        // ...AND THE MAKE WAS ITS OWN: delivered once, answered, and its unchanged line closed.
+        CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+        CHECK(tap.answered == 1);
+        REQUIRE(r.session().panels.maker.open());
+        const std::string shown = launcher_text(r);
+        CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+        CHECK(shown.find("new pane:") == std::string::npos);
+        CHECK(shown.find("not delivered") == std::string::npos);
+    }
+}
+
+TEST_CASE("a Pane Creator the host's admission denies the maker door says so for every attempt, "
+          "and each later act is attempted afresh rather than held behind the first") {
+    // THE REVIEW'S OWN SCENARIO. An admission policy grants the desktop every sentence it says
+    // except `MakerPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
+    // MUTATION (R1) again: the refusal unheard -- the second Return and the save are `not sent`.
+    TempDir files("creator-denied");
+    PaneRig r;
+    r.host.pane_path = files.file("pane.json");
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    r.kernel.admit_with([](const loom::AdmissionRequest&) {
+        loom::Grant g;
+        const auto allow = [&g](const char* name, std::uint32_t version) {
+            g.allow_to_any(name, version);
+        };
+        allow(PaneOffered::zen_name, PaneOffered::zen_version);
+        allow(PaneActions::zen_name, PaneActions::zen_version);
+        allow(PaneContent::zen_name, PaneContent::zen_version);
+        allow(AppActions::zen_name, AppActions::zen_version);
+        allow(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version);
+        allow(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version);
+        allow(DeselectRequested::zen_name, DeselectRequested::zen_version);
+        allow(DesktopFace::zen_name, DesktopFace::zen_version);
+        allow(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
+        allow(KeymapRequested::zen_name, KeymapRequested::zen_version);
+        allow(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
+        allow(surface::ClipboardTextRequested::zen_name,
+              surface::ClipboardTextRequested::zen_version);
+        return loom::AdmissionVerdict::admit(std::move(g), "every desktop sentence but the maker's");
+    });
+    load_real_desktop(r);
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Alpha");
+    const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
+    SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+
+    r.key(input::scan::kReturn);
+    CHECK(makes.reasons == std::vector<std::string>{"CapabilityDenied"});
+    CHECK(makes.delivered == 0);
+    CHECK(makes.notices == 1);
+    CHECK_FALSE(r.session().panels.maker.open());
+    std::string shown = launcher_text(r);
+    CHECK(shown.find("make not delivered -- nothing changed (CapabilityDenied)") !=
+          std::string::npos);
+    CHECK(shown.find("new pane: Alpha\n") != std::string::npos);
+
+    // A FRESH ATTEMPT, DENIED AGAIN -- and said as its own, not as one held behind the first.
+    r.key(input::scan::kReturn);
+    CHECK(makes.reasons.size() == 2);
+    CHECK(makes.notices == 2);
+    CHECK(makes.delivered == 0);
+    CHECK(launcher_text(r).find("not sent") == std::string::npos);
+
+    // CLOSING THE LINE IS TRUE -- nothing was made -- AND A SAVE IS ITS OWN ATTEMPT.
+    r.key(input::scan::kEscape);
+    CHECK(launcher_text(r).find("no pane was made") != std::string::npos);
+    press_letter(r, input::scan::kS, "s");
+    CHECK(makes.reasons.size() == 3);
+    shown = launcher_text(r);
+    CHECK(shown.find("save not delivered -- nothing changed (CapabilityDenied)") !=
+          std::string::npos);
+    CHECK(shown.find("not sent") == std::string::npos);
 }
 
 TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS the cut") {

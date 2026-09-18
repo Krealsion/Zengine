@@ -662,6 +662,88 @@ TEST_CASE("INFO-WEAVE: a press on a pane row inspects it, through the host's own
     CHECK(f.row_of(">*Info -- ") >= 0);
 }
 
+TEST_CASE("Info's lost list choice survives its own reload: Return inspects nothing until a row "
+          "is chosen") {
+    // MUTATION (J1): `find_list_cursor` clearing the keys of a lost choice, as reviewed -- the
+    // reloaded Info holds its first row, and Return inspects it over the maker's subject.
+    TempDir copy("info-lost-choice");
+    InfoRig f;
+    f.open();
+    Session& s = const_cast<Session&>(f.r.session());
+    f.inspect("Layouts"); // a subject of the maker's own, which nothing below may move
+    const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
+    REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
+
+    // THE LIST CURSOR ON THE UNRESOLVED ROW, by the list's own keys.
+    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == ghost ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        f.r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        f.r.key(input::scan::kDown);
+    }
+    REQUIRE_MESSAGE(f.row_of("> removed-pane -- ") >= 0, f.text());
+
+    // THE ROW LEAVES THE DESK -- and, offered by nobody, the list.
+    REQUIRE(remove_pane(s.setup.active, ghost));
+    f.r.key(input::scan::kA); // a gesture: the changed inventory is said
+    REQUIRE_MESSAGE(f.row_of("?") >= 0, f.text());
+    REQUIRE(f.text().find("removed-pane left the l") != std::string::npos);
+
+    // INFO REPLACED IN PLACE FROM AN UNCHANGED COPY, THROUGH THE CONTROL DOOR -- then a publication.
+    const std::string image =
+        copy.file(("info-again" +
+                   std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string())
+                      .c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
+    f.r.enqueue_reload(pane::kInfoPaneStem, image);
+    f.r.bus.drain_until_idle();
+    REQUIRE(f.r.load_refusals.empty());
+    CHECK_MESSAGE(f.row_of("?") >= 0, f.text());
+    CHECK(f.text().find("removed-pane left the l") != std::string::npos);
+    ProviderSeat* tools = f.r.mount_provider("zengine.test.tools");
+    f.r.drive(tools, [](ProviderSeat& p, loom::Mail& m) {
+        p.offer(m, PaneOffered{"tool", "Tool", "a publication after the replacement"});
+    });
+    CHECK_MESSAGE(f.row_of("?") >= 0, f.text());
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+
+    // RETURN, WITH INFO HOLDING THE KEYS: nothing is asked of the host, and the subject stands.
+    f.focus();
+    {
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.others == 0);
+    }
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.text().find("Return inspected no") != std::string::npos);
+
+    // A ROW CHOSEN NOW IS THE CHOICE -- Info's own -- and Return inspects it.
+    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
+    std::size_t info_at = now.size();
+    for (std::size_t i = 0; i < now.size(); ++i) {
+        info_at = now[i].ref == pane_info_ref() ? i : info_at;
+    }
+    REQUIRE(info_at < now.size());
+    for (std::size_t i = 0; i < now.size(); ++i) {
+        f.r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < info_at; ++i) {
+        f.r.key(input::scan::kDown);
+    }
+    {
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
+        f.r.key(input::scan::kReturn);
+        CHECK(asks.others == 1);
+    }
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+}
+
 TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into it") {
     // ⭐ VD-22: the pane's rows reach it only while it holds the keyboard.
     InfoRig f;

@@ -59,7 +59,9 @@ which is why this record now supports one more law than it did.
 **Since.** The subject changed and the body did not: the OBJECTS list is the PANES list (the one
 inventory), the properties are one pane's, and a pane row's press asks the host to inspect it
 rather than to select. What a subject is, and who names it, is
-[an inspector names its subject](an-inspector-names-its-subject.md).
+[an inspector names its subject](an-inspector-names-its-subject.md). The list cursor keeps a
+chosen pane that left the list in `InfoPaneState`, as the desktop's launcher does: cleared keys
+once crossed Info's own reload, and Return inspected the first row over the maker's subject.
 
 **Laws supported.** [WL-INFO-01](../workshop/info-body.md),
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),

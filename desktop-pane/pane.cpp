@@ -164,14 +164,19 @@ ListWindow window_for(std::size_t n, std::size_t cursor, std::size_t hint, std::
 // The weave
 // =============================================================================
 
+// (!) WHAT IT ACCEPTS IS ITS RELOAD CONTRACT. A reload replaces this weave only with an image
+// accepting exactly these shapes (Loom's accepted-contract match), so the one added here --
+// `loom::DispatchRefused`, the Pane Creator's word that an ask never arrived -- is refused as a
+// reload of an image built without it: that image is replaced by a relaunch from a runtime made
+// from one build (docs/workshop/develop-workshop.md). Images that both accept it reload as ever.
 class DesktopWeave
     : public loom::WeaveBase<
           DesktopWeave, pane::DesktopState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, MakerPaneAnswered, ActionsJudged, ActionsWithdrawn,
-                       KeymapShown, PaneKey, PaneTextInput, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       KeymapShown, PaneKey, PaneTextInput, loom::DispatchRefused,
+                       surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, AppActions, PaneLaunchRequested,
                      PaneCloseRequested, MakerPaneRequested, DeselectRequested, DesktopFace,
                      PaneInventoryRequested, KeymapRequested, surface::ClipboardCopy,
@@ -374,6 +379,39 @@ public:
             }
         }
         say(mail);
+    }
+
+    // WL-MAKER-14 -- agents/workshop/maker-pane.md
+    /// LOOM'S WORD THAT AN ASK OF THIS IMAGE'S NEVER REACHED ITS DOOR'S HANDLER -- an
+    /// attestation, not an answer. Provenance first: the shape alone is ordinary speech anyone
+    /// may send. Then the exact queued attempt, its correlation, what it asked and where, matched
+    /// against the one record that can still be waiting on it (`refused_ask`); only that record
+    /// is released, and a notice naming nothing this image waits on changes nothing.
+    ///
+    /// (!) A REFUSED ACT WAS NEVER THE HOST'S, so nothing was made, saved or put back: its record
+    /// is released and the pane says so in Loom's words, and the name line, its text and anything
+    /// typed or pasted since stand for the next deliberate key. A refused paste lands nowhere and
+    /// is no longer on its way. What is not here is as deliberate: an act the host received and
+    /// has not answered stays outstanding -- no timeout, no retry, no guess at its fate.
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (!mail.dispatch_refused()) {
+            return;
+        }
+        if (refused_ask(making_.awaiting, making_.attempt, making_.pending, refused, mail,
+                        MakerPaneRequested::zen_name, MakerPaneRequested::zen_version,
+                        kWorkshopRole)) {
+            const Making was = std::move(making_);
+            making_ = Making{};
+            notice_ = std::string(act_word(was.act)) + " not delivered -- nothing changed (" +
+                      refused.reason + ")";
+            say(mail);
+            return;
+        }
+        if (refused_ask(paste_.awaiting, paste_.attempt, paste_.pending, refused, mail,
+                        surface::ClipboardTextRequested::zen_name,
+                        surface::ClipboardTextRequested::zen_version, surface::kSkinRole)) {
+            paste_.awaiting = false;
+        }
     }
 
     /// WHAT PANES THERE ARE, SAID BY THE HOST -- published when it changes, or answered to this
@@ -608,7 +646,12 @@ private:
     /// ONE ACT UNANSWERED AT A TIME. A second would be answered on its own number while the first
     /// was still owed its account -- two makes in one poll would say the second's refusal over
     /// the first's pane -- so it is not sent, aloud, and nothing else is touched: the line, its
-    /// text and the first act's record stand, and the key asks again once the first is answered.
+    /// text and the first act's record stand, and the key asks again once the first is answered
+    /// or Loom says it never arrived (`on(DispatchRefused)`).
+    ///
+    /// (!) THE TICKET IS KEPT. One that is not valid means nothing was queued: no answer and no
+    /// refusal notice can follow, so the record is released at once and the pane says so -- the
+    /// act was never outstanding, and holding the slot for it would hold every later act too.
     void ask_maker(loom::Mail& mail, std::int64_t act, const std::string& name) {
         if (making_.awaiting) {
             notice_ = std::string(act_word(act)) +
@@ -616,13 +659,21 @@ private:
             return;
         }
         notice_.clear();
-        making_.awaiting = true;
-        making_.pending = ++asks_;
-        making_.act = act;
-        making_.draft = naming_.line.draft_epoch();
-        making_.name = name;
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, MakerPaneRequested{act, name}, making_.pending);
+        Making asking;
+        asking.awaiting = true;
+        asking.pending = ++asks_;
+        asking.act = act;
+        asking.draft = naming_.line.draft_epoch();
+        asking.name = name;
+        asking.attempt = mail.as_role(pane::kDesktopRole)
+                             .send_to_role(kWorkshopRole, MakerPaneRequested{act, name},
+                                           asking.pending);
+        if (!asking.attempt.valid()) {
+            making_ = Making{};
+            notice_ = std::string(act_word(act)) + " not submitted -- nothing was queued";
+            return;
+        }
+        making_ = std::move(asking);
     }
 
     static const char* act_word(std::int64_t act) {
@@ -647,13 +698,28 @@ private:
         return "no pane was made";
     }
 
+    /// A PASTE IS AN ASK OF THE SKIN'S, ON ITS OWN RECORD: nothing queued means nothing is on its
+    /// way into the line, and neither that nor Loom's refusal of it touches the Creator's act.
     void begin_paste(loom::Mail& mail) {
         paste_.pending = ++asks_;
         paste_.epoch = naming_.line.draft_epoch();
-        paste_.awaiting = true;
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
-                          paste_.pending);
+        paste_.attempt = mail.as_role(pane::kDesktopRole)
+                             .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
+                                           paste_.pending);
+        paste_.awaiting = paste_.attempt.valid();
+    }
+
+    /// DOES THIS NOTICE NAME THE ASK A RECORD IS WAITING ON -- the same queued attempt, under the
+    /// same correlation, of the shape it sent, to the office it addressed? Every half, because a
+    /// sequence alone is a number and the rest is what this pane asked (Info's `refused_ask`).
+    static bool refused_ask(bool awaiting, loom::Ticket sent, std::uint64_t pending,
+                            const loom::DispatchRefused& refused, const loom::Mail& mail,
+                            const char* shape, std::uint32_t version, const char* role) {
+        const loom::Ticket attempt = refused.refused_attempt();
+        return awaiting && sent.valid() && attempt.valid() && attempt.seq == sent.seq &&
+               mail.correlation() == pending && refused.shape == shape &&
+               refused.version == static_cast<std::int64_t>(version) && refused.role == role &&
+               refused.target.empty();
     }
 
     /// THE HOTKEYS PANE'S OWN FOUR: a scroll, a row at a time or to either end. Nothing in it takes
@@ -1089,12 +1155,14 @@ private:
     /// counter, and never a record: which ask an answer is about is the records' to say
     /// (`making_`, `paste_`), so a paste numbered after a make does not replace it.
     std::uint64_t asks_ = 0;
-    /// THE PANE CREATOR'S ACT AWAITING ITS ANSWER -- at most one (`ask_maker`): its number, which
-    /// act, and for a make the name line's draft (`TextBox::draft_epoch`) and the name it sent.
-    /// Not in the state shape: an answer reaches only the incarnation that asked (Loom ANS-03).
+    /// THE PANE CREATOR'S ACT AWAITING ITS ANSWER -- at most one (`ask_maker`): its number, the
+    /// queued attempt Loom's refusal would name, which act, and for a make the name line's draft
+    /// (`TextBox::draft_epoch`) and the name it sent. Not in the state shape: an answer, and a
+    /// refusal notice, reach only the incarnation that asked (Loom ANS-03, MSG-12).
     struct Making {
         bool awaiting = false;
         std::uint64_t pending = 0;
+        loom::Ticket attempt{};
         std::int64_t act = 0;
         std::uint64_t draft = 0;
         std::string name;
@@ -1113,6 +1181,7 @@ private:
     zengine::component::Clipboard clip_;
     struct Paste {
         std::uint64_t pending = 0;
+        loom::Ticket attempt{};
         std::uint64_t epoch = 0;
         bool awaiting = false;
     };

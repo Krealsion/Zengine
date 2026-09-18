@@ -627,33 +627,34 @@ private:
     // ---- The list cursor, held by identity --------------------------------------------------
 
     /// FIND THE PANE THE LIST CURSOR HOLDS in the list as the host just said it. By identity, so
-    /// a row inserted above it moves the marker with it; a pane that left the list leaves the
-    /// marker holding nothing, and says so -- Return then waits for a choice rather than
-    /// inspecting whichever pane slid into its place (WL-DESK-10's rule).
+    /// a row inserted above it moves the marker with it, and one that returns is found again.
+    ///
+    /// (!) A CHOICE WHOSE ROW LEFT IS STILL A CHOICE, AND ITS ABSENCE IS STATE (WL-DESK-10's
+    /// rule, one pane over). The keys stay in `InfoPaneState`; the marker holds nothing and says
+    /// so, and Return inspects nothing until the maker chooses a row -- in this image and in every
+    /// image a reload hands the state to. Only a cursor never given a pane (both keys empty) takes
+    /// the row it stands on. Clearing the keys once made a reloaded Info read a lost choice as
+    /// none, hold the first row, and inspect it on the next Return.
     void find_list_cursor() {
         const std::int64_t n = static_cast<std::int64_t>(panes_.size());
-        if (!state_.list_office.empty() || !state_.list_pane.empty()) {
-            for (std::int64_t i = 0; i < n; ++i) {
-                const InventoryPane& p = panes_[static_cast<std::size_t>(i)];
-                if (p.office == state_.list_office && p.pane == state_.list_pane) {
-                    list_at_ = i;
-                    held_name_ = p.name;
-                    return;
-                }
+        const bool chosen = !state_.list_office.empty() || !state_.list_pane.empty();
+        for (std::int64_t i = 0; chosen && i < n; ++i) {
+            const InventoryPane& p = panes_[static_cast<std::size_t>(i)];
+            if (p.office == state_.list_office && p.pane == state_.list_pane) {
+                list_at_ = i;
+                held_name_ = p.name;
+                lost_ = false;
+                return;
             }
-            lost_name_ = held_name_.empty() ? state_.list_pane : held_name_;
-            state_.list_office.clear();
-            state_.list_pane.clear();
-            held_name_.clear();
-            lost_ = true;
         }
+        lost_ = chosen;
         if (list_at_ >= n) {
             list_at_ = n > 0 ? n - 1 : 0;
         }
         if (list_at_ < 0) {
             list_at_ = 0;
         }
-        if (!lost_ && n > 0) {
+        if (!chosen && n > 0) {
             hold_list(list_at_);
         }
     }
@@ -1058,7 +1059,9 @@ private:
             return notice_;
         }
         if (lost_) {
-            return lost_name_ + " left the list -- choose a row before Return inspects anything";
+            // THE NAME THIS IMAGE LAST SAW ON THE ROW, or -- an image that never saw it -- its key.
+            return (held_name_.empty() ? state_.list_pane : held_name_) +
+                   " left the list -- choose a row before Return inspects anything";
         }
         return std::string();
     }
@@ -1200,8 +1203,9 @@ private:
     std::vector<InventoryPane> panes_;
     bool panes_heard_ = false;
     std::int64_t list_at_ = 0;
+    /// THE CHOSEN PANE IS NOT IN THE LIST -- derived from `InfoPaneState`'s keys by
+    /// `find_list_cursor` whenever the list is said, never kept apart from them.
     bool lost_ = false;
-    std::string lost_name_;
     std::string held_name_;
 
     /// THE HOST'S LAST READING OF THE SUBJECT, and the name of what its rows address. Replaced

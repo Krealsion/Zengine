@@ -127,7 +127,7 @@ LAW — A pane row is its name and what the inventory says of it, cut at the gra
 
 MEANS
 - `*` marks the subject, `>` the list cursor where the keys are, `?` a cursor holding nothing;
-- the list cursor is an identity: a pane that left the list is said, and Return inspects nothing;
+- the list cursor is an identity, reloads too: a pane that left is said; Return inspects nothing;
 - another subject takes a draft's rows, so a live draft refuses the press before asking.
 
 PROVEN BY — `info-pane/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
@@ -136,7 +136,8 @@ PROVEN BY — `info-pane/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
 press on a pane row inspects it, through the host's own door"`, case `"INFO-WEAVE: a live draft
 holds another subject back, and the reason is the maker's"`, case `"a press on a pane while an
 Info draft is live is refused, keeping the draft, its text, the subject and the desk through a new
-room, and inspecting resumes once the draft ends"`.
+room, and inspecting resumes once the draft ends"`, case `"Info's lost list choice survives its
+own reload: Return inspects nothing until a row is chosen"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-10 — An empty list says it is empty, whatever its share

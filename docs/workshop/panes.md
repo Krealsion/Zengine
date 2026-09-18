@@ -64,12 +64,28 @@ A row for a pane this build has never heard of still appears, so a typo can be t
 you have not installed, and a layout naming an unknown pane can still be closed without
 editing the file by hand.
 
+**A row you chose can leave the list** — a pane nothing offers, once `x` takes it off the layout,
+say. The marker turns to `?` where the row was, and a line under the list says so:
+
+```
+? [open] Info
+  removed-pane left the list -- choose a row before Return opens anything
+```
+
+`Enter` and `x` then open and close nothing — `Return opened nothing -- choose a row first` —
+rather than acting on the pane that moved into the gap. Choose a row with `↑` `↓` and they work
+again; if the pane you chose comes back, the marker finds it. The choice is kept when the desktop
+is rebuilt and reloaded, so a reload does not quietly pick another pane for you either. Info's
+pane list does the same for its `Enter` (below).
+
 **The Pane Manager is a pane like any other.** You can arrange it, cover it and close it, and
 `Ctrl`+`p` brings it back. It is the desktop's, not Workshop's: its keys are the desktop's own
 declarations, so you can move or switch them off in your keymap file
 ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)), and the
 desktop itself can be edited, rebuilt and replaced while Workshop runs
-([develop Workshop](develop-workshop.md)).
+([develop Workshop](develop-workshop.md)). A rebuild that changes what the desktop answers to, or
+a message it shares with Workshop, is not a reload: it takes a new runtime built from one tree
+([when a pane's messages change](develop-workshop.md#when-a-panes-messages-change-a-new-runtime-too)).
 
 ## Every pane has an edge, and one of them is yours
 
@@ -362,7 +378,10 @@ INTERIOR
 desk: it does not open the pane, select it, or hand it the keys. Pressing into another pane,
 `Esc`, a press on the empty room — none of them moves the subject; only choosing another pane
 in Info does. Info may inspect itself, and a pane that closes or loses its tool stays the
-subject, reading `closed` or `unresolved` with what you can do about it.
+subject, reading `closed` or `unresolved` with what you can do about it. A pane you chose in
+Info's list that then leaves it is marked `?` and said, exactly as in the Pane Manager, and
+`Enter` inspects nothing — `Return inspected nothing -- choose a row first` — until you choose
+another row; the subject you had stays yours, and so does the choice when Info is reloaded.
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
@@ -424,9 +443,11 @@ in a project file of its own.
 Open the **Pane Manager** (`Ctrl`+`p`) and press **`n`**. A name line opens under its heading
 (`new pane: `): type a name — plain ASCII, no spaces; it becomes the pane's durable identity —
 then `Enter` makes the pane, `Esc` cancels. Paste works; a name Workshop refuses stays in the
-line with the reason under it, for you to correct. The new pane appears on the current layout
-at an ordinary pane's default place (or `waiting` for room, if the stack is full on this
-screen). Inspect it in **Info**, and its one **text region**'s rows are under `INTERIOR`:
+line with the reason under it, for you to correct — and so does one that never reached Workshop
+(`make not delivered -- nothing changed (…)`), for the next `Enter`. The new pane appears on
+the current layout at an ordinary pane's default place (or `waiting` for room, if the stack is
+full on this screen). Inspect it in **Info**, and its one **text region**'s rows are under
+`INTERIOR`:
 
 ```text
 INTERIOR

@@ -97,6 +97,13 @@ inline constexpr const char* kActionCancel = "info.cancel";
 /// holding nothing rather than on whichever pane slid into its place. The property cursor is an
 /// index, because a pane's rows are a stable list in a stable order.
 ///
+/// (!) AND THE ABSENCE OF A CURRENT CHOICE IS STATE TOO. A chosen pane that left the list keeps
+/// its keys here, so the image a reload hands this to still knows the choice is lost, and Return
+/// inspects nothing until a row is chosen; both keys empty means only that nothing was ever
+/// chosen. The fields are version 2's, unchanged -- a same-shape reload carries them -- but an
+/// image from before this rule cleared the keys of a lost choice, and what one of those hands
+/// over reads as never chosen, once.
+///
 /// AND THE DRAFT IS NOT HERE. It is work in flight, and a reload is entitled to drop it: the
 /// Builder's role line makes the same trade for the same reason. Dropping it loses only what was
 /// never written: a commit it already sent is the owner's either way.
@@ -106,8 +113,8 @@ inline constexpr const char* kActionCancel = "info.cancel";
 /// its next launch.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the maker is on
-    std::string list_office; ///< which pane the list cursor holds, by identity; both empty is
-    std::string list_pane;   ///< none
+    std::string list_office; ///< which pane the list cursor holds, by identity -- kept when it
+    std::string list_pane;   ///< leaves the list; both empty until a row is first held
     bool on_panes = true;    ///< the keys are in the pane list (true) or the properties
     ZEN_SHAPE(InfoPaneState, 2, ZEN_FIELD(cursor), ZEN_FIELD(list_office), ZEN_FIELD(list_pane),
               ZEN_FIELD(on_panes));

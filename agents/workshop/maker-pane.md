@@ -201,26 +201,35 @@ no door could have made"`, case `"WUX-14/SC-13: the pane file round-trips, refus
 by shape, and holds nothing but the definition"`.
 WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
-## WL-MAKER-14 — A Creator's answer is read against the act, the draft and the name that asked
+## WL-MAKER-14 — A Creator's act is settled by its answer, or Loom's word it never arrived
 
-LAW — The Pane Creator sends one act at a time; an accepted make closes only the line that asked while it holds exactly the name sent with no paste in flight, and closing a line takes no pane back.
+LAW — The Pane Creator sends one act at a time and keeps its ticket; only its answer, or Loom's own word it never arrived, settles it, and an accepted make closes only the unchanged line that asked.
 
 MEANS
 - a paste keeps its own record: a newer ask of another kind is no verdict on the act awaited;
-- an act asked while one is unanswered is not sent, aloud; the line and its text stand;
-- text typed or pasted after Return stays, and a newer draft is not the one that asked.
+- nothing queued, or Loom's refusal of that attempt, releases the act aloud, and the line stands;
+- text typed or pasted after Return stays; closing a line says what it made and takes none back.
 
 DOES NOT MEAN
-- that an act the host never answers ends: it holds the Creator's asks until the desktop reloads.
+- that delivered silence ends: an act the host received and never answered waits, until a reload.
+- that a notice counts without Loom's provenance, then its attempt, correlation, shape and office.
 
-PROVEN BY — `desktop-pane/pane.cpp` `on(MakerPaneAnswered)`, `ask_maker`, `cancel_sentence`,
-`Making`, `making_`, `asks_`, `Naming::made`, `paste_`; `component/text_box.hpp`
-`TextBox::draft_epoch`; `tests/test_workshop_panes_actions.cpp` case `"a Pane Creator make and a
-paste in one poll: the host's make is said, the pasted text stays in the line that asked, and
-closing that line takes no pane back"`, case `"a second Pane Creator make while the first is
-unanswered is not sent, text typed after Return outlives the answer, and a refusal keeps the line
-and all it holds"`, case `"a Pane Creator make and a cancel in one poll say the make was already
-asked for until its answer takes that sentence's place, and an answer closes no newer draft"`.
+PROVEN BY — `desktop-pane/pane.cpp` `on(MakerPaneAnswered)`, `on(DispatchRefused)`, `ask_maker`,
+`refused_ask`, `begin_paste`, `cancel_sentence`, `Making`, `Making::attempt`, `making_`, `asks_`,
+`Naming::made`, `paste_`; `component/text_box.hpp` `TextBox::draft_epoch`;
+`tests/test_workshop_panes_actions.cpp` case `"a Pane Creator make and a paste in one poll: the
+host's make is said, the pasted text stays in the line that asked, and closing that line takes no
+pane back"`, case `"a second Pane Creator make while the first is unanswered is not sent, text
+typed after Return outlives the answer, and a refusal keeps the line and all it holds"`, case `"a
+Pane Creator make and a cancel in one poll say the make was already asked for until its answer
+takes that sentence's place, and an answer closes no newer draft"`, case `"a Pane Creator make
+Loom refuses at dispatch is released: the line and the text typed since stand, the reason is said,
+and once Workshop is back the next Return makes it"`, case `"a Pane Creator make nothing could
+queue is released at once and tried afresh, while one delivered and never answered stays
+outstanding: no timeout, no retry, no guess"`, case `"only Loom's own refusal notice releases the
+Pane Creator's act: a forgery naming it exactly settles nothing, and a refused paste releases the
+paste alone"`, case `"a Pane Creator the host's admission denies the maker door says so for every
+attempt, and each later act is attempted afresh rather than held behind the first"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## Do not assume
