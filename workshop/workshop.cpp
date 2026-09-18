@@ -1476,17 +1476,17 @@ int main(int argc, char** argv) {
             //
             // ⚠ THIS IS THE RECOVERY SURFACE EXISTING AT ALL. Before it, a tree short one
             // pane artifact ended the process before anything could say which one -- the
-            // boundary P-WORK-22 names. The desktop's floor, the Attention pane and the
-            // launcher's `[gone]` rows are three readings of these same conditions.
-            for (const std::string& gone : done.unavailable) {
-                std::printf("zengine-workshop - unavailable: %s\n", gone.c_str());
-                zengine::workshop::Condition c;
-                c.key = "load.unavailable/" + gone;
-                c.compact = "a tool is not in this Workshop";
-                c.detail = gone;
-                c.role = zengine::surface::role::kAlert;
-                c.action = "build its artifact, then launch again";
-                host.standing_conditions.push_back(c);
+            // boundary P-WORK-22 names. The Attention pane lists these conditions and the
+            // compact row names the loudest by its artifact; the desktop's floor and the
+            // launcher's `[gone]` rows are the INVENTORY's reading, which knows a tool only
+            // once an offer or a desk row gave it a row.
+            //
+            // ⚠ AND THE COMPACT ROW IS WHAT A TERMINAL MAKER CAN STILL READ. The skin owns
+            // the terminal from its own row on, so these lines are drawn over there.
+            for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
+                std::printf("zengine-workshop - unavailable: %s\n", done.unavailable[i].c_str());
+                host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
+                    done.unavailable_stems[i], done.unavailable[i]));
                 ++host.conditions_generation;
             }
             if (done.ok) {

@@ -65,10 +65,12 @@ the Pane Manager's and the Hotkeys pane's own keys.
 `workshop.terminal`, `workshop.hotkeys` — is read as `desktop.terminal` and `desktop.hotkeys`,
 and the load says so once, naming the rename to make. The file is not rewritten.
 
-**A Workshop with no desktop still runs.** If that row of your load plan cannot be loaded, the
-launch says so, the condition stands in Attention for the whole run, and the empty room is
-blank — you have no application defaults and no Pane Manager until you build it and launch
-again. Workshop's own keys (`w`, `a`, the layout keys, `q`) still work.
+**A Workshop with no desktop still runs.** If that row of your load plan cannot be loaded,
+Workshop's own condition row names it for the whole run — `zengine-desktop-pane is not in this
+Workshop` — the empty room is blank, and you have no application defaults and no Pane Manager
+until you build it and launch again. Workshop's own keys (`w`, `a`, the layout keys, `q`) still
+work. A graphical launch also prints the refusal on its console; in a terminal Workshop the skin
+owns the terminal by then, so the condition row is where it is said.
 
 ## The Hotkeys pane — `Ctrl`+`k`
 

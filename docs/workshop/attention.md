@@ -110,12 +110,13 @@ looking at it.
 | your preferences file exists and could not be read — Workshop will not overwrite it | an alert |
 | an older local keymap or session file is being shadowed by the one under your user directory | worth acting on, not urgent |
 | a pane sent Workshop an update it could not keep | an alert |
+| a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
 | a pane you authored is resolvable and **no part of it is on the screen** — refused, waiting for room, or off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
 
 Some true things are deliberately **not** here. A pane you closed is your own choice and lives
-in the [Pane Manager](panes.md#opening-going-to-and-closing--the-pane-manager). A pane the setup names that this run cannot resolve is already
-counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
+in the [Pane Manager](panes.md#opening-going-to-and-closing--the-pane-manager). A pane the
+setup names that this run cannot resolve is already counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
 and stacking is what arranging *is*. Attention is for what you would otherwise not find out.
 
 ## What this is not

@@ -6389,6 +6389,8 @@ TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped ov
     CHECK(rig.executor.unavailable()[0].find("artifact 'zengine-timer'") != std::string::npos);
     CHECK(rig.executor.unavailable()[0].find("weave load refused") != std::string::npos);
     CHECK(rig.executor.outcome().unavailable.size() == 1);
+    // ...AND BY ITS ARTIFACT, beside the sentence: the name the host's condition row carries.
+    CHECK(rig.executor.outcome().unavailable_stems == std::vector<std::string>{"zengine-timer"});
 
     // ...AND THE ROW BEHIND IT WAS PERFORMED, in authored order, with nothing reordered.
     CHECK(rig.executor.state_of("zengine-provider-a") == load::RowState::Resolved);
