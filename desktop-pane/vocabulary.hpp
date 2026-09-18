@@ -106,11 +106,19 @@ inline constexpr const char* kActionKeysBottom = "hotkeys.bottom"; ///< ...and i
 /// THE CURSOR IS AN IDENTITY, NOT AN INDEX. Rows come and go as providers offer and leave, so
 /// the row a maker was standing on is found again by its two durable keys; `cursor` is only
 /// where the marker sits while it is found, or where it was when that pane left the list.
-/// Return acts on the identity, never on whatever row now has that index.
+/// Return and `x` act on the identity, never on whatever row now has that index.
+///
+/// (!) AND THE ABSENCE OF A CURRENT CHOICE IS STATE TOO. A chosen pane that left the list keeps
+/// its keys here, so the image a reload hands this to still knows the choice is lost and waits
+/// for a new one; both keys empty means only that nothing was ever chosen, which is when the
+/// marker takes the row it stands on. Version 2's fields are unchanged, so a same-shape reload
+/// still carries it; but an image from before this rule cleared the keys of a lost choice, so
+/// what one of those hands over reads as never chosen, and its successor's marker takes the row
+/// it stands on -- once, at that one replacement.
 struct DesktopState {
     std::int64_t cursor = 0;   ///< which inventory row the marker is on
-    std::string cursor_office; ///< the pane under it, by its two durable keys; both empty when
-    std::string cursor_pane;   ///< the maker has not chosen one since that pane left the list
+    std::string cursor_office; ///< the pane chosen, by its two durable keys -- kept when it leaves
+    std::string cursor_pane;   ///< the list; both empty until the first row is held
     ZEN_SHAPE(DesktopState, 2, ZEN_FIELD(cursor), ZEN_FIELD(cursor_office),
               ZEN_FIELD(cursor_pane));
 };

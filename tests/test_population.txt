@@ -1715,9 +1715,14 @@ workshop_screen                   doctest           always  129
 #   workshop_load     149 -> 150  `[load]` in the Pane Manager, nothing on the floor, "not here
 #                                 yet" at launch; and the realization owner's answer to whether
 #                                 an office is still to come.
+#   workshop_panes    603 -> 607  two corrections the review reproduced: a choice whose row left
+#                                 stays unchosen across a desktop replacement, and the Pane
+#                                 Creator's answer is read against its own act, draft and name --
+#                                 a paste, a second Return, typed text, a cancel and a newer
+#                                 draft crossing it in one poll.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  603
+workshop_panes                    doctest           always  607
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

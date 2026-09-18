@@ -214,6 +214,10 @@ struct MakerPaneRequested {
 };
 
 /// WHAT THE ACT CAME TO -- addressed back to whoever asked, in the sentence the band says.
+///
+/// ⚠ IT ANSWERS ONE ASK, UNDER THAT ASK'S NUMBER. A presenter reads it against its record of the
+/// act it is waiting on, never against the latest number it has sent: its pastes and its launches
+/// are asks too, and a newer one is no verdict on this (WL-MAKER-14).
 struct MakerPaneAnswered {
     std::int64_t act = 0;
     bool accepted = false; ///< the host did what was asked (a discard with nothing to discard too)
