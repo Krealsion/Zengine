@@ -365,7 +365,8 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     // document looks like, and what the terminal participant's record holds are readings the
     // panes that show them cannot make (WL-ATTN-12, WL-DOC-20, WL-TERM-03). A case that had
     // to be edited to admit them is the point of writing the list down -- the next sentence
-    // somebody adds by accident fails here too.
+    // somebody adds by accident fails here too. (`PaneSubjectShown` is a ninth, said only once
+    // an inspector has named a pane (WL-INFO-14), which nothing in this life does.)
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};

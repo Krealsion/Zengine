@@ -589,7 +589,8 @@ struct SeenState {
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
                                                     StandingConditions, DocumentShown,
-                                                    v2::DocumentShown, TranscriptShown>,
+                                                    v2::DocumentShown, TranscriptShown,
+                                                    PaneSubjectShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
@@ -597,10 +598,11 @@ public:
             std::vector<StandingConditions>& conditions,
             std::vector<DocumentShown>& documents,
             std::vector<v2::DocumentShown>& named_documents,
-            std::vector<TranscriptShown>& transcripts)
+            std::vector<TranscriptShown>& transcripts,
+            std::vector<PaneSubjectShown>& subjects)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
           documents_(&documents), named_documents_(&named_documents),
-          transcripts_(&transcripts) {}
+          transcripts_(&transcripts), subjects_(&subjects) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
@@ -610,6 +612,7 @@ public:
     void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
     void on(const v2::DocumentShown& d, loom::Mail&) { named_documents_->push_back(d); }
     void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
+    void on(const PaneSubjectShown& s, loom::Mail&) { subjects_->push_back(s); }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
@@ -618,6 +621,7 @@ private:
     std::vector<DocumentShown>* documents_;
     std::vector<v2::DocumentShown>* named_documents_;
     std::vector<TranscriptShown>* transcripts_;
+    std::vector<PaneSubjectShown>* subjects_;
 };
 
 
@@ -802,6 +806,8 @@ struct Live {
     std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
+    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
+    std::vector<PaneSubjectShown> said_subjects;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -836,7 +842,7 @@ struct Live {
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_named_documents, said_transcripts);
+                                   said_named_documents, said_transcripts, said_subjects);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panels);
@@ -2472,6 +2478,8 @@ struct PaneRig {
     std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
+    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
+    std::vector<PaneSubjectShown> said_subjects;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted with Workshop exactly as
@@ -2485,7 +2493,7 @@ struct PaneRig {
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_named_documents, said_transcripts);
+                                   said_named_documents, said_transcripts, said_subjects);
     }
 
 
@@ -2581,6 +2589,9 @@ struct PaneRig {
         speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
         speak.allow_to_any(v2::DocumentShown::zen_name, v2::DocumentShown::zen_version);
         speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+        // ...and an inspector's pane subject and its answers, exactly as workshop.cpp grants them.
+        speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
+        speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
         // ...and the terminal participant's record and the two answers its doors give,
         // exactly as workshop.cpp grants them.
         speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);

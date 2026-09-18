@@ -57,9 +57,7 @@ LAW — `12` is cells and `70%` a share; `70p` is accepted for `70%`; the empty 
 
 PROVEN BY — `workshop/property.hpp` `TextForm`, `TextForm::parse`, `TextForm::expected`;
 `tests/test_workshop_document.cpp` case `"the extent text form: canonical out, and the typeable
-spelling in"`, case `"a property reads the current typed value through the semantic surface"`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on a value the maker owns is
-written to the document"`.
+spelling in"`, case `"a property reads the current typed value through the semantic surface"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-05 — Authored and resolved are different facts, and only one of them moves

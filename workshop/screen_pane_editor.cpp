@@ -378,12 +378,70 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 
 // WL-PED-04 -- agents/workshop/pane-manager.md
 std::vector<Row> pane_editor_rows(Session& s) {
-    std::vector<Row> rows;
     if (!s.pane_editor.addressed()) {
+        return std::vector<Row>{};
+    }
+    return pane_subject_rows(s, s.pane_editor.subject, true);
+}
+
+// WL-INFO-14 -- agents/workshop/info-body.md
+std::int64_t inspected_region(const Session& s, const PaneRef& ref) {
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+    if (!kind.has_value() || !is_maker_kind(*kind) || s.panels.maker.definition.regions.empty()) {
+        return 0;
+    }
+    return s.panels.maker.definition.regions.front().id;
+}
+
+// WL-INFO-14 -- agents/workshop/info-body.md
+PaneSubjectShown pane_subject_shown(const Session& s) {
+    PaneSubjectShown shown;
+    const InspectedPane& in = s.inspected;
+    if (!in.addressed()) {
+        return shown;
+    }
+    shown.office = in.ref.provider;
+    shown.pane = in.ref.pane;
+    shown.name = in.ref.pane;
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+        if (row.ref == in.ref && row.kind != kNoPaneKind) {
+            shown.name = row.name;
+            break;
+        }
+    }
+    shown.subject = in.name;
+    // THE ROWS AS THEY STAND, VALUE INCLUDED: `Row::value()` is a fresh read through the
+    // owner's property, so what crosses is what the desk says at this instant.
+    for (const Row& row : in.rows) {
+        shown.properties.push_back(
+            ShownProperty{row.label(), row.value(), row.editable(), row.section()});
+    }
+    return shown;
+}
+
+bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b) {
+    if (a.office != b.office || a.pane != b.pane || a.name != b.name || a.subject != b.subject ||
+        a.properties.size() != b.properties.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.properties.size(); ++i) {
+        const ShownProperty& x = a.properties[i];
+        const ShownProperty& y = b.properties[i];
+        if (x.label != y.label || x.value != y.value || x.editable != y.editable ||
+            x.section != y.section) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// WL-INFO-14 -- agents/workshop/info-body.md
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref, bool manager_keys) {
+    std::vector<Row> rows;
+    if (ref.provider.empty()) {
         return rows;
     }
     Session* sp = &s;
-    const PaneRef ref = s.pane_editor.subject;
     const auto found = [sp, ref]() -> std::optional<CatalogRow> {
         for (const CatalogRow& row : inventory_rows(sp->setup.active, sp->panels)) {
             if (row.ref == ref) {
@@ -431,15 +489,22 @@ std::vector<Row> pane_editor_rows(Session& s) {
                                       return write_pane_axis(*sp, ref, axis, text);
                                   })));
     }
-    rows.push_back(Row::show("Front", [sp, ref] {
+    // THE PANE MANAGER'S OWN KEYS ARE NAMED ONLY TO THE PANE MANAGER. Another inspector holds
+    // no `f` and no `o`, and a row telling its reader to press a key that means nothing where
+    // they are would be a second, wrong cheat sheet.
+    rows.push_back(Row::show("Front", [sp, ref, manager_keys] {
         const SetupPane* row = pane_of(sp->setup.active, ref);
         if (row == nullptr) {
             return std::string("--");
         }
         return "f" + std::to_string(row->front) + " of " +
-               std::to_string(sp->setup.active.panes.size()) + " -- f/b/r/l order it";
+               std::to_string(sp->setup.active.panes.size()) +
+               (manager_keys ? " -- f/b/r/l order it" : "");
     }));
-    rows.push_back(Row::show("Open", [sp, ref] {
+    rows.push_back(Row::show("Open", [sp, ref, manager_keys] {
+        if (!manager_keys) {
+            return has_pane(sp->setup.active, ref) ? std::string("yes") : std::string("no");
+        }
         return has_pane(sp->setup.active, ref) ? std::string("yes -- o removes it")
                                                : std::string("no -- o opens it");
     }));

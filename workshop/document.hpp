@@ -140,7 +140,7 @@ inline std::string identities_text(const std::vector<std::int64_t>& ids) {
 }
 
 /// Remove one authored object BY IDENTITY.
-// WL-DOC-10 -- agents/workshop/document.md; WL-CTRL-03 -- agents/workshop/info-controls.md
+// WL-DOC-10 -- agents/workshop/document.md
 inline Written remove(WorkshopDoc& d, std::int64_t id) {
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
         if (d.elements[i].id == id) {

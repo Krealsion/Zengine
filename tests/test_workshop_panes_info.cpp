@@ -3,44 +3,40 @@
 
 // The Workshop panes suite — WHAT IS TRUE RIGHT NOW, AS A LOADED WEAVE.
 //
-// THIS FILE OWNS the OBJECTS and PROPERTIES columns. Everything the Info panel did a maker
-// can see -- listing the objects they authored, marking the one they are looking at, showing
-// that one's properties, moving a cursor through them, opening a draft on a value, typing it,
-// committing or cancelling it, and pressing the two controls -- is driven here through the
-// REAL `zengine-info-pane` image, over the REAL pane protocol, against the REAL publication
-// this host makes. Nothing in this file constructs the weave, reaches into its state, or
-// calls one of its functions: there is a shared library on disk, a plan row that loads it,
-// an office it holds, and a maker's hand.
+// THIS FILE OWNS the PANES and PROPERTIES columns. Everything the Info pane does a maker can
+// see -- listing the panes, naming one as the subject, showing its rows, moving a cursor through
+// them, opening a draft on a value, typing it, committing or cancelling it -- is driven here
+// through the REAL `zengine-info-pane` image, over the REAL pane protocol, against the REAL
+// publications this host makes. Nothing in this file constructs the weave, reaches into its
+// state, or calls one of its functions: there is a shared library on disk, a plan row that loads
+// it, an office it holds, and a maker's hand.
 //
-// ---- WHY THIS ONE IS DIFFERENT FROM THE OTHER THREE ------------------------------
+// ⚠ THE DESK ALREADY NAMES IT. This pane's reference is what `default_setup` authors
+// (`workshop/setup.hpp`), so the office's offer RESOLVES A ROW THAT WAS ALREADY THERE and the
+// pane opens with no gesture at all.
 //
-// ⚠ THE DESK ALREADY NAMES IT. Files, the Builder and Attention arrived as strangers: no
-// saved setup mentioned them, and a case that wanted one on the desk had to pick it. This
-// pane's reference is what `default_setup` authors (`workshop/setup.hpp`), so the office's
-// offer RESOLVES A ROW THAT WAS ALREADY THERE and the pane opens with no gesture at all.
-// That is the whole shape of the migration from a maker's side: a fresh Workshop with this
-// image on disk looks like the Workshop they had, and a fresh Workshop WITHOUT it says so
-// with one unresolved row rather than by silently having no Info.
+// ⚠ AND IT SHOWS THE HOST'S OWN ROWS. The pane is shown a PICTURE (`PaneSubjectShown`) of the
+// rows this host keeps over one pane -- the pane THIS pane named -- and asks back through two
+// shapes (`InspectPaneRequested`, `PaneCommitRequested`). So the cases drive the HOST -- a desk
+// put live, the surface resized, a file restored -- and then read what the PANE made of it.
+// Nothing in the image can touch a desk; it can ask, and be refused in the owner's words. The
+// subject most cases edit is the Layouts pane's Width: a built-in on every desk, whose room
+// moving does not move this pane's.
 //
-// ⚠ AND IT SHOWS THE HOST'S OWN DOCUMENT. The Builder asks a tool and the browser walks a
-// filesystem; this pane is shown a PICTURE (`DocumentShown`) the host derives from the
-// document the host owns, and asks back through one shape (`DocumentActRequested`). So the
-// cases here drive the HOST -- creating objects, selecting them, resizing the surface -- and
-// then read what the PANE made of it. Nothing in the image can touch a document; it can ask,
-// and be refused in the document's own words.
-//
-// ⚠ AND IT IS THE ONE MIGRATED PANE WITH A DRAFT AND A REFUSAL OF ITS OWN. `info.edit` opens
-// a text line inside the pane, and while it is open the pane declares two ids and no more --
-// which is the pane-is-one-keyboard-context rule spent on the case it was written for.
+// ⚠ IT INSPECTED THE PROTOTYPE OBJECT DOCUMENT BEFORE THAT RETIRED. The draft discipline --
+// one commit outstanding, an answer read against the draft and the text that sent it, a send
+// Loom refused released aloud -- is the same law over a new subject, and its cases are here in
+// the same order. Cases about objects, and about the two object controls, retired with them.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
 #include "info-pane/vocabulary.hpp"
-#include "workshop/document_seam_vocabulary.hpp"
+#include "workshop/inspection_seam_vocabulary.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -51,6 +47,13 @@ namespace pane = zengine::info_pane;
 /// The office and pane a saved setup names, spelled through the package's own header --
 /// the durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef pane_info_ref() { return PaneRef{pane::kInfoPaneRole, pane::kInfoPane}; }
+
+/// THE SUBJECT MOST CASES EDIT: the host's own Layouts pane, on every desk.
+inline PaneRef layouts_ref() { return pane_ref_of(panel::kLayouts); }
+
+const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionSwitch,
+                                        pane::kActionUp};
+const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommit};
 
 /// A LIVE WORKSHOP WITH THE REAL INFO PANE LOADED INTO IT.
 struct InfoRig {
@@ -87,12 +90,11 @@ struct InfoRig {
         return r.session().panels.runtime.find(pane::kInfoPaneRole, pane::kInfoPane);
     }
 
-    /// PRESS INTO THE PANE, which is the whole of what VD-22 made necessary: its rows are
-    /// active only while it holds the keyboard. The built-in this replaces took `up`, `down`
-    /// and `Return` from command mode, wherever the maker was standing.
+    /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard. The first body
+    /// row is the `PANES` heading, or a sentence in front of it -- a row that means nothing.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x, body.y); // the OBJECTS heading: a row that means nothing
+        r.press_cell(body.x, body.y);
         REQUIRE(r.session().panels.keyboard == kind);
     }
 
@@ -125,10 +127,94 @@ struct InfoRig {
         return -1;
     }
 
-    void press_row(const std::string& prefix, std::int64_t column = 1) {
-        const std::int64_t at = row_of(prefix);
-        REQUIRE_MESSAGE(at >= 0, "no row begins with: ", prefix);
-        press_pane(r, kind, at, column);
+    /// THE ROW ONE PANE OF THE LIST IS PAINTED ON: a cursor mark, a subject mark, the name.
+    std::int64_t pane_row(const std::string& name) {
+        const std::vector<std::string> rows = shown();
+        const std::string want = name + " -- ";
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].size() > 2 && rows[i].compare(2, want.size(), want) == 0) {
+                return static_cast<std::int64_t>(i);
+            }
+        }
+        return -1;
+    }
+
+    void press_pane_row(const std::string& name) {
+        const std::int64_t at = pane_row(name);
+        REQUIRE_MESSAGE(at >= 0, "no pane row for ", name, " in:\n", text());
+        press_pane(r, kind, at, 3);
+    }
+
+    /// NAME A PANE AS THE SUBJECT the way a maker does: into the pane, a press on its row.
+    void inspect(const std::string& name) {
+        focus();
+        press_pane_row(name);
+        REQUIRE_MESSAGE(picture().name == name, text());
+    }
+
+    /// THE HOST'S LAST PICTURE OF THE SUBJECT -- what the pane was told, so a case asks the seam
+    /// which rows are the maker's rather than counting on an order.
+    PaneSubjectShown picture() {
+        REQUIRE_FALSE(r.said_subjects.empty());
+        return r.said_subjects.back();
+    }
+
+    /// WHERE A LABEL IS in the host's picture of the subject.
+    std::size_t property_index(const std::string& label) {
+        const PaneSubjectShown said = picture();
+        for (std::size_t i = 0; i < said.properties.size(); ++i) {
+            if (said.properties[i].label == label) {
+                return i;
+            }
+        }
+        FAIL("the subject has no property called ", label);
+        return said.properties.size();
+    }
+
+    /// The painted row of one property, by its label: the mark cell, then the label column.
+    std::int64_t property_at(const std::string& label) {
+        const std::vector<std::string> rows = shown();
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            const std::string& one = rows[i];
+            if (one.size() > 1 && one.compare(1, label.size() + 1, label + " ") == 0) {
+                return static_cast<std::int64_t>(i);
+            }
+        }
+        return -1;
+    }
+    std::string property_row(const std::string& label) {
+        const std::int64_t at = property_at(label);
+        return at < 0 ? std::string() : shown()[static_cast<std::size_t>(at)];
+    }
+
+    /// PUT THE KEYS AND THE CURSOR ON ONE PROPERTY, by a press on its painted row.
+    void press_property(const std::string& label) {
+        const std::int64_t at = property_at(label);
+        REQUIRE_MESSAGE(at >= 0, "no property row for ", label, " in:\n", text());
+        press_pane(r, kind, at, 3);
+    }
+
+    /// OPEN A DRAFT ON ONE PROPERTY OF `subject`, the way a maker does: the pane named, a press
+    /// on the property's row, Return. The draft holds the property's value until the case types.
+    void draft_on(const std::string& label, const std::string& subject = "Layouts") {
+        if (r.said_subjects.empty() || picture().name != subject) {
+            inspect(subject);
+        } else {
+            focus();
+        }
+        press_property(label);
+        r.key(input::scan::kReturn);
+        REQUIRE_MESSAGE(declared() == kDrafting, text());
+    }
+
+    /// ...AND REPLACE WHAT IT HOLDS with `typed`.
+    void draft_holding(const std::string& label, const std::string& typed,
+                       const std::string& subject = "Layouts") {
+        draft_on(label, subject);
+        for (int i = 0; i < 16; ++i) {
+            r.key(input::scan::kBackspace);
+        }
+        r.text(typed);
     }
 
     /// A bare-letter gesture, as a backend really reports one: the key transition AND the
@@ -136,32 +222,6 @@ struct InfoRig {
     void letter(std::int64_t scancode, const char* typed) {
         r.key(scancode);
         r.text(typed);
-    }
-
-    /// THE HOST'S LAST PICTURE OF ITS OWN DOCUMENT -- what the pane was told, so a case
-    /// asks the seam which rows are the maker's rather than counting on an order.
-    DocumentShown picture() {
-        REQUIRE_FALSE(r.said_documents.empty());
-        return r.said_documents.back();
-    }
-
-    /// PUT THE PANE'S CURSOR ON THE FIRST ROW THE MAKER OWNS, by the pane's own `info.down`.
-    /// The cursor rests on `Identity`, which the workspace makes and nobody authors, so a
-    /// case about a DRAFT has to walk to a row a draft can open on.
-    std::size_t go_to_first_editable() {
-        const DocumentShown shown = picture();
-        std::size_t want = shown.properties.size();
-        for (std::size_t i = 0; i < shown.properties.size() && want == shown.properties.size();
-             ++i) {
-            if (shown.properties[i].editable) {
-                want = i;
-            }
-        }
-        REQUIRE(want < shown.properties.size());
-        for (std::size_t step = 0; step < want; ++step) {
-            r.key(input::scan::kDown);
-        }
-        return want;
     }
 
     /// The ids this pane declares RIGHT NOW, sorted.
@@ -214,8 +274,8 @@ struct InfoRig {
     bool wide_ = true;
 
     /// A KEY, A PRESS OR TYPED TEXT QUEUED AND NOT DRAINED, so a case places a real gesture at an
-    /// exact interval of a conversation (the Files rig's own doors); `settle` drains. `r.key` and
-    /// `r.text` drain, so a burst built from them is several polls rather than one.
+    /// exact interval of a conversation; `settle` drains. `r.key` and `r.text` drain, so a burst
+    /// built from them is several polls rather than one.
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -233,13 +293,21 @@ struct InfoRig {
                                                 input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
+    /// ...AND A PRESS ON THE BAND, queued: the keys leave the pane for command mode.
+    void enqueue_unfocus() {
+        (void)r.bus.publish(loom::Message(
+            loom::to_value(input::PointerButton{1, true, 0,
+                                                screen_of(r.session()).h - 1 +
+                                                    surface::kTuiCanvasTopRow,
+                                                input::space::kCells, input::mod::kNone}),
+            loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
     void settle() { r.bus.drain_until_idle(); }
 
-    /// A SENTENCE SAID AS WORKSHOP'S OWN OFFICE, QUEUED AND NOT DRAINED --
-    /// `PaneRig::workshop_action`'s verified door, so a case can place several deliveries to the
-    /// pane in one burst, in the order Workshop would send them, where a key could not: a key
-    /// resolves against the rows Workshop holds, and those trail the pane's own re-declaration by
-    /// a delivery. `settle` drains.
+    /// A SENTENCE SAID AS WORKSHOP'S OWN OFFICE, QUEUED AND NOT DRAINED -- `PaneRig::workshop_action`'s
+    /// verified door, so a case can place several deliveries to the pane in one burst, in the
+    /// order Workshop would send them, where a key could not: a key resolves against the rows
+    /// Workshop holds, and those trail the pane's own re-declaration by a delivery.
     void enqueue_as_workshop(const loom::Value& said) {
         const loom::Ticket sent = r.bus.office_send_to_role_as(
             r.workshop_id, kWorkshopProvider, pane::kInfoPaneRole,
@@ -250,58 +318,20 @@ struct InfoRig {
         enqueue_as_workshop(loom::to_value(PaneActionRequested{pane::kInfoPane, id}));
     }
 
-    /// WHERE A LABEL IS in the host's picture of the selected object.
-    std::size_t property_index(const std::string& label) {
-        const DocumentShown said = picture();
-        for (std::size_t i = 0; i < said.properties.size(); ++i) {
-            if (said.properties[i].label == label) {
-                return i;
-            }
-        }
-        FAIL("the selected object has no property called ", label);
-        return said.properties.size();
-    }
-
-    /// OPEN A DRAFT ON ONE PROPERTY, the way a maker does: into the pane, the cursor walked down
-    /// to the row, Return. The draft holds the property's value until the case types into it.
-    void draft_on(const std::string& label) {
-        focus();
-        const std::size_t at = property_index(label);
-        for (std::size_t step = 0; step < at; ++step) {
-            r.key(input::scan::kDown);
-        }
-        r.key(input::scan::kReturn);
-        REQUIRE(declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
-    }
-
-    /// ...AND REPLACE WHAT IT HOLDS with `typed`.
-    void draft_holding(const std::string& label, const std::string& typed) {
-        draft_on(label);
-        for (int i = 0; i < 16; ++i) {
-            r.key(input::scan::kBackspace);
-        }
-        r.text(typed);
-    }
-
     /// Does the first row Workshop ADMITTED for this pane begin with `prefix`?
     bool admitted_leads(const std::string& prefix) {
         const std::vector<std::string> rows = admitted();
         return !rows.empty() && rows.front().rfind(prefix, 0) == 0;
     }
 
-    /// The painted row of one property, by its label: the mark cell, then the label column.
-    std::string property_row(const std::string& label) {
-        for (const std::string& one : shown()) {
-            if (one.size() > 1 && one.rfind("> #", 0) != 0 && one.rfind("  #", 0) != 0 &&
-                one.compare(1, label.size() + 1, label + " ") == 0) {
-                return one;
-            }
-        }
-        return std::string();
+    /// WHAT THE LIVE DESK AUTHORS FOR ONE AXIS OF A PANE, as the owner's own row reads it.
+    std::string axis(const PaneRef& ref, std::size_t which) {
+        return pane_axis_text(r.session(), ref, which);
     }
+    std::string layouts_width() { return axis(layouts_ref(), 2); }
 };
 
-/// HOW MANY OF THE HOST'S ANSWERS TO AN ACT HAVE REACHED THE PANE, read off the tap -- so a case
+/// HOW MANY OF THE HOST'S ANSWERS TO AN ASK HAVE REACHED THE PANE, read off the tap -- so a case
 /// can stop between the rows the pane said at its act and the answer that comes after them. `heard`
 /// is the order the pane was handed its answers and the typing around them.
 struct AnswerTap {
@@ -314,7 +344,7 @@ struct AnswerTap {
             if (ev.kind != loom::EventKind::Delivered || ev.target != pane_id) {
                 return;
             }
-            if (ev.schema_name == DocumentActed::zen_name) {
+            if (ev.schema_name == PaneSubjectActed::zen_name) {
                 ++answered;
                 heard.push_back(ev.schema_name);
             } else if (ev.schema_name == PaneTextInput::zen_name ||
@@ -328,39 +358,31 @@ struct AnswerTap {
     AnswerTap& operator=(const AnswerTap&) = delete;
 };
 
-/// WHAT REACHED THE DOCUMENT'S DOOR, read off the tap at Workshop's delivery -- so a case counts
-/// the commits that LEFT the pane, and the text each carried, not the ones it meant to send.
-struct DocumentAskTap {
+/// WHAT REACHED THE HOST'S DOORS, read off the tap at Workshop's delivery -- so a case counts the
+/// commits that LEFT the pane, and the text each carried, not the ones it meant to send.
+struct SubjectAskTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
-    std::vector<std::string> commits; ///< each commit's text, in the order the door received them
-    std::vector<std::int64_t> subjects; ///< ...and the subject each one named (WL-DOC-21)
-    int legacy_commits = 0;           ///< a v1 `commit`, which names no subject
-    int others = 0;                   ///< a select, a create or a delete
-    DocumentAskTap(loom::Switchboard& on, loom::WeaveId door) : bus(on) {
+    std::vector<std::string> commits;   ///< each commit's text, in the order the door received them
+    std::vector<std::int64_t> subjects; ///< ...and the name each one returned
+    int others = 0;                     ///< an inspect
+    SubjectAskTap(loom::Switchboard& on, loom::WeaveId door) : bus(on) {
         tap = bus.add_observer([this, door](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered || ev.target != door || ev.payload == nullptr) {
                 return;
             }
-            if (ev.schema_name == DocumentCommitRequested::zen_name) {
-                const DocumentCommitRequested asked =
-                    loom::from_value<DocumentCommitRequested>(*ev.payload);
+            if (ev.schema_name == PaneCommitRequested::zen_name) {
+                const PaneCommitRequested asked = loom::from_value<PaneCommitRequested>(*ev.payload);
                 commits.push_back(asked.text);
                 subjects.push_back(asked.subject);
-            } else if (ev.schema_name == DocumentActRequested::zen_name) {
-                const DocumentActRequested asked =
-                    loom::from_value<DocumentActRequested>(*ev.payload);
-                if (asked.act == kDocumentCommit) {
-                    ++legacy_commits;
-                } else {
-                    ++others;
-                }
+            } else if (ev.schema_name == InspectPaneRequested::zen_name) {
+                ++others;
             }
         });
     }
-    ~DocumentAskTap() { bus.remove_observer(tap); }
-    DocumentAskTap(const DocumentAskTap&) = delete;
-    DocumentAskTap& operator=(const DocumentAskTap&) = delete;
+    ~SubjectAskTap() { bus.remove_observer(tap); }
+    SubjectAskTap(const SubjectAskTap&) = delete;
+    SubjectAskTap& operator=(const SubjectAskTap&) = delete;
 };
 
 /// Did the tap hear `first` before any `then`?
@@ -382,21 +404,24 @@ inline loom::WeaveId info_id(InfoRig& f) {
     return id;
 }
 
-/// One object of the host's document, by identity.
-inline const ui::Element& object_of(InfoRig& f, std::int64_t id) {
-    for (const ui::Element& e : f.r.w->document().elements) {
-        if (e.id == id) {
-            return e;
-        }
-    }
-    FAIL("the document holds no #", id);
-    return f.r.w->document().elements.front();
+/// Every row Workshop admitted for the pane and every row it painted, for a claim about both.
+inline std::vector<std::string> admitted_and_painted(InfoRig& f) {
+    std::vector<std::string> rows = f.shown();
+    const std::vector<std::string> held = f.admitted();
+    rows.insert(rows.end(), held.begin(), held.end());
+    return rows;
 }
 
-/// One object on the host's document, made the way a maker makes one.
-inline void make_object(InfoRig& f) {
-    f.unfocus();
-    f.r.key(input::scan::kN);
+/// WHAT ONE DESK OF THE RUN AUTHORS FOR THE LAYOUTS PANE'S WIDTH -- the live one or a shelved one.
+inline bool layouts_width_default_on_every_desk(InfoRig& f) {
+    const SetupState& run = f.r.session().setup;
+    for (std::size_t at = 0; at < layout_count(run); ++at) {
+        const SetupPane* row = pane_of(layout_at(run, at), layouts_ref());
+        if (row == nullptr || row->width.mode != pane_unit::kDefault) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -426,9 +451,8 @@ TEST_CASE("INFO-WEAVE: the pane arrives by a plan row and resolves a row the des
     }
     CHECK(kinds_placed_in(placement::kSideRegion) == 0);
 
-    // THE DESK NAMED IT BEFORE THE OFFICE EXISTED, which is what makes this migration
-    // different from the other three: the row was authored by `default_setup`, and the
-    // office's arrival RESOLVED it rather than adding it.
+    // THE DESK NAMED IT BEFORE THE OFFICE EXISTED: the row was authored by `default_setup`,
+    // and the office's arrival RESOLVED it rather than adding it.
     CHECK(has_pane(f.r.session().setup.active, pane_info_ref()));
     CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panels).empty());
 }
@@ -461,13 +485,9 @@ TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so"
     // row looks like -- authored intent, kept, explained -- and it is better than the
     // alternative, which is a Workshop that quietly has no Info and no reason why.
     //
-    // ⚠ AND IT IS NOT WHAT A MISSING ARTIFACT DOES, which is worth being exact about because
-    // the two are easy to confuse. THIS rig loads no plan at all, which is the state a maker
-    // reaches with a saved layout naming a pane their plan does not load. A tree whose
-    // `zengine-info-pane.so` is absent is a different failure: the authored plan is
-    // all-or-nothing, so the host prints the refusal and EXITS, exactly as it does for any
-    // other artifact on that plan (measured in this phase's witness). `1 unresolved` is on
-    // the band for the frames before the refusal arrives.
+    // ⚠ AND IT IS NOT WHAT A MISSING ARTIFACT DOES. THIS rig loads no plan at all, which is the
+    // state a maker reaches with a saved layout naming a pane their plan does not load; a plan
+    // row whose artifact is absent is the realization's to say (`agents/realization.md`).
     InfoRig f;
     f.open_without();
     CHECK(f.row() == nullptr);
@@ -480,21 +500,18 @@ TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so"
     CHECK(setup_rest_text(f.r.session().setup, f.r.session().panels, f.r.session().keymap)
               .find("1 unresolved") != std::string::npos);
 
-    // ...AND THE DOCUMENT IS ALL THERE, being authored by keys that were never the panel's.
-    const std::size_t born = f.r.w->document().elements.size();
-    f.r.key(input::scan::kN);
-    CHECK(f.r.w->document().elements.size() == born + 1);
+    // ...AND NOTHING IS INSPECTED: the host holds a subject only when an inspector names one.
+    CHECK_FALSE(f.r.session().inspected.addressed());
 }
 
 TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already names") {
     // THE THREE IDS DID NOT MOVE. `info.up`, `info.down` and `info.edit` were rows of
-    // Workshop's COMMAND context and are the pane's now, spelled exactly as they were, with
-    // the same default gestures -- so an authored override keeps working across the
-    // migration. Legal because the host's rows left in the same commit.
+    // Workshop's COMMAND context and are the pane's, spelled exactly as they were, with the same
+    // default gestures -- so an authored override keeps working. `info.switch` arrived with the
+    // pane list, and is the pane's own.
     InfoRig f;
     f.open();
-    CHECK(f.declared() == std::vector<std::string>{pane::kActionDown, pane::kActionEdit,
-                                                   pane::kActionUp});
+    CHECK(f.declared() == kResting);
 
     // ...AND THE HOST DECLARES NONE OF THEM. A row in both catalogs would be one authored
     // override naming two things, which `join_pane_rows` refuses whole (WL-KEY-06/08).
@@ -505,9 +522,7 @@ TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already n
 
     // ⭐ AND THE DRAFT'S TWO COULD NOT KEEP THEIR NAMES. `draft.commit` and `draft.cancel`
     // are `KeyContext::kDraft`'s rows and the Pane Manager still declares them for ITS
-    // drafts, so this pane spells `info.commit` and `info.cancel` on the same gestures. A
-    // maker who moved `draft.commit` finds it moved for the Pane Manager and not here --
-    // named because it is the price of two panes having shared one context.
+    // drafts, so this pane spells `info.commit` and `info.cancel` on the same gestures.
     CHECK(row_of_id("draft.commit") != nullptr);
     CHECK(row_of_id("draft.cancel") != nullptr);
     CHECK(row_of_id(pane::kActionCommit) == nullptr);
@@ -519,163 +534,133 @@ TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already n
 // ============================================================================
 
 TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over the host's "
-          "document") {
+          "inventory and subject") {
     InfoRig f;
     f.open();
-    // The host's boot document: two objects, the first of them selected.
-    REQUIRE(f.r.w->document().elements.size() == 2);
+    const std::vector<CatalogRow> inventory =
+        inventory_rows(f.r.session().setup.active, f.r.session().panels);
+    REQUIRE(inventory.size() >= 3);
 
-    const std::string all = f.text();
-    CHECK(all.find("OBJECTS") != std::string::npos);
-    CHECK(all.find("PROPERTIES") != std::string::npos);
-    // EVERY OBJECT, BY ITS OWN IDENTITY AND ITS OWN NAME -- the host's picture, not a count.
-    for (const ui::Element& e : f.r.w->document().elements) {
-        INFO("object #", e.id);
-        CHECK(all.find("#" + std::to_string(e.id) + " " + e.label) != std::string::npos);
+    std::string all = f.text();
+    CHECK(all.find("PANES -- " + std::to_string(inventory.size())) != std::string::npos);
+    // EVERY PANE OF THE ONE INVENTORY, BY ITS OWN NAME -- the host's reading, not a count.
+    for (const CatalogRow& row : inventory) {
+        INFO("pane ", row.name);
+        CHECK(f.pane_row(row.name) >= 0);
     }
-    // ...AND THE SELECTED ONE IS MARKED, which is the one thing the list says that the
-    // document does not.
-    CHECK(f.row_of("> #" + std::to_string(f.r.session().selected)) >= 0);
+    // NOTHING IS INSPECTED UNTIL THE MAKER NAMES SOMETHING, and the rows say so.
+    CHECK(all.find("PROPERTIES") != std::string::npos);
+    CHECK(all.find("(no subject") != std::string::npos);
 
-    // THE PROPERTIES ARE THE SELECTION'S, in the host's own row order and with the host's
-    // own values -- read back off the seam rather than composed here.
-    const DocumentShown said = f.picture();
+    f.inspect("Layouts");
+    all = f.text();
+    CHECK(all.find("PANE Layouts") != std::string::npos);
+    // ...AND THE SUBJECT IS MARKED IN THE LIST, which is the one thing the list says that the
+    // inventory does not.
+    CHECK(f.row_of(">*Layouts -- ") >= 0);
+
+    // THE PROPERTIES ARE THE SUBJECT'S, in the host's own row order and with the host's own
+    // values -- read back off the seam rather than composed here.
+    const PaneSubjectShown said = f.picture();
+    CHECK(said.office == layouts_ref().provider);
+    CHECK(said.pane == layouts_ref().pane);
     REQUIRE_FALSE(said.properties.empty());
-    // A ROW IS ITS LABEL IN A FIXED COLUMN, behind one mark cell -- `>` on the cursor's row
-    // and a space on every other -- so the value column lines up whatever the cursor is on.
     for (const ShownProperty& p : said.properties) {
         INFO("property ", p.label);
         CHECK((f.row_of(" " + p.label) >= 0 || f.row_of(">" + p.label) >= 0));
     }
-    // ...AND EXACTLY ONE OF THEM WEARS THE MARK.
+    // ...AND EXACTLY ONE ROW WEARS THE KEYS' MARK: the list's, while the keys are in the list.
     std::size_t marked = 0;
     for (const std::string& row_text : f.shown()) {
-        marked += (!row_text.empty() && row_text[0] == '>' && row_text.rfind("> #", 0) != 0)
-                      ? 1u
-                      : 0u;
+        marked += (!row_text.empty() && row_text[0] == '>') ? 1u : 0u;
     }
     CHECK(marked == 1);
 }
 
 TEST_CASE("INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched the pane "
           "moves it") {
-    // ⭐ THIS MIGRATION'S ONE NEW SENTENCE. WL-DOC-14 requires the canvas, the object list
-    // and the inspector to agree after every gesture, and the document changes under this
-    // pane constantly with no gesture into it -- a drag on the workspace, a nudge, a create,
-    // a restore. A pane that could only ASK would be a list that is wrong most of the time.
+    // ⭐ THE SEAM'S ONE PUBLICATION. A pane's resolved window changes under this pane with no
+    // gesture into it -- the surface resized, a drag, a desk put live. A pane that could only ASK
+    // would be a list that is wrong most of the time.
     InfoRig f;
     f.open();
-    const std::string before = f.text();
-    const std::size_t said_before = f.r.said_documents.size();
+    f.inspect("Layouts");
+    const std::int64_t named = f.picture().subject;
+    const std::string window = f.picture().properties[f.property_index("Window")].value;
+    const std::string painted = f.property_row("Window");
+    REQUIRE_FALSE(painted.empty());
+    const std::size_t said_before = f.r.said_subjects.size();
 
-    make_object(f);
-    const std::int64_t made = f.r.w->document().elements.back().id;
+    f.r.extent(150, 44); // the surface, and nothing about the pane
 
-    CHECK(f.r.said_documents.size() > said_before);
-    CHECK(f.text() != before);
-    CHECK(f.text().find("#" + std::to_string(made)) != std::string::npos);
-    // ...and creating selects what it made, so the mark moved with it.
-    CHECK(f.row_of("> #" + std::to_string(made)) >= 0);
+    CHECK(f.r.said_subjects.size() > said_before);
+    CHECK(f.picture().properties[f.property_index("Window")].value != window);
+    CHECK(f.property_row("Window") != painted);
+    // ...UNDER THE SAME NAME: a value moving is not another subject.
+    CHECK(f.picture().subject == named);
 }
 
-TEST_CASE("INFO-WEAVE: an empty document says it is empty and says what to do next") {
-    // A PANEL THAT MERELY GOES BLANK is indistinguishable from a tool that has broken, and a
-    // maker can reach this state with their own hand.
+TEST_CASE("INFO-WEAVE: with nothing inspected, the properties say so and say what to do next") {
+    // A PANEL THAT MERELY GOES BLANK is indistinguishable from a tool that has broken.
     InfoRig f;
     f.open();
-    while (!f.r.w->document().elements.empty()) {
-        f.unfocus();
-        f.r.key(input::scan::kD);
-    }
-    CHECK(f.text().find("(none) -- n makes one") != std::string::npos);
-    CHECK(f.text().find("(nothing selected)") != std::string::npos);
+    CHECK(f.text().find("(no subject") != std::string::npos);
+    // ...AND THE KEYS CANNOT BE SENT TO ROWS THAT DO NOT EXIST: said, not silently refused.
+    f.focus();
+    f.r.key(input::scan::kTab);
+    CHECK_MESSAGE(f.row_of("nothing is inspected") == 0, f.text());
+    CHECK(f.declared() == kResting);
 }
 
 TEST_CASE("INFO-WEAVE: what the body cannot show, it counts -- on the side it left it out") {
-    // THE OMISSION MARKERS, over a document taller than the room. A list that silently
-    // stopped at the last row it could draw would be a list a maker cannot trust.
+    // THE OMISSION MARKERS, over a subject taller than the room. A list that silently stopped at
+    // the last row it could draw would be a list a maker cannot trust.
     InfoRig f;
-    f.open(160, 24); // a short room, so both lists are pressed
-    for (int i = 0; i < 24; ++i) {
-        make_object(f);
-    }
-    const std::string all = f.text();
-    // The selection is the LAST object made, so the window is at the end of the list and
-    // what it could not show is EARLIER.
+    f.open(160, 22); // the shortest room, so both lists are pressed
+    f.inspect("Layouts");
+    std::string all = f.text();
+    // THE CURSOR IS AT THE TOP, so what the window could not show is MORE, below.
     CHECK(all.find("... ") != std::string::npos);
+    CHECK(all.find(" more") != std::string::npos);
+    // ...AND WALKED TO THE BOTTOM, what it cannot show is EARLIER.
+    f.r.key(input::scan::kTab);
+    for (int i = 0; i < 20; ++i) {
+        f.r.key(input::scan::kDown);
+    }
+    all = f.text();
     CHECK(all.find(" earlier") != std::string::npos);
-    // AND THE PANE NEVER PUBLISHED MORE ROWS THAN THE ROOM IT WAS GRANTED, which is the
-    // wall `judge_content` enforces and the reason a marker is paid for out of the budget
-    // rather than added beneath it.
+    // AND THE PANE NEVER PUBLISHED MORE ROWS THAN THE ROOM IT WAS GRANTED.
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);
-}
-
-TEST_CASE("INFO-WEAVE: the two controls are the last rows of the body, and say their own "
-          "availability in characters") {
-    // UNAVAILABLE IS SAID IN CHARACTERS, not in colour, so a colourless medium reads it too.
-    InfoRig f;
-    f.open();
-    const std::vector<std::string> rows = f.shown();
-    REQUIRE(rows.size() >= 2);
-    CHECK(rows[rows.size() - 2].rfind("[ Create ]", 0) == 0);
-    CHECK(rows[rows.size() - 1].rfind("[ Delete ]", 0) == 0);
-
-    // WITH NOTHING TO DELETE, Delete presents as unavailable -- and Create does not, because
-    // the two reasons are two different facts.
-    while (!f.r.w->document().elements.empty()) {
-        f.unfocus();
-        f.r.key(input::scan::kD);
-    }
-    const std::vector<std::string> empty = f.shown();
-    REQUIRE(empty.size() >= 2);
-    CHECK(empty[empty.size() - 2].rfind("[ Create ]", 0) == 0);
-    CHECK(empty[empty.size() - 1].rfind("( Delete )", 0) == 0);
 }
 
 // ============================================================================
 // INFO-WEAVE — the gestures, through the real seam
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: a press on an object row selects it, through the document's own door") {
+TEST_CASE("INFO-WEAVE: a press on a pane row inspects it, through the host's own door") {
     InfoRig f;
     f.open();
-    make_object(f);
-    const std::vector<ui::Element>& objects = f.r.w->document().elements;
-    REQUIRE(objects.size() >= 2);
-    const std::int64_t first = objects.front().id;
-    REQUIRE(f.r.session().selected != first);
+    REQUIRE_FALSE(f.r.session().inspected.addressed());
+    f.focus();
+    f.press_pane_row("Layouts");
+    // THE HOST HOLDS THE SUBJECT -- the pane asked and the host answered; nothing in the image can
+    // name a subject for the host.
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().name == "Layouts");
+    CHECK(f.row_of(">*Layouts -- ") >= 0);
+    CHECK(f.text().find("PANE Layouts") != std::string::npos);
 
-    f.press_row("  #" + std::to_string(first));
-    // THE HOST SELECTED IT -- the pane asked and the document answered; nothing in the image
-    // can move a selection.
-    CHECK(f.r.session().selected == first);
-    CHECK(f.row_of("> #" + std::to_string(first)) >= 0);
-}
-
-TEST_CASE("INFO-WEAVE: pressing Create is the SAME operation the `n` key performs") {
-    InfoRig f;
-    f.open();
-    const std::size_t born = f.r.w->document().elements.size();
-    f.press_row("[ Create ]");
-    CHECK(f.r.w->document().elements.size() == born + 1);
-    CHECK(f.r.session().selected == f.r.w->document().elements.back().id);
-}
-
-TEST_CASE("INFO-WEAVE: pressing Delete is the SAME operation the `d` key performs") {
-    InfoRig f;
-    f.open();
-    const std::size_t born = f.r.w->document().elements.size();
-    REQUIRE(born > 0);
-    f.press_row("[ Delete ]");
-    CHECK(f.r.w->document().elements.size() == born - 1);
+    // ANOTHER PRESS NAMES ANOTHER PANE, UNDER ANOTHER NAME -- this pane itself included.
+    const std::int64_t first = f.picture().subject;
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.picture().subject != first);
+    CHECK(f.row_of(">*Info -- ") >= 0);
 }
 
 TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into it") {
-    // ⭐ VD-22, ON THE PANE IT COSTS THE MOST. `up`, `down` and `Return` were COMMAND MODE's
-    // rows: they reached the inspector from anywhere a maker was standing. They are this
-    // pane's now and they reach it only while it holds the keyboard, which is a real change
-    // in the gesture and the reason the migration is felt.
+    // ⭐ VD-22: the pane's rows reach it only while it holds the keyboard.
     InfoRig f;
     f.open();
     const std::string resting = f.text();
@@ -684,7 +669,7 @@ TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into
     f.r.key(input::scan::kDown);
     CHECK(f.text() == resting);
 
-    // FOCUSED: the same key moves the cursor.
+    // FOCUSED: the same key moves the list cursor.
     f.focus();
     f.r.key(input::scan::kDown);
     CHECK(f.text() != resting);
@@ -697,101 +682,74 @@ TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into
 }
 
 TEST_CASE("INFO-WEAVE: a draft opens on the cursor's row, declares two ids and no more, and "
-          "commits through the document") {
+          "commits through the owner") {
     InfoRig f;
     f.open();
-    f.focus();
-    f.go_to_first_editable();
+    f.draft_on("Width");
 
-    // THE CURSOR IS ON AN AUTHORED ROW: `info.edit` opens a draft there.
-    f.r.key(input::scan::kReturn);
-    CHECK(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
-
-    // ⭐ AND THE HOST'S OWN `Return` IS NOT REACHABLE WHILE IT IS OPEN. A pane is ONE
-    // keyboard context, so while a maker is typing, these two are the only rows this pane
-    // declares and every other key arrives as an ordinary `PaneKey` for the line to consume.
+    // ⭐ A PANE IS ONE KEYBOARD CONTEXT, so while a maker is typing, these two are the only rows
+    // this pane declares and every other key arrives as an ordinary `PaneKey` for the line.
+    CHECK(f.declared() == kDrafting);
     f.r.text("77");
-    CHECK(f.text().find("77") != std::string::npos);
+    CHECK(value_of(f.property_row("Width")).find("77") != std::string::npos);
 
     const std::string before = f.text();
     f.r.key(input::scan::kEscape);
     // ⚠ THE NOTICE IS CUT TO THE ROOM LIKE EVERY OTHER ROW, and the mark is where it was cut.
-    // This pane's room is the right column's 28 cells; a sentence longer than that is fitted
-    // rather than allowed to refuse the whole publication, which is what `judge_content`
-    // would do to it. So the case asks for the prefix a maker can actually read.
     const std::int64_t cancelled = f.row_of("edit cancelled");
     REQUIRE(cancelled == 0); // and a notice takes the pane's first row
     CHECK(f.shown()[0].find("...") != std::string::npos);
-    CHECK(f.declared() ==
-          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+    CHECK(f.declared() == kResting);
     CHECK(before != f.text());
+    CHECK(f.layouts_width() == "-"); // nothing was written
 }
 
-TEST_CASE("INFO-WEAVE: a draft on a value the maker owns is written to the document") {
+TEST_CASE("INFO-WEAVE: a draft on a value the maker owns is written to the desk") {
     InfoRig f;
     f.open();
-    f.focus();
-    // Walk to a row this document says is the maker's to author, using what the HOST said
-    // about its own document rather than a row number this case invented.
-    f.go_to_first_editable();
-
-    f.r.key(input::scan::kReturn);
-    for (int i = 0; i < 8; ++i) {
-        f.r.key(input::scan::kBackspace);
-    }
-    f.r.text("12");
+    f.draft_holding("Width", "12");
     f.r.key(input::scan::kReturn); // commit
 
-    // THE DOCUMENT HOLDS IT, and the pane is showing the document's answer rather than its
-    // own draft: the picture arrived on the same drain.
-    CHECK(f.declared() ==
-          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
-    CHECK(f.text().find("12") != std::string::npos);
+    // THE DESK HOLDS IT, through the setup's own gesture door, and the pane is showing the owner's
+    // answer rather than its own draft: the picture arrived on the same drain.
+    CHECK(f.declared() == kResting);
+    const SetupPane* row = pane_of(f.r.session().setup.active, layouts_ref());
+    REQUIRE(row != nullptr);
+    CHECK(row->width.mode == pane_unit::kSubcells);
+    CHECK(row->width.amount == subs(12));
+    CHECK(value_of(f.property_row("Width")) == "12 cells");
+    // ...AND THE HOST SAYS WHAT IT WROTE, TO WHICH PANE.
+    CHECK(f.r.last_notice().find("committed Width of Layouts = 12 cells") != std::string::npos);
 }
 
-TEST_CASE("INFO-WEAVE: a row the workspace makes is refused by the pane, in its own words") {
+TEST_CASE("INFO-WEAVE: a row the screen makes is refused by the pane, in its own words") {
     // THE REFUSAL THAT IS THE PANE'S TO MAKE, because the reason is about the ROW: a resolved
-    // value is not authored, so there is nothing to open a draft on. The document's own
-    // refusals still come from the document.
+    // value is not authored, so there is nothing to open a draft on.
     InfoRig f;
     f.open();
-    f.focus();
-    // THE CURSOR RESTS ON ONE, which is worth saying: the first row of this list is
-    // `Identity`, a fact the workspace makes, so the very first `info.edit` a maker presses
-    // is the one this case is about.
-    const DocumentShown said = f.picture();
-    REQUIRE_FALSE(said.properties.empty());
-    REQUIRE_FALSE(said.properties.front().editable);
-
+    f.inspect("Layouts");
+    REQUIRE_FALSE(f.picture().properties[f.property_index("Window")].editable);
+    f.press_property("Window");
     f.r.key(input::scan::kReturn);
-    // THE REFUSAL NAMES THE ROW IT IS ABOUT, on the pane's first row, fitted to the column
-    // the pane was granted -- 28 cells, so the sentence is marked where it was cut.
-    REQUIRE(f.row_of(said.properties.front().label) == 0);
-    CHECK(f.shown()[0].find("is not autho") != std::string::npos);
+    // THE REFUSAL NAMES THE ROW IT IS ABOUT, on the pane's first row, fitted to its column.
+    REQUIRE_MESSAGE(f.row_of("Window is not autho") == 0, f.text());
     CHECK(f.shown()[0].find("...") != std::string::npos);
-    // ...AND NO DRAFT OPENED: the ids are still the resting three.
-    CHECK(f.declared() ==
-          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+    // ...AND NO DRAFT OPENED.
+    CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("INFO-WEAVE: a live draft holds both controls back, and the reason is the maker's") {
-    // TWO REASONS, TWO OWNERS: a live draft is unfinished work the act would destroy, and the
-    // pane is the party that knows. "Nothing to delete" is the document's and goes through.
+TEST_CASE("INFO-WEAVE: a live draft holds another subject back, and the reason is the maker's") {
+    // A LIVE DRAFT IS UNFINISHED WORK another subject would take the rows from, and the pane is
+    // the party that knows: refused before anything is asked.
     InfoRig f;
     f.open();
-    f.focus();
-    f.go_to_first_editable();
-    f.r.key(input::scan::kReturn); // a draft on the cursor's row
-
-    const std::vector<std::string> rows = f.shown();
-    REQUIRE(rows.size() >= 2);
-    CHECK(rows[rows.size() - 2].rfind("( Create )", 0) == 0);
-    CHECK(rows[rows.size() - 1].rfind("( Delete )", 0) == 0);
-
-    const std::size_t born = f.r.w->document().elements.size();
-    f.press_row("( Create )");
+    f.draft_on("Width");
+    const std::int64_t named = f.picture().subject;
+    f.press_pane_row("Info");
     CHECK(f.text().find("finish the edit first") != std::string::npos);
-    CHECK(f.r.w->document().elements.size() == born); // and the document did not move
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().subject == named);
+    CHECK(f.declared() == kDrafting);
 }
 
 TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
@@ -799,10 +757,11 @@ TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
     // when it is exceeded is not a bound.
     InfoRig f;
     f.open(160, 48);
+    f.inspect("Layouts");
     const std::int64_t tall = static_cast<std::int64_t>(f.shown().size());
     REQUIRE(tall > 0);
 
-    f.r.extent(160, 20);
+    f.r.extent(160, 22);
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);
     CHECK(static_cast<std::int64_t>(f.shown().size()) < tall);
@@ -813,31 +772,54 @@ TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
     }
 }
 
-TEST_CASE("INFO-WEAVE: an object name a canvas cannot draw is still shown") {
-    // A MAKER'S OWN TEXT HAS NEVER BEEN REQUIRED TO BE PRINTABLE ASCII, and a publication is
-    // judged WHOLE: one undrawable byte would refuse every row the pane sent. Replacing the
-    // byte costs the maker a character they can see is missing; sending it costs them the
-    // pane.
+TEST_CASE("INFO-WEAVE: Info may inspect itself, and an edit to its own place is written by the "
+          "desk, reseats it and keeps the subject") {
+    // ⭐ SELF-INSPECTION. The column that shows a pane's placement can show and edit its own; the
+    // write goes through the same door any other pane's does, and the room it moves is this
+    // pane's own -- which is not a new subject.
     InfoRig f;
     f.open();
-    // THE BYTE IS WRITTEN ONTO THE HOST'S OWN DOCUMENT, because no gesture in this rig can
-    // type one into a LABEL -- the maker path this pane has is the property draft, and a
-    // document loaded from a file is the way such a byte really arrives.
-    WorkshopDoc& document = const_cast<WorkshopDoc&>(f.r.w->document());
-    REQUIRE_FALSE(document.elements.empty());
-    document.elements.front().label = std::string("na\x01me\x7f");
-    make_object(f); // any gesture: the picture is re-derived and re-said
+    f.inspect("Info");
+    CHECK(f.picture().office == pane::kInfoPaneRole);
+    CHECK(f.row_of(">*Info -- ") >= 0);
+    const std::int64_t named = f.picture().subject;
+    const std::string window = f.picture().properties[f.property_index("Window")].value;
 
-    CHECK_FALSE(f.shown().empty());
-    for (const std::string& row_text : f.shown()) {
-        for (const char c : row_text) {
-            const unsigned char byte = static_cast<unsigned char>(c);
-            INFO("row: ", row_text);
-            CHECK(byte >= 0x20u);
-            CHECK(byte < 0x7Fu);
-        }
-    }
-    CHECK(f.text().find("na me") != std::string::npos);
+    f.draft_holding("X", "12", "Info");
+    f.r.key(input::scan::kReturn);
+
+    CHECK(f.declared() == kResting);
+    const SetupPane* row = pane_of(f.r.session().setup.active, pane_info_ref());
+    REQUIRE(row != nullptr);
+    CHECK(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.x == subs(12));
+    // THE DESK RESEATED IT: its resolved window moved, and it still inspects itself.
+    CHECK(f.picture().properties[f.property_index("Window")].value != window);
+    CHECK(f.picture().subject == named);
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.r.last_notice().find("committed X of Info = 12 cells") != std::string::npos);
+}
+
+TEST_CASE("INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press "
+          "elsewhere leave it standing") {
+    // ⭐ INDEPENDENT OF SELECTION AND FOCUS. The subject is written by one door, asked by this
+    // pane; nothing the maker does elsewhere reaches it.
+    InfoRig f;
+    f.open();
+    f.inspect("Layouts");
+    const std::int64_t named = f.picture().subject;
+
+    f.unfocus();                  // a press elsewhere: the keys leave, the selection moves
+    f.r.key(input::scan::kEscape); // the host's own Escape, with nothing more specific to do
+    f.r.key(input::scan::kDown);   // command mode's arrows
+    CHECK(f.r.session().panels.keyboard != f.kind);
+
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().subject == named);
+    CHECK(f.text().find("PANE Layouts") != std::string::npos);
+    const std::int64_t marked = f.pane_row("Layouts");
+    REQUIRE(marked >= 0);
+    CHECK(f.shown()[static_cast<std::size_t>(marked)][1] == '*');
 }
 
 // ============================================================================
@@ -849,115 +831,84 @@ TEST_CASE("INFO-WEAVE: an object name a canvas cannot draw is still shown") {
 // of the pane: a notice cleared in private stands painted until some unrelated grant says the
 // rows again, so every "it stands" below is read again after a new room.
 
-TEST_CASE("a press on an Info row while a notice stands names the row painted there, and a full room keeps both controls under the notice") {
+TEST_CASE("a press on an Info row while a notice stands names the row painted there, and a full "
+          "room keeps its last row under the notice") {
     // THE NOTICE TAKES THE FIRST ROW AND EVERY ROW UNDER IT MOVES DOWN ONE. The pane composes its
-    // body without the notice and `finish` puts it in front -- but the row map counted the notice
-    // the other way, and the body was padded as though the notice were already in it. So while a
-    // notice stood, a press landed two rows below the row it named, a blank row sat under the
-    // object list, and a full room lost `[ Delete ]` off its end.
+    // body without the notice and `finish` puts it in front; the row map counts it the same way.
     InfoRig f;
-    f.open(160, 24);
-    for (int i = 0; i < 24; ++i) {
-        make_object(f);
-    }
-    f.focus();
-    const std::string label = f.picture().properties.front().label;
-    f.r.key(input::scan::kReturn); // `info.edit` on the row the workspace makes: the pane refuses
-    REQUIRE(f.row_of(label) == 0);
+    f.open(160, 22);
+    f.inspect("Layouts");
+    f.r.key(input::scan::kTab);    // the keys into the properties, on `Name`
+    f.r.key(input::scan::kReturn); // `info.edit` on a row nobody authors: the pane refuses
+    REQUIRE_MESSAGE(f.row_of("Name is not autho") == 0, f.text());
 
-    // A FULL ROOM: every granted row is published, and the two controls are still its last two.
+    // A FULL ROOM: every granted row is published, and the last is the counted omission.
     const std::vector<std::string> rows = f.shown();
     const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     REQUIRE(static_cast<std::int64_t>(rows.size()) == seat->rows);
-    CHECK(rows[rows.size() - 2].rfind("[ Create ]", 0) == 0);
-    CHECK(rows[rows.size() - 1].rfind("[ Delete ]", 0) == 0);
-    // ...AND NOTHING BLANK UNDER THE OBJECT LIST: the row above the properties is an object.
-    const std::int64_t properties = f.row_of("PROPERTIES");
-    REQUIRE(properties > 1);
-    CHECK(rows[static_cast<std::size_t>(properties - 1)].rfind("> #", 0) == 0);
+    CHECK(rows.back().rfind("... ", 0) == 0);
+    // ...AND NOTHING BLANK UNDER THE PANE LIST: the row above the subject's heading is a pane.
+    const std::int64_t heading = f.row_of("PANE Layouts");
+    REQUIRE(heading > 1);
+    CHECK(rows[static_cast<std::size_t>(heading - 1)].find(" -- ") != std::string::npos);
 
     // A PRESS ON A PROPERTY PAINTED UNDER THE NOTICE PUTS THE CURSOR ON THAT PROPERTY.
-    const std::string second = f.picture().properties[1].label;
-    f.press_row(" " + second);
-    CHECK(f.row_of(">" + second) >= 0);
-    CHECK(f.row_of(label) == -1); // ...and it was an act, so the notice is spent
+    f.press_property("Summary");
+    CHECK(f.row_of(">Summary") >= 0);
+    CHECK(f.row_of("Name is not autho") == -1); // ...and it was an act, so the notice is spent
 
-    // A PRESS ON AN OBJECT PAINTED UNDER A NOTICE SELECTS THAT OBJECT.
-    f.r.key(input::scan::kUp);
+    // A PRESS ON A PANE PAINTED UNDER A NOTICE INSPECTS THAT PANE.
     f.r.key(input::scan::kReturn);
-    REQUIRE(f.row_of(label) == 0);
-    const std::int64_t before = f.r.session().selected;
-    std::int64_t other = 0;
-    for (const std::string& one : f.shown()) {
-        if (one.rfind("  #", 0) == 0) {
-            other = std::stoll(one.substr(3));
-            break;
-        }
-    }
-    REQUIRE(other != 0);
-    REQUIRE(other != before);
-    f.press_row("  #" + std::to_string(other));
-    CHECK(f.r.session().selected == other);
-    CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
+    REQUIRE(f.row_of("Summary is not autho") == 0);
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.row_of(">*Info -- ") >= 0);
 }
 
-TEST_CASE("a key the Info draft line does not take is no act: the notice stands through a new room, and a key it takes spends it") {
-    // THE DRAFT'S LINE REFUSES A KEY IT HAS NO MEANING FOR, and the pane cleared its notice
-    // before it asked the line -- so the refusal stood painted over a private clear, and the next
-    // room grant said the rows without a sentence the maker had done nothing to.
+TEST_CASE("a key the Info draft line does not take is no act: the notice stands through a new "
+          "room, and a key it takes spends it") {
+    // THE DRAFT'S LINE REFUSES A KEY IT HAS NO MEANING FOR; the refusal is not an act.
     InfoRig f;
     f.open();
-    f.focus();
-    f.go_to_first_editable();
-    f.r.key(input::scan::kReturn); // a draft on an authored row
-    REQUIRE(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
-    f.r.text("77");
-    f.press_row("( Create )"); // the pane's own refusal, beside the live draft
+    f.draft_holding("Width", "77");
+    f.press_pane_row("Info"); // the pane's own refusal, beside the live draft
     REQUIRE(f.row_of("finish the edit") == 0);
-    const std::string drafted = f.row_containing("77");
-    REQUIRE_FALSE(drafted.empty());
+    const std::string drafted = f.property_row("Width");
+    REQUIRE(value_of(drafted) == "77");
 
     f.r.key(input::scan::kDown); // a key the line has no meaning for
     CHECK(f.row_of("finish the edit") == 0);
-    CHECK(f.row_containing("77") == drafted); // the same room, so the same row, byte for byte
+    CHECK(f.property_row("Width") == drafted); // the same room, so the same row, byte for byte
     f.regrant();
     CHECK(f.row_of("finish the edit") == 0);
     // ...AND THE DRAFT IS THE DRAFT IT WAS: still open, its text where the maker left it.
-    CHECK(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
-    CHECK_FALSE(f.row_containing("77").empty());
+    CHECK(f.declared() == kDrafting);
+    CHECK(value_of(f.property_row("Width")) == "77");
 
     f.r.key(input::scan::kLeft); // a key the line takes
     CHECK(f.row_of("finish the edit") == -1);
-    CHECK_FALSE(f.row_containing("77").empty());
+    CHECK(value_of(f.property_row("Width")) == "77");
 }
 
-TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commit resolved before a cancel, and an id nobody declared, leave the notice standing through a new room") {
-    // THE MODE OWNS THE PANE'S ACTIONS, AND A DECLARATION RACES A KEYSTROKE. A maker who presses
-    // Escape and Return in one poll gets both resolved against the rows the draft declared --
-    // `info.cancel`, then `info.commit` -- and the pane hears the commit after the cancel closed
-    // the draft: a stale id, delivered by Workshop under its own office. The pane cleared its
-    // notice before it asked what the id meant here, so the cancel's own sentence stood over a
-    // private clear.
+TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commit resolved before "
+          "a cancel, and an id nobody declared, leave the notice standing through a new room") {
+    // THE MODE OWNS THE PANE'S ACTIONS, AND A DECLARATION RACES A KEYSTROKE. Escape and Return in
+    // one poll resolve against the rows the draft declared -- `info.cancel`, then `info.commit`
+    // -- and the pane hears the commit after the cancel closed the draft.
     InfoRig f;
     f.open();
-    f.focus();
-    const std::size_t editable = f.go_to_first_editable();
-    const std::string authored = f.picture().properties[editable].value;
-    f.r.key(input::scan::kReturn);
-    f.r.text("77");
-    const std::vector<std::string> resting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
+    f.draft_holding("Width", "77");
 
     f.enqueue_key(input::scan::kEscape);
     f.enqueue_key(input::scan::kReturn);
     f.settle();
     REQUIRE(f.row_of("edit cancelled") == 0);
-    CHECK(f.declared() == resting);
+    CHECK(f.declared() == kResting);
     f.regrant();
     CHECK(f.row_of("edit cancelled") == 0);
 
-    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE, is the same non-act -- asked of a
-    // notice of its own, so it cannot pass or fail on what the stale commit did.
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE, is the same non-act.
     f.r.key(input::scan::kReturn);
     f.r.key(input::scan::kEscape);
     REQUIRE(f.row_of("edit cancelled") == 0);
@@ -968,14 +919,13 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     CHECK(unknown.author == kWorkshopProvider);
     f.regrant();
     CHECK(f.row_of("edit cancelled") == 0);
-    // ...AND NEITHER ONE WROTE ANYTHING: the value the maker typed never reached the document.
-    CHECK(f.picture().properties[editable].value == authored);
+    // ...AND NEITHER ONE WROTE ANYTHING.
+    CHECK(f.layouts_width() == "-");
 
-    // THE SAME DOOR WITH AN ID THE PANE DOES ANSWER TO IS AN ACT -- which is what shows the
-    // provenance was never the reason for the silence above.
-    const auto cursor_row = [&f] { // the property row wearing the mark, not the selected object's
+    // THE SAME DOOR WITH AN ID THE PANE DOES ANSWER TO IS AN ACT.
+    const auto cursor_row = [&f] { // the property row wearing the mark
         for (const std::string& one : f.shown()) {
-            if (one.rfind(">", 0) == 0 && one.rfind("> #", 0) != 0) {
+            if (one.rfind(">", 0) == 0 && one.find(" -- ") == std::string::npos) {
                 return one;
             }
         }
@@ -990,26 +940,21 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     CHECK(cursor_row() != cursor_was); // the mark is on the next property now
 }
 
-TEST_CASE("a press on the Info object already selected spends the notice in the rows Workshop holds while its answer is still on its way, and needs no new document picture to say so") {
-    // AN ACCEPTED ACT THAT CHANGES NO PICTURE. The press asks the host to select what is
-    // selected; the host answers yes and has nothing new to publish, so no `DocumentShown` comes
-    // to say the pane's rows again. The pane cleared its notice at the press and said nothing of
-    // its own, so the refusal it had spent stood painted after the conversation was over.
+TEST_CASE("a press on the pane Info already inspects spends the notice in the rows Workshop holds "
+          "while its answer is still on its way, and needs no new picture to say so") {
+    // AN ACCEPTED ASK THAT CHANGES NO PICTURE: the press asks the host to inspect what is
+    // inspected; the host answers yes and has nothing new to publish.
     InfoRig f;
     f.open();
-    f.focus();
-    const DocumentShown said = f.picture();
-    REQUIRE_FALSE(said.properties.front().editable);
-    const std::string label = said.properties.front().label;
-    f.r.key(input::scan::kReturn); // `info.edit` on a row the workspace makes: the pane refuses
-    REQUIRE(f.row_of(label) == 0);
-    const std::int64_t selected = f.r.session().selected;
-    const std::size_t documents = f.r.said_documents.size();
-    const std::int64_t at = f.row_of("> #" + std::to_string(selected));
+    f.inspect("Layouts");
+    f.r.key(input::scan::kTab);
+    f.r.key(input::scan::kReturn); // `info.edit` on `Name`: the pane refuses
+    REQUIRE(f.row_of("Name is not autho") == 0);
+    const std::size_t pictures = f.r.said_subjects.size();
+    const std::int64_t at = f.pane_row("Layouts");
     REQUIRE(at > 0);
 
-    const loom::WeaveId pane_id = f.r.kernel.weave_id(pane::kInfoPaneStem);
-    REQUIRE(pane_id.value != 0);
+    const loom::WeaveId pane_id = info_id(f);
     loom::Switchboard& bus = f.r.bus;
     bool pressed = false;
     bool answered = false;
@@ -1021,7 +966,7 @@ TEST_CASE("a press on the Info object already selected spends the notice in the 
             if (!pressed && ev.schema_name == PanePressed::zen_name) {
                 pressed = true; // the turn ends where the pane has acted: its ask is queued
                 bus.stop();
-            } else if (ev.schema_name == DocumentActed::zen_name) {
+            } else if (ev.schema_name == PaneSubjectActed::zen_name) {
                 answered = true;
             }
         });
@@ -1031,12 +976,7 @@ TEST_CASE("a press on the Info object already selected spends the notice in the 
     }
     REQUIRE(pressed);
     REQUIRE_FALSE(answered);
-    // TURN BY TURN, until the rows Workshop holds stop saying the refusal -- which must happen
-    // while the host's answer is still on its way to the pane.
-    const auto leads_with_it = [&f, &label] {
-        const std::vector<std::string> rows = f.admitted();
-        return !rows.empty() && rows.front().rfind(label, 0) == 0;
-    };
+    const auto leads_with_it = [&f] { return f.admitted_leads("Name is not autho"); };
     for (int turns = 0; turns < 16 && leads_with_it() && !answered; ++turns) {
         (void)bus.pump_pending();
     }
@@ -1045,113 +985,87 @@ TEST_CASE("a press on the Info object already selected spends the notice in the 
     bus.drain_until_idle();
     bus.remove_observer(tap);
 
-    // THE CONVERSATION IS OVER: accepted, the selection where it was, and no picture was said.
+    // THE CONVERSATION IS OVER: accepted, the subject where it was, and no picture was said.
     CHECK(answered);
-    CHECK(f.r.session().selected == selected);
-    CHECK(f.r.said_documents.size() == documents);
-    CHECK(f.row_of(label) == -1);
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.r.said_subjects.size() == pictures);
+    CHECK(f.row_of("Name is not autho") == -1);
     f.regrant();
-    CHECK(f.row_of(label) == -1);
+    CHECK(f.row_of("Name is not autho") == -1);
 
-    // A PRESS STILL MEANS WHAT THE PICTURE SAYS: the rows moved up when the notice left, and the
-    // row the next press reads is the object painted there.
-    const std::int64_t other = said.objects.back().identity;
-    REQUIRE(other != selected);
-    f.press_row("  #" + std::to_string(other));
-    CHECK(f.r.session().selected == other);
-    CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
+    // A PRESS STILL MEANS WHAT THE PICTURE SAYS.
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
 }
 
-TEST_CASE("an Info act with nothing to act on still spends the notice before it, and a refusal the document gives a press stands until the act after it") {
-    // TWO HALVES OF ONE RULE. `info.edit` over an empty inspector is a declared id in the mode
-    // the pane is in -- an act that happens to change nothing, like `info.up` on the first row --
-    // so it spends the notice, and says the rows because nothing else will. And the document's
-    // own refusal, the answer to a press, is a NEW notice: the rows said at the press must not be
-    // the last word, and the next room must not take it back.
+TEST_CASE("an Info act that moves nothing still spends the notice before it, and a refusal the "
+          "owner gives a commit stands until the act after it") {
     InfoRig f;
     f.open();
-    f.focus();
-    f.go_to_first_editable();
+    // THE OWNER'S OWN REFUSAL IS A NOTICE: it stands through a new room, beside the draft.
+    f.draft_holding("Width", "abc");
     f.r.key(input::scan::kReturn);
-    f.r.key(input::scan::kEscape); // a standing notice that is not the document's
-    REQUIRE(f.row_of("edit cancelled") == 0);
-    while (!f.r.w->document().elements.empty()) {
-        f.unfocus();
-        f.r.key(input::scan::kD);
-    }
-    f.focus(); // the OBJECTS heading: a row that means nothing, so nothing is spent
-    REQUIRE(f.row_of("edit cancelled") == 0);
-    REQUIRE(f.text().find("(nothing selected)") != std::string::npos);
-
-    // A PRESS ON `( Delete )` WITH NOTHING TO DELETE: the pane asks, the document refuses.
-    f.press_row("( Delete )");
-    CHECK(f.row_of("edit cancelled") == -1);
-    const std::vector<std::string> refused = f.shown();
-    REQUIRE_FALSE(refused.empty());
-    const std::string refusal = refused.front();
-    CHECK(refusal.rfind("( Delete )", 0) != 0);
-    CHECK(refusal.rfind("OBJECTS", 0) != 0);
+    REQUIRE_MESSAGE(f.row_of("Width: not a whole") == 0, f.text());
+    CHECK(f.declared() == kDrafting);
     f.regrant();
-    CHECK(f.shown().front().rfind(refusal.substr(0, 12), 0) == 0);
+    CHECK(f.row_of("Width: not a whole") == 0);
+    CHECK(f.layouts_width() == "-");
 
-    // `info.edit` WITH NOTHING SELECTED: declared, applicable, and a no-op -- the refusal is
-    // spent.
+    // ...UNTIL THE ACT AFTER IT.
+    f.r.key(input::scan::kEscape);
+    REQUIRE(f.row_of("edit cancelled") == 0);
+
+    // AN ACT THAT MOVES NOTHING: the cursor walked to the top, a refusal said there, and `up`
+    // pressed where there is no row above -- declared, applicable, and a no-op that spends it.
+    for (int i = 0; i < 12; ++i) {
+        f.r.key(input::scan::kUp);
+    }
     f.r.key(input::scan::kReturn);
-    CHECK(f.shown().front().rfind(refusal.substr(0, 12), 0) != 0);
-    CHECK(f.row_of("OBJECTS") == 0);
+    REQUIRE(f.row_of("Name is not autho") == 0);
+    const std::string marked = f.property_row("Name");
+    f.r.key(input::scan::kUp);
+    CHECK(f.row_of("Name is not autho") == -1);
+    CHECK(f.property_row("Name").rfind(">Name", 0) == 0);
+    CHECK_FALSE(marked.empty());
 
-    // ...AND THE NEXT PRESS READS THE PICTURE THAT SAYS SO: `[ Create ]` is where it is painted.
-    const std::size_t born = f.r.w->document().elements.size();
-    f.press_row("[ Create ]");
-    CHECK(f.r.w->document().elements.size() == born + 1);
+    // ...AND THE NEXT PRESS READS THE PICTURE THAT SAYS SO.
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
 }
 
 // ============================================================================
 // A draft, a request and an answer
 // ============================================================================
 //
-// THREE LIFETIMES THAT USED TO BE READ AS ONE. A draft is the pane's and ends when the maker ends
-// it or when the picture stops showing its property; a request is the document's once it is sent,
-// and closing a draft does not take it back; an answer belongs to the act that asked, and for a
-// commit to the draft that sent it. Every case reads the document itself beside the rows Workshop
-// admitted and painted, because a sentence that claims less than happened is the defect here.
+// THREE LIFETIMES. A draft is the pane's and ends when the maker ends it or when the picture stops
+// showing its property; a request is the owner's once it is sent, and closing a draft does not
+// take it back; an answer belongs to the ask that asked, and for a commit to the draft that sent
+// it. Every case reads the desk itself beside the rows Workshop admitted and painted, because a
+// sentence that claims less than happened is the defect here.
 
-TEST_CASE("a press on an object while an Info draft is live is refused in the controls' words, keeping the draft, its text, the selection and the document through a new room, and selecting resumes once the draft ends") {
-    // AN ACCEPTED SELECT CLOSED THE DRAFT. The press asked the document to select the object
-    // already selected, the document said yes, and the answer closed whatever draft was open --
-    // the maker's typed text gone, with nothing said. A select is the one act that changes the
-    // rows a draft is typed into, so while one is live the pane refuses it before asking, exactly
-    // as it refuses Create and Delete.
+TEST_CASE("a press on a pane while an Info draft is live is refused, keeping the draft, its text, "
+          "the subject and the desk through a new room, and inspecting resumes once the draft "
+          "ends") {
     InfoRig f;
     f.open();
-    const std::int64_t selected = f.r.session().selected;
-    std::int64_t other = 0;
-    for (const ui::Element& e : f.r.w->document().elements) {
-        other = e.id != selected ? e.id : other;
-    }
-    REQUIRE(other != 0);
-    const std::string authored = object_of(f, selected).label;
-    f.draft_on("Name");
-    f.r.text("77");
-    REQUIRE(f.property_row("Name").find(authored + "77") != std::string::npos);
-    const std::size_t documents = f.r.said_documents.size();
-    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    f.draft_holding("Width", "77");
+    const std::size_t pictures = f.r.said_subjects.size();
     const auto draft_stands = [&] {
-        CHECK(f.declared() == draft_ids);
-        CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
-        CHECK(f.r.session().selected == selected);
-        CHECK(object_of(f, selected).label == authored);
+        CHECK(f.declared() == kDrafting);
+        CHECK(value_of(f.property_row("Width")) == "77");
+        CHECK(f.r.session().inspected.ref == layouts_ref());
+        CHECK(f.layouts_width() == "-");
     };
 
-    // THE OBJECT ALREADY SELECTED: refused, and nothing was asked of the document.
-    f.press_row("> #" + std::to_string(selected));
+    // THE PANE ALREADY INSPECTED: refused, and nothing was asked of the host.
+    f.press_pane_row("Layouts");
     CHECK(f.row_of("finish the edit first") == 0);
     CHECK(f.admitted_leads("finish the edit first"));
     draft_stands();
-    CHECK(f.r.said_documents.size() == documents);
+    CHECK(f.r.said_subjects.size() == pictures);
 
-    // ANOTHER OBJECT, PAINTED UNDER THE REFUSAL: refused the same way.
-    f.press_row("  #" + std::to_string(other));
+    // ANOTHER PANE, PAINTED UNDER THE REFUSAL: refused the same way.
+    f.press_pane_row("Info");
     CHECK(f.row_of("finish the edit first") == 0);
     draft_stands();
 
@@ -1160,24 +1074,21 @@ TEST_CASE("a press on an object while an Info draft is live is refused in the co
     CHECK(f.row_of("finish the edit first") == 0);
     draft_stands();
 
-    // THE DRAFT ENDS, NOTHING WAS SENT, AND A PRESS SELECTS AGAIN -- on the object painted under
-    // the cancel's own sentence.
+    // THE DRAFT ENDS, NOTHING WAS SENT, AND A PRESS INSPECTS AGAIN.
     f.r.key(input::scan::kEscape);
     REQUIRE(f.row_of("edit cancelled -- unwri") == 0);
-    f.press_row("  #" + std::to_string(other));
-    CHECK(f.r.session().selected == other);
-    CHECK(f.row_of("> #" + std::to_string(other)) >= 0);
-    CHECK(object_of(f, selected).label == authored);
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.row_of(">*Info -- ") >= 0);
+    CHECK(f.layouts_width() == "-");
 }
 
-TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commit was already sent, the answer's account takes that sentence's place, and no row says nothing was written over a write") {
-    // ESCAPE ENDS THE DRAFT, AND IT CANNOT END A COMMIT THAT HAS LEFT. Return and Escape in one
-    // poll resolve to a commit and then a cancel; the commit is on its way to the document before
-    // the cancel closes the draft. The pane said `edit cancelled -- nothing was written` -- and
-    // then either let the document's refusal replace it over a draft that was no longer there, or
-    // kept it standing over the value the document had just taken.
+TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commit was already "
+          "sent, the answer's account takes that sentence's place, and no row says nothing was "
+          "written over a write") {
+    // ESCAPE ENDS THE DRAFT, AND IT CANNOT END A COMMIT THAT HAS LEFT.
     const auto commit_then_cancel = [](InfoRig& f, const std::string& typed) {
-        f.draft_holding("X", typed);
+        f.draft_holding("Width", typed);
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_key(input::scan::kReturn);
         f.enqueue_key(input::scan::kEscape);
@@ -1192,14 +1103,10 @@ TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commi
         CHECK(f.admitted_leads("commit already sent"));
         f.settle();
         CHECK(tap.answered == 1);
-        CHECK(f.declared() ==
-              std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+        CHECK(f.declared() == kResting);
     };
     const auto nothing_claims_it_was_not_written = [](InfoRig& f) {
-        std::vector<std::string> rows = f.shown();
-        const std::vector<std::string> held = f.admitted();
-        rows.insert(rows.end(), held.begin(), held.end());
-        for (const std::string& one : rows) {
+        for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
             CHECK(one.find("cancelled") == std::string::npos);
@@ -1210,26 +1117,23 @@ TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commi
         // REFUSED: the value stands, and the refusal is the commit's, not a closed field's.
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        const std::int64_t authored = object_of(f, selected).x;
         commit_then_cancel(f, "abc");
-        CHECK_MESSAGE(f.row_of("commit refused -- X: no") == 0, f.text());
-        CHECK(object_of(f, selected).x == authored);
-        CHECK(f.picture().properties[f.property_index("X")].value == std::to_string(authored));
+        CHECK_MESSAGE(f.row_of("commit refused -- Width") == 0, f.text());
+        CHECK(f.layouts_width() == "-");
+        CHECK(f.picture().properties[f.property_index("Width")].value == "-");
         f.regrant();
         CHECK(f.row_of("commit refused") == 0);
     }
     {
-        // TAKEN: the document holds the value, the pane says the commit was written, and the
-        // host's own band says what it committed.
+        // TAKEN: the desk holds the value, the pane says the commit was written, and the host's own
+        // band says what it committed.
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
         commit_then_cancel(f, "77");
-        CHECK(object_of(f, selected).x == 77);
-        CHECK(f.picture().properties[f.property_index("X")].value == "77");
+        CHECK(f.layouts_width() == "77 cells");
+        CHECK(f.picture().properties[f.property_index("Width")].value == "77 cells");
         CHECK(f.row_of("commit written") == 0);
-        CHECK(f.r.last_notice().find("committed X = 77") != std::string::npos);
+        CHECK(f.r.last_notice().find("committed Width of Layouts = 77 cells") != std::string::npos);
         nothing_claims_it_was_not_written(f);
         f.regrant();
         CHECK(f.row_of("commit written") == 0);
@@ -1237,35 +1141,32 @@ TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commi
     }
 }
 
-TEST_CASE("an Info commit answered after a newer draft opened on the same field closes, alters and marks nothing on that draft, and a sentence a later act said stands") {
+TEST_CASE("an Info commit answered after a newer draft opened on the same field closes, alters and "
+          "marks nothing on that draft, and a sentence a later act said stands") {
     // AN OLD ANSWER IS NOT THE NEW DRAFT'S. A commit, a cancel and a new edit delivered in one
-    // burst, then a press on `( Create )`: the document answers the first draft's commit while
-    // the second draft is open on the same property. The correlation names the request; only the
-    // draft that sent it can be closed or marked by its answer.
-    const auto late_answer = [](const std::string& typed, std::int64_t expected_x) {
+    // burst, then a press on another pane: the host answers the first draft's commit while the
+    // second draft is open on the same property.
+    const auto late_answer = [](const std::string& typed, const std::string& expected) {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        const std::string opened_with = std::to_string(object_of(f, selected).x);
-        f.draft_holding("X", typed);
-        const std::int64_t create = f.row_of("( Create )");
-        REQUIRE(create > 0);
+        f.draft_holding("Width", typed);
+        const std::int64_t other = f.pane_row("Info");
+        REQUIRE(other > 0);
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_action(pane::kActionCommit);
         f.enqueue_action(pane::kActionCancel);
         f.enqueue_action(pane::kActionEdit);
-        f.enqueue_press(create);
+        f.enqueue_press(other);
         f.settle();
         REQUIRE(tap.answered == 1);
 
         const auto newer_draft_stands = [&] {
-            CHECK(f.declared() ==
-                  std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
+            CHECK(f.declared() == kDrafting);
             CHECK(f.row_of("finish the edit first") == 0);
-            const std::string drafted = f.property_row("X");
+            const std::string drafted = f.property_row("Width");
             REQUIRE_FALSE(drafted.empty());
-            CHECK(drafted.rfind(">X", 0) == 0);
-            CHECK(drafted.substr(10).rfind(opened_with, 0) == 0);
+            CHECK(drafted.rfind(">Width", 0) == 0);
+            CHECK(value_of(drafted) == "-"); // what the newer draft opened with
             for (const std::string& one : f.shown()) {
                 INFO("row: ", one);
                 CHECK(one.find("commit written") == std::string::npos);
@@ -1273,7 +1174,7 @@ TEST_CASE("an Info commit answered after a newer draft opened on the same field 
                 CHECK(one.find("commit already") == std::string::npos);
                 CHECK(one.find("not a whole") == std::string::npos);
             }
-            CHECK(object_of(f, selected).x == expected_x);
+            CHECK(f.layouts_width() == expected);
         };
         newer_draft_stands();
         f.regrant();
@@ -1282,35 +1183,36 @@ TEST_CASE("an Info commit answered after a newer draft opened on the same field 
         // ...AND THE NEWER DRAFT'S OWN CANCEL IS TRUE ABOUT IT: it sent nothing.
         f.r.key(input::scan::kEscape);
         CHECK(f.row_of("edit cancelled -- unwri") == 0);
-        CHECK(object_of(f, selected).x == expected_x);
+        CHECK(f.layouts_width() == expected);
     };
-    SUBCASE("refused") { late_answer("abc", 3); }
-    SUBCASE("taken") { late_answer("77", 77); }
+    SUBCASE("refused") { late_answer("abc", "-"); }
+    SUBCASE("taken") { late_answer("77", "77 cells"); }
 }
 
-TEST_CASE("an Info draft ended while an earlier draft's commit is still unanswered says the commit was already sent, even when an act between them asked the document something else, and that commit's account replaces the sentence") {
-    // WHETHER A COMMIT IS UNANSWERED IS WHAT DECIDES WHAT ENDING A DRAFT MAY SAY. A commit and
-    // its cancel, a press on `[ Create ]`, a new draft and its cancel, delivered in one burst:
-    // the create is asked while the first commit is still on its way, and the second cancel must
-    // not say nothing was written over the write that commit is about to make.
+TEST_CASE("an Info draft ended while an earlier draft's commit is still unanswered says the commit "
+          "was already sent, even when an act between them asked the host something else, and "
+          "that commit's account replaces the sentence") {
+    // WHETHER A COMMIT IS UNANSWERED IS WHAT DECIDES WHAT ENDING A DRAFT MAY SAY. A commit and its
+    // cancel, a press on the pane already inspected (an inspect of its own), a new draft and its
+    // cancel, delivered in one burst.
     InfoRig f;
     f.open();
-    const std::int64_t selected = f.r.session().selected;
-    f.draft_holding("X", "77");
-    const std::int64_t create = f.row_of("( Create )");
-    REQUIRE(create > 0);
+    f.draft_holding("Width", "77");
+    const std::int64_t layouts = f.pane_row("Layouts");
+    REQUIRE(layouts >= 0);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_action(pane::kActionCommit);
     f.enqueue_action(pane::kActionCancel); // the first draft ends, its commit unanswered
-    // ...and `[ Create ]` is pressed on the rows that cancel said, under its one-row sentence.
-    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, create + 1, 2}));
+    // ...and the Layouts row is pressed on the rows that cancel said, under its one-row sentence.
+    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, layouts + 1, 3}));
+    f.enqueue_action(pane::kActionSwitch); // the keys back to the properties
     f.enqueue_action(pane::kActionEdit);
     f.enqueue_action(pane::kActionCancel);
     f.settle();
     REQUIRE(tap.answered == 2);
-    CHECK(f.r.w->document().elements.size() == 3); // the create was asked and taken
-    CHECK(object_of(f, selected).x == 77);
-    CHECK(f.row_of("commit written") == 0);
+    CHECK(f.r.session().inspected.ref == layouts_ref()); // the inspect was asked and taken
+    CHECK(f.layouts_width() == "77 cells");
+    CHECK_MESSAGE(f.row_of("commit written") == 0, f.text());
     for (const std::string& one : f.shown()) {
         INFO("row: ", one);
         CHECK(one.find("cancelled") == std::string::npos);
@@ -1319,84 +1221,71 @@ TEST_CASE("an Info draft ended while an earlier draft's commit is still unanswer
     CHECK(f.row_of("commit written") == 0);
 }
 
-TEST_CASE("a select asked before an Info draft opened, and answered while it is open, closes nothing") {
-    // AN ACCEPTED ACT THAT IS NOT THE DRAFT'S IS NOT THE DRAFT'S END. A press on the object
-    // already selected and `info.edit`, delivered in one burst: the select is answered after the
-    // draft has opened, and an accepted answer used to close whatever draft was open.
+TEST_CASE("an inspect asked before an Info draft opened, and answered while it is open, closes "
+          "nothing") {
+    // AN ACCEPTED ASK THAT IS NOT THE DRAFT'S IS NOT THE DRAFT'S END.
     InfoRig f;
     f.open();
-    f.focus();
-    const std::int64_t selected = f.r.session().selected;
-    const std::size_t name = f.property_index("Name");
-    for (std::size_t step = 0; step < name; ++step) {
-        f.r.key(input::scan::kDown);
-    }
-    const std::int64_t at = f.row_of("> #" + std::to_string(selected));
-    REQUIRE(at > 0);
+    f.inspect("Layouts");
+    f.press_property("Width");  // the property cursor on Width...
+    f.r.key(input::scan::kTab); // ...and the keys back in the list
+    const std::int64_t at = f.pane_row("Layouts");
+    REQUIRE(at >= 0);
     AnswerTap tap(f.r.bus, info_id(f));
-    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, at, 2}));
+    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, at, 3}));
+    f.enqueue_action(pane::kActionSwitch);
     f.enqueue_action(pane::kActionEdit);
     f.settle();
     REQUIRE(tap.answered == 1);
-    CHECK(f.r.session().selected == selected);
-    CHECK(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.declared() == kDrafting);
     f.r.text("77");
-    CHECK(f.property_row("Name").find(object_of(f, selected).label + "77") != std::string::npos);
+    CHECK(value_of(f.property_row("Width")) == "-77");
 }
 
-TEST_CASE("a picture that selects another object abandons the Info draft and says so, even where that object has the same property on the same row, and writes nothing into either object") {
-    // THE SUBJECT IS THE OBJECT AND ITS PROPERTY. A draft was abandoned only when its row was
-    // gone or renamed -- but every object has `Name` on the same row, so a selection moved by a
-    // gesture the pane never saw kept the draft open over another object, and its commit wrote
-    // the maker's text into that one.
+TEST_CASE("a picture that names other rows abandons the Info draft and says so, even where they "
+          "have the same property on the same row, and writes nothing into either desk") {
+    // THE SUBJECT IS THE PANE ON ITS DESK. Another desk put live has `Width` of the same pane on
+    // the same row, and a commit carried there would write the maker's text into another desk.
     InfoRig f;
     f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
-    const std::size_t name = f.property_index("Name");
-    f.draft_on("Name");
-    f.r.text("77");
-    REQUIRE(f.property_row("Name").find(authored + "77") != std::string::npos);
+    f.draft_holding("Width", "77");
+    const std::int64_t named = f.picture().subject;
+    const std::size_t width = f.property_index("Width");
 
-    make_object(f); // `n` on the workspace: a new object, selected, and a picture of it
-    const std::int64_t made = f.r.w->document().elements.back().id;
-    REQUIRE(f.r.session().selected == made);
-    const std::string made_name = object_of(f, made).label;
-    REQUIRE(f.picture().properties[name].label == "Name"); // the same property on the same row
+    f.unfocus();
+    f.letter(input::scan::kEquals, "="); // `=` in command mode: a new layout, put live
+    REQUIRE(layout_count(f.r.session().setup) == 2);
+    REQUIRE(f.picture().subject != named);
+    REQUIRE(f.picture().properties[width].label == "Width"); // the same property on the same row
 
-    CHECK(f.declared() ==
-          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
-    CHECK_MESSAGE(f.row_of("edit abandoned -- the s") == 0, f.text());
-    CHECK(f.row_containing(authored + "77").empty());
-    CHECK(object_of(f, first).label == authored);
+    CHECK(f.declared() == kResting);
+    CHECK_MESSAGE(f.row_of("edit abandoned -- the i") == 0, f.text());
+    CHECK(value_of(f.property_row("Width")) == "-");
+    CHECK(layouts_width_default_on_every_desk(f));
 
-    // A COMMIT CANNOT FOLLOW IT THERE: the pane no longer answers to one, and neither object
-    // moves.
+    // A COMMIT CANNOT FOLLOW IT THERE: the pane no longer answers to one, and neither desk moves.
     const PaneRig::OfficeAction commit =
         f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, pane::kActionCommit);
     REQUIRE(commit.delivered);
-    CHECK(object_of(f, made).label == made_name);
-    CHECK(object_of(f, first).label == authored);
+    CHECK(layouts_width_default_on_every_desk(f));
     CHECK(f.row_of("edit abandoned") == 0);
 }
 
-TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands in no later draft, and one asked for by the draft still standing lands in it") {
-    // A PASTE BELONGS TO THE DRAFT THAT ASKED (the text-box register's paste law). The pane
-    // checked only that SOME draft was open when the clipboard answered, so a paste asked for in
-    // a draft that was then cancelled landed in the next draft opened before the answer came.
+TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands in no later draft, "
+          "and one asked for by the draft still standing lands in it") {
+    // A PASTE BELONGS TO THE DRAFT THAT ASKED (the text-box register's paste law).
     InfoRig f;
     f.open();
     SkinSeat* skin = f.r.mount_skin_seat();
     REQUIRE(skin != nullptr);
     skin->platform = "PASTED";
-    const std::int64_t selected = f.r.session().selected;
-    const std::string authored = object_of(f, selected).label;
-    f.draft_on("Name");
+    f.draft_on("Width");
 
     // THE DRAFT THAT ASKED STILL STANDS: the text lands in it.
     f.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(skin->clipboard_reads == 1);
-    CHECK(f.property_row("Name").find(authored + "PASTED") != std::string::npos);
+    CHECK(value_of(f.property_row("Width")) == "-PASTED");
 
     // ASKED, THEN THAT DRAFT CANCELLED AND ANOTHER OPENED ON THE SAME PROPERTY BEFORE THE ANSWER.
     f.enqueue_as_workshop(
@@ -1405,45 +1294,28 @@ TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands i
     f.enqueue_action(pane::kActionEdit);
     f.settle();
     CHECK(skin->clipboard_reads == 2); // the read really happened, so the absence is measured
-    CHECK(f.declared() == std::vector<std::string>{pane::kActionCancel, pane::kActionCommit});
-    const std::string drafted = f.property_row("Name");
-    CHECK(drafted.find(authored) != std::string::npos);
-    CHECK(drafted.find("PASTED") == std::string::npos);
-    CHECK(object_of(f, selected).label == authored);
+    CHECK(f.declared() == kDrafting);
+    CHECK(value_of(f.property_row("Width")) == "-");
+    CHECK(f.layouts_width() == "-");
 }
 
-// ONE COMMIT OUTSTANDING, AND WHAT IT SENT. A commit is the document's once it has left, and until
-// it is answered the pane sends no other: a second commit is declined aloud and the draft goes on
+// ONE COMMIT OUTSTANDING, AND WHAT IT SENT. A commit is the owner's once it has left, and until it
+// is answered the pane sends no other: a second commit is declined aloud and the draft goes on
 // being edited. The answer is read against what the commit SENT as well as the draft that sent it,
-// because typing after Return is an edit that no write covers. Every burst below is one poll of
-// ordinary input where ordinary input can make it, and Workshop's office door where it cannot.
+// because typing after Return is an edit that no write covers.
 
-/// Every row Workshop admitted for the pane and every row it painted, for a claim about both.
-inline std::vector<std::string> admitted_and_painted(InfoRig& f) {
-    std::vector<std::string> rows = f.shown();
-    const std::vector<std::string> held = f.admitted();
-    rows.insert(rows.end(), held.begin(), held.end());
-    return rows;
-}
-
-TEST_CASE("a second Info commit in the same poll as the first is not sent: the pane says so, keeps the text typed between them, sends that text once the first is answered, and a cancel after the write and a refused retry claims no write away") {
-    // ONE COMMIT HID ANOTHER. Return, Ctrl+A, `abc` and Return in one poll over a draft holding
-    // `77`: both commits left, the second replaced the first's record, so the answer that wrote 77
-    // was read as nobody's and the second's refusal was said over the draft -- and Escape then said
-    // nothing was written, over the 77 the document held.
+TEST_CASE("a second Info commit in the same poll as the first is not sent: the pane says so, keeps "
+          "the text typed between them, sends that text once the first is answered, and a cancel "
+          "after the write and a refused retry claims no write away") {
     InfoRig f;
     f.open();
-    const std::int64_t selected = f.r.session().selected;
-    f.draft_holding("X", "77");
-    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.draft_holding("Width", "77");
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_key(input::scan::kReturn);
     f.enqueue_key(input::scan::kA, input::mod::kCtrl);
     f.enqueue_text("abc");
     f.enqueue_key(input::scan::kReturn);
-    // TURN BY TURN: the rows Workshop holds say the second commit was not sent, while the first is
-    // still unanswered.
     for (int turns = 0; turns < 16 && !f.admitted_leads("commit not sent") && tap.answered == 0;
          ++turns) {
         (void)f.r.bus.pump_pending();
@@ -1452,14 +1324,14 @@ TEST_CASE("a second Info commit in the same poll as the first is not sent: the p
     CHECK(f.admitted_leads("commit not sent"));
     f.settle();
 
-    // ONE COMMIT LEFT, WITH WHAT THE DRAFT HELD AT ITS RETURN, AND THE DOCUMENT TOOK IT.
+    // ONE COMMIT LEFT, WITH WHAT THE DRAFT HELD AT ITS RETURN, AND THE DESK TOOK IT.
     CHECK(asks.commits == std::vector<std::string>{"77"});
     CHECK(tap.answered == 1);
-    CHECK(object_of(f, selected).x == 77);
-    CHECK(f.picture().properties[f.property_index("X")].value == "77");
+    CHECK(f.layouts_width() == "77 cells");
+    CHECK(f.picture().properties[f.property_index("Width")].value == "77 cells");
     const auto kept = [&] {
-        CHECK(f.declared() == draft_ids);
-        CHECK(value_of(f.property_row("X")) == "abc");
+        CHECK(f.declared() == kDrafting);
+        CHECK(value_of(f.property_row("Width")) == "abc");
         CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
         CHECK(f.admitted_leads("earlier commit written"));
         for (const std::string& one : admitted_and_painted(f)) {
@@ -1471,14 +1343,13 @@ TEST_CASE("a second Info commit in the same poll as the first is not sent: the p
     f.regrant();
     kept();
 
-    // THE KEPT TEXT IS SENT ONCE THE FIRST IS ANSWERED -- refused in the document's own words,
-    // because it is exactly what the draft still holds.
+    // THE KEPT TEXT IS SENT ONCE THE FIRST IS ANSWERED -- refused in the owner's own words.
     f.r.key(input::scan::kReturn);
     CHECK(asks.commits == std::vector<std::string>{"77", "abc"});
     CHECK(tap.answered == 2);
-    CHECK_MESSAGE(f.row_of("X: not a whole") == 0, f.text());
-    CHECK(f.declared() == draft_ids);
-    CHECK(object_of(f, selected).x == 77);
+    CHECK_MESSAGE(f.row_of("Width: not a whole") == 0, f.text());
+    CHECK(f.declared() == kDrafting);
+    CHECK(f.layouts_width() == "77 cells");
 
     // ESCAPE ENDS THE DRAFT, DISCARDS WHAT WAS NEVER WRITTEN, AND TAKES NO WRITE AWAY IN WORDS.
     f.r.key(input::scan::kEscape);
@@ -1489,25 +1360,22 @@ TEST_CASE("a second Info commit in the same poll as the first is not sent: the p
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
         }
-        CHECK(f.declared() ==
-              std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
-        CHECK(object_of(f, selected).x == 77);
-        CHECK(f.picture().properties[f.property_index("X")].value == "77");
+        CHECK(f.declared() == kResting);
+        CHECK(f.layouts_width() == "77 cells");
+        CHECK(f.picture().properties[f.property_index("Width")].value == "77 cells");
     };
     cancelled();
     f.regrant();
     cancelled();
 }
 
-TEST_CASE("Return twice over an unchanged Info draft sends one commit, says the second was not sent while the first is unanswered, and the first's acceptance closes the draft and retires that sentence") {
-    // AN UNCHANGED DRAFT STILL CLOSES ON ITS ACCEPTANCE. The declined Return lost nothing -- the
-    // draft held what the first commit sent -- so the answer ends the draft as any accepted commit
-    // does, and the sentence about the pending commit goes with it.
+TEST_CASE("Return twice over an unchanged Info draft sends one commit, says the second was not "
+          "sent while the first is unanswered, and the first's acceptance closes the draft and "
+          "retires that sentence") {
     InfoRig f;
     f.open();
-    const std::int64_t selected = f.r.session().selected;
-    f.draft_holding("X", "77");
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.draft_holding("Width", "77");
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_key(input::scan::kReturn);
     f.enqueue_key(input::scan::kReturn);
@@ -1521,12 +1389,11 @@ TEST_CASE("Return twice over an unchanged Info draft sends one commit, says the 
 
     CHECK(asks.commits == std::vector<std::string>{"77"});
     CHECK(tap.answered == 1);
-    CHECK(object_of(f, selected).x == 77);
-    CHECK(f.r.last_notice().find("committed X = 77") != std::string::npos);
+    CHECK(f.layouts_width() == "77 cells");
+    CHECK(f.r.last_notice().find("committed Width of Layouts = 77 cells") != std::string::npos);
     const auto closed = [&] {
-        CHECK(f.declared() ==
-              std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
-        CHECK(value_of(f.property_row("X")) == "77");
+        CHECK(f.declared() == kResting);
+        CHECK(value_of(f.property_row("Width")) == "77 cells");
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
             CHECK(one.find("commit not sent") == std::string::npos);
@@ -1538,30 +1405,26 @@ TEST_CASE("Return twice over an unchanged Info draft sends one commit, says the 
     closed();
 }
 
-TEST_CASE("text typed after an Info commit was sent outlives that commit's answer: the draft stays open with its history, the write is told apart from the unsent text, a refusal is not said of the newer text, and the newer text commits normally") {
-    // AN ACCEPTED WRITE DOES NOT COVER WHAT WAS TYPED AFTER IT WAS SENT. Return and `8` in one poll
-    // over a draft holding `77`: the typing reached the pane before the answer, the document
-    // correctly took 77, and the answer closed the draft the 8 had been typed into.
-    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
-    const std::vector<std::string> resting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
-
+TEST_CASE("text typed after an Info commit was sent outlives that commit's answer: the draft stays "
+          "open with its history, the write is told apart from the unsent text, a refusal is not "
+          "said of the newer text, and the newer text commits normally") {
+    // AN ACCEPTED WRITE DOES NOT COVER WHAT WAS TYPED AFTER IT WAS SENT.
     SUBCASE("taken") {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        f.draft_holding("X", "77");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.draft_holding("Width", "77");
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_key(input::scan::kReturn);
         f.enqueue_text("8");
         f.settle();
         REQUIRE(tap.answered == 1);
-        CHECK(heard_before(tap, PaneTextInput::zen_name, DocumentActed::zen_name));
+        CHECK(heard_before(tap, PaneTextInput::zen_name, PaneSubjectActed::zen_name));
         CHECK(asks.commits == std::vector<std::string>{"77"});
-        CHECK(object_of(f, selected).x == 77);
+        CHECK(f.layouts_width() == "77 cells");
         const auto kept = [&] {
-            CHECK(f.declared() == draft_ids);
-            CHECK(value_of(f.property_row("X")) == "778");
+            CHECK(f.declared() == kDrafting);
+            CHECK(value_of(f.property_row("Width")) == "778");
             CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
             CHECK(f.admitted_leads("earlier commit written"));
         };
@@ -1571,40 +1434,38 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
 
         // THE LINE IS STILL THE LINE IT WAS: undo steps back over the typing, redo brings it back.
         f.r.key(input::scan::kZ, input::mod::kCtrl);
-        CHECK(value_of(f.property_row("X")).empty());
+        CHECK(value_of(f.property_row("Width")).empty());
         f.r.key(input::scan::kY, input::mod::kCtrl);
-        CHECK(value_of(f.property_row("X")) == "778");
+        CHECK(value_of(f.property_row("Width")) == "778");
 
         // ...AND IT COMMITS LIKE ANY DRAFT: taken, unchanged since, so closed.
         f.r.key(input::scan::kReturn);
         CHECK(asks.commits == std::vector<std::string>{"77", "778"});
-        CHECK(object_of(f, selected).x == 778);
-        CHECK(f.declared() == resting);
-        CHECK(value_of(f.property_row("X")) == "778");
+        CHECK(f.layouts_width() == "778 cells");
+        CHECK(f.declared() == kResting);
+        CHECK(value_of(f.property_row("Width")) == "778 cells");
     }
     SUBCASE("refused") {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        const std::int64_t authored = object_of(f, selected).x;
-        f.draft_holding("X", "abc");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.draft_holding("Width", "abc");
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_key(input::scan::kReturn);
         f.enqueue_key(input::scan::kA, input::mod::kCtrl);
         f.enqueue_text("12");
         f.settle();
         REQUIRE(tap.answered == 1);
-        CHECK(heard_before(tap, PaneTextInput::zen_name, DocumentActed::zen_name));
+        CHECK(heard_before(tap, PaneTextInput::zen_name, PaneSubjectActed::zen_name));
         CHECK(asks.commits == std::vector<std::string>{"abc"});
-        CHECK(object_of(f, selected).x == authored);
+        CHECK(f.layouts_width() == "-");
         const auto kept = [&] {
-            CHECK(f.declared() == draft_ids);
-            CHECK(value_of(f.property_row("X")) == "12");
-            // THE REFUSAL IS THE COMMIT'S: said as the earlier commit's, never in the document's
+            CHECK(f.declared() == kDrafting);
+            CHECK(value_of(f.property_row("Width")) == "12");
+            // THE REFUSAL IS THE COMMIT'S: said as the earlier commit's, never in the owner's
             // bare words over a value it was not about.
             CHECK_MESSAGE(f.row_of("earlier commit refused") == 0, f.text());
-            CHECK(f.row_of("X: not a whole") == -1);
+            CHECK(f.row_of("Width: not a whole") == -1);
         };
         kept();
         f.regrant();
@@ -1612,67 +1473,77 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
 
         f.r.key(input::scan::kReturn);
         CHECK(asks.commits == std::vector<std::string>{"abc", "12"});
-        CHECK(object_of(f, selected).x == 12);
-        CHECK(f.declared() == resting);
+        CHECK(f.layouts_width() == "12 cells");
+        CHECK(f.declared() == kResting);
     }
     SUBCASE("abandoned") {
         // AND A DRAFT THAT OUTLIVED A WRITE, ABANDONED, TAKES NO WRITE AWAY IN WORDS EITHER -- read
-        // in a window wide enough for the whole sentence, because the right column's 26 columns
-        // cut it before the clause that says what was lost.
+        // in a window wide enough for the whole sentence, on both desks, because the right
+        // column's width cuts it before the clause that says what was lost.
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        f.draft_holding("X", "77");
+        // (x = 1: the prototype canvas still paints its boot objects' text at the workspace's
+        // (3,4), and the rig reads a pane's rows by the region at its body's origin.)
+        const auto widen = [](Setup& desk) {
+            const Written placed = author_pane_place(desk, pane_info_ref(), subs(1), subs(3));
+            REQUIRE_MESSAGE(placed.accepted, placed.refusal);
+            const Written sized = author_pane_size(desk, pane_info_ref(),
+                                                   PaneSize{pane_unit::kSubcells, subs(120)},
+                                                   PaneSize{pane_unit::kSubcells, subs(30)});
+            REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+        };
+        f.unfocus();
+        f.letter(input::scan::kEquals, "="); // a second desk, live...
+        f.letter(input::scan::kComma, ",");  // ...and back to the first
+        REQUIRE(f.r.session().setup.active_at == 0);
+        REQUIRE(layout_count(f.r.session().setup) == 2);
+
+        f.draft_holding("Width", "77");
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_key(input::scan::kReturn);
         f.enqueue_text("8");
         f.settle();
         REQUIRE(tap.answered == 1);
-        REQUIRE(f.declared() == draft_ids);
-        // THE MAKER'S OWN WINDOW FOR THE PANE, through the setup's authoring doors, and a new room.
-        Setup& desk = f.r.session().setup.active;
-        const Written placed = author_pane_place(desk, pane_info_ref(), subs(2), subs(3));
-        REQUIRE_MESSAGE(placed.accepted, placed.refusal);
-        const Written sized = author_pane_size(desk, pane_info_ref(),
-                                               PaneSize{pane_unit::kSubcells, subs(120)},
-                                               PaneSize{pane_unit::kSubcells, subs(30)});
-        REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+        REQUIRE(f.declared() == kDrafting);
+        // THE MAKER'S OWN WINDOW FOR THE PANE ON BOTH DESKS, through the setup's authoring doors,
+        // and a new room -- which keeps the draft.
+        widen(f.r.session().setup.active);
+        widen(f.r.session().setup.shelved.front().desk);
         f.r.extent(150, 44);
         const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
         REQUIRE(seat != nullptr);
         REQUIRE(seat->columns > 90);
-        REQUIRE(f.declared() == draft_ids); // a new room keeps the draft
-        make_object(f); // `n` on the workspace: a new object, selected, and a picture of it
-        REQUIRE(f.r.session().selected != selected);
-        CHECK(f.declared() == resting);
-        CHECK_MESSAGE(f.row_of("edit abandoned -- the selection or the document changed; "
-                               "unwritten changes discarded") == 0,
+        REQUIRE(f.declared() == kDrafting);
+        f.unfocus();
+        f.letter(input::scan::kPeriod, "."); // the other desk, put live
+        CHECK(f.declared() == kResting);
+        CHECK_MESSAGE(f.row_of("edit abandoned -- the inspected pane, its desk or its rows "
+                               "changed; unwritten changes discarded") == 0,
                       f.text());
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
         }
-        CHECK(object_of(f, selected).x == 77);
+        const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+        REQUIRE(first != nullptr);
+        CHECK(first->width.amount == subs(77)); // the write stands on the desk it was typed for
     }
 }
 
-TEST_CASE("an Info commit's answer settles the sentence that said a second commit was not sent, and leaves a sentence a later act said standing") {
+TEST_CASE("an Info commit's answer settles the sentence that said a second commit was not sent, "
+          "and leaves a sentence a later act said standing") {
     // A SENTENCE ABOUT A PENDING COMMIT BELONGS TO THAT COMMIT, AND ONLY THAT ONE. Two commits and
-    // a press on `( Create )` in one burst: the second commit is declined and the press says the
-    // draft comes first. The first commit's answer must not leave `commit not sent` painted once it
-    // has settled, and must not take the press's own sentence away. Workshop's office door places
-    // the press on the rows the decline said, which a pointer queued in the same poll could not
-    // name.
-    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
+    // a press on another pane in one burst: the second commit is declined and the press says the
+    // draft comes first.
     const auto burst = [](InfoRig& f, bool typed_between) {
-        const std::int64_t create = f.row_of("( Create )");
-        REQUIRE(create > 0);
+        const std::int64_t other = f.pane_row("Info");
+        REQUIRE(other > 0);
         f.enqueue_action(pane::kActionCommit);
         if (typed_between) {
             f.enqueue_as_workshop(loom::to_value(PaneTextInput{pane::kInfoPane, "8"}));
         }
         f.enqueue_action(pane::kActionCommit);
-        f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, create + 1, 2}));
+        f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, other + 1, 3}));
         f.settle();
     };
     const auto no_pending_sentence = [](InfoRig& f) {
@@ -1686,17 +1557,15 @@ TEST_CASE("an Info commit's answer settles the sentence that said a second commi
     SUBCASE("unchanged since the commit: the answer closes the draft") {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        f.draft_holding("X", "77");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.draft_holding("Width", "77");
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         AnswerTap tap(f.r.bus, info_id(f));
         burst(f, false);
         CHECK(asks.commits == std::vector<std::string>{"77"});
         CHECK(tap.answered == 1);
-        CHECK(object_of(f, selected).x == 77);
+        CHECK(f.layouts_width() == "77 cells");
         const auto stands = [&] {
-            CHECK(f.declared() ==
-                  std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+            CHECK(f.declared() == kResting);
             CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
             CHECK(f.admitted_leads("finish the edit first"));
             no_pending_sentence(f);
@@ -1708,18 +1577,16 @@ TEST_CASE("an Info commit's answer settles the sentence that said a second commi
     SUBCASE("refused, unchanged since the commit: the draft stays, and the press's sentence stands") {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        const std::int64_t authored = object_of(f, selected).x;
-        f.draft_holding("X", "abc");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.draft_holding("Width", "abc");
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         AnswerTap tap(f.r.bus, info_id(f));
         burst(f, false);
         CHECK(asks.commits == std::vector<std::string>{"abc"});
         CHECK(tap.answered == 1);
-        CHECK(object_of(f, selected).x == authored);
+        CHECK(f.layouts_width() == "-");
         const auto stands = [&] {
-            CHECK(f.declared() == draft_ids);
-            CHECK(value_of(f.property_row("X")) == "abc");
+            CHECK(f.declared() == kDrafting);
+            CHECK(value_of(f.property_row("Width")) == "abc");
             CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
             CHECK(f.admitted_leads("finish the edit first"));
             no_pending_sentence(f);
@@ -1731,17 +1598,16 @@ TEST_CASE("an Info commit's answer settles the sentence that said a second commi
     SUBCASE("typed between the two commits: the draft stays open with the newer text") {
         InfoRig f;
         f.open();
-        const std::int64_t selected = f.r.session().selected;
-        f.draft_holding("X", "77");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        f.draft_holding("Width", "77");
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         AnswerTap tap(f.r.bus, info_id(f));
         burst(f, true);
         CHECK(asks.commits == std::vector<std::string>{"77"});
         CHECK(tap.answered == 1);
-        CHECK(object_of(f, selected).x == 77);
+        CHECK(f.layouts_width() == "77 cells");
         const auto stands = [&] {
-            CHECK(f.declared() == draft_ids);
-            CHECK(value_of(f.property_row("X")) == "778");
+            CHECK(f.declared() == kDrafting);
+            CHECK(value_of(f.property_row("Width")) == "778");
             CHECK_MESSAGE(f.row_of("finish the edit first") == 0, f.text());
             CHECK(f.admitted_leads("finish the edit first"));
             no_pending_sentence(f);
@@ -1752,25 +1618,22 @@ TEST_CASE("an Info commit's answer settles the sentence that said a second commi
     }
 }
 
-TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's commit is unanswered, even with a select asked between them, and the earlier commit's account replaces that sentence without closing or altering the newer draft") {
-    // ONE OUTSTANDING COMMIT IS THE PANE'S, NOT ONE DRAFT'S. A commit and its cancel, a press on
-    // the object already selected (a select of its own), a newer draft on the same field and its
-    // commit, delivered in one burst: the select must not hide the first commit, the newer commit
-    // waits, and the account of the first is said over the newer draft as the earlier commit's.
+TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's commit is "
+          "unanswered, even with an inspect asked between them, and the earlier commit's account "
+          "replaces that sentence without closing or altering the newer draft") {
+    // ONE OUTSTANDING COMMIT IS THE PANE'S, NOT ONE DRAFT'S.
     InfoRig f;
     f.open();
-    const std::int64_t selected = f.r.session().selected;
-    const std::string opened_with = std::to_string(object_of(f, selected).x);
-    f.draft_holding("X", "77");
-    const std::int64_t chosen = f.row_of("> #" + std::to_string(selected));
-    REQUIRE(chosen > 0);
-    const std::vector<std::string> draft_ids{pane::kActionCancel, pane::kActionCommit};
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.draft_holding("Width", "77");
+    const std::int64_t chosen = f.pane_row("Layouts");
+    REQUIRE(chosen >= 0);
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_action(pane::kActionCommit);
     f.enqueue_action(pane::kActionCancel); // the first draft ends, its commit unanswered
-    // ...the object already selected is pressed on the rows that cancel said, under its sentence.
-    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, chosen + 1, 2}));
+    // ...the pane already inspected is pressed on the rows that cancel said, under its sentence.
+    f.enqueue_as_workshop(loom::to_value(PanePressed{pane::kInfoPane, chosen + 1, 3}));
+    f.enqueue_action(pane::kActionSwitch);
     f.enqueue_action(pane::kActionEdit);
     f.enqueue_action(pane::kActionCommit);
     f.settle();
@@ -1778,10 +1641,10 @@ TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's
     CHECK(asks.commits == std::vector<std::string>{"77"});
     CHECK(asks.others == 1);
     CHECK(tap.answered == 2);
-    CHECK(object_of(f, selected).x == 77);
+    CHECK(f.layouts_width() == "77 cells");
     const auto newer_stands = [&] {
-        CHECK(f.declared() == draft_ids);
-        CHECK(value_of(f.property_row("X")) == opened_with);
+        CHECK(f.declared() == kDrafting);
+        CHECK(value_of(f.property_row("Width")) == "-");
         CHECK_MESSAGE(f.row_of("earlier commit written") == 0, f.text());
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
@@ -1797,114 +1660,80 @@ TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's
     f.r.text("12");
     f.r.key(input::scan::kReturn);
     CHECK(asks.commits == std::vector<std::string>{"77", "12"});
-    CHECK(object_of(f, selected).x == 12);
-    CHECK(f.declared() ==
-          std::vector<std::string>{pane::kActionDown, pane::kActionEdit, pane::kActionUp});
+    CHECK(f.layouts_width() == "12 cells");
+    CHECK(f.declared() == kResting);
 }
 
 // ============================================================================
 // INFO-WEAVE — a commit names what it was typed for, and a send Loom refused is not silence
 // ============================================================================
 
-namespace {
-
-/// THE HOST'S LAST NAMED PICTURE -- the rows and the subject they address (WL-DOC-21).
-inline v2::DocumentShown named_picture(InfoRig& f) {
-    REQUIRE_FALSE(f.r.said_named_documents.empty());
-    return f.r.said_named_documents.back();
-}
-
-/// A PRIMARY BUTTON EVENT ON ONE OBJECT'S WORKSPACE CELL, queued and not drained. The cell is the
-/// object's authored corner plus one, resolved before a burst begins, so no helper drains between
-/// the events of the burst.
-inline void enqueue_object_button(InfoRig& f, const ui::Element& e, std::int64_t button,
-                                  bool down) {
-    const std::int64_t cx = kWorkspaceX + e.x + 1;
-    const std::int64_t cy = kWorkspaceY + e.y + 1 + surface::kTuiCanvasTopRow;
-    (void)f.r.bus.publish(loom::Message(
-        loom::to_value(input::PointerButton{button, down, cx, cy, input::space::kCells,
-                                            input::mod::kNone}),
-        loom::WeaveId{}, loom::WeaveId{}, 0));
-}
-
-const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionUp};
-const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommit};
-
-} // namespace
-
-TEST_CASE("an Info commit queued behind a press on another object, or on it and back, is refused: neither object is written and the pane says why") {
-    // ⭐ THE RACE, THROUGH ORDINARY INPUT. Return and a press on #2's workspace cell in one poll:
-    // Workshop resolves the Return to the pane's commit and selects #2 before the pane has sent it,
-    // so the commit arrives naming a row while #2's rows are the host's. It wrote `panel77` into #2
-    // (measured at START with the same burst). The geometry is read before the burst.
+TEST_CASE("an Info commit queued behind another desk put live, or another and back, is refused: "
+          "neither desk is written and the pane says why") {
+    // ⭐ THE RACE, THROUGH ORDINARY INPUT. Return, a press on the band and `=` in one poll: Workshop
+    // resolves the Return to the pane's commit and puts a new desk live before the pane has sent it,
+    // so the commit arrives naming rows the host no longer holds.
     InfoRig f;
     f.open();
-    const ui::Element first = f.r.w->document().elements[0];
-    const ui::Element second = f.r.w->document().elements[1];
-    REQUIRE(f.r.session().selected == first.id);
-    f.draft_on("Name");
-    f.r.text("77");
-    const std::int64_t typed_for = named_picture(f).subject;
+    f.draft_holding("Width", "77");
+    const std::int64_t typed_for = f.picture().subject;
     REQUIRE(typed_for != 0);
     AnswerTap tap(f.r.bus, info_id(f));
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
 
-    SUBCASE("a press on the other object") {
+    SUBCASE("another desk") {
         f.enqueue_key(input::scan::kReturn);
-        enqueue_object_button(f, second, 1, true);
-        enqueue_object_button(f, second, 1, false);
+        f.enqueue_unfocus();
+        f.enqueue_key(input::scan::kEquals);
         f.settle();
-        CHECK(f.r.session().selected == second.id);
+        CHECK(layout_count(f.r.session().setup) == 2);
+        CHECK(f.r.session().setup.active_at == 1);
     }
-    SUBCASE("a press on the other object and back onto the first") {
-        // THE SAME OBJECT SELECTED AGAIN: its rows, labels and values are exactly the ones the
-        // draft was typed over, and it is still not the subject the commit named.
+    SUBCASE("another desk and back") {
+        // THE SAME DESK LIVE AGAIN: its rows, labels and values are exactly the ones the draft was
+        // typed over, and it is still not the subject the commit named.
         f.enqueue_key(input::scan::kReturn);
-        enqueue_object_button(f, second, 1, true);
-        enqueue_object_button(f, second, 1, false);
-        enqueue_object_button(f, first, 1, true);
-        enqueue_object_button(f, first, 1, false);
+        f.enqueue_unfocus();
+        f.enqueue_key(input::scan::kEquals);
+        f.enqueue_key(input::scan::kComma);
         f.settle();
-        CHECK(f.r.session().selected == first.id);
+        CHECK(layout_count(f.r.session().setup) == 2);
+        CHECK(f.r.session().setup.active_at == 0);
     }
-    // ONE COMMIT LEFT THE PANE, NAMING ITS DRAFT'S SUBJECT, AND ONE ANSWER CAME BACK.
-    REQUIRE(asks.commits == std::vector<std::string>{first.label + "77"});
+    // ONE COMMIT LEFT THE PANE, NAMING ITS DRAFT'S ROWS, AND ONE ANSWER CAME BACK.
+    REQUIRE(asks.commits == std::vector<std::string>{"77"});
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-    CHECK(asks.legacy_commits == 0);
     CHECK(tap.answered == 1);
-    // NEITHER OBJECT WAS WRITTEN, AND THE HOST SAYS NOTHING WAS COMMITTED.
-    CHECK(object_of(f, first.id).label == first.label);
-    CHECK(object_of(f, second.id).label == second.label);
+    // NEITHER DESK WAS WRITTEN, AND THE HOST SAYS NOTHING WAS COMMITTED.
+    CHECK(layouts_width_default_on_every_desk(f));
     CHECK(f.r.last_notice().find("committed") == std::string::npos);
-    CHECK(named_picture(f).subject != typed_for);
-    // THE PANE ABANDONED THE DRAFT WHEN IT SAW THE NEW SUBJECT, AND ITS ROW SAYS WHY THE COMMIT WAS
+    CHECK(f.picture().subject != typed_for);
+    // THE PANE ABANDONED THE DRAFT WHEN IT SAW THE NEW NAME, AND ITS ROW SAYS WHY THE COMMIT WAS
     // REFUSED -- in what Workshop admitted and in what it painted.
     CHECK(f.declared() == kResting);
-    CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
-    CHECK(f.admitted_leads("commit refused -- the s"));
-    CHECK(f.row_containing(first.label + "77").empty());
+    CHECK_MESSAGE(f.row_of("commit refused -- the i") == 0, f.text());
+    CHECK(f.admitted_leads("commit refused -- the i"));
+    CHECK(value_of(f.property_row("Width")) == "-");
 }
 
-TEST_CASE("an Info commit that reaches the document before a press on another object is written to the object it was typed for") {
-    // THE OPPOSITE ORDER IS LEGITIMATE: the commit arrives while its subject is still the rows'
-    // own, so the write lands, and the press that follows moves the selection over a document that
-    // already holds it.
+TEST_CASE("an Info commit that reaches the owner before another desk is put live is written to "
+          "the desk it was typed for") {
+    // THE OPPOSITE ORDER IS LEGITIMATE: the commit arrives while its name is still the rows' own.
     InfoRig f;
     f.open();
-    const ui::Element first = f.r.w->document().elements[0];
-    const ui::Element second = f.r.w->document().elements[1];
-    f.draft_on("Name");
-    f.r.text("77");
-    const std::int64_t typed_for = named_picture(f).subject;
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    f.draft_holding("Width", "77");
+    const std::int64_t typed_for = f.picture().subject;
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     f.r.key(input::scan::kReturn); // drained: the commit is answered before anything else happens
-    enqueue_object_button(f, second, 1, true);
-    enqueue_object_button(f, second, 1, false);
+    f.enqueue_unfocus();
+    f.enqueue_key(input::scan::kEquals);
     f.settle();
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-    CHECK(object_of(f, first.id).label == first.label + "77");
-    CHECK(object_of(f, second.id).label == second.label);
-    CHECK(f.r.session().selected == second.id);
+    REQUIRE(layout_count(f.r.session().setup) == 2);
+    const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+    REQUIRE(first != nullptr);
+    CHECK(first->width.amount == subs(77));
+    CHECK(f.layouts_width() == "-"); // the new desk
     CHECK(f.declared() == kResting);
     for (const std::string& one : f.shown()) {
         INFO("row: ", one);
@@ -1912,146 +1741,143 @@ TEST_CASE("an Info commit that reaches the document before a press on another ob
     }
 }
 
-TEST_CASE("an Info commit queued behind a load is refused over the document's own bytes and over another #1, and a refused load keeps the draft") {
-    // ⭐ THE SECOND IDENTITY BOUNDARY. A load restores the file's mint, so the #1 a draft was
-    // typed for may be another object after it -- or the very same bytes. Return and Ctrl+O in one
-    // poll, with a draft on #1's Name holding `panel77`: before this, the commit wrote into the
-    // replacement.
+TEST_CASE("an Info commit queued behind a restore of the desk from its file is refused, and a "
+          "refused restore keeps the draft") {
+    // ⭐ THE SECOND IDENTITY BOUNDARY. A restore puts the file's desk live in the same place --
+    // possibly the very same bytes -- and a draft typed for the desk it replaced is typed for
+    // another desk.
     InfoRig f;
     f.open();
-    TempDir dir("info-subject-load");
-    f.r.host.document_path = dir.document();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
+    TempDir dir("info-subject-restore");
+    f.r.host.setup_path = dir.file("setup.json");
 
-    SUBCASE("the document's own bytes") {
+    SUBCASE("the desk's own bytes") {
         f.unfocus();
-        f.r.key(input::scan::kS, input::mod::kCtrl);
+        f.letter(input::scan::kS, "s"); // save the desk
         REQUIRE_FALSE(f.r.session().notice_is_bad);
-        const std::string saved = slurp(dir.document());
-        f.draft_on("Name");
-        f.r.text("77");
-        const std::int64_t typed_for = named_picture(f).subject;
-        const std::size_t pictures = f.r.said_documents.size();
+        const std::string saved = slurp(f.r.host.setup_path);
+        f.draft_holding("Width", "77");
+        const std::int64_t typed_for = f.picture().subject;
         AnswerTap tap(f.r.bus, info_id(f));
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         f.enqueue_key(input::scan::kReturn);
-        f.enqueue_key(input::scan::kO, input::mod::kCtrl);
+        f.enqueue_unfocus();
+        f.enqueue_key(input::scan::kR);
         f.settle();
-        REQUIRE(asks.commits == std::vector<std::string>{authored + "77"});
+        REQUIRE(asks.commits == std::vector<std::string>{"77"});
         CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
         CHECK(tap.answered == 1);
-        CHECK(f.r.last_notice().find("loaded") != std::string::npos);
-        // NO ROW A v1 READER SEES MOVED, and the named picture says the subject did.
-        CHECK(f.r.said_documents.size() == pictures);
-        CHECK(named_picture(f).subject != typed_for);
-        CHECK(f.r.session().selected == first);
-        CHECK(object_of(f, first).label == authored);
-        CHECK(slurp(dir.document()) == saved);
+        CHECK(f.r.last_notice().find("restored setup") != std::string::npos);
+        CHECK(f.picture().subject != typed_for);
+        CHECK(f.layouts_width() == "-");
+        CHECK(slurp(f.r.host.setup_path) == saved);
         CHECK(f.declared() == kResting);
-        CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
-        CHECK(f.admitted_leads("commit refused -- the s"));
+        CHECK_MESSAGE(f.row_of("commit refused -- the i") == 0, f.text());
+        CHECK(f.admitted_leads("commit refused -- the i"));
     }
-    SUBCASE("a document whose #1 is another name") {
-        // THE FILE ON DISK IS THIS DOCUMENT WITH #1 CALLED `alpha` -- the same identities and mint,
-        // written by the document's own save, as another run would have left it -- so after the
-        // load the draft's identity, row and label are all still there, holding another value.
-        WorkshopDoc other = f.r.w->document();
-        other.elements[0].label = "alpha";
-        const Written wrote = persist::save_file(dir.document(), other);
-        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
-        f.draft_on("Name");
-        f.r.text("77");
-        const std::int64_t typed_for = named_picture(f).subject;
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
-        f.enqueue_key(input::scan::kReturn);
-        f.enqueue_key(input::scan::kO, input::mod::kCtrl);
-        f.settle();
-        REQUIRE(asks.commits == std::vector<std::string>{authored + "77"});
-        CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-        CHECK(object_of(f, first).label == "alpha");
-        CHECK(named_picture(f).subject != typed_for);
-        CHECK(f.declared() == kResting);
-        CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
-    }
-    SUBCASE("a load the file refuses") {
+    SUBCASE("a restore the file refuses") {
         {
-            std::ofstream bad(dir.document(), std::ios::binary);
+            std::ofstream bad(f.r.host.setup_path, std::ios::binary);
             bad << "{";
         }
-        f.draft_on("Name");
-        f.r.text("77");
-        const std::int64_t typed_for = named_picture(f).subject;
-        f.r.key(input::scan::kO, input::mod::kCtrl);
+        f.draft_holding("Width", "77");
+        const std::int64_t typed_for = f.picture().subject;
+        f.unfocus();
+        f.letter(input::scan::kR, "r");
         REQUIRE(f.r.session().notice_is_bad);
-        // THE DRAFT, ITS TEXT AND ITS SUBJECT STAND, and the next Return is written.
-        CHECK(named_picture(f).subject == typed_for);
+        // THE DRAFT, ITS TEXT AND ITS NAME STAND, and the next Return is written.
+        CHECK(f.picture().subject == typed_for);
         CHECK(f.declared() == kDrafting);
-        CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        CHECK(value_of(f.property_row("Width")) == "77");
+        f.focus();
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         f.r.key(input::scan::kReturn);
         CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-        CHECK(object_of(f, first).label == authored + "77");
+        CHECK(f.layouts_width() == "77 cells");
         CHECK(f.declared() == kResting);
     }
 }
 
-TEST_CASE("an Info commit queued behind the contextual delete of its object is refused, and the object selected in its place is not written") {
-    // A right press on #1's workspace cell opens the contextual surface on that object, whose one
-    // row is `object.delete`, and the Return after it chooses it -- all in the poll that carries
-    // the draft's Return. The selection moves to #2, which has `Name` on the same row.
+TEST_CASE("an Info draft outlives a new room and its pane's window moving, and its commit is "
+          "written") {
+    // THE ORDINARY UPDATES ARE NOT A NEW SUBJECT. Each one re-reads the host's rows and publishes a
+    // picture, and none of them changes what the draft's row addresses.
     InfoRig f;
     f.open();
-    const ui::Element first = f.r.w->document().elements[0];
-    const ui::Element second = f.r.w->document().elements[1];
-    f.draft_on("Name");
-    f.r.text("77");
-    const std::int64_t typed_for = named_picture(f).subject;
-    AnswerTap tap(f.r.bus, info_id(f));
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
-    f.enqueue_key(input::scan::kReturn);
-    enqueue_object_button(f, first, 3, true);
-    f.enqueue_key(input::scan::kReturn);
-    f.settle();
-    REQUIRE(doc::find(f.r.w->document(), first.id) == nullptr);
-    REQUIRE(f.r.session().selected == second.id);
-    REQUIRE(asks.commits == std::vector<std::string>{first.label + "77"});
-    CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-    CHECK(tap.answered == 1);
-    CHECK(object_of(f, second.id).label == second.label);
-    CHECK(f.declared() == kResting);
-    CHECK_MESSAGE(f.row_of("commit refused -- the s") == 0, f.text());
-}
-
-TEST_CASE("an Info draft outlives a new room, a workspace refit and its own object moving, and its commit is written") {
-    // THE ORDINARY UPDATES ARE NOT A NEW SUBJECT. Each one rebuilds or re-reads the host's rows
-    // and publishes a picture, and none of them changes what the draft's row addresses.
-    InfoRig f;
-    f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
-    f.draft_on("Name");
-    f.r.text("77");
-    const std::int64_t typed_for = named_picture(f).subject;
-    const std::size_t named = f.r.said_named_documents.size();
+    f.draft_holding("Width", "41");
+    const std::int64_t typed_for = f.picture().subject;
+    const std::size_t said = f.r.said_subjects.size();
+    const std::string window = f.picture().properties[f.property_index("Window")].value;
     f.regrant();
-    f.unfocus();
-    f.r.key(input::scan::kLeftBracket);
-    f.r.key(input::scan::kRightBracket);
-    const std::int64_t x = object_of(f, first).x;
-    f.r.key(input::scan::kL);
-    REQUIRE(object_of(f, first).x != x);
-    REQUIRE(f.r.said_named_documents.size() > named); // the moved value was said...
-    CHECK(named_picture(f).subject == typed_for);     // ...under the same subject
-    f.focus();
+    f.r.extent(154, 46);
+    REQUIRE(f.picture().properties[f.property_index("Window")].value != window);
+    REQUIRE(f.r.said_subjects.size() > said); // the moved value was said...
+    CHECK(f.picture().subject == typed_for);   // ...under the same name
     REQUIRE(f.declared() == kDrafting);
-    CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    CHECK(value_of(f.property_row("Width")) == "41");
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     f.r.key(input::scan::kReturn);
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-    CHECK(object_of(f, first).label == authored + "77");
-    CHECK(object_of(f, first).x != x);
+    CHECK(f.layouts_width() == "41 cells");
     CHECK(f.declared() == kResting);
+}
+
+TEST_CASE("an Info commit whose image was replaced before its answer is not the successor's: the "
+          "successor holds no draft and says nothing of it, the subject stands, and the write "
+          "shows as the owner's rows") {
+    // ⭐ PROVIDERS CHANGE: THIS PANE'S OWN. A commit sent by one incarnation is answered to that
+    // incarnation alone (Loom ANS-03), and a reload in between leaves its successor with no draft
+    // (the state keeps the maker's position, never work in flight), no record of the commit and no
+    // sentence about it. What the write did is the owner's to show, and the host shows it.
+    TempDir copy("info-reload");
+    InfoRig f;
+    f.open();
+    f.draft_holding("Width", "77");
+    const std::int64_t named = f.picture().subject;
+    const std::string image =
+        copy.file(("zengine-info-again" +
+                   std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string())
+                      .c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
+
+    const loom::WeaveId pane_id = info_id(f);
+    loom::Switchboard& bus = f.r.bus;
+    bool sent = false;
+    int answers_delivered = 0;
+    const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind != loom::EventKind::Delivered) {
+            return;
+        }
+        if (!sent && ev.target == pane_id && ev.schema_name == PaneActionRequested::zen_name) {
+            sent = true; // the pane has acted on Return: its commit is queued, not delivered
+            bus.stop();
+        } else if (ev.target == pane_id && ev.schema_name == PaneSubjectActed::zen_name) {
+            ++answers_delivered;
+        }
+    });
+    f.enqueue_key(input::scan::kReturn);
+    for (int turns = 0; turns < 16 && !sent; ++turns) {
+        (void)bus.pump_pending();
+    }
+    REQUIRE(sent);
+    f.r.enqueue_reload(pane::kInfoPaneStem, image); // behind the commit, ahead of its answer
+    bus.drain_until_idle();
+    bus.remove_observer(tap);
+    REQUIRE(f.r.load_refusals.empty());
+
+    // THE OWNER TOOK THE COMMIT, AND ITS ANSWER REACHED NO INCARNATION OF THIS PANE.
+    CHECK(f.layouts_width() == "77 cells");
+    CHECK(answers_delivered == 0);
+    // THE SUCCESSOR: no draft, no sentence about a commit it never sent, the subject standing.
+    CHECK(f.declared() == kResting);
+    for (const std::string& one : admitted_and_painted(f)) {
+        INFO("row: ", one);
+        CHECK(one.find("commit") == std::string::npos);
+    }
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().subject == named);
+    CHECK(f.text().find("PANE Layouts") != std::string::npos);
+    CHECK(value_of(f.property_row("Width")) == "77 cells");
 }
 
 namespace {
@@ -2068,10 +1894,8 @@ struct RefusedAtDispatch {
 /// of Workshop's resolved actions -- its commit queued behind them, not delivered -- and
 /// Workshop's weave is killed before that delivery, a real lifecycle change by the host's own
 /// authority, so the bus refuses the queued commit and tells its author by that attempt. Workshop
-/// is then revived in place from its own snapshot -- the same document and session -- asks the
-/// room who has panes (its startup sentence, so a declaration the pane made while Workshop was dead
-/// is made again), and grants the pane a room again, so Workshop holds the rows it says. Ordinary
-/// input cannot put a death between a send and its delivery; this is the Builder suite's staging.
+/// is then revived in place from its own snapshot -- the same session -- asks the room who has
+/// panes, and grants the pane a room again, so Workshop holds the rows it says.
 inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
     const loom::WeaveId pane_id = info_id(f);
     loom::Switchboard& bus = f.r.bus;
@@ -2084,7 +1908,7 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
             stopped = true;
             bus.stop();
         }
-        if (ev.schema_name == DocumentCommitRequested::zen_name) {
+        if (ev.schema_name == PaneCommitRequested::zen_name) {
             if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id) {
                 out.attempt = ev.seq;
                 out.reason = loom::name_of(ev.refusal.reason);
@@ -2114,10 +1938,10 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
     return out;
 }
 
-/// AN OFFICE HOLDING `zengine.workshop` WITH NO DOCUMENT DOOR. It hears a pane's offer, its
-/// declared actions and its rows the way Workshop does, and says Workshop's resolved commit id to
-/// the Info pane under that office. With Workshop's weave off the bus, nothing on it declares
-/// `DocumentCommitRequested`, so a commit meets Loom's seam before anything is queued.
+/// AN OFFICE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer, its declared
+/// actions and its rows the way Workshop does, and says Workshop's resolved commit id to the Info
+/// pane under that office. With Workshop's weave off the bus, nothing on it declares
+/// `PaneCommitRequested`, so a commit meets Loom's seam before anything is queued.
 class DoorlessOffice
     : public loom::WeaveBase<DoorlessOffice, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
@@ -2151,15 +1975,37 @@ public:
     void on(const SeatDo&, loom::Mail&) { ++state_.said; }
 };
 
+/// AN INSPECTOR OF ITS OWN, IN ITS OWN OFFICE -- so a case can ask the host's subject doors what no
+/// maker's hand on the Info pane can make it ask: a pane nobody has, or the picture on arrival.
+class Inspector
+    : public loom::WeaveBase<Inspector, SeatState,
+                             loom::Accept<PaneSubjectActed, PaneSubjectShown, SeatDo>,
+                             loom::Emit<InspectPaneRequested, PaneSubjectRequested>> {
+public:
+    void on(const SeatDo&, loom::Mail&) {}
+    void on(const PaneSubjectActed& said, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            answers.push_back(said);
+        }
+    }
+    void on(const PaneSubjectShown& said, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            pictures.push_back(said);
+        }
+    }
+    std::vector<PaneSubjectActed> answers;
+    std::vector<PaneSubjectShown> pictures;
+};
+
+inline constexpr const char* kInspectorOffice = "zengine.test.inspector";
+
 } // namespace
 
-TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and its text stand, the next Return is written, and a cancel's promise is replaced") {
+TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and its text stand, the "
+          "next Return is written, and a cancel's promise is replaced") {
     InfoRig f;
     f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
-    f.draft_on("Name");
-    f.r.text("77");
+    f.draft_holding("Width", "77");
 
     SUBCASE("the draft that sent it stands") {
         f.enqueue_key(input::scan::kReturn);
@@ -2168,20 +2014,20 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
         CHECK(refused.reason == "TargetUnavailable");
         CHECK(refused.notices == 1);
         CHECK(refused.delivered == 0);
-        CHECK(object_of(f, first).label == authored);
+        CHECK(f.layouts_width() == "-");
         // THE PANE SAYS WHAT HAPPENED, in the rows Workshop holds and paints, and the draft is
         // exactly what it was.
         CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
         CHECK(f.row_of("commit not delivered --") == 0);
         CHECK(f.declared() == kDrafting);
-        CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
+        CHECK(value_of(f.property_row("Width")) == "77");
         // ...IT TAKES MORE TEXT, AND THE NEXT RETURN IS A FRESH COMMIT, NOT ONE HELD BEHIND AN
         // ANSWER THAT CANNOT COME.
         f.r.text("8");
-        DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
         f.r.key(input::scan::kReturn);
-        CHECK(asks.commits == std::vector<std::string>{authored + "778"});
-        CHECK(object_of(f, first).label == authored + "778");
+        CHECK(asks.commits == std::vector<std::string>{"778"});
+        CHECK(f.layouts_width() == "778 cells");
         CHECK(f.declared() == kResting);
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
@@ -2196,7 +2042,7 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
         const RefusedAtDispatch refused = refuse_next_commit(f, 2);
         CHECK(refused.notices == 1);
         CHECK(refused.delivered == 0);
-        CHECK(object_of(f, first).label == authored);
+        CHECK(f.layouts_width() == "-");
         CHECK(f.declared() == kResting);
         CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
         for (const std::string& one : admitted_and_painted(f)) {
@@ -2212,23 +2058,21 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
     }
 }
 
-TEST_CASE("an Info commit nothing could queue is released at once: the draft stands, the next commit tries again, and it is written once the door is back") {
-    // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its document and
-    // session untouched -- and an office with no document door holds `zengine.workshop` meanwhile,
-    // so the commit's shape is one this bus has never heard of and Loom's seam refuses it before
-    // anything is queued. The pane's ticket is not valid; no answer and no notice can follow.
+TEST_CASE("an Info commit nothing could queue is released at once: the draft stands, the next "
+          "commit tries again, and it is written once the door is back") {
+    // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its session untouched
+    // -- and an office with no subject door holds `zengine.workshop` meanwhile, so the commit's
+    // shape is one this bus has never heard of and Loom's seam refuses it before anything is
+    // queued. The pane's ticket is not valid; no answer and no notice can follow.
     InfoRig f;
     f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
-    f.draft_on("Name");
-    f.r.text("77");
-    const std::int64_t typed_for = named_picture(f).subject;
+    f.draft_holding("Width", "77");
+    const std::int64_t typed_for = f.picture().subject;
     const loom::WeaveId pane_id = info_id(f);
 
     std::unique_ptr<loom::Weave> workshop = f.r.take_workshop_off();
-    REQUIRE(f.r.bus.resolve_schema(DocumentCommitRequested::zen_name,
-                                   DocumentCommitRequested::zen_version) == nullptr);
+    REQUIRE(f.r.bus.resolve_schema(PaneCommitRequested::zen_name,
+                                   PaneCommitRequested::zen_version) == nullptr);
     auto held = std::make_unique<DoorlessOffice>();
     DoorlessOffice* office = held.get();
     loom::Grant say;
@@ -2242,7 +2086,7 @@ TEST_CASE("an Info commit nothing could queue is released at once: the draft sta
     int queued = 0;
     std::string reason;
     const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.schema_name != DocumentCommitRequested::zen_name) {
+        if (ev.schema_name != PaneCommitRequested::zen_name) {
             return;
         }
         if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id) {
@@ -2278,23 +2122,22 @@ TEST_CASE("an Info commit nothing could queue is released at once: the draft sta
     f.regrant();
     CHECK_MESSAGE(f.admitted_leads("commit not submitted --"), f.text());
     CHECK(f.declared() == kDrafting);
-    CHECK(f.property_row("Name").find(authored + "77") != std::string::npos);
-    CHECK(object_of(f, first).label == authored);
-    DocumentAskTap asks(f.r.bus, f.r.workshop_id);
+    CHECK(value_of(f.property_row("Width")) == "77");
+    CHECK(f.layouts_width() == "-");
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     f.r.key(input::scan::kReturn);
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
-    CHECK(object_of(f, first).label == authored + "77");
+    CHECK(f.layouts_width() == "77 cells");
     CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstanding commit exactly, settles nothing") {
+TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstanding commit exactly, "
+          "settles nothing") {
     // THE PROVENANCE IS THE FACT; THE SHAPE IS SPEECH. A stranger says `zen.DispatchRefused` naming
     // every half the pane matches -- the attempt, the correlation, the shape, its version, the
-    // office -- and queues it where it reaches the pane before the document's answer does.
+    // office -- and queues it where it reaches the pane before the owner's answer does.
     InfoRig f;
     f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::string authored = object_of(f, first).label;
     auto held = std::make_unique<Stranger>();
     Stranger* stranger = held.get();
     loom::Grant grant;
@@ -2314,7 +2157,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
         if (ev.kind != loom::EventKind::Delivered) {
             return;
         }
-        if (ev.schema_name == DocumentCommitRequested::zen_name) {
+        if (ev.schema_name == PaneCommitRequested::zen_name) {
             seqs.push_back(ev.seq);
             correlations.push_back(ev.correlation);
         } else if (ev.target == pane_id && ev.schema_name == loom::DispatchRefused::zen_name &&
@@ -2334,16 +2177,19 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     });
 
     // THE PANE'S CORRELATION IS ITS OWN COUNT: read off a first commit, written, and the next is
-    // one more.
-    f.draft_on("Name");
-    f.r.text("7");
+    // one more. (The inspect the draft needed counted too, before this one.)
+    f.draft_holding("Width", "7");
     f.r.key(input::scan::kReturn);
     REQUIRE(seqs.size() == 1);
-    REQUIRE(object_of(f, first).label == authored + "7");
+    REQUIRE(f.layouts_width() == "7 cells");
     REQUIRE(f.declared() == kResting);
-    f.r.key(input::scan::kReturn); // `info.edit` on the same row: a new draft
+    f.r.key(input::scan::kReturn); // `info.edit` on the same row: a new draft, holding "7 cells"
     REQUIRE(f.declared() == kDrafting);
+    for (int i = 0; i < 6; ++i) {
+        f.r.key(input::scan::kBackspace);
+    }
     f.r.text("8");
+    REQUIRE(value_of(f.property_row("Width")) == "78");
 
     // THE TURN STOPS WHERE THE PANE HAS HEARD ITS COMMIT: the commit is queued, not delivered.
     stop_armed = true;
@@ -2361,8 +2207,8 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     loom::DispatchRefused forged;
     forged.attempt = std::to_string(probe.seq - 1);
     forged.role = kWorkshopProvider;
-    forged.shape = DocumentCommitRequested::zen_name;
-    forged.version = DocumentCommitRequested::zen_version;
+    forged.shape = PaneCommitRequested::zen_name;
+    forged.version = PaneCommitRequested::zen_version;
     forged.reason = "TargetUnavailable";
     REQUIRE(f.r.bus
                 .send_as(stranger_id, pane_id,
@@ -2390,21 +2236,20 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
         INFO("row 0: ", row);
         CHECK(row.find("not delivered") == std::string::npos);
     }
-    CHECK(object_of(f, first).label == authored + "78");
+    CHECK(f.layouts_width() == "78 cells");
     CHECK(f.declared() == kResting);
     CHECK(f.row_of("commit not sent") == -1);
 }
 
-TEST_CASE("an Info select Loom refuses at dispatch releases its own record, and the next press selects") {
-    // THE SAME ACCOUNTING FOR THE OTHER DOCUMENT ASK. A press on #2's object row asks the document
-    // to select it; the turn stops where the pane has heard the press -- its select queued, not
-    // delivered -- and Workshop's weave is killed before that delivery and revived afterwards, as
-    // `refuse_next_commit` stages a commit's refusal.
+TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, and the next press "
+          "inspects") {
+    // THE SAME ACCOUNTING FOR THE OTHER ASK. A press on a pane row asks the host to inspect it; the
+    // turn stops where the pane has heard the press -- its inspect queued, not delivered -- and
+    // Workshop's weave is killed before that delivery and revived afterwards.
     InfoRig f;
     f.open();
-    const std::int64_t first = f.r.session().selected;
-    const std::int64_t second = f.r.w->document().elements[1].id;
-    const std::int64_t at = f.row_of("  #" + std::to_string(second));
+    f.focus();
+    const std::int64_t at = f.pane_row("Info");
     REQUIRE(at >= 0);
     const loom::WeaveId pane_id = info_id(f);
     loom::Switchboard& bus = f.r.bus;
@@ -2419,7 +2264,7 @@ TEST_CASE("an Info select Loom refuses at dispatch releases its own record, and 
             bus.stop();
         }
         if (ev.kind == loom::EventKind::Refused && ev.sender == pane_id &&
-            ev.schema_name == DocumentActRequested::zen_name) {
+            ev.schema_name == InspectPaneRequested::zen_name) {
             attempt = ev.seq;
             reason = loom::name_of(ev.refusal.reason);
         }
@@ -2445,22 +2290,67 @@ TEST_CASE("an Info select Loom refuses at dispatch releases its own record, and 
     CHECK(attempt != 0);
     CHECK(reason == "TargetUnavailable");
     CHECK(notices == 1);
-    CHECK(f.r.session().selected == first);
-    CHECK_MESSAGE(f.admitted_leads("select not delivered --"), f.text());
-    // ...AND THE NEXT PRESS IS A SELECT OF ITS OWN, answered.
-    f.press_row("  #" + std::to_string(second));
-    CHECK(f.r.session().selected == second);
-    CHECK(f.row_of("select not delivered") == -1);
+    CHECK_FALSE(f.r.session().inspected.addressed());
+    CHECK_MESSAGE(f.admitted_leads("inspect not delivered -"), f.text());
+    // ...AND THE NEXT PRESS IS AN INSPECT OF ITS OWN, answered.
+    f.press_pane_row("Info");
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.row_of("inspect not delivered") == -1);
+}
+
+TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this desk is refused in "
+          "words with nothing moved, and an inspector that arrives is answered the picture as it "
+          "is now") {
+    // THE HOST'S TWO SUBJECT DOORS, ASKED BY AN OFFICE OF ITS OWN: a reference nobody has, which
+    // no press on the Info pane can name, and the question an arriving inspector asks.
+    InfoRig f;
+    f.open();
+    f.inspect("Layouts");
+    const std::int64_t named = f.picture().subject;
+
+    auto held = std::make_unique<Inspector>();
+    Inspector* inspector = held.get();
+    loom::Grant grant;
+    grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_any(PaneSubjectRequested::zen_name, PaneSubjectRequested::zen_version);
+    const loom::WeaveId id =
+        f.r.bus.register_weave(std::move(held), std::move(grant), std::string(kInspectorOffice));
+    inspector->zen_set_self(id);
+
+    (void)f.r.bus.office_send_to_role_as(
+        id, kInspectorOffice, kWorkshopProvider,
+        loom::Message(loom::to_value(InspectPaneRequested{"zengine.nowhere", "ghost"}), id, id, 1));
+    f.settle();
+    REQUIRE(inspector->answers.size() == 1);
+    CHECK_FALSE(inspector->answers.back().accepted);
+    CHECK(inspector->answers.back().refusal.find("in neither this build's vocabulary nor this desk") !=
+          std::string::npos);
+    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().subject == named);
+
+    (void)f.r.bus.office_send_to_role_as(
+        id, kInspectorOffice, kWorkshopProvider,
+        loom::Message(loom::to_value(PaneSubjectRequested{}), id, id, 2));
+    f.settle();
+    REQUIRE(inspector->pictures.size() == 1);
+    CHECK(inspector->pictures.back().name == "Layouts");
+    CHECK(inspector->pictures.back().subject == named);
+
+    // ...AND PERSONAL SPEECH IS ANSWERED BY NOBODY.
+    (void)f.r.bus.send_as(id, f.r.workshop_id,
+                          loom::Message(loom::to_value(PaneSubjectRequested{}), id, id, 3));
+    f.settle();
+    CHECK(inspector->pictures.size() == 1);
 }
 
 // ============================================================================
 // INFO-WEAVE — what the image is not allowed to be
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: the image that shows a maker's document holds no document") {
-    // A SOURCE READ, and the reason it is one: "this pane owns no facts" is a claim about
-    // what a translation unit NAMES, and only reading the file can keep it. A runtime case
-    // could not tell a pane that re-derives from one that caches and happens to agree.
+TEST_CASE("INFO-WEAVE: the image that inspects a pane holds no desk") {
+    // A SOURCE READ, and the reason it is one: "this pane owns no facts" is a claim about what a
+    // translation unit NAMES, and only reading the file can keep it.
     std::ifstream in(INFO_PANE_SOURCE);
     REQUIRE(in.good());
     std::stringstream buffer;
@@ -2468,11 +2358,7 @@ TEST_CASE("INFO-WEAVE: the image that shows a maker's document holds no document
     const std::string source = buffer.str();
     REQUIRE(source.size() > 4096);
 
-    // THE HOST'S PRESENTATION IS NOT REACHABLE FROM HERE. `screen.hpp` is Workshop's own
-    // composition; an image that included it would be a second painter of the same surface.
-    // Asked of the INCLUDE, not of the file: this pane's own comments name what it replaced
-    // and what it may not reach, and a case that refused the word would be refusing the
-    // explanation rather than the dependency.
+    // THE HOST'S PRESENTATION AND ITS DESK ARE NOT REACHABLE FROM HERE, asked of the INCLUDE.
     for (const char* forbidden : {"#include \"workshop/screen.hpp\"",
                                   "#include \"workshop/panel.hpp\"",
                                   "#include \"workshop/setup.hpp\"",
@@ -2480,16 +2366,15 @@ TEST_CASE("INFO-WEAVE: the image that shows a maker's document holds no document
         INFO("includes ", forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
     }
-    // ...AND NO DOCUMENT TYPE IS NAMED IN ITS CODE AT ALL. `WorkshopDoc` and `ui::Element`
-    // are the host's; what this image holds is the PICTURE it was shown.
-    for (const char* owned : {"WorkshopDoc ", "doc::add", "doc::find"}) {
+    // ...AND NO DESK TYPE OR DESK DOOR IS NAMED IN ITS CODE AT ALL: what this image holds is the
+    // PICTURE it was shown.
+    for (const char* owned : {"SetupPane", "SetupState", "author_pane", "write_pane_axis"}) {
         INFO("names ", owned);
         CHECK(source.find(owned) == std::string::npos);
     }
     // ...AND WHAT IT DOES REACH IS THE PROTOCOL AND THE SEAM, both of which are values.
     CHECK(source.find("workshop/pane_vocabulary.hpp") != std::string::npos);
-    CHECK(source.find("workshop/document_seam_vocabulary.hpp") != std::string::npos);
-    // ...AND THE SHARED TEXT HELPERS RATHER THAN A FIFTH COPY OF THEM.
+    CHECK(source.find("workshop/inspection_seam_vocabulary.hpp") != std::string::npos);
+    // ...AND THE SHARED TEXT HELPERS RATHER THAN ANOTHER COPY OF THEM.
     CHECK(source.find("workshop/pane_text.hpp") != std::string::npos);
 }
-

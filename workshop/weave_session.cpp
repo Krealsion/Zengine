@@ -170,6 +170,7 @@ void WorkshopWeave::restore_setup(loom::Mail& mail) {
         return;
     }
     session_.setup.active = loaded.setup;
+    ++session_.setup.put_live; // the file's desk, not the one it replaced (WL-INFO-14)
     session_.setup.active_link.path = path;
     adopt_known_setup(session_.setup, path, loaded.setup);
     apply_setup(mail);

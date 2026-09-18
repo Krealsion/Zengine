@@ -329,6 +329,11 @@ class WorkshopWeave
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           zengine::workshop::DocumentActRequested,
                                           zengine::workshop::DocumentCommitRequested,
+                                          // an inspector's pane subject: which pane, the
+                                          // picture now, and one write through its owner
+                                          zengine::workshop::InspectPaneRequested,
+                                          zengine::workshop::PaneSubjectRequested,
+                                          zengine::workshop::PaneCommitRequested,
                                           // the participating owner of the application's
                                           // default behaviour: what it declares, and what
                                           // it asks this host to open or focus
@@ -375,6 +380,8 @@ class WorkshopWeave
                                         zengine::workshop::DocumentShown,
                                         zengine::workshop::v2::DocumentShown,
                                         zengine::workshop::DocumentActed,
+                                        zengine::workshop::PaneSubjectShown,
+                                        zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TranscriptShown,
                                         zengine::workshop::TerminalActed,
                                         zengine::workshop::TerminalCompletionOffered,
@@ -707,6 +714,34 @@ public:
     /// WRITE ONE PROPERTY OF THE SUBJECT THE ASK NAMES, or refuse with nothing written: the
     /// subject is judged against `Session::subject` before any setter is reached (WL-DOC-21).
     void on(const DocumentCommitRequested& asked, loom::Mail& mail);
+
+    // ---- A pane as an inspector's subject (WL-INFO-14, WL-INFO-15) -------------------------
+
+    /// MAKE A PANE THE INSPECTOR'S SUBJECT -- the one writer of `Session::inspected`. An office
+    /// asks; a reference in neither this build's vocabulary nor the live desk is refused in words
+    /// with nothing moved. Asking for the pane already inspected keeps its name.
+    void on(const InspectPaneRequested& asked, loom::Mail& mail);
+
+    /// AN INSPECTOR THAT HAS JUST ARRIVED ASKS FOR THE PICTURE AS IT IS NOW, and is answered it.
+    void on(const PaneSubjectRequested& asked, loom::Mail& mail);
+
+    /// WRITE ONE ROW OF THE SUBJECT THE ASK NAMES, through that row's own setter -- the setup's
+    /// gesture or reset door for a placement, the definition's door for a region -- or refuse
+    /// with nothing written. The name is judged first; an accepted write reseats the desk.
+    void on(const PaneCommitRequested& asked, loom::Mail& mail);
+
+    /// NAME WHAT THE SUBJECT'S ROWS ADDRESS AFRESH, AND REBUILD THEM, when the live desk or the
+    /// rows' INTERIOR arm moved since they were named -- asked before every reading and every
+    /// judgement, so a commit is never judged against a name the facts have left.
+    void refresh_inspected();
+
+    /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).
+    void publish_pane_subject(loom::Mail& mail);
+
+    /// A COMMIT TYPED FOR ROWS THAT ARE NO LONGER THE SUBJECT'S (WL-INFO-15).
+    static constexpr const char* kPaneCommitSubjectGone =
+        "the inspected pane, its desk or its rows changed before it arrived, so nothing was "
+        "written";
 
     /// THE TWO REFUSALS A COMMIT MAY MEET BEFORE ANY ROW IS READ (WL-DOC-21): a subject that is
     /// no longer the rows' own, and a v1 commit, which names none. Each says nothing was written,
@@ -1624,6 +1659,10 @@ private:
     KeymapShown keymap_said_;
     bool keymap_published_ = false;
     std::string keymap_standing_;
+    /// ...AND FOR THE INSPECTOR'S SUBJECT (WL-INFO-14): what was last said, and whether it has
+    /// been said since a presenter last arrived.
+    PaneSubjectShown subject_said_;
+    bool subject_published_ = false;
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;

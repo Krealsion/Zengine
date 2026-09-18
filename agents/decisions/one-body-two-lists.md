@@ -56,6 +56,11 @@ picture that stops showing the draft's property — the object and its row's lab
 draft and says so. The desk row a maker never authored is the other half of the migration,
 which is why this record now supports one more law than it did.
 
+**Since.** The subject changed and the body did not: the OBJECTS list is the PANES list (the one
+inventory), the properties are one pane's, and a pane row's press asks the host to inspect it
+rather than to select. What a subject is, and who names it, is
+[an inspector names its subject](an-inspector-names-its-subject.md).
+
 **Laws supported.** [WL-INFO-01](../workshop/info-body.md),
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),
 [WL-INFO-04](../workshop/info-body.md), [WL-INFO-05](../workshop/info-body.md),
