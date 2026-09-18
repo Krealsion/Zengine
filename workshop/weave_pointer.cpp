@@ -165,7 +165,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kLayoutMoveRight: shift_layout(spent.layout, +1); break;
     case Act::kLayoutRemove: drop_layout(spent.layout, mail); break;
     // -- the room -----------------------------------------------------------------
-    case Act::kPicker: open_picker(); break;
     case Act::kArrangeDesk: open_arrange_desk(); break;
     case Act::kSetupSave: save_setup(); break;
     case Act::kSetupRestore: restore_setup(mail); break;
@@ -207,7 +206,6 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
     }
     const PendingPaste p = take_pending_paste(settled->id);
     component::TextBox* box = nullptr;
-    Row* row = nullptr;
     switch (p.owner) {
     case PasteOwner::kNone: return;
     // ⭐ THE EDITOR'S SETTLEMENT ARM WAS HERE AND IS GONE (VD-25). It pinned the answer to
@@ -218,22 +216,11 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
     case PasteOwner::kNaming:
         box = naming_line();
         break;
-    case PasteOwner::kDraft:
-        row = editing_row();
-        if (row == nullptr || row->label() != p.label ||
-            row->editor().draft_epoch() != p.epoch) {
-            row = nullptr; // a different draft is standing (or none); not this paste's
-        }
-        break;
+    // (A PROPERTY DRAFT'S ARM WAS HERE, and left with the host's Pane Manager.)
     }
-    if (row != nullptr) {
+    if (box != nullptr && box->draft_epoch() == p.epoch) {
         if (a.readable) {
             session_.clipboard.text = a.text; // the platform's current truth, asked for
-        }
-        row->paste(session_.clipboard);
-    } else if (box != nullptr && box->draft_epoch() == p.epoch) {
-        if (a.readable) {
-            session_.clipboard.text = a.text;
         }
         box->paste(session_.clipboard);
     } else {
@@ -266,38 +253,23 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     // the keymap it is answered by the same resolver instead of by this function's own
     // hand-copy of the chain (the second of the five spellings the research measured).
     // Per branch, the standing law is unchanged: a mode that owns the keyboard whole
-    // takes the text or deliberately types none (arrangement and the picker are driven
-    // by unmodified letters, so every character produced while they are open belongs
-    // to a gesture); a focused pane receives the text in exactly the position it
-    // receives the keys -- the half that makes `%` reach a provider at all, since
-    // Workshop maps no key to any character; a live draft types; and in command mode
-    // text is simply not a command.
+    // takes the text or deliberately types none (arrangement is driven by unmodified
+    // letters, so every character produced while it is open belongs to a gesture); a
+    // focused pane receives the text in exactly the position it receives the keys -- the
+    // half that makes `%` reach a provider at all, since Workshop maps no key to any
+    // character; and in command mode text is simply not a command.
     switch (keyboard_context(session_)) {
     case KeyContext::kNaming:
         session_.setup.naming.line.type(t.text);
         repaint(mail);
         return;
-    case KeyContext::kPaneNaming:
-        session_.pane_naming.line.type(t.text);
-        repaint(mail);
-        return;
     case KeyContext::kArrangePane:
     case KeyContext::kArrangeDesk:
     case KeyContext::kArrangeReset:
-    case KeyContext::kPicker:
         return;
     case KeyContext::kPane:
         external_text(keyboard_pane(), t, mail);
         return;
-    case KeyContext::kDraft: {
-        Row* row = editing_row();
-        if (row == nullptr) {
-            return; // unreachable while the resolver holds; written anyway
-        }
-        row->type(t.text);
-        repaint(mail);
-        return;
-    }
     default:
         return; // command mode: text is simply not a command
     }
@@ -592,13 +564,6 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 session_.text_drag.place = text_drag_place::kExternalPane;
                 session_.text_drag.kind = here.kind;
             }
-        } else if (here.occupied && here.kind == panel::kPaneEditor) {
-            // AND A PRESS INTO THE PANE EDITOR -- Files' arm, one pane over:
-            // a pane row chooses the SUBJECT, a field row moves the row cursor, the
-            // live draft's own row places the caret, and the heading or the padding
-            // is consumed as a focus statement. The selection line above has already
-            // made this pane the selected one; nothing in here reads that fact.
-            pane_editor_press(b, b.modifiers);
         } else if (here.occupied && here.kind == panel::kLayouts &&
                    layouts_press(b, mail)) {
             // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
@@ -690,20 +655,8 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         repaint(mail);
         return;
     }
-    // A SELECTION DRAG ON THE PANE EDITOR'S LIVE DRAFT -- the property draft's
-    // twin below, resolved through the Pane Editor's own body.
-    if (session_.text_drag.active &&
-        session_.text_drag.place == text_drag_place::kPaneEditorDraft) {
-        Row* row = pane_editor_editing_row();
-        const PaneEditorAt where = pane_editor_at(session_, m.space, m.x, m.y);
-        if (row != nullptr && where.present) {
-            row->drag_to_column(property_value_column(where.at.column));
-            refresh_inspector();
-            repaint(mail);
-        }
-        return;
-    }
-    // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL. The draft is the
+    // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL, AND THE HOST'S
+    // PANE MANAGER'S TWIN OF IT LEFT WITH THAT MANAGER. The draft is the
     // pane's own line now, inside the pane's own room, and a sweep across it is a press and a
     // motion the pane resolves against its own composition -- this host has no body to resolve
     // it against and no row to sweep.
@@ -746,23 +699,15 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
     }
     // The TOPMOST presentation under the wheel decides -- a pane in front owns its
     // own cells, and scrolling something under somebody else's pane is the
-    // imaginary-reach this test refuses. The picker answers first inside the walk,
-    // exactly as it does for a press, and it is the one occupant with no kind.
+    // imaginary-reach this test refuses. (The picker and the host's Pane Manager scrolled
+    // under it here, and retired.)
     const Occupancy here =
         occupied_at(session_.panels, session_.setup.active, sc, at);
     if (!here.occupied) {
         return;
     }
-    if (here.kind == kNoKind) {
-        picker_wheel(w, mail);
-        return;
-    }
     if (is_runtime_kind(here.kind)) {
         external_wheel(here.kind, w, mail);
-        return;
-    }
-    if (here.kind == panel::kPaneEditor) {
-        pane_editor_wheel(w, mail);
         return;
     }
     // ⭐ THE SOURCE EDITOR'S WHEEL ARM WAS HERE AND IS GONE (VD-25): the last wheel this
@@ -787,7 +732,7 @@ bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::
     }
     // A SECOND PRESS ON THE SAME TAB RENAMES IT, and the first one has already
     // made that tab live -- which is why the editor's subject and the switch cannot
-    // disagree. `press_selects_word`'s discipline exactly: the completing press SPENDS
+    // disagree. The retired word press's discipline exactly: the completing press SPENDS
     // the arming, so there is no triple-click, and a first press is an ordinary switch
     // with an arming left beside it.
     const std::int64_t now = interaction_now();

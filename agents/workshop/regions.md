@@ -6,12 +6,14 @@ band, and the name on a maker's material. One law per heading; cite by ID. Route
 
 ## WL-RGN-01 — A panel whose rectangle is its own spends `panel_prose_place`
 
-LAW — `panel_prose_place` + `panel_prose_region` is the one call for the picker, the popup and an external pane: the prose rows and columns the active medium fits inside the panel's own rectangle.
+LAW — `panel_prose_place` + `panel_prose_region` is the one call for the popup and a pane's captured body: the prose rows and columns the active medium fits inside the panel's own rectangle.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `panel_prose_place`, `panel_prose_region`;
-`workshop/screen.hpp` `PanelProsePlace`; `tests/test_workshop_screen.cpp` case `"TYPE-0: the
-picker is ONE bounded region, and its cells are what it used to write"`, case `"TYPE-0: the picker
-spends the ACTIVE medium's rows, and says what it omitted"`.
+`workshop/screen.hpp` `PanelProsePlace`; `workshop/screen_attention.cpp` `paint_context`;
+`tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's own cell, and its
+extent is its content"`, case `"WUX-5: the contextual surface is its actions, and its width is
+theirs"`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-12: a code-backed subject's
+interior is a read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-02 — The Builder is a region composed by explicit priority

@@ -677,20 +677,22 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
         CodeRig c("code-builtin");
         c.hold({single_recipe("tally", kTallyStem, c.source)});
         c.open();
-        // THE PANE MANAGER: a pane Workshop presents itself, in an office Workshop holds.
-        const PaneRef manager{kWorkshopProvider, pane_key::kPaneEditor};
-        if (!c.r.session().panels.has(c.kind_of(manager))) {
-            c.r.pick(manager);
+        // THE LAYOUTS PANE: the one pane Workshop presents itself, in an office Workshop holds.
+        // (It was the host's Pane Manager until that became the desktop's pane.) Pointed at on
+        // its last cell, where no tab is, so the menu is the pane's and not a tab's.
+        const PaneRef layouts{kWorkshopProvider, pane_key::kLayouts};
+        if (!c.r.session().panels.has(c.kind_of(layouts))) {
+            c.r.pick(layouts);
         }
-        REQUIRE(c.r.session().panels.has(c.kind_of(manager)));
+        REQUIRE(c.r.session().panels.has(c.kind_of(layouts)));
         const ui::Rect slot = cells_covered(bounds_of(c.r.session().panels,
                                                       c.r.session().setup.active,
-                                                      c.kind_of(manager),
+                                                      c.kind_of(layouts),
                                                       screen_of(c.r.session()))
                                                 .rect);
-        c.r.right_press_cell(slot.x + 1, slot.y + 1);
+        c.r.right_press_cell(slot.x + slot.w - 1, slot.y);
         REQUIRE(c.r.session().context.open);
-        REQUIRE(c.r.session().context.pane == manager);
+        REQUIRE(c.r.session().context.pane == layouts);
         c.choose_edit_code();
         CHECK(c.r.session().notice_is_bad);
         CHECK(c.notice().find("is part of Workshop itself") != std::string::npos);

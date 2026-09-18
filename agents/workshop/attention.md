@@ -134,7 +134,7 @@ LAW — A condition names an action by its catalog id, which the HOST resolves i
 
 MEANS
 - the pane is handed a sentence and could not press an action if it were given one;
-- nothing puts this pane on a screen but a maker choosing it from the picker.
+- nothing puts this pane on a screen but a maker launching it from the Pane Manager.
 
 PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/keymap.hpp` `ActionRow`;
 `workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_panels.cpp` case

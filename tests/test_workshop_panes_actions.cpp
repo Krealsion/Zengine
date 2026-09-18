@@ -47,6 +47,7 @@
 #include "desktop-pane/vocabulary.hpp"
 #include "editor-pane/vocabulary.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
+#include "workshop/pane_text.hpp"
 
 #include <zen/registry.hpp>
 
@@ -1913,6 +1914,201 @@ TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, 
     CAPTURE(floor);
     CHECK(floor.find("keys refused:") != std::string::npos);
     CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
+}
+
+// =============================================================================
+// THE PANE CREATOR, PRESENTED BY THE SHIPPED DESKTOP
+//
+// The keys and the name line were the host Pane Manager's until it retired; they are the desktop
+// Pane Manager's own rows now (WL-MAKER-11). The host's half -- the definition, its file and
+// every refusal -- is pinned in the creator source; what is pinned here is that the real image's
+// rows reach those doors and show what they answered, and that its name line is a line.
+// =============================================================================
+
+namespace {
+
+/// THE LAUNCHER, OPEN AND HOLDING THE KEYS, by the desktop's own chord.
+void open_launcher(PaneRig& r) {
+    r.key(input::scan::kP, input::mod::kCtrl);
+    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    REQUIRE(row != nullptr);
+    REQUIRE(r.session().panels.keyboard == row->kind);
+}
+
+/// A BARE LETTER AS THE PLATFORM DELIVERS IT: the key, then the character it produced -- which
+/// the host swallows when the key is a declared row (WL-KEY-15) and hands on when it is not.
+void press_letter(PaneRig& r, std::int64_t code, const char* produced) {
+    r.key(code);
+    r.text(produced);
+}
+
+void type_into(PaneRig& r, const std::string& text) {
+    for (const char c : text) {
+        r.text(std::string(1, c));
+    }
+}
+
+/// A RIG WITH THE SHIPPED DESKTOP LOADED AND A PANE FILE THE HOST MAY WRITE.
+struct CreatorRig {
+    TempDir dir;
+    PaneRig r;
+    explicit CreatorRig(const char* name) : dir(name) {
+        r.host.pane_path = dir.file("pane.json");
+        r.mount_workshop();
+        r.ready();
+        r.extent(160, 48);
+        load_real_desktop(r);
+    }
+};
+
+} // namespace
+
+TEST_CASE("WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name -- `n` opens its "
+          "line, the trigger is not typed, and Return asks the host's door") {
+    CreatorRig c("creator-make");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    // THE LINE IS OPEN AND EMPTY: the `n` that opened it was the row's, and the host ate it.
+    CHECK(launcher_text(r).find("new pane: \n") != std::string::npos);
+    type_into(r, "MyPane");
+    CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
+    CHECK_FALSE(r.session().panels.maker.open()); // nothing is made while a name is typed
+    r.key(input::scan::kReturn);
+    // THE HOST MADE IT, AND THE LINE CLOSED ON THE ACCEPTANCE, under the host's own sentence.
+    REQUIRE(r.session().panels.maker.open());
+    CHECK(r.session().panels.maker.definition.name == "MyPane");
+    CHECK(has_pane(r.session().setup.active, maker_pane_ref("MyPane")));
+    const std::string shown = launcher_text(r);
+    CHECK(shown.find("new pane:") == std::string::npos);
+    CHECK(shown.find("Pane Creator: MyPane is on this layout") != std::string::npos);
+}
+
+TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was typed, with the "
+          "refusal under it; Escape cancels and makes nothing") {
+    CreatorRig c("creator-refuse");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "My Pane");
+    r.key(input::scan::kReturn);
+    const std::string refused = launcher_text(r);
+    CHECK(refused.find("new pane: My Pane") != std::string::npos); // still open, still holding it
+    CHECK(refused.find("no spaces") != std::string::npos);        // in the host's own words
+    CHECK_FALSE(r.session().panels.maker.open());
+    // THE LINE IS CORRECTED IN PLACE, by its own keys, and asked again.
+    for (int i = 0; i < 5; ++i) {
+        r.key(input::scan::kBackspace);
+    }
+    type_into(r, "Pane");
+    CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
+    r.key(input::scan::kReturn);
+    REQUIRE(r.session().panels.maker.open());
+    CHECK(r.session().panels.maker.definition.name == "MyPane");
+    // ESCAPE CANCELS A LINE, SAYS SO, AND ASKS NOTHING.
+    const std::size_t rows = r.session().setup.active.panes.size();
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Other");
+    r.key(input::scan::kEscape);
+    const std::string cancelled = launcher_text(r);
+    CHECK(cancelled.find("new pane:") == std::string::npos);
+    CHECK(cancelled.find("no pane was made") != std::string::npos);
+    CHECK(r.session().panels.maker.definition.name == "MyPane");
+    CHECK(r.session().setup.active.panes.size() == rows);
+}
+
+TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `s` and `ctrl+d` save and put back through the "
+          "host's door, and a dirty pane's refusal names those keys where they are") {
+    CreatorRig c("creator-save");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "MyPane");
+    r.key(input::scan::kReturn);
+    REQUIRE(r.session().panels.maker.dirty()); // never saved
+    // SAVE: the host writes the file, and the launcher shows the host's sentence.
+    press_letter(r, input::scan::kS, "s");
+    CHECK_FALSE(r.session().panels.maker.dirty());
+    CHECK(std::filesystem::exists(r.host.pane_path));
+    CHECK(launcher_text(r).find("saved pane MyPane") != std::string::npos);
+    // AN EDIT THROUGH THE INSPECTOR'S DOOR (Info's path) makes it dirty again...
+    REQUIRE(hand_inspect(r, maker_pane_ref("MyPane")).accepted);
+    REQUIRE(hand_commit(r, "Text", "changed", "INTERIOR").accepted);
+    REQUIRE(r.session().panels.maker.dirty());
+    // ...AND THE QUIT IT REFUSES NAMES THE LAUNCHER'S OWN KEYS, as that pane declared them. The
+    // keys are put elsewhere first, as a press on the room puts them: a pane holding them takes
+    // `q` as its own.
+    r.session().panels.keyboard = kNoPaneKind;
+    press_letter(r, input::scan::kQ, "q");
+    CHECK_FALSE(r.host.quit);
+    CHECK(r.session().notice.find("s in Pane Manager saves it, ^d discards them") !=
+          std::string::npos);
+    // PUT BACK: the definition is the file's again.
+    open_launcher(r);
+    r.key(input::scan::kD, input::mod::kCtrl);
+    CHECK_FALSE(r.session().panels.maker.dirty());
+    CHECK(r.session().panels.maker.definition.regions[0].text.empty());
+    CHECK(launcher_text(r).find("back to what") != std::string::npos);
+}
+
+TEST_CASE("WL-MAKER-11: the name line pastes what the platform holds -- asked once, landing in the "
+          "line that asked") {
+    CreatorRig c("creator-paste");
+    PaneRig& r = c.r;
+    SkinSeat* skin = r.mount_skin_seat();
+    skin->platform = "Pasted";
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "My");
+    r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == 1);
+    CHECK(launcher_text(r).find("new pane: MyPasted") != std::string::npos);
+    r.key(input::scan::kReturn);
+    REQUIRE(r.session().panels.maker.open());
+    CHECK(r.session().panels.maker.definition.name == "MyPasted");
+}
+
+TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS the cut") {
+    // THE DEFECT THE FIRST REAL EXTERNAL TOOL FOUND, IN ITS SUCCESSOR. The picker padded names
+    // into a ten-column column and cut them in silence, so `Loaded Weaves` read as `Loaded Wea`.
+    // The desktop's list writes the name last on its row and fits the row with the cut marked.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    const std::string long_name = "a-very-long-provider-pane-name-x";
+    REQUIRE(long_name.size() == kMaxPaneNameLen);
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [&long_name](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{kHelloPane, long_name, "a pane with a long name"});
+    });
+    open_launcher(r);
+    // NARROWER THAN THE ROW, through the inspector's door as a maker would write it: thirty
+    // cells of pane hold the marker, the state and less than the name.
+    REQUIRE(hand_inspect(r, PaneRef{kDesktopRole, dp::kLauncherPane}).accepted);
+    const PaneSubjectActed narrowed = hand_commit(r, "Width", "30");
+    REQUIRE_MESSAGE(narrowed.accepted, narrowed.refusal);
+    for (int i = 0; i < 8; ++i) {
+        r.key(input::scan::kDown); // bring the last row into the list's window
+    }
+    const std::string shown = launcher_text(r);
+    INFO(shown);
+    CHECK(shown.find(long_name) == std::string::npos); // it did not fit...
+    std::string row;
+    std::size_t at = 0;
+    while (at < shown.size()) {
+        const std::size_t end = shown.find('\n', at);
+        const std::string line = shown.substr(at, end - at);
+        if (line.find("a-very-long") != std::string::npos) {
+            row = line;
+        }
+        at = end == std::string::npos ? shown.size() : end + 1;
+    }
+    REQUIRE_FALSE(row.empty());
+    const std::string mark = pane_text::kElided;
+    CHECK(row.size() > mark.size());
+    CHECK(row.compare(row.size() - mark.size(), mark.size(), mark) == 0); // ...and says so
 }
 
 namespace {

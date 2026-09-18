@@ -546,13 +546,14 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
 
 TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
     // Command mode: the rewritten MSG-0 case covers a focused pane and the overlay; this
-    // one pins the three keyboard owners that take no text -- the picker, pane management,
-    // and plain command mode -- so the narrowing cannot creep.
+    // one pins the three keyboard owners that take no text -- the contextual surface, pane
+    // management, and plain command mode -- so the narrowing cannot creep. (The first was the
+    // `p` picker until it retired.)
     {
         Live t;
-        t.key(input::scan::kP); // the picker is open and owns the keyboard
-        t.text("p");
-        REQUIRE(t.session().panels.picker.open);
+        t.key(input::scan::kA); // the contextual surface is open and owns the keyboard
+        t.text("a");
+        REQUIRE(t.menu().open);
         t.key(input::scan::kC, input::mod::kCtrl);
         CHECK(t.host.quit);
     }
@@ -1099,15 +1100,52 @@ TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing a
     }
 }
 
+TEST_CASE("KEY-0: the picker's and the host Pane Manager's ids are kept, said with where the act "
+          "went, and answered by nothing") {
+    // ⭐ THE PICKER AND THE HOST'S PANE MANAGER RETIRED WITH THEIR ROWS, and a maker's file may
+    // still name them. Each is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so
+    // a maker who moved one is told where to move it next rather than left with a silent key.
+    const std::string text = keymap_file_text(
+        "default", {{"workshop.picker", "g"}, {"pane-editor.front", "y"}, {"draft.commit", "j"}});
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
+    REQUIRE(loaded.outcome.accepted);
+    CHECK(loaded.keymap.overrides.empty());
+    CHECK(keymap_persist::to_text(loaded.keymap) == text); // nothing tidied, nothing dropped
+
+    TempDir dir("keymap-retired-manager");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, text);
+    Keyed t(path);
+    CHECK(t.notice().find("`workshop.picker` retired with the `p` picker -- kept, and nothing "
+                          "answers it (" + std::string(kToPaneManager) + ")") !=
+          std::string::npos);
+    CHECK(t.notice().find("`pane-editor.front` retired with the host's Pane Manager -- kept, and "
+                          "nothing answers it (" + std::string(kToArranging) + ")") !=
+          std::string::npos);
+    CHECK(t.notice().find("`draft.commit` retired with the host's Pane Manager -- kept, and "
+                          "nothing answers it (" + std::string(kToInfoRows) + ")") !=
+          std::string::npos);
+    // ...AND ANSWERED BY NOTHING: `g` opens no list, and neither does `p`, which the picker held.
+    const std::string before = t.notice();
+    for (const std::int64_t key : {input::scan::kG, input::scan::kP}) {
+        t.key(key);
+        CHECK_FALSE(t.menu().open);
+        CHECK(t.session().panels.open.size() == 1); // the shipped desk's Layouts, and nothing new
+    }
+    CHECK(t.notice() == before);
+    // THE PANE MANAGER'S KEY IS THE DESKTOP'S TO DECLARE, so this host names no row for it.
+    CHECK(row_of_id("desktop.panes") == nullptr);
+}
+
 TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewritten") {
     TempDir dir("keymap-gap");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path,
-    // ⚠ THE ROW IS THE PICKER'S NOW (VD-24). It was `workshop.terminal`, the global chord
-    // that opened the terminal overlay; that row retired with the overlay, so the claim --
-    // an authored gesture a backend cannot produce is ACCEPTED, said, and not rewritten --
-    // is made over another global row a maker can author.
-                      keymap_file_text("default", {{"workshop.picker", "shift+space"}}));
+    // ⚠ THE ROW IS THE CONTEXTUAL SURFACE'S NOW. It was `workshop.terminal`, the global chord
+    // that opened the terminal overlay, and then the picker's `p`; both retired, so the claim
+    // -- an authored gesture a backend cannot produce is ACCEPTED, said, and not rewritten --
+    // is made over another row a maker can author.
+                      keymap_file_text("default", {{"workshop.context", "shift+space"}}));
     Keyed t(path);
     // The note said the honest half out loud at load: a POSIX terminal cannot produce it.
     // Nothing in the file was rewritten. It is read HERE, before any gesture, because the
@@ -1115,12 +1153,14 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     CHECK(t.notice().find("shift is not observable") != std::string::npos);
     // Accepted: the authored gesture works where the wire can carry it...
     t.key(input::scan::kSpace, input::mod::kShift);
-    CHECK(t.session().panels.picker.open);
+    CHECK(t.menu().open);
     t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.menu().open);
     // The default it replaced no longer fires -- an override moves a binding,
     // it does not leave the old one behind as an invisible alias.
-    t.key(input::scan::kP);
-    CHECK_FALSE(t.session().panels.picker.open);
+    t.key(input::scan::kA);
+    t.text("a");
+    CHECK_FALSE(t.menu().open);
 }
 
 TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSIX wire is said") {
@@ -1159,7 +1199,7 @@ TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says
     // declaration order would run: a press with no name performing an operation.
     Keymap k;
     for (const KeyContext ctx : {KeyContext::kCommand, KeyContext::kGlobal, KeyContext::kNoText,
-                                 KeyContext::kNaming, KeyContext::kPicker}) {
+                                 KeyContext::kNaming, KeyContext::kContext}) {
         CHECK(k.action_for(ctx, input::scan::kUnknown, input::mod::kNone) == Act::kNone);
         CHECK(k.above_mode_action(ctx, input::scan::kUnknown, input::mod::kNone) == Act::kNone);
     }
@@ -1296,21 +1336,6 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
     write_keymap_file(path, keymap_file_text("full", {}));
     Keyed full(path);
     CHECK(label_at(full.canvases.back(), 0, sc.help_y).rfind("q quit", 0) == 0);
-}
-
-TEST_CASE("KEY-0: the picker still closes on the key that opened it, wherever it moved") {
-    TempDir dir("keymap-opener");
-    const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"workshop.picker", "u"}}));
-    Keyed t(path);
-    t.key(input::scan::kU);
-    t.text("u");
-    REQUIRE(t.session().panels.picker.open);
-    t.key(input::scan::kU); // the opener's own binding closes it
-    CHECK_FALSE(t.session().panels.picker.open);
-    t.key(input::scan::kP); // ...and the retired default does neither
-    t.text("p");
-    CHECK_FALSE(t.session().panels.picker.open);
 }
 
 TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
@@ -1610,12 +1635,14 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
 }
 
 TEST_CASE("WUX-1/SC-2: the effective keymap remains the full claim surface for the moved hints") {
-    // The three gestures the retired row advertised are ordinary keymap rows, so the
-    // authoritative surface -- the effective keymap a Hotkeys pane lists -- has all three.
+    // The gestures the retired row advertised are ordinary keymap rows, so the authoritative
+    // surface -- the effective keymap a Hotkeys pane lists -- has them. (The third was the
+    // picker's `+ panel`, and it retired with the picker: its successor is the desktop's
+    // `desktop.panes`, an application row taught while the desktop declares it.)
     Live t;
     const std::string view = keymap_text(t.session());
     CHECK(view.find("arrange desk") != std::string::npos);
-    CHECK(view.find("+ panel") != std::string::npos);
+    CHECK(view.find("+ panel") == std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too
 }
 

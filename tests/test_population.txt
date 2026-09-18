@@ -1612,7 +1612,7 @@ builder                           doctest           always  59
 #                               opening it is the Editor's.
 
 workshop_document                 doctest           always  47
-workshop_screen                   doctest           always  133
+workshop_screen                   doctest           always  129
 # EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
 # workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the
 # shape of the work: the Terminal pane's own interaction, one completer unit case, and two Neovim
@@ -1699,7 +1699,7 @@ workshop_screen                   doctest           always  133
 #                                 door, the launcher's `x` on the real desktop, and an Editor
 #                                 whose unsaved source survives a close and a launch.
 #
-workshop_panels                   doctest           always  110
+workshop_panels                   doctest           always  95
 workshop_panes                    doctest           always  602
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  149

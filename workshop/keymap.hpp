@@ -31,10 +31,11 @@ enum class KeyContext : std::uint8_t {
     // Terminal is a pane, so its keys are its own `PaneActions` rows and reach it through
     // `kPane` like every other pane's -- which is also why five `Act` values left with it.
     kNaming,
-    /// THE PANE CREATOR'S NAME PROMPT: one line a maker types a new pane's name into.
-    // WL-MAKER-11 -- agents/workshop/maker-pane.md
-    kPaneNaming,
-    kPicker,
+    // ⭐ `kPaneNaming` AND `kPicker` ARE GONE. The first was the Pane Creator's name prompt, drawn
+    // inside the host's Pane Manager; the name is typed in the desktop's Pane Manager now, as that
+    // pane's own draft under `kPane`. The second was the `p` picker, a mode that took the keyboard
+    // whole and toggled participation; launching and closing are the desktop's rows over the
+    // host's two doors (`PaneLaunchRequested`, `PaneCloseRequested`).
     // THE AUTHORING PROMPT'S CONTEXT IS GONE. It held one line a maker typed a plan row's
     // role into, for two askers in turn -- the Files pane's recipe fields, then
     // `builder.load`'s role -- and both of those panes are weaves now, each with its own
@@ -45,14 +46,16 @@ enum class KeyContext : std::uint8_t {
     // way every pane does, under `kPane`, because a maker pressed into it.
     kContext,
     kPane,
-    kDraft,
+    // ⭐ `kDraft` IS GONE: the host's Pane Manager was the last inspector whose drafts were this
+    // host's, and Info's are its own weave's.
     // ⭐ `kEditor` IS GONE, AND SO IS `kNoEditor` BELOW. The source editor was the last
     // built-in that took text, and the one context whose existence a whole activity class
     // was defined against ("everywhere but the editor"). The Editor is a pane, so its keys
     // are its own `PaneActions` rows and reach it through `kPane` like every other pane's;
     // the document's save, which was "everywhere but the editor", is now "everywhere
     // nothing takes text" -- the class `workshop.quit` already had, for the same reason.
-    kPaneEditor,
+    // ⭐ `kPaneEditor` IS GONE WITH THE HOST'S PANE MANAGER. Its list is the desktop's Pane
+    // Manager, its subject and rows are Info's, and its order keys were the arrangement's all along.
     kArrangePane,
     kArrangeDesk,
     kArrangeReset,
@@ -74,8 +77,7 @@ enum class KeyContext : std::uint8_t {
 // WL-FOCUS-09 -- agents/workshop/focus.md
 // WL-KEY-03 -- agents/workshop/keyboard.md
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
-    return c == KeyContext::kNaming || c == KeyContext::kPaneNaming ||
-           c == KeyContext::kPane || c == KeyContext::kDraft;
+    return c == KeyContext::kNaming || c == KeyContext::kPane;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -174,7 +176,7 @@ enum class Act : std::uint8_t {
     // Builder's nine rows left for this reason one migration ago; these are the same nine
     // words about three keys.
     // ...and so did `[` and `]`, which refit the object canvas's workspace.
-    kPicker,
+    // ⚠ `kPicker` (`p`) WAS HERE, and retired with the picker it opened (`kRetiredActions`).
     kSetupSave,
     kSetupRestore,
     kLayoutNext,
@@ -193,31 +195,14 @@ enum class Act : std::uint8_t {
     // declares the same four ids as its own `PaneActionRow`s (`editor-pane/vocabulary.hpp`),
     // on the same gestures, so a maker's authored override moves with the spelling and what
     // this host compiles for them is nothing.
-    // -- the Pane Editor's keys -------------------------------------------------------
-    kPaneEditorUp,
-    kPaneEditorDown,
-    kPaneEditorChoose,
-    kPaneEditorSwitch,
-    kPaneEditorOpen,
-    kPaneEditorFront,
-    kPaneEditorBack,
-    kPaneEditorRaise,
-    kPaneEditorLower,
-    // -- the Pane Creator: a pane made inside the Pane Manager ------------------------
-    kPaneCreatorNew,
-    kPaneCreatorSave,
-    kPaneCreatorDiscard,
-    kPaneNamingCommit,
-    kPaneNamingCancel,
+    // ⚠ THE HOST PANE MANAGER'S NINE KEYS AND THE PANE CREATOR'S FIVE WERE HERE. The nine retired
+    // with it (`kRetiredActions`); the Creator's five are the desktop's Pane Manager's own rows now,
+    // under the ids they had here, so a maker's authored override still finds them.
     // ⚠ THE TERMINAL LINE'S FIVE CONTROLS WERE HERE (VD-24). `kTerminalSubmit`,
     // `kTerminalBack`, `kTerminalUp`, `kTerminalDown` and `kTerminalComplete` were an
     // overlay's mode keys; the pane declares the same five ids as its own `PaneActionRow`s,
     // so what a maker presses is unchanged and what this host compiles for it is nothing.
-    // -- the picker --------------------------------------------------------------------
-    kPickerUp,
-    kPickerDown,
-    kPickerChoose,
-    kPickerClose,
+    // ⚠ THE PICKER'S FOUR WERE HERE, and retired with it.
     // -- the authoring prompt (LOAD-IT) ------------------------------------------------
     // THE CURRENT-CONDITION VIEW'S FOUR ARE GONE. Three of them are the Attention pane's
     // own declared rows now, under the same ids (`attention-pane/vocabulary.hpp`), so a
@@ -226,9 +211,7 @@ enum class Act : std::uint8_t {
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
     kNamingCancel,
-    // -- a live property draft's controls ----------------------------------------------
-    kDraftCommit,
-    kDraftCancel,
+    // ⚠ `draft.commit` AND `draft.cancel` WERE HERE, and retired with the host's last draft.
     // -- arranging panes ---------------------------------------------------------------
     kManageNext,
     kManagePrevious,
@@ -302,7 +285,11 @@ inline constexpr ActionRow kActionCatalog[] = {
     // resizes (`shift+hjkl`), `object.next` (`Tab`) and `workspace.narrower/wider` (`[`, `]`) --
     // and retired with the canvas (`kRetiredActions`). Their keys are free in command mode.
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kCommand, {scan::kQ, mod::kNone}},
-    {Act::kPicker, "workshop.picker", "+ panel", KeyContext::kCommand, {scan::kP, mod::kNone}},
+    // ⚠ `workshop.picker` (`p`, "+ panel") WAS A ROW HERE and retired with the picker. Its two
+    // duties are the desktop's Pane Manager's rows over the host's launch and close doors, and a
+    // maker's row for it is kept and said at load (`kRetiredActions`) rather than read as
+    // `desktop.panes`: that row is a chord answered above every mode, and the picker's bare `p`
+    // moved onto it would meet the walls a row above every mode meets.
     // ⭐ THE NINE BUILD ROWS LEFT WITH THE BUILDER PANEL (VD-22). `b`, `B`, `P`, `R`, `o`,
     // `c`, `C`, `f` and `e` were command-mode rows: they acted on the Builder panel from
     // anywhere in Workshop, as long as one happened to be open. The Builder is a weave now
@@ -422,65 +409,16 @@ inline constexpr ActionRow kActionCatalog[] = {
     // standing, so that a quit refusal could name a gesture that worked there. That is
     // exactly the host-mapped route VD-22 refuses, and it retired with the rest: a maker
     // presses into the Editor and discards there, and the refusal says so.
-    // THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it
-    // is on, in the Files pane's own shape. `up`/`down` step whichever list the keys are
-    // in, `switch` moves them between the PANES list and the subject's rows, and `choose`
-    // is the one Return: on a pane row it makes that pane the SUBJECT, on an editable row
-    // it opens a draft. The four ORDER keys and `open` spend the arrangement's and the
-    // picker's own doors on the subject -- the letters are the arrangement scope's, so a
-    // maker who learned `f` there does not learn a second word here. None of these takes
-    // text: the draft a row opens is `kDraft`'s, exactly as the Info panel's is.
-    {Act::kPaneEditorUp, "pane-editor.up", "row up", KeyContext::kPaneEditor,
-     {scan::kUp, mod::kNone}},
-    {Act::kPaneEditorDown, "pane-editor.down", "row down", KeyContext::kPaneEditor,
-     {scan::kDown, mod::kNone}},
-    {Act::kPaneEditorChoose, "pane-editor.choose", "subject or edit", KeyContext::kPaneEditor,
-     {scan::kReturn, mod::kNone}},
-    {Act::kPaneEditorSwitch, "pane-editor.switch", "panes / rows", KeyContext::kPaneEditor,
-     {scan::kTab, mod::kNone}},
-    {Act::kPaneEditorOpen, "pane-editor.open", "open or remove", KeyContext::kPaneEditor,
-     {scan::kO, mod::kNone}},
-    {Act::kPaneEditorFront, "pane-editor.front", "front", KeyContext::kPaneEditor,
-     {scan::kF, mod::kNone}},
-    {Act::kPaneEditorBack, "pane-editor.back", "back", KeyContext::kPaneEditor,
-     {scan::kB, mod::kNone}},
-    {Act::kPaneEditorRaise, "pane-editor.raise", "raise", KeyContext::kPaneEditor,
-     {scan::kR, mod::kNone}},
-    {Act::kPaneEditorLower, "pane-editor.lower", "lower", KeyContext::kPaneEditor,
-     {scan::kL, mod::kNone}},
-    // THE PANE CREATOR'S KEYS, inside the Pane Manager: `new` opens the name prompt for a
-    // pane made of authored data; `save` writes the open definition to its project file;
-    // `discard` puts it back to what that file holds -- the source editor's own pair, and
-    // the two doors the quit refusal names. The identities carry the creator's own word
-    // because they are the creator's acts and not the manager's; the letters are the ones
-    // this context had free, and `s` says "save" here exactly as it does in command mode.
-    // The discard chord is a plain ctrl+letter for the editor's reason: the POSIX wire
-    // cannot say ctrl+shift+letter at all.
-    {Act::kPaneCreatorNew, "pane-creator.new", "new pane", KeyContext::kPaneEditor,
-     {scan::kN, mod::kNone}},
-    {Act::kPaneCreatorSave, "pane-creator.save", "save pane", KeyContext::kPaneEditor,
-     {scan::kS, mod::kNone}},
-    {Act::kPaneCreatorDiscard, "pane-creator.discard", "discard pane edits",
-     KeyContext::kPaneEditor, {scan::kD, mod::kCtrl}},
-    // ...and the name prompt's own two keys, in its own context, so the legend over a
-    // pane being named says what the keys do there.
-    {Act::kPaneNamingCommit, "pane-creator.name", "make the pane", KeyContext::kPaneNaming,
-     {scan::kReturn, mod::kNone}},
-    {Act::kPaneNamingCancel, "pane-creator.cancel", "cancel", KeyContext::kPaneNaming,
-     {scan::kEscape, mod::kNone}},
+    // ⚠ THE HOST PANE MANAGER'S ROWS WERE HERE -- its list's `up`/`down`/`choose`/`switch`, `o`
+    // (open or remove) and the four order keys -- and retired with it. The Pane Creator's `n`,
+    // `s`, `ctrl+d` and its name prompt's Return and Escape are the desktop's Pane Manager's own
+    // rows now (`desktop-pane/vocabulary.hpp`), under the same ids.
     // ⚠ THE TERMINAL'S FIVE ROWS WERE HERE. `terminal.submit`, `terminal.complete`,
     // `terminal.previous`, `terminal.next` and `terminal.back` are the pane's own
     // `PaneActionRow`s now, in the pane's namespace and on the same five gestures
     // (`terminal-pane/vocabulary.hpp`); a maker's authored override moves with the spelling,
     // which is why the ids did not change.
-    // -- the picker --------------------------------------------------------------------
-    {Act::kPickerUp, "picker.up", "row up", KeyContext::kPicker, {scan::kUp, mod::kNone}},
-    {Act::kPickerDown, "picker.down", "row down", KeyContext::kPicker,
-     {scan::kDown, mod::kNone}},
-    {Act::kPickerChoose, "picker.choose", "open or remove", KeyContext::kPicker,
-     {scan::kReturn, mod::kNone}},
-    {Act::kPickerClose, "picker.close", "cancel", KeyContext::kPicker,
-     {scan::kEscape, mod::kNone}},
+    // ⚠ THE PICKER'S FOUR ROWS WERE HERE, and retired with it.
     // THE AUTHORING PROMPT'S TWO KEYS LEFT WITH ITS CONTEXT (LOAD-IT). It was a modal of
     // this host's -- one line a maker typed a plan row's role into, in a keyboard context
     // of Workshop's own -- and it served the Files pane too until that browser took its own
@@ -502,11 +440,8 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kNamingCancel, "naming.cancel", "cancel", KeyContext::kNaming,
      {scan::kEscape, mod::kNone}},
-    // -- a live property draft's controls ----------------------------------------------
-    {Act::kDraftCommit, "draft.commit", "commit", KeyContext::kDraft,
-     {scan::kReturn, mod::kNone}},
-    {Act::kDraftCancel, "draft.cancel", "cancel", KeyContext::kDraft,
-     {scan::kEscape, mod::kNone}},
+    // ⚠ A LIVE PROPERTY DRAFT'S TWO ROWS WERE HERE (`draft.commit`, `draft.cancel`) and retired
+    // with the host's Pane Manager, the last inspector whose drafts were this host's.
     // -- arranging panes ---------------------------------------------------------------
     //
     // ONE VOCABULARY, TWO SCOPES. Moving and resizing a pane are one maker intent --
@@ -1369,17 +1304,49 @@ inline const char* renamed_to(std::string_view was) noexcept {
 // WL-KEY-06 -- agents/workshop/keyboard.md
 struct RetiredAction {
     const char* id;
-    const char* with; ///< what retired and took the action with it, in a maker's words
+    const char* with;    ///< what retired and took the action with it, in a maker's words
+    const char* instead; ///< what a maker reaches for now, or empty when nothing took its place
 };
+/// WHERE THE PICKER'S AND THE HOST PANE MANAGER'S ACTS WENT, said once each for the rows below.
+inline constexpr const char* kToPaneManager =
+    "the desktop's Pane Manager (`desktop.panes`) opens and closes panes";
+inline constexpr const char* kToPaneManagerAndInfo =
+    "the desktop's Pane Manager (`desktop.panes`) opens and closes panes; Info inspects one";
+inline constexpr const char* kToArranging = "arranging a pane (`workshop.manage`) orders it";
+inline constexpr const char* kToInfoRows = "Info's own rows commit and cancel its edits";
+
 inline constexpr RetiredAction kRetiredActions[] = {
-    {"document.save", "the object document"}, {"document.open", "the object document"},
-    {"object.new", "the object canvas"},      {"object.delete", "the object canvas"},
-    {"object.left", "the object canvas"},     {"object.down", "the object canvas"},
-    {"object.up", "the object canvas"},       {"object.right", "the object canvas"},
-    {"object.narrower", "the object canvas"}, {"object.taller", "the object canvas"},
-    {"object.shorter", "the object canvas"},  {"object.wider", "the object canvas"},
-    {"object.next", "the object canvas"},     {"workspace.narrower", "the object canvas"},
-    {"workspace.wider", "the object canvas"},
+    {"document.save", "the object document", ""},
+    {"document.open", "the object document", ""},
+    {"object.new", "the object canvas", ""},
+    {"object.delete", "the object canvas", ""},
+    {"object.left", "the object canvas", ""},
+    {"object.down", "the object canvas", ""},
+    {"object.up", "the object canvas", ""},
+    {"object.right", "the object canvas", ""},
+    {"object.narrower", "the object canvas", ""},
+    {"object.taller", "the object canvas", ""},
+    {"object.shorter", "the object canvas", ""},
+    {"object.wider", "the object canvas", ""},
+    {"object.next", "the object canvas", ""},
+    {"workspace.narrower", "the object canvas", ""},
+    {"workspace.wider", "the object canvas", ""},
+    {"workshop.picker", "the `p` picker", kToPaneManager},
+    {"picker.up", "the `p` picker", kToPaneManager},
+    {"picker.down", "the `p` picker", kToPaneManager},
+    {"picker.choose", "the `p` picker", kToPaneManager},
+    {"picker.close", "the `p` picker", kToPaneManager},
+    {"pane-editor.up", "the host's Pane Manager", kToPaneManagerAndInfo},
+    {"pane-editor.down", "the host's Pane Manager", kToPaneManagerAndInfo},
+    {"pane-editor.choose", "the host's Pane Manager", kToPaneManagerAndInfo},
+    {"pane-editor.switch", "the host's Pane Manager", kToPaneManagerAndInfo},
+    {"pane-editor.open", "the host's Pane Manager", kToPaneManagerAndInfo},
+    {"pane-editor.front", "the host's Pane Manager", kToArranging},
+    {"pane-editor.back", "the host's Pane Manager", kToArranging},
+    {"pane-editor.raise", "the host's Pane Manager", kToArranging},
+    {"pane-editor.lower", "the host's Pane Manager", kToArranging},
+    {"draft.commit", "the host's Pane Manager", kToInfoRows},
+    {"draft.cancel", "the host's Pane Manager", kToInfoRows},
 };
 
 /// What retired with `id`, or nullptr when it is not a retired Workshop action.
@@ -1387,6 +1354,16 @@ inline const char* retired_with(std::string_view id) noexcept {
     for (const RetiredAction& r : kRetiredActions) {
         if (id == r.id) {
             return r.with;
+        }
+    }
+    return nullptr;
+}
+
+/// ...AND WHAT A MAKER REACHES FOR NOW, or nullptr for an id that is not retired.
+inline const char* retired_instead(std::string_view id) noexcept {
+    for (const RetiredAction& r : kRetiredActions) {
+        if (id == r.id) {
+            return r.instead;
         }
     }
     return nullptr;

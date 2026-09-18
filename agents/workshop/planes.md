@@ -5,11 +5,11 @@ One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-FRONT-01 — The plane sequence is the layout of the screen
 
-LAW — The canvas is published in one depth order: the workspace, one plane per pane in `effective_pane_order` ascending, the affordances, the picker and overlays, the foot band.
+LAW — The canvas is published in one depth order: the workspace, one plane per pane in `effective_pane_order` ascending, the affordances, the overlays, the foot band.
 
 MEANS
 - an overlapping pane is painted where it is hit, in both front orders;
-- a provider's text cannot bury the picker that recovers it;
+- a provider's text cannot bury the contextual surface drawn over it;
 - nothing outranks a pane any more: the last plane after every pane was the Terminal's.
 
 PROVEN BY — `workshop/screen_compose.cpp` `paint`, `paint_panels`, `band_region`;

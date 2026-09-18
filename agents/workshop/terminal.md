@@ -12,7 +12,7 @@ and its keys — is the Terminal pane's, not this host's; the caret it publishes
 LAW — The Terminal is a loaded weave offered by `zengine.terminal`, arranged like any other pane; no key, chord or contextual row of this host's opens it or acts on it.
 
 MEANS
-- a maker opens it from the picker and reaches its keys by pressing into it (VD-22);
+- a maker opens it from the Pane Manager and reaches its keys by pressing into it (VD-22);
 - its five action ids and gestures are the retired mode's, so an override moves with it;
 - it wears a pane's boundary, so what it covers it covers legibly.
 

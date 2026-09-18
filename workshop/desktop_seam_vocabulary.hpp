@@ -180,6 +180,47 @@ struct PaneCloseAnswered {
               ZEN_FIELD(refusal));
 };
 
+// ---- The maker's own pane, through the host's doors ------------------------------------------
+
+/// THE PANE CREATOR'S THREE ACTS ON THE ONE OPEN DEFINITION (WL-MAKER-08): make a pane under a
+/// name and put it on the desk, write the open definition to its pane file, or put it back to
+/// what that file holds.
+namespace maker_pane_act {
+inline constexpr std::int64_t kCreate = 1;
+inline constexpr std::int64_t kSave = 2;
+inline constexpr std::int64_t kDiscard = 3;
+} // namespace maker_pane_act
+
+/// THE ACTION IDS A PRESENTER OF THE CREATOR DECLARES FOR THE THREE, spelled here because two
+/// parties say them: the presenter declares them as its own rows, and the host names their keys
+/// in the sentences it says about the maker's pane (a quit it refuses, a save with no pane). They
+/// are the ids the host's Pane Manager declared, so a maker's authored override still finds them.
+inline constexpr const char* kCreatorNewId = "pane-creator.new";
+inline constexpr const char* kCreatorSaveId = "pane-creator.save";
+inline constexpr const char* kCreatorDiscardId = "pane-creator.discard";
+/// ...AND THE NAME LINE'S TWO, which the presenter declares while a name is being typed.
+inline constexpr const char* kCreatorNameId = "pane-creator.name";
+inline constexpr const char* kCreatorCancelId = "pane-creator.cancel";
+
+/// ASK THE HOST FOR ONE OF THE CREATOR'S ACTS. `name` is read for `kCreate` and ignored otherwise.
+///
+/// ⚠ THE DEFINITION IS THE HOST'S, AND SO IS EVERY REFUSAL. A presenter holds the line a name is
+/// typed into and the keys; the host holds the one open definition, judges the name, refuses a
+/// new pane over unsaved edits and a save with no file, and says what it did in its own words.
+struct MakerPaneRequested {
+    std::int64_t act = 0;
+    std::string name;
+    ZEN_SHAPE(MakerPaneRequested, 1, ZEN_FIELD(act), ZEN_FIELD(name));
+};
+
+/// WHAT THE ACT CAME TO -- addressed back to whoever asked, in the sentence the band says.
+struct MakerPaneAnswered {
+    std::int64_t act = 0;
+    bool accepted = false; ///< the host did what was asked (a discard with nothing to discard too)
+    std::string said;      ///< the host's own sentence: what was done, or why not
+    ZEN_SHAPE(MakerPaneAnswered, 1, ZEN_FIELD(act), ZEN_FIELD(accepted), ZEN_FIELD(said));
+};
+
 /// PUT DOWN WHATEVER THE MAKER HAS PICKED UP -- the host operation the shipped desktop asks for
 /// when its Escape row is requested, and the first member of the "ask the host to do the
 /// application-default thing" family.

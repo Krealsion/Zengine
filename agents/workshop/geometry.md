@@ -61,7 +61,7 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 LAW — Presentations may overlap; every overlap this composition makes is measured exactly, and none of them may leave the room.
 
 MEANS
-- the picker over a slot, a pane over the workspace, a pane over another pane;
+- a pane over the workspace, a pane over another pane (the picker over a slot, while it was);
 - the stack's slot reaching into the right column, counted at every extent.
 
 DOES NOT MEAN
@@ -69,8 +69,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`, `kMinSide`;
 `tests/test_workshop_screen.cpp` case `"HD-10 is over: a pane over a pane, and the boundary is
-what makes it legible"`, case `"the picker occupies the slot it opens over, and answers for it
-while it is there"`.
+what makes it legible"`, case `"WIND-2a: an overlapping pane is painted where it is hit, in both
+front orders"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric

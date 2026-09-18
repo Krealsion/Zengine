@@ -37,17 +37,20 @@ namespace zengine::desktop_pane {
 /// role to ask for a declared row -- and a suite pins the two spellings against each other.
 inline constexpr const char* kDesktopRole = "zengine.desktop";
 
-/// THE ONE PANE THIS WEAVE OFFERS: the launcher. Every pane this Workshop knows about, whether
-/// it is open, and whether anything is offering it -- and Return on a row launches it.
+/// THE PANE MANAGER: every pane this Workshop knows about, whether it is open, and whether anything
+/// is offering it -- Return on a row opens or focuses it, `x` closes it, and `n` makes a pane of
+/// the maker's own through the Pane Creator (`s` saves it, `ctrl+d` puts it back).
 ///
-/// (*) IT REPLACES THE `p` PICKER OVERLAY, and the difference is not cosmetic. The picker was a
-/// MODE the host owned: it took the keyboard whole, it toggled participation (pressing a row
-/// for an open pane removed it), and nothing could replace it. This is a pane: it is arranged
-/// on the desk like any other, it holds the keys only while a maker has pressed into it, and
-/// what its Return means is this weave's to change.
+/// (*) IT REPLACES THE `p` PICKER AND THE HOST'S OWN PANE MANAGER, and the difference is not
+/// cosmetic. The picker was a MODE the host owned: it took the keyboard whole, it toggled
+/// participation (pressing a row for an open pane removed it), and nothing could replace it. The
+/// host's manager was a built-in that also inspected; inspecting is Info's now. This is a pane:
+/// arranged on the desk like any other, holding the keys only while a maker has pressed into it,
+/// and what its keys mean is this weave's to change. Its durable key is still `launcher`, the
+/// name the first desks that held it wrote; a desk naming the host's `pane-editor` is read as it.
 inline constexpr const char* kLauncherPane = "launcher";
-inline constexpr const char* kLauncherName = "Panes";
-inline constexpr const char* kLauncherSummary = "open or focus a tool";
+inline constexpr const char* kLauncherName = "Pane Manager";
+inline constexpr const char* kLauncherSummary = "open, focus or close a pane, and make one";
 
 /// THE SECOND PANE: every key in force, where it answers, and how a maker moves one. It replaces
 /// the host's key-list overlay, and it keeps no catalog: every row is the host's `KeymapShown`.

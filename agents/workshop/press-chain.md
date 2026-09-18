@@ -15,13 +15,12 @@ DOES NOT MEAN
 - that a `Disposition`, `InteractionResult` or target enum is wanted on the routing path.
 
 MEANS
-- ⭐ Info's and the Editor's arms are gone; a pane's press says whether it named a row.
+- ⭐ every built-in's arm is gone; a pane's press says whether it named a row.
 
-PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`;
-`workshop/weave_external.cpp` `external_press`; `workshop/weave_pane_editor.cpp`
-`pane_editor_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets
-first refusal, and a mode takes the press whole"`; `tests/test_workshop_screen.cpp` case `"a
-press that lands on a panel begins nothing, so a hand that leaves it drags nothing"`.
+PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`; `workshop/weave_external.cpp`
+`external_press`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: management chrome gets first
+refusal, and a mode takes the press whole"`; `tests/test_workshop_screen.cpp` case `"a press that
+lands on a panel begins nothing, so a hand that leaves it drags nothing"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-02 — A bool that is not the chain's is not unified with it
@@ -42,16 +41,15 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 LAW — A resolved owner's inverse is asked once per press, beside the canvas point, and answers where it landed in that pane's body — never what it means; a decline changes nothing, so holding it is sound.
 
 MEANS
-- ⭐ this law was `info_body_at`'s; `pane_editor_at` is the built-in that owns one now;
+- ⭐ this law was `info_body_at`'s, then `pane_editor_at`'s; every inverse left is a pane's;
 - an external pane's is asked before the press writes the keyboard, which moves a hidden title.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `pane_editor_at`, `pane_editor_body`;
-`workshop/screen.hpp` `PaneEditorAt`, `PaneEditorAt::present`, `ProseAt`;
-`workshop/screen_external.cpp` `external_press_at`; `workshop/weave_pointer.cpp`
-`on(PointerButton)`; `tests/test_workshop_panes_input.cpp` case `"SEL-0: a press in the body
-names the row under the header, in both media"`; `tests/test_workshop_panes_files.cpp` case
-`"with pane titles hidden, a first press on the row painted gamma selects gamma once every
-delivery it caused has settled, and a later press opens gamma"`.
+PROVEN BY — `workshop/screen.hpp` `ProseAt`; `workshop/screen_external.cpp` `external_press_at`;
+`workshop/weave_pointer.cpp` `on(PointerButton)`; `tests/test_workshop_panes_input.cpp` case
+`"SEL-0: a press in the body names the row under the header, in both media"`;
+`tests/test_workshop_panes_files.cpp` case `"with pane titles hidden, a first press on the row
+painted gamma selects gamma once every delivery it caused has settled, and a later press opens
+gamma"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy

@@ -1067,9 +1067,8 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panel
     return out;
 }
 
-/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one
-/// inventory, and the population both the picker and pane management spend.
-// WL-PED-03, WL-PED-04 -- agents/workshop/pane-manager.md
+/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
+/// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
     std::vector<CatalogRow> rows = combined_catalog(panels);

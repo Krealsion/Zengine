@@ -341,6 +341,7 @@ class WorkshopWeave
                                           zengine::workshop::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
                                           zengine::workshop::PaneCloseRequested,
+                                          zengine::workshop::MakerPaneRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
@@ -375,6 +376,7 @@ class WorkshopWeave
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneCloseAnswered,
+                                        zengine::workshop::MakerPaneAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
                                         zengine::workshop::PaneQuitRequested,
@@ -632,6 +634,10 @@ public:
     /// TAKE THIS PANE OFF THE DESK, AND UNLOAD NOTHING. Its row leaves the live desk through the
     /// setup's own door; its provider and everything it holds are untouched. Answered either way.
     void on(const PaneCloseRequested& asked, loom::Mail& mail);
+
+    /// ONE OF THE PANE CREATOR'S THREE ACTS, asked by the office presenting them: make, save or
+    /// discard, through the doors below, answered with the sentence the band says.
+    void on(const MakerPaneRequested& asked, loom::Mail& mail);
 
     /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
     /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
@@ -908,13 +914,9 @@ private:
     /// band cannot spell one binding two ways.
     std::string hotkey(Act a) const;
 
-    /// THE PANE EDITOR'S LIVE DRAFT, if any -- asked by its own name where the
-    /// caller already knows which inspector it is standing in.
-    Row* pane_editor_editing_row();
-
-    /// THE DRAFT UNDER THE KEYS.
-    Row* editing_row();
-
+    // ⭐ `editing_row` AND `pane_editor_editing_row` WERE HERE -- the property draft under the
+    // keys, which the host's Pane Manager was the last to open. Every draft a maker types into a
+    // property is an inspector's own now, in its own image.
 
     /// Which of this weave's own editable places a consumed paste request came from
     /// `kNone` for every armless branch.
@@ -922,12 +924,12 @@ private:
     /// ⚠ `kTerminal` IS GONE (VD-24), AND `kEditor` WENT THE SAME WAY (VD-25). A pane asks
     /// the Skin for the clipboard itself -- `surface::ClipboardTextRequested`, the same
     /// conversation this host opens for its own drafts -- so a line stops being one of the
-    /// boxes this host pastes into on the day it stops being this host's box. The two that
-    /// are left are the two this host still holds.
-    enum class PasteOwner : std::uint8_t { kNone, kNaming, kDraft };
+    /// boxes this host pastes into on the day it stops being this host's box. The one left is
+    /// the one this host still holds: the layout name. (`kDraft` left with the host's Pane
+    /// Manager, and the Pane Creator's name line with it, into the desktop's pane.)
+    enum class PasteOwner : std::uint8_t { kNone, kNaming };
 
-    /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's or the Pane
-    /// Creator's.
+    /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's.
     component::TextBox* naming_line();
 
     /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? A projection of the one
@@ -942,7 +944,6 @@ private:
         std::uint64_t ask = 0;
         PasteOwner owner = PasteOwner::kNone;
         std::uint64_t epoch = 0;
-        std::string label;
     };
 
     /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR.
@@ -953,20 +954,8 @@ private:
     /// (`owner == kNone`), which every consumer already treats as "nothing to do".
     PendingPaste take_pending_paste(std::uint64_t ask);
 
-    /// Editing mode, KEY half: the three keys that are editor CONTROLS rather
-    /// than text.
-    void editing_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
+    // (`press_selects_word` WAS HERE, and left with its last caller: `weave_seam.cpp`.)
 
-    /// THE ONE PLACE THE PROPERTY DRAFT'S HORIZONTAL WINDOW IS RECONCILED.
-    void refresh_inspector();
-
-    /// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK, AND IF SO SELECT THE WORD.
-    bool press_selects_word(std::int64_t modifiers, std::int64_t place,
-                            component::TextBox& box, std::size_t at);
-
-    /// The same question for a property row, which keeps its draft behind its own invariant
-    /// -- so the mutation goes through `Row`'s door and the reading through `editor()`.
-    bool press_selects_word(std::int64_t modifiers, Row& row, std::size_t at);
 
     // ⭐ `info_press`, `actions_press` AND `objects_press` LEFT WITH THE INFO PANEL. They were
     // the panel's three inverses -- a press in the live draft, a press on a control, a press on
@@ -996,35 +985,9 @@ private:
     /// Command mode.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
-    // ---- The dynamic panels --------------------------------------------------
-
-    /// THE PICKER'S POPULATION — the shared recovery inventory, and there is exactly one of
-    /// it.
-    std::vector<CatalogRow> picker_population() const;
-
-    /// Open the `+ panel` picker.
-    void open_picker();
-
-    /// STEP THE PICKER'S CURSOR, BOUNDED BY THE PAINTED POPULATION.
-    void picker_move(std::int64_t by);
-
-    /// THE WHEEL OVER THE PICKER MOVES ITS CURSOR.
-    void picker_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail);
-
-    /// The picker's keys. Escape and `p` both close it: the key that opened it
-    /// closes it, the terminal overlay's rule, and Escape closes it too because
-    /// a maker who has changed their mind should not have to remember which of
-    /// the two ways out this particular thing has.
-    void picker_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// OPEN THE KIND THE CURSOR IS ON, OR REMOVE IT. The picker is the one owner
-    /// of panel presence, and this is the whole of that ownership.
-    void choose_panel(loom::Mail& mail);
-
-    /// OPEN A CLOSED PANE, OR REMOVE AN OPEN ONE -- the picker's own two cases, as the ONE
-    /// membership door two consumers spend.
-    void toggle_participation(const CatalogRow& chosen, const std::string& again,
-                              loom::Mail& mail);
+    // ⭐ THE `+ panel` PICKER'S SECTION WAS HERE -- its population, cursor, wheel, keys and the
+    // participation toggle two consumers spent. Launching and closing are the desktop's rows over
+    // `launch_pane` and `close_pane`, which never toggle.
 
     // ---- The setup: name it, save it, restore it ------------------------------
 
@@ -1199,80 +1162,35 @@ private:
     /// of what the top band's two global pointer arms became.
     bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail);
 
-    // ---- THE PANE EDITOR: a pane as a subject ------------------------------------------------
-
-    /// A FRESH VIEW OF THE SUBJECT, TAKEN AT A GESTURE.
-    void repair_pane_editor_subject();
-
-    /// MAKE THIS PANE THE PANE EDITOR'S SUBJECT -- the one writer of `PaneEditor::subject`.
-    void choose_subject(const PaneRef& ref);
-
-    /// STEP THE CURSOR OF WHICHEVER LIST THE KEYS ARE IN, bounded, and over a section
-    /// heading without stopping on it -- a heading is a boundary, not a row a maker edits.
-    void pane_editor_move(std::int64_t by);
-
-    /// STEP ONE OF THE TWO LISTS' CURSORS -- the subject's rows (`rows`) or the PANES list
-    /// -- by one, bounded.
-    void pane_editor_move_in(bool rows, std::int64_t by);
-
-    /// THE WHEEL OVER THE PANE EDITOR MOVES THE LIST UNDER THE POINTER.
-    void pane_editor_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail);
-
-    /// MOVE THE KEYS BETWEEN THE PANES LIST AND THE SUBJECT'S ROWS.
-    void pane_editor_switch();
-
-    /// THE ONE RETURN: on the PANES list it chooses the subject; on the rows it opens a
-    /// draft, or says why the row under the cursor is not the maker's to author (the Info
-    /// panel's `begin_edit` sentence, one inspector over).
-    void pane_editor_choose();
-
-    /// OPEN THE SUBJECT IF IT IS CLOSED, REMOVE IT IF IT IS OPEN -- through the picker's own
-    /// door, on the row the picker itself would act on.
-    void pane_editor_toggle(loom::Mail& mail);
-
-    /// THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it is on.
-    void pane_editor_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
+    // ⭐ THE HOST PANE MANAGER'S SECTION WAS HERE -- its subject, its two lists, their cursors,
+    // wheel and keys, its participation toggle and its presses. Its subject and rows are the
+    // inspection seam's (below, and `weave_inspection.cpp`); its list is the desktop's pane.
 
     // ---- THE PANE CREATOR: a pane made of authored data ---------------------------------------
 
-    /// REBUILD THE PANE MANAGER'S SUBJECT ROWS WITHOUT CHANGING THE SUBJECT.
-    void rebuild_subject_rows();
+    /// THE GESTURE A DECLARED PANE ROW ANSWERS TO NOW, by its id, from the effective keymap's
+    /// joined pane rows -- empty when no pane has declared it, or it answers to no key -- and,
+    /// when asked, the name of the pane that declared it.
+    std::string pane_row_hotkey(const std::string& id, std::string* pane_name) const;
 
-    /// The sentence a dirty definition refuses with, naming the two ways out where the maker
-    /// is standing. One spelling, spent by the open door, the naming door and the quit guard.
+    /// The sentence a dirty definition refuses with, naming the two ways out in the pane that
+    /// presents them. One spelling, spent by the open door, the make door and the quit guard.
     std::string maker_pane_dirty_sentence(const char* consequence) const;
 
     /// THE ONE OPEN DOOR: a pane-definition file becomes the run's open definition, or
     /// nothing moves.
     void open_maker_pane(const std::string& requested, loom::Mail& mail);
 
-    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act.
+    /// MAKE A PANE FROM A NAME -- the Pane Creator's own act. True when it was made.
     bool new_maker_pane(const std::string& name, loom::Mail& mail);
 
-    /// OPEN THE PANE CREATOR'S NAME PROMPT -- `n` inside the Pane Manager. A dirty
-    /// definition is refused HERE, before a name is typed, so a maker is not asked for a
-    /// word they cannot use. The trigger's own character is swallowed by the binding.
-    void open_pane_naming();
-
-    /// The name prompt's keys: the line's own vocabulary first, then make or cancel.
-    void pane_naming_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// Close the prompt whole, so a later open cannot inherit a stale draft.
-    void close_pane_naming();
-
     /// WRITE THE OPEN DEFINITION TO ITS FILE -- the one save door, through the family's
-    /// safe write.
-    void save_maker_pane();
+    /// safe write. True when it was written.
+    bool save_maker_pane();
 
-    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds.
-    void discard_maker_pane_edits(loom::Mail& mail);
-
-    /// KEEP THE NAME PROMPT'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- `refresh_setup_name`
-    /// for the Pane Creator's line, against the Pane Manager's own heading columns.
-    void refresh_pane_name();
-
-    /// A PRESS INSIDE THE PANE EDITOR'S BODY.
-    void pane_editor_press(const zengine::input::PointerButton& b, std::int64_t modifiers);
+    /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds. True
+    /// unless there was no definition to put back.
+    bool discard_maker_pane_edits(loom::Mail& mail);
 
     // ⭐ `open_source`, `ensure_editor_pane`, `save_source` AND `discard_source_edits` LEFT
     // WITH THE EDITOR. The one door into the document is the Editor weave's own
@@ -1441,10 +1359,6 @@ private:
     static constexpr const char* kNoPaneFile =
         "no pane file -- start Workshop with --pane <path>";
 
-
-    /// What to say to a gesture that would have changed the document or the
-    /// selection out from under a live property draft.
-    std::string finish_draft_first() const;
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
     /// a schema version is 32, so a wider number is REFUSED rather than

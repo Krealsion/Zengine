@@ -180,7 +180,7 @@ add_library(zengine-workshop-logic STATIC
     screen_hotkeys.cpp
     screen_info.cpp
     screen_layouts.cpp
-    screen_pane_editor.cpp
+    screen_pane_subject.cpp
     screen_pane_state.cpp
     screen_reveal.cpp
     screen_terminal.cpp
@@ -189,8 +189,8 @@ add_library(zengine-workshop-logic STATIC
     weave_document.cpp
     weave_external.cpp
     weave_handlers.cpp
-    weave_pane_editor.cpp
-    weave_panels.cpp
+    weave_inspection.cpp
+    weave_maker.cpp
     weave_pointer.cpp
     weave_run.cpp
     weave_seam.cpp

@@ -180,7 +180,6 @@ public:
     std::string display() const { return editing_ ? draft_.text() : read_(); }
 
     /// Start editing from the current committed value, WITH THE CARET AT ITS END.
-    // WL-PED-04 -- agents/workshop/pane-manager.md
     void begin() {
         if (!editable_ || editing_) {
             return;

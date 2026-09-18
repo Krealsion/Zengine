@@ -23,4 +23,5 @@ endif()
 zengine_weave(zengine-desktop-pane pane.cpp)
 target_link_libraries(zengine-desktop-pane PRIVATE zengine-workshop-vocabulary
                                                    zengine-input-vocabulary
-                                                   zengine-activation)
+                                                   zengine-activation
+                                                   zengine-component)
