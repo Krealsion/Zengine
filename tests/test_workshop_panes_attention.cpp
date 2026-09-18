@@ -161,7 +161,7 @@ TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its ow
     CHECK(is_runtime_kind(f.kind));
     CHECK(std::string(f.row()->name) == pane::kAttentionPaneName);
 
-    // ...AND THE PICKER LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
+    // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
     // to "whose pane is this" (WL-CAT-03) -- and is the first time in this application's
     // life that the current-condition view has been a thing a maker could CHOOSE.
     bool listed = false;

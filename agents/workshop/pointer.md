@@ -7,7 +7,7 @@ Router: [`../workshop.md`](../workshop.md).
 
 ## WL-PTR-01 — Two presses are one gesture, and time is an argument
 
-LAW — A double-click is Workshop's own interpretation: `doubles_a_click` is pure and total — armed, same line, same draft, same word, within `kDoubleClickMs` — and time is its argument.
+LAW — A double-click is Workshop's own interpretation: `doubles_a_tab_click` is pure and total — armed, same tab, within `kDoubleClickMs` — and time is its argument.
 
 MEANS
 - `input::PointerButton` carries no click count or timestamp on either backend;
@@ -15,10 +15,10 @@ MEANS
 - the interval is a product constant, not a preference: one gesture means one thing everywhere.
 
 PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/screen.hpp`
-`kDoubleClickMs`, `ClickMemory`, `Session::click`; `workshop/screen_arrange.cpp`
-`doubles_a_click`; `workshop/weave.hpp` `HostContext::interaction_now`;
-`tests/test_workshop_screen.cpp` case `"WUX-7: what makes two presses one double-click, and what
-does not"`.
+`kDoubleClickMs`, `TabClickMemory`, `Session::tab_click`; `workshop/screen_arrange.cpp`
+`doubles_a_tab_click`; `workshop/weave.hpp` `HostContext::interaction_now`;
+`tests/test_workshop_screen.cpp` case `"WUX-7: what makes two presses on a tab one double-click,
+and what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — RETIRED: one word-selecting press served every editable line the host held

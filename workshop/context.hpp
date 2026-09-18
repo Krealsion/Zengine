@@ -37,7 +37,7 @@ inline constexpr std::int64_t kOnRoot = context_bit(context_subject::kRoot);
 inline constexpr std::int64_t kOnPane = context_bit(context_subject::kPane);
 inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
 
-/// THE SURFACE'S OWN STATE -- a mode in the picker's family: open, a captured subject,
+/// THE SURFACE'S OWN STATE -- a mode, as the picker was: open, a captured subject,
 /// which group level is showing, and a cursor.
 // WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
 struct ContextMenu {

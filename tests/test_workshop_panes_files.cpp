@@ -559,7 +559,7 @@ TEST_CASE("FILES-WEAVE: the browser arrives by a plan row, under an office of it
     REQUIRE(f.row() != nullptr);
     CHECK(is_runtime_kind(f.kind));
     CHECK(std::string(f.row()->name) == files::kProjectFilesName);
-    // ...AND THE PICKER LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only
+    // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only
     // answer to "whose pane is this" (WL-CAT-03).
     bool listed = false;
     for (const CatalogRow& row : combined_catalog(f.r.session().panels)) {

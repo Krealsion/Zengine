@@ -103,8 +103,7 @@ LAW — `share_body_rows` is max-min fair: each list gets what it needs, spare s
 MEANS
 - growing the pane never shrinks either list.
 
-PROVEN BY — `info-pane/pane.cpp` `share_body_rows`, `BodyShare`; `workshop/screen_info.cpp`
-`share_body_rows`; `workshop/screen.hpp` `BodyShare`, `list_demand`;
+PROVEN BY — `info-pane/pane.cpp` `share_body_rows`, `BodyShare`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot show, it counts -- on
 the side it left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`

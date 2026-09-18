@@ -98,12 +98,6 @@ Property<std::int64_t> height_of(Probe& p) {
                                   [&p](std::int64_t v) { return probe_extent(p.height, v); });
 }
 
-void clear_draft(Row& row) {
-    while (!row.draft().empty()) {
-        row.backspace();
-    }
-}
-
 } // namespace
 
 TEST_CASE("a property reads the current typed value through the semantic surface") {
@@ -124,142 +118,80 @@ TEST_CASE("a property reads the current typed value through the semantic surface
 }
 
 TEST_CASE("a successful commit writes through the semantic setter") {
+    // ⭐ EVERY COMMIT IS OF FINISHED TEXT NOW. A row held a draft of its own -- a `TextBox` with a
+    // caret -- until the last line on this side that drafted a property retired; the line a maker
+    // types into is an inspector's own (Info's), and what reaches the row is the text it sent.
     Probe p;
     Row row = Row::edit("Width", width_of(p));
-    row.begin();
-    CHECK(row.editing());
-    CHECK(row.draft() == "60");
-
-    // The draft alone changes nothing.
-    type_all(row, "x");
-    CHECK(p.width == 60);
-
-    row.cancel();
-    row.begin();
-    clear_draft(row);
-    type_all(row, "24");
-    CHECK(p.width == 60); // still nothing
-
-    CHECK(row.commit() == Commit::Accepted);
+    CHECK(row.value() == "60");
+    CHECK(row.commit_text("24") == Commit::Accepted);
     CHECK(p.width == 24);
-    CHECK_FALSE(row.editing());
     CHECK(row.refusal().empty());
     CHECK(row.value() == "24");
+    // THE TEXT IS JUDGED, NOT KEPT: the next read is the property's, whoever moved it.
+    p.width = 30;
+    CHECK(row.value() == "30");
 }
 
-TEST_CASE("an unparseable draft leaves the property untouched and says so") {
+TEST_CASE("unparseable text leaves the property untouched and says so") {
     Probe p;
     Row row = Row::edit("Width", width_of(p));
-    row.begin();
-    clear_draft(row);
-    type_all(row, "banana");
-
-    CHECK(row.commit() == Commit::Unparseable);
-    CHECK(p.width == 60);                     // the property never moved
-    CHECK(row.editing());                     // still in the draft, so it can be fixed
-    CHECK(row.draft() == "banana");           // and the draft was NOT thrown away
-    CHECK_FALSE(row.refusal().empty());       // the refusal is observable
-    // ...and it is shown AS a draft: the insertion point is the component's, and the caret is
-    // where it says the next keystroke lands rather than always at the end.
-    CHECK(row.display() == "banana");
-    CHECK(row.editor().caret() == 6);         // the end, because that is where typing left it
-    CHECK(row.editor().text() == "banana");
-    CHECK(row.value() == "60");               // the committed value is still the real one
+    CHECK(row.commit_text("banana") == Commit::Unparseable);
+    CHECK(p.width == 60);                         // the property never moved
+    CHECK(row.refusal() == "not a whole number"); // the refusal is observable, in words
+    CHECK(row.value() == "60");                   // the committed value is still the real one
+    // (THE DRAFT WAS KEPT HERE, with its caret, while the row held one. The text a maker is still
+    // looking at after a refusal is the inspector's own line, which keeps it -- WL-INFO-13.)
 }
 
 TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with its reason") {
     Probe p;
     Row row = Row::edit("Width", width_of(p));
-    row.begin();
-    clear_draft(row);
     // `500` IS a whole number -- it parses. The setter is what says no, and a maker
     // needs to tell that from "not a number at all": one is fixed by retyping,
     // the other by wanting something else.
-    type_all(row, "500");
-    CHECK(row.commit() == Commit::Refused);
+    CHECK(row.commit_text("500") == Commit::Refused);
     CHECK(row.refusal() == "an extent is 1 to 100 cells");
     CHECK(p.width == 60);
-    // The draft survives a REFUSAL too, not only an unparseable draft -- both
-    // failures leave the maker looking at what they typed, so both are pinned.
-    // (A mutation that cleared the draft here was green until this line.)
-    CHECK(row.editing());
-    CHECK(row.draft() == "500");
-    CHECK(row.display() == "500");
-    // AND THE COMPONENT SURVIVES WITH IT. A refused commit leaves the maker looking at what
-    // they typed AND at where they were typing it, which is the half a caret adds: a draft
-    // preserved with its insertion point thrown away would have to be re-navigated.
-    CHECK(row.editor().caret() == 3);
-    CHECK(row.editor().first_visible() == 0);
-    row.left();
-    row.left();
-    CHECK(row.editor().caret() == 1); // still an editor, not a preserved string
     CHECK(row.value() == "60");
-
     // Zero is the other edge of the same check, through the same row.
-    row.cancel();
-    row.begin();
-    clear_draft(row);
-    type_all(row, "0");
-    CHECK(row.commit() == Commit::Refused);
+    CHECK(row.commit_text("0") == Commit::Refused);
     CHECK(row.refusal() == "an extent is 1 to 100 cells");
     CHECK(p.width == 60);
+    // AND THE REFUSAL IS THE LAST ATTEMPT'S: a write that lands clears it.
+    CHECK(row.commit_text("99") == Commit::Accepted);
+    CHECK(row.refusal().empty());
+    CHECK(p.width == 99);
+
+    // ANY TEXT IS A STRING, so the text form never says "unparseable": an empty name is a value
+    // of the type, and the setter is what refuses it. (This half was the retired cancel case's.)
+    Row name = Row::edit("Name", name_of(p));
+    CHECK(name.commit_text("") == Commit::Refused);
+    CHECK(name.refusal() == "a name cannot be empty");
+    CHECK(p.name == "panel");
 }
 
-TEST_CASE("an unparseable draft writes nothing even where a default WOULD be accepted") {
+TEST_CASE("unparseable text writes nothing even where a default WOULD be accepted") {
     // The sharp version of the previous case, and the one a mutation found
     // missing. On Width, a commit that wrongly wrote a default-constructed value
     // is INVISIBLE: the default whole number is 0, which the extent check refuses
     // anyway, so the setter masks the bug. X has no such luck -- 0 is a
-    // perfectly legal position -- so this is where "an unparseable draft does
+    // perfectly legal position -- so this is where "unparseable text does
     // not write" is actually observable.
     Probe p;
     REQUIRE(p.x == 3);
 
     Row row = Row::edit("X", x_of(p));
-    row.begin();
-    clear_draft(row);
-    type_all(row, "banana");
-
-    CHECK(row.commit() == Commit::Unparseable);
+    CHECK(row.commit_text("banana") == Commit::Unparseable);
     CHECK(p.x == 3); // not 0, and not anything else
-    CHECK(row.draft() == "banana");
     CHECK(row.value() == "3");
 
     // And the whole-number form's own edges, on the same row.
-    row.cancel();
-    row.begin();
-    clear_draft(row);
-    type_all(row, "-1");
-    CHECK(row.commit() == Commit::Refused); // parses; the setter refuses it
+    CHECK(row.commit_text("-1") == Commit::Refused); // parses; the setter refuses it
     CHECK(row.refusal() == "the room starts at 0");
     CHECK(p.x == 3);
-
-    row.cancel();
-    row.begin();
-    clear_draft(row);
-    type_all(row, "0");
-    CHECK(row.commit() == Commit::Accepted); // 0 IS a legal position
+    CHECK(row.commit_text("0") == Commit::Accepted); // 0 IS a legal position
     CHECK(p.x == 0);
-}
-
-TEST_CASE("cancel abandons the draft and never touched the property") {
-    Probe p;
-    Row row = Row::edit("Name", name_of(p));
-    row.begin();
-    type_all(row, "zzz");
-    row.cancel();
-
-    CHECK_FALSE(row.editing());
-    CHECK(row.display() == "panel");
-    CHECK(p.name == "panel");
-
-    // ANY TEXT IS A STRING, so the text form never says "unparseable": an empty name is a
-    // value of the type, and the setter is what refuses it.
-    row.begin();
-    clear_draft(row);
-    CHECK(row.commit() == Commit::Refused);
-    CHECK(row.refusal() == "a name cannot be empty");
-    CHECK(p.name == "panel");
 }
 
 TEST_CASE("reuse: two properties of one type share every line of conversion") {
@@ -271,49 +203,20 @@ TEST_CASE("reuse: two properties of one type share every line of conversion") {
     Row width = Row::edit("Width", width_of(p));
     Row height = Row::edit("Height", height_of(p));
 
-    // The same typed draft behaviour on both...
+    // The same conversion on both...
     for (Row* row : {&width, &height}) {
-        row->begin();
-        clear_draft(*row);
-        type_all(*row, "40");
-        CHECK(row->commit() == Commit::Accepted);
+        CHECK(row->commit_text("40") == Commit::Accepted);
     }
     CHECK(p.width == 40);
     CHECK(p.height == 40);
 
     // ...and the same refusal, in the same words, from the shared check.
     for (Row* row : {&width, &height}) {
-        row->begin();
-        clear_draft(*row);
-        type_all(*row, "101");
-        CHECK(row->commit() == Commit::Refused);
+        CHECK(row->commit_text("101") == Commit::Refused);
         CHECK(row->refusal() == "an extent is 1 to 100 cells");
     }
     CHECK(p.width == 40);
     CHECK(p.height == 40);
-}
-
-TEST_CASE("a commit of text the row never drafted meets the same conversion and the same refusals") {
-    // THE SEAM'S DOOR (`Row::commit_text`): an inspector whose draft lives in another image sends
-    // only its finished text, and the row judges it exactly as it judges its own draft -- the same
-    // parse, the same setter, the same words -- opening no draft of its own either way.
-    Probe p;
-    Row row = Row::edit("Width", width_of(p));
-    CHECK(row.commit_text("banana") == Commit::Unparseable);
-    CHECK(row.refusal() == "not a whole number");
-    CHECK(p.width == 60);
-    CHECK(row.commit_text("500") == Commit::Refused);
-    CHECK(row.refusal() == "an extent is 1 to 100 cells");
-    CHECK(p.width == 60);
-    CHECK(row.commit_text("24") == Commit::Accepted);
-    CHECK(row.refusal().empty());
-    CHECK(p.width == 24);
-    CHECK_FALSE(row.editing());
-
-    // A shown row has nothing to write to, whoever sent the text.
-    Row shown = Row::show("Resolved", [] { return std::string("24 cells"); });
-    CHECK(shown.commit_text("12") == Commit::Refused);
-    CHECK(shown.refusal() == "not authored");
 }
 
 TEST_CASE("the whole-number text form: canonical out, and nothing but a whole number in") {
@@ -337,22 +240,22 @@ TEST_CASE("the whole-number text form: canonical out, and nothing but a whole nu
 
 TEST_CASE("a shown row cannot be edited, because it has nothing to write to") {
     // The structural answer to "never present a derived value as though it were a
-    // property": a `show` has no setter to reach, so begin() on one does nothing at all,
-    // and a section heading is the same with no value either.
+    // property": a `show` has no setter to reach, so text sent to one writes nothing,
+    // whoever sent it, and a section heading is the same with no value either.
     Probe p;
     Row shown = Row::show("Resolved", [&p] { return std::to_string(p.width) + " cells"; });
     CHECK_FALSE(shown.editable());
-    shown.begin();
-    CHECK_FALSE(shown.editing());
     CHECK(shown.value() == "60 cells");
     p.width = 12;
     CHECK(shown.value() == "12 cells"); // it reads through like every row
+    CHECK(shown.commit_text("24") == Commit::Refused);
+    CHECK(shown.refusal() == "not authored");
+    CHECK(p.width == 12);
 
     Row heading = Row::section("PLACE");
     CHECK_FALSE(heading.editable());
     CHECK(heading.section());
-    heading.begin();
-    CHECK_FALSE(heading.editing());
+    CHECK(heading.commit_text("x") == Commit::Refused);
 
     CHECK(Row::edit("Width", width_of(p)).editable());
 }

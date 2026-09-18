@@ -191,7 +191,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     out.office = ref.provider;
     out.pane = ref.pane;
     // THE ONE INVENTORY ANSWERS, AND NOTHING ELSE DOES. `inventory_rows` is the population the
-    // launcher lists, the Pane Manager manages and a restore resolves against; asking anything
+    // Pane Manager lists, both doors judge and a restore resolves against; asking anything
     // else here would be the second inventory this arc exists to not create.
     const std::vector<CatalogRow> rows = inventory_rows(session_.setup.active, session_.panels);
     const CatalogRow* found = nullptr;
@@ -236,7 +236,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     }
     const bool already = session_.panels.has(kind);
     if (!already) {
-        // JUDGED THROUGH THE PICKER'S OWN TRIAL SEAT, on a copy, before the setup moves --
+        // JUDGED THROUGH THE TRIAL SEAT (`seat_panes`), on a copy, before the setup moves --
         // `on(PaneRevealRequested)`'s discipline, which exists so that a refusal never leaves
         // a maker with an authored pane they never saw.
         Setup candidate = session_.setup.active;

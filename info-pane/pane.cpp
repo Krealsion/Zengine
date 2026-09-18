@@ -91,9 +91,9 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // ---- The measurements the composition spends, carried from the host --------------------
 //
 // `fit`, `pad`, `omitted_text` and `admissible` are `workshop/pane_text.hpp`'s, the header every
-// pane weave shares. `list_window` and `share_body_rows` are the host's (`screen_gestures.cpp`,
-// `screen_info.cpp`), carried byte-for-byte because `screen.hpp` is the host's presentation and
-// not a header a loaded image may include.
+// pane weave shares. `list_window` is the host's (`screen_gestures.cpp`) and `share_body_rows` was
+// (`screen_info.cpp`, until its last consumer there retired), carried byte-for-byte because
+// `screen.hpp` is the host's presentation and not a header a loaded image may include.
 
 using zengine::workshop::pane_text::admissible;
 using zengine::workshop::pane_text::drawable;

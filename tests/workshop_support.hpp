@@ -156,14 +156,6 @@ inline component::TextBox box_of(std::size_t length, std::size_t caret, std::siz
     return b;
 }
 
-/// Type the whole of `text` into a row, one character at a time -- the way a
-/// maker's keystrokes actually arrive.
-inline void type_all(Row& row, const std::string& text) {
-    for (const char c : text) {
-        row.type(c);
-    }
-}
-
 /// EVERYTHING ON A CANVAS THAT A CELL MEDIUM WOULD SHOW AS TEXT, in painter's
 /// order -- the labels, and then the text regions projected onto cells.
 ///
@@ -1274,7 +1266,7 @@ inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
 /// the label list would have gone on passing while asserting about half a panel.
 /// ONE ROW PER ROW, AND IT IS THE ONE ON TOP (WIND-2a). A canvas carries a plane per
 /// presentation now, and two presentations genuinely share this rectangle -- an external
-/// pane is seated in the stack's first slot and the picker opens over it. Concatenating
+/// pane is seated in the stack's first slot and another may be authored over it. Concatenating
 /// every text at those cells would read both at once and call the result the panel,
 /// which is a sentence about a picture nobody paints. `cell_text_of` walks the Skin's
 /// own order, so the LAST text at a row is what a maker reads there.
@@ -1333,10 +1325,10 @@ inline std::string stack_text(const surface::SurfaceCanvas& c) {
                                                           kMinScreen)));
 }
 
-/// Where a kind sits in the picker's population, so a case names a KIND rather than a row
+/// Where a kind sits in the combined population, so a case names a KIND rather than a row
 /// number that a later catalog entry would silently invalidate. The population is the
 /// combined one -- built-ins, then the maker's pane, then the admitted runtime panes --
-/// because that is the list the picker walks (WL-CAT-05).
+/// because that is the one list every consumer walks (WL-CAT-05).
 inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
     const std::vector<CatalogRow> rows = combined_catalog(panels);
     for (std::size_t i = 0; i < rows.size(); ++i) {
@@ -3268,9 +3260,9 @@ struct PaneRig {
 /// included, and it is row 0 since TYPE-0 folded the header into the same region.
 ///
 /// THE FIRST REGION AT THOSE BOUNDS, AND THAT IS A STATEMENT ABOUT ORDER (TYPE-0). The
-/// picker and the pane-management surface open over the overlay stack's FIRST SLOT -- the
+/// picker and the pane-management surface opened over the overlay stack's FIRST SLOT -- the
 /// same rectangle an external pane in that slot occupies -- and since TYPE-0 both of them
-/// are regions too. `all_texts` walks the planes back to front and `paint_panels` paints
+/// were regions too, until both retired. `all_texts` walks the planes back to front and `paint_panels` paints
 /// every pane before either of those overlays, so the first match is the PANE's and any
 /// later one is whatever is covering it. That is exactly the fact the Z0a control below
 /// asks about: the provider is still publishing, and something is on top of it.
@@ -3411,7 +3403,7 @@ inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
 }
 
 /// The surface's published region, read off a canvas at exactly its bounds -- searched
-/// BACK TO FRONT because the picker, a slot-seated pane and the attention view can share
+/// BACK TO FRONT because a slot-seated pane and another authored over it can share
 /// the popup's origin, and the contextual surface paints over all of them.
 inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
@@ -3829,7 +3821,7 @@ inline void desktop_does(Rig& t, DesktopSeat* seat,
 
 
 /// Open an external pane belonging to a seat in `office`, and answer with its kind.
-/// The seat offers, Workshop admits, the picker opens it, and the room is granted --
+/// The seat offers, Workshop admits, the launch door opens it, and the room is granted --
 /// four beats a case would otherwise spell every time.
 /// SEAT A RECORDING PROVIDER ON A `Live` RIG, and make it offer one pane.
 ///

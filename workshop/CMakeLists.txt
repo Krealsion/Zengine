@@ -178,7 +178,6 @@ add_library(zengine-workshop-logic STATIC
     screen_external.cpp
     screen_gestures.cpp
     screen_hotkeys.cpp
-    screen_info.cpp
     screen_layouts.cpp
     screen_pane_subject.cpp
     screen_pane_state.cpp

@@ -127,12 +127,12 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-10 — A second press on the same tab renames it
 
-LAW — A tab double-click is a second click record beside the word-selecting one, sharing the interval, the arm-on-the-way-out discipline and the spend-the-arming rule.
+LAW — A second press on the same tab within `kDoubleClickMs` renames it: the first press arms a record on the way out and the completing press spends it, so there is no triple-click.
 
 MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
 
-PROVEN BY — `workshop/screen.hpp` `ClickMemory`, `TabClickMemory`, `Session::tab_click`,
+PROVEN BY — `workshop/screen.hpp` `TabClickMemory`, `Session::tab_click`,
 `kDoubleClickMs`; `workshop/screen_arrange.cpp` `doubles_a_tab_click`;
 `tests/test_workshop_panels.cpp` case `"WUX-11/SC-3: a double-click on a tab renames THAT layout,
 and writes no file"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor

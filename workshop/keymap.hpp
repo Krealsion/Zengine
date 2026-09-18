@@ -154,14 +154,14 @@ enum class Act : std::uint8_t {
     // (`kRetiredActions`).
     // ⚠ `kTerminalToggle` WAS HERE, ABOVE EVERY MODE (VD-22, VD-24) -- the chord that opened
     // the terminal overlay from anywhere. It retired with the overlay, for `kAttention`'s
-    // reason written three lines down: the Terminal is a pane, opened from the picker.
+    // reason written three lines down: the Terminal is a pane, opened from the Pane Manager.
     // ⚠ `kHotkeys` WAS HERE TOO, and left with the hotkey view it opened: the view is the
     // desktop's Hotkeys pane, over the keymap this host publishes (`KeymapShown`), and its launch
     // is the application row `desktop.hotkeys` -- which an authored `workshop.hotkeys` row names
     // now (`kRenamedActions`).
     // ⚠ `kAttention` WAS HERE, ABOVE EVERY MODE -- the chord that opened the
     // current-condition view from anywhere. The view is a pane and is opened from the
-    // picker; a global that put one particular pane on the screen is exactly the
+    // Pane Manager; a global that put one particular pane on the screen is exactly the
     // host-mapped route VD-22 refuses, so it retired with the overlay rather than being
     // re-pointed at a weave.
     // -- command mode ------------------------------------------------------------------
@@ -428,7 +428,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // the Attention pane under the ids and the defaults they had here -- Up, Down and `d`,
     // spelled `attention.up`, `attention.down`, `attention.dismiss` -- so a maker who moved
     // one keeps it moved. `attention.close` and the `ctrl+a` that opened the overlay retired
-    // rather than moving: a pane is removed from the desk through the picker, and nothing
+    // rather than moving: a pane is removed from the desk through the close door, and nothing
     // opens one particular pane from anywhere (VD-22).
     // -- the layout-name editor's controls ---------------------------------------------
     //
@@ -561,9 +561,9 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kEscape, mod::kNone}},
     // -- the contextual-action surface -------------------------------------------------
     //
-    // The picker's four, one purpose over: a list with a cursor and a gesture on the
+    // The retired picker's four, one purpose over: a list with a cursor and a gesture on the
     // selected row. `context.choose` is ONE action whose meaning the row decides -- a
-    // group row descends, an action row requests (`picker.choose`'s own shape) -- and
+    // group row descends, an action row requests (`picker.choose`'s shape, while it was) -- and
     // `context.back` is Escape doing the appropriate smaller thing: out of an open group,
     // else out of the surface. The opener's own gesture also closes it, by `matches`,
     // like every other toggled surface here.
@@ -977,7 +977,7 @@ struct AppRow {
 // WL-DESK-07 -- agents/workshop/desktop.md
 inline constexpr std::size_t kMaxAppActionRows = 32;
 
-/// HOW MANY ROWS ONE PANE MAY DECLARE. The picker's catalog bound, one shape over
+/// HOW MANY ROWS ONE PANE MAY DECLARE. The catalog's own bound, one shape over
 /// (`kMaxPaneCatalogEntries`, panel.hpp): a runtime-catalog policy, deliberately its own
 /// constant, bounding what a chatty provider can make this session retain and a legend
 /// try to print.
@@ -1083,8 +1083,7 @@ struct Keymap {
     }
 
     /// The one effective gesture of an action. For the multi-row actions this is the
-    /// FIRST declared row's answer, which every current caller wants: the callers are
-    /// single-row actions (the terminal toggle, the picker opener, the hotkey view).
+    /// FIRST declared row's answer, which every current caller wants.
     Gesture gesture_of(Act a) const noexcept {
         for (const ActionRow& row : kActionCatalog) {
             if (row.act == a) {
@@ -1233,7 +1232,7 @@ struct Keymap {
     }
 
     /// Does this gesture spell this action's effective binding, in any context? The one
-    /// consumer is the picker's "the key that opened it closes it" rule, which follows
+    /// consumer is the contextual surface's "the key that opened it closes it" rule, which follows
     /// the OPENER's binding wherever the maker moved it.
     bool matches(Act a, std::int64_t scancode, std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
@@ -1820,10 +1819,11 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         // leniency. It is asked only where the resolved context claimed nothing
         // (`action_for(...) == kNone`) and only where the keys did not cross to a pane that
         // took them -- so a host row and a default row on one gesture cannot both fire, and
-        // neither can a pane's row and a default row. `picker.close` on Escape and
-        // `desktop.deselect` on Escape is the shipped instance of this: while the picker is
-        // open Escape closes it, everywhere else it puts the selection down, and refusing the
-        // pair would have made the second unauthorable.
+        // neither can a pane's row and a default row. `context.back` on Escape and
+        // `desktop.deselect` on Escape is the shipped instance of this: while the contextual
+        // surface is open Escape closes it, everywhere else it puts the selection down, and
+        // refusing the pair would have made the second unauthorable. (`picker.close` was the
+        // first instance, and retired with the picker.)
         if (rows[i].precedence == 0) {
             for (const ActionRow& host : kActionCatalog) {
                 if (k.row_gesture(host) == rows[i].gesture) {

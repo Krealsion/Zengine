@@ -75,23 +75,10 @@ std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
     return kNoPaneEdge;
 }
 
-// WL-PTR-01 -- agents/workshop/pointer.md
-bool doubles_a_click(const ClickMemory& prior, std::int64_t place, std::uint64_t epoch,
-                     const component::WordSpan& word, std::int64_t now_ms) noexcept {
-    if (!prior.armed || !word.present()) {
-        return false;
-    }
-    if (prior.place != place || prior.epoch != epoch) {
-        return false;
-    }
-    if (prior.word_begin != word.begin || prior.word_end != word.end) {
-        return false;
-    }
-    const std::int64_t since = now_ms - prior.at_ms;
-    return since >= 0 && since <= kDoubleClickMs;
-}
+// (`doubles_a_click` WAS HERE, the word-selecting double-click's qualification, and left with
+// its one spender; `screen.hpp` says so where its record stood.)
 
-// WL-TAB-10 -- agents/workshop/tab-run.md
+// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t now_ms) noexcept {
     if (!prior.armed || prior.at != at) {
@@ -99,11 +86,6 @@ bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
     }
     const std::int64_t since = now_ms - prior.at_ms;
     return since >= 0 && since <= kDoubleClickMs;
-}
-
-ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
-                         const component::WordSpan& word, std::int64_t now_ms) noexcept {
-    return ClickMemory{true, place, epoch, word.begin, word.end, now_ms};
 }
 
 // ⭐ `editor_has_keyboard` WAS HERE AND IS GONE: the Editor is a pane, and a pane's readiness
@@ -143,8 +125,8 @@ KeyContext keyboard_context(const Session& s) {
         }
         return s.arrange.desk ? KeyContext::kArrangeDesk : KeyContext::kArrangePane;
     }
-    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE PICKER'S BAND:
-    // below the Terminal and the arrangement scopes, above everything a press or a draft
+    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE MODES' BAND:
+    // below the arrangement scopes, above everything a press or a draft
     // could otherwise reach. It must answer before a focused pane and a live draft or its
     // own navigation keys would leak into the thing beneath it -- the first-refusal rule
     // -- and it sits above the other transient overlays because it is opened by the LATER

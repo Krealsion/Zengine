@@ -17,22 +17,21 @@ WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-02 — A property is read through its semantic surface and written by commit
 
-LAW — An unparseable draft writes nothing, a refused value is a different outcome with its reason, cancel touches nothing, a shown row takes no edit, and two properties of one type share one conversion.
+LAW — Unparseable text writes nothing, a refused value is a different outcome with its reason, a shown row takes no write, and two properties of one type share one conversion.
 
 MEANS
 - `TextForm<T>` is written once per type: canonical out, nothing but that type in;
-- `Row::commit_text` is the same judgement for text drafted in another image (WL-INFO-15).
+- `Row::commit_text` is the one write door; a draft is the inspector's own (WL-INFO-15).
 
 PROVEN BY — `workshop/property.hpp` `Row`, `Commit`, `Written`, `TextForm`, `Property`,
 `TextForm::format`, `TextForm::expected`, `Row::show`, `Row::commit_text`;
 `tests/test_workshop_document.cpp` case `"a successful commit writes through the semantic
-setter"`, case `"an unparseable draft leaves the property untouched and says so"`, case `"a
-parseable value the property refuses is a DIFFERENT outcome, with its reason"`, case `"cancel
-abandons the draft and never touched the property"`, case `"reuse: two properties of one type
-share every line of conversion"`, case `"a shown row cannot be edited, because it has nothing to
-write to"`, case `"a commit of text the row never drafted meets the same conversion and the same
-refusals"`, case `"the whole-number text form: canonical out, and nothing but a whole number
-in"`.
+setter"`, case `"unparseable text leaves the property untouched and says so"`, case `"a
+parseable value the property refuses is a DIFFERENT outcome, with its reason"`, case
+`"unparseable text writes nothing even where a default WOULD be accepted"`, case `"reuse: two
+properties of one type share every line of conversion"`, case `"a shown row cannot be edited,
+because it has nothing to write to"`, case `"the whole-number text form: canonical out, and
+nothing but a whole number in"`.
 WHY — `agents/decisions/the-document-model.md`
 
 ## WL-DOC-03 — RETIRED: an object's name was refused empty and past sixty-four bytes

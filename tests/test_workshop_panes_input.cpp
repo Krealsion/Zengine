@@ -2331,7 +2331,7 @@ struct ComposeRig {
     void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) { r.key(sc, mods); }
     /// The text a platform committed. Sent whole, which a backend may legitimately
     /// do; the key-transition half of a printable keystroke is exercised by the
-    /// picker case in tier one, where it is the subject.
+    /// swallow cases, where it is the subject.
     void type(const std::string& text) { r.text(text); }
     void fill(const std::string& field, const std::string& text) {
         go_to(field);

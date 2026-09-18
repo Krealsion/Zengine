@@ -93,12 +93,11 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
 
 // WL-ARR-03 -- agents/workshop/arrangement.md
 void WorkshopWeave::forget_removed_selection() {
-    // ⚠ THE PANE EDITOR'S SUBJECT IS DELIBERATELY NOT REPAIRED HERE. The
-    // arrangement's address is a claim about a pane ON THE DESK, so a removal ends it;
-    // the editor's subject is an IDENTITY a maker asked to be described, and a pane
-    // that just left the layout is exactly the pane that now reads `closed -- open it`
-    // -- clearing it would make "remove, look, reopen" impossible from the one surface
-    // built for it. Its one clearing rule is `repair_pane_editor_subject`.
+    // ⚠ THE INSPECTED SUBJECT IS DELIBERATELY NOT REPAIRED HERE. The arrangement's address
+    // is a claim about a pane ON THE DESK, so a removal ends it; an inspector's subject is an
+    // IDENTITY a maker asked to be described, and a pane that just left the layout is exactly
+    // the pane that now reads `closed -- open it` -- clearing it would make "remove, look,
+    // reopen" impossible. Another name is the one thing that moves it (WL-INFO-14).
     PaneArrange& a = session_.arrange;
     if (!a.addressed() || has_pane(session_.setup.active, a.pane)) {
         return;
@@ -236,7 +235,7 @@ PanelBounds WorkshopWeave::managed_bounds() const {
 // WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
 FineRect WorkshopWeave::managed_window_base() {
     // ONE READING FOR THE HAND AND FOR THE TYPED VALUE: `pane_window_base`
-    // (screen.hpp) is this function's old body, quarried out so the Pane Editor's
+    // (screen.hpp) is this function's old body, quarried out so a subject row's
     // per-axis writes measure the axis they did not type from the same window the
     // arrangement's gestures measure from.
     return pane_window_base(session_, session_.arrange.pane);
@@ -418,7 +417,7 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             false);
         return;
     }
-    // REMOVE THIS PANE. The picker's own semantics through the picker's own
+    // REMOVE THIS PANE. The close door's own semantics through the setup's own
     // door: the intent leaves the setup, `apply_setup` is what closes the
     // presentation, and what the pane was presenting is untouched -- a panel is a
     // presentation, and removing one removes a presentation. A removal works on a
@@ -641,8 +640,8 @@ void WorkshopWeave::arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom:
     if (!g.active) {
         return;
     }
-    // THE TARGET MAY HAVE LEFT THE SETUP UNDER THE HAND -- a picker cannot be open while
-    // this mode is, but a restore or a provider going away can -- so the gesture ends
+    // THE TARGET MAY HAVE LEFT THE SETUP UNDER THE HAND -- no other mode can be open while
+    // this one is, but a restore, an office's close or a provider going away can -- so the gesture ends
     // safely rather than writing to a row that is no longer there.
     if (!has_pane(session_.setup.active, g.pane)) {
         g = PaneGesture{};

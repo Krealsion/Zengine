@@ -3895,68 +3895,41 @@ TEST_CASE("WUX-8: a content-sized surface reserves the coarsest boundary, once")
 
 // ---- WUX-7: two presses, one gesture ------------------------------------------------------
 
-TEST_CASE("WUX-7: what makes two presses one double-click, and what does not") {
+TEST_CASE("WUX-7: what makes two presses on a tab one double-click, and what does not") {
     // THE QUALIFICATION IS PURE AND TOTAL, so every one of its conditions is stated here as
     // an ordinary comparison rather than raced against a stopwatch. ⚔ MUTATION: dropping any
-    // one of the five reddens exactly the subcase that names it.
-    // ⚠ THE ARMED PLACE USED TO BE `kTerminalLine` (VD-24). This case is over a PURE
-    // function and the place is one of its inputs; the Terminal's line is a pane's now, so
-    // the arming is over a line this host still owns and the claim is unchanged.
-    const component::WordSpan word{4, 9};
-    const component::WordSpan elsewhere{12, 16};
-    const ClickMemory armed = click_landed(text_drag_place::kPropertyDraft, 3, word, 1000);
+    // one of them reddens exactly the subcase that names it.
+    // ⚠ IT WAS THE WORD-SELECTING DOUBLE-CLICK'S (`doubles_a_click`), over a word of an editable
+    // line, until the last such line this host held retired with its one spender. A tab's is the
+    // double-click this host still reads; the claims are the same ones, over a tab.
+    const TabClickMemory armed{true, 2, 1000};
     REQUIRE(armed.armed);
 
-    SUBCASE("the ordinary case: same line, same draft, same word, soon enough") {
-        CHECK(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word, 1000));
-        CHECK(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word, 1399));
-        CHECK(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word,
-                              1000 + kDoubleClickMs)); // the boundary itself doubles
+    SUBCASE("the ordinary case: same tab, soon enough") {
+        CHECK(doubles_a_tab_click(armed, 2, 1000));
+        CHECK(doubles_a_tab_click(armed, 2, 1399));
+        CHECK(doubles_a_tab_click(armed, 2, 1000 + kDoubleClickMs)); // the boundary doubles
     }
     SUBCASE("too long apart is two presses") {
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word,
-                                    1001 + kDoubleClickMs));
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word, 99999));
+        CHECK_FALSE(doubles_a_tab_click(armed, 2, 1001 + kDoubleClickMs));
+        CHECK_FALSE(doubles_a_tab_click(armed, 2, 99999));
     }
-    SUBCASE("a different editable line is a different place") {
-        // `kEditorBody` was the third place and is gone with the Editor (VD-25); an external
-        // pane's sweep is a place of this host's record and arms nothing.
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kExternalPane, 3, word, 1000));
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPaneEditorDraft, 3, word, 1000));
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kNone, 3, word, 1000));
-    }
-    SUBCASE("a different DRAFT of the same line is a different box") {
-        // Closing a property draft and opening another bumps the epoch, so an arming from
-        // the one a maker just left cannot be spent on the one they just opened.
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 4, word, 1000));
-    }
-    SUBCASE("a different word target is an ordinary click") {
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, elsewhere, 1000));
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3,
-                                    component::WordSpan{4, 8}, 1000));
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3,
-                                    component::WordSpan{5, 9}, 1000));
-    }
-    SUBCASE("a position in NO word never doubles, however fast the hand") {
-        const ClickMemory nothing =
-            click_landed(text_drag_place::kPropertyDraft, 3, component::WordSpan{7, 7}, 1000);
-        CHECK_FALSE(doubles_a_click(nothing, text_drag_place::kPropertyDraft, 3,
-                                    component::WordSpan{7, 7}, 1000));
+    SUBCASE("a different tab is an ordinary click") {
+        CHECK_FALSE(doubles_a_tab_click(armed, 1, 1000));
+        CHECK_FALSE(doubles_a_tab_click(armed, 3, 1000));
     }
     SUBCASE("nothing armed is nothing to double") {
-        CHECK_FALSE(doubles_a_click(ClickMemory{}, text_drag_place::kPropertyDraft, 0,
-                                    component::WordSpan{0, 0}, 0));
-        ClickMemory disarmed = armed;
+        CHECK_FALSE(doubles_a_tab_click(TabClickMemory{}, 0, 0));
+        TabClickMemory disarmed = armed;
         disarmed.armed = false;
-        CHECK_FALSE(doubles_a_click(disarmed, text_drag_place::kPropertyDraft, 3, word, 1000));
+        CHECK_FALSE(doubles_a_tab_click(disarmed, 2, 1000));
     }
     SUBCASE("a reading that went backwards is not a fast hand") {
-        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word, 999));
+        CHECK_FALSE(doubles_a_tab_click(armed, 2, 999));
     }
     SUBCASE("a fresh session has armed nothing") {
         Session fresh;
-        CHECK_FALSE(fresh.click.armed);
-        CHECK(fresh.click.place == text_drag_place::kNone);
+        CHECK_FALSE(fresh.tab_click.armed);
     }
 }
 

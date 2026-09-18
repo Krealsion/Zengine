@@ -25,7 +25,7 @@ void WorkshopWeave::apply_setup(loom::Mail& mail) {
 
 void WorkshopWeave::apply_setup_now() {
     // MEMBERSHIP-DEPENDENT SESSION STATE FIRST. This is the one door a setup's
-    // membership changes through -- the picker's removal, a restore, a geometry edit
+    // membership changes through -- a close, a restore, a geometry edit
     // that reseats -- so it is the one place that has to notice a selection whose pane
     // is no longer named. Doing it here rather than at each caller is what keeps a
     // fourth caller from being the one that forgets.
@@ -423,8 +423,8 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // were on the screen while the sentence was being read.
     //
     // IT IS NOT A LOST DIAGNOSTIC. The setup line carries the same count LIVE and
-    // recomputes it every paint (`setup "..." UNSAVED [| N unresolved]`), and the picker
-    // gives an unresolved reference a row of its own. A reference that is genuinely gone
+    // recomputes it every paint (`setup "..." UNSAVED [| N unresolved]`), and the Pane
+    // Manager gives an unresolved reference a row of its own. A reference that is genuinely gone
     // is therefore still named, by a surface that is still right an hour later. `r` keeps
     // its note, because a maker who presses it is asking a question at a moment when the
     // catalog has long since been answered.
