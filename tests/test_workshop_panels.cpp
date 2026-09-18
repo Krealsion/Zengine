@@ -1784,7 +1784,6 @@ TEST_CASE("WUX-4: an alert condition opens nothing") {
     for (int beat = 0; beat < 4; ++beat) {
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.key(input::scan::kTab);
-        CHECK_FALSE(t.session().hotkeys.open);
         CHECK_FALSE(t.session().panels.picker.open);
         CHECK_FALSE(t.session().arrange.open);
         CHECK_FALSE(t.session().setup.naming.open);
@@ -2137,18 +2136,17 @@ TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id"
     REQUIRE(object.size() == 1);
     CHECK(object[0].row->act == Act::kObjectDelete);
 
-    // The room: NINE zero-target doors, no groups. It was eleven until the two overlays
+    // The room: EIGHT zero-target doors, no groups. It was eleven until the two overlays
     // became panes -- `workshop.attention` and then `workshop.terminal` each opened one
-    // particular overlay from the empty room, and what is left in their place is
-    // `workshop.picker`, which was already on this list and opens the CHOICE rather than
-    // any one pane (VD-22, VD-24).
+    // particular overlay from the empty room -- and nine until the key list became the
+    // desktop's pane, launched by an application row this catalog cannot name.
     const std::vector<ContextEntry> root = context_population(context_subject::kRoot, "");
-    REQUIRE(root.size() == 9);
+    REQUIRE(root.size() == 8);
     for (const ContextEntry& e : root) {
         CHECK_FALSE(e.is_group);
     }
     CHECK(root[0].row->act == Act::kObjectNew);
-    CHECK(root[8].row->act == Act::kManageResetOrder);
+    CHECK(root[7].row->act == Act::kManageResetOrder);
 
     // EVERY DECLARATION RESOLVES AND OWNS NO POWER: an id `row_of_id` answers and three
     // plain fields -- the compile-time cross-check, restated where a reader looks.
@@ -4028,15 +4026,8 @@ TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and des
     t.key(input::scan::kEscape);
     CHECK(t.session().panels.selected == kNoPaneKind);
     CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
-
-    // THE HOTKEY VIEW, keys-modal above everything: Escape closes it and nothing else.
-    t.press_canvas(band.x + 1, band.y);
-    REQUIRE(t.session().panels.selected == panel::kLayouts);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().hotkeys.open);
-    CHECK(t.session().panels.selected == panel::kLayouts);
+    // ⭐ THE HOTKEY VIEW WAS THE LAST MEANING HERE, keys-modal above everything. It is the
+    // desktop's Hotkeys pane now, a pane like any other, and its Escape is its own.
 }
 
 TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none") {

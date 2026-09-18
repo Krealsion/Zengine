@@ -51,8 +51,8 @@ PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context`, `keyboard_contex
 `on(TextEntered)`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every Workshop mode owns
 the keyboard above a focused pane"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one
 physical ^s is the document's save or the source's, by who holds the keys"`;
-`tests/test_workshop_document.cpp` case `"KEY-0: the view lists the context beneath it, and three
-contexts differ"`.
+`tests/test_workshop_document.cpp` case `"KEY-0: the effective keymap lists every place a key is
+answered, and marks the text box's keys as nobody's to move"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-04 — Matching is exact
@@ -89,19 +89,22 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-06 — An action may own several rows, and an override moves all of them
 
-LAW — An action's identity is kept across migrations, however its rows move; a retired id's authored row is preserved byte-for-byte as unknown, and is applied when something declares it.
+LAW — An action's identity is kept across migrations; a retired id's authored row is preserved byte-for-byte, and applied when something declares it or, for a renamed id, its successor.
 
 MEANS
-- `manage.arrange` was added; `manage.move`, `manage.size` and `manage.edge` are retired;
+- `workshop.terminal` and `workshop.hotkeys` are read as `desktop.` ids, said at load;
 - a row that left this host for a PANE keeps its id, so the maker's override moves with it;
 - reusing one gesture across mutually exclusive contexts is legal.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.next`,
-`manage.previous`, `workshop.manage`, `AuthoredOverride`, `contexts_intersect`;
+`manage.previous`, `workshop.manage`, `AuthoredOverride`, `contexts_intersect`, `RenamedAction`,
+`kRenamedActions`, `renamed_to`, `join_app_rows`; `workshop/weave_handlers.cpp` `load_keymap`;
 `tests/test_workshop_document.cpp` case `"KEY-0: an override for an unknown action survives with
 its intent whole"`, case `"KEY-0: reusing one gesture across mutually exclusive contexts is
 legal"`; `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a maker's authored override
-for a retired Workshop id keeps working"`.
+for a retired Workshop id keeps working"`; `tests/test_workshop_panes_actions.cpp` case `"a
+keymap row written for an id whose owner changed is read as its successor, once, and the load
+says which rename to make"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences
@@ -142,7 +145,7 @@ LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every 
 
 MEANS
 - the full rows fold four families exactly while every member sits on its default (`help_pairs`);
-- the hotkey view remains the complete list in every mode.
+- compact is the application's rows above every mode; the effective keymap stays the full list.
 
 PROVEN BY — `workshop/screen_compose.cpp` `band_region`; `workshop/screen_gestures.cpp`
 `help_rows`; `workshop/screen_bindings.cpp` `help_pairs`; `workshop/keymap.hpp` `legend_mode`;
@@ -151,40 +154,22 @@ the legend's three modes project the band, and hidden unbinds nothing"`, case `"
 legend modes move only the legend rows, in both budgets"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-10 — The hotkey view opens beside the selected pane and fits what it says
+## WL-KEY-10 — RETIRED: the hotkey view was a host overlay beside the selected pane
 
-LAW — The hotkey view anchors at the selected pane's visible outer top-left and is sized from its own rows through the one popup measurer; with no anchor it opens at the overlay column's corner.
+LAW — The key list is the desktop's Hotkeys pane, seated and arranged like any pane; nothing in this host anchors, sizes or paints a key list.
 
-MEANS
-- it is derived at every paint and press and stored nowhere;
-- a list taller than the band keeps the band's height while the painter says what it cut.
-
-DOES NOT MEAN
-- that a popup's own bounds follow the selection wherever one is open — this one's do.
-
-PROVEN BY — `workshop/screen_hotkeys.cpp` `hotkeys_bounds`, `hotkeys_rows`, `paint_hotkeys`;
-`workshop/screen_pane_state.cpp` `popup_bounds_at`; `workshop/screen.hpp` `overlay_column`,
-`HotkeysView`; `tests/test_workshop_screen.cpp` case `"WUX-5: contextual help
-opens at the selected pane, and follows it"`, case `"QR-17/SC-1..3: the hotkey view is as tall as
-its rows and as wide as its longest"`, case `"QR-17/SC-4: a list the room cannot hold keeps the
-room and counts the cut"`.
+PROVEN BY — `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane teach
+the application's keys as they are in force: a moved row where it moved, a disabled one as
+having no key"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
-## WL-KEY-11 — The hotkey view is a projection, not an owner
+## WL-KEY-11 — RETIRED: the hotkey view was a projection the host presented
 
-LAW — It lists the context beneath it, shows the component's vocabulary from `kEditingVocabulary` marked not remappable, is keys-modal while open, and owns no pointer space.
+LAW — The host projects the effective keymap as a value (`keymap_shown`, WL-DESK-11) and presents none of it; the text box's keys are listed there, marked not remappable.
 
-MEANS
-- its toggle and bare Escape close it, and Escape is not a keymap action;
-- a focused pane's declared rows are listed from the map; the rest is described as ownership.
-
-PROVEN BY — `workshop/screen_hotkeys.cpp` `paint_hotkeys`, `hotkeys_rows`,
-`keyboard_context_name`; `workshop/screen.hpp` `HotkeysView`; `component/text_box.hpp`
-`kEditingVocabulary`; `workshop/weave_handlers.cpp` `hotkeys_key`;
-`tests/test_workshop_document.cpp` case `"KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k
-close it"`, case `"KEY-0: the view is keys-modal -- a maker reading a binding is not executing
-it"`; `tests/test_workshop_screen.cpp` case `"QR-17/SC-6,7: the compact view owns no pointer space
-and moves no reservation"`.
+PROVEN BY — `workshop/screen_hotkeys.cpp` `keymap_shown`; `tests/test_workshop_document.cpp`
+case `"KEY-0: the effective keymap lists every place a key is answered, and marks the text box's
+keys as nobody's to move"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-KEY-12 — The printable-trigger swallow is derived from the binding
@@ -253,7 +238,7 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
 `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
 `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
-`workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `hotkeys_rows`;
+`workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `keymap_shown`;
 `tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order,
 and a refusal writes nothing"`, case `"a declared gesture arrives as the resolved id and an
 undeclared one as the key; typing still crosses raw"`, case `"the keymap file wins: a pane whose

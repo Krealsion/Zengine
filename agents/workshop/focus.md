@@ -56,7 +56,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — A pane activates a row on a press only when Workshop reports its keys were already there, read before the press moved them; two presses from cold buys "no single press replaces what is open".
 
 MEANS
-- the pane decides from `keys_went_here`; a mode or the hotkey view having the keys is "not here";
+- the pane decides from `keys_went_here`; a mode having the keys is "not here";
 - a v1 press states no fact, so Files only selects on it and Return still opens;
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
@@ -146,19 +146,17 @@ LAW — The pane the keys point at wears the `> ` mark in its header; while ordi
 MEANS
 - two facts, not one twice: the mark names the pane the keys return to, the band where a key goes;
 - the legend rows after it spell the pane's declared rows first, then the chords (WL-KEY-15);
-- under a mode or the hotkey view the mark stays and the band names no pane: one `typing_pane`.
+- under a mode the mark stays and the band names no pane: one `typing_pane`.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
 `workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `workshop/screen_arrange.cpp` `typing_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: the screen says which pane the keys are going
 to, in two places"`; `tests/test_workshop_panes_actions.cpp` case `"the band's legend and the
-hotkey view print the pane's rows while it holds the keys"`, case `"a pane that declared nothing
-is described as ownership only, exactly as before"`; `tests/test_workshop_panes_files.cpp` case
-`"a press into Files while the picker has the keys never opens its selected row, and the band
-does not say typing goes to Files; with the picker closed the press opens it"`, case `"a press
-into Files while the hotkey view has the keys never opens its selected row, and the band does not
-say typing goes to Files; with the view closed the press opens it"`.
+effective keymap print the pane's rows while it holds the keys"`, case `"a pane that declared
+nothing is described as ownership only, exactly as before"`; `tests/test_workshop_panes_files.cpp`
+case `"a press into Files while the picker has the keys never opens its selected row, and the
+band does not say typing goes to Files; with the picker closed the press opens it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
@@ -185,6 +183,6 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 - That hiding pane titles can hide where typing goes — the keyboard's pane keeps its title and
   its mark whatever the preference says (WL-FOCUS-11).
-- That the pane the keys point at is where an ordinary key goes — a mode or the hotkey view
-  above it takes the key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
+- That the pane the keys point at is where an ordinary key goes — a mode above it takes the
+  key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
 - That a focused pane above a live draft has its own witness — it does not (WL-FOCUS-06).

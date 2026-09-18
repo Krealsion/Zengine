@@ -337,6 +337,7 @@ class WorkshopWeave
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
+                                          zengine::workshop::KeymapRequested,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
@@ -367,6 +368,7 @@ class WorkshopWeave
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneInventory,
+                                        zengine::workshop::KeymapShown,
                                         zengine::workshop::PaneQuitRequested,
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
@@ -475,13 +477,6 @@ public:
 
     /// A key TRANSITION: which key changed, and what was held when it did.
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    /// Open or close the full hotkey view. The whole of the mode change --
-    /// The Terminal pane's own shape, one screen element over.
-    void toggle_hotkeys();
-
-    /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed.
-    void hotkeys_key(const zengine::input::KeyPressed& k);
 
     // ---- What can I do with this? The contextual-action surface ---------------
 
@@ -628,6 +623,13 @@ public:
 
     /// THE ONE INVENTORY AS A VALUE: `inventory_rows` with the three facts beside each row.
     PaneInventory inventory_reading() const;
+
+    /// SAY THE EFFECTIVE KEYMAP OUT LOUD, if it changed since it was last said -- the one
+    /// binding truth dispatch reads, for the presenters that show keys (WL-DESK-11).
+    void publish_keymap(loom::Mail& mail);
+
+    /// ...AND ANSWER IT TO A PRESENTER THAT HAS JUST ARRIVED.
+    void on(const KeymapRequested& asked, loom::Mail& mail);
 
     /// OPEN THIS PANE, OR PUT THE MAKER IN IT. Resolved against the ONE inventory, seated
     /// through the same door the launcher and a restore share, and answered either way.
@@ -1617,6 +1619,11 @@ private:
     /// whether it has said one since a presenter last arrived (`on(PaneOffered)` clears it).
     std::vector<InventoryPane> inventory_said_;
     bool inventory_published_ = false;
+    /// ...AND THE SAME RECORD FOR THE EFFECTIVE KEYMAP, and what reading the keymap file came to,
+    /// kept for as long as it is true (the startup note is said once; this is not).
+    KeymapShown keymap_said_;
+    bool keymap_published_ = false;
+    std::string keymap_standing_;
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;

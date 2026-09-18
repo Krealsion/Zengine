@@ -79,7 +79,8 @@ inline constexpr ContextRow kContextCatalog[] = {
     // on this list -- so what a maker reaches from the empty room is "choose a pane", not
     // "open this one particular pane", and the contextual surface gained no route a key
     // does not have (VD-22).
-    {"workshop.hotkeys", kOnRoot, ""},
+    // ⚠ `workshop.hotkeys` WAS A ROW HERE and left with the host's key-list overlay: the list is
+    // the desktop's Hotkeys pane, launched by an application row this catalog cannot name.
     {"document.save", kOnRoot, ""},
     {"document.open", kOnRoot, ""},
     {"setup.name", kOnRoot, ""},

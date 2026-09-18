@@ -66,6 +66,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     document_said_ = false;   // ...and the same for the document's picture, for the same reason
     transcript_said_ = false; // ...and the terminal participant's record, for the same reason
     inventory_published_ = false; // ...and the inventory, which a presenter reads (WL-DESK-04)
+    keymap_published_ = false;    // ...and the effective keymap, for the same reason (WL-DESK-11)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without

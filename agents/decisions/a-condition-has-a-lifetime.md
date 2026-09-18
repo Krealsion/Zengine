@@ -32,8 +32,8 @@ power, and the condition path has no wire form.
   by case `"WUX-4: an alert condition opens nothing"`.
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface
   vocabulary* — none (`5416c21`).
-- *Anchoring `attention_bounds` to the selected pane* as the hotkey view does — rejected: a
-  condition is about the application (`d1bf7f4`).
+- *Anchoring `attention_bounds` to the selected pane* as the hotkey view did — rejected: a
+  condition is about the application (`d1bf7f4`). The view has since left the host (WL-DESK-11).
 - *A keys-modal view* — rejected: its four gestures are catalog rows a keymap file must see.
 
 **Consequences.** `closed`, `unresolved`, `covered` and `open` earn nothing — the model may know

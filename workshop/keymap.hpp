@@ -152,7 +152,10 @@ enum class Act : std::uint8_t {
     // ⚠ `kTerminalToggle` WAS HERE, ABOVE EVERY MODE (VD-22, VD-24) -- the chord that opened
     // the terminal overlay from anywhere. It retired with the overlay, for `kAttention`'s
     // reason written three lines down: the Terminal is a pane, opened from the picker.
-    kHotkeys,
+    // ⚠ `kHotkeys` WAS HERE TOO, and left with the hotkey view it opened: the view is the
+    // desktop's Hotkeys pane, over the keymap this host publishes (`KeymapShown`), and its launch
+    // is the application row `desktop.hotkeys` -- which an authored `workshop.hotkeys` row names
+    // now (`kRenamedActions`).
     // ⚠ `kAttention` WAS HERE, ABOVE EVERY MODE -- the chord that opened the
     // current-condition view from anywhere. The view is a pane and is opened from the
     // picker; a global that put one particular pane on the screen is exactly the
@@ -317,8 +320,6 @@ inline constexpr ActionRow kActionCatalog[] = {
     // is a pane a maker opens from the picker, exactly as Attention's `Ctrl+a` retired when
     // the current-condition view became one. A maker who had authored an override for this
     // row finds it names nothing, which the keymap loader already says out loud.
-    {Act::kHotkeys, "workshop.hotkeys", "hotkeys", KeyContext::kGlobal,
-     {scan::kK, mod::kCtrl}},
     // THE CURRENT-CONDITION VIEW, AND IT FOLLOWS THE KEYBOARD -- `^c`-quit's
     // class, for `^c`-quit's exact reason.
     //
@@ -1389,6 +1390,35 @@ inline const ActionRow* row_of_id(std::string_view id) noexcept {
     return nullptr;
 }
 
+/// ACTION IDS WHOSE OWNER CHANGED, AND THE ID A KEYMAP FILE'S ROW FOR EACH IS READ AS NOW.
+///
+/// A maker's file is a promise about MEANING, and an owner moving did not change what these two
+/// mean: `workshop.terminal` opened the Terminal and `workshop.hotkeys` opened the key list, and
+/// the desktop's `desktop.terminal` and `desktop.hotkeys` do the same. So an authored row for the
+/// old id is applied to the new one when the new one is not authored itself -- one row, one
+/// meaning, never two rows in force -- and the load says so, naming the rename to make. The file
+/// is not rewritten. `workshop.picker` is deliberately NOT here: the + panel picker toggled a
+/// pane's participation, and the Pane Manager's key opens a tool; a meaning did change.
+// WL-KEY-06 -- agents/workshop/keyboard.md
+struct RenamedAction {
+    const char* was;
+    const char* now;
+};
+inline constexpr RenamedAction kRenamedActions[] = {
+    {"workshop.terminal", "desktop.terminal"},
+    {"workshop.hotkeys", "desktop.hotkeys"},
+};
+
+/// The id an authored row for `was` is read as now, or nullptr.
+inline const char* renamed_to(std::string_view was) noexcept {
+    for (const RenamedAction& r : kRenamedActions) {
+        if (was == r.was) {
+            return r.now;
+        }
+    }
+    return nullptr;
+}
+
 /// Whether the component's editable-text vocabulary owns this gesture wherever text has
 /// the keyboard.
 // WL-KEY-08 -- agents/workshop/keyboard.md
@@ -1758,7 +1788,8 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         rows.push_back(d);
     }
     // THE MAKER'S OWN FILE, applied to the ids it names -- including `none`, which is how a
-    // maker DISABLES an application default rather than moving it (WL-DESK-07).
+    // maker DISABLES an application default rather than moving it (WL-DESK-07) -- and, for an id
+    // that changed owners, the row written for its old id when the new one is not authored.
     for (AppRow& row : rows) {
         bool moved = false;
         for (const AuthoredOverride& o : k.authored) {
@@ -1774,6 +1805,38 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
             }
             row.gesture = parsed.gesture;
             moved = true;
+        }
+        for (const AuthoredOverride& o : k.authored) {
+            const char* now = renamed_to(o.action);
+            if (moved || now == nullptr || row.id != now) {
+                continue;
+            }
+            const ParsedGesture parsed = parse_gesture(o.gesture);
+            if (!parsed.accepted) {
+                return Written::no("`" + o.action + "` (read as `" + row.id + "`): " +
+                                   parsed.refusal);
+            }
+            row.gesture = parsed.gesture;
+            moved = true;
+        }
+    }
+    // A ROW ANSWERED ABOVE EVERY MODE MEETS EVERY TEXT FIELD, so the file's two walls for a global
+    // row are its walls too: no bare printable (every field would lose that character to it), and
+    // no chord the text box owns (the field would consume it first, or never see it again).
+    for (const AppRow& row : rows) {
+        if (row.precedence != 0 || !is_bound(row.gesture)) {
+            continue;
+        }
+        if (row.gesture.modifiers == mod::kNone &&
+            !expected_text_of(row.gesture.scancode, row.gesture.modifiers).empty()) {
+            return Written::no("`" + row.id + "`: `" + gesture_word(row.gesture) +
+                               "` is a bare printable, and a bare printable cannot be answered "
+                               "above every mode once anything on the screen can take text");
+        }
+        if (component_owns_gesture(row.gesture)) {
+            return Written::no("`" + row.id + "`: `" + gesture_word(row.gesture) +
+                               "` is the editing vocabulary's own gesture, which every text "
+                               "field would consume first");
         }
     }
     // THE COLLISION LAW, over the effective map: these rows against the host's own, against

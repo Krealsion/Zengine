@@ -90,7 +90,20 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
         return out;
     }
     if (legend == legend_mode::kCompact) {
-        out.push_back(detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width));
+        // THE APPLICATION'S OWN ROWS, above every mode -- where a maker's launches are, the
+        // key list among them; the host names none of them and reads them off the keymap.
+        std::string row;
+        for (const AppRow& app : k.app) {
+            if (app.precedence != app_precedence::kAboveModes ||
+                !k.app_row_active(app, ctx, pane)) {
+                continue;
+            }
+            const std::string pair = gesture_text(app.gesture) + " " + app.label;
+            row = row.empty() ? pair : row + " | " + pair;
+        }
+        if (!row.empty()) {
+            out.push_back(detail::fit(row, width));
+        }
         return out;
     }
     const std::vector<std::string> pairs = help_pairs(k, ctx, pane);

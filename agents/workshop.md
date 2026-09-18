@@ -22,7 +22,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, the selection lift, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
-| a hotkey, the keymap file, the hotkey view, where the keys go | [keyboard](workshop/keyboard.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
+| a hotkey, the keymap file, the effective keymap, where the keys go | [keyboard](workshop/keyboard.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its controls, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a panel, the Builder's rows, the foot band, a name on material | [regions](workshop/regions.md) `WL-RGN` |

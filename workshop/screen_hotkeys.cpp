@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- the full hotkey view -- compiled once into
+// The bodies of `screen.hpp`'s sections -- the effective keymap as a value -- compiled once into
 // `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
 // constants and the constexpr functions stay in the header.
-// Workshop law: agents/workshop/keyboard.md (+1 register; agents/workshop.md routes)
+// Workshop law: agents/workshop/desktop.md (+1 register; agents/workshop.md routes)
+//
+// ⭐ THE HOST'S KEY-LIST OVERLAY USED TO BE PAINTED FROM THIS FILE. It was a mode the host owned,
+// opened by a global row in its own catalog; the list is the desktop's Hotkeys pane now, and what
+// is left here is the one thing only the host can say: which bindings are in force, where.
 
 #include "screen.hpp"
 
 namespace zengine::workshop {
 
-// ---- THE FULL HOTKEY VIEW -------------------------------------------------------------
-
-// WL-KEY-11 -- agents/workshop/keyboard.md
+// WL-DESK-11 -- agents/workshop/desktop.md
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     switch (ctx) {
     case KeyContext::kNaming: return "naming a layout";
@@ -34,153 +36,98 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
         return row != nullptr ? "pane " + row->name + " @" + row->provider
                               : "a focused pane";
     }
+    case KeyContext::kGlobal: return "above every mode";
+    case KeyContext::kNoText: return "above every mode, unless text has the keys";
+    case KeyContext::kUnlessOwned:
+        return "above every mode, unless the pane holding the keys owns it";
     default: return "command mode";
     }
 }
 
-// WL-KEY-10, WL-KEY-11 -- agents/workshop/keyboard.md
-std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
-    const KeyContext ctx = keyboard_context(s);
+namespace {
+
+/// WHETHER THE MAKER'S FILE AUTHORED A ROW FOR THIS ID -- directly, or under the id it had
+/// before its owner changed (`kRenamedActions`), which is read as this one.
+bool authored_for(const Keymap& k, const std::string& id) {
+    for (const AuthoredOverride& o : k.authored) {
+        const char* now = renamed_to(o.action);
+        if (o.action == id || (now != nullptr && id == now)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string spelled(const Gesture& g) { return is_bound(g) ? gesture_word(g) : std::string(); }
+
+} // namespace
+
+// WL-DESK-11 -- agents/workshop/desktop.md
+KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word) {
     const Keymap& k = s.keymap;
-    std::vector<HotkeyRow> rows;
-    const auto entry = [&rows](const std::string& gesture, const std::string& label) {
-        rows.push_back(HotkeyRow{"  " + detail::pad(gesture, 14) + label,
-                                 surface::role::kFill});
+    KeymapShown out;
+    out.file = file;
+    out.word = word;
+    const auto add = [&out](std::string group, std::string id, std::string label,
+                            std::string gesture, bool authored, bool remappable) {
+        out.rows.push_back(ShownBinding{std::move(group), std::move(id), std::move(label),
+                                        std::move(gesture), authored, remappable});
     };
-    const auto group = [&rows](const std::string& name) {
-        if (rows.size() > 1) { // a blank row between groups; none under the heading
-            rows.push_back(HotkeyRow{std::string(), surface::role::kMuted});
-        }
-        rows.push_back(HotkeyRow{name, surface::role::kAccent});
-    };
-
-    rows.push_back(HotkeyRow{"HOTKEYS -- " + hotkey_text(k, Act::kHotkeys) + " or esc closes",
-                             surface::role::kAccent});
-    group(keyboard_context_name(s, ctx));
-    if (ctx == KeyContext::kPane) {
-        // THE HONEST WHOLE OF A PANE'S KEY STORY (WL-KEY-15). What the pane DECLARED is
-        // listed from the effective map, exactly as a built-in context's rows are -- an
-        // override a maker authored for the pane's id is what is spelled. Every other
-        // ordinary key and character still crosses uninterpreted, and what it means there
-        // is the provider's own; that sentence is ownership, not a binding list, and it is
-        // the whole story for a pane that declared nothing.
-        const PaneRows* declared = k.pane_rows(keyboard_pane(s.panels));
-        const bool any = declared != nullptr && !declared->rows.empty();
-        if (any) {
-            for (const PaneRow& row : declared->rows) {
-                entry(gesture_text(row.gesture), row.label);
+    // THE APPLICATION'S ROWS FIRST, because they are what a maker reaches for from anywhere:
+    // the launches above every mode, and the default rows asked where nothing else took the key.
+    for (const std::int64_t precedence : {app_precedence::kAboveModes, app_precedence::kDefault}) {
+        for (const AppRow& row : k.app) {
+            if (row.precedence != precedence) {
+                continue;
             }
+            add(precedence == app_precedence::kAboveModes
+                    ? "above every mode -- the application's"
+                    : "last, where nothing more specific took the key -- the application's",
+                row.id, row.label, spelled(row.gesture), authored_for(k, row.id), true);
         }
-        rows.push_back(HotkeyRow{any ? "  every other ordinary key and character goes to the pane;"
-                                     : "  every ordinary key and character goes to the pane;",
-                                 surface::role::kFill});
-        rows.push_back(HotkeyRow{"  what each one means there is the provider's own.",
-                                 surface::role::kFill});
-    } else {
+    }
+    // ...THEN THE HOST'S OWN, grouped by where each is answered, in the catalog's order. An
+    // action with several rows in one group is listed once: one override moves all of them.
+    const KeyContext order[] = {KeyContext::kGlobal,       KeyContext::kNoText,
+                                KeyContext::kUnlessOwned,  KeyContext::kCommand,
+                                KeyContext::kContext,      KeyContext::kArrangeDesk,
+                                KeyContext::kArrangePane,  KeyContext::kArrangeReset,
+                                KeyContext::kNaming,       KeyContext::kPaneNaming,
+                                KeyContext::kDraft,        KeyContext::kPicker,
+                                KeyContext::kPaneEditor};
+    for (const KeyContext ctx : order) {
+        std::vector<Act> listed;
         for (const ActionRow& row : kActionCatalog) {
-            if (row.context == ctx) {
-                entry(gesture_text(k.row_gesture(row)), row.label);
+            if (row.context != ctx) {
+                continue;
             }
+            bool seen = false;
+            for (const Act a : listed) {
+                seen = seen || a == row.act;
+            }
+            if (seen) {
+                continue;
+            }
+            listed.push_back(row.act);
+            add(keyboard_context_name(s, ctx), row.id, row.label, spelled(k.row_gesture(row)),
+                k.override_for(row.act) != nullptr, true);
         }
     }
-    bool above = false;
-    for (const ActionRow& row : kActionCatalog) {
-        const bool is_class = row.context == KeyContext::kGlobal ||
-                              row.context == KeyContext::kNoText ||
-                              row.context == KeyContext::kUnlessOwned;
-        // ...AND A ROW THE FOCUSED PANE OWNS IS NOT LISTED ABOVE THE MODES, because it is
-        // not requestable there: the pane's own row for the same operation is two groups
-        // up, spelled with the key that really runs (WL-KEY-15).
-        if (!is_class || !k.row_active(row, ctx, keyboard_pane(s.panels))) {
-            continue;
-        }
-        if (!above) {
-            group("answered above every mode");
-            above = true;
-        }
-        entry(gesture_text(k.row_gesture(row)), row.label);
-    }
-    if (ctx == KeyContext::kNaming ||
-        ctx == KeyContext::kPaneNaming || ctx == KeyContext::kDraft) {
-        group("the text box's own keys (not remappable)");
-        for (const component::EditingGesture& g : component::kEditingVocabulary) {
-            entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
+    // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by.
+    for (const PaneRows& p : k.panes) {
+        const RuntimePane* named = s.panels.runtime.of_kind(p.pane);
+        const std::string group =
+            named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
+        for (const PaneRow& row : p.rows) {
+            add(group, row.id, row.label, spelled(row.gesture), authored_for(k, row.id), true);
         }
     }
-    // ⭐ THE EDITOR'S OWN MECHANICS WERE LISTED HERE AND ARE NOT, AND THAT IS A NAMED LOSS.
-    // The built-in's declaration rows (`kEditorVocabulary`) were shown for discovery, marked
-    // not remappable, exactly as the component's are above. The Editor is a pane, its
-    // vocabulary is its own image's, and this host cannot list what it cannot see: the pane
-    // is described as ownership plus its four declared rows, like every other pane. A pane
-    // that could publish its unremappable keys for a legend is a protocol sentence nobody
-    // has asked for yet.
-    return rows;
-}
-
-// WL-CTX-03 -- agents/workshop/contextual.md; WL-KEY-10 -- agents/workshop/keyboard.md
-FineRect hotkeys_bounds(const Session& s, const Screen& sc) {
-    const std::vector<HotkeyRow> rows = hotkeys_rows(s);
-    std::int64_t want_cols = 0;
-    for (const HotkeyRow& row : rows) {
-        const std::int64_t len = static_cast<std::int64_t>(row.text.size());
-        want_cols = len > want_cols ? len : want_cols;
+    // ...AND THE TEXT BOX'S OWN KEYS, listed for discovery and marked: no file moves them.
+    for (const component::EditingGesture& g : component::kEditingVocabulary) {
+        add("the text box's own keys", std::string(), g.label,
+            gesture_word(Gesture{g.scancode, g.modifiers}), false, false);
     }
-    const std::int64_t want_rows = static_cast<std::int64_t>(rows.size());
-    const ui::Rect corner = cells_covered(overlay_column(sc));
-    std::int64_t x = corner.x;
-    std::int64_t y = corner.y;
-    const std::int64_t chosen = selected_pane(s.panels);
-    if (chosen != kNoPaneKind) {
-        const FineRect anchor = bounds_of(s.panels, s.setup.active, chosen, sc).rect;
-        if (anchor.w > 0 && anchor.h > 0) {
-            // THE ANCHOR IS A CELL CORNER. The view is screen furniture and never moves by
-            // less than a cell -- `picker_bounds`'s own rule -- so the pane's fine top-left
-            // is read at the cell grain it is drawn on, which is also where its visible
-            // boundary is.
-            const ui::Rect at = cells_covered(anchor);
-            x = at.x;
-            y = at.y;
-        }
-    }
-    return popup_bounds_at(want_cols, want_rows, x, y, sc);
-}
-
-void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
-    if (!s.hotkeys.open) {
-        return;
-    }
-    const FineRect b = hotkeys_bounds(s, sc);
-    paint_panel_frame(layer, b, kTransientChrome);
-    const PanelProsePlace place = panel_prose_place(b, sc);
-    if (!place.present) {
-        return; // a place with no room for a row says nothing rather than lying about the room
-    }
-    // THE SAME ROWS THE EXTENT WAS MEASURED FROM, so on a character medium every one
-    // of them lands whole on its own row, and on the shipped face the same holds with the
-    // face's slack to spare.
-    const std::vector<HotkeyRow> rows = hotkeys_rows(s);
-    surface::SurfaceTextRegion region = panel_prose_region(place);
-    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
-        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
-    };
-    // NO CURSOR, SO NO WINDOW TO KEEP IT IN: where the room is smaller than the list, the
-    // list is cut at the room and the cut is counted, the completion list's own wording --
-    // this place cannot show a row AND tell a maker what it is hiding, so it tells them.
-    // The heading is row 0 of the composition and survives a one-row room; the marker
-    // takes a row only where one is spare.
-    const std::size_t budget = static_cast<std::size_t>(place.rows);
-    const bool cut = rows.size() > budget;
-    std::size_t shown = rows.size();
-    if (cut) {
-        shown = budget > 1 ? budget - 1 : budget;
-    }
-    for (std::size_t i = 0; i < shown; ++i) {
-        say(rows[i].text, rows[i].role);
-    }
-    if (cut && budget > 1) {
-        say("  " + omitted_text(rows.size() - shown, "more"), surface::role::kMuted);
-    }
-    layer.texts.push_back(std::move(region));
+    return out;
 }
 
 } // namespace zengine::workshop

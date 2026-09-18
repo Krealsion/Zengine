@@ -1151,47 +1151,6 @@ TEST_CASE("a press into Files while the picker has the keys never opens its sele
     CHECK(tap.requested == std::vector<std::string>{path});
 }
 
-TEST_CASE("a press into Files while the hotkey view has the keys never opens its selected row, and the band does not say typing goes to Files; with the view closed the press opens it") {
-    // THE HOTKEY VIEW IS NOT A KEYBOARD CONTEXT (WL-KEY-11): it is keys-modal over whatever context
-    // lies beneath, which here is Files itself -- the candidate, the resolved pane and the context
-    // all still name Files, and still no ordinary key reaches it. So "where the keys went" is not
-    // `keyboard_context` alone.
-    FilesRig f("files-under-hotkeys");
-    put_file(f.root / "alpha.cpp", "the alpha source\n");
-    put_file(f.root / "beta.cpp", "the beta source\n");
-    f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
-    const std::string beta = (f.root / "beta.cpp").lexically_normal().generic_string();
-    press_pane(f.r, f.kind, row_beginning(f.shown(), "  beta.cpp"), 0); // the keys are Files'
-    REQUIRE(f.at_cursor().rfind("beta.cpp", 0) == 0);
-    REQUIRE(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
-
-    f.r.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(f.r.session().hotkeys.open);
-    REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
-    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPane);
-    for (const std::string& line : band_lines(f.r)) {
-        CHECK_MESSAGE(line.find("typing goes to") == std::string::npos, line);
-    }
-    SeamTap tap(f.r.bus, f.files_id());
-    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
-    REQUIRE(tap.pressed.size() == 1);
-    CHECK(tap.keys_went_here[0] == 0);
-    CHECK(tap.attempts == 0);
-    CHECK(f.r.session().hotkeys.open);
-    // AN ORDINARY KEY IS THE VIEW'S.
-    f.r.key(input::scan::kUp);
-    CHECK(tap.keys + tap.actions == 0);
-    CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
-
-    f.r.key(input::scan::kEscape);
-    REQUIRE_FALSE(f.r.session().hotkeys.open);
-    CHECK(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
-    press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);
-    REQUIRE(tap.pressed.size() == 2);
-    CHECK(tap.keys_went_here[1] == 1);
-    CHECK(tap.requested == std::vector<std::string>{beta});
-}
-
 TEST_CASE("a press from a host that states no routing fact only selects in Files, even on the selected row with the keys Files', and Return still opens it") {
     // AN OLDER HOST AND A NEWER FILES. A host that answers nothing about which version an office
     // accepts sends every press as v1, and v1 says nothing about where the keys were -- so Files

@@ -234,6 +234,45 @@ struct PaneInventoryRequested {
     ZEN_SHAPE(PaneInventoryRequested, 1);
 };
 
+// ---- The effective keymap, said out loud ----------------------------------------------------
+
+/// ONE BINDING AS IT IS IN FORCE: which action, what a legend calls it, the gesture that
+/// requests it now in the keymap file's own spelling (empty when it answers to no key), and
+/// where in the chain it is answered. `authored` says the maker's keymap file moved or
+/// disabled it; `remappable` is false only for the text box's own keys, listed for discovery.
+struct ShownBinding {
+    std::string group;   ///< where it is answered: "above every mode", a mode's name, a pane
+    std::string id;      ///< the durable id a keymap file names
+    std::string label;
+    std::string gesture; ///< e.g. `ctrl+t`; empty when the row answers to no key
+    bool authored = false;
+    bool remappable = true;
+    ZEN_SHAPE(ShownBinding, 1, ZEN_FIELD(group), ZEN_FIELD(id), ZEN_FIELD(label),
+              ZEN_FIELD(gesture), ZEN_FIELD(authored), ZEN_FIELD(remappable));
+};
+
+/// THE ONE BINDING TRUTH, AS A VALUE -- what dispatch reads, projected for a presenter: every
+/// host row, every application row, every pane's rows in force, and the text box's own keys.
+///
+/// ⚠ A PRESENTER KEEPS NO CATALOG OF ITS OWN. A floor that printed `ctrl+t` because that is the
+/// declared default would go on printing it after a maker moved or disabled the row; the
+/// desktop reads its own rows' gestures here, as the host resolved them.
+///
+/// Published `to_any` when it changes and answered to a presenter that asks (`KeymapRequested`),
+/// on `PaneInventory`'s terms. `file` is the keymap file this run reads; `word` is what reading
+/// it came to (empty when there was nothing to say).
+struct KeymapShown {
+    std::vector<ShownBinding> rows;
+    std::string file;
+    std::string word;
+    ZEN_SHAPE(KeymapShown, 1, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word));
+};
+
+/// TELL ME THE KEYMAP AS IT IS NOW -- `PaneInventoryRequested`'s question, one owner over.
+struct KeymapRequested {
+    ZEN_SHAPE(KeymapRequested, 1);
+};
+
 // ---- The backdrop ---------------------------------------------------------------------------
 
 /// WHAT STANDS IN THE EMPTY ROOM -- the rows Workshop paints in the workspace, behind every

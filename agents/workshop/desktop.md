@@ -9,7 +9,7 @@ keystroke becomes an action at all is the keymap's law, in [`keyboard.md`](keybo
 LAW — One office, `zengine.desktop`, holds the application's default behaviour; the host keeps room, focus, realization and roots, and compiles none of what that office decides.
 
 MEANS
-- a Workshop whose desktop did not load has no launch bindings, no default Escape, no floor;
+- a Workshop whose desktop did not load has no launch bindings, key list, default Escape or floor;
 - the weave is built, loaded, edited and reloaded by the means every pane weave is.
 
 DOES NOT MEAN
@@ -142,7 +142,7 @@ WHY — `agents/decisions/a-verdict-answers-its-declaration.md`
 LAW — The declaring office's rows join the one keymap under the one collision law; each row declares whether it is answered above the modes or last, and there are exactly two such places.
 
 MEANS
-- an above-the-modes row is asked before the keys cross to a pane, and meets every host row;
+- an above-the-modes row is asked before any pane, meets every host row, and takes no text key;
 - a default row meets none of them, because it is asked only where they claimed nothing;
 - a pane stands in for an above-the-modes row by naming its id, never by matching a gesture.
 
@@ -157,7 +157,9 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `AppActionRow`, `AppActions
 `workshop/weave_desktop.cpp` `on(AppActions)`;
 `tests/test_workshop_panes_actions.cpp` case `"WL-KEY-16: an application row is joined, is
 requested above the modes, and reaches its declarer as the resolved id"`, case `"WL-KEY-16: the
-collision law is precedence-aware, and a pane may stand in by name"`, case `"WL-KEY-16: a pane's
+collision law is precedence-aware, and a pane may stand in by name"`, case `"an application row
+answered above every mode cannot take a bare printable or a chord the text box owns, whoever
+wrote it"`, case `"WL-KEY-16: a pane's
 row and an above-the-modes application row collide unless the pane declares it stands in, in
 both arrival orders"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
@@ -219,9 +221,31 @@ launcher's cursor is an identity: rows moving under it do not retarget Return, a
 left the list is said, not replaced"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
+## WL-DESK-11 — The effective keymap is said out loud, and presenters print only it
+
+LAW — The host publishes every binding in force, grouped by where it is answered, when it changes and to an arriving asker; the floor and the Hotkeys pane print keys from it and from nothing else.
+
+MEANS
+- a moved row is printed where it moved, a disabled one as having no key, `*` marking the maker's;
+- the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
+
+DOES NOT MEAN
+- that a presenter rebinds anything: a key moves in the keymap file, which is read at launch.
+
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShown`,
+`KeymapRequested`; `workshop/screen.hpp` `keymap_shown`; `workshop/screen_hotkeys.cpp`
+`keymap_shown`, `keyboard_context_name`; `workshop/weave.hpp` `publish_keymap`,
+`on(KeymapRequested)`; `workshop/weave_desktop.cpp` `publish_keymap`, `on(KeymapRequested)`;
+`desktop-pane/pane.cpp` `DesktopWeave`; `desktop-pane/vocabulary.hpp` `kHotkeysPane`,
+`kActionHotkeys`; `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane
+teach the application's keys as they are in force: a moved row where it moved, a disabled one as
+having no key"`; `tests/test_workshop_document.cpp` case `"KEY-0: the effective keymap lists
+every place a key is answered, and marks the text box's keys as nobody's to move"`.
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
 ## Do not assume
 
 - That the desktop can take a gesture from a pane — a pane stands in for an above-the-modes
   row by naming it, and then the application row is not requestable there (WL-DESK-07).
-- That `Ctrl+t` is the host's again — the id is `desktop.terminal`, in the weave's namespace,
-  and a maker who authored an override for the retired `workshop.terminal` must move it.
+- That `Ctrl+t` is the host's again — the id is `desktop.terminal`, in the weave's namespace;
+  an override authored for the retired `workshop.terminal` is read as it, and the load says so.

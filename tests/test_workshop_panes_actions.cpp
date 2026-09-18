@@ -122,14 +122,7 @@ const std::vector<v2::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     return row->actions;
 }
 
-std::string hotkeys_text(PaneRig& r) {
-    std::string out;
-    for (const HotkeyRow& row : hotkeys_rows(r.session())) {
-        out += row.text;
-        out += '\n';
-    }
-    return out;
-}
+std::string hotkeys_text(PaneRig& r) { return keymap_text(r.session()); }
 
 constexpr std::int64_t kSomePane = 1024; // a runtime handle, for the value-level cases
 
@@ -307,10 +300,6 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
               nullptr);
     }
     SUBCASE("the collision law runs over what is active while a pane holds the keys") {
-        // A GLOBAL CHORD: refused, in the file's own words, naming both ids.
-        const Gesture hotkeys = k.gesture_of(Act::kHotkeys);
-        CHECK(refused({declared("x.k", "keys", hotkeys.scancode, hotkeys.modifiers)}) ==
-              collision_sentence(hotkeys, "workshop.hotkeys", "x.k"));
         // ⭐ `document.save` (^s) IS REFUSED HERE AGAIN, AND ONE DECLARATION BUYS IT (VD-26).
         // The row is active while a pane holds the keys, so a pane taking its chord for an
         // unrelated operation really would be two meanings on one gesture -- unless the pane
@@ -331,7 +320,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
                   .find("not an action id this Workshop knows") != std::string::npos);
         CHECK(refused({declared("x.k", "k", input::scan::kUnknown, input::mod::kNone,
-                                "workshop.hotkeys")})
+                                "workshop.quit")})
                   .find("not an action a pane may own") != std::string::npos);
         // ...AND `document.open` (^o) IS OWNABLE the way `document.save` is: one declaration buys
         // it, and only for the pane that made it.
@@ -375,10 +364,11 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
               Gesture{input::scan::kU, input::mod::kCtrl});
         CHECK(moved.pane_action_for(kSomePane, input::scan::kUp, input::mod::kNone) == nullptr);
         REQUIRE(moved.pane_action_for(kSomePane, input::scan::kU, input::mod::kCtrl) != nullptr);
-        // AN OVERRIDE THAT LANDS ON A GLOBAL IS THE SAME COLLISION, said the same way.
-        k.authored[0].gesture = "ctrl+k";
+        // AN OVERRIDE THAT LANDS ON A ROW ACTIVE ABOVE THE MODES IS THE SAME COLLISION, said the
+        // same way.
+        k.authored[0].gesture = "ctrl+s";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)}) ==
-              collision_sentence(k.gesture_of(Act::kHotkeys), "workshop.hotkeys", "x.up"));
+              collision_sentence(k.gesture_of(Act::kSaveDocument), "document.save", "x.up"));
         // A GESTURE OUTSIDE THE GRAMMAR, and an id authored twice: `apply_overrides`' words.
         k.authored[0].gesture = "hyper+u";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)}).find("`x.up`: `hyper`") !=
@@ -478,28 +468,32 @@ TEST_CASE("a row colliding with a chord answered above every mode refuses the wh
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    // THE CHORD ABOVE EVERY MODE IS AN APPLICATION ROW: `ctrl+k`, the desktop's key list.
+    DesktopSeat* desk = mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_declared(r, seat, kHelloOffice, kHelloPane,
                                                  {declared("hello.up", "row up", input::scan::kUp)});
     REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
 
-    const Gesture hotkeys = r.session().keymap.gesture_of(Act::kHotkeys);
+    const Gesture hotkeys{input::scan::kK, input::mod::kCtrl};
     redeclare(r, seat, kHelloPane,
               {declared("hello.up", "row up", input::scan::kUp),
                declared("hello.keys", "keys", hotkeys.scancode, hotkeys.modifiers)});
     // THE REFUSAL NAMES THE PANE AND BOTH ACTIONS, in the keymap file's own words.
     CHECK(r.last_notice() == "Seat @" + std::string(kHelloOffice) + ": " +
-                                 collision_sentence(hotkeys, "workshop.hotkeys", "hello.keys"));
+                                 collision_sentence(hotkeys, "desktop.hotkeys", "hello.keys"));
     // AND THE PREVIOUS ROWS STAND, on the map and on the catalog row alike.
     REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
     REQUIRE(r.session().keymap.pane_rows(kind)->rows.size() == 1);
     CHECK(r.session().keymap.pane_rows(kind)->rows[0].id == "hello.up");
     REQUIRE(retained(r, kind).size() == 1);
     CHECK(retained(r, kind)[0].id == "hello.up");
-    // ...and the global still answers.
+    // ...and the application row still answers, inside the pane.
     press_body(r, kind);
+    const std::size_t asked = desk->asked().size();
     r.key(hotkeys.scancode, hotkeys.modifiers);
-    CHECK(r.session().hotkeys.open);
+    REQUIRE(desk->asked().size() == asked + 1);
+    CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
     CHECK(seat->keys.empty());
     CHECK(seat->actions.empty());
 }
@@ -571,6 +565,7 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    DesktopSeat* desk = mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_declared(r, seat, kHelloOffice, kHelloPane,
                                                  {declared("hello.up", "row up", input::scan::kUp),
@@ -612,9 +607,10 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
     CHECK(seat->actions.size() == 2);
     CHECK(seat->keys.size() == 2);
     CHECK(seat->typed.size() == 2);
-    // AND THE ABOVE-MODE CHORDS STILL OUTRANK THE PANE: `^k` opens the hotkey view here.
+    // AND THE ABOVE-MODE CHORDS STILL OUTRANK THE PANE: `^k` asks the desktop for its key list.
     r.key(input::scan::kK, input::mod::kCtrl);
-    CHECK(r.session().hotkeys.open);
+    REQUIRE_FALSE(desk->asked().empty());
+    CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
     CHECK(seat->keys.size() == 2);
     CHECK(seat->actions.size() == 2);
 }
@@ -687,8 +683,8 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
           "in both orders") {
     TempDir dir("pane-actions-file-wins");
     const std::string path = dir.file("keymap.json");
-    // The maker moved the hotkey view onto ctrl+u; the pane's default is ctrl+u too.
-    write_keymap_file(path, keymap_file_text("default", {{"workshop.hotkeys", "ctrl+u"}}));
+    // The maker moved the key list onto ctrl+u; the pane's default is ctrl+u too.
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.hotkeys", "ctrl+u"}}));
     const Gesture moved{input::scan::kU, input::mod::kCtrl};
 
     SUBCASE("the file first: the declaration is refused at its admission") {
@@ -696,6 +692,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         r.host.keymap_path = path;
         r.mount_workshop();
         r.ready();
+        DesktopSeat* desk = mount_desktop(r); // its key-list row lands where the file put it
         ProviderSeat* seat = r.mount_provider(kHelloOffice);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
@@ -705,7 +702,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         // THE REFUSAL IS SAID AT THE DECLARATION, before any later gesture writes over
         // the one notice line.
         CHECK(r.last_notice() == "Seat @" + std::string(kHelloOffice) + ": " +
-                                     collision_sentence(moved, "workshop.hotkeys", "hello.up"));
+                                     collision_sentence(moved, "desktop.hotkeys", "hello.up"));
         const RuntimePane* row = r.session().panels.runtime.find(kHelloOffice, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
@@ -714,13 +711,15 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         r.pick(PaneRef{kHelloOffice, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
-        CHECK(r.session().hotkeys.open); // the maker's file is what is in force
+        REQUIRE_FALSE(desk->asked().empty()); // the maker's file is what is in force
+        CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
         CHECK(seat->actions.empty());
     }
     SUBCASE("the pane first: the load re-joins, refuses that pane's rows, and says so once") {
         PaneRig r;
         r.host.keymap_path = path;
         r.mount_workshop();
+        DesktopSeat* desk = mount_desktop(r); // declared under the defaults, before the file
         ProviderSeat* seat = r.mount_provider(kHelloOffice);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
@@ -738,21 +737,23 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         CHECK(retained(r, kind).empty());
         CHECK(r.last_notice().find("1 override") != std::string::npos);
         CHECK(r.last_notice().find("Seat @" + std::string(kHelloOffice) + ": " +
-                                   collision_sentence(moved, "workshop.hotkeys", "hello.up")) !=
+                                   collision_sentence(moved, "desktop.hotkeys", "hello.up")) !=
               std::string::npos);
         r.pick(PaneRef{kHelloOffice, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
-        CHECK(r.session().hotkeys.open);
+        REQUIRE_FALSE(desk->asked().empty());
+        CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
         CHECK(seat->actions.empty());
     }
 }
 
 // ============================================================================
-// The legend and the hotkey view
+// The legend and the effective keymap
 // ============================================================================
 
-TEST_CASE("the band's legend and the hotkey view print the pane's rows while it holds the keys") {
+TEST_CASE("the band's legend and the effective keymap print the pane's rows while it holds the "
+          "keys") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -779,20 +780,14 @@ TEST_CASE("the band's legend and the hotkey view print the pane's rows while it 
         // no key (WL-KEY-13).
         // (`^s save` is back in this row: `document.save` is requestable while a pane that
         // did not declare it owns the keys; VD-26.)
-        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open | ^k hotkeys");
+        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open");
     }
-    // THE HOTKEY VIEW: the rows, then the ownership sentence for everything else.
-    r.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(r.session().hotkeys.open);
+    // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
+    const std::string group = "pane Seat @" + std::string(kHelloOffice);
     const std::string view = hotkeys_text(r);
-    CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) != std::string::npos);
-    CHECK(view.find("row up") != std::string::npos);
-    CHECK(view.find("mark") != std::string::npos);
-    CHECK(view.find(detail::pad("unbound", 14) + "rename") != std::string::npos);
-    CHECK(view.find("every other ordinary key and character goes to the pane") !=
-          std::string::npos);
-    CHECK(view.find("the provider's own") != std::string::npos);
-    r.key(input::scan::kEscape);
+    CHECK(view.find(group + " | up | row up | hello.up") != std::string::npos);
+    CHECK(view.find(group + " | m | mark | hello.mark") != std::string::npos);
+    CHECK(view.find(group + " |  | rename | hello.rename") != std::string::npos);
 
     // AND AN OVERRIDE IS WHAT BOTH SPELL: the band and the view project the effective map.
     ProviderSeat* other = r.mount_provider(kOtherOffice);
@@ -813,11 +808,10 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^s save | ^o open | ^k hotkeys"); // `^s` is back (VD-26)
-    r.key(input::scan::kK, input::mod::kCtrl);
+    CHECK(band_lines(r).at(1) == "^s save | ^o open"); // `^s` is back (VD-26)
+    // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
-    CHECK(view.find("every ordinary key and character goes to the pane") != std::string::npos);
-    CHECK(view.find("every other") == std::string::npos);
+    CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) == std::string::npos);
 }
 
 // ============================================================================
@@ -1167,7 +1161,7 @@ TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk != nullptr);
-    REQUIRE(t.session().keymap.app.size() == 3);
+    REQUIRE(t.session().keymap.app.size() == 4);
 
     // ⭐ CTRL+T IS BACK, AND IT IS A PARTICIPANT'S ROW. The retired `workshop.terminal` was a
     // global in this host's own closed catalog; this one is spelled in a weave.
@@ -1198,7 +1192,7 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
     // that an APPLICATION row is owed the same treatment: the maker's file names ids nobody
     // has declared yet, they are preserved unjudged (WL-KEY-06), and the join applies them.
     Keymap k;
-    k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+y"});
+    k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+g"});
     k.authored.push_back(AuthoredOverride{"desktop.deselect", "none"});
     const Written joined = join_app_rows(
         k, std::vector<AppRow>{
@@ -1211,13 +1205,13 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
 
     const AppRow* moved = k.app_row_of_id("desktop.terminal");
     REQUIRE(moved != nullptr);
-    CHECK(moved->gesture.scancode == input::scan::kY);
+    CHECK(moved->gesture.scancode == input::scan::kG);
     CHECK(moved->gesture.modifiers == input::mod::kCtrl);
     // THE OLD GESTURE REQUESTS NOTHING NOW, and the authored one requests the row.
     CHECK(k.app_action_for(0, KeyContext::kCommand, input::scan::kT, input::mod::kCtrl) ==
           nullptr);
     const AppRow* by_key =
-        k.app_action_for(0, KeyContext::kCommand, input::scan::kY, input::mod::kCtrl);
+        k.app_action_for(0, KeyContext::kCommand, input::scan::kG, input::mod::kCtrl);
     REQUIRE(by_key != nullptr);
     CHECK(by_key->id == "desktop.terminal");
 
@@ -1291,13 +1285,14 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
 
 TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name") {
     Keymap k;
-    // AN ABOVE-THE-MODES ROW MEETS EVERY HOST ROW: `ctrl+k` is `workshop.hotkeys`.
+    // AN ABOVE-THE-MODES ROW MEETS EVERY HOST ROW, whatever mode it lives in: `ctrl+w` is
+    // command mode's `layout.remove`.
     {
         Keymap candidate = k;
         const Written no = join_app_rows(
-            candidate, std::vector<AppRow>{AppRow{"x.hot", "x", Gesture{input::scan::kK, input::mod::kCtrl}, 0}});
+            candidate, std::vector<AppRow>{AppRow{"x.hot", "x", Gesture{input::scan::kW, input::mod::kCtrl}, 0}});
         CHECK_FALSE(no.accepted);
-        CHECK(no.refusal.find("workshop.hotkeys") != std::string::npos);
+        CHECK(no.refusal.find("layout.remove") != std::string::npos);
         CHECK(candidate.app.empty()); // atomic: a refusal joins nothing
     }
     // ⭐ A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: the picker
@@ -1316,8 +1311,8 @@ TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stan
         const Written no = join_app_rows(
             candidate,
             std::vector<AppRow>{
-                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0},
-                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0}});
+                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kCtrl}, 0},
+                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kCtrl}, 0}});
         CHECK_FALSE(no.accepted);
     }
     {
@@ -1325,8 +1320,8 @@ TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stan
         const Written yes = join_app_rows(
             candidate,
             std::vector<AppRow>{
-                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kNone}, 0},
-                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kNone}, 1}});
+                AppRow{"x.a", "a", Gesture{input::scan::kSemicolon, input::mod::kCtrl}, 0},
+                AppRow{"x.b", "b", Gesture{input::scan::kSemicolon, input::mod::kCtrl}, 1}});
         CHECK(yes.accepted);
     }
     // A PRECEDENCE THIS BUILD CANNOT NAME IS REFUSED RATHER THAN GUESSED.
@@ -1652,7 +1647,7 @@ TEST_CASE("a verdict answers the declaration it judges: a refused attempt is nam
     bad.rows.push_back(AppActionRow{"demo.open", "launch", input::scan::kC, input::mod::kCtrl,
                                     app_precedence::kAboveModes}); // ctrl+c is the host's quit
     AppActions good;
-    good.rows.push_back(AppActionRow{"demo.open", "launch", input::scan::kY, input::mod::kCtrl,
+    good.rows.push_back(AppActionRow{"demo.open", "launch", input::scan::kG, input::mod::kCtrl,
                                      app_precedence::kAboveModes});
     desktop_does(t, desk, [bad, good](DesktopSeat& d, loom::Mail& m) {
         d.declare(m, bad, 101);
@@ -1672,7 +1667,7 @@ TEST_CASE("a verdict answers the declaration it judges: a refused attempt is nam
     CHECK(accepted.said.declaration > first); // a number of its own, never reused
     const AppRow* row = t.session().keymap.app_row_of_id("demo.open");
     REQUIRE(row != nullptr);
-    CHECK(row->gesture == Gesture{input::scan::kY, input::mod::kCtrl});
+    CHECK(row->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
 }
 
 TEST_CASE("a declaration the keymap file displaces is withdrawn by the number its verdict gave "
@@ -1810,5 +1805,154 @@ TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, 
     }
     CAPTURE(floor);
     CHECK(floor.find("keys refused:") != std::string::npos);
+    CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
+}
+
+namespace {
+
+std::string floor_text(PaneRig& r) {
+    std::string floor;
+    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
+        floor += row.text + "\n";
+    }
+    return floor;
+}
+
+/// WHAT THE DESKTOP'S HOTKEYS PANE IS SHOWING, one row per line.
+std::string hotkeys_pane_text(PaneRig& r) {
+    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    REQUIRE(row != nullptr);
+    const ExternalPane* shown = r.session().panels.external_pane(row->kind);
+    REQUIRE(shown != nullptr);
+    CHECK(shown->refusal.empty());
+    std::string text;
+    for (const surface::SurfaceTextRow& line : shown->shown) {
+        text += line.text + "\n";
+    }
+    return text;
+}
+
+} // namespace
+
+TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they are in force: a "
+          "moved row where it moved, a disabled one as having no key") {
+    // MUTATION (K1): `face()` printing its own declared defaults -- the floor says `ctrl+t` for a
+    // row the maker moved to `ctrl+y`, the probe's exact finding.
+    TempDir dir("desktop-effective-keys");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},
+                                                         {"desktop.panes", "none"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    load_real_desktop(r);
+    const AppRow* moved = r.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(moved != nullptr);
+    REQUIRE(moved->gesture == Gesture{input::scan::kG, input::mod::kCtrl}); // dispatch uses it
+
+    const std::string floor = floor_text(r);
+    CAPTURE(floor);
+    CHECK(floor.find("ctrl+g  terminal") != std::string::npos);
+    CHECK(floor.find("ctrl+t") == std::string::npos);
+    CHECK(floor.find("panes: no key") != std::string::npos);
+    CHECK(floor.find("ctrl+k  hotkeys") != std::string::npos);
+
+    // THE HOTKEYS PANE, LAUNCHED BY ITS OWN APPLICATION ROW, lists the same truth -- with the
+    // maker's two authored rows marked, and where to move one. Made tall, as a maker would.
+    r.key(input::scan::kK, input::mod::kCtrl);
+    const Written tall = author_pane_size(r.session().setup.active,
+                                          PaneRef{kDesktopRole, dp::kHotkeysPane}, PaneSize{},
+                                          PaneSize{pane_unit::kSubcells, subs(40)});
+    REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+    r.extent(200, 60);
+    const std::string keys = hotkeys_pane_text(r);
+    CAPTURE(keys);
+    CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
+    CHECK(keys.find("ctrl+g         terminal  desktop.terminal *") != std::string::npos);
+    CHECK(keys.find("(no key)       panes  desktop.panes *") != std::string::npos);
+    CHECK(keys.find("keymap file: " + path) != std::string::npos);
+    CHECK(keys.find("applied -- 2 authored rows") != std::string::npos);
+    CHECK(keys.find("\"none\" disables it") != std::string::npos);
+
+    // ...AND IT SCROLLS: the list is longer than its room, and every cut is counted.
+    r.key(input::scan::kEnd);
+    CHECK(hotkeys_pane_text(r).find("more above") != std::string::npos);
+    r.key(input::scan::kHome);
+    CHECK(hotkeys_pane_text(r).find("more below") != std::string::npos);
+}
+
+TEST_CASE("a keymap row written for an id whose owner changed is read as its successor, once, and "
+          "the load says which rename to make") {
+    // MUTATION (K2): dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
+    // on `ctrl+t` although the maker's file moved `workshop.terminal`.
+    TempDir dir("desktop-renamed-ids");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"},
+                                                         {"workshop.hotkeys", "ctrl+b"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.ready();
+    DesktopSeat* desk = mount_desktop(r);
+    (void)desk;
+    const AppRow* terminal = r.session().keymap.app_row_of_id("desktop.terminal");
+    const AppRow* keys = r.session().keymap.app_row_of_id("desktop.hotkeys");
+    REQUIRE(terminal != nullptr);
+    REQUIRE(keys != nullptr);
+    CHECK(terminal->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+    CHECK(keys->gesture == Gesture{input::scan::kB, input::mod::kCtrl});
+    // THE LOAD SAID IT, naming the rename that would make the file say what it means.
+    CHECK(r.session().keymap.note.find("`workshop.terminal` is read as `desktop.terminal`") !=
+          std::string::npos);
+    CHECK(keymap_text(r.session()).find("ctrl+g | terminal | desktop.terminal *") !=
+          std::string::npos);
+
+    // ...AND A FILE THAT NAMES BOTH IS READ BY THE NEW ID: one row, one meaning.
+    TempDir both_dir("desktop-renamed-both");
+    const std::string both = both_dir.file("keymap.json");
+    write_keymap_file(both, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"},
+                                                         {"desktop.terminal", "ctrl+b"}}));
+    PaneRig b;
+    b.host.keymap_path = both;
+    b.mount_workshop();
+    b.ready();
+    (void)mount_desktop(b);
+    const AppRow* chosen = b.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(chosen != nullptr);
+    CHECK(chosen->gesture == Gesture{input::scan::kB, input::mod::kCtrl});
+}
+
+TEST_CASE("an application row answered above every mode cannot take a bare printable or a chord "
+          "the text box owns, whoever wrote it") {
+    Keymap k;
+    const Written bare = join_app_rows(
+        k, std::vector<AppRow>{AppRow{"x.t", "t", Gesture{input::scan::kT, input::mod::kNone},
+                                      app_precedence::kAboveModes}});
+    CHECK_FALSE(bare.accepted);
+    CHECK(bare.refusal.find("bare printable") != std::string::npos);
+    const Written owned = join_app_rows(
+        k, std::vector<AppRow>{AppRow{"x.v", "v", Gesture{input::scan::kV, input::mod::kCtrl},
+                                      app_precedence::kAboveModes}});
+    CHECK_FALSE(owned.accepted);
+    CHECK(owned.refusal.find("editing vocabulary") != std::string::npos);
+    // ...AND A DEFAULT-CLASS ROW MAY: it is asked only where nothing took the key.
+    CHECK(join_app_rows(k, std::vector<AppRow>{AppRow{"x.esc", "esc",
+                                                      Gesture{input::scan::kX, input::mod::kNone},
+                                                      app_precedence::kDefault}})
+              .accepted);
+    // A MAKER'S FILE MOVING A LAUNCH ONTO ONE IS REFUSED THE SAME WAY, and told to the desktop.
+    TempDir dir("desktop-bare-override");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "t"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.ready();
+    DesktopSeat* desk = mount_desktop(r);
+    REQUIRE_FALSE(desk->verdicts().empty());
+    CHECK_FALSE(desk->verdicts().back().said.accepted);
+    CHECK(desk->verdicts().back().said.refusal.find("bare printable") != std::string::npos);
     CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
 }

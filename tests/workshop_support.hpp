@@ -2564,6 +2564,7 @@ struct PaneRig {
         speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
         speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
         speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
+        speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
         // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
         // Editor door's answer used to be granted here and is not: the door is the Editor
         // weave's now, and this host answers nothing about a source.
@@ -3705,6 +3706,7 @@ public:
     static constexpr const char* kDeselectId = "desktop.deselect";
     static constexpr const char* kTerminalId = "desktop.terminal";
     static constexpr const char* kPanesId = "desktop.panes";
+    static constexpr const char* kHotkeysId = "desktop.hotkeys";
 
 private:
     std::vector<std::string> asked_;
@@ -3714,7 +3716,7 @@ private:
     std::uint64_t last_ask_ = 0;
 };
 
-/// THE THREE ROWS THE SHIPPED DESKTOP DECLARES, spelled once so a case and the product cannot
+/// THE FOUR ROWS THE SHIPPED DESKTOP DECLARES, spelled once so a case and the product cannot
 /// come to disagree about what the defaults are.
 inline AppActions shipped_app_actions() {
     AppActions a;
@@ -3722,10 +3724,24 @@ inline AppActions shipped_app_actions() {
                                   zengine::input::mod::kCtrl, app_precedence::kAboveModes});
     a.rows.push_back(AppActionRow{DesktopSeat::kPanesId, "panes", zengine::input::scan::kP,
                                   zengine::input::mod::kCtrl, app_precedence::kAboveModes});
+    a.rows.push_back(AppActionRow{DesktopSeat::kHotkeysId, "hotkeys", zengine::input::scan::kK,
+                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
     a.rows.push_back(AppActionRow{DesktopSeat::kDeselectId, "put down",
                                   zengine::input::scan::kEscape, zengine::input::mod::kNone,
                                   app_precedence::kDefault});
     return a;
+}
+
+/// THE EFFECTIVE KEYMAP AS TEXT, one binding per line -- `group | gesture | label | id`, with
+/// ` *` where the maker's file moved it -- the value a presenter of keys is given
+/// (`keymap_shown`), read by a case the way the Hotkeys pane reads it.
+inline std::string keymap_text(const Session& s) {
+    std::string out;
+    for (const ShownBinding& b : keymap_shown(s, std::string(), std::string()).rows) {
+        out += b.group + " | " + b.gesture + " | " + b.label + " | " + b.id +
+               (b.authored ? " *" : "") + (b.remappable ? "" : " (not remappable)") + "\n";
+    }
+    return out;
 }
 
 /// SEAT A STAND-IN DESKTOP AND LET IT DECLARE. Returns the seat, so a case can read what it

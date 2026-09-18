@@ -1723,7 +1723,8 @@ TEST_CASE("WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger del
 TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome") {
     // WUX-5 took the permanent cheat sheets off the panes; a new gesture must not put one
     // back. So the coarse step is discoverable exactly where every other gesture is -- the
-    // keymap, the band's legend, and the full hotkey view -- and nowhere else.
+    // keymap, the band's legend, and the effective keymap the Hotkeys pane lists -- and nowhere
+    // else.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
 
@@ -1762,13 +1763,10 @@ TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane c
     CHECK(band.find("grow") != std::string::npos);
     CHECK(band.find("shrink") != std::string::npos);
 
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const std::string view = panel_text(
-        t.canvases.back(), pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
+    const std::string view = keymap_text(t.session());
     INFO(view);
-    CHECK(view.find("grow") != std::string::npos);
-    CHECK(view.find("shrink") != std::string::npos);
+    CHECK(view.find("arranging the desk | = | grow | manage.grow") != std::string::npos);
+    CHECK(view.find("arranging the desk | - | shrink | manage.shrink") != std::string::npos);
 }
 
 TEST_CASE("WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine one does") {

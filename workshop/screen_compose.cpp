@@ -130,13 +130,12 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         // THE PANE MANAGER IS THE ONE BUILT-IN LEFT THAT TAKES THE KEYS, and it gets the
         // same sentence for the same measured reason: keystrokes landing somewhere the
         // screen does not name is the lie this row exists to refuse. (The source editor
-        // had a sentence of its own here; it is a pane, and the first arm names it.) The
-        // hotkey view holds its keys too while it is open.
+        // had a sentence of its own here; it is a pane, and the first arm names it.)
         std::string said;
         if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
                    " -- press elsewhere for Workshop's keys";
-        } else if (ctx == KeyContext::kPaneEditor && !s.hotkeys.open &&
+        } else if (ctx == KeyContext::kPaneEditor &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "keys go to the Pane Manager -- press elsewhere for Workshop's keys";
         }
@@ -438,14 +437,8 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // landed on and no arrangement a maker authored could put anything in front of it. The
     // Terminal is in the pane planes now, in the order a maker chose.
 
-    // THE HOTKEY VIEW, LATER STILL: it is a projection -- the screen beneath it is composed
-    // exactly as if it were closed, which is also why the context it reports is the context
-    // beneath it.
-    if (s.hotkeys.open) {
-        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            paint_hotkeys(layer, s, sc);
-        });
-    }
+    // ⭐ THE HOTKEY VIEW WAS PAINTED HERE, LAST, as a host overlay. It is the desktop's Hotkeys
+    // pane now, arranged like any pane, over the keymap this host publishes (`KeymapShown`).
 
     return c;
 }

@@ -373,7 +373,7 @@ bool pane_window_partly_default(const SetupPane* row) {
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
 
-// WL-CTX-03 -- agents/workshop/contextual.md; WL-KEY-10 -- agents/workshop/keyboard.md
+// WL-CTX-03 -- agents/workshop/contextual.md
 FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                          std::int64_t x, std::int64_t y, const Screen& sc) {
     const surface::RegionCells cells =

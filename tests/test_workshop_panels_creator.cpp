@@ -344,17 +344,10 @@ TEST_CASE("WUX-14/SC-2: the WUX-13 surface is the Pane Manager, and its durable 
     CHECK(panel_text(t.canvases.back(), editor_cells(t)).find("PANE MANAGER *") !=
           std::string::npos);
     // THE CREATOR'S KEYS ARE THE MANAGER CONTEXT'S OWN ROWS, listed where a maker looks.
-    bool new_row = false;
-    bool save_row = false;
-    bool discard_row = false;
-    for (const HotkeyRow& row : hotkeys_rows(t.session())) {
-        new_row = new_row || row.text.find("new pane") != std::string::npos;
-        save_row = save_row || row.text.find("save pane") != std::string::npos;
-        discard_row = discard_row || row.text.find("discard pane edits") != std::string::npos;
-    }
-    CHECK(new_row);
-    CHECK(save_row);
-    CHECK(discard_row);
+    const std::string keys = keymap_text(t.session());
+    CHECK(keys.find("the Pane Manager | n | new pane") != std::string::npos);
+    CHECK(keys.find("the Pane Manager | s | save pane") != std::string::npos);
+    CHECK(keys.find("the Pane Manager | ctrl+d | discard pane edits") != std::string::npos);
 }
 
 // ============================================================================
@@ -1402,14 +1395,9 @@ TEST_CASE("WUX-14: the name prompt refuses a bad name in words and keeps it, can
     CHECK_FALSE(t.session().pane_naming.open);
     // THE PROMPT'S KEYS ARE LISTED IN ITS OWN CONTEXT.
     press_new_pane(t);
-    bool make_row = false;
-    bool box_group = false;
-    for (const HotkeyRow& row : hotkeys_rows(t.session())) {
-        make_row = make_row || row.text.find("make the pane") != std::string::npos;
-        box_group = box_group || row.text.find("text box's own keys") != std::string::npos;
-    }
-    CHECK(make_row);
-    CHECK(box_group);
+    const std::string keys = keymap_text(t.session());
+    CHECK(keys.find("naming a new pane | return | make the pane") != std::string::npos);
+    CHECK(keys.find("the text box's own keys") != std::string::npos);
     t.key(input::scan::kEscape);
 }
 

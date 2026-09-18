@@ -65,6 +65,8 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // rule, same silence when nothing changed: it is derived at every gesture, so the
     // comparison inside is what keeps a launcher from repainting for nothing.
     publish_inventory(mail);
+    // ...AND THE EFFECTIVE KEYMAP, to whoever presents keys (WL-DESK-11), on the same terms.
+    publish_keymap(mail);
     // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, to whoever is listing it. The workspace
     // plane below draws the same document; this is the same truth in the form a pane can
     // read, said on the same beat and by the same rule.

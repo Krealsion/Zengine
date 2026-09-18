@@ -167,7 +167,7 @@ WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-12 — The coarse step is ordinary action vocabulary
 
-LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the hotkey view say them, and no pane's chrome paints them.
+LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the effective keymap say them, and no pane's chrome paints them.
 
 PROVEN BY — `workshop/keymap.hpp` `manage.grow`, `manage.shrink`;
 `tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is ordinary action
