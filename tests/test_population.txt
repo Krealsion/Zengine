@@ -1666,9 +1666,9 @@ workshop_screen                   doctest           always  173
 #                                pane is Neovim's with the pane still selected.
 #
 workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  584
+workshop_panes                    doctest           always  599
 workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  143
+workshop_load                     doctest           always  149
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
 workshop_neovim                   doctest           neovim  12

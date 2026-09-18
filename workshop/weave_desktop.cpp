@@ -10,24 +10,40 @@
 
 namespace zengine::workshop {
 
-// ---- Telling a declarer that its declaration was refused (BL-WORK-04) --------------------
+// ---- A declarer's verdicts (BL-WORK-04) --------------------------------------------------
 
-void WorkshopWeave::say_actions_refused(const std::string& office, const std::string& pane,
-                                        const std::string& refusal, loom::Mail& mail) {
-    // THE MAKER FIRST, because the band is where a refusal has always been said and a
-    // provider's recovery is not a substitute for a maker knowing their key did not move.
-    say(refusal, true);
-    if (office.empty()) {
+// WL-DESK-06 -- agents/workshop/desktop.md
+void WorkshopWeave::answer_declaration(const std::string& office, ActionsJudged verdict,
+                                       loom::Mail& mail) {
+    // THE MAKER FIRST, for a refusal, because the band is where a refusal has always been said
+    // and a provider's recovery is not a substitute for a maker knowing their key did not move.
+    if (!verdict.accepted) {
+        say(verdict.refusal, true);
+    }
+    // ...AND THE DECLARER, AS THE ANSWER TO ITS DECLARATION. Loom carries the declaration's own
+    // correlation back and delivers only to the incarnation that sent it (ANS-03), so a verdict
+    // names the attempt without a field for it and cannot land on a successor after a reload.
+    //
+    // ⚠ ONLY A HOLDER THAT READS THE SHAPE IS ANSWERED, and nothing is retried or waited for. A
+    // provider built before the verdict existed declares and dispatches exactly as before and
+    // is told nothing -- which is not acceptance: silence establishes no verdict.
+    if (office.empty() || !host_->holder_accepts ||
+        !host_->holder_accepts(office, *loom::schema_of<ActionsJudged>())) {
         return;
     }
-    // ...AND THE DECLARER, at the office Loom stamped on the declaration. Addressed rather
-    // than published: this is a fact about ONE party's declaration, and a broadcast would tell
-    // every listening weave which gestures another provider tried to take.
-    //
-    // ⚠ NOTHING IS RETRIED AND NOTHING IS WAITED FOR. If the send itself is refused at Loom's
-    // gate -- a provider that never declared it accepts this shape -- the refusal stands
-    // exactly as it does now, said on the band. Workshop owes the attempt, not the arrival.
-    (void)mail.as_role(kWorkshopProvider).send_to_role(office, ActionsRefused{pane, refusal});
+    (void)mail.answer(verdict);
+}
+
+// WL-DESK-06 -- agents/workshop/desktop.md
+void WorkshopWeave::say_withdrawn(const std::string& office, ActionsWithdrawn withdrawn,
+                                  loom::Mail& mail) {
+    // ADDRESSED, NOT PUBLISHED: a fact about ONE party's declaration. Ordinary speech follows the
+    // office, so the number is what tells a successor that this was its predecessor's rows.
+    if (office.empty() || withdrawn.declaration == 0 || !host_->holder_accepts ||
+        !host_->holder_accepts(office, *loom::schema_of<ActionsWithdrawn>())) {
+        return;
+    }
+    (void)mail.as_role(kWorkshopProvider).send_to_role(office, withdrawn);
 }
 
 // ---- The application's declared defaults --------------------------------------------------
@@ -44,20 +60,24 @@ void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
     // this application answers to above every mode", which is the duplicate-authority defect
     // the seam exists to end. A second office is refused BY NAME and told so.
     if (office != kDesktopRole) {
-        say_actions_refused(std::string(office), std::string(),
-                            "application actions are declared by `" +
-                                std::string(kDesktopRole) + "` -- `" + std::string(office) +
-                                "` declares its own pane's rows instead",
-                            mail);
+        answer_declaration(std::string(office),
+                           ActionsJudged{std::string(), false, 0,
+                                         "application actions are declared by `" +
+                                             std::string(kDesktopRole) + "` -- `" +
+                                             std::string(office) +
+                                             "` declares its own pane's rows instead"},
+                           mail);
         repaint(mail);
         return;
     }
     if (actions.rows.size() > kMaxAppActionRows) {
-        say_actions_refused(std::string(office), std::string(),
-                            "an application declares at most " +
-                                std::to_string(kMaxAppActionRows) + " actions -- this one "
-                                "declared " + std::to_string(actions.rows.size()),
-                            mail);
+        answer_declaration(std::string(office),
+                           ActionsJudged{std::string(), false, 0,
+                                         "an application declares at most " +
+                                             std::to_string(kMaxAppActionRows) +
+                                             " actions -- this one declared " +
+                                             std::to_string(actions.rows.size())},
+                           mail);
         repaint(mail);
         return;
     }
@@ -71,11 +91,15 @@ void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
     Keymap candidate = session_.keymap;
     const Written joined = join_app_rows(candidate, rows);
     if (!joined.accepted) {
-        say_actions_refused(std::string(office), std::string(), joined.refusal, mail);
+        answer_declaration(std::string(office),
+                           ActionsJudged{std::string(), false, 0, joined.refusal}, mail);
         repaint(mail);
         return;
     }
     session_.keymap = std::move(candidate);
+    app_declaration_ = ++declarations_;
+    answer_declaration(std::string(office),
+                       ActionsJudged{std::string(), true, app_declaration_, std::string()}, mail);
     // AND EVERY PANE IS JOINED AGAIN UNDER THE ROWS NOW IN FORCE. A pane that declared
     // before the desktop did was judged against a map without these rows in it; leaving it
     // there would let one gesture mean two things depending on which weave loaded first.
@@ -88,6 +112,36 @@ void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
         say(refusals, true);
     }
     repaint(mail);
+}
+
+// WL-DESK-06 -- agents/workshop/desktop.md
+void WorkshopWeave::rejoin_app_rows(std::string& refusals, loom::Mail& mail) {
+    if (app_actions_.empty()) {
+        return;
+    }
+    std::vector<AppRow> rows;
+    rows.reserve(app_actions_.size());
+    for (const AppActionRow& d : app_actions_) {
+        rows.push_back(AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence});
+    }
+    Keymap candidate = session_.keymap;
+    const Written joined = join_app_rows(candidate, rows);
+    if (joined.accepted) {
+        session_.keymap = std::move(candidate);
+        return;
+    }
+    // THE FILE WINS, and the declaration it displaced is WITHDRAWN rather than kept: kept, it
+    // would come back into force at some later join without its declarer being told.
+    if (!refusals.empty()) {
+        refusals += "; ";
+    }
+    refusals += "the application's keys: " + joined.refusal;
+    const std::int64_t was = app_declaration_;
+    app_actions_.clear();
+    app_declaration_ = 0;
+    say_withdrawn(std::string(kDesktopRole),
+                  ActionsWithdrawn{std::string(), was, "the application's keys: " + joined.refusal},
+                  mail);
 }
 
 // ---- Asking the desktop for one of its rows, and hearing back -----------------------------
@@ -171,6 +225,15 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
                       "` is not offering it in this Workshop";
         return out;
     }
+    if (!provider_present(kind, ref)) {
+        // ⚠ A PAST OFFER IS NOT A PRESENT PROVIDER. The catalog keeps the row (its identity and
+        // the desk rows that name it), but nobody holds the office now, so nobody could fill
+        // the pane: it would open onto a room nothing answers. Asked of the bus at this
+        // instant; presence is all it proves -- not health, and not that a delivery lands.
+        out.refusal = name + " is not available -- nothing holds `" + ref.provider +
+                      "` now; its artifact has to be loaded again (build it, or relaunch)";
+        return out;
+    }
     const bool already = session_.panels.has(kind);
     if (!already) {
         // JUDGED THROUGH THE PICKER'S OWN TRIAL SEAT, on a copy, before the setup moves --
@@ -233,10 +296,23 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
+// ---- Whether anybody is there to fill a pane -----------------------------------------------
+
+// WL-DESK-04 -- agents/workshop/desktop.md
+bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) const {
+    if (!is_runtime_kind(kind)) {
+        return kind != kNoPaneKind; // this host's own panes, and the maker's, are presented here
+    }
+    // THE OFFICE'S HOLDER AT THIS INSTANT, and whether it takes a room -- the bus's facts,
+    // read and kept nowhere (`holder_accepts_on`). A host that wired no answer says no.
+    return host_->holder_accepts &&
+           host_->holder_accepts(ref.provider, *loom::schema_of<PaneRoom>());
+}
+
 // ---- The one inventory, said out loud ------------------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md
-void WorkshopWeave::publish_inventory(loom::Mail& mail) {
+PaneInventory WorkshopWeave::inventory_reading() const {
     PaneInventory said;
     const Seating seated =
         seat_panes(session_.setup.active, session_.panels, stack_capacity(screen_of(session_)));
@@ -252,7 +328,9 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
         // could seat it is the SEATING's. A presentation that collapsed them would have to
         // guess which of "closed", "gone" and "no room" a missing pane is in.
         p.open = has_pane(session_.setup.active, row.ref);
-        p.available = row.kind != kNoPaneKind;
+        // AVAILABLE IS ASKED NOW, of the office's current holder -- not read off the catalog,
+        // which remembers every pane ever offered this run and so cannot say who left.
+        p.available = row.kind != kNoPaneKind && provider_present(row.kind, row.ref);
         for (const std::int64_t k : seated.waiting) {
             if (k == row.kind) {
                 p.waiting = true;
@@ -261,9 +339,27 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
         }
         said.panes.push_back(std::move(p));
     }
+    return said;
+}
+
+// WL-DESK-09 -- agents/workshop/desktop.md
+void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // an office asks; personal speech is answered by nobody, the offer's rule
+    }
+    // THE READING NOW, TO THE ONE WHO ASKED -- the incarnation that just arrived, and no other
+    // (Loom ANS-03). The publication's record of its own last utterance is not touched: other
+    // presenters have heard what they heard, and the next change is said to all of them.
+    (void)mail.answer(inventory_reading());
+}
+
+// WL-DESK-04 -- agents/workshop/desktop.md
+void WorkshopWeave::publish_inventory(loom::Mail& mail) {
+    PaneInventory said = inventory_reading();
     // COMPARED BEFORE IT IS PUBLISHED, for `DocumentShown`'s reason: a presenter told the same
-    // thing twice repaints for nothing, and the inventory is derived at every gesture.
-    if (said.panes.size() == inventory_said_.size()) {
+    // thing twice repaints for nothing, and the inventory is derived at every gesture. A
+    // presenter that has just arrived has heard nothing, so an offer clears the record.
+    if (inventory_published_ && said.panes.size() == inventory_said_.size()) {
         bool same = true;
         for (std::size_t i = 0; i < said.panes.size(); ++i) {
             const InventoryPane& a = said.panes[i];
@@ -280,6 +376,7 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
         }
     }
     inventory_said_ = said.panes;
+    inventory_published_ = true;
     // SAID AS THE OFFICE, never personally. A reader has to be able to tell this host's
     // reading from any weave's opinion, so the publication carries the office stamp and a
     // presenter refuses an unstamped one -- `say_conditions`' rule, one seam over.

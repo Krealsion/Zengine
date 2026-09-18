@@ -5,12 +5,14 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// eight times since. Twenty-two shapes, five of them a second version of one declaration.
+// nine times since. Twenty-four shapes, five of them a second version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
 //     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
 //     v2::PaneActions        provider  ->  Workshop   "...and this row of mine stands in for one of yours."
+//     ActionsJudged          Workshop  ->  provider   "that declaration is in force as #n" / "refused: why."
+//     ActionsWithdrawn       Workshop  ->  provider   "declaration #n left the keymap, and why."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
 //     v2::PaneContent        provider  ->  Workshop   "...of this generation of my subject."
@@ -533,6 +535,43 @@ struct PaneActions {
 };
 
 } // namespace v2
+
+/// WORKSHOP'S VERDICT ON ONE ACTION DECLARATION (BL-WORK-04), ANSWERED TO THAT DECLARATION.
+///
+/// It travels as Loom's answer to the delivery it judges, so it carries the correlation the
+/// declaration was sent under and reaches only the incarnation that sent it -- a verdict can never
+/// cross a reload into a successor (Loom ANS-03). Workshop answers only a holder whose office
+/// accepts this shape; a provider built before it existed is told nothing and still declares.
+///
+/// `declaration` IS WORKSHOP'S NUMBER FOR AN ACCEPTED DECLARATION, minted once and never reused in
+/// the process; `ActionsWithdrawn` names it if that declaration later stops being in force. A
+/// refused declaration has none. `refusal` is the maker's sentence, never an identity to parse.
+///
+/// IT MANDATES NOTHING. The fact is Workshop's; recovery is the provider's -- declare again, keep
+/// working, tell the maker, or nothing. Silence establishes neither verdict: an answer can be
+/// refused at Loom's gate or dropped with the incarnation that asked.
+struct ActionsJudged {
+    std::string pane;             ///< the pane key declared; empty for application rows
+    bool accepted = false;
+    std::int64_t declaration = 0; ///< Workshop's number for it when accepted; 0 when refused
+    std::string refusal;          ///< Workshop's own sentence; empty exactly when accepted
+    ZEN_SHAPE(ActionsJudged, 1, ZEN_FIELD(pane), ZEN_FIELD(accepted), ZEN_FIELD(declaration),
+              ZEN_FIELD(refusal));
+};
+
+/// A DECLARATION WORKSHOP ACCEPTED IS NO LONGER IN FORCE -- the maker's keymap file, or rows the
+/// application declared later, took one of its gestures, so the whole declaration left the keymap.
+///
+/// Ordinary speech to the declaring office, because the delivery it judged is long over. That is
+/// why it names `declaration`: the number was told only to the incarnation that declared, so a
+/// successor holding the office after a replacement can see this is not about its own rows. The
+/// rows are not retained; the provider may declare again, and is not asked to.
+struct ActionsWithdrawn {
+    std::string pane;             ///< as the declaration named it; empty for application rows
+    std::int64_t declaration = 0; ///< the number `ActionsJudged` gave it
+    std::string refusal;          ///< why, in the maker's words
+    ZEN_SHAPE(ActionsWithdrawn, 1, ZEN_FIELD(pane), ZEN_FIELD(declaration), ZEN_FIELD(refusal));
+};
 
 /// A MAKER PRESSED THE GESTURE ONE OF THIS PANE'S ROWS ANSWERS TO, while the pane held
 /// the keyboard -- and this is the RESOLVED id, after the maker's own keymap moved the

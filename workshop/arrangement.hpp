@@ -70,7 +70,9 @@
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -105,12 +107,28 @@ inline const char* state_token(load::RowState state) {
     case load::RowState::Refused: return kRefusedToken;
     case load::RowState::Reloading: return kReloadingToken;
     case load::RowState::Switched: return kSwitchedToken;
+    case load::RowState::Unavailable: return kUnavailableToken;
     case load::RowState::Authored: break;
     }
     return kAuthoredToken;
 }
 
 // ---- The arrangement, derived --------------------------------------------------
+
+/// WHAT A MAKER CAN DO ABOUT A ROW THAT IS NOT RUNNING, said by the owner that knows why.
+/// Empty for a row that needs nothing, or whose next step no one here can name.
+inline std::string next_action_of(load::RowState state, const std::string& stem) {
+    switch (state) {
+    case load::RowState::Unavailable:
+        return "make '" + stem + "' available (build it), then relaunch Workshop -- this run "
+               "stepped over it and will not return to it";
+    case load::RowState::Refused:
+        return "fix what the refusal names, then relaunch -- the project stopped at this row";
+    case load::RowState::Pending:
+        return "build it; its authored participation is performed then";
+    default: return std::string();
+    }
+}
 
 /// PAIR EVERY AUTHORED ROW WITH WHAT REALIZATION HAS MADE OF IT.
 ///
@@ -137,15 +155,16 @@ inline const char* state_token(load::RowState state) {
 /// AUTHORED ORDER, ALWAYS. The plan is walked, not the resolved rows, so a row that
 /// did not resolve keeps its place and its authored intent instead of vanishing --
 /// which is what makes the four states legible as counts against the list's own length.
-inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realization,
-                                                std::string plan) {
+inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& realization,
+                                                 std::string plan) {
     const load::LoadPlan& authored = realization.plan();
-    ResolvedArrangement out;
+    v2::ResolvedArrangement out;
     out.plan = std::move(plan);
     out.artifacts.reserve(authored.artifacts.size());
     for (const load::ArtifactIntent& intent : authored.artifacts) {
-        ArtifactParticipation row;
+        v3::ArtifactParticipation row;
         row.artifact = intent.stem;
+        row.optional = intent.optional;
         // ---- what a person wrote --------------------------------------------
         //
         // `mode_word` IS THE FILE'S OWN FUNCTION, deliberately: a maker who wrote
@@ -164,7 +183,13 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
         // THE STATE IS ASKED FOR EVEN WHEN NOTHING RESOLVED, which is the whole
         // The boot repair's delta: `authored`, `loading` and `refused` are three different
         // sentences that used to be one absent row.
-        row.state = state_token(realization.state_of(intent.stem));
+        const load::RowState state = realization.state_of(intent.stem);
+        row.state = state_token(state);
+        // THE REASON AND THE NEXT STEP ARE THE OWNER'S, asked here rather than parsed out of a
+        // banner: a stepped-over optional row is `unavailable` with its refusing layer's own
+        // sentence, never `authored` (which would say nothing had tried).
+        row.reason = realization.reason_of(intent.stem);
+        row.next = next_action_of(state, intent.stem);
         if (row.state != kResolvedToken && row.state != kReloadingToken) {
             // ONLY A SETTLED ROW CARRIES RESOLVED FIELDS. See
             // `arrangement_vocabulary.hpp`: a row still loading has not decided what
@@ -204,7 +229,7 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
             if (done.stem != choice.stem) {
                 continue;
             }
-            ArtifactParticipation row;
+            v3::ArtifactParticipation row;
             row.artifact = choice.stem;
             row.authored_role = choice.role;
             row.state = state_token(realization.state_of(choice.stem));
@@ -215,6 +240,33 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
         }
     }
     return out;
+}
+
+/// THE SAME ANSWER IN VERSION 1'S WORDS, for an asker that cannot read version 2. Derived from
+/// the one derivation above, never computed twice. Version 1 has no `unavailable`, so such a
+/// row is said `refused` -- the nearest true word it has; `authored` would say nothing tried.
+inline ResolvedArrangement in_version_one(const v2::ResolvedArrangement& said) {
+    ResolvedArrangement out;
+    out.plan = said.plan;
+    out.artifacts.reserve(said.artifacts.size());
+    for (const v3::ArtifactParticipation& a : said.artifacts) {
+        ArtifactParticipation row;
+        row.artifact = a.artifact;
+        row.authored_provider = a.authored_provider;
+        row.authored_role = a.authored_role;
+        row.state = a.state == kUnavailableToken ? std::string(kRefusedToken) : a.state;
+        row.provider = a.provider;
+        row.powers = a.powers;
+        row.weave = a.weave;
+        row.offer = a.offer;
+        out.artifacts.push_back(std::move(row));
+    }
+    return out;
+}
+
+inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realization,
+                                                std::string plan) {
+    return in_version_one(describe_resolved(realization, std::move(plan)));
 }
 
 // ---- The powers, derived --------------------------------------------------------
@@ -336,11 +388,17 @@ struct ArrangementDoorState {
 class ArrangementDoor
     : public loom::WeaveBase<ArrangementDoor, ArrangementDoorState,
                              loom::Accept<ArrangementRequested, PowersRequested>,
-                             loom::Emit<ResolvedArrangement, ResolvedPowers>> {
+                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement,
+                                        ResolvedPowers>> {
 public:
+    /// DOES THE OFFICE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
+    /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
+    using Accepts = std::function<bool(std::string_view role, const loom::Schema& shape)>;
+
     ArrangementDoor(const load::PlanExecutor& realization, const op::Catalog& catalog,
-                    std::string plan)
-        : realization_(&realization), catalog_(&catalog), plan_(std::move(plan)) {}
+                    std::string plan, Accepts accepts = Accepts())
+        : realization_(&realization), catalog_(&catalog), plan_(std::move(plan)),
+          accepts_(std::move(accepts)) {}
 
     /// WHAT THE PROJECT ASKED FOR AND WHERE IT HAS GOT TO -- derived now, from the
     /// live owner, and dropped the moment it has been said.
@@ -352,8 +410,15 @@ public:
         // ANSWERED, NOT SENT. `mail.answer` is Loom's own door: the recipient and the
         // correlation are the bus's, not this weave's, so the answer cannot be aimed
         // elsewhere or relabelled, and the asker reads `answers_ask()` off provenance
-        // no payload can write. One ask, one answer.
-        (void)mail.answer(describe_arrangement(*realization_, plan_));
+        // no payload can write. One ask, one answer -- in the version the asking office's
+        // holder reads, chosen now and promising nothing about delivery.
+        v2::ResolvedArrangement said = describe_resolved(*realization_, plan_);
+        if (accepts_ &&
+            accepts_(mail.authored_role(), *loom::schema_of<v2::ResolvedArrangement>())) {
+            (void)mail.answer(said);
+            return;
+        }
+        (void)mail.answer(in_version_one(said));
     }
 
     /// WHICH POWERS RESOLVE HERE AND WHOSE CODE SATISFIES EACH -- read off the live
@@ -384,6 +449,7 @@ private:
     /// host owns and never changes. It is provenance and not identity: the arrangement
     /// is the authored rows (arrangement_vocabulary.hpp).
     std::string plan_;
+    Accepts accepts_;
 };
 
 } // namespace zengine::workshop

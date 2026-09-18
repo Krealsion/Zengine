@@ -2560,7 +2560,8 @@ struct PaneRig {
         // listening weave what another provider's keys are. `PaneInventory` is published, for
         // `StandingConditions`' reason: which weave presents it is the load plan's business.
         speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
-        speak.allow_to_any(ActionsRefused::zen_name, ActionsRefused::zen_version);
+        speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
+        speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
         speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
         speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
         // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
@@ -3003,6 +3004,9 @@ struct PaneRig {
         if (stem == "zengine-info-pane") {
             return WORKSHOP_SO_INFO_PANE;
         }
+        if (stem == "zengine-desktop-pane") {
+            return WORKSHOP_SO_DESKTOP_PANE;
+        }
 #ifdef WORKSHOP_SO_TERMINAL_PANE
         if (stem == "zengine-terminal-pane") {
             return WORKSHOP_SO_TERMINAL_PANE;
@@ -3104,10 +3108,15 @@ struct PaneRig {
     /// the Emit set could not notice the host quietly widening it.
     loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
         REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
-        auto door = std::make_unique<ArrangementDoor>(*plan_, catalog, std::move(plan_path));
+        auto door = std::make_unique<ArrangementDoor>(
+            *plan_, catalog, std::move(plan_path),
+            [this](std::string_view role, const loom::Schema& shape) {
+                return holder_accepts_on(bus, role, shape);
+            });
         ArrangementDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
+        say.allow_to_any(v2::ResolvedArrangement::zen_name, v2::ResolvedArrangement::zen_version);
         say.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
                                                     std::string(kArrangementRole));
@@ -3614,7 +3623,8 @@ inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 // that need the behaviour without a second process.
 class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
-                             loom::Accept<AppActionRequested, ActionsRefused, SeatDo>,
+                             loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
+                                          SeatDo>,
                              loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested>> {
 public:
     void on(const AppActionRequested& asked, loom::Mail& mail) {
@@ -3627,9 +3637,20 @@ public:
                 .send_to_role(kWorkshopProvider, DeselectRequested{}, mail.correlation());
         }
     }
-    /// ⭐ WHAT WORKSHOP SAID WHEN IT REFUSED THIS PARTY'S DECLARATION (BL-WORK-04). Kept, never
-    /// acted on -- a declarer's recovery is its own, and this one's is to remember.
-    void on(const ActionsRefused& said, loom::Mail&) { refusals_.push_back(said.refusal); }
+    /// ⭐ WORKSHOP'S VERDICT ON ONE OF THIS PARTY'S DECLARATIONS (BL-WORK-04), with the number
+    /// Loom says it answers and whether Loom says it IS an answer. Kept, never acted on -- a
+    /// declarer's recovery is its own, and this one's is to remember.
+    void on(const ActionsJudged& said, loom::Mail& mail) {
+        verdicts_.push_back(Verdict{mail.correlation(), mail.answers_ask(), said});
+        if (!said.accepted) {
+            refusals_.push_back(said.refusal);
+        }
+    }
+    /// ...AND A DECLARATION IT HAD IN FORCE LEAVING THE KEYMAP LATER.
+    void on(const ActionsWithdrawn& said, loom::Mail&) {
+        withdrawals_.push_back(said);
+        refusals_.push_back(said.refusal);
+    }
 
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -3639,8 +3660,8 @@ public:
         }
     }
 
-    void declare(loom::Mail& mail, const AppActions& a) {
-        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopProvider, a);
+    void declare(loom::Mail& mail, const AppActions& a, std::uint64_t attempt = 0) {
+        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopProvider, a, attempt);
     }
     /// Declared PERSONALLY, from the very weave holding the office. Holding is not
     /// speaking-for (MSG-07), and Workshop drops it for the offer's reason.
@@ -3660,6 +3681,15 @@ public:
 
     const std::vector<std::string>& asked() const { return asked_; }
     const std::vector<std::string>& refusals() const { return refusals_; }
+    /// ONE VERDICT AS IT ARRIVED: the correlation it echoes, Loom's word that it answers an ask,
+    /// and what it said.
+    struct Verdict {
+        std::uint64_t correlation = 0;
+        bool answer = false;
+        ActionsJudged said;
+    };
+    const std::vector<Verdict>& verdicts() const { return verdicts_; }
+    const std::vector<ActionsWithdrawn>& withdrawals() const { return withdrawals_; }
     /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
     /// about a DISHONEST one has to be able to miss on purpose.
     std::uint64_t last_ask() const { return last_ask_; }
@@ -3679,6 +3709,8 @@ public:
 private:
     std::vector<std::string> asked_;
     std::vector<std::string> refusals_;
+    std::vector<Verdict> verdicts_;
+    std::vector<ActionsWithdrawn> withdrawals_;
     std::uint64_t last_ask_ = 0;
 };
 

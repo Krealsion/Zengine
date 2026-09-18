@@ -236,7 +236,7 @@ LAW — A pane declares rows beside its offer, in either published version; Work
 MEANS
 - input's OWNER is the pane's handle only while the resolved context is that pane's;
 - a v2 row may name one `kUnlessOwned` action it owns: it is inactive throughout the pane;
-- a refusal keeps the previous rows; a file's load re-joins every pane, and the file wins.
+- a refusal keeps the previous rows; a file's load re-joins every pane and withdraws the loser.
 
 DOES NOT MEAN
 - that a pane says it wants keys: a declaration points no keyboard at it and holds none;

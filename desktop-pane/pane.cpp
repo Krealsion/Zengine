@@ -26,6 +26,11 @@
 // cannot cause an artifact to load; it cannot read another pane's rows; it cannot keep a maker
 // from quitting; and it cannot take a gesture from a pane that declared it owns it. Every one
 // of those is the host's answer, and asking does not change it (VD-21).
+//
+// (!) WHAT IT KEEPS, AND WHAT IT ASKS FOR AGAIN. A reload keeps `DesktopState` (the row the maker
+// was on, by identity). Everything the host said -- the inventory, the verdicts on its
+// declarations -- belongs to the image that heard it, so a new image declares again and asks for
+// the inventory as it is now, instead of waiting for it to change.
 
 #include "desktop-pane/vocabulary.hpp"
 
@@ -55,7 +60,8 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::desktop_pane;
 
-using ws::ActionsRefused;
+using ws::ActionsJudged;
+using ws::ActionsWithdrawn;
 using ws::AppActionRequested;
 using ws::AppActionRow;
 using ws::AppActions;
@@ -68,6 +74,7 @@ using ws::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneInventory;
+using ws::PaneInventoryRequested;
 using ws::PaneLaunchAnswered;
 using ws::PaneLaunchRequested;
 using ws::PaneOffered;
@@ -87,6 +94,58 @@ constexpr const char* kTerminalPane = "terminal";
 
 using zengine::workshop::pane_text::fit;
 
+/// WHICH ROWS OF A LIST A ROOM SHOWS: `[first, first + count)`, and whether a counted marker
+/// says what is cut above and below. Every marker spends a row of the budget it is in.
+struct ListWindow {
+    std::size_t first = 0;
+    std::size_t count = 0;
+    bool above = false;
+    bool below = false;
+};
+
+// WL-DESK-10 -- agents/workshop/desktop.md
+/// THE WINDOW THAT KEEPS `cursor` VISIBLE in at most `budget` rows, markers included -- the
+/// largest one, and among those the one nearest `hint` (last time's first row), so a list
+/// scrolls by the least it can rather than jumping. The population is bounded (the host's
+/// catalog holds at most 32 panes), so every candidate is simply tried.
+ListWindow window_for(std::size_t n, std::size_t cursor, std::size_t hint, std::int64_t budget) {
+    ListWindow best;
+    if (n == 0 || budget <= 0) {
+        return best;
+    }
+    const std::size_t rows = static_cast<std::size_t>(budget);
+    if (n <= rows) {
+        best.count = n;
+        return best;
+    }
+    bool found = false;
+    std::size_t best_distance = 0;
+    for (std::size_t first = 0; first <= cursor && first < n; ++first) {
+        for (std::size_t count = rows; count >= 1; --count) {
+            if (cursor >= first + count || first + count > n) {
+                continue;
+            }
+            const bool above = first > 0;
+            const bool below = first + count < n;
+            if (count + (above ? 1u : 0u) + (below ? 1u : 0u) > rows) {
+                continue;
+            }
+            const std::size_t distance = first > hint ? first - hint : hint - first;
+            if (!found || count > best.count || (count == best.count && distance < best_distance)) {
+                best = ListWindow{first, count, above, below};
+                best_distance = distance;
+                found = true;
+            }
+            break; // the largest count for this `first`; a smaller one is never better
+        }
+    }
+    if (!found) {
+        // A ROOM TOO SMALL FOR THE CURSOR'S ROW AND A MARKER: the cursor's row alone.
+        best = ListWindow{cursor, 1, false, false};
+    }
+    return best;
+}
+
 // =============================================================================
 // The weave
 // =============================================================================
@@ -95,9 +154,10 @@ class DesktopWeave
     : public loom::WeaveBase<
           DesktopWeave, pane::DesktopState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
-                       AppActionRequested, PaneInventory, PaneLaunchAnswered, ActionsRefused>,
+                       AppActionRequested, PaneInventory, PaneLaunchAnswered, ActionsJudged,
+                       ActionsWithdrawn>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, AppActions, PaneLaunchRequested,
-                     DeselectRequested, DesktopFace>> {
+                     DeselectRequested, DesktopFace, PaneInventoryRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -136,19 +196,13 @@ public:
             return;
         }
         if (asked.id == pane::kActionTerminal) {
-            (void)mail.as_role(pane::kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              PaneLaunchRequested{kTerminalOffice, kTerminalPane});
+            launch(mail, kTerminalOffice, kTerminalPane);
             return;
         }
         if (asked.id == pane::kActionPanes) {
             // (!) THE LAUNCHER LAUNCHES ITSELF THROUGH THE SAME DOOR, and that is deliberate:
             // there is no privileged path by which this weave puts its own pane on the desk.
-            // It asks, the host judges room and authority, and the answer may be a refusal
-            // this weave has to show like any other.
-            (void)mail.as_role(pane::kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              PaneLaunchRequested{pane::kDesktopRole, pane::kLauncherPane});
+            launch(mail, pane::kDesktopRole, pane::kLauncherPane);
             return;
         }
         if (asked.id == pane::kActionDeselect) {
@@ -156,8 +210,7 @@ public:
                 .send_to_role(kWorkshopRole, DeselectRequested{}, mail.correlation());
             return;
         }
-        // AN ID THIS WEAVE NEVER DECLARED IS NO ACT. It spends nothing and says nothing --
-        // the pane protocol's own rule, one scope out.
+        // AN ID THIS WEAVE NEVER DECLARED IS NO ACT. It spends nothing and says nothing.
     }
 
     /// ONE OF THE LAUNCHER PANE'S OWN ROWS, while it holds the keyboard.
@@ -166,15 +219,9 @@ public:
             return;
         }
         if (asked.id == pane::kActionUp) {
-            if (state_.cursor > 0) {
-                --state_.cursor;
-            }
-            notice_.clear();
+            step(-1);
         } else if (asked.id == pane::kActionDown) {
-            if (state_.cursor + 1 < static_cast<std::int64_t>(known_.size())) {
-                ++state_.cursor;
-            }
-            notice_.clear();
+            step(+1);
         } else if (asked.id == pane::kActionLaunch) {
             launch_cursor(mail);
         } else {
@@ -183,48 +230,88 @@ public:
         say(mail);
     }
 
-    /// WHAT PANES THERE ARE, SAID BY THE HOST. Replaced WHOLE, never merged: the host publishes
-    /// the current inventory and a row that stopped being returned stopped being in it. This
-    /// weave keeps no copy it edits -- a launcher that did would be a second owner of the
-    /// population, which is the defect this whole arc exists to avoid.
+    /// WHAT PANES THERE ARE, SAID BY THE HOST -- published when it changes, or answered to this
+    /// image's own ask. Replaced WHOLE, never merged: this weave keeps no copy it edits.
     void on(const PaneInventory& said, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
+        if (!from_workshop(mail)) {
             return;
         }
         known_ = said.panes;
         heard_ = true;
-        if (state_.cursor >= static_cast<std::int64_t>(known_.size())) {
-            state_.cursor = known_.empty() ? 0 : static_cast<std::int64_t>(known_.size()) - 1;
-        }
+        find_cursor();
         say(mail);
         face(mail);
     }
 
-    /// WHAT A LAUNCH CAME TO. A refusal is shown in this weave's own room and on the floor,
-    /// because the maker who pressed the key is the one owed the sentence.
+    /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
+    /// an answer to a launch the maker has since replaced says nothing about the newer one.
     void on(const PaneLaunchAnswered& answer, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
+        if (!mail.answers_ask() || mail.correlation() != launches_) {
             return;
         }
         notice_ = answer.refusal;
         say(mail);
     }
 
-    /// (*) WORKSHOP REFUSED ONE OF THIS WEAVE'S DECLARATIONS (BL-WORK-04). It is kept and shown
-    /// rather than acted on: this weave's recovery policy is to TELL THE MAKER, because a
-    /// desktop that silently rebound itself would leave them pressing a key that no longer
-    /// does what the documentation says. Nothing is re-declared and no gesture is guessed.
-    void on(const ActionsRefused& said, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
+    /// (*) WORKSHOP'S VERDICT ON ONE OF THIS IMAGE'S DECLARATIONS (BL-WORK-04). Loom says it
+    /// answers an ask of this incarnation's, and the correlation says WHICH declaration: a verdict
+    /// on an attempt this image has since superseded is history and changes nothing shown.
+    ///
+    /// THIS WEAVE'S RECOVERY POLICY IS TO TELL THE MAKER. It does not re-declare, drop rows or
+    /// guess another gesture: a desktop that silently rebound itself would leave a maker pressing
+    /// a key that no longer does what the documentation says.
+    void on(const ActionsJudged& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return; // a verdict is Loom's answer to a declaration of this incarnation's, or nothing
+        }
+        Declared& d = said.pane.empty() ? app_ : pane_rows_;
+        if (mail.correlation() != d.attempt) {
             return;
         }
-        declaration_refusal_ = said.refusal;
+        if (said.accepted) {
+            d.in_force = said.declaration;
+            d.word.clear();
+        } else {
+            d.word = "keys refused: " + said.refusal;
+        }
+        say(mail);
+        face(mail);
+    }
+
+    /// ...AND A DECLARATION IN FORCE LEAVING THE KEYMAP. Only the number this image was told
+    /// names its own rows; any other is a predecessor's or an older declaration's, and not this
+    /// image's to show.
+    void on(const ActionsWithdrawn& said, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return; // ordinary speech: only the host's office may say it
+        }
+        Declared& d = said.pane.empty() ? app_ : pane_rows_;
+        if (said.declaration == 0 || said.declaration != d.in_force) {
+            return;
+        }
+        d.in_force = 0;
+        d.word = "keys withdrawn: " + said.refusal;
         say(mail);
         face(mail);
     }
 
 private:
-    // ---- Offering and declaring ---------------------------------------------------------
+    /// DID THE HOST SAY THIS? Either as its office, or as Loom's answer to an ask this image sent
+    /// to that office -- an answer carries answer provenance, not office authorship, and only the
+    /// office's holder at delivery could have given it.
+    static bool from_workshop(const loom::Mail& mail) {
+        return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
+    }
+
+    /// ONE OF THIS IMAGE'S TWO DECLARATIONS: the number the latest attempt went out under, the
+    /// number Workshop gave the one in force, and what to tell the maker about it.
+    struct Declared {
+        std::uint64_t attempt = 0;
+        std::int64_t in_force = 0;
+        std::string word;
+    };
+
+    // ---- Offering, declaring and asking ---------------------------------------------------
 
     void announce(loom::Mail& mail) {
         (void)mail.as_role(pane::kDesktopRole)
@@ -233,28 +320,27 @@ private:
         PaneActions actions;
         actions.pane = pane::kLauncherPane;
         actions.rows = pane_rows();
-        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, actions);
+        pane_rows_.attempt = ++attempts_;
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a maker has pressed into the launcher; these act wherever the maker is
-        // standing, which is the whole difference between a tool's keys and an application's
-        // defaults (WL-KEY-16).
+        // standing (WL-KEY-16).
         AppActions app;
         app.rows = app_rows();
-        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app);
+        app_.attempt = ++attempts_;
+        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
+        // ...AND THE INVENTORY AS IT IS NOW. The publication is said when it changes; a new
+        // image arriving while nothing changes would otherwise wait for an unrelated change.
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneInventoryRequested{});
         face(mail);
     }
 
     /// THE THREE APPLICATION ROWS, AND WHY EACH GESTURE.
     ///
-    /// `Ctrl+t` -- the Terminal's own chord, restored. It was `workshop.terminal` before the
-    /// overlay retired, so a maker who authored an override for THAT id finds it names nothing
-    /// and must move it here; the id changed because the OWNER changed, and pretending
-    /// otherwise would be a host row wearing a weave's name.
-    ///
-    /// `Ctrl+p` -- the launcher. A plain ctrl+letter, which is what the POSIX wire can say
-    /// (ctrl+shift+letter cannot be said at all), and the letter the retired picker used, so a
-    /// maker's hand goes to the same key for the same idea.
-    ///
+    /// `Ctrl+t` -- the Terminal's own chord, restored as an application row.
+    /// `Ctrl+p` -- the launcher: a plain ctrl+letter, which is what the POSIX wire can say.
     /// `Escape` -- in the DEFAULT class, which is what keeps every pane's own Escape its own.
     static std::vector<AppActionRow> app_rows() {
         return {
@@ -266,8 +352,7 @@ private:
                          input::mod::kNone, ws::app_precedence::kDefault}};
     }
 
-    /// THE LAUNCHER'S OWN THREE. Bare keys are legal here for the reason they were legal in
-    /// the picker's context: nothing in this pane takes text.
+    /// THE LAUNCHER'S OWN THREE. Bare keys are legal here: nothing in this pane takes text.
     static std::vector<PaneActionRow> pane_rows() {
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
@@ -276,60 +361,156 @@ private:
                               input::mod::kNone}};
     }
 
-    // ---- Launching from the list ---------------------------------------------------------
+    // ---- The cursor, held by identity -------------------------------------------------------
 
-    void launch_cursor(loom::Mail& mail) {
-        if (state_.cursor < 0 || state_.cursor >= static_cast<std::int64_t>(known_.size())) {
+    // WL-DESK-10 -- agents/workshop/desktop.md
+    /// FIND THE ROW THE MAKER WAS ON, in the list as the host just said it. By identity, so a
+    /// row inserted above it moves the marker with it; a pane that left the list leaves the
+    /// marker where it was, holding nothing, and says so -- Return then waits for a choice
+    /// rather than acting on whichever pane slid into that place.
+    void find_cursor() {
+        const std::int64_t n = static_cast<std::int64_t>(known_.size());
+        if (!state_.cursor_office.empty() || !state_.cursor_pane.empty()) {
+            for (std::int64_t i = 0; i < n; ++i) {
+                const InventoryPane& p = known_[static_cast<std::size_t>(i)];
+                if (p.office == state_.cursor_office && p.pane == state_.cursor_pane) {
+                    state_.cursor = i;
+                    held_name_ = p.name;
+                    return;
+                }
+            }
+            lost_name_ = held_name_.empty() ? state_.cursor_pane : held_name_;
+            state_.cursor_office.clear();
+            state_.cursor_pane.clear();
+            held_name_.clear();
+            lost_ = true;
+        }
+        if (state_.cursor >= n) {
+            state_.cursor = n > 0 ? n - 1 : 0;
+        }
+        if (state_.cursor < 0) {
+            state_.cursor = 0;
+        }
+        if (!lost_ && n > 0) {
+            hold(state_.cursor);
+        }
+    }
+
+    void hold(std::int64_t at) {
+        const InventoryPane& p = known_[static_cast<std::size_t>(at)];
+        state_.cursor = at;
+        state_.cursor_office = p.office;
+        state_.cursor_pane = p.pane;
+        held_name_ = p.name;
+        lost_ = false;
+    }
+
+    void step(std::int64_t by) {
+        const std::int64_t n = static_cast<std::int64_t>(known_.size());
+        if (n == 0) {
             return;
         }
-        const InventoryPane& row = known_[static_cast<std::size_t>(state_.cursor)];
+        std::int64_t at = state_.cursor + by;
+        at = at < 0 ? 0 : (at >= n ? n - 1 : at);
+        hold(at);
         notice_.clear();
+    }
+
+    void launch_cursor(loom::Mail& mail) {
+        if (known_.empty()) {
+            return;
+        }
+        if (lost_ || (state_.cursor_office.empty() && state_.cursor_pane.empty())) {
+            notice_ = "Return opened nothing -- choose a row first";
+            return;
+        }
+        notice_.clear();
+        // THE IDENTITY THE MARKER HOLDS, not the index: what the maker sees is what opens.
+        launch(mail, state_.cursor_office, state_.cursor_pane);
+    }
+
+    /// ASK THE HOST TO OPEN OR FOCUS A PANE, under a number of this image's own, so the answer
+    /// that comes back can be read against the launch it answers.
+    void launch(loom::Mail& mail, const std::string& office, const std::string& pane_key) {
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneLaunchRequested{row.office, row.pane});
+            .send_to_role(kWorkshopRole, PaneLaunchRequested{office, pane_key}, ++launches_);
     }
 
     // ---- What the launcher shows ----------------------------------------------------------
 
+    /// THE HEADING, THEN THE LIST THROUGH A WINDOW THAT KEEPS THE MARKER VISIBLE, THEN THE
+    /// NOTICES. The notices' rows are reserved before the list is laid out, so feedback is never
+    /// cut off below a full list; each cut in the list is counted on its own row.
     void say(loom::Mail& mail) {
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
             return;
         }
         std::vector<surface::SurfaceTextRow> out;
         const auto push = [&out, this](std::string text, std::int64_t role) {
-            if (static_cast<std::int64_t>(out.size()) >= rows_) {
-                return;
+            if (static_cast<std::int64_t>(out.size()) < rows_) {
+                out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns_), role});
             }
-            out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns_), role});
         };
         if (!heard_) {
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS THERE BEING NO
             // PANES. An empty list here would read as a Workshop with no tools in it.
             push("PANES (waiting)", surface::role::kMuted);
-        } else {
-            push("PANES -- " + std::to_string(known_.size()), surface::role::kAccent);
-            for (std::size_t i = 0; i < known_.size(); ++i) {
-                const InventoryPane& p = known_[i];
-                const bool here = static_cast<std::int64_t>(i) == state_.cursor;
-                // (!) THREE STATES, NOT TWO, because the host answered three questions. A closed
-                // tool can be opened; an unavailable one cannot, and saying "closed" of it
-                // would send a maker pressing Return at a pane that is never going to appear.
-                std::string mark = p.open ? "[open]" : "[    ]";
-                std::int64_t role = p.open ? surface::role::kAccent : surface::role::kFill;
-                if (!p.available) {
-                    mark = "[gone]";
-                    role = surface::role::kAlert;
-                } else if (p.waiting) {
-                    mark = "[room]";
-                    role = surface::role::kMuted;
-                }
-                push(std::string(here ? "> " : "  ") + mark + " " + p.name, role);
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole, PaneContent{pane::kLauncherPane, std::move(out)});
+            return;
+        }
+        push("PANES -- " + std::to_string(known_.size()), surface::role::kAccent);
+        std::vector<std::string> notes;
+        // THE MARKER HOLDING NOTHING IS SAID FOR AS LONG AS IT HOLDS NOTHING -- a state, not an
+        // event, so a later sentence about something else cannot take its row.
+        const std::string lost =
+            lost_ ? lost_name_ + " left the list -- choose a row before Return opens anything"
+                  : std::string();
+        const std::string* said[] = {&lost, &notice_, &pane_rows_.word, &app_.word};
+        for (const std::string* word : said) {
+            if (!word->empty()) {
+                notes.push_back(*word);
             }
         }
-        if (!notice_.empty()) {
-            push("  " + notice_, surface::role::kAlert);
+        std::int64_t budget = rows_ - 1;
+        // AT LEAST ONE LIST ROW STAYS, so the marker is never the thing a notice pushed out.
+        const std::int64_t room_for_notes = known_.empty() ? budget : budget - 1;
+        const std::int64_t note_rows =
+            static_cast<std::int64_t>(notes.size()) < room_for_notes
+                ? static_cast<std::int64_t>(notes.size())
+                : (room_for_notes > 0 ? room_for_notes : 0);
+        budget -= note_rows;
+        const ListWindow w = window_for(known_.size(), static_cast<std::size_t>(state_.cursor),
+                                        first_, budget);
+        first_ = w.first;
+        if (w.above) {
+            push("  ^ " + std::to_string(w.first) + " more above", surface::role::kMuted);
         }
-        if (!declaration_refusal_.empty()) {
-            push("  keys refused: " + declaration_refusal_, surface::role::kAlert);
+        for (std::size_t i = w.first; i < w.first + w.count; ++i) {
+            const InventoryPane& p = known_[i];
+            const bool here = static_cast<std::int64_t>(i) == state_.cursor;
+            // (!) THREE STATES, NOT TWO, because the host answered three questions. A closed
+            // tool can be opened; an unavailable one cannot, and saying "closed" of it would
+            // send a maker pressing Return at a pane that is never going to appear.
+            std::string mark = p.open ? "[open]" : "[    ]";
+            std::int64_t role = p.open ? surface::role::kAccent : surface::role::kFill;
+            if (!p.available) {
+                mark = "[gone]";
+                role = surface::role::kAlert;
+            } else if (p.waiting) {
+                mark = "[room]";
+                role = surface::role::kMuted;
+            }
+            // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
+            const char* marker = here ? (lost_ ? "? " : "> ") : "  ";
+            push(std::string(marker) + mark + " " + p.name, role);
+        }
+        if (w.below) {
+            push("  v " + std::to_string(known_.size() - w.first - w.count) + " more below",
+                 surface::role::kMuted);
+        }
+        for (std::int64_t i = 0; i < note_rows; ++i) {
+            push("  " + notes[static_cast<std::size_t>(i)], surface::role::kAlert);
         }
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneContent{pane::kLauncherPane, std::move(out)});
@@ -349,10 +530,9 @@ private:
         push("Zen Workshop", surface::role::kAccent);
         push("ctrl+t  terminal      ctrl+p  panes      ctrl+k  hotkeys",
              surface::role::kMuted);
-        // (!) AND THE TOOLS THAT ARE NOT HERE ARE NAMED ON THE FLOOR. A maker whose Info pane
-        // refused to load meets an empty column and no explanation anywhere; this is the
-        // surface that explains it while the rest of the Workshop keeps running. The host
-        // supplied the fact (`InventoryPane::available`); this weave decided it belongs here.
+        // (!) AND THE TOOLS THAT ARE NOT HERE ARE NAMED ON THE FLOOR. The host supplied the
+        // fact (`InventoryPane::available`, asked of the office's holder now); this weave
+        // decided it belongs here.
         std::vector<std::string> gone;
         for (const InventoryPane& p : known_) {
             if (!p.available) {
@@ -368,8 +548,10 @@ private:
             push("  its provider is not in this Workshop -- build it, then launch again",
                  surface::role::kMuted);
         }
-        if (!declaration_refusal_.empty()) {
-            push("keys refused: " + declaration_refusal_, surface::role::kAlert);
+        for (const Declared* d : {&app_, &pane_rows_}) {
+            if (!d->word.empty()) {
+                push(d->word, surface::role::kAlert);
+            }
         }
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, DesktopFace{std::move(out)});
@@ -386,11 +568,23 @@ private:
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
     bool granted_ = false;
+    /// WHERE THE LIST'S WINDOW BEGAN LAST TIME, so it scrolls by the least it can.
+    std::size_t first_ = 0;
     std::string notice_;
-    /// WHAT WORKSHOP SAID ABOUT THIS WEAVE'S OWN DECLARATION, if it refused one. Deliberately
-    /// NOT in the state shape: a reloaded image declares again and is judged again, so
-    /// carrying the old verdict across would show a refusal that may no longer be true.
-    std::string declaration_refusal_;
+    /// THE NAME OF THE PANE THE MARKER HOLDS, for the sentence if it leaves the list.
+    std::string held_name_;
+    /// THE MARKER'S PANE LEFT THE LIST, and the maker has not chosen another since; and its name.
+    bool lost_ = false;
+    std::string lost_name_;
+    /// THIS IMAGE'S TWO DECLARATIONS AND THE ATTEMPT COUNTER THEY SHARE. Not in the state shape:
+    /// a verdict answers only the incarnation that asked (Loom ANS-03), and a new image declares
+    /// again and is judged again, so carrying an old verdict across would show one that may no
+    /// longer be true.
+    std::uint64_t attempts_ = 0;
+    Declared pane_rows_;
+    Declared app_;
+    /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH, which the host's answer echoes.
+    std::uint64_t launches_ = 0;
 };
 
 } // namespace

@@ -377,6 +377,10 @@ struct RuntimePane {
     /// host's admission, legends and dispatch read ONE row population and never two
     /// dialects; the wire keeps both versions distinct (VD-27).
     std::vector<v2::PaneActionRow> actions;
+    /// WORKSHOP'S NUMBER FOR THE DECLARATION IN `actions` (`ActionsJudged::declaration`), or 0
+    /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
+    // WL-DESK-06 -- agents/workshop/desktop.md
+    std::int64_t declaration = 0;
 };
 
 /// HOW MANY CATALOG ROWS THIS SESSION WILL HOLD IN TOTAL -- built-ins included.
