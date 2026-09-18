@@ -2268,6 +2268,11 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
     const std::vector<std::pair<std::string, std::string>> panes = {
         {"zengine-attention-pane", "attention-pane/pane.cpp"},
         {"zengine-builder-pane", "builder-pane/pane.cpp"},
+        // ⭐ THE DESKTOP IS A PANE WEAVE LIKE ANY OTHER, which is what makes the application's
+        // own defaults reachable through the ordinary edit/build/replace loop: a maker
+        // right-presses the launcher, opens this source, changes what it declares or what its
+        // floor says, builds THIS target and reloads it (WL-DESK-01).
+        {"zengine-desktop-pane", "desktop-pane/pane.cpp"},
         {"zengine-editor-pane", "editor-pane/pane.cpp"},
         {"zengine-neovim-editor", "neovim-editor/pane.cpp"},
         {"zengine-files", "files/files.cpp"},

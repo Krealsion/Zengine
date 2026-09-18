@@ -112,7 +112,7 @@ Four directories take part, and each has one job:
 | the **checkout** | the source you edit | you, through the Editor |
 | the **build tree** — `cmake-build-debug`, or `Zengine/build` | everything CMake builds, each pane target in its own directory, the launch in `workshop/` | `b` in the Builder, CLion's build before a Run, and any `cmake --build` of yours |
 | the **runtime** — `workshop-runtime` in the build tree | the Workshop that runs: the host, every artifact it loads, both load plans and both recipe catalogs, copied once | the launch makes it; a reload copies into it and a promotion writes it; no build does |
-| the **project directory** — `workshop-project` in the build tree | Workshop's project files: the document, setups, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
+| the **project directory** — `workshop-project` in the build tree | Workshop's project files: setups, a pane you made, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
 
 Configuring writes two files beside the host, in the build tree's `workshop/` directory (under a
 multi-config generator, in a directory per configuration, with a runtime per configuration too):
@@ -158,6 +158,33 @@ Nothing is removed. To make a runtime from what the tree has built now, rename o
 by side, give the launch another directory: `--runtime <dir>` in a copy of the run configuration's
 program arguments, or on the command line. A rebuilt pane never makes a runtime stale; reloading
 it is what the runtime is for.
+
+## When a pane's messages change: a new runtime too
+
+A reload replaces a running pane only with an image that answers to exactly the messages the
+running one does and keeps the same state; anything else is refused at the reload, and the pane
+goes on running the image it had ([a build that worked and a load that was refused](#a-build-that-fails)).
+The launch cannot see this kind of change — a rebuilt pane never makes a runtime stale — so
+Running the same runtime again runs the copy it took of the old pane.
+
+Two changes of that kind are on this branch:
+
+- **The desktop hears Loom's word that one of its asks never arrived** (`zen.DispatchRefused`),
+  so a desktop built from this source is refused as a reload of one built before it.
+- **The inventory the Pane Manager and Info read gained a field**, and a message shared by the
+  host and a pane must come from one build: an Info or a desktop from the other side of the change
+  loads, but every inventory sent to it is refused at its door, and its list reads
+  `PANES (waiting)` for good. That the message kept its name and version promises nothing, and
+  neither does a load that went ahead.
+
+For either, rebuild the whole tree — CLion's build, or a `cmake --build` of it — so that the host
+and every pane come from the same source. Then rename or move `workshop-runtime` (its promotions
+and reloads stay in it) and Run: the launch makes a new runtime from what the tree built, host
+and panes together, and after that, a desktop rebuilt from its own source reloads in place again.
+Nothing you authored lives in the runtime: your project files are in `workshop-project`, and your
+keymap and last session are in your per-user folders ([where](getting-started.md#arguments)), so
+the new runtime opens on them unchanged. Quit a Workshop before moving the runtime it runs from,
+and delete nothing: the old runtime is the only copy of what you promoted into it.
 
 ## When the launch refuses
 
@@ -300,6 +327,7 @@ The development catalog holds a recipe for each pane weave Zengine ships:
 |---|---|---|
 | `zengine-attention-pane` | Attention | `attention-pane/pane.cpp` |
 | `zengine-builder-pane` | Builder | `builder-pane/pane.cpp` |
+| `zengine-desktop-pane` | the desktop: the Pane Manager, Hotkeys, the room's floor and the keys that work anywhere | `desktop-pane/pane.cpp` |
 | `zengine-editor-pane` | Editor | `editor-pane/pane.cpp` |
 | `zengine-neovim-editor` | Neovim (the Editor, when you switch to it) | `neovim-editor/pane.cpp` |
 | `zengine-files` | Files | `files/files.cpp` |
@@ -309,17 +337,23 @@ The development catalog holds a recipe for each pane weave Zengine ships:
 | `zengine-composer` | Compose | `composer/composer.cpp` |
 
 **Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
-and the two operator providers are what every pane stands on, and Workshop's own panels (Layouts,
-Pane Manager) are part of the host — `edit code` on one says so. Changing any of those is an
+and the two operator providers are what every pane stands on, and Workshop's own panel (Layouts)
+is part of the host — `edit code` on it says so. Changing any of those is an
 ordinary rebuild, a new runtime and a relaunch.
 
 **Whether a rebuilt pane reloads is decided at the reload**, by the same owner that decides it for
 any project, one row at a time: same shapes only, and never an artifact that also supplies
 operators. Each pane carries across what its state declares — Attention what you hid, the Builder
-its chosen recipe and the load-after-build switch, the Editor its document — and what it keeps
-anywhere else, it asks for again. The Builder can rebuild and reload **itself**: the build and its
-output belong to the build tool rather than to the pane, so the answer to the build it asked for
-reaches the reloaded pane, and an open output reader simply closes.
+its chosen recipe and the load-after-build switch, the Editor its document, the desktop the row
+its Pane Manager has chosen (a chosen row that left the list stays unchosen), Info its list's
+choice the same way — and what it keeps anywhere else, it asks for again or starts afresh: the
+desktop's half-typed pane name, its notices and the Hotkeys pane's scroll do not cross, and a
+Pane Creator act the old image was still waiting on is answered to nobody. A change to what a
+pane answers to is not a reload at all
+([a new runtime too](#when-a-panes-messages-change-a-new-runtime-too)). The Builder can rebuild
+and reload **itself**: the build and its output belong to the build tool rather than to the pane,
+so the answer to the build it asked for reaches the reloaded pane, and an open output reader
+simply closes.
 
 **The entry is where reading starts, not the pane's files.** A pane is more than one source — its
 vocabulary header, the packages it links. Files goes anywhere, so walk to the checkout and open

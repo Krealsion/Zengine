@@ -41,6 +41,9 @@ consumed. `kEditingVocabulary` is swept against `consume` both ways, so a help s
 the vocabulary without re-spelling it. A fifth absence a competent user trips on gets the same
 test, not a reflex extraction.
 
+**Since.** The two controls retired with the object document (WL-CTRL-05 is a RETIRED entry);
+the argument stands for the next control that is proposed.
+
 **Laws supported.** [WL-CTRL-05](../workshop/info-controls.md),
 [WL-TEXT-01](../workshop/text-box.md), [WL-TEXT-02](../workshop/text-box.md),
 [WL-TEXT-06](../workshop/text-box.md), [WL-TEXT-07](../workshop/text-box.md),

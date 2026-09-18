@@ -554,6 +554,11 @@ add_subdirectory(builder-pane)
 # among the package vocabularies, it is staged beside the host, and the boot plan names its
 # artifact -- so the same ordering rule puts it here.
 add_subdirectory(attention-pane)
+# ...and the Desktop, which is the thinnest of all and the one whose absence a maker feels
+# first: it links zengine-workshop-vocabulary alone, it is staged beside the host, and both
+# boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application
+# defaults is a Workshop a maker can still see, read and leave (agents/realization.md BOOT-1).
+add_subdirectory(desktop-pane)
 # ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
 # it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)

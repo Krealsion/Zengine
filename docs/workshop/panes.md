@@ -6,41 +6,86 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Layouts` (the
+- **the one built-in** — `Layouts`, the
   [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the screen, which
-  is a pane like the rest of them: pick it, move it, cover it, remove it) and `Pane Manager`
-  ([below](#the-pane-manager--a-pane-as-a-subject)), which describes, places and orders any of
-  them, itself included.
-- **external panes** — offered by a loaded weave through a bounded protocol.
-  `Info`, `Builder`, `Attention`, `Files`, `Editor`, `Terminal`, `Loaded`, `Project` and
-  `Powers` arrive this way. `Info` is the one your desk names for you, so it is on screen on a
-  first run; the list of built-ins above is as short as it is going to get.
+  is a pane like the rest of them: move it, cover it, close it.
+- **panes a loaded weave offers** — through a bounded protocol. The **desktop** offers two:
+  the **Pane Manager** ([below](#opening-going-to-and-closing--the-pane-manager)), where every
+  pane is opened, closed and made, and **Hotkeys**. `Info`, `Builder`, `Attention`, `Files`,
+  `Editor`, `Terminal`, `Loaded`, `Project`, `Powers` and `Compose` arrive the same way. `Info`
+  is the one your desk names for you, so it is on screen on a first run.
 - **a pane you made** — a pane whose inside is authored data rather than compiled code,
-  made from inside the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
+  made in the Pane Manager by the [Pane Creator](#the-pane-creator--a-pane-made-of-data)
   and kept in a project file of its own.
 
-## Opening and closing — the picker
+## Opening, going to and closing — the Pane Manager
 
-Press **`p`** — the band's legend advertises it as `p + panel`, and the full hotkey view
-(`Ctrl`+`k`) lists it, so this one is on screen from the first frame.
+Press **`Ctrl`+`p`**, from anywhere — it works while your hands are inside another pane — and
+the **Pane Manager** opens, or you go to it if it is already open. It lists every pane there
+is: the union of what this Workshop can present and what your layout names.
+
+```
+PANES -- 8
+  [open] Layouts
+> [    ] Builder          a closed tool: Enter opens it and puts you in it
+  [open] Terminal         already here: Enter takes you to it, and closes nothing
+  [gone] Info             nothing is offering this pane in this Workshop
+  [room] Files            on the layout, and this screen has no room to seat it
+  [load] Attention        this run has not finished loading its tool yet
+```
 
 | key | does |
 |---|---|
 | `↑` `↓` | choose a row |
-| `Enter` | open it, or remove it if it is already open |
-| `Esc` or `p` | cancel |
+| `Enter` | open it and put you in it — or, if it is open, just go to it |
+| `x` | close it: take it off the layout |
+| `n` | make a pane of your own — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
+| `s` / `Ctrl`+`d` | save the pane you made / discard its unsaved edits |
 
-The picker is the **one** owner of whether a pane is present. No pane advertises its own close
-key, because with two kinds of pane a per-pane binding stops being tenable.
+**Opening never toggles.** `Enter` on an open pane — or `Ctrl`+`t` while the Terminal is up —
+selects it and gives it the keyboard. It does not close it, does not take it off your layout,
+and never unloads the weave behind it.
 
-Its rows are the union of what this build can present and what your setup names. A row for a
-pane this build has never heard of still appears, with a state word saying so — that is what
-lets you tell a typo from a pane you have not installed. Without that row, a setup naming an
-unknown pane could be seen and not removed without editing the file by hand.
+**Closing unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
+running exactly as it was: the Editor keeps an unsaved file, the Terminal keeps its history,
+and `Enter` brings the pane back to find them. Closing a pane that is not on the layout is
+refused in words, and it opens nothing.
 
-The picker paints a whole pane's worth of rows even when it has fewer to show, so a short
-picker over a taller pane cannot leave that pane's last rows showing beneath it — one box
-saying two unrelated things.
+**Opening never loads anything.** A `[gone]` row is a pane nothing in this Workshop is offering
+now: a tool that is not in your load plan, one whose artifact could not be loaded at startup,
+or one whose tool has gone away. Workshop says which, and leaves it to you to build it and
+launch again — it will not go looking for a file on your behalf. The empty room behind your
+panes shows the same news, including a line naming any tool that is not here. A `[load]` row is
+not that: its plan row has not been reached yet, so its tool is on its way and nothing is to be
+built. `Enter` on it says it is not here yet, and the row changes by itself when it arrives —
+to `[    ]`, or to `[gone]` if the run settles without it.
+
+A row for a pane this build has never heard of still appears, so a typo can be told from a pane
+you have not installed, and a layout naming an unknown pane can still be closed without
+editing the file by hand.
+
+**A row you chose can leave the list** — a pane nothing offers, once `x` takes it off the layout,
+say. The marker turns to `?` where the row was, and a line under the list says so:
+
+```
+? [open] Info
+  removed-pane left the list -- choose a row before Return opens anything
+```
+
+`Enter` and `x` then open and close nothing — `Return opened nothing -- choose a row first` —
+rather than acting on the pane that moved into the gap. Choose a row with `↑` `↓` and they work
+again; if the pane you chose comes back, the marker finds it. The choice is kept when the desktop
+is rebuilt and reloaded, so a reload does not quietly pick another pane for you either. Info's
+pane list does the same for its `Enter` (below).
+
+**The Pane Manager is a pane like any other.** You can arrange it, cover it and close it, and
+`Ctrl`+`p` brings it back. It is the desktop's, not Workshop's: its keys are the desktop's own
+declarations, so you can move or switch them off in your keymap file
+([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)), and the
+desktop itself can be edited, rebuilt and replaced while Workshop runs
+([develop Workshop](develop-workshop.md)). A rebuild that changes what the desktop answers to, or
+a message it shares with Workshop, is not a reload: it takes a new runtime built from one tree
+([when a pane's messages change](develop-workshop.md#when-a-panes-messages-change-a-new-runtime-too)).
 
 ## Every pane has an edge, and one of them is yours
 
@@ -60,8 +105,8 @@ Selecting a pane also brings it **forward** for as long as it stays selected —
 [what "front" means](#what-front-means).
 
 **`Esc` puts the selected pane down.** Once nothing more specific wants the key — an open
-menu, the picker, a draft you are typing into, the arrangement and the hotkey view all
-answer `Esc` first, in their own way — `Esc` clears the selection: the
+menu, a line you are typing into and the arrangement all answer `Esc` first, in their own
+way — `Esc` clears the selection: the
 pane's edge goes back to ordinary, it drops back to its authored place in the order, and the
 keys return to Workshop. Nothing closes, moves or is written; it is exactly what pressing an
 empty part of the desk does, for a desk that has no empty part left. A place you **type**
@@ -70,12 +115,10 @@ as Compose receives it as its own key (its form goes back to its catalog). To pu
 those down, press a pane that takes no typing — `Layouts` is always there — or the desk,
 then `Esc`.
 
-**The wheel reaches what a list could not show.** Any list here that says `... N more` — the
-Pane Manager's two lists, the picker, a Files, Powers or Compose pane — moves its
-cursor under the wheel, and the rows follow. The wheel goes to the pane under the pointer,
-front-most first, so a pane in front never scrolls the one it covers; it does not select the
-pane and does not move the keys. The Editor scrolls its text instead, leaving the caret
-where it is.
+**The wheel goes to the pane under the pointer**, front-most first, so a pane in front never
+scrolls the one it covers; it does not select the pane and does not move the keys. What it
+does there is the pane's own: a Files, Powers or Compose list moves its cursor and the rows
+follow; the Editor scrolls its text, leaving the caret where it is.
 
 ## Moving, resizing and ordering — Arrange
 
@@ -107,7 +150,7 @@ be: a press is its own targeting. The keyboard steps between panes instead:
 | `=` / `-` | **grow / shrink** it four cells on both axes at once — the coarse step, same anchor |
 | `Enter` | narrow to arranging exactly that pane |
 | `f` `b` `r` `l` | send to front / back, raise / lower one step |
-| `d` | remove that pane — the picker brings it back |
+| `d` | remove that pane from the layout — the Pane Manager brings it back |
 | `0` | **reset** — then `p` place, `w` width, `h` height, `o` order; `Esc` back |
 | `Esc` or right-click | leave |
 
@@ -126,8 +169,8 @@ cannot legally shrink keeps what it had while the other axis still moves).
 A right-click while arranging **leaves the interaction and does nothing else** — it never
 also opens the context menu. The next right-click, in ordinary Workshop, does.
 
-Which panes are on the desk at all is the **picker**'s job (`p`), before and after any of
-this — arranging never adds or offers a pane.
+Which panes are on the desk at all is the **Pane Manager**'s job (`Ctrl`+`p`), before and
+after any of this — arranging never adds or offers a pane.
 
 Everything you author here goes into the **setup**, so it survives if you save it with `s`.
 See [setups](setups.md).
@@ -140,9 +183,9 @@ aimed at that thing:
 
 - **a pane** — `arrange`, `Order >` (front / back / raise / lower), `Reset >`
   (place / width / height), `edit code`, `remove`;
-- **a document object** — `delete`;
-- **the empty room** — Workshop's own doors: a new object, the picker, arrange desk, the
-  hotkey view, save / open, the setup gestures, reset order.
+- **a layout tab** — rename, duplicate, `Order >` (move left / right), remove;
+- **the empty room** — Workshop's own doors: arrange desk, save or restore the setup, reset
+  order.
 
 The menu is sized by what it has to say, and near a screen edge it shifts just enough to
 stay whole. Where a row's action has a working shortcut in the place you are returning to,
@@ -152,11 +195,11 @@ binding moves them, and a key that would not work there is simply not shown.
 While the menu is open: `↑` `↓` choose a row, `Enter` chooses it (a `… >` row opens its
 group, staying beside the click), `Esc` backs out of a group or closes the menu, and a
 click outside dismisses it — a click spent on closing the menu never also operates
-whatever it landed on. **`a`** opens the same menu from the keyboard, on the selected
-object or the empty room, so the capability does not depend on a mouse; with no pointer
-position to open beside, it opens at the panel column's corner.
+whatever it landed on. **`a`** opens the same menu from the keyboard for the room, so the
+capability does not depend on a mouse; with no pointer position to open beside, it opens at
+the panel column's corner.
 
-**Pointing is not selecting.** Opening the menu on a pane or an object changes no
+**Pointing is not selecting.** Opening the menu on a pane or a tab changes no
 selection and moves no keyboard focus — the menu holds the pointed thing only for the one
 action you choose. `arrange` is the deliberate exception: choosing it begins arranging
 **that pane** *and* selects it, because arranging is an ongoing state and the pane you are
@@ -205,8 +248,8 @@ the file holds the desk you arranged, not the last pane you happened to press. `
 `l` are still how you say *and I mean this permanently*.
 
 The pane in front is also the pane your pointer reaches: what you see on top is what a click
-in the overlap lands on. Context menus and the hotkey view stay above the panes either way —
-a selected pane is never lifted over a menu you just opened on it.
+in the overlap lands on. Context menus stay above the panes either way — a selected pane is
+never lifted over a menu you just opened on it.
 
 ### What a refusal means here
 
@@ -282,8 +325,9 @@ takes it back. Then `s` `Enter` to persist the setup.
 By pointer: right-click the pane → `arrange` → drag its bottom edge (or any handle) to the
 size you want. In a window the drag is pixel-fine; on a terminal it moves cell by cell,
 which is the honest grain a terminal has. By keyboard, `Shift`+arrows still move one cell
-per press when you want to land exactly. An authored size is accepted up to the document's
-cell maximum.
+per press when you want to land exactly — or type the size you want into the pane's `Width`
+and `Height` rows in [Info](#a-pane-as-a-subject--info). An authored size is accepted up to the
+setup's maximum.
 
 There is still no "fill the room", no auto-fit to a pane's contents, and no snapping — `=`
 resizes the pane you addressed and touches nothing else.
@@ -300,31 +344,29 @@ Judged plainly, and repeated in [limitations](limitations.md):
 The smallest thing left that would change the felt experience: a pane-height default that
 reads the surface. That is not built, and it is not designed here.
 
-## The Pane Manager — a pane as a subject
+## A pane as a subject — Info
 
-Open **Pane Manager** from the picker. It is a pane whose subject is **another pane** — any row
-the picker lists: a built-in, a pane a loaded weave offered, a pane you made, or a reference
-your layout names that this build cannot resolve. It is *not* the Info pane: Info inspects
-the objects of your document; the Pane Manager inspects Workshop's own furniture — which pane
-is where, how big, in what order, and on the layout or not.
+**Info** describes panes. Its upper list is every pane the Pane Manager lists; press into Info,
+choose one and press `Enter`, and that pane becomes Info's **subject**: its rows below say what
+it is, what you authored for it, and what this screen makes of that.
 
 ```text
-PANE MANAGER *
-  Builder      closed     build a chosen recipe
-  Info         open       objects and properties
->*Layouts      open       layout tabs and setup
+PANES -- 8
+  Builder -- closed
+>*Layouts -- open
   ...
+PANE Layouts
  Name     Layouts
  Identity zengine.workshop/layouts
  Provider zengine.workshop (built in)
  Summary  layout tabs and setup
 AUTHORED
->X        -
+ X        -
  Y        -
  Width    -
  Height   -
- Front    f1 of 3 -- f/b/r/l order it
- Open     yes -- o removes it
+ Front    f1 of 3
+ Open     yes
 RESOLVED
  Window   @0,0 96x2 cells
  State    open
@@ -332,22 +374,22 @@ INTERIOR
  Interior code-backed -- body @1,1 94x0 cells, 0 rows x 94 columns as cells; no authored interior
 ```
 
-**Choosing a pane makes it the subject.** Press into the Pane Manager, put the cursor on a row
-of the `PANES` list and press `Enter` — or click the row. The subject wears a `*`. Choosing
-changes nothing about the desk: it does not open the pane, select it, or hand it the keys.
-
-**Selection and subject are two different facts.** The pane you last pressed into is the
-*selected* one — the one with the different edge, the one your keys go to. Pressing into the
-Pane Manager therefore selects the Pane Manager, as pressing into any pane would; the subject
-stays exactly what you chose. So you can choose `Pane Manager` itself as the subject, type into
-its own rows, and move the pane you are typing in.
+**The subject is Info's, and nothing else moves it.** Choosing a pane changes nothing about the
+desk: it does not open the pane, select it, or hand it the keys. Pressing into another pane,
+`Esc`, a press on the empty room — none of them moves the subject; only choosing another pane
+in Info does. Info may inspect itself, and a pane that closes or loses its tool stays the
+subject, reading `closed` or `unresolved` with what you can do about it. A pane you chose in
+Info's list that then leaves it is marked `?` and said, exactly as in the Pane Manager, and
+`Enter` inspects nothing — `Return inspected nothing -- choose a row first` — until you choose
+another row; the subject you had stays yours, and so does the choice when Info is reloaded.
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
 - `AUTHORED` is what *you* said — a place, a width, a height, each `-` until you say
   something; the pane's rank in the front order; whether it is on this layout at all. These
-  are the same facts the desk arrangement (`w`) and the picker (`p`) author, reached through
-  the same doors: nothing here is a second way to store a pane's geometry.
+  are the same facts the desk arrangement (`w`) and the Pane Manager author, and the rank and
+  presence are read here: ordering is the arrangement's, opening and closing the Pane
+  Manager's.
 - `RESOLVED` is what the screen you are looking at *makes* of that, right now: the rectangle
   the pane actually occupies, in the unit your face reports (cells in a terminal, pixels in a
   window), and its state word — `open`, `covered`, `off-room`, `waiting`, `refused`, `closed`,
@@ -361,52 +403,34 @@ were.
 exposes its regions there, because regions are what it is made of — see [the Pane
 Creator](#the-pane-creator--a-pane-made-of-data). Every other pane is code, or a loaded
 weave's own, and the row is a read-only capture of its resolved body — where it is and how
-many rows of type it holds — and the plain statement that it has no authored interior. The
-Pane Manager does not decompose a compiled painter, infer its controls, or pretend a
-provider's rows are a definition.
+many rows of type it holds — and the plain statement that it has no authored interior. Info
+does not decompose a compiled painter, infer its controls, or pretend a provider's rows are a
+definition.
 
-**Editing is the ordinary draft.** `Tab` moves the keys between the `PANES` list and the
-subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height` opens a draft on the
-current value. Type a whole number in the face's own unit — `10` or `10 cells` in a terminal,
-`120` or `120px` in a window — and `Enter` commits, `Esc` abandons. Typing `-` gives that axis
-back to Workshop's default (X and Y are one place, so resetting either resets both). A value
-that is not a number, a unit the face did not report, a negative place, a size below one cell
-or beyond the lattice is **refused in words and the authored value does not move** — nothing
-is clamped to fit the room. A pane authored partly or wholly off the screen is legal intent;
-`State` says `off-room`, and `-` brings it back.
+**Editing is a draft, written through the desk's own door.** `Tab` moves the keys between
+Info's list and the subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height`
+opens a draft on the current value. Type a whole number in the face's own unit — `10` or
+`10 cells` in a terminal, `120` or `120px` in a window — and `Enter` writes it, `Esc` abandons.
+Typing `-` gives that axis back to Workshop's default (X and Y are one place, so resetting
+either resets both). A value that is not a number, a unit the face did not report, a negative
+place, a size below one cell or beyond the lattice is **refused in words, the draft keeps your
+text, and the authored value does not move** — nothing is clamped to fit the room. A pane
+authored partly or wholly off the screen is legal intent; `State` says `off-room`, and `-`
+brings it back.
 
-| key | does |
-|---|---|
-| `↑` `↓` | step the list the keys are in |
-| `Tab` | move the keys between the `PANES` list and the subject's rows |
-| `Enter` | on a pane row: make it the subject · on `X` `Y` `Width` `Height`: edit it |
-| `o` | open the subject if it is closed, remove it if it is open — the picker's own door |
-| `f` `b` `r` `l` | send the subject to front / back, raise / lower it one step |
-| `-` (as a value) | reset that axis to Workshop's default |
-| `n` | **new pane** — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
-| `s` / `Ctrl`+`d` | save the open pane you made / discard its unsaved edits |
-| `Esc` (in a draft) | abandon the draft, changing nothing |
-| `Esc` (otherwise) | put the Pane Manager down — the selection clears, the subject stays |
-| wheel | scroll the list under the pointer — the `PANES` list or the subject's rows |
+The write is not Info's: Info sends your finished text, and Workshop writes it through the
+same door a drag or a resize key uses, then reseats the desk. If the subject's layout changed
+underneath the draft, the write is refused rather than landing on the wrong pane or desk.
 
 **Placement edits land immediately in the layout you are on.** There is no Save button for
-them in the Pane Manager and no shadow copy: a committed value is the layout's value the
-moment it commits, the
-screen follows through the ordinary pane path, and [workspace
-continuity](setups.md#workspace-continuity) brings it back next launch exactly as it brings
-back a drag. If the layout is related to a Setup file and was `current`, the first edit makes
-it `modified` — the same verdict any other change earns — and `s` is still the only thing that
-writes that file.
-
-**A closed or unresolved pane is still a subject.** A pane the picker lists but this layout
-does not name reads `closed`; `o` opens it. A reference your layout names that no loaded
-office offers reads `unresolved`, keeps its identity and whatever place and size you authored
-for it, can still be ordered and reset, and is never removed on your behalf. The subject
-survives switching layouts and its own pane closing; it is dropped only when a fresh look
-finds it in neither the picker's list nor the layout you are on, and the notice says so.
+them and no shadow copy: a written value is the layout's value the moment it lands, the screen
+follows through the ordinary pane path, and [workspace continuity](setups.md#workspace-continuity)
+brings it back next launch exactly as it brings back a drag. If the layout is related to a
+Setup file and was `current`, the first edit makes it `modified` — the same verdict any other
+change earns — and `s` is still the only thing that writes that file.
 
 Nothing here is a safe mode. If you author a rectangle you cannot reach, the recovery is what
-it always was: the picker, `0` in the arrangement (or `-` here), the default desk, and
+it always was: the Pane Manager, `-` in a row or `0` in the arrangement, the default desk, and
 `--isolated`.
 
 ## The Pane Creator — a pane made of data
@@ -416,16 +440,18 @@ loaded weave offered one. The Pane Creator is the first way a pane exists becaus
 described one**: a pane whose inside is authored data — a name, and a list of regions — kept
 in a project file of its own.
 
-Open the **Pane Manager**, press into it, and press **`n`**. Its heading becomes a prompt
-(`new pane> `): type a name — plain ASCII, no spaces; it becomes the pane's durable identity
-— then `Enter` makes the pane, `Esc` cancels. The new pane appears on the current layout at an
-ordinary pane's default place (or `waiting` for room, if the stack is full on this screen),
-the Pane Manager takes it as its subject, and the keys land on its one **text region**'s rows
-under `INTERIOR`:
+Open the **Pane Manager** (`Ctrl`+`p`) and press **`n`**. A name line opens under its heading
+(`new pane: `): type a name — plain ASCII, no spaces; it becomes the pane's durable identity —
+then `Enter` makes the pane, `Esc` cancels. Paste works; a name Workshop refuses stays in the
+line with the reason under it, for you to correct — and so does one that never reached Workshop
+(`make not delivered -- nothing changed (…)`), for the next `Enter`. The new pane appears on
+the current layout at an ordinary pane's default place (or `waiting` for room, if the stack is
+full on this screen). Inspect it in **Info**, and its one **text region**'s rows are under
+`INTERIOR`:
 
 ```text
 INTERIOR
- Region   #1 text -- the Pane Creator's subject
+ Region   #1 text -- the Pane Creator made it
 >Text
  X        0 cells
  Y        0 cells
@@ -446,8 +472,8 @@ the pane` if you authored it past the edge), and how many rows and columns of ty
 or `presented as cells` where the face could not set a row of type in it, or `no room` where
 nothing of it is drawn.
 
-While the Pane Manager's subject is your pane, the region you are editing is **marked on the
-pane itself**: its exact resolved rectangle is filled in the accent colour with its text
+While Info's subject is your pane, the region you are editing is **marked on the pane
+itself**: its exact resolved rectangle is filled in the accent colour with its text
 written over it, so you can see which rectangle the rows describe. The mark is drawn from
 the same resolution that painted the region, and it writes nothing.
 
@@ -458,7 +484,7 @@ the same resolution that painted the region, and it writes nothing.
 | `Ctrl`+`d` | discard unsaved pane edits — back to what the file holds; a pane never saved closes whole |
 
 **The pane is a project file of its own** — `--pane <path>`, default `workshop-pane.json`
-under the project directory — beside the document and the setup, and it holds *what* the pane
+under the project directory — beside the setup, and it holds *what* the pane
 is: its name and its regions. *Where* it participates is the layout's, exactly as for every
 other pane, and comes back with the session. So save (`s`), quit, relaunch: the pane returns
 on the same layout by its durable reference `zengine.workshop.maker/<name>`, with the same
@@ -470,14 +496,14 @@ One pane definition is open at a time, the way one source document is. Unsaved p
 are yours: quitting, making a second pane, or opening another definition over them is refused
 in words until you save or discard. A layout that names a pane whose file is absent keeps the
 row and reads it `unresolved` — the same retained intent an unresolved external pane has — and
-the Pane Manager's `Provider` row says which file would resolve it.
+Info's `Provider` row says which file would resolve it.
 
 **What it is not.** This is the first pane implementation whose inside is data, and it is
 deliberately small: one region kind (`text`), one line of static text, no controls, no
 wiring, no anchors or fill, no second region yet, and no renaming after the pane is made. It
-is one way a pane can be built, not what every pane must become: the built-ins are still
-code, a loaded pane is still its provider's, and the Pane Manager says so rather than
-pretending either is a definition.
+is one way a pane can be built, not what every pane must become: the built-in is still
+code, a loaded pane is still its provider's, and Info says so rather than pretending either
+is a definition.
 
 ## Pane titles
 
@@ -489,8 +515,8 @@ and it lasts for the current run.
 
 **One exception, and it is the law rather than a leftover:** the pane currently holding the
 keyboard keeps its title, mark and all. The `> ` mark names the pane your keys go back to —
-the band's first row says where a key goes right now, which the picker, a menu or the hotkey
-view takes first while it is open — and hiding chrome may never hide that, so with titles off, focusing a pane shows its
+the band's first row says where a key goes right now, which a menu or a line takes first
+while it is open — and hiding chrome may never hide that, so with titles off, focusing a pane shows its
 title for exactly as long as the focus holds.
 
 ## Panes as an author

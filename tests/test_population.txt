@@ -1611,8 +1611,8 @@ builder                           doctest           always  59
 #                               file is named by the PROJECT door (`RecipeSourceSaid`), and
 #                               opening it is the Editor's.
 
-workshop_document                 doctest           always  104
-workshop_screen                   doctest           always  173
+workshop_document                 doctest           always  45
+workshop_screen                   doctest           always  129
 # EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
 # workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the
 # shape of the work: the Terminal pane's own interaction, one completer unit case, and two Neovim
@@ -1665,10 +1665,71 @@ workshop_screen                   doctest           always  173
 #                                that runs and the pane says which one, and Escape in the Neovim
 #                                pane is Neovim's with the pane still selected.
 #
-workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  584
-workshop_persistence              doctest           always  181
-workshop_load                     doctest           always  143
+# THE DESKTOP FOUNDATION'S CONTINUATION moved five floors, each to the count measured at its
+# commit, and every decrease is a case that retired with the thing it described (the commit that
+# retired it names it and says why):
+#
+#   workshop_panes    584 -> 599  the six reviewed repairs, against the real desktop and Info
+#                                 images (`test_workshop_panes_actions.cpp`, the introspection
+#                                 source); the first pass's own desktop cases had not moved it.
+#   workshop_load     143 -> 149  an optional row the run stepped over is `unavailable`, with
+#                                 the realization's reason and next action, and the answer's
+#                                 version is chosen for the asker.
+#   workshop_panes    599 -> 601  the keys as they are in force: the floor and the Hotkeys pane
+#   workshop_document 104 -> 102  over the effective keymap, the renamed ids, the admission wall
+#   workshop_screen   173 -> 169  -- and the host's hotkey overlay retired: eight cases about its
+#                                 placement, extent, modality and context list (three document,
+#                                 four screen, one Files), one of them replaced by the
+#                                 effective-keymap case.
+#   workshop_panes    601 -> 600  Info inspects panes: five cases about the object document and
+#                                 its two controls retired, four about the pane subject arrived.
+#   workshop_document 102 -> 47   the prototype object canvas and its document retired, and with
+#   workshop_screen   169 -> 133  them every case about the objects: their identities, properties,
+#   workshop_persistence 181 -> 156  names, moves, sizes, frames and hands, the document file and
+#   workshop_panels   114 -> 110  its `^s`/`^o`, the scene the canvas painted and the seam that
+#   workshop_panes    600 -> 599  showed it to Info -- 125 cases, each named with its reason in
+#                                 the commit that retired it (EDIT-W50 among them: supersession
+#                                 had a host row to supersede). Four arrived: the typed rows,
+#                                 re-proven over a plain subject, add a whole-number form and a
+#                                 commit of text never drafted; the status line; and an old
+#                                 document left alone. Two were rewritten in place: a shown row
+#                                 for a resolved one, and a maker's retired keymap id for the
+#                                 global walls no host row meets any more.
+#   workshop_panes    599 -> 602  closing participation, the picker's toggle's other half: the
+#                                 door, the launcher's `x` on the real desktop, and an Editor
+#                                 whose unsaved source survives a close and a launch.
+#   workshop_screen   133 -> 129  the `p` picker and the host's own Pane Manager retired: cases
+#   workshop_panels   110 -> 95   about the picker's rows, windowing and toggle, the manager's
+#                                 subject, drafts and wheel, 27 in all, each named with its
+#                                 reason in the commit that retired it; 14 more were renamed
+#                                 onto the doors that took the same claim. Seven arrived, on the
+#                                 desktop's Pane Manager making a pane and on the migration.
+#   workshop_document 47 -> 45    the draft machinery only the host's drafts spent: two cases
+#                                 about a row's own draft and its cancel, whose claims moved to
+#                                 the finished-text cases beside them.
+#   workshop_panels   95 -> 96    a tool the run stepped over is named by its artifact on the
+#                                 host's own condition row -- the one reading that needs no
+#                                 tool, and the only one left when the missing tool is the
+#                                 desktop.
+#   workshop_panes    602 -> 603  a pane the run is still loading is pending, not unavailable:
+#   workshop_load     149 -> 150  `[load]` in the Pane Manager, nothing on the floor, "not here
+#                                 yet" at launch; and the realization owner's answer to whether
+#                                 an office is still to come.
+#   workshop_panes    603 -> 607  two corrections the review reproduced: a choice whose row left
+#                                 stays unchosen across a desktop replacement, and the Pane
+#                                 Creator's answer is read against its own act, draft and name --
+#                                 a paste, a second Return, typed text, a cancel and a newer
+#                                 draft crossing it in one poll.
+#   workshop_panes    607 -> 612  the review after them: a Pane Creator act Loom refuses at
+#                                 dispatch, or that nothing could queue, is released and tried
+#                                 afresh while delivered silence still waits, a forged notice
+#                                 settles nothing and the host's denial is said per attempt; and
+#                                 Info keeps a lost list choice lost across its own replacement.
+#
+workshop_panels                   doctest           always  96
+workshop_panes                    doctest           always  612
+workshop_persistence              doctest           always  156
+workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
 workshop_neovim                   doctest           neovim  12

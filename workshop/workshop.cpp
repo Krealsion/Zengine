@@ -124,13 +124,14 @@ std::string exe_dir() {
 struct Arguments {
     bool ok = true;
     std::string complaint;
-    std::string document = zengine::workshop::persist::kDefaultDocumentName;
-    /// The setup file, beside the document's and never inside it. Same
-    /// shape as `--document` for the same reasons; a different file because a
-    /// document and the arrangement it is looked at in are different facts.
+    /// AN OBJECT DOCUMENT A LAUNCH STILL NAMES (`--document`), or empty. The object document
+    /// retired with its canvas; the flag is still READ so an old launch line starts rather than
+    /// failing, and what it names is said once and left exactly as it is (WL-DOC-22).
+    std::string document;
+    /// The setup file: the arrangement a maker saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    /// The pane-definition file: a pane the maker MADE, beside the document and
-    /// the setup as the third PROJECT file. A bare default like the document's, resolved
+    /// The pane-definition file: a pane the maker MADE, beside the setup as a PROJECT file. A
+    /// bare default like the setup's, resolved
     /// by `main()` against the project directory rather than against the process's own
     /// working directory -- one spelling, one file, to the launch and to the save alike.
     std::string pane = zengine::workshop::pane_definition_persist::kDefaultPaneFileName;
@@ -232,6 +233,13 @@ Arguments parse_arguments(int argc, char** argv) {
             } else if (arg == "--pane") {
                 args.pane = value;
             } else {
+                // `--document`: RETIRED, AND READ SO IT CAN BE SAID. An empty value is still the
+                // complaint it always was; a named one is a file this run leaves alone.
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = "--document needs a path";
+                    return args;
+                }
                 args.document = value;
             }
             continue;
@@ -240,10 +248,7 @@ Arguments parse_arguments(int argc, char** argv) {
         args.complaint = "unknown argument `" + arg + "`";
         return args;
     }
-    if (args.document.empty()) {
-        args.ok = false;
-        args.complaint = "--document needs a path";
-    } else if (args.setup.empty()) {
+    if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
     } else if (args.pane.empty()) {
@@ -267,8 +272,7 @@ int main(int argc, char** argv) {
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
-                    "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
-                    "                        [--pane <path>]\n"
+                    "usage: zengine-workshop [--setup <path>] [--pane <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
                     "                        [--prefs <path>] [--marks <path>]\n"
                     "                        [--isolated]\n"
@@ -318,7 +322,19 @@ int main(int argc, char** argv) {
     // table, which is the one host-side file that names the reference, and not by this host
     // knowing a pane (EDIT-W48's rule).
     host.managed_pane = PaneRef{pane_migration::kEditorProvider, pane_migration::kEditorPane};
-    host.document_path = args.document;
+    // AN OBJECT DOCUMENT THIS LAUNCH NAMES, OR ONE STANDING UNDER THE RETIRED DEFAULT NAME IN THE
+    // PROJECT: said once at startup and left exactly as it is. Its bytes are never read, so they
+    // are never mistaken for any other kind of file (WL-DOC-22).
+    if (!args.document.empty()) {
+        host.retired_document = args.document;
+    } else if (!host.project_dir.empty()) {
+        std::error_code ec;
+        const std::string old = zengine::workshop::persist::resolved_against(
+            host.project_dir, zengine::workshop::persist::kRetiredDocumentName);
+        if (std::filesystem::is_regular_file(old, ec)) {
+            host.retired_document = old;
+        }
+    }
     host.setup_path = args.setup;
     // THE PANE-DEFINITION FILE IS RESOLVED AGAINST THE PROJECT, ONCE. A relative
     // spelling means "under the project", and the project is the value captured on the line
@@ -425,7 +441,9 @@ int main(int argc, char** argv) {
     // this host isolates nothing. (The `--isolated` below is about the maker's FILES,
     // not about containment -- the two words meet here and mean different things.)
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
-    std::printf("zengine-workshop - document: %s\n", args.document.c_str());
+    std::printf("zengine-workshop - document: retired with the object canvas%s%s\n",
+                host.retired_document.empty() ? "" : " -- left as it is: ",
+                host.retired_document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
     // THE PANE FILE, SAID AS RESOLVED: the one spelling every door will spend, or the
     // absence and its cause.
@@ -694,9 +712,8 @@ int main(int argc, char** argv) {
         } else {
             std::printf("zengine-workshop - log: %s (durable, selected facts only)\n",
                         args.log.c_str());
-            journal.info("zengine.workshop", "session started: document " + args.document +
-                                                 ", setup " + args.setup + ", load plan " +
-                                                 plan_path);
+            journal.info("zengine.workshop", "session started: setup " + args.setup +
+                                                 ", load plan " + plan_path);
         }
     } else {
         std::printf("zengine-workshop - log: nothing durable (--log <path> to keep one)\n");
@@ -909,7 +926,7 @@ int main(int argc, char** argv) {
     // THE BOOT LINE NAMES THE PARTICIPANT, AND NO LONGER NAMES A KEY. It used to print
     // the gesture that opened the overlay, read through the maker's own keymap so the host
     // and the weave could not disagree about it. There is no such gesture: the Terminal is
-    // a pane in the load plan, opened from the picker and placed by a maker's arrangement,
+    // a pane in the load plan, opened from the Pane Manager and placed by a maker's arrangement,
     // so what this line can honestly say is WHICH IDENTITY the pane speaks as -- which is
     // the fact somebody reading this line is actually after.
     std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
@@ -1054,13 +1071,15 @@ int main(int argc, char** argv) {
     // artifact each is expected to produce; what actually ran reaches the pane the way
     // it has from the participant that ran it, as it starts.
     //
-    // ⚠ `p` OPENS THE PICKER, NOT THE PANEL, and this line said otherwise until now.
-    // The Builder panel was a built-in of this host and `p` put it on the screen; since
-    // the Builder became a weave (`Zengine/builder-pane/`) `p` opens the pane PICKER and
-    // the maker chooses the Builder from it, like every other pane. The first sentence a
-    // newcomer reads is not the place to be one migration out of date.
-    std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
-                "pane picker)\n",
+    // ⚠ THIS LINE HAS NAMED THE WRONG DOOR TWICE, and names no key now. The Builder panel was a
+    // built-in and `p` put it on the screen; then the Builder became a weave and `p` opened the
+    // pane picker, which retired in turn. A maker opens the Builder's pane from the desktop's
+    // Pane Manager like every other pane, and the key that opens the Pane Manager is the
+    // desktop's declaration -- which a maker's keymap may move, and which this line, printed
+    // before the desktop has declared anything, cannot know. The first sentence a newcomer
+    // reads is not the place to be one migration out of date.
+    std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (open its pane from "
+                "the Pane Manager)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
     std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                 std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
@@ -1207,6 +1226,19 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+    // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
+    // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
+    // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of
+    // either would tell every listening weave what another provider's keys are. `PaneInventory`
+    // is published, for `StandingConditions`' reason (and answered to an asker who arrived).
+    speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
+    speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
+    speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
+    speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
+    speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
+    speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
+    speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
+    speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition
@@ -1235,17 +1267,13 @@ int main(int argc, char** argv) {
     // office would be a host with that pane compiled into it again. It carries prose a maker
     // can already read off their own screen and commands nothing.
     speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
-    // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, on the same terms and for the same reason:
-    // the party that presents it is named by the load plan, and it carries a picture a maker
-    // is already reading off the workspace beside it.
-    speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
-    // ...and the same picture with the name of what its rows address, beside v1 and not instead
-    // of it (WL-DOC-21): a commit returns that name, and the host writes only while it holds.
-    speak.allow_to_any(v2::DocumentShown::zen_name, v2::DocumentShown::zen_version);
-    // ...and the answer to the one act the document has a door for. `to_any` for
-    // `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the weave that
-    // asked, and no rule written here at boot could name it.
-    speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+    // ...AND AN INSPECTOR'S PANE SUBJECT (WL-INFO-14): the picture, published and answered, and
+    // the answer to an inspect or a commit. `to_any`: the party that presents it is named by the
+    // load plan, and Loom picks the recipient of an answer -- it is the weave that asked, and no
+    // rule written here at boot could name it. (The object document's picture and its one answer
+    // were granted here until that document retired.)
+    speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
+    speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
     // ...AND WHAT THE TERMINAL PARTICIPANT'S RECORD HOLDS, on the same terms again. It is a
     // reading of a participant THIS PROCESS mounted and holds a pointer to; publishing it
     // is not speaking as that participant, and could not be -- an identity is fixed when a
@@ -1437,6 +1465,30 @@ int main(int argc, char** argv) {
                             "after it is waiting on this one)\n",
                             done.waiting_on.c_str());
             }
+            // ---- ...AND THE TOOLS THAT ARE NOT HERE, NAMED (P-WORK-22) -----------
+            //
+            // AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL. The maker authored that
+            // this project stands without it, so this Workshop is running -- and the one
+            // thing that must not happen is for the row to be missing quietly. It is said
+            // on stdout with the refusing layer's own sentence, AND established as a
+            // STANDING CONDITION, because "this tool is not in this Workshop" stays true for
+            // the whole run rather than being a sentence about a moment (WL-ATTN-01).
+            //
+            // ⚠ THIS IS THE RECOVERY SURFACE EXISTING AT ALL. Before it, a tree short one
+            // pane artifact ended the process before anything could say which one -- the
+            // boundary P-WORK-22 names. The Attention pane lists these conditions and the
+            // compact row names the loudest by its artifact; the desktop's floor and the
+            // launcher's `[gone]` rows are the INVENTORY's reading, which knows a tool only
+            // once an offer or a desk row gave it a row.
+            //
+            // ⚠ AND THE COMPACT ROW IS WHAT A TERMINAL MAKER CAN STILL READ. The skin owns
+            // the terminal from its own row on, so these lines are drawn over there.
+            for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
+                std::printf("zengine-workshop - unavailable: %s\n", done.unavailable[i].c_str());
+                host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
+                    done.unavailable_stems[i], done.unavailable[i]));
+                ++host.conditions_generation;
+            }
             if (done.ok) {
                 std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
                             "provider(s)\n",
@@ -1582,6 +1634,11 @@ int main(int argc, char** argv) {
     host.code_source = [&bus, &executor, &current_recipes](const std::string& office) {
         return provenance::code_source_of(office, bus, executor, current_recipes);
     };
+    // ...AND WHETHER AN OFFICE IS STILL TO COME, the same owner's rows read at the ask: a pane
+    // whose plan row has not settled is pending in the inventory, never unavailable.
+    host.office_pending = [&executor](std::string_view office) {
+        return executor.office_pending(office);
+    };
 
     // ---- THE TWO AUTHORED FILES GAIN A WRITER, THE MAKER'S OWN ACT (PICK-1, LOAD-IT) --
     //
@@ -1642,9 +1699,14 @@ int main(int argc, char** argv) {
     // hear an answer -- rather than like a new mechanism.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
+    say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
+                              v2::ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
-    mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole, executor,
-                                     operators, plan_path);
+    mount_in_office<ArrangementDoor>(
+        bus, std::move(say_resolved), kArrangementRole, executor, operators, plan_path,
+        [&bus](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        });
 
     // ---- AND THE ONE OFFICE THAT MAY RUN A SOURCE -----------------------------
     //

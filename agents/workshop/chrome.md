@@ -43,7 +43,7 @@ MEANS
 - a pane on the last rung wears no selected ink, because there is no ring to colour.
 
 DOES NOT MEAN
-- that the arrangement handles, the desk's stepping, the notice or the picker change with it.
+- that the arrangement handles, the desk's stepping or the notice change with it.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `detail::pane_inside_at`;
 `workshop/screen.hpp` `chrome_grain`, `kChromeSubs`; `tests/test_workshop_screen.cpp` case
@@ -75,8 +75,7 @@ MEANS
 - the graphical room is the post-chrome pixels, and selection cannot move it.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`;
-`workshop/screen_pane_editor.cpp` `pane_editor_body`; `workshop/screen_pane_state.cpp`
-`panel_prose_place`;
+`workshop/screen_pane_state.cpp` `panel_prose_place`;
 `workshop/screen_layouts.cpp` `layouts_body`; `workshop/screen.hpp` `pane_interior`, `PaneInside`,
 `RegionFit`, `PanelProsePlace`; `workshop/screen_chrome.cpp` `pane_interior`;
 `tests/test_workshop_screen.cpp` case `"WUX-5: the border a maker sees and the room a pane spends

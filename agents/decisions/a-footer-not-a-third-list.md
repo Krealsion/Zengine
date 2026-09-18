@@ -38,6 +38,10 @@ row in both media, and the grounded strip is exactly the pixel partition `prose_
 inverts; the text inset margin names no control. Every composition number was unmoved across
 seven extents when the ground arrived.
 
+**Since.** The footer retired with the object document it asked: Info inspects panes, and a pane
+is launched and closed from the Pane Manager. WL-CTRL-01 to WL-CTRL-05 are RETIRED entries; the
+two ground laws hold over the subject's heading.
+
 **Laws supported.** [WL-CTRL-01](../workshop/info-controls.md),
 [WL-CTRL-02](../workshop/info-controls.md), [WL-CTRL-03](../workshop/info-controls.md),
 [WL-CTRL-04](../workshop/info-controls.md), [WL-CTRL-06](../workshop/info-controls.md),

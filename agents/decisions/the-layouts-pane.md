@@ -43,7 +43,8 @@ hold; a right press names the tab as a subject.
 **Consequences.** `kSetupStatusCols` is derived from the words' own widths, and the status is
 adjusted to the row's right edge where the row still fits. Narrowing the pane narrows the run,
 and markers, reservation and `+` degrade by their own rules. Removing the pane strands nobody:
-the keys still step the run and the picker brings it back. A version-5 session materializes the
+the keys still step the run and the Pane Manager brings it back (the picker did, until it
+retired). A version-5 session materializes the
 row on the way in ([yesterday-belongs-to-a-conversion](yesterday-belongs-to-a-conversion.md)).
 The live TUI witness found the saved marker eaten by the row's own cut mark at the 78-column
 minimum with a full run, which the suite had missed by three tabs (`102017a`).

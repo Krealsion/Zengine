@@ -178,15 +178,13 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (!is_bound(s.keymap.gesture_of(entry.row->act))) {
         return std::string();
     }
-    if (entry.row->act == Act::kObjectDelete && s.context.object != s.selected) {
-        return std::string();
-    }
-    // ⚠ AND THE SAME REFINEMENT FOR A LAYOUT TAB, found by the live TUI witness
+    // ⚠ A LAYOUT TAB IS ANNOTATED ONLY WHEN IT IS THE LIVE ONE, found by the live TUI witness
     // rather than by a case. `^w` closes the LIVE layout; this menu's row closes the
     // CAPTURED one. The two are the same act exactly when the tab a maker pointed at is
     // the one they are standing on, so the annotation is shown then and only then --
     // anything else teaches a key that acts on a different layout than the row it sits
-    // beside, which is `object.delete`'s own reason one subject over.
+    // beside. (`object.delete` had the same rule over the selected object, and retired with
+    // the canvas.)
     if (s.context.subject == context_subject::kLayout &&
         s.context.layout != s.setup.active_at) {
         return std::string();

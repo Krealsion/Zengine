@@ -96,8 +96,8 @@ METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVIT
 BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
 and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
 for a choice the maker then rejected stayed green and changed nothing about the disposition.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the document's
-save or the source's, by who holds the keys"`, case `"EDIT-W9: an opening that cannot be shown
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: ^s is the Editor's save while it
+holds the keys, and the host answers ^s nowhere"`, case `"EDIT-W9: an opening that cannot be shown
 opens nothing, and the requester is told why"`, case `"EDIT-W68: a resize after the commitment
 is an ordinary presentation change"`.
 

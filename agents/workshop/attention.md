@@ -12,11 +12,13 @@ MEANS
 - a condition disappears because it resolved, never because something else was said.
 
 PROVEN BY — `workshop/screen.hpp` `Session::notice`, `Session::conditions`, `kKeymapWallKey`;
-`workshop/weave_run.cpp` `say`; `workshop/attention.hpp` `HeldConditions`, `Condition`;
-`workshop/weave.hpp` `HostContext::standing_conditions`, `WorkshopWeave::prefs_bad_`;
-`workshop/weave_handlers.cpp` `take_host_conditions`; `tests/test_workshop_panels.cpp` case
-`"WUX-4: event sentences stay events, and a condition needs no sentence"`, case `"WUX-4: a held
-condition stands until its owner retracts it"`.
+`workshop/weave_run.cpp` `say`; `workshop/attention.hpp` `HeldConditions`, `Condition`,
+`unavailable_tool`; `workshop/weave.hpp` `HostContext::standing_conditions`,
+`WorkshopWeave::prefs_bad_`; `workshop/weave_handlers.cpp` `take_host_conditions`;
+`tests/test_workshop_panels.cpp` case `"WUX-4: event sentences stay events, and a condition needs
+no sentence"`, case `"WUX-4: a held condition stands until its owner retracts it"`, case `"an
+unavailable tool is named by its artifact on the host's own condition row, which no tool
+paints"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-02 — `Session::notice` is the utterance row and nothing else
@@ -134,7 +136,7 @@ LAW — A condition names an action by its catalog id, which the HOST resolves i
 
 MEANS
 - the pane is handed a sentence and could not press an action if it were given one;
-- nothing puts this pane on a screen but a maker choosing it from the picker.
+- nothing puts this pane on a screen but a maker launching it from the Pane Manager.
 
 PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/keymap.hpp` `ActionRow`;
 `workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_panels.cpp` case

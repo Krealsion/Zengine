@@ -234,7 +234,24 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
         return;
     }
     escape_sent_ = EscapeSent{};
-    unselect_pane();
+    // ⭐ AND WHAT AN UNSPENT ESCAPE MEANS IS THE DESKTOP'S (WL-DESK-02). This host still owns
+    // the JUDGEMENT above -- which Escape this answers, whether it is still the maker's latest
+    // gesture, whether this pane still has the desk and the keys -- because all four are facts
+    // about the room, and the room is the host's. What it no longer owns is the CONSEQUENCE.
+    //
+    // ⚠ SO THE CORRELATION CHAIN HAS TWO LINKS NOW, AND BOTH ARE CHECKED. The pane echoed the
+    // number this host minted for the keystroke it was sent; `request_app_action` mints a
+    // second for the desktop, and the desktop's answer is judged against THAT. A reply that
+    // crosses a later gesture at either link acts on nothing.
+    //
+    // ⚠ AND A DESKTOP THAT DECLARES NO DEFAULT ROW FOR THIS GESTURE LEAVES IT MEANING NOTHING,
+    // which is what disabling a default has to mean. `app_action_for` says so by returning
+    // nullptr, and nothing here supplies a compiled-in answer behind it.
+    if (const AppRow* app_row = session_.keymap.app_action_for(
+            app_precedence::kDefault, KeyContext::kPane, input::scan::kEscape,
+            input::mod::kNone, kind)) {
+        request_app_action(app_row->id, mail);
+    }
     repaint(mail);
 }
 

@@ -63,14 +63,13 @@ the bus *is* their whole program and `stop()` is their exit.
 
 ## Workshop
 
-### The document is not restored at launch
+### The source you were editing is not reopened at launch
 
-The desk is, and the window size is — both automatically, from the last session. The
-**document** is not: every session still begins with `Ctrl`+`o`.
-
-What makes that cost more than one keypress: a fresh Workshop seeds two example objects, so
-forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
-empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
+The desk is, and the window size is — both automatically, from the last session. The Editor's
+**source** is not: the Editor starts empty, and you open the file again from Files or the
+Builder's `e`. Detail in [workspace continuity](setups.md#workspace-continuity). (This section
+was about the prototype object document, which every session began by reopening with
+`Ctrl`+`o`; it retired with the object canvas.)
 
 ### One run holds at most eight layouts
 
@@ -79,8 +78,8 @@ your order, their names, the one you were standing on and which Setup file each 
 so what is left here is the bound: a ninth layout is refused rather than quietly replacing one,
 and so is a duplicate that would make a ninth.
 
-What a layout still does **not** carry is anything Workshop holds once for the whole run: your
-document, the project, the file browser's location, your marks, your recipes, the keymap and the
+What a layout still does **not** carry is anything Workshop holds once for the whole run: the
+Editor's source, the project, the file browser's location, your marks, your recipes, the keymap and the
 window are one each, and switching layouts changes none of them.
 
 ### One Setup file per run, chosen on the command line
@@ -235,18 +234,19 @@ honest bounds on that capability today:
 | Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit asks the Editor and refuses while source is unsaved |
 | Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection and scroll position ride a same-shape reload; the undo history and a paste still on its way do not |
-| Does it survive the Editor pane being removed from the desk? | **yes** — the pane is a presentation; bring it back from the picker and the document is where it was |
+| Does it survive the Editor pane being closed? | **yes** — the pane is a presentation; bring it back from the Pane Manager and the document is where it was |
 
-What text editing also exists is two single-line editors in this host, each over the same
-component: the Pane Manager's property draft and the layout-name line. Two more live in loaded
-panes over the same component — Info's property draft and the Terminal's command line.
+What text editing also exists is one single-line editor in this host — the layout-name line —
+and more in loaded panes over the same component: Info's property draft, the Terminal's command
+line, the Pane Manager's name line and Files' authoring line.
 
 **A pane's line now shows you a caret, and still cannot be swept.** A pane may publish where
 its caret is and what it has selected beside the rows it sends, so the Terminal's command line
 has an insertion point again — a bar between glyphs in a window, an inserted `_` in a cell.
 Info's property draft does not yet say one; it can, unchanged, whenever that image is next
-touched. What no pane has is a pointer SWEEP: a pane is sent a press and is sent no motion, so
-a word is selected by two presses and a range by `Shift` and the arrow keys.
+touched. What no pane's LINE has is a pointer sweep: the two editors accept one while the
+button is held (`PaneDragged`) and no single-line pane does, so in a line a range is selected by
+`Shift` and the arrow keys.
 
 ### Neovim in the Editor pane draws plain text, one range, and no colours
 
@@ -313,19 +313,20 @@ typing is discarded, silently.**
 The last two are the same distinction everywhere in Workshop: **a paste belongs to the draft
 that asked for it.** Clearing a line with `Esc` ends that draft, and so does submitting the
 Terminal's line with `Enter`; typing into it does not. An Info property draft is the exception
-to the second: `Enter` sends its value, and the draft closes only when the document takes
-exactly what was sent.
+to the second: `Enter` sends its value, and the draft closes only when the host writes exactly
+what was sent.
 
-**Info's commit is an ask too, and says how it ended.** Info sends one commit at a time, and
-its answer can arrive after you typed more, pressed `Esc`, or selected something else:
+**Info's commit is an ask too, and says how it ended.** Info sends one commit at a time, to
+the host, which writes it through the door the desk already has; the answer can arrive after
+you typed more, pressed `Esc`, or inspected something else:
 
 | what happened | what the pane says |
 |---|---|
-| the document took the value, and you had typed more since | `earlier commit written`; the draft stays open with your newer text |
-| you pressed `Esc` before the answer | `commit already sent`, replaced by how it ended while that sentence is still showing |
-| the selection or the document changed before the commit arrived | the draft is abandoned, then `commit refused`; nothing is written anywhere |
-| the commit could not be sent, or was refused on its way | `commit not submitted` or `commit not delivered`; nothing is written, and the draft stays for `Enter` |
-| the document received it and has not answered | nothing new: it stays outstanding, and `Enter` again says `commit not sent` |
+| the host wrote the value, and you had typed more since | `earlier commit written -- later edits not sent`; the draft stays open with your newer text |
+| you pressed `Esc` before the answer | `commit already sent -- the draft is closed, and it may still be written`, replaced by how it ended while that sentence is still showing |
+| the inspected pane, its desk or its rows changed before the commit arrived | the draft is abandoned (`commit already sent -- the draft ended: …`), and the host refuses the commit — `commit refused -- the inspected pane, its desk or its rows changed before it arrived, so nothing was written` |
+| the commit could not be sent, or Loom refused it on its way | `commit not submitted` or `commit not delivered`; nothing is written, and the draft stays for `Enter` |
+| the host received it and has not answered | nothing new: it stays outstanding, and `Enter` again says `commit not sent -- an earlier commit is still unanswered` |
 
 The same sentences, with what each one leaves behind, are in step 3 of
 [getting started with Workshop](getting-started.md).
@@ -454,17 +455,17 @@ fact shapes all of this: a loaded artifact's file is **mapped** by the process �
 a writer on it and Linux lets a writer change code under the running program — so a rebuilt
 product never lands on it, and the image a reload opens is a per-operation copy.
 
-### The Pane Manager edits the pane grammar that exists, and no more
+### Info edits the pane grammar that exists, and no more
 
-[The Pane Manager](panes.md#the-pane-manager--a-pane-as-a-subject) edits exactly what a pane's
-setup row can say today: an absolute place, a width, a height, a rank in the front order, and
-whether the pane is on the layout. It shows the resolved rectangle and state beside them. It
-does not author anchors, fill, docking, snapping, locks, sibling-relative or parent-relative
-placement, because no pane can hold those yet; it does not edit what a pane *does*, wire panes
-together, or reach a loaded weave's own state; and it has no contextual "edit this pane" row
-in the right-click menu — its own list is the door. Its default height is the stack's nine
-rows, which shows three panes and three rows at a time; `=` in the desk arrangement makes it
-usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
+[Info](panes.md#a-pane-as-a-subject--info) edits exactly the geometry a pane's setup row can say
+today — an absolute place (`X`, `Y`), a width and a height — and shows the rest beside it: the
+pane's rank in the front order and whether it is on the layout, which are arranging's and the
+Pane Manager's to change, and the resolved rectangle and state. It does not author anchors,
+fill, docking, snapping, locks, sibling-relative or parent-relative placement, because no pane
+can hold those yet; it does not edit what a pane *does*, wire panes together, or reach a loaded
+weave's own state; and it has no contextual "inspect this pane" row in the right-click menu —
+its own PANES list is the door. Its default height is the stack's nine rows, which shows only a
+few rows of it at a time; `=` in the desk arrangement makes it usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
 every stacked pane has.
 
 ### The Pane Creator makes one kind of pane, and it is text
@@ -474,8 +475,9 @@ inside is authored data, and it is exactly that small: one region kind (`text`),
 plain ASCII per region, one region seeded per pane, and one open pane definition at a time.
 There is no control, no button, no input region, no wiring, no state, no anchors, fill or
 nesting, no second region kind, and no way to rename a pane once it is made — its name is its
-durable identity. The region is placed by typing numbers into the Pane Manager's rows; there
-is no dragging or resizing of a region on the pane itself. A code-backed pane's `INTERIOR` is
+durable identity. The region is placed by typing numbers into Info's rows for that pane (the
+Pane Manager's `n` makes the pane; Info edits it); there is no dragging or resizing of a region
+on the pane itself. A code-backed pane's `INTERIOR` is
 a read-only capture of its body, never a decomposition of its painter, and a loaded pane's is
 its provider's own: the Pane Creator's representation is one way a pane can be built, not a
 form every pane must be converted into. And a definition file holds presentation only —
@@ -501,11 +503,10 @@ discovery, no plugin directory, no versioning of pane offers, and no way for a m
 somebody else's pane other than by editing a plan file and having the artifact on disk.
 
 **Nothing negotiates a pane built for another Workshop.** A shape that changed gains a second
-version beside the first, and each side speaks the versions it was built with. For the object
-document that means: a pane that commits a property by row alone, as Info's image did before
-its commit named what it was typed for, can still list, select, create and delete, and every
-commit it sends is refused with nothing written; an Info image that expects the named picture
-waits, showing `OBJECTS (waiting)`, under a Workshop that does not publish one.
+version beside the first, and each side speaks the versions it was built with. For Info that
+means: an Info image built before a pane became its subject still asks for the object
+document's picture, which this Workshop no longer publishes, so it waits, showing
+`OBJECTS (waiting)`, and nothing it sends is written; build Info from this source.
 
 ## Platforms
 

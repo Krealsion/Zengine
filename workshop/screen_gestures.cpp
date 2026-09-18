@@ -90,7 +90,20 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
         return out;
     }
     if (legend == legend_mode::kCompact) {
-        out.push_back(detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width));
+        // THE APPLICATION'S OWN ROWS, above every mode -- where a maker's launches are, the
+        // key list among them; the host names none of them and reads them off the keymap.
+        std::string row;
+        for (const AppRow& app : k.app) {
+            if (app.precedence != app_precedence::kAboveModes ||
+                !k.app_row_active(app, ctx, pane)) {
+                continue;
+            }
+            const std::string pair = gesture_text(app.gesture) + " " + app.label;
+            row = row.empty() ? pair : row + " | " + pair;
+        }
+        if (!row.empty()) {
+            out.push_back(detail::fit(row, width));
+        }
         return out;
     }
     const std::vector<std::string> pairs = help_pairs(k, ctx, pane);
@@ -161,228 +174,8 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
-// ---- The maker's gestures over one session ---------------------------------------------
-
-// WL-DOC-10, WL-DOC-21 -- agents/workshop/document.md
-std::int64_t create(WorkshopDoc& d, Session& s) {
-    const std::int64_t id = doc::add_default(d);
-    if (id == 0) {
-        return 0;
-    }
-    // AN IDENTITY THE DOCUMENT HAS ALREADY HELD IS BEING HANDED OUT AGAIN, so its mint was
-    // rewound from outside every gesture (a poke, a state swap): the new object is not the one
-    // that number named, and the rows' name goes with the object they named -- even when the
-    // selection's number, and so everything a picture shows, stays the same.
-    if (id <= s.subject.held_through) {
-        s.subject.name = 0;
-    } else {
-        s.subject.held_through = id;
-    }
-    s.selected = id;
-    refocus(d, s);
-    return id;
-}
-
-// WL-DOC-10 -- agents/workshop/document.md; WL-CTX-07 -- agents/workshop/contextual.md
-Written delete_selected(WorkshopDoc& d, Session& s) {
-    const std::int64_t id = s.selected;
-    const std::size_t at = position_of(d, id);
-    const Written removed = doc::remove(d, id);
-    if (!removed.accepted) {
-        return removed;
-    }
-    if (d.elements.empty()) {
-        s.selected = 0;
-    } else {
-        s.selected = (at < d.elements.size() ? d.elements[at] : d.elements.back()).id;
-    }
-    refocus(d, s);
-    return Written::ok();
-}
-
-// WL-DOC-06, WL-DOC-08 -- agents/workshop/document.md
-Handled place(WorkshopDoc& d, const ui::Scene& scene, std::int64_t id, std::int64_t gx,
-              std::int64_t gy) {
-    const ui::Element* e = doc::find(d, id);
-    if (e == nullptr) {
-        return Handled::of(Written::no("no such object"));
-    }
-    Handled done;
-    if (gx < doc::kFirstCell) {
-        gx = doc::kFirstCell;
-        done.boundary = kAtWorkspaceStart;
-    }
-    if (gy < doc::kFirstCell) {
-        gy = doc::kFirstCell;
-        done.boundary = kAtWorkspaceStart;
-    }
-    const ui::Rect frame = ui::frame_in(scene, *e);
-    done.written = doc::move(d, id, detail::minus(gx, frame.x), detail::minus(gy, frame.y));
-    return done;
-}
-
-// WL-DOC-06 -- agents/workshop/document.md
-Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t ddy) {
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(scene, s.selected);
-    if (placed == nullptr) {
-        return Handled::of(Written::no("no such object"));
-    }
-    return place(d, scene, s.selected, detail::step(placed->rect.x, ddx),
-                 detail::step(placed->rect.y, ddy));
-}
-
-// ---- The size a hand asked for, as an authored extent ----------------------------------
-
-// WL-DOC-07 -- agents/workshop/document.md
-ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
-                            std::int64_t span, std::string& boundary) {
-    if (current.mode == ui::kExtentPercent) {
-        const std::int64_t least = ui::resolve_extent(ui::Extent{ui::kExtentPercent, 1}, span);
-        const std::int64_t most = ui::resolve_extent(ui::Extent{ui::kExtentPercent, 100}, span);
-        if (want < least) {
-            want = least;
-            boundary = kAtSmallest;
-        } else if (want > most) {
-            want = most;
-            // The wall a share meets at the far end is not the workspace being a
-            // wall -- placement has no such limit and a cells extent has none
-            // either. It is the vocabulary: a share OF something cannot be more
-            // than the whole of it, so 100% is where this mode stops.
-            boundary = kAtWholeContext;
-        }
-        if (ui::resolve_extent(current, span) == want) {
-            return current; // this share already says exactly that: do not re-author it
-        }
-        for (std::int64_t pct = 1; pct <= 100; ++pct) {
-            const ui::Extent candidate{ui::kExtentPercent, pct};
-            if (ui::resolve_extent(candidate, span) >= want) {
-                return candidate;
-            }
-        }
-        return ui::Extent{ui::kExtentPercent, 100};
-    }
-    // Cells, and anything a poke wrote that is neither: an absolute size, whose
-    // limits are the document's and have nothing to do with the workspace. An
-    // object may be authored WIDER than the workspace for the same reason one may
-    // be positioned past its right edge -- the canvas clips, and a maker who did
-    // that has not made a mistake.
-    if (want < ui::kMinCells) {
-        want = ui::kMinCells;
-        boundary = kAtSmallest;
-    } else if (want > doc::kMaxCells) {
-        want = doc::kMaxCells;
-        boundary = kAtLargest;
-    }
-    return ui::Extent{ui::kExtentCells, want};
-}
-
-// WL-DOC-07 -- agents/workshop/document.md
-Handled size_to(WorkshopDoc& d, const Session& s, std::int64_t id, std::int64_t want_w,
-                std::int64_t want_h) {
-    const ui::Element* e = doc::find(d, id);
-    if (e == nullptr) {
-        return Handled::of(Written::no("no such object"));
-    }
-    const ui::Rect frame = ui::frame_in(workspace_scene(d, s), *e);
-    Handled done;
-    const ui::Extent w = extent_from_drag(e->width, want_w, frame.w, done.boundary);
-    const ui::Extent h = extent_from_drag(e->height, want_h, frame.h, done.boundary);
-    done.written = doc::resize(d, id, w, h);
-    return done;
-}
-
-// WL-DOC-07 -- agents/workshop/document.md
-Handled grow(WorkshopDoc& d, Session& s, std::int64_t dw, std::int64_t dh) {
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(scene, s.selected);
-    if (placed == nullptr) {
-        return Handled::of(Written::no("no such object"));
-    }
-    return size_to(d, s, s.selected, detail::step(placed->rect.w, dw),
-                   detail::step(placed->rect.h, dh));
-}
-
-// ---- The one resize affordance ---------------------------------------------------------
-
-Handle size_handle(const WorkshopDoc& d, const Session& s) {
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(scene, s.selected);
-    if (placed == nullptr) {
-        return Handle{};
-    }
-    // Asked without performing the addition: `rect.x + rect.w` is not
-    // representable for every rect a poked extent can produce, and an overflow
-    // here would put the grip somewhere the object is not.
-    const std::int64_t back = detail::minus(0, placed->rect.x);
-    const std::int64_t room = detail::minus(s.workspace_w, placed->rect.x);
-    const std::int64_t up = detail::minus(0, placed->rect.y);
-    const std::int64_t down = detail::minus(s.workspace_h, placed->rect.y);
-    if (placed->rect.w < back || placed->rect.w >= room || placed->rect.h < up ||
-        placed->rect.h >= down) {
-        return Handle{};
-    }
-    return Handle{true, s.selected, placed->rect.x + placed->rect.w,
-                  placed->rect.y + placed->rect.h};
-}
-
-// WL-DOC-09 -- agents/workshop/document.md
-std::int64_t begin_drag(const WorkshopDoc& d, Session& s, std::int64_t cx,
-                        std::int64_t cy) {
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* under = ui::hit(scene, cx, cy);
-    if (under == nullptr) {
-        s.drag = Drag{};
-        return 0;
-    }
-    s.drag = Drag{true, false, under->id, detail::minus(cx, under->rect.x),
-                  detail::minus(cy, under->rect.y)};
-    return under->id;
-}
-
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
-std::int64_t take_hold(WorkshopDoc& d, Session& s, std::int64_t cx, std::int64_t cy) {
-    const Handle handle = size_handle(d, s);
-    if (handle.shown && handle.x == cx && handle.y == cy) {
-        s.drag = Drag{true, true, handle.id, 0, 0};
-        return handle.id;
-    }
-    return begin_drag(d, s, cx, cy);
-}
-
-// WL-CTX-01 -- agents/workshop/contextual.md
-std::int64_t object_at(const WorkshopDoc& d, const Session& s, std::int64_t cx,
-                       std::int64_t cy) {
-    // The scene must outlive the answer read from it -- `hit` returns a pointer into it
-    // (`begin_drag`'s own spelling).
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* under = ui::hit(scene, cx, cy);
-    return under == nullptr ? 0 : under->id;
-}
-
-// WL-DOC-09 -- agents/workshop/document.md
-Handled drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::int64_t cy) {
-    if (!s.drag.active) {
-        return Handled::of(Written::no("nothing is being dragged"));
-    }
-    const ui::Scene scene = workspace_scene(d, s);
-    if (s.drag.resizing) {
-        // The object's RESOLVED left/top edge, because the pointer and the
-        // handle are both in workspace cells. Reading the authored `e->x` would
-        // ask for a size measured from the wrong corner the moment the object
-        // had a context -- the two are the same number only at the root.
-        const ui::Placed* placed = ui::placed_for(scene, s.drag.id);
-        if (placed == nullptr) {
-            return Handled::of(Written::no("no such object"));
-        }
-        return size_to(d, s, s.drag.id, detail::minus(cx, placed->rect.x),
-                       detail::minus(cy, placed->rect.y));
-    }
-    return place(d, scene, s.drag.id, detail::minus(cx, s.drag.grab_dx),
-                 detail::minus(cy, s.drag.grab_dy));
-}
-
-void end_drag(Session& s) { s.drag = Drag{}; }
+// ⭐ THE OBJECT CANVAS'S HANDS WERE HERE -- create and delete, `place`, `nudge`, `size_to`,
+// `grow`, the size handle, take-hold and `drag_to` -- and retired with the canvas.
 
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
@@ -411,7 +204,6 @@ std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 
 // ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
 
-// WL-PTR-10 -- agents/workshop/pointer.md
 // WL-INFO-03 -- agents/workshop/info-body.md
 // WL-TAB-08 -- agents/workshop/tab-run.md
 ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {

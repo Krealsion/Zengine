@@ -105,7 +105,8 @@ constexpr std::int64_t kCaretCols = 1;
 /// legend, the omission marker and the input row. The built-in's `kTerminalChrome`, carried.
 constexpr std::int64_t kChromeRows = 4;
 
-/// ROWS OF THE RECORD A WHEEL NOTCH READS -- Workshop's own lists' step (`kListWheelRows`).
+/// ROWS OF THE RECORD A WHEEL NOTCH READS -- the step Workshop's own lists spent
+/// (`kListWheelRows`) until the last of them retired, kept here as this pane's own.
 constexpr std::int64_t kWheelRows = 3;
 
 // ---- Rendering one participant's record ---------------------------------------------

@@ -24,9 +24,14 @@ std::int64_t WorkshopWeave::interaction_now() const {
 }
 
 void WorkshopWeave::repaint(loom::Mail& mail) {
-    refresh_inspector(); // and a draft's window is only true against the room it has now
-    refresh_setup_name(); // ...and so is the name editor's, against the same room
-    refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading
+    // ⚠ WHAT THE HOST HAS LEARNED SINCE THE LAST PICTURE, FIRST. The boot's own discoveries --
+    // an optional plan row that refused, and so a tool that is not in this Workshop -- settle
+    // inside a delivery that can arrive after the first surface did (`HostContext`). One
+    // integer compared; the list is re-taken only when it moved, and `establish` is keyed.
+    if (conditions_taken_ != host_->conditions_generation) {
+        take_host_conditions();
+    }
+    refresh_setup_name(); // a name editor's window is only true against the room it has now
     refresh_external_rooms(mail); // ...and an external pane's room, against the same one
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
@@ -54,14 +59,17 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // this is the reading behind it: one sentence per condition, in the host's own order,
     // said only when it changed.
     say_conditions(frontier, mail);
-    // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, to whoever is listing it. The workspace
-    // plane below draws the same document; this is the same truth in the form a pane can
-    // read, said on the same beat and by the same rule.
-    say_document(mail);
+    // ...AND THE ONE PANE INVENTORY, to whoever is listing it (WL-DESK-04). Same beat, same
+    // rule, same silence when nothing changed: it is derived at every gesture, so the
+    // comparison inside is what keeps a launcher from repainting for nothing.
+    publish_inventory(mail);
+    // ...AND THE EFFECTIVE KEYMAP, to whoever presents keys (WL-DESK-11), on the same terms.
+    publish_keymap(mail);
+    publish_pane_subject(mail);
     // ...and what the terminal participant's record holds, to whoever is presenting it.
     // Same beat, same rule, same silence when nothing changed.
     say_transcript(mail);
-    mail.publish(paint(state_, session_));
+    mail.publish(paint(session_));
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md
@@ -81,28 +89,6 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
     // any weave's opinion, so the publication carries the office stamp and the pane refuses
     // an unstamped one. `as_role` adds provenance, never a capability (MSG-07).
     (void)mail.as_role(kWorkshopProvider).publish(StandingConditions{std::move(now)});
-}
-
-// WL-DOC-20, WL-DOC-21 -- agents/workshop/document.md
-void WorkshopWeave::say_document(loom::Mail& mail) {
-    DocumentShown now = document_shown(state_, session_);
-    const bool rows_moved = !document_said_ || !same_document(now, said_document_);
-    // ⚠ THE NAME MOVES WHERE NO STRING DOES. A load of the document's own bytes changes no row a
-    // picture shows, and still makes every draft typed before it one typed for another document;
-    // a reader told only the strings would keep that draft. So the name is news by itself.
-    const bool subject_moved = !document_said_ || said_subject_ != session_.subject.name;
-    if (!rows_moved && !subject_moved) {
-        return; // no news is silence, and silence is what makes this seam terminate
-    }
-    said_document_ = now;
-    said_subject_ = session_.subject.name;
-    document_said_ = true;
-    // v1 AS IT ALWAYS WAS, and only when its own rows changed; v2 beside it, carrying the name.
-    v2::DocumentShown named{now.objects, now.selected, now.properties, session_.subject.name};
-    if (rows_moved) {
-        (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
-    }
-    (void)mail.as_role(kWorkshopProvider).publish(std::move(named));
 }
 
 // WL-EDIT-03 -- agents/workshop/editor.md
@@ -276,12 +262,6 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
         }
     }
-}
-
-// WL-CTX-07 -- agents/workshop/contextual.md
-std::string WorkshopWeave::finish_draft_first() const {
-    return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
-           hotkey(Act::kDraftCancel) + " cancels";
 }
 
 } // namespace zengine::workshop

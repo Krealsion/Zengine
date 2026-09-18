@@ -8,13 +8,14 @@
 // that is allowed to mean.
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
-#include "document.hpp" // `doc::kMaxCells` -- the bound an authored cell count already has
+#include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
 #include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
 #include "pane_vocabulary.hpp"
 #include "panel.hpp"
 #include "property.hpp"
 
 #include "component/text_box.hpp"
+#include "ui/layout.hpp" // `ui::kMinCells` -- the one-cell floor an authored extent has
 
 #include <cstddef>
 #include <cstdint>
@@ -106,7 +107,7 @@ inline constexpr std::int64_t kRightColumn = 3;
 /// law has always enforced, expressed at the resolution the amounts now carry.
 // WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
-inline constexpr std::int64_t kPaneSubMax = doc::kMaxCells * surface::kCellSubs;
+inline constexpr std::int64_t kPaneSubMax = kMaxCells * surface::kCellSubs;
 
 /// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
@@ -210,10 +211,10 @@ inline bool resolvable(const PaneRef& ref, const Panels& panels) {
     return resolve_pane(ref, panels).has_value();
 }
 
-// ---- THE COMBINED CATALOG: what the picker offers, built-ins and offers -------
+// ---- THE COMBINED CATALOG: what the Pane Manager lists, built-ins and offers ---
 
-/// ONE ROW OF THE COMBINED PICKER POPULATION -- a compile-time kind or a runtime
-/// one, said in one shape so the picker, the cursor, the selection and the
+/// ONE ROW OF THE COMBINED POPULATION -- a compile-time kind or a runtime
+/// one, said in one shape so the inventory, the doors, the selection and the
 /// pointer all read one list.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 struct CatalogRow {
@@ -223,7 +224,7 @@ struct CatalogRow {
     std::string summary;
 };
 
-/// The one line the picker reads under a maker-made pane's name.
+/// The one line a list reads under a maker-made pane's name.
 inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
 
 /// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
@@ -403,7 +404,7 @@ inline Written check_pane_place_coord(std::int64_t v) {
         return Written::no("a pane place cannot be negative");
     }
     if (v > kPaneSubMax) {
-        return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
+        return Written::no("a pane place is at most " + std::to_string(kMaxCells) +
                            " cells");
     }
     return Written::ok();
@@ -456,7 +457,7 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         if (s.amount > kPaneSubMax) {
             return Written::no(std::string("a pane ") + which + " is at most " +
-                               std::to_string(doc::kMaxCells) + " cells");
+                               std::to_string(kMaxCells) + " cells");
         }
         return Written::ok();
     }
@@ -507,11 +508,11 @@ inline Written check_setup_pane(const SetupPane& row) {
 /// display name or its one-line summary.
 ///
 /// ONE OWNER FOR BOTH, because they are one kind of fact: a short line a maker
-/// reads in the picker, arriving from a party this build has never met. The
+/// reads in the Pane Manager, arriving from a party this build has never met. The
 /// rules are `check_setup_name`'s, minus the one that does not apply -- it must
 /// be there, it must be more than spaces, it must carry no control byte, and it
 /// must be short enough to read. A name that rendered as nothing would leave a
-/// picker row that a maker cannot tell from a blank line; a control byte would
+/// list row that a maker cannot tell from a blank line; a control byte would
 /// move a terminal's cursor out of the row it was given, which is precisely what
 /// a forged offer would try.
 ///
@@ -578,7 +579,7 @@ struct Admission {
 /// A RUNTIME OFFER MAY NOT SHADOW A BUILT-IN. `zengine.workshop/info` offered by
 /// some other office is a different `PaneRef` and is admitted normally; offered
 /// by whoever holds `zengine.workshop` it names the row this build compiled in,
-/// and letting a live message move that row would make the picker's first two
+/// and letting a live message move that row would make the list's first
 /// entries a thing a message could rewrite.
 ///
 /// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
@@ -1066,9 +1067,8 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panel
     return out;
 }
 
-/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one
-/// inventory, and the population both the picker and pane management spend.
-// WL-PED-03, WL-PED-04 -- agents/workshop/pane-manager.md
+/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
+/// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
     std::vector<CatalogRow> rows = combined_catalog(panels);
@@ -1284,7 +1284,7 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
 
     // CLOSE FIRST, THROUGH THE EXISTING DOOR. `panels.open` is copied because
     // `close_panel` erases from it, and the per-kind view has to be forgotten by
-    // the same call the picker uses -- a loop that rebuilt the vector directly
+    // the same call the close door spends -- a loop that rebuilt the vector directly
     // would leave a removed Builder's copied status alive beside no Builder.
     const std::vector<Panel> before = panels.open;
     for (const Panel& p : before) {
@@ -1393,6 +1393,12 @@ struct SetupState {
     LayoutNaming naming;
     std::vector<Layout> shelved;
     std::size_t active_at = 0;
+    /// HOW MANY TIMES ANOTHER DESK HAS BEEN PUT LIVE -- a switch, a restored run, a new or a
+    /// removed live layout, a desk restored from its file. Never persisted and never compared
+    /// across runs: it is how a reader that named "this pane on this desk" learns the desk under
+    /// the name is another one (`InspectedPane::desk`), where an edit of the same desk is not.
+    // WL-INFO-14 -- agents/workshop/info-body.md
+    std::uint64_t put_live = 0;
 };
 
 /// HOW MANY LAYOUTS THIS WORKSHOP IS HOLDING, the active one included.
@@ -1445,6 +1451,7 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
     s.active_link = std::move(s.shelved[to].link);
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(to));
     s.active_at = to;
+    ++s.put_live;
     return true;
 }
 
@@ -1472,6 +1479,7 @@ inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size
     run.erase(run.begin() + static_cast<std::ptrdiff_t>(active));
     s.shelved = std::move(run);
     s.active_at = active;
+    ++s.put_live;
     return true;
 }
 
@@ -1486,6 +1494,7 @@ inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     s.active = default_setup();
     s.active_link = SetupLink{};
     s.active_at = s.shelved.size();
+    ++s.put_live;
     return true;
 }
 
@@ -1521,6 +1530,7 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
     s.active_link = std::move(s.shelved[take].link);
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
     s.active_at = take;
+    ++s.put_live;
     return true;
 }
 

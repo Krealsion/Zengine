@@ -230,6 +230,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -324,6 +325,20 @@ struct Executed {
     /// plan describes is not standing yet.
     std::string waiting_on;
 
+    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER (P-WORK-22). Each is the
+    /// refusing layer's own sentence with the artifact and the step written in front of it --
+    /// the same string `refusal` would have carried had the row not been authored optional.
+    ///
+    /// ⚠ IT DOES NOT MAKE `ok` FALSE, AND THAT IS THE POLICY, NOT AN OVERSIGHT. A plan whose
+    /// optional rows refused and whose required rows all settled IS realized: the project the
+    /// maker authored said these rows may be missing. What this vector buys is that "may be
+    /// missing" never becomes "was silently missing" -- every one of them is named, with its
+    /// reason, to whoever is reporting.
+    std::vector<std::string> unavailable;
+    /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a maker builds. A condition keyed
+    /// and named by it says WHICH tool is missing on a row no tool paints (`unavailable_tool`).
+    std::vector<std::string> unavailable_stems;
+
     explicit operator bool() const noexcept { return ok; }
 };
 
@@ -358,7 +373,7 @@ enum class Realization : std::uint8_t {
     Advancing, ///< inside `advance`: performing what is knowable now (transient)
     Loading,   ///< a `zen.LoadWeave` conversation is outstanding for the current row
     Waiting,   ///< the frontier row is waiting on the maker; the walk stopped there
-    Complete,  ///< every authored row resolved
+    Complete,  ///< every authored row settled: resolved, or authored optional and unavailable
     Failed,    ///< a row refused; progression stopped and earlier rows still stand
 };
 
@@ -409,6 +424,10 @@ enum class Realization : std::uint8_t {
 /// `Switched` IS THE SEVENTH, and a switch's (`record_choice_holder`): the row resolved, and the
 /// office it held was moved to another authored choice. It is not `Refused` (nothing refused) and
 /// not `Resolved` (nothing of it is running).
+///
+/// `Unavailable` IS THE EIGHTH (P-WORK-22): an OPTIONAL row that refused and was stepped over.
+/// It is settled -- the walk will not return to it this run -- and it is not `Authored`, which
+/// would tell a reader nothing had tried; its reason is `unavailable_why`.
 enum class RowState : std::uint8_t {
     Authored,
     Pending,
@@ -416,7 +435,8 @@ enum class RowState : std::uint8_t {
     Resolved,
     Refused,
     Reloading,
-    Switched
+    Switched,
+    Unavailable
 };
 
 /// THE KERNEL'S REASON FOR REFUSING A RELOAD, SAID IN A MAKER'S WORDS (RELOAD-1).
@@ -1109,6 +1129,13 @@ public:
         offer_.reset();
         if (answers_->refused) {
             fail("weave load refused: " + answers_->reason);
+            // AN OPTIONAL ROW THAT REFUSED LEAVES THE OWNER ADVANCING, and this is the walk
+            // being resumed from the delivery the refusal arrived in -- the same two lines
+            // the accepted path below spends.
+            if (state_ == Realization::Advancing) {
+                ++cursor_;
+                advance();
+            }
             return;
         }
         current_.weave_loaded = true;
@@ -1540,6 +1567,25 @@ public:
     /// The authored intent this owner is realizing -- empty until `begin`.
     const LoadPlan& plan() const noexcept { return plan_; }
 
+    /// IS `office` STILL TO COME? True while a plan row that loads a weave into it has not
+    /// settled -- authored and not reached yet, loading, or waiting on a build -- so a tool that
+    /// is only not here YET is never said to be unavailable: pending is not a verdict. A row
+    /// that resolved, switched, refused or was stepped over is settled and answers false.
+    // WL-DESK-04 -- agents/workshop/desktop.md
+    bool office_pending(std::string_view office) const {
+        for (const ArtifactIntent& row : plan_.artifacts) {
+            if (!row.weave.has_value() || row.weave->role != office) {
+                continue;
+            }
+            const RowState now = state_of(row.stem);
+            if (now == RowState::Authored || now == RowState::Loading ||
+                now == RowState::Pending) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// How far realization has got with the plan as a whole.
     Realization state() const noexcept { return state_; }
 
@@ -1579,10 +1625,29 @@ public:
         if (current_.stem == stem && state_ == Realization::Failed) {
             return RowState::Refused;
         }
+        for (const SteppedOver& gone : stepped_over_) {
+            if (gone.stem == stem) {
+                return RowState::Unavailable;
+            }
+        }
         if (waiting_on() == stem) {
             return RowState::Pending;
         }
         return RowState::Authored;
+    }
+
+    /// WHY AN `Unavailable` OR `Refused` ROW IS NOT RUNNING: the refusing layer's own sentence,
+    /// without the artifact prefix the banner writes in front of it. Empty for every other row.
+    std::string reason_of(const std::string& stem) const {
+        for (const SteppedOver& gone : stepped_over_) {
+            if (gone.stem == stem) {
+                return gone.why;
+            }
+        }
+        if (state_ == Realization::Failed && current_.stem == stem) {
+            return refused_why_;
+        }
+        return std::string();
     }
 
     /// The correlation of the load conversation currently outstanding, or 0.
@@ -1611,6 +1676,22 @@ public:
         out.refusal = refusal_;
         out.resolved = resolved_;
         out.waiting_on = waiting_on();
+        out.unavailable = unavailable();
+        for (const SteppedOver& gone : stepped_over_) {
+            out.unavailable_stems.push_back(gone.stem);
+        }
+        return out;
+    }
+
+    /// THE OPTIONAL ROWS THIS RUN COULD NOT PERFORM, in the order it met them, each as the banner
+    /// says it. Never cleared: a tool that was not there at boot was not there at boot however
+    /// the run continues. The structured answer per row is `state_of` and `reason_of`.
+    std::vector<std::string> unavailable() const {
+        std::vector<std::string> out;
+        out.reserve(stepped_over_.size());
+        for (const SteppedOver& gone : stepped_over_) {
+            out.push_back("artifact '" + gone.stem + "': " + gone.why);
+        }
         return out;
     }
 
@@ -1961,6 +2042,26 @@ private:
     void fail(const std::string& why) {
         (void)unmount(current_);
         const std::string said = "artifact '" + current_.stem + "': " + why;
+        // ⭐ AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL, NOT A REFUSED PROJECT
+        // (P-WORK-22). The maker AUTHORED that this project stands without this row, so the
+        // walk carries on -- with the row's own mount rolled back above, its refusal recorded
+        // by name, and every row behind it still performed in authored order.
+        //
+        // ⚠ THE FRONTIER IS NOT MOVED HERE. `state_` going back to `Advancing` is what tells
+        // the caller the row was stepped over, and the caller is the one that advances it --
+        // `advance`'s loop and the load-answer path both do, and doing it here as well would
+        // step over the row behind this one too.
+        //
+        // ⚠ AND IT IS NOT REACHED BY AN ON-DEMAND REALIZATION, which has its own answer below
+        // and must keep it: a maker who asked for one artifact and was refused is owed the
+        // refusal as the outcome of their gesture, whatever the plan says about the row.
+        if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
+            plan_.artifacts[cursor_].optional) {
+            stepped_over_.push_back(SteppedOver{current_.stem, why});
+            current_ = ResolvedArtifact{};
+            state_ = Realization::Advancing;
+            return;
+        }
         if (on_demand_) {
             realized_ = Realized{true, current_.stem, false, said};
             on_demand_ = false;
@@ -1969,14 +2070,15 @@ private:
             return;
         }
         refusal_ = said;
+        refused_why_ = why;
         state_ = Realization::Failed;
         announce();
     }
 
-    /// EVERY AUTHORED ROW RESOLVED, AND THAT IS WHAT THIS WORD MEANS. It is
-    /// reachable from exactly one place -- the walk running off the END of the plan --
-    /// and the walk cannot reach the end past a row it did not perform, so `Complete`
-    /// and an unresolved authored row cannot coexist.
+    /// EVERY AUTHORED ROW SETTLED, AND THAT IS WHAT THIS WORD MEANS. It is reachable from
+    /// exactly one place -- the walk running off the END of the plan -- and the walk passes a
+    /// row only by performing it or, for a row authored optional, by recording it
+    /// `Unavailable`. So `Complete` is not "every row succeeded": `unavailable()` is the rest.
     ///
     /// It is a fact about realization and about nothing else: it does not stop the bus,
     /// end the host or claim the process is done.
@@ -2030,6 +2132,16 @@ private:
     LoadPlan plan_;
     /// WHICH AUTHORED ROW IS BEING REALIZED. It was `run()`'s loop index.
     std::size_t cursor_ = 0;
+    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER, each with the refusing layer's
+    /// own sentence -- the record `state_of` answers `Unavailable` from.
+    struct SteppedOver {
+        std::string stem;
+        std::string why;
+    };
+    std::vector<SteppedOver> stepped_over_;
+    /// THE REFUSING LAYER'S OWN SENTENCE FOR THE ONE ROW THAT STOPPED THE PLAN (`refusal_` is
+    /// it with the artifact written in front, as the banner says it).
+    std::string refused_why_;
     /// THE ROW BEING BUILT. It was `perform()`'s `ResolvedArtifact& done`.
     ResolvedArtifact current_;
     /// THE OFFER AROUND THE CURRENT LOAD -- the one thing here whose LIFETIME, rather

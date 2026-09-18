@@ -1703,9 +1703,10 @@ private:
         declare(mail);
     }
 
-    /// TWO ROWS, EACH STANDING IN FOR ONE OF WORKSHOP'S OWN while this pane holds the keys: the save
-    /// chord writes the buffer, and the open chord is Neovim's own jump back. Every other key reaches
-    /// Neovim as a key.
+    /// TWO ROWS, EACH NAMING ONE OF WORKSHOP'S RETIRED DOCUMENT ROWS AS WHAT IT STANDS IN FOR (so
+    /// an older host that still declares them lets these keep their chords): the save chord writes
+    /// the buffer, and the open chord is Neovim's own jump back. Every other key reaches Neovim as a
+    /// key.
     void declare(loom::Mail& mail) {
         ws::v2::PaneActions actions;
         actions.pane = nve::kEditorPane;

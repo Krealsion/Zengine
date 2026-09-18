@@ -5,7 +5,7 @@ them apart is the whole of this page:
 
 | | |
 |---|---|
-| **something happened** | `committed Width = 40%`, `removed Info`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
+| **something happened** | `committed Width of Layouts = 12 cells`, `closed Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
 | **something is true** | your keymap file could not be read; a pane you authored is off the screen; the project is waiting on an artifact you have not built. It is still true when you read it, and it is still true an hour later. It goes to **attention**. |
 
 The difference matters because the two need opposite lifetimes. A report about the past is
@@ -34,8 +34,8 @@ all.
 
 ## The Attention pane
 
-The full list is a **pane**: open it from the picker (`p`), put it where you want it on the
-desk, and it stays there. It shows every condition that is currently true, in the words of
+The full list is a **pane**: open it from the Pane Manager (`Ctrl`+`p`), put it where you want
+it on the desk, and it stays there. It shows every condition that is currently true, in the words of
 whatever owns it, with the cursor on one of them.
 
 | key | does |
@@ -58,7 +58,7 @@ Putting the pane on your desk is always **your** gesture. Nothing Workshop disco
 however serious — opens a pane, steals the keyboard or interrupts what you were doing.
 
 > **It used to be `Ctrl`+`a`.** The list was an overlay a chord opened from anywhere, and the
-> chord is gone: it is a pane now, chosen from the picker like the Files browser and the
+> chord is gone: it is a pane now, chosen from the Pane Manager like the Files browser and the
 > Builder, arranged where you want it and readable at the same time as everything else. If
 > your keymap file moves `attention.close` or `workshop.attention`, those two rows no longer
 > name anything — the other three moved with the pane and still work. `Ctrl`+`a` is now the
@@ -110,12 +110,13 @@ looking at it.
 | your preferences file exists and could not be read — Workshop will not overwrite it | an alert |
 | an older local keymap or session file is being shadowed by the one under your user directory | worth acting on, not urgent |
 | a pane sent Workshop an update it could not keep | an alert |
+| a tool your load plan marks optional could not be loaded this run — named by its artifact, `zengine-files is not in this Workshop`, with the loader's own reason and what to do: build it, then launch again | an alert |
 | a pane you authored is resolvable and **no part of it is on the screen** — refused, waiting for room, or off the canvas | worth acting on |
 | the project is stopped at an artifact waiting to be built | informative — waiting is not a failure |
 
 Some true things are deliberately **not** here. A pane you closed is your own choice and lives
-in the [picker](panes.md). A pane the setup names that this run cannot resolve is already
-counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
+in the [Pane Manager](panes.md#opening-going-to-and-closing--the-pane-manager). A pane the
+setup names that this run cannot resolve is already counted on Workshop's first row, all day. A pane that is behind another one is still on the screen,
 and stacking is what arranging *is*. Attention is for what you would otherwise not find out.
 
 ## What this is not
@@ -131,6 +132,6 @@ and stacking is what arranging *is*. Attention is for what you would otherwise n
 ## See also
 
 - [Hotkeys and the keymap](hotkeys.md) — the one binding truth, and how to remap `Ctrl`+`a`.
-- [Panes](panes.md) — the picker, management, and how a pane comes to be off the screen.
+- [Panes](panes.md) — the Pane Manager, arranging, and how a pane comes to be off the screen.
 - [Setups](setups.md) — the files Workshop reads and writes, and which ones can refuse.
 - [What does not work yet](limitations.md).

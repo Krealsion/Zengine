@@ -1258,11 +1258,11 @@ private:
                                     std::int64_t mods, const char* stands_for = "") {
             actions.rows.push_back(ws::v2::PaneActionRow{id, label, sc, mods, stands_for});
         };
-        // (*) AND THE SAVE ROW SAYS WHAT IT STANDS IN FOR (VD-26, WL-KEY-15). This pane holds a
-        // document of its own, so while its keys are the maker's, `document.save` is not the
-        // operation they are asking for -- and saying so by NAME is what keeps that true when
-        // a maker moves either row's key. It is also what lets this row keep `ctrl+s`: the
-        // two are one meaning in two scopes, not two meanings on one gesture.
+        // (*) AND THE SAVE ROW STILL NAMES `document.save` AS WHAT IT STANDS IN FOR (VD-26), though
+        // that host row retired with the object document (WL-KEY-15 says how a pane stands in). A
+        // host on this side of the retirement admits the name standing in for nothing; a host from
+        // before it still declares the row, and there the name is what keeps `ctrl+s` this pane's
+        // rather than a collision -- so one image of this pane loads in both.
         row(pane::kActionSave, "save source", input::scan::kS, input::mod::kCtrl,
             ws::kOwnableDocumentSave);
         row(pane::kActionNewline, "newline", input::scan::kReturn, input::mod::kNone);

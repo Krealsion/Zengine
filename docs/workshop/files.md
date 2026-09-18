@@ -37,8 +37,8 @@ before, you can still jump to one of them (below) and carry on from there.
 
 ## Opening the pane
 
-Files is an ordinary pane. Press **`p`**, choose **Files**, press Return — and the same
-gesture removes it again. It moves, resizes, stacks and rides a saved setup exactly like every
+Files is an ordinary pane. Press **`Ctrl`+`p`**, move to **Files**, press Return — it opens
+with your keys in it, and `x` on the same row of the Pane Manager closes it again. It moves, resizes, stacks and rides a saved setup exactly like every
 other pane (see [Panes](panes.md)).
 
 **It is not compiled into Workshop.** Files is a separate artifact, `zengine-files`, loaded at
@@ -82,9 +82,9 @@ and pressing the row that is already selected opens it — once your keys are al
 Files.** A press that brings your keys here from somewhere else (the Editor after it opened a
 file, or Workshop's own keys) only selects and points the keys at Files, even on the row that
 was selected, so it can never also open a file — which matters most when you have unsaved
-edits, because opening a different file is exactly what would be refused. While the picker or
-the hotkey view has the keys, presses in Files only select, and the bottom band stops saying
-that typing goes to Files; close it and the next press on the selected row opens it. With pane
+edits, because opening a different file is exactly what would be refused. While a layout's
+name line has the keys, presses in Files only select, and the bottom band stops saying that
+typing goes to Files; finish the name and the next press on the selected row opens it. With pane
 titles hidden, Files' title comes back when your keys arrive, and the row you pressed is still
 the row you selected.
 

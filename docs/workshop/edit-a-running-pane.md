@@ -44,8 +44,8 @@ cd tally-project
 ../Zengine/build/workshop/zengine-workshop
 ```
 
-**1. Author its recipe, in Files.** `p`, choose `Files`, press into it, put the cursor on
-`tally.cpp` and press **`a`** (*pick buildable*). `Return` chooses `tally.cpp`; then answer one
+**1. Author its recipe, in Files.** `Ctrl`+`p`, move to `Files` and press `Return` — your keys
+land in it — put the cursor on `tally.cpp` and press **`a`** (*pick buildable*). `Return` chooses `tally.cpp`; then answer one
 line at a time, `Return` after each:
 
 | asked | answer |
@@ -58,12 +58,12 @@ line at a time, `Return` after each:
 The link targets are written at the top of `tally.cpp`. Files answers `authored recipe `tally` ->
 tally in …/build-recipes.json`.
 
-**2. Put it in the project, and build it.** Press anywhere on the workspace to give Workshop the
-keys back, `p`, choose `Builder`, and press into it. `c` steps the recipe row to
+**2. Put it in the project, and build it.** `Ctrl`+`p` again — it works while Files has your
+keys — move to `Builder` and press `Return`. `c` steps the recipe row to
 `tally -> tally`. Press **`o`** (*load it*) and type the role **`example.tally`**, then `Return`.
 The role must be the office `tally.cpp` speaks as (`kOffice` in the source): a weave can speak
 only as the office its plan row gives it, and a pane whose source names another office never
-appears in the picker.
+appears in the Pane Manager.
 
 Nothing is built yet, so the Builder says the project is waiting on `tally`. Press **`f`**: it
 builds the one recipe that produces it and loads the result. The first build configures a small
@@ -77,11 +77,11 @@ and nothing waits, and Tally shows what that earlier build said, whatever `tally
 Delete both before `o` to start from this source, or carry on: the first build with load after
 build replaces it in place.
 
-**3. Open it.** Give Workshop the keys back, `p`, choose `Tally`. It says `Tally: 0`. Press into
+**3. Open it.** `Ctrl`+`p`, move to `Tally`, `Return`. It says `Tally: 0`, and your keys are in
 it; each `Space` adds one.
 
 Your project now holds `build-recipes.json` and `workshop-plan.json`, and launching Workshop from
-this directory again loads Tally with the rest — open it from the picker.
+this directory again loads Tally with the rest — open it from the Pane Manager.
 
 ## Every time: point, change, build, reload
 

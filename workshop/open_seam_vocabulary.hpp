@@ -133,7 +133,7 @@ struct PanePresentation {
 // ---- Manager -> presentation owner --------------------------------------------------------
 
 /// WOULD THIS PANE SEAT, AND WHAT ROOM WOULD IT GET? Judged on a copy of the setup through
-/// the picker's own trial; nothing moves. The answer carries the room the pane's body
+/// the launch door's own trial; nothing moves. The answer carries the room the pane's body
 /// would have after seating, so the document owner can compose for it.
 struct PresentationTrialRequested {
     std::int64_t op = 0;

@@ -273,7 +273,8 @@ class IntrospectionWeave
           IntrospectionWeave, IntrospectionState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, loom::Result,
-                       loom::Refused, ResolvedArrangement, ResolvedPowers, SourceSampled,
+                       loom::Refused, ResolvedArrangement, zengine::workshop::v2::ResolvedArrangement,
+                       ResolvedPowers, SourceSampled,
                        surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, LoadedSelected, loom::ListLoaded,
                      ArrangementRequested, PowersRequested, SampleRequested,
@@ -283,7 +284,7 @@ public:
     /// of that sentence: the lifecycle attestation must be Loom's, and the sequence
     /// must be one this incarnation has not already acted on. An ordinary
     /// `zen.Activated` sent by anybody granted the shape announces nothing here --
-    /// otherwise any weave could make a pane appear in a maker's picker.
+    /// otherwise any weave could make a pane appear in a maker's Pane Manager.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
@@ -500,6 +501,17 @@ public:
     /// to Workshop and the value goes out of scope, which is what makes the claim "no
     /// second mutable registry" a fact about this file rather than a promise about it.
     void on(const ResolvedArrangement& said, loom::Mail& mail) {
+        if (!answering(mail, arrangement_)) {
+            return;
+        }
+        ++state_.readings;
+        say_rows(mail, kArrangementPane,
+                 intro::project_arrangement(said, arrangement_.rows, arrangement_.columns));
+    }
+
+    /// THE SAME ANSWER IN VERSION 2, which the door sends to an office that accepts it: every
+    /// row's state, and for a row that is not running its reason and the next step (P-WORK-22).
+    void on(const zengine::workshop::v2::ResolvedArrangement& said, loom::Mail& mail) {
         if (!answering(mail, arrangement_)) {
             return;
         }

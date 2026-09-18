@@ -4,11 +4,11 @@
 on. The exact contracts are [Workshop panes](../reference/workshop-panes.md); a maker's view of
 the same ground is [panes](../workshop/panes.md).
 
-Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it and
-the panes its load plan brings -- since the pane-weave arc that is Info, the project browser,
-the Builder, Attention, the Terminal and the source Editor, every one of them a loaded weave
-beside the two built-ins Workshop still compiles (Layouts and the Pane Manager). A **tool** is
-something a maker can open from the `+ panel` picker.
+Workshop is Zengine's maker-facing application: a desk of the panes its load plan brings --
+Info, the project browser, the Builder, Attention, the Terminal, the source Editor and the
+desktop (whose Pane Manager and Hotkeys pane a maker opens with `Ctrl`+`p` and `Ctrl`+`k`), every
+one of them a loaded weave — beside the one built-in Workshop still compiles, Layouts. A **tool**
+is something a maker can open from the Pane Manager.
 
 There are **two ways** to put one there, and current source deliberately does not merge them.
 Pick yours before you read any mechanics.
@@ -16,7 +16,7 @@ Pick yours before you read any mechanics.
 ```text
 a compiled-in Workshop panel        you are editing Workshop's own source
     Workshop owns the painter, and may own input, a mode, and session state
-    the picker's built-in half is a compile-time array you add a row to
+    the inventory's built-in half is a compile-time array you add a row to
 
 an office-authored external pane    you are a weave that is not Workshop
     a bounded provider protocol, every shape listed in workshop/pane_vocabulary.hpp
@@ -63,12 +63,25 @@ Two sentences worth keeping:
 
 You are editing Workshop. Everything in this part is ordinary source-contributor work.
 
+> ⚠ **Read this part as the mechanics, not as the current catalog.** It was written when Workshop
+> compiled several panels in — the Builder, Info, the source Editor, Files, the host's own Pane
+> Manager — and every one of them has since become a loaded pane on Part B's path; the built-in
+> catalog holds one row, `Layouts` (kind 4; 0–3 and 5 are retired and never reused). So the
+> example rows below (`kBuilder`, `kInfo`), the facts that name them, and the helper
+> `paint_panel_row` (gone; a painter takes a `FineRect` and writes regions) describe the catalog
+> as it was — the example will not compile as written. What is current: `kPanelCatalog`, the
+> three catalog assertions (the right column now asserts **zero** kinds), `paint_panels`' arms
+> (`Layouts`, then a maker's pane, then the generic external arm), `bounds_of`, and that a
+> built-in row reaches the maker through the one inventory the desktop's Pane Manager reads.
+> Presence is two doors on the desktop seam, not a picker; there is no object document. Every
+> tool added since Info became a weave has taken Part B.
+
 ## What you need to know
 
 - **C++20.** Workshop is header-heavy and everything below is ordinary code.
 - **Basic Loom concepts** — a weave, a message, a schema, a grant — *only if your panel talks to
-  something*. A panel is not a weave and needs no bus: the Info panel opens, presents and closes
-  without sending a single message. If your panel asks another weave for something you will need
+  something*. A panel is not a weave and needs no bus: the Layouts pane opens, presents and
+  closes without sending a single message. If your panel asks another weave for something you will need
   `mail.send_to_role(...)` and the vocabulary of whoever answers; nothing else here requires it.
 - **Where Workshop lives**, which is five files under `workshop/`:
 
@@ -78,7 +91,9 @@ You are editing Workshop. Everything in this part is ordinary source-contributor
   | `workshop/setup.hpp` | **identity and intent**: `PaneRef`, the combined catalog, resolution, and how authored intent becomes open presentations |
   | `workshop/screen.hpp` | **painting** and every **resolved place** — where a thing is, and the inverse a press is answered with. The declarations, the constants and the constexpr functions; the bodies are in `workshop/screen_<subject>.cpp`, one file per subject the header's section banners name |
   | `workshop/weave.hpp` | **input**: the key modes, the pointer chain, and the operations a gesture performs. The class and its declarations; the bodies are in `workshop/weave_<subject>.cpp` |
-  | `workshop/document.hpp` | the authored document, if your panel changes one |
+
+  (A fifth, `workshop/document.hpp`, held the prototype object document, and retired with the
+  object canvas.)
 
   `workshop/workshop.cpp` is the host. You do not normally touch it, and you rarely touch
   `workshop/CMakeLists.txt`: the vocabulary is a header-only interface target and the bodies
@@ -87,7 +102,7 @@ You are editing Workshop. Everything in this part is ordinary source-contributor
   new subject file is one line in that list — and the list is regenerated from
   `tools/workshop-split/sheet.tsv`, so a hand-added line lives until the next rerun.
 
-You do **not** need to understand the Info panel's row-sharing, the Terminal's transcript, the
+You do **not** need to understand the Layouts pane's tab run, the Terminal's transcript, the
 Builder's status protocol, the external-pane protocol, or anything in `surface/` beyond two
 vocabulary types.
 
@@ -149,8 +164,8 @@ into the plane you were given and never reach for the canvas; that is the entire
 ordering to you, and it is what makes "the front the host hits is the front the medium paints"
 true of your panel without your panel knowing the rule exists.
 
-Build the host and run it; press `p`, choose **Status**, press Return. Your panel is on screen,
-in both media, and the picker already knows how to remove it again.
+Build the host and run it; press `Ctrl`+`p`, move to **Status**, press Return. Your panel is on
+screen, in both media, and the Pane Manager's `x` already knows how to close it again.
 
 ---
 
@@ -164,7 +179,7 @@ kind         a plain std::int64_t constant in `namespace panel`
 placed_in    which of Workshop's two places this kind occupies
 provider     the durable provider/service key -- `kWorkshopProvider` for a built-in
 pane         the durable pane key, in that provider's namespace
-name         what the picker lists
+name         what the Pane Manager lists
 summary      one line, so a maker can tell what they are about to open
 ```
 
@@ -196,33 +211,36 @@ every_reference_is_one_kind()                  two rows sharing a PaneRef make o
 ```
 
 `name` and `summary` still default to `""`, and an unnamed row is legal — it produces a blank
-picker line that opens a working panel. Write both.
+Pane Manager row that opens a working panel. Write both.
 
 **A new kind does not join the default setup.** `kDefaultPanels` (`workshop/panel.hpp`) is the
 one place "a fresh Workshop shows Info" is decided, and both `default_panels()` and
 `default_setup()` read it — so what a fresh Workshop opens is a separate authored decision from
 what this build can present.
 
-## A2. `kPanelCatalog` is the **built-in half** of the picker
+## A2. `kPanelCatalog` is the **built-in half** of the inventory
 
 `kPanelCatalog` is the source door for a compiled-in panel. It is **not** the whole population a
-maker chooses from. Since WP-0 the picker walks the **combined** catalog
-(`combined_catalog`, `workshop/setup.hpp`):
+maker chooses from. Since WP-0 the population is the **combined** catalog
+(`combined_catalog`, `workshop/setup.hpp`), and the one inventory Workshop publishes for the
+desktop's Pane Manager (`PaneInventory`) is built from it:
 
 ```text
 every compile-time built-in, in the catalog's own order
 then every admitted runtime pane, in first-accepted-offer order
 ```
 
-- **Still true:** a kind that is in neither half cannot be opened by any gesture at all. The
-  picker is the only door, in both directions — selecting an open row removes it.
+- **Still true:** a kind that is in neither half cannot be opened by any gesture at all. Two
+  doors change presence — `PaneLaunchRequested` opens or focuses, never toggles;
+  `PaneCloseRequested` takes the row off the desk and unloads nothing
+  (`workshop/desktop_seam_vocabulary.hpp`) — and the Pane Manager spends them.
 - **No longer true:** that "the catalog" means one array. A pane may exist this session without
   being in your source. See [Part B](#part-b--an-office-authored-external-pane).
 - **A runtime handle is not an identity.** Runtime kinds start at `kFirstRuntimeKind` (1024) and
   are minted, spent and discarded by one session; `is_runtime_kind` is the one predicate that
   asks. Never write one to a file, read one off a message, or compare one across processes.
-- **`panel_kind(kind)` is total and answers with the Builder for anything it does not
-  recognise.** That is correct for its own built-in callers, and a lie about any other kind. The
+- **`panel_kind(kind)` is total and answers with the catalog's first row (`Layouts`, now) for
+  anything it does not recognise.** That is correct for its own built-in callers, and a lie about any other kind. The
   fallible direction — the one that meets a file — is `resolve_pane(ref, runtime)`, which
   answers with *nothing*. `kind_name(panels, kind)` is the one that is safe for a runtime kind.
 
@@ -256,11 +274,11 @@ Four things follow that are easy to get wrong by assuming otherwise:
   the workspace ends at, which is the row WS-0 spent on the setup line. **At the 78 × 22 minimum
   composition exactly one overlay slot fits**, asserted in `screen.hpp`.
 - **What does not fit is refused or waits, and neither of those edits your source.**
-  - A picker gesture that would not be seated is **refused before the active setup moves**:
-    `choose_panel` seats a trial candidate first, says `no room for X on this screen -- make the
-    window taller, then p again`, and leaves the setup untouched.
+  - A launch that would not be seated is **refused before the active setup moves**: the launch
+    door seats a trial candidate first, says `no room for X on this screen -- make the window
+    taller, then try again`, and leaves the setup untouched.
   - Authored intent that *already* names more panes than fit is **retained and marked
-    `waiting`** — a third picker state that is neither `open` nor `closed`. The reference is not
+    `waiting`** — a third state that is neither `open` nor `closed`. The reference is not
     unresolved (this build knows exactly what it would draw) and not closed (the maker authored
     it). Growth opens it with no gesture; a shrink closes the presentation through the ordinary
     close door.
@@ -268,8 +286,8 @@ Four things follow that are easy to get wrong by assuming otherwise:
     `closed`, `unresolved`, `refused` (an authored unit this medium cannot project — today, any
     `pixels` amount), `waiting`, `off-room` (the authored place put it off this canvas),
     `covered` (every visible cell is behind the union of what is in front) and `open`. Every pane
-    the setup names has exactly one row in the picker and in pane management, **whatever state it
-    is in** — which is the promise that a maker can never lose one.
+    the setup names has exactly one row in the inventory the Pane Manager lists, **whatever state
+    it is in** — which is the promise that a maker can never lose one.
 - **A maker may move and resize your panel, and reset it back.** Setup version 3 carries an
   authored `place`, `width` and `height` per pane row, each with a MODE — `default` means *no
   override, keep taking whatever the developer's answer becomes* — and since WUX-2 the authored
@@ -278,7 +296,7 @@ Four things follow that are easy to get wrong by assuming otherwise:
   budget it always was: fineness changes where the rectangle sits, and the grant door republishes
   only when the resolved capacity actually moves. Every axis is independent, so a
   maker who moved your panel has said nothing about its size, and it goes on following the rule
-  below. `w` opens pane management; `0` inside it resets one dimension at a time. **You author
+  below. `w` arranges the desk; `0` inside it resets one dimension at a time. **You author
   nothing about this and there is nothing to opt into**: a kind declares a `placement::` and the
   rest is Workshop's and the maker's.
 - **A maker may also change what is in FRONT of what.** Panes can overlap now, so `bounds_of` is
@@ -298,7 +316,7 @@ Four things follow that are easy to get wrong by assuming otherwise:
   screen at all**, and neither does the number of slots: those answer to `kStackRows` and to how
   much room is left above the setup line.
 - **Every cell of your rectangle is yours for the POINTER as well as the paint.** A press inside
-  your bounds never reaches the document under it — it is answered with *"<your panel> is here"*
+  your bounds never reaches the room under it — it is answered with *"<your panel> is here"*
   — so a wider panel is a wider thing standing between a maker and their work. That is the price
   of the width and it is the reason the share is a half rather than the whole room: at every
   extent above the minimum, columns of your own rows are still the maker's to press.
@@ -370,8 +388,7 @@ writes one row at cell `b.y + line`, `detail::fit`-cut and space-padded to `b.w`
 `layer.labels.push_back(SurfaceLabel{...})` writes text at a cell with no fit and no padding at
 all. Both are one cell per byte in **every** medium, always, and a label always takes its cell.
 Reach for them when the cell itself is the unit: a single affordance glyph at one cell (the `+`
-size handle, the eight pane-edge marks), or chrome sharing a row with somebody else's sentence
-(`OBJECTS`, which shares row 0 with a screen-level hint).
+size handle, the eight pane-edge marks), or chrome sharing a row with somebody else's sentence.
 
 Three facts about the picture that nothing warns you about:
 
@@ -521,11 +538,12 @@ resolve a press as `box.position_at_column(pressed_column - <what your row begin
 two offsets are one number; spell it once as a constant.
 
 **Typing needs a mode.** Workshop has no focus object and no z-order — it has an ordered list of
-modes in `on(KeyPressed)`, and the order is the priority: terminal overlay, setup-name editor,
-picker, an open property draft, else command. A panel that takes text is one more `else if`, and
-its bit lives in your own pane struct. You cannot skip this by "taking text whenever my panel is
-open": in command mode every printable key is already a command, so `n` would both create an
-object and type an `n`.
+contexts (`keyboard_context`, `workshop/screen_arrange.cpp`), and the order is the priority: the
+arrangement scopes, the contextual surface, the layout's name line, a loaded pane holding the
+keys, else command. A panel that takes text is one more branch, and its bit lives in your own
+pane struct. You cannot skip this by "taking text whenever my panel is open": in command mode
+every printable key is already a command, so `.` would both step the layout and type a `.`. (The
+last built-in that took text was the host's Pane Manager; every one since is a loaded pane.)
 
 **A printable hotkey that opens a typing mode types itself.** A key transition and the character
 it produced are two facts that are both true and both arrive, so pressing `f` to start filtering
@@ -565,12 +583,11 @@ never saved                  which kinds resolved this run, and to what
                              per-panel view/session state (a Builder's copied status, a draft)
                              an external pane's granted room and cached rows
                              whether a pane is currently waiting for room
-                             the picker's own cursor and open bit
 ```
 
 - **`panels.open` is a projection, not a record.** `reconcile` (`workshop/setup.hpp`) is the only
-  thing that opens or closes a panel on a setup's behalf, and the picker edits the **setup**
-  rather than the panel list — so a `p` gesture cannot leave the two describing different
+  thing that opens or closes a panel on a setup's behalf, and the launch and close doors edit the
+  **setup** rather than the panel list — so neither can leave the two describing different
   arrangements.
 - **Your panel's own view state is still forgotten on close, and that is still the default.**
   Saving pane *intent* does not save what a panel was showing. If your panel owns state, add a
@@ -583,11 +600,12 @@ never saved                  which kinds resolved this run, and to what
   }
   ```
 
-  A panel with nothing to forget adds no arm — Info holds no copy of anything, which is why it
-  can present the document without owning any of it.
-- **The setup and the document are separate values, separate laws and separate files**, on
-  purpose: the same document is worth opening in two arrangements and the same arrangement is
-  worth using over two documents. Do not bind them.
+  A panel with nothing to forget adds no arm — Layouts holds no copy of anything, which is why
+  it can present the layout run without owning any of it.
+- **The setup is a value, a law and a file of its own**, on purpose, and so is anything a pane
+  holds: a pane that owns a document (the Editor's source is the example) keeps it in its own
+  weave, never in the setup. The prototype object document was the first such separate file,
+  until it retired with the object canvas.
 - **The last session is a third file and a third promise, and your panel owes it nothing.**
   Workshop writes the active setup and the surface's room to `--session` when it closes and reads
   them back when it starts (WUX-0, `workshop/session_persist.hpp`). It carries the same
@@ -606,7 +624,7 @@ proves:
 
 | suite | what it proves |
 |---|---|
-| `tests/test_workshop_document.cpp` | the authored material and the maker's hands on it |
+| `tests/test_workshop_document.cpp` | the typed rows a property is edited through, the keymap, and Workshop's own text boxes |
 | `tests/test_workshop_screen.cpp` | composition and geometry — what is painted where |
 | `tests/test_workshop_panels.cpp` | the panels Workshop ships, and the attention surface |
 | `tests/test_workshop_panes_*.cpp` | the external pane seam, from both sides — five sources under one suite: the seam, the window, input, introspection, sampling |
@@ -641,8 +659,7 @@ real bus with nothing but published input messages:
 
 ```cpp
 Live t;
-t.key(input::scan::kP);            // the picker
-/* Down to your row */ t.key(input::scan::kReturn);
+hand_launch(t, PaneRef{kWorkshopProvider, pane_key::kStatus});  // the door the Pane Manager asks
 t.key(input::scan::kI);            // the hotkey
 CHECK(t.session().panels.status.count == 1);
 t.press(/* workspace cell of the control */);
@@ -658,8 +675,8 @@ A helper that assumed cells passes on the terminal lane and lies on the SDL one.
 **Do not write a catalog census.** `REQUIRE(kPanelKinds == 2)` and
 `kinds_placed_in(kOverlayStack) == 1` were both in this suite and both cost a panel author two
 red cases and a decision about whether they had broken something. Prefer a claim over the
-*population* — a walk asserting every built-in row reaches the picker, and the partition law
-`side + stack == kPanelKinds` — which a new kind satisfies for free.
+*population* — a walk asserting every built-in row reaches the inventory, and the partition law
+`side + stack + top == kPanelKinds` — which a new kind satisfies for free.
 
 **And a census comes back through whoever needs a fixed population to compute an expected
 value.** The example above was recreated against current source and the whole Workshop suite run
@@ -672,7 +689,7 @@ the runtime catalog is beside the compile-time one and never inside it
     `rows[2]` was the first RUNTIME row only while there were two built-ins,
     and the case closed with `CHECK(kPanelKinds == 2)`
 
-a picker population larger than its rows is windowed, not truncated
+a list population larger than its rows is windowed, not truncated
     the window arithmetic was computed by hand from a population of exactly
     two built-ins plus eighteen offers
 ```
@@ -680,7 +697,7 @@ a picker population larger than its rows is windowed, not truncated
 Both have since been repaired the way this section describes: the first captures the built-in
 prefix before any offer arrives and proves the whole of it survives one, without being told how
 long it is; the second takes its population from the catalog's own capacity and its cursors and
-omission counts from the picker's measured row budget. **Re-measured against the repaired suite,
+omission counts from the list's measured row budget (the picker's, until it retired). **Re-measured against the repaired suite,
 a third built-in kind reddens no case at all.**
 
 Take the measurement rather than the number. WG-0 wrote that adding a panel kind cost zero red
@@ -697,11 +714,11 @@ which.
 |---|---|
 | declared a second kind in `placement::kSideRegion` | **compile error**, with the reason: that region has room for one |
 | left the `provider` or `pane` key empty, or reused another row's pair | **compile error** — the two catalog assertions catch it, because a setup that could not name your panel would otherwise fail silently |
-| forgot the arm in `paint_panels` | **silent and worse than invisible.** The picker says `opened Status`, nothing is drawn, and a press inside the rectangle is still answered `Status is here — nothing under it can be taken hold of`. An open panel occupies pointer space whether or not anybody painted it |
+| forgot the arm in `paint_panels` | **silent and worse than invisible.** The launch says `opened Status`, nothing is drawn, and a press inside the rectangle is still answered `Status is here — nothing under it can be taken hold of`. An open panel occupies pointer space whether or not anybody painted it |
 | put your arm *after* the `is_runtime_kind` arm | harmless today (a built-in kind is below `kFirstRuntimeKind` and never matches it), but the built-in arms belong first: the generic arm is the fallback for panes nobody in this source compiled |
 | forgot the catalog row | **silent.** Your painter and its dispatch arm compile as dead code and no gesture can reach the panel |
-| left `name` / `summary` empty | **silent.** A blank picker row that opens a working panel, and a notice reading `opened  -- p removes it` |
-| expected your new kind to be open at boot | **silent.** `kDefaultPanels` decides that, and it names Info only |
+| left `name` / `summary` empty | **silent.** A blank Pane Manager row that opens a working panel, and a notice reading `opened ` with nothing after it |
+| expected your new kind to be open at boot | **silent.** `kDefaultPanels` decides that, and it names Layouts only |
 | opened a typing mode from a printable key | **silent.** The key types itself into the box (§A7) |
 | wrote your hit test as `constexpr` | **compile error:** `ui::Rect::contains` is not `constexpr`. Drop the `constexpr`; `noexcept` is fine |
 
@@ -714,8 +731,8 @@ test them through the suite rather than by hand in a terminal.
 
 # Part B — an office-authored external pane
 
-You are a weave that is **not** Workshop. You can offer Workshop a **pane**: a row in the picker,
-a panel a maker can open, and a bounded budget of prose to fill it with — plus whatever of a
+You are a weave that is **not** Workshop. You can offer Workshop a **pane**: a row in the Pane
+Manager, a panel a maker can open, and a bounded budget of prose to fill it with — plus whatever of a
 maker's input into it you choose to accept.
 
 This is a different contract from Part A, not a lighter version of it. You get no painter, no
@@ -836,7 +853,7 @@ WORKSHOP           needs no change for a new pane, and INTR-0 proved it: not one
                    line of the presentation's sources under workshop/ -- weave.hpp,
                    screen.hpp, panel.hpp and the subject .cpp files beside them,
                    walked rather than listed -- names Introspection, no kind was
-                   minted for it, and the picker learned its row from a live offer
+                   minted for it, and the inventory learned its row from a live offer
 THE HOST           names no stem at all since LOAD-0; it reads a plan and executes it
 THE PLAN           names every artifact. A FIRST-PARTY tool is a row; a THIRD PARTY
                    still has no door -- because putting a row in the plan is granting
@@ -967,7 +984,7 @@ keyboard at your pane, so a pane that activates a row on a press — the Files p
 selected file — needs to know whether this press *brought* the keys or found them already there.
 `v2::PanePressed { pane, row, column, keys_went_here }` says exactly that: `keys_went_here` is
 true when ordinary keys were reaching your pane at the instant of the press, and false when they
-were elsewhere or when a picker, a naming line or the hotkey view had them.
+were elsewhere or when a mode — a layout's name line, the contextual menu — had them.
 
 - **Accept it beside `PanePressed`, never instead of it.** Workshop sends each press once, as the
   second version when the pane's office is held by a weave that accepts it and as the first
@@ -1056,7 +1073,7 @@ setup file did not change to allow it:
   counted on the setup line as `1 unresolved` and named in the notice. The word is
   **unresolved**, never *unavailable*;
 - **after an authenticated matching offer it resolves through ordinary reconciliation** — the
-  same `apply_setup` path the picker and a restore go through, without the file being touched;
+  same `apply_setup` path a launch and a restore go through, without the file being touched;
 - **if the screen has no room it may be resolved but `waiting`** (see [A3](#a3-let-workshop-grant-it-room));
 - **and in a fresh process where you are absent, it is unresolved again.**
 
@@ -1208,21 +1225,19 @@ I want to remember where MY panel was
 
 # Where to look next
 
-**For a compiled-in panel**, read these in order; each is a real, current panel:
+**For a compiled-in panel**, read these in order; each is real, current source:
 
-1. **`paint_builder`** (declared in `workshop/screen.hpp`, its body in
-   `workshop/screen_pane_state.cpp`) — the simplest whole panel: handed a rectangle,
-   writes rows, reads nothing but its own copy of somebody else's facts.
-2. **`BuilderPane` and `choose_panel`** (`workshop/panel.hpp`; `workshop/weave.hpp`, with the
-   body in `workshop/weave_panels.cpp`) — a panel that speaks to a weave, and the picker's whole
-   open/remove/refuse decision.
-3. **`paint_info` and `info_body_place`** (declared in `workshop/screen.hpp`, their bodies in
-   `workshop/screen_info.cpp`) — one bounded region holding
-   two lists, a heading and a footer of controls, resolved once and consumed by the painter, the
-   caret, both windows and all three presses. This is the reference for anything harder than a
-   list of rows; you should not need it to make your first panel work.
-4. **`component::TextBox`** (`component/text_box.hpp`) and its three consumers — the Terminal's
-   command line, an Info property draft, and the setup-name editor.
+1. **`paint_layouts`** (declared in `workshop/screen.hpp`, its body in
+   `workshop/screen_layouts.cpp`) — the one built-in left: handed a rectangle, writes rows,
+   reads nothing but the setup's own facts, and answers presses through the same geometry.
+2. **`launch_pane` and `close_pane`** (`workshop/weave.hpp`, with the bodies in
+   `workshop/weave_desktop.cpp`) — the two presence doors, and the whole open/focus/refuse and
+   close decision a built-in row reaches through.
+3. **`paint_maker_pane`** (`workshop/screen_pane_subject.cpp`) — the one other arm in
+   `paint_panels`: a pane whose inside is a maker's authored data, drawn by the host.
+4. **`component::TextBox`** (`component/text_box.hpp`) and its consumers — the layout's name
+   editor in this host, and, as loaded panes, the Terminal's command line and the Pane Manager's
+   name line (`desktop-pane/pane.cpp`).
 
 **For an external pane:**
 

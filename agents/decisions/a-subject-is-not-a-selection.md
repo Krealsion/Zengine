@@ -42,6 +42,18 @@ the measured cost of three summary cells at every width; an earlier widening of 
 a name had been measured, reverted and recorded. An off-room pane is typeable, because a typed
 coordinate needs no rectangle to measure from.
 
+**Retired with the host's Pane Manager.** The built-in this record decided is gone. Its list is
+the desktop's Pane Manager, over the one inventory and the two presence doors (WL-DESK-04,
+WL-DESK-12); a pane as a subject is an inspector's — Info names it and the host keeps it
+(WL-INFO-14), and a commit is the owner's write through a door the desk already has
+(WL-INFO-15). What this record decided about a subject outlived the built-in and stays its own:
+a subject is not a selection and is never derived from `Panels::selected`; its rows read fresh
+and nothing writes on paint (WL-PED-04); every write is an existing door (WL-PED-05); a typed
+value is refused, never clamped (WL-PED-06). The manager's own laws — the built-in, its door,
+its clearing rule, `kDraft`, the wheel over two lists — are RETIRED entries, and
+`kPickerNameCols` went with the list that spent it. The host's manager was not kept beside the
+desktop's: two presentations of one inventory are two lists to drift, the picker's reason.
+
 **Laws supported.** [WL-PED-01](../workshop/pane-manager.md),
 [WL-PED-02](../workshop/pane-manager.md), [WL-PED-03](../workshop/pane-manager.md),
 [WL-PED-04](../workshop/pane-manager.md), [WL-PED-05](../workshop/pane-manager.md),

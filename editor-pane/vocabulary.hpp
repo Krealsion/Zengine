@@ -51,8 +51,9 @@ inline constexpr const char* kEditorPaneRole = "zengine.editor";
 /// conversion moves a maker's desk without touching where on it the pane sits.
 inline constexpr const char* kEditorPane = "editor";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
-/// office. The built-in's own two, carried.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office. The built-in's own
+/// two, carried.
 inline constexpr const char* kEditorPaneName = "Editor";
 inline constexpr const char* kEditorPaneSummary = "edit a source file";
 
