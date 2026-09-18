@@ -22,10 +22,10 @@ two places an application row can be answered: ABOVE THE MODES, before the keys 
 pane took the keys (where the host's Escape line already sat). A pane stands in for an
 application row by naming its id on its own row, the accepted `supersedes` mechanism unchanged.
 Launching is a request the host performs against the ONE inventory: a pane already on the desk
-is FOCUSED, never closed and never unloaded. The room's floor is rows the desktop says and the
-host paints. A declaration Workshop refuses is told to its declarer, on both declaration
-surfaces. A plan row may declare itself optional, and a refused optional row is an unavailable
-tool rather than a refused project.
+is FOCUSED, never closed and never unloaded, and a pane whose office nobody holds now is refused.
+The room's floor is rows the desktop says and the host paints. The inventory is said when it
+changes and answered to a presenter that arrives. A plan row may declare itself optional, and a
+refused optional row is an unavailable tool rather than a refused project.
 
 **Alternatives considered.**
 - *One precedence class* — rejected, and it is the decision's core. A single class either puts
@@ -67,5 +67,5 @@ half.
 **Laws supported.** [WL-DESK-01](../workshop/desktop.md),
 [WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),
 [WL-DESK-04](../workshop/desktop.md), [WL-DESK-05](../workshop/desktop.md),
-[WL-DESK-06](../workshop/desktop.md), [WL-DESK-07](../workshop/desktop.md),
-[WL-DESK-08](../workshop/desktop.md).
+[WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md),
+[WL-DESK-09](../workshop/desktop.md), [WL-DESK-10](../workshop/desktop.md).

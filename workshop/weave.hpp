@@ -336,6 +336,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneLaunchRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
+                                          zengine::workshop::PaneInventoryRequested,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
@@ -362,7 +363,8 @@ class WorkshopWeave
                                         zengine::workshop::PaneDragged,
                                         zengine::workshop::PaneActionRequested,
                                         zengine::workshop::AppActionRequested,
-                                        zengine::workshop::ActionsRefused,
+                                        zengine::workshop::ActionsJudged,
+                                        zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::PaneQuitRequested,
@@ -616,9 +618,16 @@ public:
 
     /// THE DESKTOP DECLARES WHAT THE APPLICATION ANSWERS TO, above every mode and after
     /// every mode. Judged whole by `join_app_rows` under the same collision law a pane's
-    /// rows meet; a refusal is said on the band AND sent back to the declaring office
-    /// (`ActionsRefused`), and changes nothing that was already in force.
+    /// rows meet; the verdict is said on the band and ANSWERED to the declaration
+    /// (`ActionsJudged`), and a refusal changes nothing that was already in force.
     void on(const AppActions& actions, loom::Mail& mail);
+
+    /// A PRESENTER THAT HAS JUST ARRIVED ASKS FOR THE INVENTORY AS IT IS NOW, and is answered
+    /// with it -- the reading `publish_inventory` says when it changes, said to one asker.
+    void on(const PaneInventoryRequested& asked, loom::Mail& mail);
+
+    /// THE ONE INVENTORY AS A VALUE: `inventory_rows` with the three facts beside each row.
+    PaneInventory inventory_reading() const;
 
     /// OPEN THIS PANE, OR PUT THE MAKER IN IT. Resolved against the ONE inventory, seated
     /// through the same door the launcher and a restore share, and answered either way.
@@ -647,10 +656,23 @@ public:
     /// told the same thing twice repaints for nothing.
     void publish_inventory(loom::Mail& mail);
 
-    /// TELL A DECLARING OFFICE THAT ITS DECLARATION WAS REFUSED, and say the same sentence on
-    /// the band (BL-WORK-04). Workshop owns the fact; the provider owns its recovery.
-    void say_actions_refused(const std::string& office, const std::string& pane,
-                             const std::string& refusal, loom::Mail& mail);
+    /// IS ANYBODY THERE TO FILL THIS PANE NOW? A built-in or the maker's pane always is; a
+    /// runtime pane is when its office's current holder accepts a room. Presence, not health.
+    bool provider_present(std::int64_t kind, const PaneRef& ref) const;
+
+    /// ANSWER ONE DECLARATION WITH WORKSHOP'S VERDICT (BL-WORK-04), when the declaring office's
+    /// holder accepts the shape; a refusal is said on the band as well. Workshop owns the fact;
+    /// the provider owns its recovery.
+    void answer_declaration(const std::string& office, ActionsJudged verdict, loom::Mail& mail);
+
+    /// TELL A DECLARING OFFICE THAT A DECLARATION IT HAD IN FORCE LEFT THE KEYMAP, naming the
+    /// number the verdict gave it, when that office's holder accepts the shape.
+    void say_withdrawn(const std::string& office, ActionsWithdrawn withdrawn, loom::Mail& mail);
+
+    /// JOIN THE APPLICATION ROWS IN FORCE AGAIN, under the keymap now in force -- what a keymap
+    /// file's load owes them, before the panes are joined again. A declaration the file's rows now
+    /// collide with is withdrawn and told so; it is not retried.
+    void rejoin_app_rows(std::string& refusals, loom::Mail& mail);
 
     /// SEAT THE PANE THAT ASKS, IN THIS DELIVERY, OR REFUSE WITH NOTHING MOVED. Judged through
     /// the picker's own trial seat; on a seat the pane is authored if it was not, selected,
@@ -1585,10 +1607,16 @@ private:
     /// THE APPLICATION ROWS THE DESKTOP LAST DECLARED, AS IT DECLARED THEM -- retained for the
     /// same reason a pane's declaration is retained on its catalog row: a keymap file read
     /// afterwards is owed the maker's overrides over these ids too, so the declaration has to
-    /// survive the join it was admitted by (WL-DESK-07).
+    /// survive the join it was admitted by (WL-DESK-07). `app_declaration_` is Workshop's number
+    /// for it, 0 when none is in force.
     std::vector<AppActionRow> app_actions_;
-    /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged.
+    std::int64_t app_declaration_ = 0;
+    /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
+    std::int64_t declarations_ = 0;
+    /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged -- and
+    /// whether it has said one since a presenter last arrived (`on(PaneOffered)` clears it).
     std::vector<InventoryPane> inventory_said_;
+    bool inventory_published_ = false;
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;

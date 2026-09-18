@@ -28,6 +28,7 @@
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
+#include <string>
 
 namespace zengine::desktop_pane {
 
@@ -78,13 +79,20 @@ inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the ro
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///
-/// ONE FIELD, AND IT IS THE ONLY THING HERE THAT IS THE MAKER'S POSITION. The inventory this
-/// pane lists is the host's reading, re-said whenever it changes; a copy kept across a reload
-/// would present a picture derived before this image existed. The cursor is kept for the Info
-/// pane's reason: the row order is stable, so the row a maker was standing on is still that row.
+/// THE MAKER'S POSITION, AND NOTHING ELSE. The inventory this pane lists is the host's reading,
+/// asked for again by every new image; a copy kept across a reload would present a picture
+/// derived before this image existed.
+///
+/// THE CURSOR IS AN IDENTITY, NOT AN INDEX. Rows come and go as providers offer and leave, so
+/// the row a maker was standing on is found again by its two durable keys; `cursor` is only
+/// where the marker sits while it is found, or where it was when that pane left the list.
+/// Return acts on the identity, never on whatever row now has that index.
 struct DesktopState {
-    std::int64_t cursor = 0; ///< which inventory row the maker is on
-    ZEN_SHAPE(DesktopState, 1, ZEN_FIELD(cursor));
+    std::int64_t cursor = 0;   ///< which inventory row the marker is on
+    std::string cursor_office; ///< the pane under it, by its two durable keys; both empty when
+    std::string cursor_pane;   ///< the maker has not chosen one since that pane left the list
+    ZEN_SHAPE(DesktopState, 2, ZEN_FIELD(cursor), ZEN_FIELD(cursor_office),
+              ZEN_FIELD(cursor_pane));
 };
 
 } // namespace zengine::desktop_pane

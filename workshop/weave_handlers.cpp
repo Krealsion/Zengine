@@ -57,6 +57,10 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     // collide with is the party judged, so both load orders end the same way -- the file
     // in force, that pane's rows refused in words (WL-KEY-15).
     std::string refused;
+    // THE APPLICATION'S ROWS FIRST, because a pane is judged against them (WL-DESK-07): the file
+    // replaced the whole map, and the declaration the desktop has in force is owed the maker's
+    // overrides now rather than whenever the desktop next happens to speak.
+    rejoin_app_rows(refused, mail);
     rejoin_pane_rows(refused, mail);
     if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
         keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +

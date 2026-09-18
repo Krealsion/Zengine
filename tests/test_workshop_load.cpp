@@ -271,12 +271,15 @@ struct AskerState {
 /// What an asker heard back, and whether Loom ATTESTED each answer.
 struct Answered {
     std::vector<workshop::ResolvedArrangement> arrangements;
+    /// ...and the version 2 answers, which the door sends only to an office that accepts them.
+    std::vector<workshop::v2::ResolvedArrangement> arrangements_v2;
     std::vector<workshop::ResolvedPowers> powers;
     std::vector<bool> attested; ///< `mail.answers_ask()` on each answer, in arrival order
 };
 
 class Asker : public loom::WeaveBase<Asker, AskerState,
                                      loom::Accept<Nudge, workshop::ResolvedArrangement,
+                                                  workshop::v2::ResolvedArrangement,
                                                   workshop::ResolvedPowers>,
                                      loom::Emit<workshop::ArrangementRequested,
                                                 workshop::PowersRequested>> {
@@ -293,6 +296,10 @@ public:
     }
     void on(const workshop::ResolvedArrangement& a, loom::Mail& mail) {
         into_->arrangements.push_back(a);
+        into_->attested.push_back(mail.answers_ask());
+    }
+    void on(const workshop::v2::ResolvedArrangement& a, loom::Mail& mail) {
+        into_->arrangements_v2.push_back(a);
         into_->attested.push_back(mail.answers_ask());
     }
     void on(const workshop::ResolvedPowers& p, loom::Mail& mail) {
@@ -465,19 +472,44 @@ struct PlanRig {
     /// realization that is deliberately stuck mid-row. The door is unchanged; what
     /// changes is which owner it is reading.
     loom::WeaveId mount_door_over(const load::PlanExecutor& owner,
-                                  std::string plan_path = std::string()) {
+                                  std::string plan_path = std::string(),
+                                  workshop::ArrangementDoor::Accepts accepts = {}) {
         auto door = std::make_unique<workshop::ArrangementDoor>(owner, catalog,
-                                                                std::move(plan_path));
+                                                                std::move(plan_path),
+                                                                std::move(accepts));
         workshop::ArrangementDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(workshop::ResolvedArrangement::zen_name,
                          workshop::ResolvedArrangement::zen_version);
+        say.allow_to_any(workshop::v2::ResolvedArrangement::zen_name,
+                         workshop::v2::ResolvedArrangement::zen_version);
         say.allow_to_any(workshop::ResolvedPowers::zen_name,
                          workshop::ResolvedPowers::zen_version);
         door_ = bus.register_weave(std::move(door), std::move(say),
                                    std::string(workshop::kArrangementRole));
         raw->zen_set_self(door_);
         return door_;
+    }
+
+    /// THE SAME DOOR, WIRED AS THE HOST WIRES IT: it reads, off this bus, whether the asking
+    /// office accepts the later answer -- `holder_accepts_on`'s question, spelled here because
+    /// this suite does not link the host's weave.
+    loom::WeaveId mount_door_answering_versions(std::string plan_path = std::string()) {
+        return mount_door_over(
+            executor, std::move(plan_path),
+            [this](std::string_view role, const loom::Schema& shape) {
+                const loom::WeaveId holder = bus.role_holder(role);
+                if (!holder.valid()) {
+                    return false;
+                }
+                for (const std::shared_ptr<const loom::Schema>& door :
+                     bus.accepted_schemas(holder)) {
+                    if (door != nullptr && loom::same_identity(*door, shape)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
     }
 
     /// MOUNT AN ASKER IN AN OFFICE OF ITS OWN, granted exactly the two questions.
@@ -6366,6 +6398,95 @@ TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped ov
     CHECK(rig.executor.resolved()[2].stem == "zengine-provider-a");
     // THE REFUSED ROW'S OWN CONTRIBUTION IS GONE, rolled back inside that delivery.
     CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
+}
+
+TEST_CASE("an optional row that refused stays `unavailable` in the owner's own answers -- never "
+          "`authored` -- with its reason, the next step and its optional flag") {
+    // MUTATION (P3): dropping the `stepped_over_` arm of `state_of` -- the row answers
+    // `Authored`, the token the Arrangement and Project panes read as "not reached".
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+
+    // THE OWNER'S OWN QUERY: settled, and not "not attempted".
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Unavailable);
+    const std::string why = rig.executor.reason_of("zengine-timer");
+    CHECK(why.find("weave load refused") != std::string::npos);
+    CHECK(why.find("artifact '") == std::string::npos); // the layer's words, not the banner's
+    CHECK(rig.executor.reason_of("zengine-provider-a").empty());
+    // COMPLETION IS NOT EVERY ROW SUCCEEDING, and the two are asked apart.
+    CHECK(rig.executor.outcome().ok);
+    CHECK(rig.executor.unavailable().size() == 1);
+
+    // THE PROJECTION A PANE READS carries the state, the reason, the next step and the flag.
+    const workshop::v2::ResolvedArrangement said = workshop::describe_resolved(rig.executor, "p");
+    const workshop::v3::ArtifactParticipation* gone = nullptr;
+    const workshop::v3::ArtifactParticipation* ran = nullptr;
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
+        gone = a.artifact == "zengine-timer" ? &a : gone;
+        ran = a.artifact == "zengine-provider-a" ? &a : ran;
+    }
+    REQUIRE(gone != nullptr);
+    REQUIRE(ran != nullptr);
+    CHECK(gone->state == std::string(workshop::kUnavailableToken));
+    CHECK(gone->optional);
+    CHECK(gone->reason == why);
+    CHECK(gone->next.find("relaunch") != std::string::npos);
+    CHECK(ran->state == std::string(workshop::kResolvedToken));
+    CHECK_FALSE(ran->optional);
+    CHECK(ran->reason.empty());
+
+    // ...AND A VERSION 1 READER IS TOLD `refused`, never `authored`.
+    const workshop::ResolvedArrangement old = workshop::describe_arrangement(rig.executor, "p");
+    const workshop::ArtifactParticipation* old_row = row_of(old, "zengine-timer");
+    REQUIRE(old_row != nullptr);
+    CHECK(old_row->state == std::string(workshop::kRefusedToken));
+
+    // ...AND THE DOOR ANSWERS EACH ASKER IN THE VERSION IT READS: this asker accepts both.
+    rig.mount_door_answering_versions("p");
+    rig.mount_asker();
+    rig.ask_arrangement();
+    REQUIRE(rig.projected.arrangements_v2.size() == 1);
+    CHECK(rig.projected.arrangements.empty());
+    bool unavailable = false;
+    for (const workshop::v3::ArtifactParticipation& a :
+         rig.projected.arrangements_v2[0].artifacts) {
+        unavailable = unavailable || (a.artifact == "zengine-timer" &&
+                                      a.state == std::string(workshop::kUnavailableToken));
+    }
+    CHECK(unavailable);
+}
+
+TEST_CASE("a refused required row names its reason and next step through the same projection") {
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                both("zengine-timer", tmr::kTimerRole),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Refused);
+    CHECK(rig.executor.reason_of("zengine-timer").find("weave load refused") != std::string::npos);
+    const workshop::v2::ResolvedArrangement said = workshop::describe_resolved(rig.executor, "p");
+    bool seen = false;
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
+        if (a.artifact == "zengine-timer") {
+            seen = true;
+            CHECK(a.state == std::string(workshop::kRefusedToken));
+            CHECK_FALSE(a.optional);
+            CHECK_FALSE(a.reason.empty());
+            CHECK(a.next.find("fix") != std::string::npos);
+        }
+        if (a.artifact == "zengine-provider-a") {
+            CHECK(a.state == std::string(workshop::kAuthoredToken)); // never reached, truly
+            CHECK(a.reason.empty());
+        }
+    }
+    CHECK(seen);
 }
 
 TEST_CASE("a row that is NOT authored optional still stops the plan, and that is the whole "

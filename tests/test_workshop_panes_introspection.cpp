@@ -101,6 +101,26 @@ TEST_CASE("INTR-1: a partial arrangement cannot read as a complete one") {
     CHECK(rows[static_cast<std::size_t>(untried)].role == surface::role::kMuted);
 }
 
+TEST_CASE("an unavailable optional row reads as settled, with the owner's reason and next step, "
+          "and the heading keeps completion apart from every row succeeding") {
+    ws::v2::ResolvedArrangement said = intro::in_version_two(shaped_arrangement());
+    said.artifacts[2].state = ws::kUnavailableToken;
+    said.artifacts[2].optional = true;
+    said.artifacts[2].reason = "weave load refused: open failed";
+    said.artifacts[2].next = "make it available (build it), then relaunch Workshop";
+    said.artifacts[2].provider.clear();
+    said.artifacts[2].weave = 0;
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].text == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
+    const std::int64_t gone = row_with(rows, intro::kUnavailableRow);
+    REQUIRE(gone >= 0);
+    CHECK(rows[static_cast<std::size_t>(gone)].role == surface::role::kAlert);
+    CHECK(row_with(rows, intro::kNotReached) == -1); // the defect: it read as never attempted
+    CHECK(row_with(rows, "why   weave load refused: open failed") > gone);
+    CHECK(row_with(rows, "next  make it available (build it), then relaunch Workshop") > gone);
+}
+
 TEST_CASE("BOOT-0: a project still coming up shows LOADING, and it is not an alert") {
     // ⭐ THE STATE THAT COULD NOT EXIST BEFORE. Realization used to finish inside a
     // single stack frame before any pane could be mounted, so no maker could ever see a

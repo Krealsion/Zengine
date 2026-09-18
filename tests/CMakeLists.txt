@@ -1058,6 +1058,9 @@ set(ZENGINE_WORKSHOP_DEFS
     # SHIPPED DESK already names (`default_setup`), so a suite that loads this image is also
     # the only place a fresh Workshop's own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
+    # ...AND THE DESKTOP, the application's own defaults as a loaded weave. The cases that
+    # reload it, launch through it and read its launcher load THIS image, never a stand-in.
+    "WORKSHOP_SO_DESKTOP_PANE=\"$<TARGET_FILE:zengine-desktop-pane>\""
     "WORKSHOP_SO_TERMINAL_PANE=\"$<TARGET_FILE:zengine-terminal-pane>\""
     # ...AND THE EDITOR PANE, the sixth and last of the migrations -- and the first whose
     # image holds a maker's DOCUMENT: the suites that drive Files' Return and the Builder's
@@ -1092,7 +1095,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-info-pane zengine-terminal-pane zengine-legacy-pane
+    zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
+    zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source zengine-example-tally)

@@ -53,36 +53,44 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-03 — A launch opens or focuses; it never toggles and never loads
 
-LAW — A launch names a pane by its two durable keys; the host resolves it in `inventory_rows`, seats a closed one through the picker's own trial, focuses it either way, and answers.
+LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one through the trial seat, focuses it either way, and answers.
 
 MEANS
 - a pane already on the desk is selected and given the keys, and nothing is closed;
-- an unknown name, an unoffered pane and a screen with no room are three refusals.
+- an unknown name, an unoffered pane, a departed provider and no room are four refusals.
 
 DOES NOT MEAN
 - that asking confers anything: an unoffered pane loads no artifact and mounts nothing;
 - that a launch changes what is inspected — choosing a subject is a different sentence.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`, `PaneLaunchAnswered`;
-`workshop/weave.hpp` `launch_pane`, `on(PaneLaunchRequested)`; `workshop/weave_desktop.cpp`
-`launch_pane`, `on(PaneLaunchRequested)`; `workshop/setup.hpp` `inventory_rows`;
-`desktop-pane/vocabulary.hpp` `kActionTerminal`, `kActionPanes`, `kActionLaunch`.
+`workshop/weave.hpp` `launch_pane`, `on(PaneLaunchRequested)`, `provider_present`;
+`workshop/weave_desktop.cpp` `launch_pane`, `on(PaneLaunchRequested)`, `provider_present`;
+`workshop/setup.hpp` `inventory_rows`; `desktop-pane/vocabulary.hpp` `kActionTerminal`,
+`kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case `"a pane whose
+provider left is unavailable in the launcher and refused at launch, while its identity and the
+desk row naming it stay"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-04 — The inventory is said out loud, and it is not a second inventory
 
-LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider availability and room-to-seat as three separate facts.
+LAW — The host publishes `inventory_rows`' answer whenever it changes, with authored participation, provider presence now and room-to-seat as three separate facts.
 
 MEANS
 - a pane can be authored-open and unavailable, which is the state a maker needs explained;
+- presence is asked of the office's current holder at every reading, never read off a past offer;
 - the publication is compared before it is sent, so an unchanged reading is silence.
 
 DOES NOT MEAN
-- that a presenter may act on the list: a launch still goes through the host's own door.
+- that a presenter may act on the list: a launch still goes through the host's own door;
+- that presence is health: a holder that accepts a room may never answer it.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `InventoryPane`, `PaneInventory`;
-`workshop/weave.hpp` `publish_inventory`; `workshop/weave_desktop.cpp` `publish_inventory`;
-`workshop/setup.hpp` `inventory_rows`.
+`workshop/weave.hpp` `publish_inventory`, `inventory_reading`, `provider_present`;
+`workshop/weave_desktop.cpp` `publish_inventory`, `inventory_reading`, `provider_present`;
+`workshop/setup.hpp` `inventory_rows`; `tests/test_workshop_panes_actions.cpp` case `"a pane
+whose provider left is unavailable in the launcher and refused at launch, while its identity and
+the desk row naming it stay"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-05 — The room's floor is the desktop's words and the host's wall
@@ -101,22 +109,33 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `DesktopFace`, `kMaxBackdro
 `workshop/weave_desktop.cpp` `on(DesktopFace)`; `workshop/screen_compose.cpp` `paint`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-06 — A refused declaration is told to its declarer
+## WL-DESK-06 — A declaration is answered with its verdict, and withdrawn by its number
 
-LAW — Workshop refusing a pane's or an application's action declaration says the same sentence on the band and to the office that authored it; the fact is Workshop's, the recovery the provider's.
+LAW — Workshop answers each declaration it judges with its verdict, numbers an accepted one, and names that number when it later leaves the keymap; the fact is Workshop's, the recovery the provider's.
 
 MEANS
-- the re-join a keymap file forces is a rejection like any other, and is told the same way;
-- the refusals are collected before any is sent, so a re-declaration cannot mutate the walk.
+- the verdict is Loom's answer: it echoes the declaration's correlation, to its incarnation only;
+- a keymap file that displaces a pane's or the application's declaration withdraws it whole;
+- only a holder whose office accepts the shape is told; the band says a refusal either way.
 
 DOES NOT MEAN
-- that silence is a refusal: a declarer told nothing was accepted;
-- that anything is mandated, or that delivery is owed — the band still carries the refusal.
+- that silence is a verdict: an answer can be refused at the gate or dropped with its asker;
+- that anything is mandated: nothing is retried, and no draft, mode or binding is chosen for it.
 
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ActionsRefused`; `workshop/weave.hpp`
-`say_actions_refused`; `workshop/weave_desktop.cpp` `say_actions_refused`;
-`workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`.
-WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+PROVEN BY — `workshop/pane_vocabulary.hpp` `ActionsJudged`, `ActionsWithdrawn`;
+`workshop/weave.hpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
+`workshop/weave_desktop.cpp` `answer_declaration`, `say_withdrawn`, `rejoin_app_rows`;
+`workshop/weave_seam.cpp` `declare_pane_actions`, `rejoin_pane_rows`; `workshop/panel.hpp`
+`RuntimePane::declaration`; `desktop-pane/pane.cpp` `DesktopWeave`;
+`tests/test_workshop_panes_actions.cpp` case `"a verdict answers the declaration it judges: a
+refused attempt is named by its own number after a later one was accepted, and an accepted one
+is given Workshop's"`, case `"a declaration the keymap file displaces is withdrawn by the number
+its verdict gave it, and a pane that reads verdicts learns both"`, case `"a withdrawal naming a
+predecessor's declaration does not reach the successor's rows: the reloaded desktop shows only
+its own verdict"`, case `"the shipped desktop shows Workshop's verdict on its own declaration,
+and only for the attempt it is waiting on"`, case `"the keymap file wins: a pane whose rows its
+bindings collide with is refused in words, in both orders"`.
+WHY — `agents/decisions/a-verdict-answers-its-declaration.md`
 
 ## WL-DESK-07 — An application row is one declaration in two precedence classes
 
@@ -157,6 +176,47 @@ DOES NOT MEAN
 PROVEN BY — `workshop/keymap.hpp` `parse_gesture`, `kNoGesture`, `is_bound`;
 `tests/test_workshop_panes_actions.cpp` case `"WL-KEY-16: a maker's authored row moves an
 application row, and `none` disables it"`.
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
+## WL-DESK-09 — A presenter that arrives is answered the inventory as it is now
+
+LAW — A presenter that asks as an office is answered the inventory reading of that moment, alone; an offer clears the publication's record, so the next reading is said to everyone.
+
+MEANS
+- a desktop reloaded while nothing changes shows the list at once, not at an unrelated change;
+- the answer reaches the incarnation that asked, so a successor asks for itself.
+
+DOES NOT MEAN
+- that the answer is a second inventory: it is `inventory_reading`, the publication's own value.
+
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneInventoryRequested`;
+`workshop/weave.hpp` `on(PaneInventoryRequested)`, `inventory_published_`;
+`workshop/weave_desktop.cpp` `on(PaneInventoryRequested)`; `workshop/weave_seam.cpp`
+`on(PaneOffered)`; `desktop-pane/pane.cpp` `DesktopWeave`, `from_workshop`;
+`tests/test_workshop_panes_actions.cpp` case `"a desktop reloaded in place is not left waiting:
+its new image asks for the inventory and shows it, though nothing about the inventory changed"`,
+case `"an arriving presenter is answered the inventory as it is now, to itself alone, and an
+offer makes the next reading be said again"`.
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
+## WL-DESK-10 — The launcher's cursor is a pane's identity, and its window keeps it in view
+
+LAW — The launcher holds the row a maker is on by its two durable keys, shows it through a window that follows it, and reserves its feedback rows before the list is laid out.
+
+MEANS
+- a row moving under the cursor moves the marker with it, and Return opens what is marked;
+- a marked pane that leaves the list is said, and Return waits for a choice, not a neighbour;
+- every cut in the list is counted on a row of its own.
+
+DOES NOT MEAN
+- that the launcher owns the inventory: it keeps the host's last reading and edits none of it.
+
+PROVEN BY — `desktop-pane/vocabulary.hpp` `DesktopState`, `DesktopState::cursor_office`,
+`DesktopState::cursor_pane`; `desktop-pane/pane.cpp` `window_for`, `ListWindow`,
+`find_cursor`, `launch_cursor`; `tests/test_workshop_panes_actions.cpp` case `"the launcher
+keeps the row it will open in view, and its feedback on a row of its own"`, case `"the
+launcher's cursor is an identity: rows moving under it do not retarget Return, and a row that
+left the list is said, not replaced"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## Do not assume

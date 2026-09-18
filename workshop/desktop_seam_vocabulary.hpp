@@ -115,31 +115,10 @@ struct AppActionRequested {
     ZEN_SHAPE(AppActionRequested, 1, ZEN_FIELD(id));
 };
 
-/// ⭐ WORKSHOP REFUSED A DECLARATION, AND THE DECLARER IS TOLD (BL-WORK-04).
-///
-/// THE GAP THIS CLOSES, IN THE FOUNDER'S WORDS: "It should be able to know, so it can do so
-/// gracefully." Before this shape, a provider whose `PaneActions` lost the collision law was
-/// told nothing at all: Workshop named the pane and the collision on its own band, retained the
-/// last accepted rows, and the provider went on believing its keys were live.
-///
-/// ⚠ THIS IS APPLICATION REJECTION AFTER DELIVERY, NOT LOOM DISPATCH REFUSAL. The shape
-/// arrived, was decoded and was judged; `zen.DispatchRefused` answers a different question (was
-/// it admitted to the bus at all) and neither substitutes for the other. A provider that hears
-/// nothing was ACCEPTED -- silence here is the accept, because the refusal is the exception.
-///
-/// ⚠ AND IT MANDATES NOTHING. Workshop owns the fact; the provider owns its recovery policy. It
-/// may re-declare on different gestures, drop the rows, tell the maker in its own room, or do
-/// nothing at all. Workshop does not ask it to abandon a mode, discard a draft or choose
-/// different bindings, and does not retry.
-struct ActionsRefused {
-    /// The pane key whose rows were refused, in the declaring office's namespace -- or EMPTY
-    /// for an `AppActions` declaration, which names no pane.
-    std::string pane;
-    /// Workshop's own sentence, the one a maker reads on the band: which id, which gesture, and
-    /// what it collided with. The declaration's own words, not a code.
-    std::string refusal;
-    ZEN_SHAPE(ActionsRefused, 1, ZEN_FIELD(pane), ZEN_FIELD(refusal));
-};
+// ⭐ A VERDICT ON AN `AppActions` DECLARATION IS THE PANE PROTOCOL'S `ActionsJudged`, answered to
+// the declaration, and a later withdrawal is `ActionsWithdrawn` (workshop/pane_vocabulary.hpp):
+// one pair of shapes for both declaration surfaces, so BL-WORK-04 is not owed twice. An earlier
+// `ActionsRefused` on this seam named no attempt and no declaration; it was never published.
 
 // ---- Launching -----------------------------------------------------------------------------
 
@@ -241,6 +220,18 @@ struct InventoryPane {
 struct PaneInventory {
     std::vector<InventoryPane> panes;
     ZEN_SHAPE(PaneInventory, 1, ZEN_FIELD(panes));
+};
+
+/// TELL ME THE INVENTORY AS IT IS NOW -- asked by a presenter that has just arrived (a new or a
+/// replaced incarnation), and answered with `PaneInventory` to that incarnation alone.
+///
+/// ⚠ WHY A QUESTION AND NOT ONLY THE PUBLICATION. The publication is said when the reading
+/// CHANGES; a presenter that arrives while nothing changes -- a desktop reloaded in place, the
+/// inventory exactly as it was -- would otherwise wait for an unrelated change to learn a fact
+/// the owner already holds. Asked as an office, answered once, and the answer is a reading of the
+/// one inventory, not a second copy of it.
+struct PaneInventoryRequested {
+    ZEN_SHAPE(PaneInventoryRequested, 1);
 };
 
 // ---- The backdrop ---------------------------------------------------------------------------

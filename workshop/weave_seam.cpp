@@ -65,6 +65,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     conditions_said_ = false;
     document_said_ = false;   // ...and the same for the document's picture, for the same reason
     transcript_said_ = false; // ...and the terminal participant's record, for the same reason
+    inventory_published_ = false; // ...and the inventory, which a presenter reads (WL-DESK-04)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the picker and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
@@ -109,11 +110,12 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     // exactly what they were.
     const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
-        // ⭐ AND THE DECLARER IS TOLD (BL-WORK-04). The band names the pane and the reason for
-        // the MAKER; this sentence names them for the PROVIDER, which is the party that can do
-        // something about it. Both say the same words, because two wordings of one refusal is
-        // two refusals to reconcile.
-        say_actions_refused(std::string(office), pane, admitted.written.refusal, mail);
+        // ⭐ AND THE DECLARER IS ANSWERED (BL-WORK-04). The band names the pane and the reason
+        // for the MAKER; the verdict names them for the PROVIDER, which is the party that can do
+        // something about it -- as the answer to this declaration, so it carries the number the
+        // declaration was sent under. Both say the same words.
+        answer_declaration(std::string(office),
+                           ActionsJudged{pane, false, 0, admitted.written.refusal}, mail);
         repaint(mail);
         return;
     }
@@ -121,22 +123,28 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
         const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
-        say_actions_refused(std::string(office), pane,
-                            (row != nullptr ? row->name + " @" + row->provider + ": "
-                                            : std::string()) +
-                                joined.refusal,
-                            mail);
+        answer_declaration(std::string(office),
+                           ActionsJudged{pane, false, 0,
+                                         (row != nullptr ? row->name + " @" + row->provider + ": "
+                                                         : std::string()) +
+                                             joined.refusal},
+                           mail);
         repaint(mail);
         return;
     }
     // BOTH HALVES PASSED; ONLY NOW IS ANYTHING WRITTEN. The row is looked up again by
-    // handle, because nothing holds a pointer into `entries` (panel.hpp).
+    // handle, because nothing holds a pointer into `entries` (panel.hpp). The declaration gets
+    // its number here, and the verdict below is the only place the declarer learns it.
+    const std::int64_t declaration = ++declarations_;
     for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.kind == admitted.kind) {
             row.actions = rows;
+            row.declaration = declaration;
         }
     }
     session_.keymap = std::move(candidate);
+    answer_declaration(std::string(office), ActionsJudged{pane, true, declaration, std::string()},
+                       mail);
     repaint(mail); // the legend and the hotkey view read the map at every paint
 }
 
@@ -149,10 +157,11 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
     struct Dropped {
         std::string office;
         std::string pane;
+        std::int64_t declaration = 0;
         std::string refusal;
     };
     std::vector<Dropped> told;
-    for (const RuntimePane& row : session_.panels.runtime.entries) {
+    for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.actions.empty()) {
             continue;
         }
@@ -166,15 +175,19 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
         }
         const std::string said = row.name + " @" + row.provider + ": " + joined.refusal;
         refusals += said;
-        told.push_back(Dropped{row.provider, row.pane, said});
+        told.push_back(Dropped{row.provider, row.pane, row.declaration, said});
+        // ...AND THE DECLARATION IS NOT KEPT. It left the keymap, and a declaration kept here
+        // would come back into force at the next re-join without its declarer being told.
+        row.actions.clear();
+        row.declaration = 0;
     }
-    // ⭐ A RE-JOIN THAT DROPS A PANE'S ROWS IS A REJECTION LIKE ANY OTHER (BL-WORK-04), and
-    // this one is the rejection a provider is LEAST able to see coming: its declaration was
-    // accepted, and a keymap file read afterwards took the gesture away. Nothing about being
-    // told mandates a recovery -- the pane may re-declare elsewhere, or simply know.
+    // ⭐ A RE-JOIN THAT DROPS A PANE'S ROWS IS A WITHDRAWAL (BL-WORK-04), and this one is the
+    // rejection a provider is LEAST able to see coming: its declaration was accepted, and a keymap
+    // file read afterwards took the gesture away. It is not an answer -- the delivery it judged is
+    // over -- so it names the declaration by the number its verdict gave it. Nothing about being
+    // told mandates a recovery: the pane may re-declare elsewhere, or simply know.
     for (const Dropped& d : told) {
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(d.office, ActionsRefused{d.pane, d.refusal});
+        say_withdrawn(d.office, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
     }
 }
 

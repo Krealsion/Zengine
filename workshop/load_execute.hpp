@@ -369,7 +369,7 @@ enum class Realization : std::uint8_t {
     Advancing, ///< inside `advance`: performing what is knowable now (transient)
     Loading,   ///< a `zen.LoadWeave` conversation is outstanding for the current row
     Waiting,   ///< the frontier row is waiting on the maker; the walk stopped there
-    Complete,  ///< every authored row resolved
+    Complete,  ///< every authored row settled: resolved, or authored optional and unavailable
     Failed,    ///< a row refused; progression stopped and earlier rows still stand
 };
 
@@ -420,6 +420,10 @@ enum class Realization : std::uint8_t {
 /// `Switched` IS THE SEVENTH, and a switch's (`record_choice_holder`): the row resolved, and the
 /// office it held was moved to another authored choice. It is not `Refused` (nothing refused) and
 /// not `Resolved` (nothing of it is running).
+///
+/// `Unavailable` IS THE EIGHTH (P-WORK-22): an OPTIONAL row that refused and was stepped over.
+/// It is settled -- the walk will not return to it this run -- and it is not `Authored`, which
+/// would tell a reader nothing had tried; its reason is `unavailable_why`.
 enum class RowState : std::uint8_t {
     Authored,
     Pending,
@@ -427,7 +431,8 @@ enum class RowState : std::uint8_t {
     Resolved,
     Refused,
     Reloading,
-    Switched
+    Switched,
+    Unavailable
 };
 
 /// THE KERNEL'S REASON FOR REFUSING A RELOAD, SAID IN A MAKER'S WORDS (RELOAD-1).
@@ -1597,10 +1602,29 @@ public:
         if (current_.stem == stem && state_ == Realization::Failed) {
             return RowState::Refused;
         }
+        for (const SteppedOver& gone : stepped_over_) {
+            if (gone.stem == stem) {
+                return RowState::Unavailable;
+            }
+        }
         if (waiting_on() == stem) {
             return RowState::Pending;
         }
         return RowState::Authored;
+    }
+
+    /// WHY AN `Unavailable` OR `Refused` ROW IS NOT RUNNING: the refusing layer's own sentence,
+    /// without the artifact prefix the banner writes in front of it. Empty for every other row.
+    std::string reason_of(const std::string& stem) const {
+        for (const SteppedOver& gone : stepped_over_) {
+            if (gone.stem == stem) {
+                return gone.why;
+            }
+        }
+        if (state_ == Realization::Failed && current_.stem == stem) {
+            return refused_why_;
+        }
+        return std::string();
     }
 
     /// The correlation of the load conversation currently outstanding, or 0.
@@ -1629,14 +1653,21 @@ public:
         out.refusal = refusal_;
         out.resolved = resolved_;
         out.waiting_on = waiting_on();
-        out.unavailable = unavailable_;
+        out.unavailable = unavailable();
         return out;
     }
 
-    /// THE OPTIONAL ROWS THIS RUN COULD NOT PERFORM, in the order it met them. Read by the
-    /// host that reports them and by the presentation that explains them; never cleared, because
-    /// a tool that was not there at boot was not there at boot however the run continues.
-    const std::vector<std::string>& unavailable() const noexcept { return unavailable_; }
+    /// THE OPTIONAL ROWS THIS RUN COULD NOT PERFORM, in the order it met them, each as the banner
+    /// says it. Never cleared: a tool that was not there at boot was not there at boot however
+    /// the run continues. The structured answer per row is `state_of` and `reason_of`.
+    std::vector<std::string> unavailable() const {
+        std::vector<std::string> out;
+        out.reserve(stepped_over_.size());
+        for (const SteppedOver& gone : stepped_over_) {
+            out.push_back("artifact '" + gone.stem + "': " + gone.why);
+        }
+        return out;
+    }
 
     /// UNMOUNT ONE RECORD'S PROVIDER CONTRIBUTION, and only that record's.
     ///
@@ -2000,7 +2031,7 @@ private:
         // refusal as the outcome of their gesture, whatever the plan says about the row.
         if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
             plan_.artifacts[cursor_].optional) {
-            unavailable_.push_back(said);
+            stepped_over_.push_back(SteppedOver{current_.stem, why});
             current_ = ResolvedArtifact{};
             state_ = Realization::Advancing;
             return;
@@ -2013,14 +2044,15 @@ private:
             return;
         }
         refusal_ = said;
+        refused_why_ = why;
         state_ = Realization::Failed;
         announce();
     }
 
-    /// EVERY AUTHORED ROW RESOLVED, AND THAT IS WHAT THIS WORD MEANS. It is
-    /// reachable from exactly one place -- the walk running off the END of the plan --
-    /// and the walk cannot reach the end past a row it did not perform, so `Complete`
-    /// and an unresolved authored row cannot coexist.
+    /// EVERY AUTHORED ROW SETTLED, AND THAT IS WHAT THIS WORD MEANS. It is reachable from
+    /// exactly one place -- the walk running off the END of the plan -- and the walk passes a
+    /// row only by performing it or, for a row authored optional, by recording it
+    /// `Unavailable`. So `Complete` is not "every row succeeded": `unavailable()` is the rest.
     ///
     /// It is a fact about realization and about nothing else: it does not stop the bus,
     /// end the host or claim the process is done.
@@ -2074,8 +2106,16 @@ private:
     LoadPlan plan_;
     /// WHICH AUTHORED ROW IS BEING REALIZED. It was `run()`'s loop index.
     std::size_t cursor_ = 0;
-    /// ⭐ THE OPTIONAL ROWS THAT REFUSED, each with the refusing layer's own sentence.
-    std::vector<std::string> unavailable_;
+    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER, each with the refusing layer's
+    /// own sentence -- the record `state_of` answers `Unavailable` from.
+    struct SteppedOver {
+        std::string stem;
+        std::string why;
+    };
+    std::vector<SteppedOver> stepped_over_;
+    /// THE REFUSING LAYER'S OWN SENTENCE FOR THE ONE ROW THAT STOPPED THE PLAN (`refusal_` is
+    /// it with the artifact written in front, as the banner says it).
+    std::string refused_why_;
     /// THE ROW BEING BUILT. It was `perform()`'s `ResolvedArtifact& done`.
     ResolvedArtifact current_;
     /// THE OFFER AROUND THE CURRENT LOAD -- the one thing here whose LIFETIME, rather

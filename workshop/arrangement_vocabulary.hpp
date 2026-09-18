@@ -183,6 +183,10 @@ inline constexpr const char* kReloadingToken = "reloading";
 /// another choice the plan authors for that office. Nothing of the row is running -- it carries
 /// no weave -- and the choice now holding the office is a row of its own in the same answer.
 inline constexpr const char* kSwitchedToken = "switched";
+/// `unavailable` IS THE EIGHTH: an optional row that refused and that realization stepped over.
+/// Settled, not running, not "not reached". Only `v2::ResolvedArrangement` carries it; an asker
+/// reading version 1 is told `refused`, the nearest word that version has, never `authored`.
+inline constexpr const char* kUnavailableToken = "unavailable";
 
 /// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
 ///
@@ -279,6 +283,43 @@ struct ResolvedArrangement {
 
     ZEN_SHAPE(ResolvedArrangement, 1, ZEN_FIELD(plan), ZEN_FIELD(artifacts));
 };
+
+namespace v3 {
+/// ONE AUTHORED PARTICIPANT, WITH WHY IT IS NOT RUNNING AND WHAT A MAKER CAN DO (P-WORK-22).
+///
+/// Version 2's fields unchanged, plus three: `optional` is the plan's own word for the row;
+/// `reason` is the refusing layer's sentence for a `refused` or `unavailable` row; `next` is the
+/// one action that would change the row, said by the owner that knows. `reason` explains; it is
+/// never an identity -- the row is still identified by `artifact`.
+struct ArtifactParticipation {
+    std::string artifact;
+    std::string authored_provider;
+    std::string authored_role;
+    bool optional = false;
+    std::string state = kAuthoredToken;
+    std::string reason;
+    std::string next;
+    std::string provider;
+    std::int64_t powers = 0;
+    std::int64_t weave = 0;
+    std::string offer;
+    ZEN_SHAPE(ArtifactParticipation, 3, ZEN_FIELD(artifact), ZEN_FIELD(authored_provider),
+              ZEN_FIELD(authored_role), ZEN_FIELD(optional), ZEN_FIELD(state),
+              ZEN_FIELD(reason), ZEN_FIELD(next), ZEN_FIELD(provider), ZEN_FIELD(powers),
+              ZEN_FIELD(weave), ZEN_FIELD(offer));
+};
+} // namespace v3
+
+namespace v2 {
+/// THE SAME ANSWER, CARRYING VERSION 3 ROWS. The door answers this version to an asker whose
+/// office accepts it and version 1 to one that does not, so a pane built before the fields
+/// existed is answered in the words it can read.
+struct ResolvedArrangement {
+    std::string plan;
+    std::vector<v3::ArtifactParticipation> artifacts;
+    ZEN_SHAPE(ResolvedArrangement, 2, ZEN_FIELD(plan), ZEN_FIELD(artifacts));
+};
+} // namespace v2
 
 // ---- The powers ---------------------------------------------------------------
 

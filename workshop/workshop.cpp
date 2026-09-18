@@ -1207,13 +1207,14 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-    // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
-    // a request for a declared row belongs to the office that declared it, and a refusal of a
-    // declaration belongs to the party that made it; a broadcast of either would tell every
-    // listening weave what another provider's keys are. `PaneInventory` is published, for
-    // `StandingConditions`' reason: which weave presents it is the load plan's business.
+    // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
+    // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
+    // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of
+    // either would tell every listening weave what another provider's keys are. `PaneInventory`
+    // is published, for `StandingConditions`' reason (and answered to an asker who arrived).
     speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
-    speak.allow_to_any(ActionsRefused::zen_name, ActionsRefused::zen_version);
+    speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
+    speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
@@ -1675,9 +1676,14 @@ int main(int argc, char** argv) {
     // hear an answer -- rather than like a new mechanism.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
+    say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
+                              v2::ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
-    mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole, executor,
-                                     operators, plan_path);
+    mount_in_office<ArrangementDoor>(
+        bus, std::move(say_resolved), kArrangementRole, executor, operators, plan_path,
+        [&bus](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        });
 
     // ---- AND THE ONE OFFICE THAT MAY RUN A SOURCE -----------------------------
     //

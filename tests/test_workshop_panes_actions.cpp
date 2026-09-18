@@ -44,6 +44,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "desktop-pane/vocabulary.hpp"
 #include "editor-pane/vocabulary.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
 
@@ -732,7 +733,9 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr); // joined under the defaults
         r.ready();
         CHECK(r.session().keymap.pane_rows(kind) == nullptr); // dropped under the file
-        CHECK(retained(r, kind).size() == 1);                  // the declaration is kept
+        // ...AND WITHDRAWN, NOT KEPT: a kept declaration would come back into force at a later
+        // re-join without its declarer being told (WL-DESK-06). It may declare again.
+        CHECK(retained(r, kind).empty());
         CHECK(r.last_notice().find("1 override") != std::string::npos);
         CHECK(r.last_notice().find("Seat @" + std::string(kHelloOffice) + ": " +
                                    collision_sentence(moved, "workshop.hotkeys", "hello.up")) !=
@@ -1384,4 +1387,428 @@ TEST_CASE("WL-KEY-16: a pane's row and an above-the-modes application row collid
         CHECK_FALSE(no.accepted);
         CHECK(no.refusal.find("desktop.terminal") != std::string::npos);
     }
+}
+
+// =============================================================================
+// THE REVIEW'S SIX, REPRODUCED AND PINNED -- against the real desktop image, not a stand-in
+//
+// Each case below is a failure an independent review reproduced on the first pass's head:
+// a reloaded desktop left waiting, a launcher cursor on a row it never showed, a refusal
+// that named no attempt, and a departed provider presented as available. The images are the
+// ones this tree built; the paths are the ones a maker's gestures take.
+// =============================================================================
+
+namespace {
+
+namespace dp = zengine::desktop_pane;
+
+/// LOAD THE SHIPPED DESKTOP THROUGH THE REAL KERNEL, in its office.
+loom::WeaveId load_real_desktop(PaneRig& r) {
+    const loom::WeaveId id = r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole);
+    REQUIRE(id.valid());
+    REQUIRE(r.load_refusals.empty());
+    return id;
+}
+
+/// WHAT THE LAUNCHER PANE IS SHOWING, one row per line -- the rows Workshop admitted from the
+/// weave, read off the presentation's own copy.
+std::string launcher_text(PaneRig& r) {
+    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    REQUIRE(row != nullptr);
+    const ExternalPane* shown = r.session().panels.external_pane(row->kind);
+    REQUIRE(shown != nullptr);
+    CHECK(shown->refusal.empty()); // every publication fit the room it was granted
+    std::string text;
+    for (const surface::SurfaceTextRow& line : shown->shown) {
+        text += line.text + "\n";
+    }
+    return text;
+}
+
+/// THE ROW OF THE LAUNCHER CARRYING THE MARKER, or empty.
+std::string marked_row(PaneRig& r) {
+    const std::string text = launcher_text(r);
+    std::size_t at = 0;
+    while (at < text.size()) {
+        const std::size_t end = text.find('\n', at);
+        const std::string line = text.substr(at, end - at);
+        if (line.rfind("> ", 0) == 0 || line.rfind("? ", 0) == 0) {
+            return line;
+        }
+        at = end == std::string::npos ? text.size() : end + 1;
+    }
+    return std::string();
+}
+
+/// A PRESENTER THAT LISTENS TO THE INVENTORY, AND ASKS FOR IT. It counts publications and
+/// keeps each answer with Loom's word on whether it answers this weave's ask.
+struct InventoryEarState {
+    ZEN_SHAPE(InventoryEarState, 1);
+};
+class InventoryEar
+    : public loom::WeaveBase<InventoryEar, InventoryEarState,
+                             loom::Accept<PaneInventory, SeatDo>,
+                             loom::Emit<PaneInventoryRequested, PaneOffered>> {
+public:
+    void on(const PaneInventory& said, loom::Mail& mail) {
+        (mail.answers_ask() ? answers : publications).push_back(said);
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(InventoryEar&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+    std::vector<PaneInventory> answers;
+    std::vector<PaneInventory> publications;
+    std::function<void(InventoryEar&, loom::Mail&)> next;
+    static constexpr const char* kOffice = "zengine.test.inventory-ear";
+};
+
+InventoryEar* mount_ear(PaneRig& r, loom::WeaveId& id) {
+    auto seat = std::make_unique<InventoryEar>();
+    InventoryEar* raw = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    id = r.bus.register_weave(std::move(seat), std::move(grant), InventoryEar::kOffice);
+    raw->zen_set_self(id);
+    return raw;
+}
+
+void ear_does(PaneRig& r, loom::WeaveId id, InventoryEar* ear,
+              std::function<void(InventoryEar&, loom::Mail&)> what) {
+    ear->next = std::move(what);
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{},
+                                       0));
+    r.bus.drain_until_idle();
+}
+
+} // namespace
+
+TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks for the inventory "
+          "and shows it, though nothing about the inventory changed") {
+    TempDir copy("desktop-reload");
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    r.key(input::scan::kP, input::mod::kCtrl);
+    REQUIRE(launcher_text(r).find("PANES -- ") != std::string::npos);
+    const std::string held = marked_row(r);
+    REQUIRE_FALSE(held.empty());
+
+    // THE SAME IMAGE UNDER A FRESH PATH, reloaded through the control door: the inventory is
+    // exactly what it was, so no publication is owed on its account.
+    const std::string image =
+        copy.file(("zengine-desktop-again" +
+                   std::filesystem::path(WORKSHOP_SO_DESKTOP_PANE).extension().string())
+                      .c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_DESKTOP_PANE, image);
+    r.enqueue_reload(dp::kDesktopStem, image);
+    r.bus.drain_until_idle();
+    REQUIRE(r.load_refusals.empty());
+
+    const std::string text = launcher_text(r);
+    CHECK(text.find("PANES (waiting)") == std::string::npos);
+    CHECK(text.find("PANES -- ") != std::string::npos);
+    // ...AND THE ROW THE MAKER WAS ON IS STILL THE ONE MARKED: the state kept its identity.
+    CHECK(marked_row(r) == held);
+}
+
+TEST_CASE("an arriving presenter is answered the inventory as it is now, to itself alone, and an "
+          "offer makes the next reading be said again") {
+    // MUTATION (R1a): `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
+    // MUTATION (R1b): `on(PaneOffered)` not clearing `inventory_published_` -- the re-offer
+    // below is followed by no publication, since nothing in the reading changed.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    loom::WeaveId id{};
+    InventoryEar* ear = mount_ear(r, id);
+    r.key(input::scan::kA); // any gesture: the reading is said once, before anything is asked
+    const std::size_t heard = ear->publications.size();
+
+    ear_does(r, id, ear, [](InventoryEar&, loom::Mail& m) {
+        (void)m.as_role(InventoryEar::kOffice)
+            .send_to_role(kWorkshopProvider, PaneInventoryRequested{});
+    });
+    REQUIRE(ear->answers.size() == 1);
+    CHECK_FALSE(ear->answers[0].panes.empty());
+    CHECK(ear->publications.size() == heard); // an answer is not a publication to everyone
+
+    // ...AND AN ASK THAT IS PERSONAL SPEECH IS ANSWERED BY NOBODY.
+    ear_does(r, id, ear, [](InventoryEar&, loom::Mail& m) {
+        (void)m.send_to_role(kWorkshopProvider, PaneInventoryRequested{});
+    });
+    CHECK(ear->answers.size() == 1);
+
+    // AN OFFER IS THE MOMENT A NEW LISTENER CERTAINLY EXISTS: the unchanged reading is said again.
+    ear_does(r, id, ear, [](InventoryEar&, loom::Mail& m) {
+        (void)m.as_role(InventoryEar::kOffice)
+            .send_to_role(kWorkshopProvider, PaneOffered{"ear", "Ear", "an inventory listener"});
+    });
+    CHECK(ear->publications.size() > heard);
+}
+
+TEST_CASE("the launcher keeps the row it will open in view, and its feedback on a row of its own") {
+    // MUTATION (L1): `window_for` answering the first rows whatever the cursor -- the marker and
+    // the last tool's name are gone from the text below.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    ProviderSeat* tools = r.mount_provider("zengine.test.tools");
+    r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
+        for (int i = 0; i < 12; ++i) {
+            s.offer(m, PaneOffered{"tool-" + std::to_string(i), "Tool " + std::to_string(i),
+                                   "a review fixture"});
+        }
+    });
+    load_real_desktop(r);
+    r.key(input::scan::kP, input::mod::kCtrl);
+    const std::vector<CatalogRow> inventory =
+        inventory_rows(r.session().setup.active, r.session().panels);
+    REQUIRE(inventory.size() > 8); // longer than the launcher's room, which is the point
+    CHECK(marked_row(r).find(inventory.front().name) != std::string::npos);
+
+    for (std::size_t i = 1; i < inventory.size(); ++i) {
+        r.key(input::scan::kDown);
+    }
+    const std::string text = launcher_text(r);
+    CHECK(marked_row(r).find(inventory.back().name) != std::string::npos);
+    CHECK(text.find("more above") != std::string::npos); // the cut is counted, not hidden
+    CHECK(text.find(inventory.front().name + "\n") == std::string::npos);
+
+    // BACK TO THE TOP, and the window follows.
+    for (std::size_t i = 1; i < inventory.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    CHECK(marked_row(r).find(inventory.front().name) != std::string::npos);
+    CHECK(launcher_text(r).find("more below") != std::string::npos);
+}
+
+TEST_CASE("the launcher's cursor is an identity: rows moving under it do not retarget Return, and "
+          "a row that left the list is said, not replaced") {
+    // MUTATION (L2): `find_cursor` keeping the index and ignoring the identity -- after the row
+    // above it leaves, the marker lands on the row below and Return opens that one.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    load_real_desktop(r);
+    Session& s = const_cast<Session&>(r.session());
+    for (const char* ghost : {"g1", "g2", "g3"}) {
+        REQUIRE(add_pane(s.setup.active, PaneRef{"zengine.test.ghost", ghost}));
+    }
+    r.key(input::scan::kP, input::mod::kCtrl);
+    std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panels);
+    std::size_t g2 = inventory.size();
+    for (std::size_t i = 0; i < inventory.size(); ++i) {
+        g2 = inventory[i].ref.pane == "g2" ? i : g2;
+    }
+    REQUIRE(g2 < inventory.size());
+    for (std::size_t i = 0; i < g2; ++i) {
+        r.key(input::scan::kDown);
+    }
+    REQUIRE(marked_row(r).find("g2") != std::string::npos);
+
+    // THE ROW ABOVE LEAVES THE LIST: g2 now has g1's index, and the marker follows g2.
+    REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g1"}));
+    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the changed inventory is said
+    CHECK(marked_row(r).find("g2") != std::string::npos);
+    CHECK(marked_row(r).find("g3") == std::string::npos);
+    r.key(input::scan::kReturn);
+    CHECK(r.last_notice().find("g2 is not available") != std::string::npos); // g2, by identity
+
+    // ...AND THE ROW THE MARKER HOLDS LEAVES: said, and Return waits for a choice.
+    REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g2"}));
+    r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(marked_row(r).rfind("? ", 0) == 0);
+    CHECK(launcher_text(r).find("g2 left the list") != std::string::npos);
+    const std::string before = r.last_notice();
+    r.key(input::scan::kReturn);
+    CHECK(r.last_notice() == before); // no launch was asked for
+    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
+    CHECK(launcher_text(r).find("g2 left the list") != std::string::npos); // still said
+}
+
+TEST_CASE("a verdict answers the declaration it judges: a refused attempt is named by its own "
+          "number after a later one was accepted, and an accepted one is given Workshop's") {
+    // MUTATION (V1): answering the verdict with an ordinary send -- the correlation is zero and
+    // `answers_ask()` is false.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    DesktopSeat* desk = mount_desktop(t);
+    REQUIRE(desk->verdicts().size() == 1); // the mount's own declaration
+    const std::int64_t first = desk->verdicts()[0].said.declaration;
+    CHECK(desk->verdicts()[0].said.accepted);
+    CHECK(first > 0);
+
+    AppActions bad;
+    bad.rows.push_back(AppActionRow{"demo.open", "launch", input::scan::kC, input::mod::kCtrl,
+                                    app_precedence::kAboveModes}); // ctrl+c is the host's quit
+    AppActions good;
+    good.rows.push_back(AppActionRow{"demo.open", "launch", input::scan::kY, input::mod::kCtrl,
+                                     app_precedence::kAboveModes});
+    desktop_does(t, desk, [bad, good](DesktopSeat& d, loom::Mail& m) {
+        d.declare(m, bad, 101);
+        d.declare(m, good, 102);
+    });
+    REQUIRE(desk->verdicts().size() == 3);
+    const DesktopSeat::Verdict& refused = desk->verdicts()[1];
+    const DesktopSeat::Verdict& accepted = desk->verdicts()[2];
+    CHECK(refused.correlation == 101);
+    CHECK(refused.answer);
+    CHECK_FALSE(refused.said.accepted);
+    CHECK(refused.said.declaration == 0);
+    CHECK(refused.said.refusal.find("demo.open") != std::string::npos);
+    CHECK(accepted.correlation == 102);
+    CHECK(accepted.answer);
+    CHECK(accepted.said.accepted);
+    CHECK(accepted.said.declaration > first); // a number of its own, never reused
+    const AppRow* row = t.session().keymap.app_row_of_id("demo.open");
+    REQUIRE(row != nullptr);
+    CHECK(row->gesture == Gesture{input::scan::kY, input::mod::kCtrl});
+}
+
+TEST_CASE("a declaration the keymap file displaces is withdrawn by the number its verdict gave "
+          "it, and a pane that reads verdicts learns both") {
+    // MUTATION (V2): `rejoin_app_rows` keeping the rows it could not join -- no withdrawal, and
+    // the application rows stay out of the keymap with their declarer believing them in force.
+    TempDir dir("desktop-withdrawn");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+c"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    DesktopSeat* desk = mount_desktop(r);
+    REQUIRE(desk->verdicts().size() == 1);
+    const std::int64_t in_force = desk->verdicts()[0].said.declaration;
+    REQUIRE(in_force > 0);
+    REQUIRE(r.session().keymap.app_row_of_id("desktop.terminal") != nullptr);
+
+    r.ready(); // the file loads, and moves `desktop.terminal` onto the host's quit
+    REQUIRE(desk->withdrawals().size() == 1);
+    CHECK(desk->withdrawals()[0].declaration == in_force);
+    CHECK(desk->withdrawals()[0].pane.empty());
+    CHECK(desk->withdrawals()[0].refusal.find("desktop.terminal") != std::string::npos);
+    CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
+}
+
+TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the successor's rows: "
+          "the reloaded desktop shows only its own verdict") {
+    // THE CROSSING, ORDERED EXACTLY: the file's load withdraws the first image's declaration
+    // while a reload of the desktop is queued behind it, so the withdrawal is delivered to the
+    // SECOND image -- which never held that number, and says nothing about it.
+    TempDir dir("desktop-crossing");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+c"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    const std::string image =
+        dir.file(("zengine-desktop-successor" +
+                  std::filesystem::path(WORKSHOP_SO_DESKTOP_PANE).extension().string())
+                     .c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_DESKTOP_PANE, image);
+    (void)r.bus.publish(loom::Message(loom::to_value(surface::SurfaceReady{}), loom::WeaveId{},
+                                      loom::WeaveId{}, 0));
+    r.enqueue_reload(dp::kDesktopStem, image);
+    r.bus.drain_until_idle();
+    REQUIRE(r.load_refusals.empty());
+
+    std::string floor;
+    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
+        floor += row.text + "\n";
+    }
+    CAPTURE(floor);
+    const std::string notice = r.last_notice();
+    CAPTURE(notice);
+    const bool app_rows_in_force = r.session().keymap.app_row_of_id("desktop.terminal") != nullptr;
+    CAPTURE(app_rows_in_force);
+    const std::string word = r.session().keymap.authored.empty() ? "no authored rows" : "authored";
+    CAPTURE(word);
+    // THE SUCCESSOR'S OWN DECLARATION MEETS THE SAME FILE AND IS REFUSED -- its verdict, shown.
+    CHECK(floor.find("keys refused:") != std::string::npos);
+    // THE PREDECESSOR'S WITHDRAWAL NAMES A NUMBER THIS IMAGE NEVER HELD, and is not shown.
+    CHECK(floor.find("keys withdrawn:") == std::string::npos);
+}
+
+TEST_CASE("a pane whose provider left is unavailable in the launcher and refused at launch, while "
+          "its identity and the desk row naming it stay") {
+    // MUTATION (A1): `provider_present` answering from the catalog alone -- Info reads `[open]`
+    // after its library is unloaded, and its launch is not refused.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    load_real_desktop(r);
+    REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
+    REQUIRE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+    const PaneRef info{"zengine.info", "info"};
+    REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
+
+    r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(launcher_text(r).find("[open] Info") != std::string::npos);
+
+    REQUIRE(r.unload("zengine-info-pane"));
+    REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the reading is taken again, now
+    CHECK(launcher_text(r).find("[gone] Info") != std::string::npos);
+    std::string floor;
+    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
+        floor += row.text + "\n";
+    }
+    CHECK(floor.find("unavailable: Info") != std::string::npos);
+
+    // THE LAUNCH JUDGMENT ASKS THE SAME FACT, AT ITS OWN MOMENT.
+    const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
+                                                        r.session().panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == info ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        r.key(input::scan::kDown);
+    }
+    r.key(input::scan::kReturn);
+    CHECK(r.last_notice().find("nothing holds `zengine.info` now") != std::string::npos);
+    // ...AND NOTHING AUTHORED MOVED: the desk still names Info, and its identity is known.
+    CHECK(has_pane(r.session().setup.active, info));
+    CHECK(r.session().panels.runtime.find("zengine.info", "info") != nullptr);
+
+    // PRESENCE COMES BACK WITH A HOLDER: loaded again, it is available again.
+    REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
+    r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(launcher_text(r).find("[gone] Info") == std::string::npos);
+}
+
+TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, and only for the "
+          "attempt it is waiting on") {
+    TempDir dir("desktop-own-verdict");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+c"}}));
+    PaneRig r;
+    r.host.keymap_path = path;
+    r.mount_workshop();
+    r.ready(); // the file first: the desktop's declaration meets it at admission
+    r.extent(160, 48);
+    load_real_desktop(r);
+    std::string floor;
+    for (const surface::SurfaceTextRow& row : r.session().backdrop) {
+        floor += row.text + "\n";
+    }
+    CAPTURE(floor);
+    CHECK(floor.find("keys refused:") != std::string::npos);
+    CHECK(r.session().keymap.app_row_of_id("desktop.terminal") == nullptr);
 }
