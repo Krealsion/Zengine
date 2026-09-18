@@ -670,7 +670,9 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
     InfoRig f;
     f.open();
     Session& s = const_cast<Session&>(f.r.session());
-    f.inspect("Layouts"); // a subject of the maker's own, which nothing below may move
+    // A SUBJECT OF THE MAKER'S OWN -- not the list's first row, which a reload that forgot the
+    // choice would hold and inspect -- that nothing below may move.
+    f.inspect("Info");
     const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
     REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
 
@@ -711,7 +713,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
         p.offer(m, PaneOffered{"tool", "Tool", "a publication after the replacement"});
     });
     CHECK_MESSAGE(f.row_of("?") >= 0, f.text());
-    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
 
     // RETURN, WITH INFO HOLDING THE KEYS: nothing is asked of the host, and the subject stands.
     f.focus();
@@ -720,20 +722,20 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
         f.r.key(input::scan::kReturn);
         CHECK(asks.others == 0);
     }
-    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
     CHECK(f.text().find("Return inspected no") != std::string::npos);
 
-    // A ROW CHOSEN NOW IS THE CHOICE -- Info's own -- and Return inspects it.
+    // A ROW CHOSEN NOW IS THE CHOICE -- Layouts -- and Return inspects it.
     const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
-    std::size_t info_at = now.size();
+    std::size_t layouts_at = now.size();
     for (std::size_t i = 0; i < now.size(); ++i) {
-        info_at = now[i].ref == pane_info_ref() ? i : info_at;
+        layouts_at = now[i].ref == layouts_ref() ? i : layouts_at;
     }
-    REQUIRE(info_at < now.size());
+    REQUIRE(layouts_at < now.size());
     for (std::size_t i = 0; i < now.size(); ++i) {
         f.r.key(input::scan::kUp);
     }
-    for (std::size_t i = 0; i < info_at; ++i) {
+    for (std::size_t i = 0; i < layouts_at; ++i) {
         f.r.key(input::scan::kDown);
     }
     {
@@ -741,7 +743,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
         f.r.key(input::scan::kReturn);
         CHECK(asks.others == 1);
     }
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.r.session().inspected.ref == layouts_ref());
 }
 
 TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into it") {
