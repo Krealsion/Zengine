@@ -1536,8 +1536,10 @@ TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks f
 TEST_CASE("an arriving presenter is answered the inventory as it is now, to itself alone, and an "
           "offer makes the next reading be said again") {
     // MUTATION (R1a): `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
-    // MUTATION (R1b): `on(PaneOffered)` not clearing `inventory_published_` -- the re-offer
-    // below is followed by no publication, since nothing in the reading changed.
+    // MUTATION (R1b): `on(PaneOffered)` not clearing `inventory_published_` -- the SECOND,
+    // identical offer below is followed by no publication, since nothing in the reading changed.
+    // (The first offer adds the ear's own row, so it is said on its own account; asserting only
+    // that one let this mutation survive -- measured, which is why there are two.)
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1561,12 +1563,27 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
     });
     CHECK(ear->answers.size() == 1);
 
-    // AN OFFER IS THE MOMENT A NEW LISTENER CERTAINLY EXISTS: the unchanged reading is said again.
-    ear_does(r, id, ear, [](InventoryEar&, loom::Mail& m) {
+    // AN OFFER IS THE MOMENT A NEW LISTENER CERTAINLY EXISTS: the reading is said again even when
+    // nothing in it changed. The first offer adds this ear's own row, which changes the reading;
+    // the same offer again changes nothing, and is what the record's clearing is for.
+    const auto offer = [](InventoryEar&, loom::Mail& m) {
         (void)m.as_role(InventoryEar::kOffice)
             .send_to_role(kWorkshopProvider, PaneOffered{"ear", "Ear", "an inventory listener"});
-    });
-    CHECK(ear->publications.size() > heard);
+    };
+    ear_does(r, id, ear, offer);
+    const std::size_t first = ear->publications.size();
+    CHECK(first > heard);
+    ear_does(r, id, ear, offer);
+    REQUIRE(ear->publications.size() > first);
+    // ...AND IT IS THE SAME READING: the same rows, in the same order.
+    const std::vector<InventoryPane>& was = ear->publications[first - 1].panes;
+    const std::vector<InventoryPane>& now = ear->publications.back().panes;
+    REQUIRE(now.size() == was.size());
+    for (std::size_t i = 0; i < now.size(); ++i) {
+        CHECK(now[i].office == was[i].office);
+        CHECK(now[i].pane == was[i].pane);
+        CHECK(now[i].available == was[i].available);
+    }
 }
 
 TEST_CASE("the launcher keeps the row it will open in view, and its feedback on a row of its own") {
