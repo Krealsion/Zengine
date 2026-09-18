@@ -7,7 +7,7 @@
 // IT USED TO BE CHROME INSIDE THE HOST (`workshop/attention.hpp`'s `AttentionView`,
 // `screen_attention.cpp`'s `paint_attention`, a `KeyContext` of its own with four rows, and
 // a global chord that opened it from anywhere). It is an ordinary pane now, opened from the
-// picker, arranged on the desk, and holding the keyboard only while a maker has pressed
+// Pane Manager, arranged on the desk, and holding the keyboard only while a maker has pressed
 // into it.
 //
 // (!) WHAT IT SHOWS IT DOES NOT DERIVE, AND CANNOT. Every row of this pane is the HOST's

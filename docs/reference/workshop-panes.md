@@ -11,15 +11,27 @@ Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
 [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) ·
 [`workshop/screen.hpp`](../../workshop/screen.hpp).
 
+> ⚠ **Three things these contracts were written around have retired, and the rationale below
+> still names them where it was argued with them.** The prototype **object canvas** and its
+> document — a room of authored rectangles, saved and opened with `Ctrl`+`S`/`Ctrl`+`O` — is
+> gone: the room is empty, and an old `workshop.json` is named once at startup and left alone.
+> The **terminal overlay** is gone: the Terminal is a pane. And the **`p` picker** is gone with
+> the host's own **Pane Manager**: presence is two doors on the desktop seam
+> ([below](#the-panel-system)), the shipped desktop's Pane Manager spends them, and a pane as a
+> subject is Info's (`InspectPaneRequested`, `PaneCommitRequested`,
+> `workshop/inspection_seam_vocabulary.hpp`). Where a paragraph below says *picker*, read the
+> Pane Manager over those two doors; where it says *document* or *object*, it describes a room
+> that is empty now.
+
 ## The panel system
 
 > A weave may provide a tool; a **panel** is its presentation.
 
-`p` — advertised as `p + panel` by the band's legend and the hotkey view — opens a small
-picker over the catalog of panel kinds Workshop knows how to present (`panel.hpp`). The picker is still the only door — a pane
-that is not in the catalog cannot be opened by any gesture at all — and the catalog
-has **two halves**: a compile-time constant array of Workshop's own, and a bounded
-**session-local runtime catalog** of panes some office actually offered this run (see
+The **Pane Manager** — the desktop's pane, `Ctrl`+`p` — lists the one inventory Workshop says
+out loud and opens or closes a pane through the host's two doors. A pane that is not in the
+catalog cannot be opened by any gesture at all, and the catalog has **two halves**: a
+compile-time constant array of Workshop's own, and a bounded **session-local runtime catalog**
+of panes some office actually offered this run (see
 *[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The first two built-ins were
 chosen to be unalike:
 
@@ -32,16 +44,17 @@ chosen to be unalike:
 catalog: it arrives by a plan row naming `zengine-builder-pane`, exactly as `Files` does, and
 Workshop compiles nothing for it. It is left in the table because the pair is what the two
 paragraphs below argue with, and because a reader who finds the pane on their screen should be
-able to find out where it went. The built-in half of the catalog is `Layouts` and
-`Pane Manager`; `Info` and `Editor`, which were built-ins when this table was written, are loaded
-panes now (`zengine-info-pane`, `zengine-editor-pane`), and a setup naming either under
-`zengine.workshop` is converted at read.
+able to find out where it went. The built-in half of the catalog is `Layouts` alone. `Info`
+and `Editor`, which were built-ins when this table was written, are loaded panes now
+(`zengine-info-pane`, `zengine-editor-pane`), and so is the host's old `Pane Manager`, as the
+desktop's `zengine.desktop/launcher`; a setup naming any of them under `zengine.workshop` is
+converted at read.
 
 ⚠ **`Attention` is a loaded pane that was never a built-in one.** What is currently true used
 to be an OVERLAY: a global chord opened it, it owned the keyboard while it was up, it was drawn
 into a popup Workshop resolved for itself, and no saved setup could name it. It arrives by a
-plan row naming `zengine-attention-pane` now, and it is in the picker, on the desk and in the
-setup like anything else. What it shows it does not derive: Workshop publishes every current
+plan row naming `zengine-attention-pane` now, and it is in the Pane Manager, on the desk and in
+the setup like anything else. What it shows it does not derive: Workshop publishes every current
 condition as a value and the pane presents them — the one host-to-pane sentence this protocol
 has gained since panes began declaring their actions.
 
@@ -50,18 +63,21 @@ that sentence rather than asserting it: opening it sends no message, asks no off
 no weave mounted anywhere, and it has no per-panel state for a close to destroy. A Workshop
 hosting no tools at all opens it and it works.
 
-**The picker owns panel presence**. One door, both directions:
+**Presence is the desk's, and two doors change it** (`workshop/desktop_seam_vocabulary.hpp`):
 
 ```text
-closed panel  ->  select  ->  open
-open panel    ->  select  ->  remove
+PaneLaunchRequested{office, pane}  ->  open it, or focus it if it is open   (never toggles)
+PaneCloseRequested{office, pane}   ->  take its row off the live desk       (unloads nothing)
 ```
 
-so the picker lists each kind as `open` or `closed` beside its name — a toggle whose current
-state is invisible is a gesture a maker has to guess at. An earlier design spelled removal `x`, which was
-unambiguous while one kind existed; a second kind would have made that key choose a panel, and
-choosing means either a per-panel binding or a focused panel. Both are frameworks this Workshop
-has declined, so presence moved wholly to the picker and `x` is an unbound key again.
+Only an office may ask either, and each is answered to the asker. The shipped desktop's Pane
+Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
+(`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[room]`, `[gone]` —
+because a door whose current state is invisible is a gesture a maker has to guess at. (The `p`
+picker owned presence with ONE door in both directions — select a closed kind to open it, an open
+one to remove it — until it retired. Launching was built never to toggle for exactly that reason,
+and closing became a door of its own. `x` is the Pane Manager's own key; command mode still binds
+nothing to it.)
 
 **`Info` is open at boot**, and it was not always a panel at all: originally `paint`
 drew them unconditionally, and the only way to not have them was to edit `paint`. What the
@@ -123,9 +139,9 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   the workspace; a panel takes only the presses that land on it, because a maker with a panel
   open *is*. `occupied_at(panels, screen, cx, cy)` is the one question — it names no kind, and
   it asks the same `bounds_of` the painter was handed, so occupancy cannot drift from painting.
-  The picker answers too, as the mode that pads itself to a whole slot precisely so it cannot be
-  read through. **Only a press is occluded**, and the two asymmetries are why no capture, focus
-  or z-order state exists: a press on a panel begins nothing, so a pointer that later leaves it
+  (The picker answered too, as the mode that padded itself to a whole slot precisely so it could
+  not be read through, until it retired.) **Only a press is occluded**, and the two asymmetries
+  are why no capture, focus or z-order state exists: a press on a panel begins nothing, so a pointer that later leaves it
   drags nothing (the absence of a drag is the memory); a gesture that began on the workspace
   owns the pointer until its release, so the release ends it wherever the hand is — occluding
   that would strand a drag with the button up. **Motion is never occluded**, because stopping a
@@ -224,7 +240,7 @@ Setup
   one — both failures are otherwise silent.
 - **Resolution is fallible, and internal lookup stayed total.** `panel_kind(unknown)` still
   answers with the catalog's FIRST ROW, which is correct for its callers (they derive a kind
-  from a picker cursor or an open panel) and is an accident of order rather than a choice — it
+  from an open panel or a desk row) and is an accident of order rather than a choice — it
   was the Builder until that pane became a weave. `resolve_pane(ref, runtime)` is a **second,
   narrower door** that answers with *nothing*: an unknown provider or an unknown pane key
   resolves to no kind, and **an unknown reference never becomes a built-in**. Nothing that meets a file goes through the total
@@ -249,26 +265,28 @@ Setup
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
   is which panes a maker *meant*; `panels.open` is which presentations this build could make of
   that intent on this screen. `reconcile` (`workshop/setup.hpp`) is the only thing that opens or
-  closes a panel on a setup's behalf, and the picker now edits the **setup** rather than the panel
-  list — so a `p` gesture cannot leave the two describing different arrangements. Three cases are
+  closes a panel on a setup's behalf, and the two doors edit the **setup** rather than the panel
+  list — so neither door can leave the two describing different arrangements. Three cases are
   distinguished on purpose: a panel open on both sides is *left alone* (no lost view, no duplicate
   refresh), one that closes goes through `close_panel` (so a removed Builder's copied status is
   forgotten by the same act), and one that opens performs whatever asking that kind does — which
-  for the Builder is the `StatusRequested` the picker has always sent, and for Info is nothing.
+  is nothing, for every built-in now: the `StatusRequested` the picker once sent for the Builder
+  is the Builder pane's own, asked on its room grant.
 - **The setup is a separate value and a separate file from the document.** The same document is
   worth opening in two arrangements and the same arrangement is worth using over two documents, so
   a single project container would make both unsayable. `--setup <path>` (default
-  `workshop-setup.json`) is the setup's; `--document <path>` is the document's; `Ctrl+S`/`Ctrl+O`
-  remain **document** commands and touch no setup byte. Each reader refuses the other's file by
-  name rather than half-reading it.
+  `workshop-setup.json`) is the setup's; `--document <path>` was the document's, and
+  `Ctrl+S`/`Ctrl+O` were **document** commands that touched no setup byte. Each reader refuses the
+  other's file by name rather than half-reading it — and since the document retired with the
+  canvas, `--document` names an old file to be said once and left exactly as it is.
 - **`s` writes the layout you are on; `r` reads a Setup file into it.** Naming is a separate
   gesture: a one-line editor opened by double-clicking a layout's tab (or from that tab's
   contextual menu), where `enter` commits the rename and `esc` cancels, and which **writes no
   file at all**. The editor opens on the name the layout already has, reuses
   `component::TextBox` for the text, the caret and the window, and **swallows the character its
   own keystroke produced** — the key transition and the character are two facts that both
-  arrive. It is a mode, reachable only from command mode, so it cannot coexist with the picker
-  or with a live inspector draft.
+  arrive. It is a mode, reachable only from command mode, so it cannot coexist with the
+  contextual menu or with the arrangement.
 - **The first row of Workshop is the layout selector**: the tabs, a `+`, and — at the row's
   right-hand edge — the active layout's Setup status, `setup: none` or
   `setup: <path> | current|modified [| N unresolved] | s save  r restore`, fitted with
@@ -282,10 +300,10 @@ Setup
   rejected, and a name/key/count/byte ceiling refused *before* anything is copied into the live
   setup. Loading **returns** a candidate rather than writing into anything, so "a malformed file
   never leaves Workshop halfway restored" is structural: a refusal changes no panel, no setup, no
-  Builder view and no document byte. Saving goes through the document's own safe write, so a
-  detected failure leaves the last good setup file byte-identical.
+  Builder view and no other file's byte. Saving goes through the one safe write every durable file
+  here uses, so a detected failure leaves the last good setup file byte-identical.
 - **No resolved rectangle, no metric, and no session interaction state is persisted** in a setup
-  file. The picker's cursor, the Terminal's draft, the Builder's copied status and the selection
+  file. A list's cursor, the Terminal's draft, the Builder's copied status and the selection
   are all session; so is the workspace extent, which no setup file carries — the same setup
   restored under a different `SurfaceExtent` yields the same references and different bounds,
   which is the setup's authored/resolved proof. (WIND-2 added authored *place* and *size* to a
@@ -393,9 +411,9 @@ authored setup                 resolved presentation          session interactio
   Terminal's rectangle, and reordering mid-drag all change nothing about who is being moved.
   Outside management mode nothing about the pointer changed: a selected pane behind another one
   claims no press, so a selection never becomes a click-through, and no selection auto-raises.
-- **The picker and management share one list and not one purpose.** The inventory is the union of
-  the combined catalog and every `PaneRef` the setup names, so an unresolved pane finally has a
-  row. The picker keeps *presence* (selecting an open row removes it); management owns
+- **The Pane Manager and arrangement share one list and not one purpose.** The inventory is the
+  union of the combined catalog and every `PaneRef` the setup names, so an unresolved pane finally
+  has a row. The Pane Manager keeps *presence*, through the two doors; arrangement owns
   *arrangement* and binds no toggle. Seven states, one classifier: `closed`, `unresolved`,
   `refused`, `waiting`, `off-room`, `covered`, `open` — `covered` means every visible cell is
   behind the **union** of what is in front, and one visible cell is enough to be `open`.
@@ -404,8 +422,8 @@ authored setup                 resolved presentation          session interactio
 
 > **The office authors the pane; Workshop grants the room.**
 
-A weave that is not Workshop can offer Workshop a **pane**: a row in the picker, a panel a maker
-can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's core
+A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a panel a
+maker can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's core
 (`workshop/pane_vocabulary.hpp`, whose header lists every shape that crosses today) — four for
 the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
 
@@ -456,12 +474,13 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   overlay stack, and a presentation may only enter `Panels::open` if its rectangle ends at or above
   `kWorkspaceY + room_h`, which *is* `notice_y - 1` — the row the setup line occupies. At the
   78×22 minimum only one overlay slot fits. A resolved reference that does not fit is **waiting**,
-  a third picker state that is neither `open` nor `closed`: the authored intent is retained and
+  a third state that is neither `open` nor `closed`: the authored intent is retained and
   named, growth opens it with no gesture, and a shrink closes the presentation through the ordinary
   close door and destroys its cache.
-- **The picker windows the combined population** through `list_window` — the OBJECTS list's own
-  function, its own three rules and its own `omitted_text` wording. It did not get taller: the
-  markers come *out* of the eight-row budget.
+- **A list windows the combined population rather than truncating it** — the picker did, through
+  `list_window` and its own `omitted_text` wording, and the desktop's Pane Manager does in its own
+  image (keeping its cursor's row in view, and counting what is above and below it). The markers
+  come *out* of the list's row budget; the pane does not get taller.
 - **The room is `fit_region`'s answer and nothing else.** Workshop owns one header row naming the
   pane and its office, and grants the body beneath it as *prose rows and columns* — never a
   rectangle, a cell, a pixel, a font or the identity of the medium that answered. It is sent when
@@ -484,8 +503,8 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   provider disappears after sending valid content, Workshop **cannot know that happened** and goes
   on showing the last rows that office reported. That is a stated limit, not liveness.
 - **Closing destroys only Workshop's copy.** The provider's weave, its office, its semantic state
-  and its catalog row all outlive the presentation; no unload is sent and the picker remains the one
-  owner of presence in both directions.
+  and its catalog row all outlive the presentation; no unload is sent, and the close door —
+  a close, never a toggle — is the one way off the desk.
 - **Workshop gained two grant rules and no powers.** `PaneCatalogRequested` and `PaneRoom`, both
   `allow_to_any` — the first because the ask *is* the discovery and there is no role to scope it to
   yet, the second because Workshop sends to one resolved role that is runtime data. The Builder
@@ -557,7 +576,7 @@ maker presses a visible row
   that life and shows that `PaneContent` still travels one way only.
 - **A second version says whether the keys were already there, and only that.**
   `v2::PanePressed` is the same place plus `keys_went_here`: true exactly when ordinary keys were
-  reaching this pane at the instant of the press — no picker, naming line or hotkey view had
+  reaching this pane at the instant of the press — no mode, naming line or menu had
   them, and the keyboard was pointed at this pane. Workshop reads it, and the row, *before* the
   press moves the keyboard, so a press that brings the keys back says `false`, and a press on a
   pane whose titles are hidden names the row painted where it landed (that pane's title returns
@@ -586,7 +605,7 @@ maker presses a visible row
 - **A pane that owns visible room owns pointer refusal for that room**, and Workshop decides that
   by occupancy before it sends anything — WP-R0's split, unchanged: which pane owns a press is
   geometry Workshop already holds, so `consumed` never crosses the wire and nothing waits for a
-  provider. Management chrome still gets first refusal: the picker and the pane-management mode
+  provider. Management chrome still gets first refusal: the contextual menu and the arrangement
   each take the press whole (the Terminal was a third until it became a pane, and a pane's
   boundary makes a press its own by geometry).
 - **The press is read against the snapshot the maker actually saw.** Interpreting one asks the
@@ -632,7 +651,9 @@ a third file — and since WUX-3 the session's default home is the per-user **st
 project files keep following the project:
 
 ```text
---document   workshop.json           what you MADE                    (launch directory)
+--document   workshop.json           an old object document, from     (launch directory)
+                                     before the canvas retired: named
+                                     once, never read
 --setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
                                      and read back with `r`
 --pane       workshop-pane.json      a PANE you made: its name and    (project directory)

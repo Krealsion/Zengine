@@ -33,5 +33,13 @@ editable lines. The record arms on the way out and the completing press spends i
 click record of its own, sharing the interval and the arming discipline, because a tab is not a
 line, a draft or a word ([the-layouts-pane](the-layouts-pane.md)).
 
+**Since.** The two editable lines this record served were the host's own drafts — Info's
+property row and the Pane Manager's — and both left the host: Info is a loaded pane, and the
+host's Pane Manager retired, its subject rows committed through Info's door. `Session::click`,
+`doubles_a_click` and `press_selects_word` left with their last caller, and WL-PTR-02 and
+WL-PTR-03 are RETIRED entries. The decision stands where it still has a consumer: the tab run's
+record (`Session::tab_click`, `doubles_a_tab_click`) keeps time as an argument, with the same
+interval and arming discipline, and that is WL-PTR-01 now.
+
 **Laws supported.** [WL-PTR-01](../workshop/pointer.md), [WL-PTR-02](../workshop/pointer.md),
 [WL-PTR-03](../workshop/pointer.md).

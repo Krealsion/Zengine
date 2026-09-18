@@ -10,22 +10,25 @@ Introspection is a Zengine package (`introspection/`) that builds one loadable w
 panes through the [external pane protocol](../guides/make-a-workshop-tool.md#part-b--an-office-authored-external-pane):
 
 ```text
-PaneRef      zengine.introspection / loaded
-picker row   Loaded    closed    what the kernel has loaded, and each one's role
-pane header  Loaded @zengine.introspection
+PaneRef             zengine.introspection / loaded
+Pane Manager row    [    ] Loaded
+Info's Summary      what the kernel has loaded, and each one's role
+pane header         Loaded @zengine.introspection
 
-PaneRef      zengine.introspection / arrangement
-picker row   Project   closed    what this project asked for, and what resolved
-pane header  Project @zengine.introspection
+PaneRef             zengine.introspection / arrangement
+Pane Manager row    [    ] Project
+Info's Summary      what this project asked for, and what resolved
+pane header         Project @zengine.introspection
 
-PaneRef      zengine.introspection / powers
-picker row   Powers    closed    which operators resolve, and who supplies each
-pane header  Powers @zengine.introspection
+PaneRef             zengine.introspection / powers
+Pane Manager row    [    ] Powers
+Info's Summary      which operators resolve, and who supplies each
+pane header         Powers @zengine.introspection
 ```
 
 `zengine-workshop` boots it from its [authored load plan](load-plan.md) beside the Skin, the input
-reader and the Timer, so a maker opens any of the three from the panel picker (`p`) and can keep
-them in a saved setup like any other pane.
+reader and the Timer, so a maker opens any of the three from the Pane Manager (`Ctrl`+`p`) and can
+keep them in a saved setup like any other pane.
 
 `Loaded` and `Project` are read-only projections. **`Powers` is a browser**: it shows the
 computational vocabulary this host currently resolves, separated into
@@ -52,10 +55,11 @@ and no role, and the host opens it directly. It is a row of `Project` and it is 
 `Loaded`. A build in which both listed it would be a build in which one of them had started
 guessing.
 
-The pane key is `arrangement` and the picker name is `Project`, and the difference is deliberate:
+The pane key is `arrangement` and the pane's name is `Project`, and the difference is deliberate:
 the **key** is the durable half of a `PaneRef` and is what a maker's saved setup names, so it
-carries the load plan's own word; the **name** is the ten cells `kPickerNameCols` actually shows,
-and `Arrangement` is eleven.
+carries the load plan's own word; the **name** was chosen for the ten cells the retired picker's
+name column showed (`kPickerNameCols`), and `Arrangement` is eleven. The desktop's list writes a
+name last on its row and marks a cut, so a short name still reads whole in a narrow Pane Manager.
 
 ## What the `Loaded` pane shows
 
@@ -605,7 +609,8 @@ than to invent a second, denser layout that says less.
 ## Reading the source
 
 ```text
-introspection/vocabulary.hpp   the three durable PaneRef halves, the picker lines, LoadedSelected
+introspection/vocabulary.hpp   the three durable PaneRef halves, each pane's name and summary,
+                               LoadedSelected
 introspection/loaded.hpp       the Loaded pane's pure core: parse the Manager's answer, spend the
                                budget, map each row back to the entry it names, move the mark
 introspection/resolved.hpp     the Project pane's pure core, and the ONE budget rule it shares

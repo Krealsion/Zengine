@@ -498,138 +498,151 @@ build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   
 
 | argument | default | is |
 |---|---|---|
-| `--document <path>` | `workshop.json` beside the binary | the authored objects |
 | `--setup <path>` | `workshop-setup.json` | a pane arrangement you named and saved |
 | `--pane <path>` | `workshop-pane.json` | a pane you made: its name and its text regions |
-| `--session <path>` | `workshop-session.json` | the last desk and window size — written on close, read on start |
-| `--keymap <path>` | `workshop-keymap.json` | your hotkey overrides and the legend preference — hand-edited, read on start |
+| `--session <path>` | `workshop-session.json`, per-user state folder | the last desk and window — written on close, read on start |
+| `--keymap <path>` | `workshop-keymap.json`, per-user config folder | your hotkey overrides and the legend preference — hand-edited, read on start |
+| `--prefs <path>` | `workshop-prefs.json`, per-user config folder | presentation preferences Workshop writes when you state one |
+| `--isolated` | off | read and write none of your per-user config or session state |
 | `--load-plan <path>` | `default-load-plan.json` beside the binary | which artifacts run |
+| `--recipes <path>` | `default-build-recipes.json` beside the binary | what this run can build |
 | `--log <path>` | none | durable journal, appended as things happen |
 | `--dump <path>` | none | what the volatile recorder still held at exit |
+| `--document <path>` | `workshop.json` in the project, if there is one | an object document from before the canvas retired: named once at startup and left exactly as it is |
 
 ### Keys
 
-These are the **defaults**. Every application binding below can be remapped through the
-keymap file (`--keymap`, default `workshop-keymap.json`), and the executable truth is always
-on screen: `Ctrl`+`k` opens the full hotkey view for whatever context you are in, and the
-bottom band projects the same effective bindings. A binding matches its modifiers **exactly**
-— `n` creates and `Ctrl`+`n` does nothing. See
-[hotkeys and the keymap](docs/workshop/hotkeys.md).
+These are the **defaults**. Every binding below can be remapped through the keymap file
+(`--keymap`), and the executable truth is always on screen: `Ctrl`+`k` opens the **Hotkeys**
+pane, every key as it is in force and where it is answered, and the bottom band projects the
+same bindings. A binding matches its modifiers **exactly** — `w` arranges the desk and
+`Ctrl`+`w` removes a layout. See [hotkeys and the keymap](docs/workshop/hotkeys.md).
 
-**Command mode** (the default)
+**Anywhere** — the application's own keys, which the **desktop** supplies (a tool you can
+edit, rebuild, remap or switch off), answered even while you type in a pane:
 
 | key | does |
 |---|---|
-| `n` / `d` | create / delete an object |
-| `Tab` | select the next object |
-| `h` `j` `k` `l` | move the selected object by one cell |
-| `Shift`+`h` `j` `k` `l` | resize the selected object |
-| `[` `]` | narrow / widen the workspace by 4 cells |
-| `p` | open the pane picker |
+| `Ctrl`+`p` | open, or go to, the **Pane Manager** — every pane there is |
+| `Ctrl`+`t` | open, or go to, the **Terminal** |
+| `Ctrl`+`k` | open, or go to, the **Hotkeys** pane |
+| `Ctrl`+`c` | quit — where nothing takes text; in a line that does, it copies |
+
+**Command mode** (no pane holds the keys)
+
+| key | does |
+|---|---|
+| `a` | context menu — what can I do here (right-click: with what you point at) |
 | `w` | arrange the desk |
 | `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
-| `s` | name and save the current layout to the setup file |
+| `s` | save the current layout to the setup file |
 | `r` | restore the setup file into the current layout |
 | `.` / `,` | the next / previous layout |
 | `=` | a new layout — a copy of the one you are on |
 | `Ctrl`+`w` | remove the layout you are on |
-| `a` | context menu — what can I do with the selected object, or the room |
-| `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
-| `c` / `Shift`+`c` | choose the next / previous recipe |
-| `f` | build and realize the project frontier |
-| `e` | open the chosen recipe's **source** in the editor (a single source, or a CMake target's editing entry) |
-| `l` | in the Builder: **read output** — what the build the pane names said, bound to that build (`↑` `↓` `Home` `End` `←` `→` `[` `]`, `Esc` closes) |
-| `Ctrl`+`s` / `Ctrl`+`o` | save / open the document (`Ctrl`+`s` saves the **source** while the editor holds the keys) |
-| `Ctrl`+`t` | open or close the terminal overlay |
-| `Ctrl`+`k` | open the hotkey view |
-| `Ctrl`+`a` | what needs attention — everything currently true and worth knowing |
-| `Ctrl`+`c`, `q` | quit |
+| `Esc` | put the selected pane down |
+| `q` | quit |
 
-**Pane picker** (`p`) — `↑` `↓` choose, `Enter` opens or removes, `Esc` or `p` cancels.
+**Pane Manager** (`Ctrl`+`p`) — the one list of panes, and the place a pane is opened, closed
+and made. `↑` `↓` choose; `Enter` opens it, or goes to it if it is already open; `x` closes it —
+its tool keeps running and keeps what it holds, and `Enter` brings it back. A row reads
+`[open]`, `[    ]` (closed), `[room]` (waiting for room) or `[gone]` (nothing offers it now).
+The Pane Manager is itself a pane: arrange it, close it, or replace the desktop that provides it.
 
-**Pane Manager** (open it from the picker) — a pane whose subject is another pane, itself
-included. `↑` `↓` step; `Enter` on a pane row makes it the subject; `Tab` moves the keys to
-its rows; `Enter` on `X` `Y` `Width` `Height` opens a draft (a whole number in the face's
-unit, `-` resets; `Enter` commits, `Esc` abandons; a bad value is refused, never clamped);
-`o` opens or removes the subject; `f` `b` `r` `l` order it. `AUTHORED` rows are yours;
-`RESOLVED` rows are what this screen makes of them and change nothing when read; `INTERIOR`
-is what is inside the subject — a read-only capture for a code-backed pane. Placement edits
-land in the layout at once and come back with the session. See
-[the Pane Manager](docs/workshop/panes.md#the-pane-manager--a-pane-as-a-subject).
+**Pane Creator** (in the Pane Manager) — `n` opens a name line: type (paste works), `Enter`
+makes the pane, `Esc` cancels; a refused name stays in the line with the reason under it. The
+new pane has one text region, which you write by inspecting the pane in **Info** — `INTERIOR`
+rows `Text` `X` `Y` `Width` `Height`, relative to the pane's inside, in the face's unit — and
+the region is marked on the pane while Info inspects it. `s` saves it to `--pane` (default
+`workshop-pane.json`); `Ctrl`+`d` discards unsaved edits. Unsaved pane truth refuses the quit.
+See [the Pane Creator](docs/workshop/panes.md#the-pane-creator--a-pane-made-of-data).
 
-**Pane Creator** (inside the Pane Manager) — `n` opens a name prompt; `Enter` makes a pane of
-your own from data, with one text region; its `INTERIOR` rows (`Text` `X` `Y` `Width`
-`Height`, relative to the pane's inside, in the face's unit) are the ordinary draft; the
-region is marked on the pane while you edit it; `s` saves the pane to `--pane` (default
-`workshop-pane.json`); `Ctrl`+`d` discards unsaved pane edits. Unsaved pane truth refuses the
-quit. See [the Pane Creator](docs/workshop/panes.md#the-pane-creator--a-pane-made-of-data).
+**Info** (press into it) — the panes, and the properties of the one you inspect. `↑` `↓`
+step; `Enter` on a pane inspects it; `Tab` moves between the list and the properties; `Enter`
+on an `AUTHORED` row (`X` `Y` `Width` `Height`: a whole number in the face's unit, `-` resets)
+opens a draft that `Enter` writes through the desk's own door and `Esc` abandons — a bad value
+is refused, never clamped. `RESOLVED` rows are what this screen makes of them and change
+nothing when read; `INTERIOR` is what is inside the subject. The subject stays until you
+inspect another pane: selection and focus never move it. See
+[a pane as a subject](docs/workshop/panes.md#a-pane-as-a-subject--info).
 
-**Source editor** (`e` on a recipe that names a source or an entry) — a pane holding the one
-file the chosen recipe names; press into its body and your keys are in the source. Typing edits;
-`Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a preferred column
-through short ones); `Home`/`End` and `Ctrl`+`Home`/`End`; `Ctrl`+arrows by word;
-`Shift`+movement selects; `Ctrl`+`a`/`c`/`x`/`v`/`z`/`y` as expected, across lines; the
+**Hotkeys** (`Ctrl`+`k`) — every key as it is in force, where it is answered and the id a
+keymap file names it by; `↑` `↓` `Home` `End` scroll; `*` marks a key your file moved.
+
+**Builder** (press into it) — `b` build the chosen recipe, `Shift`+`b` build and load it; `c` /
+`Shift`+`c` the next / previous recipe; `f` build and realize the project frontier; `e` open the
+recipe's source in the editor; `o` load it; `l` read the output (`↑` `↓` `Home` `End` `←` `→`
+`[` `]`, `Esc` closes); `Shift`+`p` / `Shift`+`r` promote / revert an image.
+
+**Source editor** (`e` in the Builder, on a recipe that names a source or an entry) — a pane
+holding the one file the chosen recipe names; press into its body and your keys are in the
+source. Typing edits; `Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a
+preferred column through short ones); `Home`/`End` and `Ctrl`+`Home`/`End`; `Ctrl`+arrows by
+word; `Shift`+movement selects; `Ctrl`+`a`/`c`/`x`/`v`/`z`/`y` as expected, across lines; the
 mouse places and sweeps; the wheel scrolls. `Ctrl`+`s` saves the **source** while the editor
-holds the keys; `Ctrl`+`d` deliberately discards unsaved edits (undo takes them back). A dirty source
-refuses to be replaced or quit past until saved or discarded, and hiding or rearranging the
-pane loses nothing. Plain-ASCII files only; tabs, line endings and the final newline
+holds the keys; `Ctrl`+`d` deliberately discards unsaved edits (undo takes them back). A dirty
+source refuses to be replaced or quit past until saved or discarded, and hiding or rearranging
+the pane loses nothing. Plain-ASCII files only; tabs, line endings and the final newline
 round-trip exactly. See [the source editor](docs/workshop/editor.md).
 
-**What needs attention** (`Ctrl`+`a`) — `↑` `↓` choose, `d` hides one, `Esc` or `Ctrl`+`a`
-closes. It lists what is **currently true** and worth knowing — a settings file that could not
-be read, a pane of yours with no part of it on the screen, a project waiting on an artifact —
-each in its owner's own words. One compact line advertises it wherever the medium can always
-show it: a box in the window's top-right corner, or the terminal's second reserved row.
-Hiding one is not fixing it: the condition stays true, and it reappears if it materially
-changes. A condition disappears when it stops being true and at no other moment — nothing
-expires, nothing fades, and nothing here is a notification history. The **notice row** in the
-bottom band is the other voice and keeps its own job: what just happened, replaced by whatever
-happens next. See [what needs your attention](docs/workshop/attention.md).
+**What needs attention** (the **Attention** pane, opened from the Pane Manager) — `↑` `↓`
+choose, `d` hides one. It lists what is **currently true** and worth knowing — a settings file
+that could not be read, a pane of yours with no part of it on the screen, a tool that is not in
+this Workshop, a project waiting on an artifact — each in its owner's own words. One compact
+line advertises it wherever the medium can always show it: a box in the window's top-right
+corner, or the terminal's second reserved row. Hiding one is not fixing it: the condition stays
+true, and it reappears if it materially changes. A condition disappears when it stops being true
+and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
+own job: what just happened, replaced by whatever happens next. See
+[what needs your attention](docs/workshop/attention.md).
 
-**Arranging** — right-click a pane → `arrange` binds the interaction to that one pane;
-`w` arranges the whole desk. In either scope the panes wear their handles: drag a body to
-move, an edge or corner to resize (pixel-fine in a window, cell by cell on a terminal),
-and a right-click or `Esc` leaves — leaving is all that press does.
+**Arranging** — right-click a pane → `arrange` binds the interaction to that one pane; `w`
+arranges the whole desk. In either scope the panes wear their handles: drag a body to move, an
+edge or corner to resize (pixel-fine in a window, cell by cell on a terminal), and a right-click
+or `Esc` leaves — leaving is all that press does.
 
 | key | does |
 |---|---|
 | `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane (desk only) |
 | `← → ↑ ↓` | move that pane one cell |
 | `Shift`+arrows | resize it one cell, top-left corner staying put |
+| `=` / `-` | grow / shrink it |
 | `Enter` | narrow the desk to arranging exactly that pane |
 | `f` `b` | send to front / back |
 | `r` `l` | raise / lower one step |
-| `d` | remove that pane (the picker brings it back) |
+| `d` | remove that pane from the layout (the Pane Manager brings it back) |
 | `0` | reset — then `p` place, `w` width, `h` height, `o` order |
 | `Esc` | leave |
 
-**Context menu** — right-click a pane, a document object, or the empty room, and a small
-menu beside the click lists what can be done with the thing you pointed at: pane
-arrangement (arrange, Order, Reset, remove), `edit code` (the pane's source, through its
-recipe — [edit a running pane](docs/workshop/edit-a-running-pane.md), and for Workshop's own panes
-[develop Workshop](docs/workshop/develop-workshop.md)), object deletion, or
-Workshop's own doors.
-Rows whose action has a working shortcut in the place you are returning to show it after
-the label, spelled from the live keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row
-opens its group, staying beside the click), `Esc` backs out or closes, a click outside
-dismisses. Pointing does not select — only choosing `arrange` binds the pane, after the
-same admission every arranging road applies. `a` opens the same menu from the keyboard on
-the selected object or the room, so no mouse is required — on a terminal, right-click
-delivery is the emulator's decision first (the Windows console and Windows Terminal both
-deliver it). See
+**Context menu** — right-click a pane, a layout tab, or the empty room, and a small menu beside
+the click lists what can be done with the thing you pointed at: pane arrangement (arrange,
+Order, Reset, remove), `edit code` (the pane's source, through its recipe —
+[edit a running pane](docs/workshop/edit-a-running-pane.md), and for Workshop's own panes
+[develop Workshop](docs/workshop/develop-workshop.md)), a tab's rename and removal, or the room's
+own doors (arrange the desk, save or restore the setup, reset the order). Rows whose action has a
+working shortcut in the place you are returning to show it after the label, spelled from the live
+keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row opens its group, staying beside the click),
+`Esc` backs out or closes, a click outside dismisses. Pointing does not select — only choosing
+`arrange` binds the pane. `a` opens the same menu from the keyboard for the room, so no mouse is
+required — on a terminal, right-click delivery is the emulator's decision first (the Windows
+console and Windows Terminal both deliver it). See
 [the context menu](docs/workshop/panes.md#the-context-menu--what-can-i-do-with-this).
 
 ### Panes
 
-Built-in: **Editor**, **Layouts**, **Pane Manager**. Loaded through the default plan:
-**Info** (`↑` `↓` `Enter`, once you have pressed into it), **Builder**, **Attention**,
-**Files**, **Loaded**, **Project**, **Powers** (from `zengine-introspection`), and the
-**Composer**. Made by you, from data: whatever the **Pane Creator** made and `--pane` holds.
+Built into Workshop: **Layouts** (the layout tabs). Loaded through the default plan, each an
+ordinary participant: the **desktop** (the **Pane Manager** and **Hotkeys** panes, and the keys
+that work anywhere), **Info** (`↑` `↓` `Enter` `Tab`, once you have pressed into it), the
+**Editor**, the **Terminal**, the **Builder**, **Attention**, **Files**, **Loaded**,
+**Project**, **Powers** (from `zengine-introspection`), and the **Composer**. Made by you, from
+data: whatever the **Pane Creator** made and `--pane` holds. A pane the plan could not load is
+listed `[gone]`, said at startup, and kept as a condition in Attention — Workshop runs without
+it.
 
 | pane | shows |
 |---|---|
 | `Loaded` | what the **Kernel** has: artifacts and incarnations actually resident |
-| `Project` | what the **load plan** asked for, paired with what resolved |
+| `Project` | what the **load plan** asked for, paired with what resolved, and why a row did not |
 | `Powers` | which artifact supplies which operator in the host's catalog |
 
 `Loaded` and `Project` deliberately disagree when the plan asked for something that did not
@@ -637,27 +650,23 @@ resolve — that difference is the information. Reference:
 [docs/reference/introspection.md](docs/reference/introspection.md).
 
 ⚠ **friction — panes are 9 rows tall by default** and a bigger terminal does not grant more.
-A larger pane is authored in management mode (`w` → `s` → arrows), one cell per keypress, and
-persists in the setup file. See [pane geometry](docs/workshop/panes.md#pane-geometry).
+A larger pane is authored in arrangement (`w`, then `Shift`+arrows or `=`), or typed into its
+`Width` and `Height` rows in Info, and persists with the layout. See
+[pane geometry](docs/workshop/panes.md#pane-geometry).
 
-⚠ **friction — the document is not restored at launch.** The desk is: the panes, their
-geometry, their order and the window's size all come back on their own from the last session
-(`--session`, default `workshop-session.json`). The **document** still needs `Ctrl`+`o` — and a
-fresh Workshop *seeds two example objects*, so forgetting it looks like a state rather than an
-omission. On a graphical run the window's screen position and maximized state come back too,
+**Your desk comes back on its own.** The panes, their geometry, their order and the window's
+size all return from the last session (`--session`, default `workshop-session.json`), with no
+keypress. On a graphical run the window's screen position and maximized state come back too,
 validated against the displays that exist now; a terminal run has neither to restore and keeps
 the last one it was told. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
 
-**On-screen hints** (so you need this page less): every hint is a projection of the
-effective keymap, so a remapped binding is spelled correctly everywhere it appears — the
-first row, the bottom band's legend rows, each mode's heading, and the full hotkey view
-(`Ctrl`+`k`). Workshop's chrome is TWO bands, each composing its rows against the room the
-active medium's type actually fits. The **first row** is the layout selector and the setup's
-status (a terminal gives it two rows, the second carrying the workspace size; a graphical
-window gives it one, with the size folded in). The **bottom band** is the notice and the
-legend (a terminal reads four rows, a graphical window two). The legend preference
-(`full` / `compact` / `hidden`) in the keymap file governs the legend rows only; hidden
-blanks them and unbinds nothing.
+**On-screen hints** (so you need this page less): every hint is a projection of the effective
+keymap, so a remapped binding is spelled correctly everywhere it appears — the bottom band's
+legend rows, each mode's heading, and the Hotkeys pane (`Ctrl`+`k`). The **Layouts** pane is the
+first row (your layouts as tabs, and what the one you are on is related to); the **bottom band**
+is the notice and the legend (a terminal reads four rows, a graphical window two). The legend
+preference (`full` / `compact` / `hidden`) in the keymap file governs the legend rows only;
+hidden blanks them and unbinds nothing.
 
 ---
 
@@ -808,9 +817,9 @@ in-process Zengine host prints *"in-process; trusted; no OS sandbox"* — read i
 | **power** | one operator in a host's catalog, as introspection names it |
 | **load plan** | the authored file naming which artifacts participate and how |
 | **skin** | the replaceable weave that claims a medium and paints published intent |
-| **pane** | one region of Workshop's screen, built-in or offered by a weave |
+| **pane** | one region of Workshop's screen, offered by a weave (or, for Layouts, built in) |
 | **setup** | the persisted pane arrangement, with a name |
-| **document** | the persisted authored objects a maker is working on |
+| **desktop** | the replaceable weave that supplies the Pane Manager, the Hotkeys pane and the keys that work anywhere |
 
 **`Sense`** is the Loom's read-side surface — a deliberate immutable claim of the latest
 observation a participant published, gated by the reader's `Claims<...>`. It is a Loom concept;
@@ -823,7 +832,8 @@ Terms that are **not** synonyms, and must not be flattened:
 | **role** vs **office** | a role is a slot you *hold*; an office is a role you deliberately *speak as*, stamped on the envelope. Holding a role attaches nothing on its own |
 | **artifact** vs **weave** | an artifact is a loadable image; a weave is a participant. One artifact may export a weave surface, a provider surface, both, or be asked for one and get one |
 | **operator** vs **power** | the same thing from two sides: an operator is the definition, a power is one entry in a host's catalog as introspection names it |
-| **setup** vs **document** | the room you work in, versus the thing you are making |
+| **setup** vs **session** | an arrangement you named and saved, versus the desk Workshop keeps for you between runs |
+| **close** vs **unload** | closing takes a pane off the desk and its tool keeps running; unloading ends the tool. The Pane Manager only closes |
 | **pane** vs **panel** | a pane is any region; *panel* is the compiled-in kind. A maker needs neither word |
 | **authored** vs **resolved** | what a person wrote, versus what a viewport made of it. Held apart by a compile-time fence |
 | **Zen** | the umbrella name for Loom + Zengine + Workshop together. It is not a component, a namespace, or a directory you need |

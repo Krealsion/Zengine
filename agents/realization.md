@@ -42,8 +42,16 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   the LOAD owns that sentence, which is how a missing artifact is reported in the loader's own
   words.
 - **One artifact is the atomic unit.** A record that mounted and then failed to load unmounts
-  ITS OWN contribution before reporting. Earlier artifacts stay, and the host says how many
-  participated; a whole-plan transaction was not built.
+  ITS OWN contribution before reporting. Earlier artifacts stay; a whole-plan transaction was
+  not built.
+- **A row AUTHORED OPTIONAL that refuses is an unavailable tool, not a refused project
+  (P-WORK-22).** The walk records the refusing layer's own sentence (`Executed::unavailable`,
+  row state `unavailable`, reason `unavailable_why`), steps over the row, and performs every
+  row behind it in authored order. A REQUIRED row's refusal still stops the walk (`Failed`)
+  with the rows before it standing. Nothing is retried or granted. The shipped plans mark the
+  host's own infrastructure required and every pane weave optional, so a tree short one pane
+  artifact runs and says which. An on-demand realization is never stepped over: a maker who
+  asked for that row is owed its refusal.
 - **An OPTIONAL surface is a LIST OF AT MOST ONE, and the split is deliberate.** Zen's wire
   grammar has seven kinds and none is `optional`, so presence is carried by the kind that
   already means "zero or more" and the record carries only its own fields — which is what lets
@@ -148,11 +156,14 @@ begin(plan)                    the ordinary host loop        answered()
   row N+1's conversation inside the very handler that settled row N's, so by the time anything
   can look, that field is already about the next load. The CURSOR is the fact; do not assert
   on `answered` after a multi-row plan advances.
-- **THE HOST'S FAILURE POLICY IS THE HOST'S.** A refused startup project still ends this
-  Workshop and still exits 4 — expressed as an explicit settle-notice lambda that prints, sets
+- **THE HOST'S FAILURE POLICY IS THE HOST'S.** A REQUIRED row refused at startup still ends
+  this Workshop with exit 4 — expressed as an explicit settle-notice lambda that prints, sets
   `host.quit` and spends `host.request_stop`, because realization settles inside a delivery
-  now and there is no call to return a code from. The owner has no opinion about process
-  lifetime, and COMPLETION ends nothing.
+  now and there is no call to return a code from. An OPTIONAL row's refusal ends nothing: the
+  host prints `unavailable: <sentence>` and establishes a standing condition
+  (`load.unavailable/...`), which the desktop's floor, the Attention pane and the Pane
+  Manager's `[gone]` rows all read. The owner has no opinion about process lifetime, and
+  COMPLETION ends nothing.
 - **THE CONTROL DOOR PATH IS LOAD-BEARING.** `Kernel::load` is reachable from the host and
   must not be shortcut to: only the control door can announce `zen.Activated`, from inside a
   delivery (`Switchboard::announce_as` is private), so a direct load produces a registered,
@@ -325,9 +336,10 @@ row N is waiting on the maker
   its ten scheduler verbs and nine async nouns. Plain Build and Build & Realize stay two
   gestures; a plain build leaves the row `pending` with the file on disk until somebody asks.
 - **`Realization` HAS `Waiting`, AND `Complete` MEANS COMPLETE.** `Complete` is reachable
-  from exactly one place — the walk running off the END of the plan — and the walk cannot
-  reach the end past a row it did not perform, so `outcome().ok` cannot read *the whole
-  arrangement is live* while an authored artifact is untouched. ⚠ TWO SUBJECTS, TWO WORDS, on
+  from exactly one place — the walk running off the END of the plan — and the walk passes a
+  row only by performing it or, authored optional, by recording it `unavailable`. So
+  `outcome().ok` cannot read *the whole arrangement is live* while an authored artifact is
+  untouched, and `unavailable` names every optional row that is not live. ⚠ TWO SUBJECTS, TWO WORDS, on
   purpose: the OWNER is `Waiting`, the ROW it is waiting on is `pending`. Collapsing them
   leaves no way to say *which* row.
 - **`Executed::waiting_on` IS ONE STRING, AND THE SHAPE IS THE LAW.** At most one row can be
@@ -336,10 +348,11 @@ row N is waiting on the maker
   — `waiting_on()` is `cursor_` plus `state_`, the same argument `state_of` already makes for
   every other row state.
 - **THE HOST IS TOLD AT EVERY REST, NOT ONCE.** `Settled` fires at three resting points —
-  every row resolved, a row refused, and the walk stopped at a waiting row — because all
-  three are moments realization will not move again on its own, and the third is the one a
-  maker has to act on. A host tells them apart from the value alone: `ok`, or `refusal`
-  non-empty, or `waiting_on` non-empty. ⚠ `!done.ok` IS NOT A REFUSAL; test `refusal` before
+  every row settled (resolved, or optional and unavailable), a required row refused, and the
+  walk stopped at a waiting row — because all three are moments realization will not move
+  again on its own, and the third is the one a maker has to act on. A host tells them apart
+  from the value alone: `ok`, or `refusal` non-empty, or `waiting_on` non-empty, with
+  `unavailable` beside any of them. ⚠ `!done.ok` IS NOT A REFUSAL; test `refusal` before
   calling anything failed, or a host prints *project refused:* with no reason and exits 4 on
   a healthy run.
 - **`realize(stem)` PERFORMS ONE WAITING ROW, AND EVERY ELIGIBILITY RULE IS THE PLAN'S.**
@@ -360,9 +373,12 @@ row N is waiting on the maker
   ineligible ask moves nothing at all, least of all to `Failed`. When the frontier eventually
   reaches that row, the ordinary path finds the file and proceeds: there is no `prebuilt`
   state and must not be.
-- **Row states are five tokens with five owners** — `authored`, `loading`, `pending`,
-  `resolved`, `refused` — replacing a bool under which a row nobody had reached, a row in
-  flight and a row that REFUSED were indistinguishable. ⚠ `building`, `available` and
+- **Row states are eight tokens, each with its owner** — `authored`, `loading`, `pending`,
+  `resolved`, `refused`, then `reloading` (RELOAD-1), `switched` (an office moved to another
+  authored choice) and `unavailable` (an optional row stepped over) — replacing a bool under
+  which a row nobody had reached, a row in flight and a row that REFUSED were
+  indistinguishable. ⚠ The Arrangement and Project projections carry `unavailable` with its
+  reason; reading such a row as `authored` would tell a maker nothing had tried. ⚠ `building`, `available` and
   `mounting` were asked for and refused, each for a stated reason; a token with no owner goes
   stale in its first week. ⚠ A `loading` row publishes NO resolved field, even though its
   provider may already be mounted: within one row the mount precedes the load, and what came
@@ -454,6 +470,8 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
 - Zengine compiles the single-source route — CMake does. Zengine writes two small files and
   starts one `cmake -P`; nothing in this repository names a compiler, a flag, a library or an
   output suffix for it.
+- An optional row that refused was skipped quietly — it is NAMED on stdout, established as a
+  standing condition, and projected as `unavailable` with the refusing layer's sentence.
 - A `pending` row means the artifact is missing — it means REALIZATION DID NOTHING, at the
   host's word. Whether a file is absent is the host's fact and whether a build is running is
   the Builder's; the projection publishes what realization did.

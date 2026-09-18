@@ -43,7 +43,7 @@ std::vector<surface::SurfaceTextRow> rows_for(std::int64_t count) {
 
 // The office this weave speaks as. It must be the role its load-plan row gives it: Workshop
 // knows a pane by the office that offered it, and a weave can only speak as an office it holds.
-// If the pane never appears in the picker, compare this string with the role in the plan.
+// If the pane never appears in the Pane Manager, compare this string with the role in the plan.
 constexpr const char* kOffice = "example.tally";
 
 // The office Workshop holds. This pane answers Workshop and nobody else.

@@ -41,10 +41,11 @@ inline constexpr const char* kFilesRole = "zengine.files";
 /// key under `zengine.workshop`; the conversion moves the office and keeps the key.
 inline constexpr const char* kProjectFilesPane = "project-files";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after
-/// the office. Bounded by Workshop's admission law before a byte is retained -- a name at
-/// 32 bytes, a summary at 64 -- and written short deliberately, inside the ten cells the
-/// picker's name column actually shows.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office.
+/// Bounded by Workshop's admission law before a byte is retained -- a name at 32 bytes, a
+/// summary at 64 -- and written short deliberately, to the ten cells the retired picker's
+/// name column showed.
 inline constexpr const char* kProjectFilesName = "Files";
 inline constexpr const char* kProjectFilesSummary = "browse and open files";
 

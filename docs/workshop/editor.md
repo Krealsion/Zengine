@@ -9,8 +9,8 @@ office, and a maker switches between them while working, carrying the document: 
 [Neovim in Workshop](neovim.md). This page is the standard Editor.
 
 The Editor is a **loaded pane** (`zengine-editor-pane`, named by both shipped load plans), like
-Files, the Builder and the Terminal. It arrives in the picker (`p`) as `Editor`, is moved,
-resized, covered and removed like any other pane, and its row in a saved setup comes back like
+Files, the Builder and the Terminal. It is listed in the Pane Manager (`Ctrl`+`p`) as
+`Editor`, is moved, resized, covered and closed like any other pane, and its row in a saved setup comes back like
 any other — a setup written while the Editor was still compiled into Workshop is converted at
 read, so an old desk keeps its Editor. What makes it different from every other loaded pane is
 what it holds: **the document is the Editor's own.** The file's bytes, your unsaved edits, the
@@ -50,9 +50,9 @@ paste is held back or moved somewhere else — and if you edit it, move its care
 desk while the open is on its way, the open is **refused** rather than allowed to replace what
 you just did; your work is where you put it, and you simply ask again. On a screen with no
 room for another pane **nothing opens**: the document you already had, its caret and its
-history stand exactly as they were, your desk is untouched, and the refusal you get is the
-picker's own words (`no room for Editor on this screen -- make the window taller, then p
-again`). Make the window taller and ask again. A window you shrink *after* the open has taken
+history stand exactly as they were, your desk is untouched, and the refusal you get says so
+(`no room for Editor on this screen -- make the window taller, then try again`). Make the window
+taller and ask again. A window you shrink *after* the open has taken
 hides the pane the way it hides any other, with the new file in it; grow it back and the file
 is there.
 
@@ -91,7 +91,7 @@ did not take up its half. Whoever asked is told which side, and in what words:
 
 **A held Editor is repaired by reloading its image**: rebuild `zengine-editor-pane` with a
 recipe that builds it and load it in place from the Builder (see
-[load after build](builder.md#load-after-build-and-reload-in-place)). Removing the Editor's pane
+[load after build](builder.md#load-after-build-and-reload-in-place)). Closing the Editor's pane
 repairs nothing — it takes the pane off your desk, and the Editor behind it, its document and
 its hold stay exactly as they were — and Workshop has no way to unload the Editor while it
 runs. The reloaded Editor still has the document it had before the open, and nothing of the
@@ -166,27 +166,25 @@ with no wheel, the keyboard is the viewport: arrows, `Ctrl`+`Home`/`End`.
 
 The editing keys are the Editor's own mechanics and are **not remappable**; the four actions
 that *are* keymap rows (`editor.save`, `editor.newline`, `editor.tab`, `editor.discard`) are
-the pane's declared rows and remap like any other pane's. The hotkey view (`Ctrl`+`k`) lists
-those four while the Editor holds the keys; the rest of its vocabulary is described as the
-pane's own, the way every loaded pane's is.
+the pane's declared rows and remap like any other pane's. The Hotkeys pane (`Ctrl`+`k`) lists
+those four under the Editor's own heading (`pane Editor @zengine.editor`); the rest of its
+vocabulary is described as the pane's own, the way every loaded pane's is.
 
 An **empty** Editor — no file open — still takes the keys when you press into it, like every
 loaded pane, and does nothing with them; press elsewhere for Workshop's own keys.
 
-## `Ctrl`+`s` follows the keyboard
+## `Ctrl`+`s` is the Editor's
 
-Workshop has two things worth saving and one save chord, and the chord follows your hands:
+`Ctrl`+`s` saves **the source** while the Editor holds the keyboard: it is the Editor's own
+`save source` row (`editor.save`), and moves in your keymap file like any pane's row. Anywhere
+else it does nothing. It used to save the prototype **object document** there, and `Ctrl`+`o`
+opened one; both retired with the object canvas, and Workshop has no document of its own left
+for either chord to mean (a desk is written with `s` in command mode — [Setups](setups.md)).
 
-- **the Editor holds the keyboard** → `Ctrl`+`s` saves **the source**;
-- **anywhere else** — command mode, the picker, a layout's name, a draft, another pane --
-  `Ctrl`+`s` keeps its standing meaning: save the **object document**.
-
-These are two separate actions (`editor.save`, declared by the pane, and `document.save`,
-Workshop's own), and what tells them apart is the Editor's **declaration** that its row stands
-in for the document's save. So no state has both active, and remapping either one leaves that
-true: move `editor.save` to `Ctrl`+`e` and `Ctrl`+`s` still will not save the object document
-while you are typing in the source. `Ctrl`+`o` keeps its one meaning everywhere: open the
-object document.
+The Editor's row still declares that it stands in for the old `document.save`. In this Workshop
+that declaration stands in for nothing; in one from before the canvas retired it is what keeps
+`Ctrl`+`s` the Editor's while you type in the source rather than a collision — so one Editor
+image loads in both.
 
 ## Save, dirty, and never losing work
 
@@ -206,8 +204,8 @@ telling you before you press `b`.
 Nothing ordinary can throw dirty source away:
 
 - opening a **different** source is refused until you save or discard;
-- hiding, moving or removing the **pane** touches the presentation only — bring it back from
-  the picker and the document, its caret and its undo history are exactly where they were;
+- hiding, moving or closing the **pane** touches the presentation only — bring it back from
+  the Pane Manager and the document, its caret and its undo history are exactly where they were;
 - an orderly **quit** (`q`, `Ctrl`+`c` where nothing takes text, the close box) **asks** the
   Editor first and is refused while source is unsaved, with the two ways out named — save, or
   discard — and proceeds the moment the buffer is clean (a *held* Editor cannot be asked, so the

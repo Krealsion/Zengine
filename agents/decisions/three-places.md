@@ -45,6 +45,16 @@ whole panel's worth of rows over the first slot: a three-row picker over a nine-
 six rows of another panel reading as one box, so covering the slot buys a screen that cannot be
 misread.
 
+**Since.** The picker retired with the host's Pane Manager. Presence is two doors on the desktop
+seam — `launch_pane` opens or focuses and never toggles, `close_pane` takes a row off whether or
+not anything offers it (WL-PANE-12, WL-DESK-03, WL-DESK-12) — and the desktop's Pane Manager
+spends them. Arrangement still never touches presence; the case above reads `"ARR-0:
+participation stays the doors'; arrangement does not add or offer"` now. The picker's own two
+laws, a mode rather than a panel and a cover over the whole first slot, are RETIRED entries; an
+unresolved row still carries `kNoPaneKind`, in the inventory the doors spend. And the side
+region's compile-time pin is zero kinds, not one, since Info became a weave: only a desk row
+puts a pane there.
+
 **Laws supported.** [WL-PANE-03](../workshop/panes-and-windows.md),
 [WL-PANE-09](../workshop/panes-and-windows.md), [WL-PANE-10](../workshop/panes-and-windows.md),
 [WL-PANE-12](../workshop/panes-and-windows.md), [WL-PANE-13](../workshop/panes-and-windows.md),

@@ -1423,8 +1423,8 @@ inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
 ///
 /// ⭐ IT USED TO BE UNNECESSARY. Workshop had two built-ins in two DIFFERENT places -- Info at
 /// the right column and one overlay pane -- so a case could name two panes and seat both at the
-/// minimum screen. Info is a weave, so the two built-ins that remain are an overlay pane and the
-/// top band's, and a case that wants two overlays has to say which screen it is on.
+/// minimum screen. Info is a weave, and the one built-in that remains is the top band's, so a
+/// case that wants two overlays names two stand-ins and has to say which screen it is on.
 inline StackCapacity two_slot_room() { return stack_capacity(screen_of(120, 44)); }
 
 /// A setup, spelled the way a case reads: a name and the kinds it means.

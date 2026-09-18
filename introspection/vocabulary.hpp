@@ -17,7 +17,7 @@
 // carried that, because the fact is about this pane's own material.
 //
 // So what a consumer needs from this header is the two halves of one durable
-// `PaneRef`, the two lines a maker reads in the picker, and -- for a consumer that
+// `PaneRef`, the two lines a maker reads about each pane, and -- for a consumer that
 // wants to hear the fact rather than merely open the pane -- `LoadedSelected`.
 //
 // WHY THE OFFICE IS HERE AND NOT ONLY IN THE .cpp. A `PaneRef` is what a saved
@@ -51,15 +51,16 @@ inline constexpr const char* kIntrospectionRole = "zengine.introspection";
 /// left it nowhere to go.
 inline constexpr const char* kLoadedPane = "loaded";
 
-/// The two lines the picker lists, and what Workshop's pane header says after the
-/// office (`Loaded @zengine.introspection`).
+/// The two lines a maker reads about the pane -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office
+/// (`Loaded @zengine.introspection`).
 ///
 /// Bounded by Workshop's own admission law before a byte is retained -- a name at
 /// 32 bytes, a summary at 64 -- so these are written short deliberately rather
 /// than trimmed by somebody else later.
 ///
-/// AND SHORTER THAN THE ADMISSION BOUND ON PURPOSE. The picker's name column is TEN
-/// cells (`kPickerNameCols`), which is a third of what admission allows, so a name
+/// AND SHORTER THAN THE ADMISSION BOUND ON PURPOSE. The picker's name column was TEN
+/// cells (`kPickerNameCols`, retired with it), a third of what admission allows, so a name
 /// this tool was entitled to would still have arrived at a maker's eye cut. INTR-0
 /// found that with `Loaded Weaves` on its first live run and did two things about
 /// it: taught the column to MARK its cut, which every later provider now inherits,
@@ -95,8 +96,8 @@ inline constexpr const char* kLoadedPaneSummary = "what the kernel has loaded, a
 inline constexpr const char* kArrangementPane = "arrangement";
 inline constexpr const char* kPowersPane = "powers";
 
-/// The picker lines for the two, written to `kLoadedPaneName`'s rule: inside the TEN
-/// cells `kPickerNameCols` actually shows, so neither arrives at a maker's eye marked.
+/// The lines for the two, written to `kLoadedPaneName`'s rule: inside the TEN cells the
+/// retired picker showed, so neither arrives at a maker's eye marked.
 inline constexpr const char* kArrangementPaneName = "Project";
 inline constexpr const char* kArrangementPaneSummary =
     "what this project asked for, and what resolved";

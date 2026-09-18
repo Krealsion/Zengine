@@ -10,18 +10,20 @@ what you are looking at are these:
 
 | file | argument | holds |
 |---|---|---|
-| the **document** | `--document`, default `workshop.json` | the authored objects: identities, labels, placements, extents |
 | the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order |
 | the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
 | a **pane you made** | `--pane`, default `workshop-pane.json` | what is *inside* a pane the [Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) made: its name and its regions — never where it sits, which is the desk's |
 
-They are separate because they answer different questions. The document is the thing you are
-making. The setup is a room you chose to keep and gave a name. The last session is the room you
-happened to be in — written when Workshop leaves, read when it arrives, by nobody's gesture. A
-pane you made is a thing you built; a desk only says where it participates.
+They are separate because they answer different questions. The setup is a room you chose to keep
+and gave a name. The last session is the room you happened to be in — written when Workshop
+leaves, read when it arrives, by nobody's gesture. A pane you made is a thing you built; a desk
+only says where it participates. Closing a window should not rewrite a desk you saved under a
+name, and sharing a pane you made should not import somebody else's desk.
 
-Sharing a document should not import somebody else's pane layout, and closing a window should
-not rewrite a desk you saved under a name.
+> **There used to be a fourth: the document** (`--document`, default `workshop.json`), which held
+> the prototype object canvas's rectangles. It retired with the canvas. If the file is still in
+> your project, Workshop names it once at startup and leaves it exactly as it is — never read,
+> rewritten or deleted, and never taken for one of the files above.
 
 ## Saving a setup
 
@@ -48,7 +50,7 @@ file this layout's association, exactly as a successful write does.
 This is a transaction, structurally: the loader *returns* a candidate rather than writing into
 anything, so there is no path by which a pane closes before a bad field near the end of the
 file has been met. A refusal costs you the notice and nothing else — the active setup, the open
-panes, the Builder pane's status and the document are all exactly as they were.
+panes and every pane's own state are all exactly as they were.
 
 **An unresolved reference is not a failure.** A pane this build has never heard of loads, stays
 in the setup, is counted, is named, and is saved again unchanged. Workshop knows one thing
@@ -79,14 +81,14 @@ because the gap *between* two tabs is two cells and a space *inside* a name is o
  Home >My Layout< Art +
 ```
 
-It is an ordinary pane. It is in the picker (`p`) under **Layouts**, you can move and resize it
-in the desk arrangement (`w`) like any other, a pane you put in front of it covers it and takes
-your clicks there, and each layout keeps its own answer about where it is and whether it is on
-the desk at all. Take it off a layout and that layout simply has no tab run in it; the keys
-below still reach every layout, and the picker puts it back where it started.
+It is an ordinary pane. It is in the Pane Manager (`Ctrl`+`p`) as **Layouts**, you can move and
+resize it in the desk arrangement (`w`) like any other, a pane you put in front of it covers it
+and takes your clicks there, and each layout keeps its own answer about where it is and whether
+it is on the desk at all. Close it on a layout and that layout simply has no tab run in it; the
+keys below still reach every layout, and the Pane Manager puts it back where it started.
 
-**Removing it does not give the space to your document.** The two rows at the top of Workshop
-are reserved whether or not anything stands on them, so a `%`-sized object is the size it was
+**Closing it does not give its rows to anything else.** The two rows at the top of Workshop are
+reserved whether or not anything stands on them, so the room below them is the same size
 whatever you do with the selector. Moving it away leaves those rows empty on purpose.
 
 The column at the right-hand edge is a different case, and used to be the same one: it was
@@ -234,7 +236,6 @@ What comes back:
 | the size of the Workshop window | yes, **to the nearest whole cell** — see below |
 | the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
 | whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
-| your document | **no** — `Ctrl`+`o` still opens it |
 
 The status line says what happened, in the notice row:
 
@@ -340,7 +341,9 @@ reads no setup file at all.
 > manually?**
 >
 > **Yes, and without pressing anything.** The panes, their geometry, their order and the window
-> size come back on their own. **The document does not** — `Ctrl`+`o` is still a gesture.
+> size come back on their own. What each pane holds is the pane's own to keep: the Files pane's
+> marks come back and its half-finished browsing does not, and the Editor starts empty — open
+> your source again from Files or the Builder ([limitations](limitations.md)).
 
 Source-traced, precisely:
 
@@ -362,29 +365,17 @@ Source-traced, precisely:
 | persisting the window's size | **yes** | the session's viewport, in cells — the *normal* window's room |
 | persisting the window's position and maximized state | **yes** | remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
 | **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
-| **restoring the document at launch** | **no** | the document loader is reached only from `Ctrl`+`o` |
+| **reopening the source you were editing** | **no** | the Editor starts empty; open it again from Files or the Builder's `e` |
 
 So the actual workflow every session is now:
 
 ```text
-launch  ->  Ctrl+o   (get the document back)
-        ->  work
-        ->  Ctrl+s   (document)
+launch  ->  your desk and your window, as you left them
+        ->  open the source you want (Files, or the Builder's e)
+        ->  work, and save the source with Ctrl+s while the Editor has the keys
 ```
 
-**Why the document is still a gesture.** It is a different kind of fact: a setup is the room and
-a document is the work, and opening the last document a maker touched is a stronger claim than
-opening the last room they were in — it decides what they are editing, and a wrong guess
-overwrites nothing but looks exactly like their file. What makes forgetting `Ctrl`+`o` quiet is
-unchanged and worth knowing: a fresh Workshop seeds two example objects, so you get a
-plausible-looking document that is not yours rather than an obviously empty one.
-
-## The document
-
-`Ctrl`+`s` saves, `Ctrl`+`o` opens. The document loader is a transaction for the same reason
-the setup's is: a bad field near the end of the file must not leave you with half a document.
-Loading a document brings back **its** identities — the objects you saved are the objects you
-get, with the same identities the inspector and the canvas were using.
-
-The title row shows the document path and whether it is `saved` or `UNSAVED`, compared rather
-than flagged — a copy of the last-saved state, so the indicator cannot drift.
+**Why the source is still a gesture.** It is a different kind of fact: a setup is the room and a
+source is the work, and opening the last file a maker touched is a stronger claim than opening
+the last room they were in — it decides what they are editing, and a wrong guess overwrites
+nothing but looks exactly like their intent.

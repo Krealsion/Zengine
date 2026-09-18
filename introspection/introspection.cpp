@@ -284,7 +284,7 @@ public:
     /// of that sentence: the lifecycle attestation must be Loom's, and the sequence
     /// must be one this incarnation has not already acted on. An ordinary
     /// `zen.Activated` sent by anybody granted the shape announces nothing here --
-    /// otherwise any weave could make a pane appear in a maker's picker.
+    /// otherwise any weave could make a pane appear in a maker's Pane Manager.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;

@@ -663,7 +663,7 @@ inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted) 
 /// ONE POWER, ON ONE LINE: the mark, the identity, and the composite badge.
 ///
 /// THE BADGE IS RESERVED AT THE RIGHT AND THE IDENTITY IS FITTED INTO WHAT IS LEFT --
-/// `picker_entry_text`'s rule (fit for the truth, reserve for the alignment). A plain
+/// the retired picker's row rule (fit for the truth, reserve for the alignment). A plain
 /// `fit` of the whole row would have cut the badge off first, which is the one part
 /// of the row a maker cannot reconstruct from anything else on the screen.
 ///

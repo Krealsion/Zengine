@@ -32,13 +32,13 @@
 // (WL-KEY-06, WL-KEY-08).
 //
 // ⚠ TWO IDS RETIRE RATHER THAN MOVE, AND THE LOSS IS NAMED. `attention.close` closed the
-// OVERLAY; a pane is not a mode and has nothing to close -- it is removed from the desk
-// through the picker, like every other pane. `workshop.attention` was the global chord that
-// opened the overlay from anywhere; the pane is opened from the picker, and VD-22 refuses a
-// host-mapped route to a weave's presence as firmly as it refuses one to its actions. A
-// maker who authored either keeps a row preserved-as-unknown at load (WL-KEY-06), bound to
-// nothing -- which is the honest state for a gesture whose subject stopped existing, and is
-// better than minting a pane id that would answer a key by doing nothing.
+// OVERLAY; a pane is not a mode and has nothing to close -- it is taken off the desk through
+// the host's close door, like every other pane. `workshop.attention` was the global chord
+// that opened the overlay from anywhere; the pane is opened from the Pane Manager, and VD-22
+// refuses a host-mapped route to a weave's presence as firmly as it refuses one to its
+// actions. A maker who authored either keeps a row preserved-as-unknown at load (WL-KEY-06),
+// bound to nothing -- which is the honest state for a gesture whose subject stopped existing,
+// and is better than minting a pane id that would answer a key by doing nothing.
 
 #include <zen/weave/shape.hpp>
 
@@ -56,10 +56,11 @@ inline constexpr const char* kAttentionPaneRole = "zengine.attention";
 /// THE PANE KEY, in this office's namespace.
 inline constexpr const char* kAttentionPane = "attention";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
-/// office. Bounded by Workshop's admission law before a byte is retained -- a name at 32
-/// bytes, a summary at 64 -- and written short deliberately, inside the ten cells the
-/// picker's name column actually shows.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office.
+/// Bounded by Workshop's admission law before a byte is retained -- a name at 32 bytes, a
+/// summary at 64 -- and written short deliberately, to the ten cells the retired picker's
+/// name column showed.
 inline constexpr const char* kAttentionPaneName = "Attention";
 inline constexpr const char* kAttentionPaneSummary = "what is true right now";
 
