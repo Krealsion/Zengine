@@ -25,7 +25,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | a hotkey, the keymap file, the effective keymap, where the keys go | [keyboard](workshop/keyboard.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
-| semantic text in a panel, the Builder's rows, the foot band, a name on material | [regions](workshop/regions.md) `WL-RGN` |
+| semantic text in a panel, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
 | the Editor pane weave and its document, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
@@ -37,7 +37,7 @@ consumer-specific behavior of its extracted panes; the shared protocol stays in 
 | several desks, the tab run, the durable files and the session, the orderly quit and a question it could not deliver, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the application's own defaults: the office that owns them, the two precedence classes, launching, the one inventory said out loud, the room's floor, a refused declaration | [desktop](workshop/desktop.md) `WL-DESK` |
 | the Pane Manager, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
-| the maker's document, its operations and its file | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
+| the typed rows a property is edited through, the file doors, an old object document, the status line | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, the seam its pane presents it across, the completer; the pane's history and its view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
 

@@ -53,20 +53,8 @@ way"`, case `"EDIT-W20: an orderly quit refuses while source is unsaved, and pro
 is not"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-04 — `^s` follows the keyboard, as two declared identities
+## WL-EDIT-04 — RETIRED: `^s` was two identities, the document's save and the source's
 
-LAW — `^s` is two rows: `document.save`, active everywhere the keyboard's pane has not DECLARED that it stands in for it (`kUnlessOwned`), and the Editor's own `editor.save`, which declares exactly that.
-
-MEANS
-- so the object document's save is still the key in a layout name, a draft, every other pane;
-- the two never both fire; neither moves when a maker rebinds either (WL-KEY-15).
-
-PROVEN BY — `workshop/keymap.hpp` `document.save`, `KeyContext::kUnlessOwned`,
-`Keymap::row_active`; `workshop/pane_vocabulary.hpp` `kOwnableDocumentSave`;
-`editor-pane/vocabulary.hpp` `kActionSave`; `editor-pane/pane.cpp` `declare`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one physical ^s is the
-document's save or the source's, by who holds the keys"`, case `"EDIT-W50: supersession is by
-name, so moving either key moves neither meaning"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-EDIT-05 — One promise at two doors: `zengine.opening` and `zengine.editor`

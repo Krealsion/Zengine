@@ -37,57 +37,9 @@ BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
     return s;
 }
 
-// ---- Is a draft live on the rows this host holds? ----------------------------------------
-
-// WL-PED-07 -- agents/workshop/pane-manager.md
-bool draft_live(const Session& s) {
-    for (const Row& row : s.rows) {
-        if (row.editing()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// WL-DOC-20 -- agents/workshop/document.md
-DocumentShown document_shown(const WorkshopDoc& d, const Session& s) {
-    DocumentShown shown;
-    shown.selected = s.selected;
-    for (const ui::Element& e : d.elements) {
-        shown.objects.push_back(ShownObject{e.id, e.label});
-    }
-    // THE INSPECTOR ROWS AS THEY STAND, VALUE INCLUDED. `Row::value()` is a fresh read
-    // through the property, so what crosses is what the document says at this instant --
-    // never a cached copy, on either side of the seam.
-    for (const Row& row : s.rows) {
-        shown.properties.push_back(
-            ShownProperty{row.label(), row.value(), row.editable(), row.section()});
-    }
-    return shown;
-}
-
-// WL-DOC-20 -- agents/workshop/document.md
-bool same_document(const DocumentShown& a, const DocumentShown& b) {
-    if (a.selected != b.selected || a.objects.size() != b.objects.size() ||
-        a.properties.size() != b.properties.size()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < a.objects.size(); ++i) {
-        if (a.objects[i].identity != b.objects[i].identity ||
-            a.objects[i].name != b.objects[i].name) {
-            return false;
-        }
-    }
-    for (std::size_t i = 0; i < a.properties.size(); ++i) {
-        if (a.properties[i].label != b.properties[i].label ||
-            a.properties[i].value != b.properties[i].value ||
-            a.properties[i].editable != b.properties[i].editable ||
-            a.properties[i].section != b.properties[i].section) {
-            return false;
-        }
-    }
-    return true;
-}
+// ⭐ `draft_live`, `document_shown` AND `same_document` WERE HERE -- a draft on the object
+// inspector's rows, and the object document's picture across the pane seam -- and retired with
+// the prototype canvas. A pane's picture is `pane_subject_shown` (`screen_pane_editor.cpp`).
 
 // ---- One windowed list's rows, mapped both ways ------------------------------------------
 
@@ -160,10 +112,8 @@ TextSelectionSpan property_selection_columns(const Row& row,
 // WHAT STAYED, AND WHY EACH ONE IS NOT THE PANEL'S. `share_body_rows` is the max-min share and
 // the Pane Manager spends it too; `prose_row_in_window` and `item_at_prose_row` are a WINDOW's
 // arithmetic with the same two callers; the three property-row functions below are the PANE
-// MANAGER's row composition, which happens to have been written here first; `draft_live` is
-// what a contextual delete asks about `Session::rows`, which are the Pane Manager's; and
-// `document_shown` and `same_document` are the document SEAM -- the host's reading of the
-// host's document, published because the pane cannot make it.
+// MANAGER's row composition, which happens to have been written here first. (`draft_live`,
+// `document_shown` and `same_document` stayed here too, and retired with the object document.)
 //
 // ⚠ AND `action_availability` LEFT AFTER THE OTHERS. It was kept one stage longer on the
 // reading that a control's availability was the host's to derive; nothing called it once

@@ -193,7 +193,6 @@ add_library(zengine-workshop-logic STATIC
     weave_panels.cpp
     weave_pointer.cpp
     weave_run.cpp
-    weave_save.cpp
     weave_seam.cpp
     weave_session.cpp
     weave_terminal.cpp

@@ -358,15 +358,15 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     // resize -- is exactly seven shapes, and the one that carries a provider's material
     // travels in one direction only: Workshop never speaks a `PaneContent`.
     //
-    // ⚠ THE SIXTH, SEVENTH AND EIGHTH ARE `StandingConditions`, `DocumentShown` AND
-    // `TranscriptShown`, AND THEIR ARRIVAL IS WHAT THIS CASE IS FOR. The Attention, Info and
-    // Terminal migrations are the only things since PR #15 to widen what this host says, and
-    // each widening is deliberate and is ONE: what is currently true, what the object
-    // document looks like, and what the terminal participant's record holds are readings the
-    // panes that show them cannot make (WL-ATTN-12, WL-DOC-20, WL-TERM-03). A case that had
-    // to be edited to admit them is the point of writing the list down -- the next sentence
-    // somebody adds by accident fails here too. (`PaneSubjectShown` is a ninth, said only once
-    // an inspector has named a pane (WL-INFO-14), which nothing in this life does.)
+    // ⚠ THE SIXTH AND SEVENTH ARE `StandingConditions` AND `TranscriptShown`, AND THEIR ARRIVAL
+    // IS WHAT THIS CASE IS FOR. The Attention and Terminal migrations widened what this host
+    // says, and each widening is deliberate and is ONE: what is currently true, and what the
+    // terminal participant's record holds, are readings the panes that show them cannot make
+    // (WL-ATTN-12, WL-TERM-03). A case that had to be edited to admit them is the point of
+    // writing the list down -- the next sentence somebody adds by accident fails here too.
+    // (`DocumentShown`, the object document's picture for Info, was an eighth and retired with
+    // that document. Its successor `PaneSubjectShown` is said only once an inspector has named
+    // a pane (WL-INFO-14), which nothing in this life does.)
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};
@@ -393,10 +393,10 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"DocumentShown",      "PaneCatalogRequested",
-                                           "PanePressed",        "PaneRoom",
-                                           "StandingConditions", "SurfaceCanvas",
-                                           "SurfaceText",        "TranscriptShown"};
+    const std::vector<std::string> allowed{"PaneCatalogRequested", "PanePressed",
+                                           "PaneRoom",             "StandingConditions",
+                                           "SurfaceCanvas",        "SurfaceText",
+                                           "TranscriptShown"};
     CHECK(distinct == allowed);
 
     // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three
@@ -1132,8 +1132,8 @@ TEST_CASE("SEL-0: the same gesture in a terminal names the same row of the same 
 
 TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
     // THE PHASE'S OWN NON-GOAL, ASSERTED. A selection opens no pane, closes none, moves
-    // no focus, changes no setup, writes no notice, selects no object and sends the
-    // named weave nothing. SEL-0 deliberately leaves the message unanswered.
+    // no focus, changes no setup, writes no notice and sends the named weave nothing. SEL-0
+    // deliberately leaves the message unanswered.
     Ears ears;
     PaneRig r;
     r.mount_workshop();
@@ -1145,7 +1145,6 @@ TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
 
     const std::size_t panels_before = r.session().panels.open.size();
     const std::string notice_before = r.last_notice();
-    const std::int64_t selected_before = r.session().selected;
     const Setup setup_before = r.session().setup.active;
 
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
@@ -1154,7 +1153,6 @@ TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);
-    CHECK(r.session().selected == selected_before);
     CHECK(r.last_notice() == notice_before);
     CHECK(r.session().setup.active == setup_before);
 }
@@ -1354,13 +1352,11 @@ TEST_CASE("MSG-0: typing `p` into a focused pane does not open the picker") {
     REQUIRE(seat->typed.size() == 1);
     CHECK(seat->typed[0].text == "p");
 
-    // ...and every other printable Workshop command is the pane's too while it has
-    // the keyboard: `n` and `d` do not touch the document, `w` opens no mode.
-    const std::size_t objects_before = r.w->document().elements.size();
+    // ...and every other printable is the pane's too while it has the keyboard: `w` opens no
+    // mode, and `n` and `d` (the retired object canvas's, once) reach the pane like any letter.
     r.key(input::scan::kN);
     r.key(input::scan::kD);
     r.key(input::scan::kW);
-    CHECK(r.w->document().elements.size() == objects_before);
     CHECK_FALSE(r.session().arrange.open);
     CHECK(seat->keys.size() == 4);
 }
@@ -1517,12 +1513,12 @@ TEST_CASE("MSG-0: a key carries the modifiers the transition carried, unchanged"
     REQUIRE(seat->keys.size() == 2);
     CHECK(seat->keys[0].modifiers == input::mod::kShift);
     CHECK(seat->keys[1].modifiers == input::mod::kAlt);
-    // ...AND CTRL+S DOES NOT (VD-26). `document.save` is requestable while a pane holds the
-    // keys, and this pane declared no row standing in for it, so the chord is the object
-    // document's here exactly as it is on the bare desk. A pane that DOES declare one --
-    // the Editor -- hears it instead, and that is proved where that pane is.
+    // ...AND SO DOES CTRL+S, which the object document's save kept on this side of the pane
+    // until that document retired (VD-26): no host row answers it now, so it is the pane's
+    // key like any other, modifier and all.
     r.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(seat->keys.size() == 2);
+    REQUIRE(seat->keys.size() == 3);
+    CHECK(seat->keys[2].modifiers == input::mod::kCtrl);
 }
 
 TEST_CASE("MSG-0: the same gesture in both media produces the same provider intent") {
@@ -1612,6 +1608,9 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    // THE APPLICATION'S LAUNCHES ARE WHAT SURVIVE ABOVE A PANE, so the desktop that declares
+    // them is here (the object document's `^s`/`^o` were the survivors until it retired).
+    (void)mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     const ui::Rect body = external_body_rect(r.session(), kind);
@@ -1656,7 +1655,7 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "^s save | ^o open"); // `^s` is the document's (VD-26)
+        CHECK(lines[1] == "^t terminal | ^p panes | ^k hotkeys"); // the application's
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 
@@ -2883,7 +2882,7 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     const std::size_t panels_before = r.session().panels.open.size();
     const Setup setup_before = r.session().setup.active;
     const std::string notice_before = r.last_notice();
-    const std::int64_t selected_before = r.session().selected;
+    const std::int64_t selected_before = r.session().panels.selected;
 
     selector->next = [](Selector& s, loom::Mail& m) {
         s.say(m, kIntroOffice, intro::LoadedSelected{"loaded", "zengine-timer", kTimerOffice});
@@ -2895,7 +2894,7 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK(r.session().setup.active == setup_before);
     CHECK(r.last_notice() == notice_before);
-    CHECK(r.session().selected == selected_before);
+    CHECK(r.session().panels.selected == selected_before);
     CHECK(r.session().panels.has(panel::kLayouts));
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);

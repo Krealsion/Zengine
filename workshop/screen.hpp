@@ -11,13 +11,11 @@
 
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
-#include "document_seam_vocabulary.hpp"  // ...and how the object document does
 #include "inspection_seam_vocabulary.hpp" // ...and how a pane as an inspector's subject does
 #include "terminal_seam_vocabulary.hpp"   // ...and how the terminal participant's record does
 #include "desktop_seam_vocabulary.hpp"    // ...and the effective keymap a presenter shows
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
-#include "document.hpp"
 #include "keymap.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -619,26 +617,8 @@ Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc
 Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              std::int64_t cx, std::int64_t cy);
 
-/// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
-inline constexpr std::int64_t kWorkspaceW = kMinScreen.room_w;
-inline constexpr std::int64_t kWorkspaceH = kMinScreen.room_h;
-
-/// What the size handle looks like. One character, because it occupies one cell,
-/// and one that none of the medium's role glyphs already use (`.` workspace,
-/// `#` body, `*` ring, `!` alert) -- an affordance a maker cannot tell from the
-/// furniture is not an affordance.
-inline constexpr const char* kHandleGlyph = "+";
-
-/// A drag in progress. Session, emphatically not content.
-// WL-DOC-09 -- agents/workshop/document.md
-struct Drag {
-    bool active = false;
-    bool resizing = false; ///< the maker took hold of the size handle, not the body
-    std::int64_t id = 0;
-    std::int64_t grab_dx = 0;
-    std::int64_t grab_dy = 0;
-};
-
+// ⭐ THE OBJECT CANVAS'S SESSION FACTS WERE HERE -- the workspace extent a fresh session opened
+// on, the size handle's glyph and an object drag in flight -- and retired with the canvas.
 
 // ⭐ `TerminalPane` WAS HERE AND IS GONE (VD-24). It held the overlay's open bit, the line
 // being typed, the transcript snapshot, the completion list and the two flags that are not
@@ -706,6 +686,11 @@ inline constexpr std::int64_t kPaneEdgeBandSubs = surface::kCellSubs;
 /// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own fine
 /// edges.
 FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept;
+
+/// WHAT "TAKE HOLD HERE" LOOKS LIKE: one character, because it occupies one cell, and one that
+/// none of the medium's role glyphs already use (`.` room, `#` body, `*` ring, `!` alert). It was
+/// the object canvas's size handle first, and the arrangement's corners kept it.
+inline constexpr const char* kHandleGlyph = "+";
 
 /// ONE CHARACTER, for the cell an affordance is drawn on. The two-character spelling
 /// `pane_edge_mark` returns is PROSE -- it reads in a heading and would not fit in the one
@@ -876,31 +861,14 @@ ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
 // ⭐ `HotkeysView` WAS HERE, the host's key-list overlay's one fact. The list is the desktop's
 // Hotkeys pane now, over `keymap_shown` (below), and the host holds no mode for it.
 
-/// WHAT THE INSPECTOR'S ROWS ADDRESS, AND THE NAME THIS HOST GIVES IT -- the applicability a
-/// commit across the pane seam is judged by (`WorkshopWeave::on(DocumentCommitRequested)`).
-///
-/// A row's setter is a closure over one object of one document, so a row index means a
-/// property only together with WHICH document, WHICH object and WHICH layout of rows. `name`
-/// stands for exactly that triple: `refocus` keeps it across a rebuild of the same object's
-/// same rows (a resize, a refit, a value moving) and hands out a fresh one otherwise, and
-/// `open_on_first` and `create` unname it when the document behind the identities may have
-/// changed. Names count up from 1 and are never handed out twice in this session.
-// WL-DOC-21 -- agents/workshop/document.md
-struct RowsSubject {
-    std::int64_t name = 0;   ///< what the picture carries and a commit returns; 0 is unnamed
-    std::int64_t object = 0; ///< the identity the rows were built for when `name` was given
-    std::int64_t minted = 0; ///< the last name handed out
-    /// THE HIGHEST IDENTITY THE DOCUMENT HAS HELD SINCE IT WAS OPENED. A mint at or below it is
-    /// an identity handed out AGAIN -- a rewound mint, which no gesture makes and a poke or a
-    /// state swap can -- and the object behind that number is not the one it named before.
-    std::int64_t held_through = 0;
-};
-
 /// The session: what a maker is currently doing, as opposed to what they have authored.
-/// Kept out of `WorkshopDoc` deliberately, so the two kinds of fact cannot be mistaken for
-/// each other -- selection is not content, and neither is the window it is looked at through.
+/// Kept apart from every file a maker owns, so the two kinds of fact cannot be mistaken for each
+/// other -- selection is not content, and neither is the window it is looked at through.
+///
+/// ⭐ THE OBJECT CANVAS'S SESSION WAS HERE -- the selected object's identity, the workspace a
+/// share resolved against, the inspector rows and the name of what they addressed, an object
+/// drag -- and retired with the canvas.
 struct Session {
-    std::int64_t selected = 0;              ///< the selected object's IDENTITY (0 = none)
     /// HOW MUCH ROOM THE SURFACE SAID IT HAS, in canvas cells -- session, and the most
     /// session-like fact in this struct.
     // WL-GEO-08 -- agents/workshop/geometry.md
@@ -925,10 +893,6 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
-    std::int64_t workspace_h = kWorkspaceH;
-    std::vector<Row> rows;    ///< the inspector, rebuilt when the subject changes
-    RowsSubject subject;      ///< what `rows` address, named (WL-DOC-21)
     /// ⭐ WHAT STANDS IN THE EMPTY ROOM -- the rows the participating desktop said, painted
     /// behind every pane where the prototype object canvas used to draw its rectangles.
     ///
@@ -936,7 +900,6 @@ struct Session {
     /// never merged, never persisted, and empty until the desktop has said something -- which
     /// is the honest picture of a Workshop whose desktop did not load (WL-DESK-05).
     std::vector<surface::SurfaceTextRow> backdrop;
-    Drag drag;                ///< a pointer drag in flight, if any
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::string notice;
@@ -1017,10 +980,9 @@ inline constexpr Screen screen_of(const Session& s) noexcept {
 /// IS THE PANE EDITOR THE PANE A MAKER LAST PRESSED INTO, WITH SOMETHING TO SHOW?
 bool pane_editor_has_keyboard(const Session& s);
 
-/// IS A DRAFT LIVE ON ONE OF THE PANE EDITOR'S ROWS? Its own question, kept apart from the
-/// Info panel's `draft_live` on purpose: the two drafts are about different subjects, and
-/// the refusals Info spends its answer on (a press on the object list rebuilds Info's rows)
-/// are not true of a draft that a change of document selection cannot touch.
+/// IS A DRAFT LIVE ON ONE OF THE PANE EDITOR'S ROWS? Its own question: the object inspector's
+/// `draft_live` asked the same of the object document's rows until they retired, and Info's
+/// draft is the Info weave's own (WL-INFO-06).
 bool pane_editor_draft_live(const Session& s);
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -1074,33 +1036,6 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
                          std::int64_t want_advance_px = 0, std::int64_t want_line_px = 0,
                          std::int64_t want_cell_px = 0);
 
-/// The workspace as a viewport, and the document resolved against it — the ONE
-/// call that turns authored intent into geometry in this application.
-ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s);
-
-/// The inspector for one authored object: the properties, plus the facts that
-/// are not properties.
-std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s);
-
-/// Rebuild the inspector for the current selection. One gesture, so the running weave and the
-/// suite cannot come to disagree about what a fresh inspector is -- and rebuilding rather than
-/// patching is why nothing in this package has a "refresh the inspector" call.
-///
-/// ⭐ IT USED TO HAVE A TWIN AND A CURSOR. `refocus_keeping_draft` carried a live draft and the
-/// maker's row across a rebuild, and `first_editable` chose where a fresh one landed; both were
-/// about state the Info panel held in this host and the Info WEAVE holds now. What the host
-/// still owns is the derived rows themselves, which are a fact about the selection -- and the
-/// name of what they address (`RowsSubject`), kept or given afresh here and nowhere else.
-void refocus(WorkshopDoc& d, Session& s);
-
-/// Where an identity sits in DOCUMENT ORDER, or `elements.size()` for one this
-/// document does not have.
-///
-/// One copy, because there were about to be three. The post-delete selection
-/// rule needs it and so does the object list's visible window, and "where is
-/// this object in the file" is exactly the kind of small answer that goes stale
-/// when it is written twice, at the smallest scale that lesson comes in.
-std::size_t position_of(const WorkshopDoc& d, std::int64_t id);
 
 namespace detail {
 
@@ -1141,7 +1076,7 @@ std::vector<std::string> wrap(const std::string& text, std::int64_t width);
 /// A nudge's proposal is COMPUTED rather than typed, and that widens its input
 /// domain the same way sharing `resolve_extent` widens its own:
 /// `x + 1` is well defined for every value a setter produced and undefined for
-/// the largest one a poke can write (`WorkshopDoc` is ZEN_EXPOSE()d). So the step
+/// the largest one a pointer or a hand-edited file can carry. So the step
 /// saturates -- the neighbour of the last representable cell is itself -- and the
 /// result then goes through the ordinary refusal like any other proposal. The
 /// plain lane cannot see the difference; a sanitizer can, and the report records
@@ -1149,9 +1084,9 @@ std::vector<std::string> wrap(const std::string& text, std::int64_t width);
 std::int64_t step(std::int64_t v, std::int64_t by) noexcept;
 
 /// `a - b`, without leaving the number line — `step`'s partner, and needed for
-/// the same reason. A resize's proposal is a DIFFERENCE (`pointer - the object's
+/// the same reason. A resize's proposal is a DIFFERENCE (`pointer - the pane's
 /// own edge`), and both terms are values this weave does not own: the pointer
-/// comes off the wire and the edge comes off a poke-writable document. The
+/// comes off the wire and the edge comes off a desk a file wrote. The
 /// saturated end is far outside any workspace, which already means "nothing
 /// reachable there".
 std::int64_t minus(std::int64_t a, std::int64_t b) noexcept;
@@ -1184,108 +1119,9 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept;
 
-// ---- Direct manipulation, and the boundary policy it needs -----------------------------
-// WL-DOC-08 -- agents/workshop/document.md
-
-/// One boundary a hand can stop at, in words a maker can read. Separate
-/// sentences from the refusals in document.hpp on purpose: "stopped at the
-/// workspace edge" and "the workspace starts at 0" are different events, and a
-/// maker who cannot tell them apart cannot tell whether anything was written.
-inline constexpr const char* kAtWorkspaceStart = "stopped at the workspace edge";
-inline constexpr const char* kAtSmallest = "stopped at the smallest size";
-inline constexpr const char* kAtLargest = "stopped at the largest size";
-/// "of its context" and not "the workspace": a share of another object stops at
-/// the whole of THAT object, and the wall is the same wall either way -- the
-/// vocabulary's, not the workspace's (100% of anything is all of it).
-inline constexpr const char* kAtWholeContext = "a share stops at the whole of its context";
-
-/// What one act of DIRECT MANIPULATION did — a hand's outcome, which is not the
-/// same shape as a value's outcome.
-// WL-DOC-08 -- agents/workshop/document.md
-struct Handled {
-    Written written;
-    std::string boundary;
-
-    bool accepted() const { return written.accepted; }
-    bool clamped() const { return !boundary.empty(); }
-
-    static Handled of(Written w) { return Handled{std::move(w), {}}; }
-};
-
-// ---- The maker's gestures over one session ---------------------------------------------
-//
-// Session-level operations: each composes a document operation (which can refuse)
-// with the selection bookkeeping that keeps the canvas, the object list and the
-// inspector talking about the same object. They live here rather than in the
-// weave because a gesture whose only witness is a keystroke is a gesture no suite
-// can pin -- workshop.cpp binds keys and pointers to these, and nothing else.
-
-/// Create one new authored object and select it.
-std::int64_t create(WorkshopDoc& d, Session& s);
-
-/// Delete the selected object.
-Written delete_selected(WorkshopDoc& d, Session& s);
-
-/// Put an object where a HAND asked for it, IN WORKSPACE CELLS — the one place a
-/// proposed position meets the boundary policy, and the only door `nudge` and
-/// `drag_to` use.
-Handled place(WorkshopDoc& d, const ui::Scene& scene, std::int64_t id, std::int64_t gx,
-                     std::int64_t gy);
-
-/// Step the selected object one cell — the keyboard's move gesture, and the only
-/// one the canonical POSIX lane can perform at all (that lane produces no pointer
-/// events; see workshop.cpp).
-Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t ddy);
-
-// ---- The size a hand asked for, as an authored extent ----------------------------------
-
-/// The authored extent a maker's HAND asks for, when it asks for a resolved size.
-ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
-                                   std::int64_t span, std::string& boundary);
-
-/// Author a new size from a proposal in RESOLVED cells — the shape both the
-/// pointer and the keyboard arrive in, and the one place either of them becomes
-/// an authored extent.
-Handled size_to(WorkshopDoc& d, const Session& s, std::int64_t id, std::int64_t want_w,
-                       std::int64_t want_h);
-
-/// Grow or shrink the selected object by whole RESOLVED cells — the keyboard's
-/// resize gesture, and the canonical lane's only one.
-Handled grow(WorkshopDoc& d, Session& s, std::int64_t dw, std::int64_t dh);
-
-// ---- The one resize affordance ---------------------------------------------------------
-
-/// Where the selected object's size handle is, in WORKSPACE cells.
-// WL-DOC-09 -- agents/workshop/document.md
-struct Handle {
-    bool shown = false;
-    std::int64_t id = 0;
-    std::int64_t x = 0;
-    std::int64_t y = 0;
-};
-
-Handle size_handle(const WorkshopDoc& d, const Session& s);
-
-/// Take hold of whatever authored object is under a workspace cell. Returns the
-/// identity taken hold of, or 0 for empty space.
-std::int64_t begin_drag(const WorkshopDoc& d, Session& s, std::int64_t cx,
-                               std::int64_t cy);
-
-/// What a press takes hold of: the selected object's SIZE HANDLE if the press
-/// landed on it, otherwise whatever object's body is under the cell. Returns the
-/// identity taken hold of, or 0.
-std::int64_t take_hold(WorkshopDoc& d, Session& s, std::int64_t cx, std::int64_t cy);
-
-/// THE OBJECT UNDER A WORKSPACE CELL, AND NOTHING ELSE -- `take_hold`'s pure half.
-std::int64_t object_at(const WorkshopDoc& d, const Session& s, std::int64_t cx,
-                              std::int64_t cy);
-
-/// Where the gesture in flight now proposes the object should BE, or how big it
-/// should be — committed through the document's one position operation or its one
-/// size operation.
-Handled drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::int64_t cy);
-
-void end_drag(Session& s);
+// ⭐ THE OBJECT CANVAS'S HANDS WERE HERE -- the boundary policy a hand met, create and delete,
+// `place`, `nudge`, the size a hand asked for, the one resize handle, take-hold and drag -- and
+// retired with the canvas. A pane's hands are the arrangement's (`agents/workshop/arrangement.md`).
 
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
@@ -1620,20 +1456,9 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
 bool same_conditions(const std::vector<StandingCondition>& a,
                      const std::vector<StandingCondition>& b);
 
-/// THE OBJECT DOCUMENT AS THE SENTENCE THAT CROSSES THE PANE SEAM: the object rows, the
-/// selection, and the inspector rows of the selected object. Derived from the document and
-/// the session exactly as the built-in's painter derived them, and owning nothing.
-// WL-DOC-20 -- agents/workshop/document.md
-DocumentShown document_shown(const WorkshopDoc& d, const Session& s);
-
-/// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT -- `document_shown`'s exact shape one
-/// owner over: derived at the moment of the ask, holding no `loom::TerminalSession`, no
-/// `Transcript` and no entry the renderer could not read.
+/// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT: derived at the moment of the ask, holding
+/// no `loom::TerminalSession`, no `Transcript` and no entry the renderer could not read.
 TranscriptShown transcript_shown(const loom::TerminalSession* me);
-
-/// IS THIS THE SAME PICTURE? Field by field, in order, for `same_conditions`' reason.
-// WL-DOC-20 -- agents/workshop/document.md
-bool same_document(const DocumentShown& a, const DocumentShown& b);
 
 /// ...and the comparison that decides whether saying it again would be news.
 bool same_transcript(const TranscriptShown& a, const TranscriptShown& b);
@@ -1745,10 +1570,6 @@ struct BodyShare {
 BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
                                  std::size_t want_properties);
 
-/// IS A DRAFT LIVE ON `Session::rows`? The rows are the Pane Manager's since the Info panel
-/// left, so this is the question a contextual delete asks before it destroys unfinished work.
-// WL-PED-07 -- agents/workshop/pane-manager.md
-bool draft_live(const Session& s);
 
 // ⭐ THE INFO PANEL'S PRESENTATION AND ITS CONTROLS ARE DECLARED NOWHERE NOW, BECAUSE THEY ARE
 // NOT THIS HOST'S. `action_row_text`, `InfoBodyPlace`, `inspector_focus`, the four
@@ -2386,11 +2207,10 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
 
 /// The whole screen as one published canvas — an ORDERED LIST OF PLANES.
 ///
-/// ⚠ AND IT NO LONGER TAKES THE FRONTIER EITHER. It was handed one so that it could hand one
-/// to `paint_panels`, which handed it to the current-condition view's painter. That view is a
-/// pane now; the picture is a pure projection of the document, the session and the screen,
-/// and nothing in it derives a fact from the realization owner any more.
-surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s);
+/// ⚠ AND IT TAKES NEITHER THE FRONTIER NOR A DOCUMENT. The frontier went when the
+/// current-condition view became a pane; the object document went with the prototype canvas.
+/// The picture is a pure projection of the session and the screen.
+surface::SurfaceCanvas paint(const Session& s);
 
 } // namespace zengine::workshop
 

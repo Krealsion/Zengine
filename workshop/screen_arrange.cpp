@@ -160,16 +160,11 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     // ⭐ THE SOURCE EDITOR WAS A BRANCH HERE, between the focused pane and the Pane Manager,
     // and it is gone: the Editor is a runtime pane and the branch above answers for it.
     // AND THE PANE EDITOR IS THE SECOND MEMBER, on the same candidate field and
-    // the same terms. A draft open on one of ITS rows takes the keys as text exactly as the
-    // Info panel's draft does one branch down -- `kDraft` is one context whichever inspector
-    // the row belongs to, and `editing_key` asks which by asking this chain.
+    // the same terms. A draft open on one of ITS rows takes the keys as text -- `kDraft` is
+    // its context, and `editing_key` asks which row by asking this chain. (The object
+    // inspector's drafts were the other member until the object document retired.)
     if (pane_editor_has_keyboard(s)) {
         return pane_editor_draft_live(s) ? KeyContext::kDraft : KeyContext::kPaneEditor;
-    }
-    for (const Row& r : s.rows) {
-        if (r.editing()) {
-            return KeyContext::kDraft;
-        }
     }
     return KeyContext::kCommand;
 }

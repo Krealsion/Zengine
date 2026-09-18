@@ -47,68 +47,9 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
             }
         }
     }
-    // A fold: the run of actions it covers (in catalog order, keyed on the first), the
-    // gestures that make it true, and the folded pair it becomes.
-    struct Fold {
-        Act first;
-        Act rest[3];
-        std::size_t others;
-        Gesture wants[4];
-        const char* pair;
-    };
-    namespace sc = input::scan;
-    namespace mo = input::mod;
-    static const Fold kFolds[] = {
-        {Act::kObjectLeft,
-         {Act::kObjectDown, Act::kObjectUp, Act::kObjectRight},
-         3,
-         {{sc::kH, mo::kNone}, {sc::kJ, mo::kNone}, {sc::kK, mo::kNone}, {sc::kL, mo::kNone}},
-         "hjkl move"},
-        {Act::kObjectNarrower,
-         {Act::kObjectTaller, Act::kObjectShorter, Act::kObjectWider},
-         3,
-         {{sc::kH, mo::kShift},
-          {sc::kJ, mo::kShift},
-          {sc::kK, mo::kShift},
-          {sc::kL, mo::kShift}},
-         "shift+hjkl size"},
-        // THE `up/down row` FOLD LEFT WITH THE INFO PANEL'S ROWS. A fold is a legend spelling
-        // for rows this host declares; the two it folded are the Info pane's own now.
-        {Act::kWorkspaceNarrower,
-         {Act::kWorkspaceWider, Act::kNone, Act::kNone},
-         1,
-         {{sc::kLeftBracket, mo::kNone}, {sc::kRightBracket, mo::kNone}, {}, {}},
-         "[ ] workspace"},
-    };
-    const auto fold_holding = [&k](const Fold& f) {
-        if (k.gesture_of(f.first) != f.wants[0]) {
-            return false;
-        }
-        for (std::size_t i = 0; i < f.others; ++i) {
-            if (k.gesture_of(f.rest[i]) != f.wants[i + 1]) {
-                return false;
-            }
-        }
-        return true;
-    };
-    const auto folded_member = [&](Act a, const Fold*& holds) {
-        for (const Fold& f : kFolds) {
-            if (!fold_holding(f)) {
-                continue;
-            }
-            if (f.first == a) {
-                holds = &f;
-                return true;
-            }
-            for (std::size_t i = 0; i < f.others; ++i) {
-                if (f.rest[i] == a) {
-                    holds = nullptr; // covered by the fold its first member emitted
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
+    // ⭐ THE LEGEND'S FOLDS WERE HERE -- `hjkl move`, `shift+hjkl size` and `[ ] workspace`, three
+    // spellings for families of object rows -- and retired with the canvas's keys. Every row the
+    // legend teaches now is its own pair.
     const auto take = [&](bool concrete) {
         for (const ActionRow& row : kActionCatalog) {
             const bool is_concrete = row.context != KeyContext::kGlobal &&
@@ -126,13 +67,6 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
             // is still reachable -- from the surface that names it, and from a maker's own
             // binding, which puts the row back here the moment there is one to spell.
             if (!is_bound(k.row_gesture(row))) {
-                continue;
-            }
-            const Fold* holds = nullptr;
-            if (ctx == KeyContext::kCommand && folded_member(row.act, holds)) {
-                if (holds != nullptr) {
-                    out.push_back(holds->pair);
-                }
                 continue;
             }
             std::string pair = gesture_text(k.row_gesture(row));
@@ -164,7 +98,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     return out;
 }
 
-// WL-DOC-17 -- agents/workshop/document.md; WL-GEO-08 -- agents/workshop/geometry.md
+// WL-GEO-08 -- agents/workshop/geometry.md
 bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
                   std::int64_t want_advance_px, std::int64_t want_line_px,
                   std::int64_t want_cell_px) {
@@ -188,50 +122,7 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
     s.text_advance_px = advance;
     s.text_line_px = line;
     s.cell_px = cell;
-    s.workspace_w = fresh.room_w;
-    s.workspace_h = fresh.room_h;
     return true;
-}
-
-// WL-DOC-05, WL-DOC-12, WL-DOC-18 -- agents/workshop/document.md
-ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
-    return ui::resolve(d.elements, ui::Viewport{s.workspace_w, s.workspace_h});
-}
-
-// WL-DOC-05 -- agents/workshop/document.md
-std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
-    std::vector<Row> rows;
-    const std::int64_t id = s.selected;
-    if (doc::find(d, id) == nullptr) {
-        return rows;
-    }
-    const std::int64_t ww = s.workspace_w;
-    const std::int64_t wh = s.workspace_h;
-
-    rows.push_back(Row::show("Identity", [id] { return "#" + std::to_string(id); }));
-    rows.push_back(Row::edit("Name", doc::name_of(d, id)));
-    // Context comes BEFORE the four numbers it gives meaning to, because that is
-    // the order the reading has to happen in: `X 2` is not an answer until you
-    // know 2 of what. It is one more `Row::edit` over one more property, and
-    // that is the measurement -- a relationship is not a different kind of thing
-    // needing a different kind of editor. It is
-    // NOT labelled `Parent`: nothing here is a parent, and a familiar word that
-    // implies ownership, clipping and cascade-delete would be the tool telling a
-    // maker something the document does not do.
-    rows.push_back(Row::edit("Context", doc::context_of(d, id)));
-    rows.push_back(Row::edit("X", doc::x_of(d, id)));
-    rows.push_back(Row::edit("Y", doc::y_of(d, id)));
-    rows.push_back(Row::edit("Width", doc::width_of(d, id)));
-    rows.push_back(Row::edit("Height", doc::height_of(d, id)));
-    rows.push_back(Row::show("Resolved", [&d, id, ww, wh] {
-        const ui::Scene scene = ui::resolve(d.elements, ui::Viewport{ww, wh});
-        const ui::Placed* placed = ui::placed_for(scene, id);
-        if (placed == nullptr) {
-            return std::string("-");
-        }
-        return std::to_string(placed->rect.w) + " x " + std::to_string(placed->rect.h) + " cells";
-    }));
-    return rows;
 }
 
 std::size_t first_editable(const std::vector<Row>& rows) {
@@ -243,42 +134,9 @@ std::size_t first_editable(const std::vector<Row>& rows) {
     return 0;
 }
 
-// ⭐ `refocus` AND `refocus_keeping_draft` ARE ONE FUNCTION AGAIN. The two existed because the inspector's DRAFT and its CURSOR lived beside its
-// rows in this host: one rebuild threw both away and the other carried them across, and every
-// caller had to know which it wanted. Both belong to the Info weave now -- it holds the cursor
-// in its own state and the draft in its own line -- so a rebuild is a rebuild, and the host's
-// derived rows are the only thing there is to rebuild.
-//
-// ...AND THE NAME OF WHAT THEY ADDRESS IS DECIDED HERE, because every path that rebuilds the rows
-// comes through here. Rows rebuilt for the same object, in the same layout, under a name nothing
-// unnamed, address the same properties, so a resize, a refit or a restored viewport keeps the name
-// and a draft typed against it; anything else is a different subject and gets a name never given
-// before.
-// WL-DOC-21 -- agents/workshop/document.md
-void refocus(WorkshopDoc& d, Session& s) {
-    std::vector<Row> rows = inspector_rows(d, s);
-    bool same = s.subject.name != 0 && s.subject.object == s.selected &&
-                rows.size() == s.rows.size();
-    for (std::size_t i = 0; same && i < rows.size(); ++i) {
-        same = rows[i].label() == s.rows[i].label() &&
-               rows[i].editable() == s.rows[i].editable() &&
-               rows[i].section() == s.rows[i].section();
-    }
-    if (!same) {
-        s.subject.name = ++s.subject.minted;
-        s.subject.object = s.selected;
-    }
-    s.rows = std::move(rows);
-}
-
-std::size_t position_of(const WorkshopDoc& d, std::int64_t id) {
-    for (std::size_t i = 0; i < d.elements.size(); ++i) {
-        if (d.elements[i].id == id) {
-            return i;
-        }
-    }
-    return d.elements.size();
-}
+// ⭐ `workspace_scene`, `inspector_rows`, `refocus` AND `position_of` WERE HERE -- the object
+// document resolved against the workspace, its inspector rows and the name of what they addressed
+// -- and retired with the prototype canvas.
 
 namespace detail {
 
@@ -291,7 +149,6 @@ std::string pad(std::string text, std::size_t width) {
     return text;
 }
 
-// WL-RGN-05 -- agents/workshop/regions.md
 // WL-TEXT-05 -- agents/workshop/text-box.md
 std::string fit(std::string text, std::int64_t width) {
     if (width <= 0) {

@@ -15,20 +15,9 @@
 #include <string_view>
 #include <utility>
 
-#include "vocabulary.hpp"
-
 #include "component/text_box.hpp"
-#include "ui/vocabulary.hpp"
 
 namespace zengine::workshop {
-
-/// An authored context reference, in the spelling a maker reads and types.
-// WL-DOC-11 -- agents/workshop/document.md
-struct ContextRef {
-    std::int64_t id = ui::kRootContext;
-
-    friend bool operator==(const ContextRef&, const ContextRef&) = default;
-};
 
 /// The outcome of an attempted write. A refusal carries its reason, in words a
 /// maker can act on -- the reason IS the feature, so there is no bare `false`.
@@ -58,7 +47,7 @@ private:
 
 /// How a semantic type becomes text and text becomes it again. One
 /// specialization per type, and every property of that type shares it.
-// WL-DOC-02, WL-DOC-04 -- agents/workshop/document.md
+// WL-DOC-02 -- agents/workshop/document.md
 template <class T> struct TextForm;
 
 template <> struct TextForm<std::string> {
@@ -101,66 +90,9 @@ template <> struct TextForm<std::int64_t> {
     static const char* expected() { return "a whole number"; }
 };
 
-template <> struct TextForm<ui::Extent> {
-    /// The canonical spelling: `12` for cells, `70%` for a share.
-    static std::string format(const ui::Extent& v) {
-        std::string out = std::to_string(v.amount);
-        if (v.mode == ui::kExtentPercent) {
-            out += '%';
-        }
-        return out;
-    }
-
-    /// Accepts BOTH `70%` and `70p`.
-    // WL-DOC-04 -- agents/workshop/document.md
-    static std::optional<ui::Extent> parse(std::string_view text) {
-        if (text.empty()) {
-            return std::nullopt;
-        }
-        std::int64_t mode = ui::kExtentCells;
-        if (text.back() == '%' || text.back() == 'p') {
-            mode = ui::kExtentPercent;
-            text.remove_suffix(1);
-        }
-        const std::optional<std::int64_t> amount = TextForm<std::int64_t>::parse(text);
-        if (!amount) {
-            return std::nullopt;
-        }
-        return ui::Extent{mode, *amount};
-    }
-
-    /// `70%`, because that is what a maker types.
-    // WL-DOC-04 -- agents/workshop/document.md
-    static const char* expected() { return "cells (12) or a share (70%)"; }
-};
-
-template <> struct TextForm<ContextRef> {
-    /// `root`, or `#4`.
-    static std::string format(const ContextRef& v) {
-        return v.id == ui::kRootContext ? std::string("root")
-                                        : "#" + std::to_string(v.id);
-    }
-
-    /// A CLOSED set of two spellings.
-    // WL-DOC-11 -- agents/workshop/document.md
-    static std::optional<ContextRef> parse(std::string_view text) {
-        if (text == "root") {
-            return ContextRef{ui::kRootContext};
-        }
-        if (text.size() < 2 || text.front() != '#') {
-            return std::nullopt;
-        }
-        text.remove_prefix(1);
-        const std::optional<std::int64_t> id = TextForm<std::int64_t>::parse(text);
-        if (!id || *id <= ui::kRootContext) {
-            return std::nullopt;
-        }
-        return ContextRef{*id};
-    }
-
-    // WL-DOC-02, WL-DOC-11 -- agents/workshop/document.md
-    static const char* expected() { return "root or an identity (#1)"; }
-};
+// ⭐ `TextForm<ui::Extent>` (`12`, `70%`) AND `TextForm<ContextRef>` (`root`, `#4`) WERE HERE,
+// the object document's two authored spellings; they retired with it. The rows that remain --
+// a pane's placement, a region's -- are strings their setters parse (`parse_face_amount`).
 
 /// What a commit attempt did. Three outcomes, not two, because a maker needs to
 /// tell "that is not a width" from "that is a width and it is not allowed":
@@ -201,7 +133,7 @@ public:
 
     /// A read-only row: something true about the object that is NOT one of its
     /// properties -- a resolved size, a derived count.
-    // WL-DOC-05 -- agents/workshop/document.md
+    // WL-DOC-02 -- agents/workshop/document.md
     static Row show(std::string label, std::function<std::string()> read) {
         Row row;
         row.label_ = std::move(label);
@@ -364,7 +296,7 @@ public:
     /// another image and only its finished text crosses. The conversion is the same, the two
     /// refusals are the same and they are worded the same; what is absent is the draft,
     /// which was never here. `commit()` below is this call with the row's own draft.
-    // WL-DOC-20 -- agents/workshop/document.md
+    // WL-DOC-02 -- agents/workshop/document.md
     Commit commit_text(const std::string& text) {
         if (!editable_) {
             refusal_ = "not authored";

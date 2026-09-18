@@ -116,7 +116,7 @@ beside them, one file per subject the header's section banners name
 | pointer capture | **does not exist as a concept.** A held gesture is Workshop's own state, not a grant to a participant | — |
 | keyboard focus | **Workshop's weave**, per mode, plus the inspector's own row focus. A canvas has no focus and never did | [`workshop/weave.hpp`](../../workshop/weave.hpp), [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 | keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
-| selection of an authored object | **Workshop's document/session state**, and it is *published as a fact* — an identity, not a pointer | [`workshop/document.hpp`](../../workshop/document.hpp) |
+| the subject an inspector reads | **Workshop's session**, named per inspection and *published as a fact* — a named subject, not a pointer, which selecting or focusing another pane does not move. (Selection of an authored object held this row until the object canvas retired.) | [`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp) |
 | the external pane protocol | **`workshop/pane_vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids with no reply to a gesture, and explicit answers only where it asks a question (the reveal, the quit) | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
 | what a pane may draw | **nothing directly.** It publishes rows; Workshop composes them into the canvas | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
 

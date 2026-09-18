@@ -7,17 +7,17 @@ the roots. What a session holds and how it comes back is in
 
 ## WL-SESSION-01 — Workshop writes the desk, the room and the window, and reads them back
 
-LAW — The maker-facing files live in three ownership domains: project (`--document`, `--setup`, `--pane`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
+LAW — The maker-facing files live in three ownership domains: project (`--setup`, `--pane`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
 
 MEANS
 - project files follow the launch directory; configuration follows the maker; state, the machine;
 - a mark is an absolute path, so the marks file is state, and its own file, not a prefs field.
 
 DOES NOT MEAN
-- that the document is read at launch: it is not; the desk, the window and the preferences are.
+- that an old object document is read: `--document` names one to be said and left (WL-DOC-22).
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.hpp`
-`HostContext::document_path`, `HostContext::setup_path`, `HostContext::session_path`,
+`HostContext::retired_document`, `HostContext::setup_path`, `HostContext::session_path`,
 `HostContext::pane_path`, `HostContext::keymap_path`,
 `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
 `tests/test_workshop_persistence.cpp` case `"WUX-3: the two Windows roots are the platform's own

@@ -42,7 +42,6 @@
 
 #include "doctest.h"
 
-#include "workshop/document.hpp"
 #include "workshop/persist.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
@@ -155,31 +154,6 @@ inline component::TextBox box_of(std::size_t length, std::size_t caret, std::siz
     b.set(std::string(length, 'x'), caret);
     b.keep_caret_visible(caret > first ? static_cast<std::int64_t>(caret - first) : 0);
     return b;
-}
-
-/// Two rectangles that SHARE A NAME. The fixture is the point: if a name were
-/// identity, this document could not exist.
-inline WorkshopDoc two_panels() {
-    WorkshopDoc d;
-    doc::add(d, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60}, ui::Extent{ui::kExtentCells, 6});
-    doc::add(d, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14}, ui::Extent{ui::kExtentCells, 4});
-    return d;
-}
-
-/// A document of `n` objects in creation order, identities 1..n.
-///
-/// The fixture that was missing for a long time, and the reason a whole class of
-/// panel defect survived: every live run and every screen case used two objects,
-/// and the 300- and 500-link documents were exercised headlessly, where nothing
-/// paints. More objects than the OBJECTS panel is tall is the shape those cases
-/// could not express.
-inline WorkshopDoc many(std::int64_t n) {
-    WorkshopDoc d;
-    for (std::int64_t i = 0; i < n; ++i) {
-        doc::add(d, "panel", 0, 0, ui::Extent{ui::kExtentCells, 2},
-                 ui::Extent{ui::kExtentCells, 1});
-    }
-    return d;
 }
 
 /// Type the whole of `text` into a row, one character at a time -- the way a
@@ -517,19 +491,6 @@ inline void link_live_setup(SetupState& s, std::string path) {
     s.active_link = SetupLink{std::move(path), s.active};
 }
 
-/// ONE OBJECT ROW OF THE PICTURE THE HOST PUBLISHES, spelled the way the built-in's own row
-/// read -- the selection mark, the identity and the authored name. It is composed HERE rather
-/// than read off a canvas, because the composition is the Info weave's and what this host owns
-/// is the picture (`DocumentShown`): a case about the DOCUMENT asks what the host said, and a
-/// case about the ROW asks the pane.
-inline std::string shown_object(const WorkshopDoc& d, const Session& s, std::size_t at) {
-    const DocumentShown shown = document_shown(d, s);
-    REQUIRE(at < shown.objects.size());
-    const ShownObject& o = shown.objects[at];
-    return std::string(o.identity == shown.selected ? "> " : "  ") + "#" +
-           std::to_string(o.identity) + " " + o.name;
-}
-
 // ⭐ THE INFO PANEL'S TEST HELPERS LEFT WITH THE PANEL. `body_of`, `body_on`, `object_row`,
 // `property_row`, `properties_heading` and `object_lines` all resolved the panel's body through
 // `info_body_place` so that a case read the same composition the painter drew. There is no such
@@ -588,20 +549,16 @@ struct SeenState {
 /// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
-                                                    StandingConditions, DocumentShown,
-                                                    v2::DocumentShown, TranscriptShown,
+                                                    StandingConditions, TranscriptShown,
                                                     PaneSubjectShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
             std::vector<StandingConditions>& conditions,
-            std::vector<DocumentShown>& documents,
-            std::vector<v2::DocumentShown>& named_documents,
             std::vector<TranscriptShown>& transcripts,
             std::vector<PaneSubjectShown>& subjects)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
-          documents_(&documents), named_documents_(&named_documents),
           transcripts_(&transcripts), subjects_(&subjects) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
@@ -609,8 +566,6 @@ public:
     }
     void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
-    void on(const DocumentShown& d, loom::Mail&) { documents_->push_back(d); }
-    void on(const v2::DocumentShown& d, loom::Mail&) { named_documents_->push_back(d); }
     void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
     void on(const PaneSubjectShown& s, loom::Mail&) { subjects_->push_back(s); }
 
@@ -618,8 +573,6 @@ private:
     std::vector<surface::SurfaceCanvas>* canvases_;
     std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
-    std::vector<DocumentShown>* documents_;
-    std::vector<v2::DocumentShown>* named_documents_;
     std::vector<TranscriptShown>* transcripts_;
     std::vector<PaneSubjectShown>* subjects_;
 };
@@ -799,11 +752,6 @@ struct Live {
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
-    /// ...AND EVERY `DocumentShown`, in order, for the same reason.
-    std::vector<DocumentShown> said_documents;
-    /// ...and every `v2::DocumentShown`, the same picture with the name of what its rows address
-    /// (WL-DOC-21), in order -- published beside v1, and sometimes alone when only the name moved.
-    std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
     /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
@@ -841,8 +789,8 @@ struct Live {
         w->zen_set_self(id);
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_named_documents, said_transcripts, said_subjects);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
+                                   said_subjects);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panels);
@@ -1027,7 +975,6 @@ struct Live {
     /// The window manager asked the surface to close.
     void close_requested() { publish(loom::to_value(surface::SurfaceCloseRequested{})); }
 
-    const WorkshopDoc& doc() const { return w->document(); }
     const Session& session() const { return w->session(); }
     std::string notice() const { return w->session().notice; }
 
@@ -1053,19 +1000,6 @@ struct Live {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
     }
-    const ui::Element* first() const { return &w->document().elements.front(); }
-    const ui::Element* second() const { return &w->document().elements[1]; }
-
-    /// The inspector row with this label, as a maker would read it.
-    const Row* row(const std::string& label) const {
-        for (const Row& r : w->session().rows) {
-            if (r.label() == label) {
-                return &r;
-            }
-        }
-        return nullptr;
-    }
-
     // ⭐ `begin_editing` LEFT WITH THE INFO PANEL'S KEYS. It walked the host's inspector cursor
     // to a named row with `down` and opened a draft with `enter` -- three command-mode rows
     // that are the Info weave's own now (VD-22). A case that wants a draft presses into the
@@ -1080,14 +1014,6 @@ struct Live {
 
 /// A long value that cannot fit an Inspector row at any extent this composition has.
 inline const std::string kLongValue = "the quick brown fox jumps over the lazy dog";
-
-/// The selected object's RESOLVED width, read the way the canvas reads it.
-inline std::int64_t resolved_w(const Live& t) {
-    const ui::Scene scene = workspace_scene(t.doc(), t.session());
-    const ui::Placed* p = ui::placed_for(scene, t.session().selected);
-    REQUIRE(p != nullptr);
-    return p->rect.w;
-}
 
 /// THIS PROCESS, AS A NAME: the one thing two processes of one suite running at once are
 /// guaranteed not to share.
@@ -1228,30 +1154,13 @@ inline void spillout(const std::string& path, const std::string& text) {
     out.write(text.data(), static_cast<std::streamsize>(text.size()));
 }
 
-/// A document with everything persistence has to preserve in it: two objects sharing a
-/// name, one authored in cells and one as a share, and a mint that has already
-/// been past a deleted identity.
-inline WorkshopDoc rich_document() {
-    WorkshopDoc d;
-    doc::add(d, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60},
-             ui::Extent{ui::kExtentCells, 6});
-    doc::add(d, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
-             ui::Extent{ui::kExtentCells, 4});
-    const std::int64_t doomed = doc::add(d, "temporary", 0, 0, ui::Extent{ui::kExtentCells, 2},
-                                         ui::Extent{ui::kExtentCells, 2});
-    REQUIRE(doc::remove(d, doomed).accepted);
-    return d;
-}
-
-/// The text of a saved document, with one substring replaced — how the refusal
-/// cases forge a file that the honest writer could never produce.
-inline std::string forged(const WorkshopDoc& d, const std::string& from, const std::string& to) {
-    std::string text = persist::to_text(d);
-    const std::size_t at = text.find(from);
-    REQUIRE(at != std::string::npos);
-    text.replace(at, from.size(), to);
-    return text;
-}
+/// A RETIRED OBJECT DOCUMENT, BYTE FOR BYTE -- what the object document's own writer
+/// (`persist::save_file`) wrote for the boot document, two objects called `panel`, before the
+/// prototype canvas retired. Produced by that commit's code and kept here as a maker's old
+/// `workshop.json` is kept on their disk: every reader this host has must refuse it as what it
+/// is not, and no door reads it as what it was (WL-DOC-22).
+inline constexpr const char* kRetiredObjectDocument =
+    R"({"zen":1,"schema":"WorkshopDocument","version":2,"content_id":"0xbfde7d02abe39177","fields":{"format":"zengine-workshop","format_version":"1","next_id":"3","objects":[{"id":"1","name":"panel","context":"0","x":"3","y":"2","width":{"mode":"percent","amount":"60"},"height":{"mode":"cells","amount":"6"}},{"id":"2","name":"panel","context":"0","x":"6","y":"10","width":{"mode":"cells","amount":"14"},"height":{"mode":"cells","amount":"4"}}]}})";
 
 /// A stand-in for the Builder tool: it holds the office, records what it was
 /// asked, and answers with whatever status the case has set up.
@@ -1452,27 +1361,6 @@ inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s
         return {}; // a closed panel says nothing, which is the answer a case wants
     }
     return panel_text(c, pane_body_cells(at.rect, screen_of(s)));
-}
-
-/// A document of `n` identical objects with the selection on the `at`th, and a session
-/// resolved for the given extent. The names are all `panel`, which is what `n` actually
-/// produces -- see the duplicate-name case below.
-struct Sample {
-    WorkshopDoc d;
-    Session s;
-};
-inline Sample panel_of(std::size_t n, std::size_t at, std::int64_t w, std::int64_t h,
-                      std::int64_t advance = 0, std::int64_t line = 0) {
-    Sample p;
-    for (std::size_t i = 0; i < n; ++i) {
-        REQUIRE(doc::add_default(p.d) != 0);
-    }
-    adopt_screen(p.s, w, h, advance, line);
-    if (!p.d.elements.empty()) {
-        p.s.selected = p.d.elements[at].id;
-    }
-    refocus(p.d, p.s);
-    return p;
 }
 
 /// The reference a built-in kind is spelled with, as a case says it -- through
@@ -2043,96 +1931,6 @@ struct SeatState {
 /// speech from the actual role holder, one office speaking about another's pane, a
 /// content message one column too wide -- and a shipped fixture that could be
 /// talked into those would not be a fixture worth shipping.
-/// A WEAVE THAT ASKS THE DOCUMENT'S DOOR, and keeps every answer.
-///
-/// It is the suite's stand-in for the Info pane at the HOST's tier: what these cases measure
-/// is what the DOOR does with an ask and what it answers, which is a claim about this host
-/// and needs no image on disk. The seam suite drives the real pane against the real
-/// publication.
-class DocumentAsker
-    : public loom::WeaveBase<DocumentAsker, SeatState,
-                             loom::Accept<DocumentActed, SeatDo>,
-                             loom::Emit<DocumentActRequested, DocumentCommitRequested>> {
-public:
-    void on(const DocumentActed& a, loom::Mail&) {
-        ++state_.said;
-        answers.push_back(a);
-    }
-
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            next(*this, mail);
-            next = nullptr;
-        }
-    }
-
-    void ask(loom::Mail& mail, DocumentActRequested request) {
-        (void)mail.as_role(kAskerOffice).send_to_role(kWorkshopProvider, std::move(request));
-    }
-
-    /// ...and the commit that names its subject (WL-DOC-21), through the same office.
-    void commit(loom::Mail& mail, DocumentCommitRequested request) {
-        (void)mail.as_role(kAskerOffice).send_to_role(kWorkshopProvider, std::move(request));
-    }
-
-    static constexpr const char* kAskerOffice = "zengine.test-asker";
-
-    std::vector<DocumentActed> answers;
-    std::function<void(DocumentAsker&, loom::Mail&)> next;
-};
-
-/// SEAT A PARTY THAT MAY ASK THE DOCUMENT'S DOOR, in an office of its own -- the door names
-/// nobody, so a tool added tomorrow asks with no edit there.
-inline DocumentAsker* mount_document_asker(Live& t) {
-    auto seat = std::make_unique<DocumentAsker>();
-    DocumentAsker* raw = seat.get();
-    loom::Grant say;
-    say.allow_to_role(DocumentActRequested::zen_name, DocumentActRequested::zen_version,
-                      kWorkshopProvider);
-    say.allow_to_role(DocumentCommitRequested::zen_name, DocumentCommitRequested::zen_version,
-                      kWorkshopProvider);
-    const loom::WeaveId id =
-        t.bus.register_weave(std::move(seat), std::move(say),
-                             std::string(DocumentAsker::kAskerOffice));
-    raw->zen_set_self(id);
-    return raw;
-}
-
-/// ASK THE DOOR FOR ONE ACT, from the seated party, and drain.
-inline void ask_document(Live& t, DocumentAsker* seat, DocumentActRequested request) {
-    REQUIRE(seat != nullptr);
-    seat->next = [request](DocumentAsker& a, loom::Mail& m) { a.ask(m, request); };
-    t.publish(loom::to_value(SeatDo{}));
-}
-
-/// ...and the two shapes a case reaches for most.
-inline void ask_document_act(Live& t, DocumentAsker* seat, const char* act,
-                             std::int64_t identity = 0) {
-    DocumentActRequested request;
-    request.act = act;
-    request.identity = identity;
-    ask_document(t, seat, std::move(request));
-}
-
-/// v1's COMMIT, which names a row and no subject -- the door refuses it (WL-DOC-21).
-inline void ask_document_commit(Live& t, DocumentAsker* seat, std::int64_t row,
-                                const std::string& text) {
-    DocumentActRequested request;
-    request.act = kDocumentCommit;
-    request.row = row;
-    request.text = text;
-    ask_document(t, seat, std::move(request));
-}
-
-/// THE COMMIT THAT NAMES ITS SUBJECT, from the seated party, and drain.
-inline void ask_subject_commit(Live& t, DocumentAsker* seat, std::int64_t subject,
-                               std::int64_t row, const std::string& text) {
-    REQUIRE(seat != nullptr);
-    const DocumentCommitRequested request{subject, row, text};
-    seat->next = [request](DocumentAsker& a, loom::Mail& m) { a.commit(m, request); };
-    t.publish(loom::to_value(SeatDo{}));
-}
-
 class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
@@ -2471,11 +2269,6 @@ struct PaneRig {
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
-    /// ...AND EVERY `DocumentShown`, in order, for the same reason.
-    std::vector<DocumentShown> said_documents;
-    /// ...and every `v2::DocumentShown`, the same picture with the name of what its rows address
-    /// (WL-DOC-21), in order -- published beside v1, and sometimes alone when only the name moved.
-    std::vector<v2::DocumentShown> said_named_documents;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
     /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
@@ -2492,8 +2285,8 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
-        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_documents,
-                                   said_named_documents, said_transcripts, said_subjects);
+        (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
+                                   said_subjects);
     }
 
 
@@ -2584,11 +2377,6 @@ struct PaneRig {
         // left it out would make the Attention pane look like a pane that never hears
         // anything, which is a rig defect wearing a product defect's face.
         speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
-        // ...and the object document's picture and the one act it answers, exactly as
-        // workshop.cpp grants them.
-        speak.allow_to_any(DocumentShown::zen_name, DocumentShown::zen_version);
-        speak.allow_to_any(v2::DocumentShown::zen_name, v2::DocumentShown::zen_version);
-        speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
         // ...and an inspector's pane subject and its answers, exactly as workshop.cpp grants them.
         speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
         speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
@@ -3527,7 +3315,7 @@ inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::Surface
     return out;
 }
 
-/// A session with a screen extent and a text metric, and a workspace that fills the room.
+/// A session with a screen extent and a text metric.
 inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advance,
                               std::int64_t line, std::int64_t cell_px = 0) {
     Session s;
@@ -3536,9 +3324,6 @@ inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advan
     s.text_advance_px = advance;
     s.text_line_px = line;
     s.cell_px = cell_px;
-    const Screen sc = screen_of(s);
-    s.workspace_w = sc.room_w;
-    s.workspace_h = sc.room_h;
     return s;
 }
 

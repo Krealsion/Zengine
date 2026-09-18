@@ -374,10 +374,6 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         // than waiting for the first extent to arrive.
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
-        // The resolved inspector row closes over the workspace extent, and the workspace
-        // extent is exactly what just changed -- `on(SurfaceExtent)`'s reason, said at
-        // startup.
-        refocus(state_, session_);
     }
     // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK --------------------
     //

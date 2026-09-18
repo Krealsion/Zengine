@@ -191,27 +191,14 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
 // WL-KEY-01 -- agents/workshop/keyboard.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what the keymap changed is only
-    // how a gesture becomes an action. Exact matching split the old `shift ?` pairs
-    // into declared siblings (`object.left`/`object.narrower`,
-    // `builder.build`/`builder.build-realize`) -- one gesture family spelled two ways
-    // remains the design (hjkl's own decision), each half its own remappable row now,
-    // and the accidental subset aliases the old per-site tests produced (Ctrl+N
-    // created; Alt+Q quit) are gone on purpose.
+    // how a gesture becomes an action. The accidental subset aliases the old per-site tests
+    // produced (Alt+Q quit) are gone on purpose.
+    //
+    // ⭐ THE OBJECT CANVAS'S THIRTEEN ARMS WERE HERE -- `Tab` to select, `n` and `d`, `hjkl` and
+    // their shifted resizes, `[` and `]` to refit the workspace -- and retired with the canvas.
+    // A maker's keymap row naming one of those ids is kept byte for byte and said at load
+    // (`kRetiredActions`); nothing here answers it.
     switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
-    case Act::kObjectNext: select_next(); break;
-
-    case Act::kObjectNew: create_object(); break;
-    case Act::kObjectDelete: delete_object(); break;
-    case Act::kObjectLeft: move_by(-1, 0); break;
-    case Act::kObjectDown: move_by(0, +1); break;
-    case Act::kObjectUp: move_by(0, -1); break;
-    case Act::kObjectRight: move_by(+1, 0); break;
-    case Act::kObjectNarrower: size_by(-1, 0); break;
-    case Act::kObjectTaller: size_by(0, +1); break;
-    case Act::kObjectShorter: size_by(0, -1); break;
-    case Act::kObjectWider: size_by(+1, 0); break;
-    case Act::kWorkspaceNarrower: resize_workspace(-4); break;
-    case Act::kWorkspaceWider: resize_workspace(+4); break;
     case Act::kPicker: open_picker(); break;
     // ⭐ THE NINE BUILDER ARMS ARE GONE FROM COMMAND MODE (VD-22). `b`, `B`, `P`, `R`, `o`,
     // `c`, `C`, `f` and `e` were dispatched from here, each of them opening with "with no

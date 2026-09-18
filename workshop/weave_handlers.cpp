@@ -10,18 +10,9 @@
 
 namespace zengine::workshop {
 
-WorkshopWeave::WorkshopWeave(HostContext& host) : host_(&host) {
-    // The document a maker opens onto. Deliberately boring, and deliberately
-    // TWO rectangles sharing nothing but a name pattern -- `panel` and
-    // `panel` would be the same object in the old builder, and here they are
-    // #1 and #2. The wide one is authored as a SHARE so the very first screen
-    // already shows an authored intent and its resolved value side by side.
-    doc::add(state_, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60},
-             ui::Extent{ui::kExtentCells, 6});
-    doc::add(state_, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
-             ui::Extent{ui::kExtentCells, 4});
-    open_on_first();
-}
+// ⭐ THE BOOT DOCUMENT -- two `panel` rectangles, #1 and #2 -- WAS MADE HERE, and retired with
+// the prototype object canvas. A fresh Workshop opens onto its desk and the desktop's floor.
+WorkshopWeave::WorkshopWeave(HostContext& host) : host_(&host) {}
 
 // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
 void WorkshopWeave::load_keymap(loom::Mail& mail) {
@@ -69,11 +60,26 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
                                                         std::string(now) + "` -- rename it there");
         }
     }
+    // ...AND A ROW FOR AN ID THAT RETIRED IS SAID AS ONE (`kRetiredActions`): kept byte for byte,
+    // answered by nothing, and named with what took it, so a maker is not left wondering whether
+    // a pane might yet declare it.
+    std::string retired;
+    for (const AuthoredOverride& o : session_.keymap.authored) {
+        if (const char* with = retired_with(o.action)) {
+            retired += (retired.empty() ? "" : "; ") + ("`" + o.action + "` retired with " +
+                                                        std::string(with) +
+                                                        " -- kept, and nothing answers it");
+        }
+    }
     keymap_standing_ = "applied -- " + std::to_string(session_.keymap.authored.size()) +
                        " authored row" + (session_.keymap.authored.size() == 1 ? "" : "s") +
-                       (renamed.empty() ? std::string() : "; " + renamed);
+                       (renamed.empty() ? std::string() : "; " + renamed) +
+                       (retired.empty() ? std::string() : "; " + retired);
     if (!renamed.empty()) {
         session_.keymap.note += (session_.keymap.note.empty() ? "" : "; ") + renamed;
+    }
+    if (!retired.empty()) {
+        session_.keymap.note += (session_.keymap.note.empty() ? "" : "; ") + retired;
     }
     std::string refused;
     // THE APPLICATION'S ROWS FIRST, because a pane is judged against them (WL-DESK-07): the file
@@ -132,7 +138,16 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     }
     startup_spoken_ = true;
     std::string word;
-    for (const std::string* part : {&keymap_word_, &host_->transition_note}) {
+    // AN OBJECT DOCUMENT THIS RUN WAS POINTED AT, SAID ONCE AND LEFT ALONE (WL-DOC-22): the file is
+    // a maker's, the canvas that read it retired, and nothing here opens, rewrites or deletes it.
+    const std::string retired =
+        host_->retired_document.empty()
+            ? std::string()
+            : "object document " + host_->retired_document +
+                  " left as it is -- the object canvas retired, and nothing here reads or "
+                  "writes it";
+    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired};
+    for (const std::string* part : parts) {
         if (part->empty()) {
             continue;
         }
@@ -211,7 +226,7 @@ std::string WorkshopWeave::host_pane_path() const {
     return persist::resolved_against(host_->project_dir, host_->pane_path);
 }
 
-// WL-DOC-17 -- agents/workshop/document.md; WL-GEO-08 -- agents/workshop/geometry.md
+// WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
     if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
                       e.cell_px)) {
@@ -228,16 +243,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
     }
-    // THE ROWS ARE REBUILT AND A LIVE DRAFT IS CARRIED ACROSS. The resolved row
-    // closes over the extent it resolves against, so the rebuild is not optional -- but
-    // this is the ONE rebuild that happens for a reason having nothing to do with the
-    // maker. A window dragged is not a gesture aimed at the inspector, and earlier
-    // measured it on the pristine tree it silently threw away whatever was half-typed
-    // into a property, its refusal and the cursor with it. Every OTHER caller of
-    // `rebuild_rows` follows a change of selection or of document, where dropping the
-    // draft is the right answer and carrying it would put it on a different object.
-    refocus(state_, session_);
-    // AND THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS. A screen
+    // THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS. A screen
     // that grew may have gained an overlay slot, and one that shrank may have lost the
     // one a panel was standing in -- so this is the second reason a reconcile happens
     // and the only one that is not a maker's gesture. Growth opens an authored pane that
@@ -313,14 +319,6 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         // a quit that proceeded publishes one last unchanged frame on its way out, which
         // costs nothing anybody sees; a quit that is ASKING paints the desk as it is.
         quit(mail);
-        repaint(mail);
-        return;
-    case Act::kSaveDocument:
-        save_document();
-        repaint(mail);
-        return;
-    case Act::kOpenDocument:
-        load_document();
         repaint(mail);
         return;
     default: break;

@@ -116,12 +116,13 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-08 — The pane gets every bare key, `q` included
 
-LAW — The global survivors are chorded, and admission's refusal of a bare printable on a global row enforces it, which is why typing `p` into a field does not open the picker.
+LAW — The survivors above a pane are chorded, and admission's refusal of a bare printable on a row above every mode enforces it, which is why typing `p` into a field does not open the picker.
 
-PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`; `workshop/keymap_persist.hpp`
-`from_text`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: typing `p` into a focused pane
-does not open the picker"`; `tests/test_workshop_document.cpp` case `"KEY-0: a global action
-cannot take a bare printable or the editing vocabulary"`.
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `join_app_rows`;
+`workshop/keymap_persist.hpp` `from_text`; `tests/test_workshop_panes_input.cpp` case `"MSG-0:
+typing `p` into a focused pane does not open the picker"`; `tests/test_workshop_panes_actions.cpp`
+case `"an application row answered above every mode cannot take a bare printable or a chord the
+text box owns, whoever wrote it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-09 — `^c` follows the keyboard

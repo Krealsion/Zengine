@@ -81,9 +81,24 @@ The safe write's rename replaces an existing destination on both lanes, measured
 `rename(2)`, and on Windows libstdc++'s `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING` (case
 `"a detected write failure leaves the last good save readable and unchanged"`).
 
+**Retired with the object canvas.** The document this record decided is gone: the prototype
+canvas's rectangles, their identities and frames, the hands that moved and sized them, the file
+that kept them and the `^s`/`^o` that wrote and read it. A maker arranges desks, layouts and panes
+now, and Info inspects a pane (WL-INFO-14). The ids keep their numbers as RETIRED entries in the
+two registers. Three parts outlived it and stay this record's: the typed property connection every
+editable row is built on (WL-DOC-02), the file doors every durable artifact shares (WL-DOC-15),
+and — new with the retirement — what a maker's old document meets (WL-DOC-22: named once at
+startup, never read, rewritten or deleted, and never taken for another kind of file) and the
+status line that used to name it (WL-DOC-23). *Alternatives considered at the retirement:*
+converting old documents into panes or desks was refused, because an authored rectangle has no
+pane, provider or desk to become and a guess would reinterpret a maker's bytes; reading the file
+to validate it before saying so was refused, because a file this host never reads cannot be
+mistaken for anything; deleting or renaming it was refused, because it is the maker's.
+
 **Laws supported.** [WL-DOC-13](../workshop/document-file.md),
 [WL-DOC-14](../workshop/document-file.md), [WL-DOC-15](../workshop/document-file.md),
 [WL-DOC-16](../workshop/document-file.md), [WL-DOC-19](../workshop/document-file.md),
+[WL-DOC-22](../workshop/document-file.md), [WL-DOC-23](../workshop/document-file.md),
 [WL-DOC-01](../workshop/document.md), [WL-DOC-02](../workshop/document.md),
 [WL-DOC-03](../workshop/document.md), [WL-DOC-04](../workshop/document.md),
 [WL-DOC-05](../workshop/document.md), [WL-DOC-06](../workshop/document.md),

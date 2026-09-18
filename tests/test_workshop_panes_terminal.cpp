@@ -428,7 +428,7 @@ TEST_CASE("TERM-W5: a typed send leaves through the PARTICIPANT's door, not the 
 // ============================================================================
 
 TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading changed") {
-    // THE `DocumentShown` DISCIPLINE, one owner over. A repaint that changed nothing about
+    // THE `StandingConditions` DISCIPLINE, one owner over. A repaint that changed nothing about
     // the participant says nothing, which is what makes this seam terminate: a pane answers
     // a publication with its rows, and a repaint follows that.
     TerminalRig t;

@@ -187,18 +187,17 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
 
 // WL-FRONT-01, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-ATTN-04 -- agents/workshop/attention.md
-// WL-DOC-18 -- agents/workshop/document.md
-// WL-RGN-05 -- agents/workshop/regions.md
-surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
+surface::SurfaceCanvas paint(const Session& s) {
     const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
     c.width = sc.w;
     c.height = sc.h;
 
-    // THE WORKSPACE PLANE: what a maker authored, as this workspace places it.
-    // It is written whole before any pane is, because a pane is a presentation IN FRONT of
-    // the document -- which is what `occupied_at` has answered and what the
-    // picture now agrees with instead of merely being told.
+    // THE ROOM'S PLANE: the room's own edges and the desktop's floor. It is written whole before
+    // any pane is, because a pane is a presentation IN FRONT of the room -- which is what
+    // `occupied_at` has answered and what the picture agrees with instead of merely being told.
+    // (It was the prototype object canvas's plane, the authored objects as the workspace placed
+    // them, until that canvas retired.)
     //
     // THE SCREEN'S OWN CHROME IS NOT HERE. It is a plane of its own, added after the panes,
     // for a reason worth stating where both are decided: the bottom band is where the tool
@@ -221,20 +220,15 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         on->labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
     };
 
-    // The workspace, as a thing with edges a maker can see. Its extent is a
-    // session fact, so resizing it visibly changes what a share resolves to
-    // while changing no authored value at all.
-    rect(kWorkspaceX, kWorkspaceY, s.workspace_w, s.workspace_h, surface::role::kMuted);
+    // The room, as a thing with edges a maker can see.
+    rect(kWorkspaceX, kWorkspaceY, sc.room_w, sc.room_h, surface::role::kMuted);
 
     // ⭐ THE ROOM'S FLOOR -- what the participating desktop said stands in the empty workspace
     // (WL-DESK-05).
     //
-    // WRITTEN BEFORE THE SCENE, so the prototype canvas's rectangles cover it rather than the
-    // other way round. That ordering is the TRANSITION being visible rather than hidden: the
-    // canvas is selected for retirement and its responsibilities have not all been rehomed yet
-    // (Info still inspects its objects), so this arc puts the floor in and leaves the canvas
-    // standing ON it. When the canvas goes, nothing here changes -- the scene loop below is
-    // deleted and the floor is what the room shows.
+    // THE CANVAS STOOD ON IT UNTIL THE CANVAS RETIRED: its rectangles were written after the
+    // floor and covered it, the transition visible rather than hidden. The scene loop that drew
+    // them is gone, and the floor is what the room shows.
     //
     // ⚠ WORKSHOP COMPOSES NOTHING HERE. The rows are the desktop's own words, painted at the
     // place and in the roles it said, clipped to the room the host owns. A host that edited
@@ -243,142 +237,15 @@ surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // has not spoken, or never loaded, and it paints nothing at all.
     for (std::size_t i = 0; i < s.backdrop.size(); ++i) {
         const std::int64_t y = kWorkspaceY + 1 + static_cast<std::int64_t>(i);
-        if (y >= kWorkspaceY + s.workspace_h) {
+        if (y >= kWorkspaceY + sc.room_h) {
             break; // the room ran out; the rest is not drawn and nothing is invented
         }
         const surface::SurfaceTextRow& row = s.backdrop[i];
-        label(kWorkspaceX + 2, y, detail::fit(row.text, s.workspace_w - 4), row.role);
+        label(kWorkspaceX + 2, y, detail::fit(row.text, sc.room_w - 4), row.role);
     }
 
-    // The scene: the authored elements, as this workspace places them. Painting
-    // walks the SCENE, not the document -- so a rectangle on screen is by
-    // construction a rectangle the hit test can find.
-    const ui::Scene scene = workspace_scene(d, s);
-    for (const ui::Placed& p : scene.items) {
-        const std::int64_t x = kWorkspaceX + p.rect.x;
-        const std::int64_t y = kWorkspaceY + p.rect.y;
-        if (p.id == s.selected) {
-            rect(x - 1, y - 1, p.rect.w + 2, p.rect.h + 2, surface::role::kAccent);
-        }
-        rect(x, y, p.rect.w, p.rect.h, surface::role::kFill);
-        // The label, written on the object, clipped to the workspace rather than
-        // allowed to run into the panel beside it. The label is authored, so it
-        // is read from the element and not from the observation of it.
-        //
-        // AND IT IS SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS, which is the
-        // one place in this tool where that sentence has to be argued rather than assumed.
-        // The name is semantic -- it is the maker's word for this object and its exact cell
-        // occupancy is no part of what they authored -- so it belongs in a bounded region.
-        // Its rectangle, though, is already full: the object's body is authored MATERIAL,
-        // drawn one line up as a `SurfaceRect`. An ordinary region over it erases that
-        // material in both media, and rows carrying the object's role as a GROUND leave a
-        // `12h - 4 - 18*rows` pixel band the strips cannot reach (10 px across the foot of a
-        // default 12x4 object; `12h - 4 == 18k` has no integer solutions, so SOME remainder
-        // exists at every height). Both were built and run live, twice -- once at first and
-        // once again to re-measure them. `surface::kGroundBeneath` is the third
-        // answer: the region keeps its bounds, so the name is fitted and cut against them,
-        // and gives up the ground, so nothing under it is painted over.
-        //
-        // THE BOUND IS THE OBJECT'S OWN RESOLVED WIDTH, clipped by the workspace's
-        // right edge -- and earlier it was only the second of those. The name used to be
-        // given `workspace_w - x` cells, so a name longer than the object it names ran out of
-        // it and across the backdrop; the re-measure preserved that deliberately and then MEASURED
-        // what it costs, which is the paragraph below. The room is the material's, because
-        // this is type ON material and material the object does not have is not this name's
-        // room to spend. The workspace clip stays because it answers a different question --
-        // an object may be authored wider than the room to the edge, and its name is still
-        // not the panel's to write into.
-        //
-        // ...OR ONE COLUMN, WHICHEVER IS MORE, for the row floor's reason said about the
-        // other axis (below): a zero-WIDTH object is reachable from a poke or a hand-built
-        // document exactly as a zero-height one is, and one cell of room leaves `detail::fit`
-        // a mark to put there rather than leaving the object with no trace at all.
-        //
-        // WHAT A MEDIUM STILL GETS TO SAY IS HOW MANY CHARACTERS THOSE CELLS HOLD, and that
-        // half is and unchanged: `fit_region` answers 12 columns in cells and 17
-        // columns of a 13pt face for a 12-cell object, so a name is marked when it genuinely
-        // did not fit rather than when it would not have fitted as bitmap cells.
-        //
-        // AND ITS HEIGHT IS THE OBJECT'S, which is what makes a one-cell object honest for
-        // free. `fit_region` sends a region with no room for a row of the medium's face back
-        // to the cell projection, so an object a maker sized to one cell shows its
-        // name in cells -- the same picture a terminal shows -- rather than 18 pixels of type
-        // hanging out of a 12-pixel object. No `if (h < N)` was written here; the rule is the
-        // one both media already resolve with.
-        //
-        // ...OR ONE ROW, WHICHEVER IS MORE, and that floor is not a fudge: a name is written
-        // ON a row, so the room it needs is a row, and an object whose resolved height is
-        // zero still has the row its origin is on. `check_extent` refuses an authored height
-        // below one cell, so this is reachable only from a poke or a hand-built document --
-        // but it WAS reachable earlier and such an object's name was the only trace of
-        // it on the workspace, and a region with no bounds shows nothing and says nothing
-        // about it. Measured: without the floor, three zero-height objects lost their names
-        // outright. The floor restores byte-for-byte the run of cells the label drew, in
-        // every medium, because one cell of room is a cell region either way.
-        //
-        // THE CUT IS MARKED, and earlier it was not. `resize` here was a silent
-        // truncation of a string a MAKER chose (up to `doc::kMaxNameLen`), which is the exact
-        // defect found in the picker's name column and repaired the same way: a shorter
-        // name that looks finished is a lie about the document. `detail::fit` marks it.
-        //
-        // AND WHY THE ROOM IS THE MATERIAL'S, WRITTEN HERE BECAUSE IT IS THIS CALL SITE'S.
-        // The re-measure found the cost of the old bound in a medium that paints roles as ink: the
-        // name is `kMuted` so it reads quietly on the object's `kFill` body, and the workspace
-        // backdrop a few statements up is ALSO `kMuted` -- so every character past the
-        // object's own edge was the backdrop's exact colour and could not be read at all. Six
-        // cells of material and a thirty-two byte name meant 9 characters legible and 23
-        // invisible, measured on the pristine tree. Earlier the overhang was legible
-        // only for a reason nobody chose: every label cell was cleared to the canvas
-        // background first, which is the same hole in the workspace that it was in the object.
-        //
-        // NO ROLE FIXES THAT, WHICH IS WHY THE ANSWER IS THE BOUND. This medium's inks are
-        // kFill 176, kAccent 112/232/240, kMuted 96 and kAlert red: nothing reads on BOTH a
-        // `kFill` body and a `kMuted` backdrop, `kAccent` means "the one thing being pointed
-        // at" and would make every object shout, and a fifth role is exactly what
-        // `surface/vocabulary.hpp` refuses. Contrast is a palette question and the palette is
-        // the medium's -- which is the whole reason a publisher ships roles. So the repair is
-        // not a colour and not a ground: it is that a name never leaves the material it names,
-        // and where it does not fit that material it says so with `detail::fit`'s mark. The
-        // authored name is untouched by any of it, and widening the object reveals more of the
-        // same authored bytes -- which is the property the whole arrangement is for.
-        const ui::Element* authored = doc::find(d, p.id);
-        const std::int64_t columns = p.rect.w > 1 ? p.rect.w : 1;
-        const std::int64_t to_edge = s.workspace_w - p.rect.x;
-        const std::int64_t room = columns < to_edge ? columns : to_edge;
-        if (authored != nullptr && room > 0) {
-            const std::int64_t rows = p.rect.h > 1 ? p.rect.h : 1;
-            const surface::RegionFit fit =
-                surface::fit_region(x, y, room, rows, sc.text_advance_px, sc.text_line_px);
-            surface::SurfaceTextRegion named;
-            named.x = x;
-            named.y = y;
-            named.w = room;
-            named.h = rows;
-            named.ground = surface::kGroundBeneath;
-            named.rows.push_back(surface::SurfaceTextRow{
-                detail::fit(authored->label, fit.columns), surface::role::kMuted});
-            on->texts.push_back(std::move(named));
-        }
-    }
-
-    // The size handle, over everything in the workspace, as a GLYPH rather than
-    // as another rectangle. That is not decoration: the ring already paints this
-    // exact cell in the accent role, so a rect here would be invisible, and the
-    // affordance has to be distinguishable from the ring, from the object's body
-    // and from the workspace at a glance. `SurfaceLabel` carries arbitrary text
-    // over the rects, so the generic canvas vocabulary already had what this
-    // needed -- no role was added, and nothing in surface/ or ui/ changed.
-    // (Honest cost: a Skin with no text stack draws no handle. Both shipped
-    // media have one -- a terminal's own font, and the SDL medium's bitmap face
-    // in surface/skin_sdl_glyphs.hpp -- so nothing declines it today.)
-    const Handle handle = size_handle(d, s);
-    if (handle.shown) {
-        label(kWorkspaceX + handle.x, kWorkspaceY + handle.y, kHandleGlyph,
-              surface::role::kAccent);
-    }
-
-    // THE DYNAMIC PANELS -- every one of them, INCLUDING the OBJECTS and PROPERTIES columns
-    // a maker has always read on the right. Each takes a PLANE of its own, in canonical
+    // THE DYNAMIC PANELS -- every one of them, INCLUDING the Info column a maker has always
+    // read on the right. Each takes a PLANE of its own, in canonical
     // front order, so a later-ranked pane covers an earlier one kind for kind.
     //
     // THIS ONE CALL IS THE WHOLE OF A REMOVABLE INFO AT THIS LEVEL. What used to be forty lines of

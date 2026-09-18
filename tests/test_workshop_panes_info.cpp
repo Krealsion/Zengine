@@ -1482,8 +1482,8 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         // column's width cuts it before the clause that says what was lost.
         InfoRig f;
         f.open();
-        // (x = 1: the prototype canvas still paints its boot objects' text at the workspace's
-        // (3,4), and the rig reads a pane's rows by the region at its body's origin.)
+        // (x = 1 is any place on the desk -- it stepped around the prototype canvas's boot objects
+        // until that canvas retired; the rig reads a pane's rows by the region at its body's origin.)
         const auto widen = [](Setup& desk) {
             const Written placed = author_pane_place(desk, pane_info_ref(), subs(1), subs(3));
             REQUIRE_MESSAGE(placed.accepted, placed.refusal);

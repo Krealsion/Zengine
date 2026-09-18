@@ -356,7 +356,7 @@ void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
 // WL-DESK-04 -- agents/workshop/desktop.md
 void WorkshopWeave::publish_inventory(loom::Mail& mail) {
     PaneInventory said = inventory_reading();
-    // COMPARED BEFORE IT IS PUBLISHED, for `DocumentShown`'s reason: a presenter told the same
+    // COMPARED BEFORE IT IS PUBLISHED, for `StandingConditions`' reason: a presenter told the same
     // thing twice repaints for nothing, and the inventory is derived at every gesture. A
     // presenter that has just arrived has heard nothing, so an offer clears the record.
     if (inventory_published_ && said.panes.size() == inventory_said_.size()) {

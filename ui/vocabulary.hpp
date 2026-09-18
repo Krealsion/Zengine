@@ -69,7 +69,7 @@ inline constexpr std::int64_t kExtentPercent = 1; ///< a share of the viewport, 
 /// `amount` means cells when `mode == kExtentCells` and percent when it is
 /// kExtentPercent. Nothing here VALIDATES: what a legal extent is belongs to
 /// whichever application accepts one, because that is the only place that can
-/// also refuse (Workshop's doc::check_extent is one such policy). Resolution,
+/// also refuse (Workshop's object document had one, and retired with it). Resolution,
 /// on the other hand, must be TOTAL — see layout.hpp.
 ///
 /// It is one property, not two. A maker does not author a type and then author
