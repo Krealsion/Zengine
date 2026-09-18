@@ -42,4 +42,10 @@ lists, selects, creates and deletes, and its commit is refused; an Info image th
 picture waits. A state swap to another document's bytes that re-mints nothing is not detected.
 Names are counted per session, compared and never decoded.
 
+**Retired with the object canvas.** The door this record named -- `DocumentCommitRequested` over
+`Session::rows` -- left with the object document. The discipline did not: Info inspects a pane
+through a subject the host names for it, and a `PaneCommitRequested` naming another is refused
+before any row is read, in [an inspector names its subject](an-inspector-names-its-subject.md)
+(WL-INFO-14, WL-INFO-15). WL-DOC-21 keeps its number as a RETIRED entry.
+
 **Laws supported.** [WL-DOC-21](../workshop/document.md).

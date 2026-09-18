@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- a maker-made pane, presented, and the pane editor --
-// compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
-// declarations, the constants and the constexpr functions stay in the header.
+// The bodies of `screen.hpp`'s sections -- a maker-made pane, presented, and a pane as a subject:
+// the rows an inspector reads it by and the doors those rows write through -- compiled once into
+// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
+// constants and the constexpr functions stay in the header. (The host's Pane Manager painted
+// its two lists here too, as `screen_pane_editor.cpp`, until it retired.)
 // Workshop law: agents/workshop/pane-manager.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -194,11 +196,13 @@ void paint_maker_pane(surface::SurfaceLayer& layer, const Session& s, const Fine
 
 const TextRegion* creator_subject_region(const Session& s) {
     const MakerPane& m = s.panels.maker;
-    if (!m.open() || m.definition.regions.empty() || !s.panels.has(panel::kPaneEditor)) {
+    if (!m.open() || m.definition.regions.empty()) {
         return nullptr;
     }
-    if (!s.pane_editor.addressed() ||
-        !(s.pane_editor.subject == maker_pane_ref(m.definition.name))) {
+    // THE PANE AN INSPECTOR HAS NAMED, and nothing else: the region is marked while the maker's
+    // pane is the subject whose rows are being read, exactly as it was while it was the host's
+    // Pane Manager's subject, until that manager retired.
+    if (!s.inspected.addressed() || !(s.inspected.ref == maker_pane_ref(m.definition.name))) {
         return nullptr;
     }
     return &m.definition.regions.front();
@@ -230,25 +234,7 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
     }
 }
 
-std::int64_t pane_name_columns(std::int64_t heading_columns) {
-    const std::int64_t taken =
-        static_cast<std::int64_t>(std::char_traits<char>::length(kPaneNamePrompt)) + 1;
-    return heading_columns > taken ? heading_columns - taken : 0;
-}
-
-// ---- THE PANE EDITOR: a Workshop pane as a SUBJECT, inspected and edited -----------------
-
-std::optional<CatalogRow> pane_editor_subject_row(const Session& s) {
-    if (!s.pane_editor.addressed()) {
-        return std::nullopt;
-    }
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
-        if (row.ref == s.pane_editor.subject) {
-            return row;
-        }
-    }
-    return std::nullopt;
-}
+// ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
 
 // WL-PED-05 -- agents/workshop/pane-manager.md
 FineRect pane_window_base(const Session& s, const PaneRef& ref) {
@@ -376,14 +362,64 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     return author_pane_window(s.setup.active, ref, horizontal, vertical).written;
 }
 
-// WL-PED-04 -- agents/workshop/pane-manager.md
-std::vector<Row> pane_editor_rows(Session& s) {
+// WL-INFO-14 -- agents/workshop/info-body.md
+std::int64_t inspected_region(const Session& s, const PaneRef& ref) {
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
+    if (!kind.has_value() || !is_maker_kind(*kind) || s.panels.maker.definition.regions.empty()) {
+        return 0;
+    }
+    return s.panels.maker.definition.regions.front().id;
+}
+
+// WL-INFO-14 -- agents/workshop/info-body.md
+PaneSubjectShown pane_subject_shown(const Session& s) {
+    PaneSubjectShown shown;
+    const InspectedPane& in = s.inspected;
+    if (!in.addressed()) {
+        return shown;
+    }
+    shown.office = in.ref.provider;
+    shown.pane = in.ref.pane;
+    shown.name = in.ref.pane;
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+        if (row.ref == in.ref && row.kind != kNoPaneKind) {
+            shown.name = row.name;
+            break;
+        }
+    }
+    shown.subject = in.name;
+    // THE ROWS AS THEY STAND, VALUE INCLUDED: `Row::value()` is a fresh read through the
+    // owner's property, so what crosses is what the desk says at this instant.
+    for (const Row& row : in.rows) {
+        shown.properties.push_back(
+            ShownProperty{row.label(), row.value(), row.editable(), row.section()});
+    }
+    return shown;
+}
+
+bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b) {
+    if (a.office != b.office || a.pane != b.pane || a.name != b.name || a.subject != b.subject ||
+        a.properties.size() != b.properties.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.properties.size(); ++i) {
+        const ShownProperty& x = a.properties[i];
+        const ShownProperty& y = b.properties[i];
+        if (x.label != y.label || x.value != y.value || x.editable != y.editable ||
+            x.section != y.section) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// WL-INFO-14 -- agents/workshop/info-body.md
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     std::vector<Row> rows;
-    if (!s.pane_editor.addressed()) {
+    if (ref.provider.empty()) {
         return rows;
     }
     Session* sp = &s;
-    const PaneRef ref = s.pane_editor.subject;
     const auto found = [sp, ref]() -> std::optional<CatalogRow> {
         for (const CatalogRow& row : inventory_rows(sp->setup.active, sp->panels)) {
             if (row.ref == ref) {
@@ -431,17 +467,19 @@ std::vector<Row> pane_editor_rows(Session& s) {
                                       return write_pane_axis(*sp, ref, axis, text);
                                   })));
     }
+    // THE FACTS ALONE, NAMING NO KEY: the reader of these rows holds its own keys, and a row
+    // telling it to press one that means nothing where it is would be a second, wrong cheat
+    // sheet. Ordering is the arrangement's, and opening and closing are the Pane Manager's.
     rows.push_back(Row::show("Front", [sp, ref] {
         const SetupPane* row = pane_of(sp->setup.active, ref);
         if (row == nullptr) {
             return std::string("--");
         }
         return "f" + std::to_string(row->front) + " of " +
-               std::to_string(sp->setup.active.panes.size()) + " -- f/b/r/l order it";
+               std::to_string(sp->setup.active.panes.size());
     }));
     rows.push_back(Row::show("Open", [sp, ref] {
-        return has_pane(sp->setup.active, ref) ? std::string("yes -- o removes it")
-                                               : std::string("no -- o opens it");
+        return has_pane(sp->setup.active, ref) ? std::string("yes") : std::string("no");
     }));
     rows.push_back(Row::section("RESOLVED"));
     rows.push_back(Row::show("Window", [sp, ref] {
@@ -494,7 +532,7 @@ std::vector<Row> pane_editor_rows(Session& s) {
         rows.push_back(Row::show("Region", [sp, ref, region_id] {
             return maker_region(*sp, ref, region_id) == nullptr
                        ? std::string("--")
-                       : "#" + std::to_string(region_id) + " text -- the Pane Creator's subject";
+                       : "#" + std::to_string(region_id) + " text -- the Pane Creator made it";
         }));
         rows.push_back(Row::edit(
             "Text",
@@ -527,244 +565,6 @@ std::vector<Row> pane_editor_rows(Session& s) {
         rows.push_back(Row::show("Interior", [sp, ref] { return interior_capture_text(*sp, ref); }));
     }
     return rows;
-}
-
-std::size_t pane_editor_focus(const Session& s) {
-    for (std::size_t i = 0; i < s.pane_editor.rows.size(); ++i) {
-        if (s.pane_editor.rows[i].editing()) {
-            return i;
-        }
-    }
-    return s.pane_editor.row_cursor;
-}
-
-PaneEditorBodyPlace pane_editor_body_place(const FineRect& outer, const Screen& sc,
-                                           std::size_t total_panes,
-                                           std::size_t pane_cursor,
-                                           std::size_t total_fields,
-                                           std::size_t field_focus) {
-    PaneEditorBodyPlace p;
-    const PaneInside inside = pane_inside(outer, sc);
-    const FineRect panel = inside.rect;
-    if (panel.w <= 0 || panel.h <= 0) {
-        return p;
-    }
-    const surface::SurfaceRect wire = wire_rect_of(panel, surface::role::kFill);
-    p.region_x = wire.x;
-    p.region_y = wire.y;
-    p.region_w = wire.w;
-    p.region_h = wire.h;
-    p.region_sub_x = wire.sub_x;
-    p.region_sub_y = wire.sub_y;
-    p.region_sub_w = wire.sub_w;
-    p.region_sub_h = wire.sub_h;
-    p.fit = inside.fit;
-    p.columns = p.fit.columns;
-    const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
-    if (surface::cell_of_subs(surface::add_cells(panel.x, panel.w)) -
-            surface::cell_of_subs(panel.x) <=
-        used) {
-        return p;
-    }
-    p.value_columns = p.fit.columns - used - kPropertyCaretCols;
-    if (p.value_columns < 0) {
-        p.value_columns = 0;
-    }
-    p.capacity = p.fit.rows > kPaneEditorHeadingRows
-                     ? static_cast<std::size_t>(p.fit.rows - kPaneEditorHeadingRows)
-                     : 0;
-    if (p.capacity < 2) {
-        return p; // one row of each list is the smallest body that says anything
-    }
-    const BodyShare share =
-        share_body_rows(p.capacity, list_demand(total_panes), list_demand(total_fields));
-    p.panes_rows = share.objects;
-    p.field_rows = share.properties;
-    p.panes = list_window(total_panes, pane_cursor, p.panes_rows);
-    p.fields = list_window(total_fields, field_focus, p.field_rows);
-    p.present = true;
-    return p;
-}
-
-PaneEditorBodyPlace pane_editor_body(const Session& s, const Screen& sc,
-                                     const FineRect& outer) {
-    return pane_editor_body_place(outer, sc,
-                                  inventory_rows(s.setup.active, s.panels).size(),
-                                  s.pane_editor.cursor, s.pane_editor.rows.size(),
-                                  pane_editor_focus(s));
-}
-
-std::int64_t prose_row_of_editor_pane(const PaneEditorBodyPlace& p, std::size_t index) {
-    return p.present ? prose_row_in_window(p.panes, 0, index) : kNoProseRow;
-}
-
-std::size_t editor_pane_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row) {
-    std::size_t at = 0;
-    if (!p.present || !item_at_prose_row(p.panes, 0, p.panes_rows, row, at)) {
-        return kNoObject;
-    }
-    return at;
-}
-
-std::int64_t prose_row_of_field(const PaneEditorBodyPlace& p, std::size_t index) {
-    if (!p.present) {
-        return kNoProseRow;
-    }
-    return prose_row_in_window(p.fields, static_cast<std::int64_t>(p.panes_rows), index);
-}
-
-std::size_t field_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row) {
-    std::size_t at = 0;
-    if (!p.present || !item_at_prose_row(p.fields, static_cast<std::int64_t>(p.panes_rows),
-                                         p.field_rows, row, at)) {
-        return kNoProperty;
-    }
-    return at;
-}
-
-PaneEditorAt pane_editor_at(const Session& s, std::int64_t space, std::int64_t x,
-                            std::int64_t y) {
-    const Screen sc = screen_of(s);
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kPaneEditor, sc);
-    if (!where.open) {
-        return PaneEditorAt{};
-    }
-    PaneEditorAt out;
-    out.body = pane_editor_body(s, sc, where.rect);
-    out.at = prose_at(space, x, y, out.body.region_x, out.body.region_y, out.body.fit);
-    out.at.row -= kPaneEditorHeadingRows;
-    out.present = out.body.present && out.at.understood && out.at.row >= 0;
-    return out;
-}
-
-void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
-                       const FineRect& b, const Screen& sc,
-                       std::int64_t chrome) {
-    paint_panel_frame(layer, b, chrome);
-    const std::vector<CatalogRow> panes = inventory_rows(s.setup.active, s.panels);
-    const PaneEditor& ed = s.pane_editor;
-    const PaneEditorBodyPlace body = pane_editor_body(s, sc, b);
-    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
-        return;
-    }
-    surface::SurfaceTextRegion region;
-    region.x = body.region_x;
-    region.y = body.region_y;
-    region.w = body.region_w;
-    region.h = body.region_h;
-    region.sub_x = body.region_sub_x;
-    region.sub_y = body.region_sub_y;
-    region.sub_w = body.region_sub_w;
-    region.sub_h = body.region_sub_h;
-    // THE HEADING SAYS WHAT THIS IS AND WHETHER THE KEYS ARE HERE -- the Files header's
-    // `*`, for reason: arrows that stopped meaning command mode's arrows are
-    // arrows a maker is entitled to read the reason for.
-    std::string heading = "PANE MANAGER";
-    if (pane_editor_has_keyboard(s)) {
-        heading += " *";
-    }
-    // THE PANE CREATOR'S NAME PROMPT TAKES THE HEADING ROW WHILE IT IS OPEN: the
-    // layout-name editor's own composition -- a prompt, the line's visible window, and the
-    // caret and selection as the REGION's own so each face answers in its voice.
-    if (s.pane_naming.open) {
-        const std::int64_t cols = pane_name_columns(body.fit.columns);
-        const std::string shown = s.pane_naming.line.visible(cols);
-        const component::TextBox::VisibleSpan vis = s.pane_naming.line.visible_selection(cols);
-        const std::int64_t prompt =
-            static_cast<std::int64_t>(std::char_traits<char>::length(kPaneNamePrompt));
-        const std::int64_t at = static_cast<std::int64_t>(s.pane_naming.line.caret_column());
-        region.caret_row = 0;
-        region.caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
-                                         ? at
-                                         : static_cast<std::int64_t>(shown.size()));
-        if (vis.present()) {
-            region.sel_begin_row = 0;
-            region.sel_begin_col = prompt + vis.begin;
-            region.sel_end_row = 0;
-            region.sel_end_col = prompt + vis.end;
-        }
-        heading = std::string(kPaneNamePrompt) + shown;
-    }
-    region.rows.push_back(
-        surface::SurfaceTextRow{detail::fit(heading, body.fit.columns), surface::role::kAccent});
-    if (!body.present) {
-        layer.texts.push_back(std::move(region));
-        return;
-    }
-    const auto say_row = [&region](std::string text, std::int64_t role,
-                                   std::int64_t ground = surface::role::kNone) {
-        region.rows.push_back(surface::SurfaceTextRow{std::move(text), role, ground});
-    };
-    const auto say_omission = [&](std::size_t how_many, const char* which) {
-        if (how_many > 0) {
-            say_row(detail::fit(omitted_text(how_many, which), body.columns),
-                    surface::role::kMuted);
-        }
-    };
-    // ---- the PANES list: the picker's population, the picker's row, plus a subject mark --
-    say_omission(body.panes.before, "earlier");
-    for (std::size_t n = 0; n < body.panes.count; ++n) {
-        const std::size_t i = body.panes.first + n;
-        const CatalogRow& row = panes[i];
-        const bool here = !ed.on_rows && i == ed.cursor;
-        const bool subject = ed.addressed() && row.ref == ed.subject;
-        say_row(std::string(here ? ">" : " ") + (subject ? "*" : " ") +
-                    detail::fit(picker_entry_text(
-                                    row.name,
-                                    pane_state_word(pane_state_of(s.panels, s.setup.active,
-                                                                  sc, row)),
-                                    row.summary),
-                                body.columns - 2),
-                here || subject ? surface::role::kAccent : surface::role::kFill);
-    }
-    say_omission(body.panes.after, "more");
-    while (region.rows.size() <
-           static_cast<std::size_t>(kPaneEditorHeadingRows) + body.panes_rows) {
-        say_row(std::string(), surface::role::kFill);
-    }
-    // ---- the subject's rows ------------------------------------------------------------
-    if (ed.rows.empty()) {
-        say_row(detail::fit(ed.addressed() ? "(the subject is gone -- choose a pane above)"
-                                           : "(no subject -- choose a pane above)",
-                            body.columns),
-                surface::role::kMuted);
-        layer.texts.push_back(std::move(region));
-        return;
-    }
-    say_omission(body.fields.before, "earlier");
-    for (std::size_t n = 0; n < body.fields.count; ++n) {
-        const std::size_t i = body.fields.first + n;
-        const Row& row = ed.rows[i];
-        if (row.section()) {
-            // A SECTION IS A BOUNDARY, said the way `PROPERTIES` is said: accent ink on
-            // the one ground every ink reads on.
-            say_row(detail::fit(row.label(), body.columns), surface::role::kAccent,
-                    surface::role::kMuted);
-            continue;
-        }
-        const bool here = ed.on_rows && i == ed.row_cursor;
-        std::int64_t role = surface::role::kFill;
-        if (row.editing()) {
-            role = surface::role::kAlert;
-        } else if (!row.editable()) {
-            role = surface::role::kMuted;
-        }
-        say_row(property_row_text(row, here, body.value_columns), role);
-        if (row.editing()) {
-            region.caret_row = kPaneEditorHeadingRows + prose_row_of_field(body, i);
-            region.caret_col = property_caret_column(row);
-            const TextSelectionSpan marked =
-                property_selection_columns(row, body.value_columns);
-            if (marked.present) {
-                region.sel_begin_row = region.caret_row;
-                region.sel_begin_col = marked.begin;
-                region.sel_end_row = region.caret_row;
-                region.sel_end_col = marked.end;
-            }
-        }
-    }
-    say_omission(body.fields.after, "more");
-    layer.texts.push_back(std::move(region));
 }
 
 } // namespace zengine::workshop

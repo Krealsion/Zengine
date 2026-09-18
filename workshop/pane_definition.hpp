@@ -8,10 +8,11 @@
 // authored DATA rather than a painter compiled into this application.
 // Workshop law: agents/workshop/maker-pane.md
 
-#include "document.hpp" // `doc::kMaxCells` -- the one lattice bound every authored extent already has
+#include "lattice.hpp" // `kMaxCells` -- the one lattice bound every authored extent already has
 #include "property.hpp" // `Written` -- the one refusal-with-reason shape
 
 #include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice a region is authored on
+#include "ui/layout.hpp"          // `ui::kMinCells` -- the one-cell floor an authored extent has
 
 #include <cstddef>
 #include <cstdint>
@@ -46,7 +47,7 @@ inline constexpr std::size_t kMaxRegionTextLen = 256;
 
 /// THE AUTHORED LATTICE'S WALLS, in sub-units.
 // WL-MAKER-01 -- agents/workshop/maker-pane.md
-inline constexpr std::int64_t kRegionSubMax = doc::kMaxCells * surface::kCellSubs;
+inline constexpr std::int64_t kRegionSubMax = kMaxCells * surface::kCellSubs;
 
 /// The first identity the mint hands out. Never 0, so an absent identity has a number no
 /// region can carry.
@@ -133,7 +134,7 @@ inline Written check_region_coord(std::int64_t v) {
         return Written::no("a region place cannot be negative");
     }
     if (v > kRegionSubMax) {
-        return Written::no("a region place is at most " + std::to_string(doc::kMaxCells) +
+        return Written::no("a region place is at most " + std::to_string(kMaxCells) +
                            " cells");
     }
     return Written::ok();
@@ -148,7 +149,7 @@ inline Written check_region_extent(std::int64_t v, const char* which) {
     }
     if (v > kRegionSubMax) {
         return Written::no(std::string("a region ") + which + " is at most " +
-                           std::to_string(doc::kMaxCells) + " cells");
+                           std::to_string(kMaxCells) + " cells");
     }
     return Written::ok();
 }

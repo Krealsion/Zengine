@@ -167,7 +167,7 @@ WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-12 — The coarse step is ordinary action vocabulary
 
-LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the hotkey view say them, and no pane's chrome paints them.
+LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the effective keymap say them, and no pane's chrome paints them.
 
 PROVEN BY — `workshop/keymap.hpp` `manage.grow`, `manage.shrink`;
 `tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is ordinary action
@@ -185,8 +185,8 @@ MEANS
 - it is not a keymap action: a recovery gesture must not be authorable into a lockout.
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
-`escape_may_shed_selection`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
-clears the ordinary selection last, and the Pane Editor's subject stands"`, case `"QR-18/SC-2:
+`default_row_context`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
+clears the ordinary selection last, and the inspected subject stands"`, case `"QR-18/SC-2:
 every more-specific Escape meaning answers first, and deselection waits"`, case `"QR-18/SC-4: a
 desk with no unoccupied cell still reaches selection = none"`.
 WHY — `agents/decisions/escape-is-back.md`
@@ -196,7 +196,7 @@ WHY — `agents/decisions/escape-is-back.md`
 LAW — A focused external pane that takes keys is sent the key and keeps it -- the Editor's Escape is a pinned no-op in its own image -- so the way out is a press elsewhere, or the pane's own word (WL-ARR-15).
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
-`escape_may_shed_selection`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
+`default_row_context`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
 `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text,
 then Escape, puts the selection down"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29:
 Escape means nothing in the Editor -- no mode closes, no text moves"`.

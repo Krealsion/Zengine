@@ -50,7 +50,7 @@
 // picture carries the record and the count that was evicted FOR GOOD; how many of the rest
 // are above the top of the pane is a fact about the pane.
 //
-// ---- SAID WHEN IT CHANGES, ON `DocumentShown`'s OWN DISCIPLINE ----------------
+// ---- SAID WHEN IT CHANGES, ON `StandingConditions`' OWN DISCIPLINE -----------
 //
 // The transcript changes with no gesture into the pane at all -- an answer arrives from a
 // weave the maker asked something of, a boot walk records a notice, a participant is mounted
@@ -129,9 +129,9 @@ struct ShownEntry {
 
 /// WHAT THE TERMINAL PARTICIPANT'S RECORD CURRENTLY HOLDS.
 ///
-/// PUBLISHED `to_any` AND NOT ADDRESSED, for `StandingConditions`' and `DocumentShown`'s
-/// reason: which weave presents this is the load plan's business, and a host that addressed
-/// one would be a host with a pane compiled into it again.
+/// PUBLISHED `to_any` AND NOT ADDRESSED, for `StandingConditions`' reason (and the retired
+/// object document's picture's): which weave presents this is the load plan's business, and a
+/// host that addressed one would be a host with a pane compiled into it again.
 ///
 /// ⚠ `attached` FALSE IS A REAL READING AND NOT AN ABSENCE. A host may mount no participant;
 /// the built-in said so in its header and refused to author, and the pane says the same two

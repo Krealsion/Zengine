@@ -28,15 +28,16 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
 - **`Occupancy` carries the KIND it met, and that is the same answer rather than a second
   one.** The one caller asks a further question of the walk that already decided what is on
   top; resolving the pane again to locate the press would be two geometries for one press,
-  which is what the `bounds_of`-for-both rule exists to refuse. `kNoKind = -1` for the picker,
-  negative for `role::kNone`'s reason. Nothing switches on a built-in kind — the question asked
-  is `is_runtime_kind`, which is about which SEAM owns the press.
+  which is what the `bounds_of`-for-both rule exists to refuse. `kNoKind = -1` for the bare
+  room (and for the picker, while it was), negative for `role::kNone`'s reason. Nothing
+  switches on a built-in kind — the question asked is `is_runtime_kind`, which is about which
+  SEAM owns the press.
 - **Consumed by occupancy, before anything is sent.** A pane that owns visible room owns
   pointer refusal for that room, and nothing waits for the provider: there is no reply shape,
   `consumed` never crosses the wire (WP-R0), and a press that named no row is consumed
-  identically and simply travels no further. The Terminal overlay and arrangement still
-  take every press whole, one layer up, and the picker still answers first inside
-  `occupied_at`.
+  identically and simply travels no further. Arrangement and the contextual surface take
+  every press whole, one layer up (the Terminal overlay did too, and the picker answered first
+  inside `occupied_at`, until each retired).
 - **Workshop says NOTHING on the notice line for an external pane**, and that inverts the rule
   for built-ins. `<name> is here -- nothing under it can be taken hold of` is TRUE of a
   built-in and would be a claim about an OUTCOME here, made before the outcome exists. What a
@@ -72,8 +73,9 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   provider's rows to decide what a press means, the seam has stopped being one.
 - **A press crosses ONCE, in the version the office's holder accepts.** `PanePressed v1`
   `{pane, row, column}` is frozen; `v2::PanePressed` adds `keys_went_here` — ordinary keys
-  reached this pane just before the press (`typing_pane`: a pane's context and no hotkey view,
-  so a pane that is only the candidate under an open picker is "not here"). Workshop sends v2
+  reached this pane just before the press (`typing_pane`: the resolved context is a pane's,
+  so a pane that is only the candidate under an open mode — a layout's name line — is "not
+  here"). Workshop sends v2
   exactly when `HostContext::holder_accepts` answers that the office's current holder has that
   door — the host's `holder_accepts_on`, over the bus's role table and accept-sets, native and
   loaded holders alike — and v1 otherwise, so every older pane is unchanged. It is a fact, not
@@ -153,7 +155,8 @@ shape is byte-identical.
   pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
   Composer spend one row per notch (their rooms are four rows by default; a notch that skipped
   a row the pane never showed would be worse than a slow wheel) and carry fractions until they
-  are worth one — and Workshop's own lists spend three (`kListWheelRows`).
+  are worth one. Workshop's own lists spent three (`kListWheelRows`) until the last of them —
+  the picker and the host's Pane Manager — retired; every list is a pane's now.
 - **Workshop asks nothing back**, `PaneKey`'s rule. A pane that does not accept the shape has
   the delivery refused at Loom's gate; a pane that accepts it and has nothing to move is
   unchanged. Grant: `to_any`, for `PanePressed`'s reason (workshop.cpp).
@@ -185,9 +188,10 @@ beside the shapes before them, and each is an ordinary optional capability any p
   (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
   more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
   delivery that asked, about what that delivery DID — the pane is seated, selected and has the
-  keys, or nothing moved and here is the picker's sentence). Judged first, through the picker's
-  own trial seat on a copy of the setup; written only if the seat is real. A refusal moved
-  nothing; a screen that shrank before the ask arrived refuses it in the picker's words; a
+  keys, or nothing moved and here is the launch door's sentence). Judged first, through the
+  launch door's own trial seat on a copy of the setup; written only if the seat is real. A
+  refusal moved nothing; a screen that shrank before the ask arrived refuses it in the launch
+  door's words; a
   shrink after the answer is an ordinary presentation change to a pane on the desk. Workshop
   holds nothing between deliveries — no record, no reservation — so two offices' asks are two
   seats judged in order. A reveal naming a pane the office never offered is refused; one from
@@ -376,7 +380,7 @@ first thing in this repository whose pane arrives entirely through the external 
 **Workshop compiled nothing for it**: no presentation source under `workshop/` names it —
 `weave.hpp`, `screen.hpp`, `panel.hpp` and the subject `.cpp` files beside them, walked by
 `presentation_sources` (tests/workshop_support.hpp) rather than listed — no `panel::k*` was
-minted, and the picker learned its row from a live offer.
+minted, and the inventory learned its row from a live offer.
 
 ```text
 PaneRef      zengine.introspection / loaded         the durable pair a saved setup names
@@ -421,12 +425,11 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   "the list" buys a row the marker then takes, so a four-row body spends two rows on notes and
   names no weave at all — the suite caught exactly that. Showing PART of a list obliges saying
   how much was hidden.
-- **The picker MARKS a name it cut.** `picker_entry_text` runs the name through `detail::fit`
-  before `detail::pad`: fit for the truth, pad for the alignment. `kPickerNameCols` is 10 and
-  admission allows 32, so the cut fires the moment a name belongs to a party this build never
-  compiled. `pad` still truncates in silence and that is still right for a column whose longest
-  word is a constant somebody checked; the STATE column is padded and not fitted for exactly
-  that reason.
+- **A list MARKS a name it cut.** The retired picker taught it: `picker_entry_text` ran the
+  name through `detail::fit` before `detail::pad` — fit for the truth, pad for the alignment —
+  because `kPickerNameCols` was 10 and admission allows 32, so the cut fired the moment a name
+  belonged to a party this build never compiled. The desktop's Pane Manager keeps the rule in
+  its own image: the name is written last on its row, and a cut is marked.
 
 ## The Composer is a tool that WRITES a message (MSG-0)
 
@@ -519,7 +522,7 @@ stem      zengine-composer                a line in the HOST'S boot list
 loaded        the Kernel's loaded() map                which WEAVES are loaded
 arrangement   the realization owner: its authored     which AUTHORED PARTICIPATIONS
               plan and its resolved rows               resolved, and where each one
-              (picker name `Project`)                  has got to
+              (pane name `Project`)                    has got to
 powers        the host's op::Catalog                   which POWERS resolve, and whose
                                                        contribution satisfies each
 ```
@@ -571,9 +574,9 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   tension: the shipped six-artifact `Project` pane shows ONE artifact and `... 5 more` until a
   maker authors a taller window. That is counted rather than hidden, and a second denser
   layout was deliberately not invented.
-- **The pane KEY is `arrangement` and the picker NAME is `Project`**, because
-  `kPickerNameCols` is ten cells and `Arrangement` is eleven. The key is the durable half a
-  saved setup names; do not rename it to match the name.
+- **The pane KEY is `arrangement` and the pane NAME is `Project`**, because the retired
+  picker's name column (`kPickerNameCols`) was ten cells and `Arrangement` is eleven. The key is
+  the durable half a saved setup names; do not rename it to match the name.
 - **Each pane keeps its OWN room and its OWN outstanding question.** All three can be open at
   once, and one shared `rows_`/`columns_` would have made the last grant decide how the other
   two were drawn.

@@ -271,12 +271,15 @@ struct AskerState {
 /// What an asker heard back, and whether Loom ATTESTED each answer.
 struct Answered {
     std::vector<workshop::ResolvedArrangement> arrangements;
+    /// ...and the version 2 answers, which the door sends only to an office that accepts them.
+    std::vector<workshop::v2::ResolvedArrangement> arrangements_v2;
     std::vector<workshop::ResolvedPowers> powers;
     std::vector<bool> attested; ///< `mail.answers_ask()` on each answer, in arrival order
 };
 
 class Asker : public loom::WeaveBase<Asker, AskerState,
                                      loom::Accept<Nudge, workshop::ResolvedArrangement,
+                                                  workshop::v2::ResolvedArrangement,
                                                   workshop::ResolvedPowers>,
                                      loom::Emit<workshop::ArrangementRequested,
                                                 workshop::PowersRequested>> {
@@ -293,6 +296,10 @@ public:
     }
     void on(const workshop::ResolvedArrangement& a, loom::Mail& mail) {
         into_->arrangements.push_back(a);
+        into_->attested.push_back(mail.answers_ask());
+    }
+    void on(const workshop::v2::ResolvedArrangement& a, loom::Mail& mail) {
+        into_->arrangements_v2.push_back(a);
         into_->attested.push_back(mail.answers_ask());
     }
     void on(const workshop::ResolvedPowers& p, loom::Mail& mail) {
@@ -465,19 +472,44 @@ struct PlanRig {
     /// realization that is deliberately stuck mid-row. The door is unchanged; what
     /// changes is which owner it is reading.
     loom::WeaveId mount_door_over(const load::PlanExecutor& owner,
-                                  std::string plan_path = std::string()) {
+                                  std::string plan_path = std::string(),
+                                  workshop::ArrangementDoor::Accepts accepts = {}) {
         auto door = std::make_unique<workshop::ArrangementDoor>(owner, catalog,
-                                                                std::move(plan_path));
+                                                                std::move(plan_path),
+                                                                std::move(accepts));
         workshop::ArrangementDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(workshop::ResolvedArrangement::zen_name,
                          workshop::ResolvedArrangement::zen_version);
+        say.allow_to_any(workshop::v2::ResolvedArrangement::zen_name,
+                         workshop::v2::ResolvedArrangement::zen_version);
         say.allow_to_any(workshop::ResolvedPowers::zen_name,
                          workshop::ResolvedPowers::zen_version);
         door_ = bus.register_weave(std::move(door), std::move(say),
                                    std::string(workshop::kArrangementRole));
         raw->zen_set_self(door_);
         return door_;
+    }
+
+    /// THE SAME DOOR, WIRED AS THE HOST WIRES IT: it reads, off this bus, whether the asking
+    /// office accepts the later answer -- `holder_accepts_on`'s question, spelled here because
+    /// this suite does not link the host's weave.
+    loom::WeaveId mount_door_answering_versions(std::string plan_path = std::string()) {
+        return mount_door_over(
+            executor, std::move(plan_path),
+            [this](std::string_view role, const loom::Schema& shape) {
+                const loom::WeaveId holder = bus.role_holder(role);
+                if (!holder.valid()) {
+                    return false;
+                }
+                for (const std::shared_ptr<const loom::Schema>& door :
+                     bus.accepted_schemas(holder)) {
+                    if (door != nullptr && loom::same_identity(*door, shape)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
     }
 
     /// MOUNT AN ASKER IN AN OFFICE OF ITS OWN, granted exactly the two questions.
@@ -617,6 +649,12 @@ load::ArtifactIntent both(const char* stem, const char* role,
     a.provider = load::ProviderIntent{mode};
     a.weave = load::WeaveIntent{role};
     return a;
+}
+
+/// THE SAME ROW, AUTHORED AS ONE THIS PROJECT STANDS WITHOUT (P-WORK-22).
+load::ArtifactIntent optional(load::ArtifactIntent row) {
+    row.optional = true;
+    return row;
 }
 
 load::LoadPlan plan_of(std::vector<load::ArtifactIntent> rows) {
@@ -1061,11 +1099,11 @@ TEST_CASE("a field the shape does not declare is refused rather than ignored") {
 
 TEST_CASE("a file from another version is refused by ITS NUMBER, before its rows are judged") {
     const load_persist::LoadedPlan no = load_persist::from_text(
-        R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
-        R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[]}})");
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[]}})");
     CHECK_FALSE(no.outcome.accepted);
-    CHECK(no.outcome.refusal.find("load plan version 3") != std::string::npos);
-    CHECK(no.outcome.refusal.find("reads versions 1 and 2") != std::string::npos);
+    CHECK(no.outcome.refusal.find("load plan version 4") != std::string::npos);
+    CHECK(no.outcome.refusal.find("reads versions 1, 2 and 3") != std::string::npos);
 }
 
 TEST_CASE("a forged file whose envelope is this version and whose FIELD is not still refuses") {
@@ -1127,7 +1165,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 13); // ...and the Editor pane joined them (VD-25)
+    REQUIRE(p.artifacts.size() == 14); // ...and the Desktop joined them (WL-DESK-01)
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1141,45 +1179,67 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     // the ONLY thing that makes it present in a run is this line in an editable file. A
     // maker who removes it gets a Workshop with no Files pane and no error, which is what
     // "a pane arrives by a plan row" has always meant for every other tool.
-    CHECK(p.artifacts[7].stem == "zengine-files");
+    // ⭐ ...AND THE DESKTOP, WHICH IS WHY EVERY ROW BELOW MOVED BY ONE. What this row loads
+    // is the party that owns the application's DEFAULTS -- which gestures open which tool,
+    // what Escape means where nothing more specific claimed it, and what stands in the empty
+    // room. Remove the line and Workshop still runs, still paints, still quits: it simply has
+    // no application defaults and an empty floor, which is the whole of what "the shell is
+    // replaceable" has to mean (WL-DESK-01).
+    CHECK(p.artifacts[7].stem == "zengine-desktop-pane");
     REQUIRE(p.artifacts[7].weave.has_value());
-    CHECK(p.artifacts[7].weave->role == "zengine.files");
+    CHECK(p.artifacts[7].weave->role == "zengine.desktop");
     CHECK_FALSE(p.artifacts[7].provider.has_value());
+    CHECK(p.artifacts[8].stem == "zengine-files");
+    REQUIRE(p.artifacts[8].weave.has_value());
+    CHECK(p.artifacts[8].weave->role == "zengine.files");
+    CHECK_FALSE(p.artifacts[8].provider.has_value());
     // ⭐ ...AND SO DOES THE BUILDER PANE, which is the second built-in to arrive this way.
     // The TOOL is still mounted in this host's `main` and is not in this file at all; what
     // this row loads is the SEAT a maker sits in to spend it. Remove the line and Workshop
     // still builds -- there is simply nothing on the screen that can ask it to, which is
     // exactly what "a pane arrives by a plan row" means.
-    CHECK(p.artifacts[8].stem == "zengine-builder-pane");
-    REQUIRE(p.artifacts[8].weave.has_value());
-    CHECK(p.artifacts[8].weave->role == "zengine.builder-pane");
-    CHECK_FALSE(p.artifacts[8].provider.has_value());
+    CHECK(p.artifacts[9].stem == "zengine-builder-pane");
+    REQUIRE(p.artifacts[9].weave.has_value());
+    CHECK(p.artifacts[9].weave->role == "zengine.builder-pane");
+    CHECK_FALSE(p.artifacts[9].provider.has_value());
     // ⭐ ...AND THE ATTENTION PANE, the third, and the first that was never a built-in PANE
     // at all. What is currently true was CHROME -- an overlay a global chord opened, drawn
     // into a popup this host resolved for itself, nameable by no file. It is a row here now,
     // which means a maker can remove it: a Workshop with no Attention pane still knows every
     // condition and still says the loudest one on the compact indicator, and there is simply
     // nothing on the desk that lists them.
-    CHECK(p.artifacts[9].stem == "zengine-attention-pane");
-    REQUIRE(p.artifacts[9].weave.has_value());
-    CHECK(p.artifacts[9].weave->role == "zengine.attention");
-    CHECK_FALSE(p.artifacts[9].provider.has_value());
+    CHECK(p.artifacts[10].stem == "zengine-attention-pane");
+    REQUIRE(p.artifacts[10].weave.has_value());
+    CHECK(p.artifacts[10].weave->role == "zengine.attention");
+    CHECK_FALSE(p.artifacts[10].provider.has_value());
     // ...AND THE TERMINAL PANE, the fifth and last of the migrations, and the first that was
     // never a pane OR chrome: it was a MODE, opened by a global chord, owning the keyboard
     // and the pointer whole, drawn on a plane after every pane so nothing a maker arranged
     // could stand in front of it. It is a row here now, which means a maker can remove it: a
     // Workshop with no Terminal pane still MOUNTS the participant and still prints its
     // identity at boot, and there is simply nothing on the desk that can type at it.
-    CHECK(p.artifacts[11].stem == "zengine-terminal-pane");
-    REQUIRE(p.artifacts[11].weave.has_value());
-    CHECK(p.artifacts[11].weave->role == "zengine.terminal");
-    CHECK_FALSE(p.artifacts[11].provider.has_value());
+    CHECK(p.artifacts[12].stem == "zengine-terminal-pane");
+    REQUIRE(p.artifacts[12].weave.has_value());
+    CHECK(p.artifacts[12].weave->role == "zengine.terminal");
+    CHECK_FALSE(p.artifacts[12].provider.has_value());
     // ...AND THE EDITOR PANE, thirteenth and last of the migrations: the image that holds a
     // maker's source document, a weave in the room like every other pane's.
-    CHECK(p.artifacts[12].stem == "zengine-editor-pane");
-    REQUIRE(p.artifacts[12].weave.has_value());
-    CHECK(p.artifacts[12].weave->role == "zengine.editor");
-    CHECK_FALSE(p.artifacts[12].provider.has_value());
+    CHECK(p.artifacts[13].stem == "zengine-editor-pane");
+    REQUIRE(p.artifacts[13].weave.has_value());
+    CHECK(p.artifacts[13].weave->role == "zengine.editor");
+    CHECK_FALSE(p.artifacts[13].provider.has_value());
+    // ⭐ AND THE SHIPPED PLAN AUTHORS THE ESSENTIAL/RECOVERABLE SPLIT (P-WORK-22). The
+    // services a Workshop cannot be seen, driven or timed without stop everything; every
+    // PANE is a tool a maker can be told about instead. This is the authored policy, not an
+    // inference: the file says it row by row, and a maker who disagrees edits the file.
+    for (std::size_t i = 0; i < 5; ++i) {
+        CAPTURE(p.artifacts[i].stem);
+        CHECK_FALSE(p.artifacts[i].optional); // operators, session history, skin, input, timer
+    }
+    for (std::size_t i = 5; i < p.artifacts.size(); ++i) {
+        CAPTURE(p.artifacts[i].stem);
+        CHECK(p.artifacts[i].optional);
+    }
     // ...AND THE EDITOR'S OFFICE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
     // and the Neovim-backed one, which is loaded only when a maker switches to it.
     REQUIRE(p.choices.size() == 2);
@@ -6293,4 +6353,232 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
     CHECK(rig.executor.resolved().size() == 1);
+}
+
+// =============================================================================
+// ESSENTIAL STARTUP AND RECOVERABLE TOOL AVAILABILITY (P-WORK-22)
+//
+// A refused row used to end everything, which meant a tree short one PANE artifact could
+// not open a Workshop that said which one. The distinction is AUTHORED, row by row, because
+// only the plan knows which rows are the painter and which are tools.
+// =============================================================================
+
+TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped over, named, and "
+          "the rows behind it are still performed in authored order") {
+    // MUTATION (P1): dropping the optional arm in `fail` -- the walk stops and `Complete`
+    // below goes red. MUTATION (P2): advancing the cursor inside that arm as well as in the
+    // caller -- the row AFTER the refused one is skipped and `resolved()` goes short.
+    // THE REFUSING ROW IS `zengine-timer` ASKED FOR UNDER A ROLE AN EARLIER ROW ALREADY
+    // TOOK -- BOOT-0's own shape, so what is new here is only the authored flag.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+
+    // THE PROJECT IS REALIZED. The maker authored that it stands without that row, so it
+    // stands: `ok` is true and there is no refusal.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.refusal().empty());
+    CHECK(rig.executor.outcome().ok);
+
+    // ...AND THE ROW IS NAMED, WITH THE REFUSING LAYER'S OWN SENTENCE. "May be missing" never
+    // becomes "was silently missing".
+    REQUIRE(rig.executor.unavailable().size() == 1);
+    CHECK(rig.executor.unavailable()[0].find("artifact 'zengine-timer'") != std::string::npos);
+    CHECK(rig.executor.unavailable()[0].find("weave load refused") != std::string::npos);
+    CHECK(rig.executor.outcome().unavailable.size() == 1);
+    // ...AND BY ITS ARTIFACT, beside the sentence: the name the host's condition row carries.
+    CHECK(rig.executor.outcome().unavailable_stems == std::vector<std::string>{"zengine-timer"});
+
+    // ...AND THE ROW BEHIND IT WAS PERFORMED, in authored order, with nothing reordered.
+    CHECK(rig.executor.state_of("zengine-provider-a") == load::RowState::Resolved);
+    REQUIRE(rig.executor.resolved().size() == 3);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-operators-basic");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
+    CHECK(rig.executor.resolved()[2].stem == "zengine-provider-a");
+    // THE REFUSED ROW'S OWN CONTRIBUTION IS GONE, rolled back inside that delivery.
+    CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
+}
+
+TEST_CASE("an optional row that refused stays `unavailable` in the owner's own answers -- never "
+          "`authored` -- with its reason, the next step and its optional flag") {
+    // MUTATION (P3): dropping the `stepped_over_` arm of `state_of` -- the row answers
+    // `Authored`, the token the Arrangement and Project panes read as "not reached".
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+
+    // THE OWNER'S OWN QUERY: settled, and not "not attempted".
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Unavailable);
+    const std::string why = rig.executor.reason_of("zengine-timer");
+    CHECK(why.find("weave load refused") != std::string::npos);
+    CHECK(why.find("artifact '") == std::string::npos); // the layer's words, not the banner's
+    CHECK(rig.executor.reason_of("zengine-provider-a").empty());
+    // COMPLETION IS NOT EVERY ROW SUCCEEDING, and the two are asked apart.
+    CHECK(rig.executor.outcome().ok);
+    CHECK(rig.executor.unavailable().size() == 1);
+
+    // THE PROJECTION A PANE READS carries the state, the reason, the next step and the flag.
+    const workshop::v2::ResolvedArrangement said = workshop::describe_resolved(rig.executor, "p");
+    const workshop::v3::ArtifactParticipation* gone = nullptr;
+    const workshop::v3::ArtifactParticipation* ran = nullptr;
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
+        gone = a.artifact == "zengine-timer" ? &a : gone;
+        ran = a.artifact == "zengine-provider-a" ? &a : ran;
+    }
+    REQUIRE(gone != nullptr);
+    REQUIRE(ran != nullptr);
+    CHECK(gone->state == std::string(workshop::kUnavailableToken));
+    CHECK(gone->optional);
+    CHECK(gone->reason == why);
+    CHECK(gone->next.find("relaunch") != std::string::npos);
+    CHECK(ran->state == std::string(workshop::kResolvedToken));
+    CHECK_FALSE(ran->optional);
+    CHECK(ran->reason.empty());
+
+    // ...AND A VERSION 1 READER IS TOLD `refused`, never `authored`.
+    const workshop::ResolvedArrangement old = workshop::describe_arrangement(rig.executor, "p");
+    const workshop::ArtifactParticipation* old_row = row_of(old, "zengine-timer");
+    REQUIRE(old_row != nullptr);
+    CHECK(old_row->state == std::string(workshop::kRefusedToken));
+
+    // ...AND THE DOOR ANSWERS EACH ASKER IN THE VERSION IT READS: this asker accepts both.
+    rig.mount_door_answering_versions("p");
+    rig.mount_asker();
+    rig.ask_arrangement();
+    REQUIRE(rig.projected.arrangements_v2.size() == 1);
+    CHECK(rig.projected.arrangements.empty());
+    bool unavailable = false;
+    for (const workshop::v3::ArtifactParticipation& a :
+         rig.projected.arrangements_v2[0].artifacts) {
+        unavailable = unavailable || (a.artifact == "zengine-timer" &&
+                                      a.state == std::string(workshop::kUnavailableToken));
+    }
+    CHECK(unavailable);
+}
+
+TEST_CASE("an office is still to come while a plan row loading it has not settled, and is owed "
+          "nothing once every such row resolved or was stepped over") {
+    // MUTATION (Q2): `office_pending` answering false whatever the rows' states -- the first
+    // half fails before the walk has reached the timer's rows.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                optional(both("zengine-timer", tmr::kTimerRole)),
+                                provides("zengine-provider-a")}));
+    CHECK(rig.executor.office_pending(tmr::kTimerRole)); // authored, and not settled yet
+    CHECK_FALSE(rig.executor.office_pending("zengine.nobody")); // no row loads it at all
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+    // ONE ROW RESOLVED INTO IT AND ONE WAS STEPPED OVER: both settled, so nothing is owed.
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Unavailable);
+    CHECK_FALSE(rig.executor.office_pending(tmr::kTimerRole));
+}
+
+TEST_CASE("a refused required row names its reason and next step through the same projection") {
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                both("zengine-timer", tmr::kTimerRole),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+    REQUIRE(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Refused);
+    CHECK(rig.executor.reason_of("zengine-timer").find("weave load refused") != std::string::npos);
+    const workshop::v2::ResolvedArrangement said = workshop::describe_resolved(rig.executor, "p");
+    bool seen = false;
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
+        if (a.artifact == "zengine-timer") {
+            seen = true;
+            CHECK(a.state == std::string(workshop::kRefusedToken));
+            CHECK_FALSE(a.optional);
+            CHECK_FALSE(a.reason.empty());
+            CHECK(a.next.find("fix") != std::string::npos);
+        }
+        if (a.artifact == "zengine-provider-a") {
+            CHECK(a.state == std::string(workshop::kAuthoredToken)); // never reached, truly
+            CHECK(a.reason.empty());
+        }
+    }
+    CHECK(seen);
+}
+
+TEST_CASE("a row that is NOT authored optional still stops the plan, and that is the whole "
+          "difference between this policy and skipping what fails") {
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                both("zengine-timer", tmr::kTimerRole),
+                                provides("zengine-provider-a")}));
+    rig.drain(24);
+
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.refusal().find("artifact 'zengine-timer'") != std::string::npos);
+    CHECK(rig.executor.unavailable().empty());
+    // AND THE ROW BEHIND IT WAS NOT PERFORMED: order is still the dependency model.
+    CHECK(rig.executor.state_of("zengine-provider-a") != load::RowState::Resolved);
+    CHECK(rig.executor.resolved().size() == 2);
+}
+
+TEST_CASE("the optional flag round-trips through the file, and a plan that marks no row "
+          "optional is still written in the version that says it") {
+    const load::LoadPlan marked =
+        plan_of({provides("a"), optional(weaves("b", "r.b")), weaves("c", "r.c")});
+    const std::string text = load_persist::to_text(marked);
+    // THE SMALLEST VERSION THAT SAYS THE PLAN: this one needs version 3.
+    CHECK(text.find("\"format_version\":\"3\"") != std::string::npos);
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    REQUIRE(back.plan.artifacts.size() == 3);
+    CHECK_FALSE(back.plan.artifacts[0].optional);
+    CHECK(back.plan.artifacts[1].optional);
+    CHECK_FALSE(back.plan.artifacts[2].optional);
+    // A SECOND SAVE IS BYTE-IDENTICAL: a load-save round trip edits nothing.
+    CHECK(load_persist::to_text(back.plan) == text);
+
+    // ...AND A PLAN WITH NO OPTIONAL ROW AND NO CHOICE IS STILL VERSION 1, byte for byte what
+    // it always was -- every plan a maker already has is written again unchanged.
+    const load::LoadPlan plain = plan_of({provides("a"), weaves("b", "r.b")});
+    const std::string plain_text = load_persist::to_text(plain);
+    CHECK(plain_text.find("\"format_version\":\"1\"") != std::string::npos);
+    CHECK(load_persist::from_text(plain_text).plan == plain);
+}
+
+TEST_CASE("a version-1 and a version-2 plan are read against their own retained shapes, and "
+          "neither gains an optional row it never authored") {
+    // ⭐ THE FIELD CHANGED THE ROW'S CONTENT-ID, so an old file admitted against this
+    // version's shape would be refused by a field it was never going to have -- a true
+    // sentence about a false cause (Loom GATE-04).
+    const load_persist::LoadedPlan v1 = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":1,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"1","artifacts":[)"
+        R"({"artifact":"a","provider":[{"mode":"normal"}],"weave":[]}]}})");
+    REQUIRE_MESSAGE(v1.outcome.accepted, v1.outcome.refusal);
+    REQUIRE(v1.plan.artifacts.size() == 1);
+    CHECK_FALSE(v1.plan.artifacts[0].optional);
+
+    const load_persist::LoadedPlan v2 = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":2,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"2","artifacts":[)"
+        R"({"artifact":"a","provider":[],"weave":[{"role":"r"}]}],)"
+        R"("choices":[{"role":"r","name":"n","artifact":"a"}]}})");
+    REQUIRE_MESSAGE(v2.outcome.accepted, v2.outcome.refusal);
+    REQUIRE(v2.plan.artifacts.size() == 1);
+    CHECK_FALSE(v2.plan.artifacts[0].optional);
+    CHECK(v2.plan.choices.size() == 1);
+
+    // ...AND A VERSION-3 FILE THAT MARKS NO ROW OPTIONAL IS REFUSED, so one plan has one
+    // spelling and a save never rewrites a file nobody edited.
+    const load_persist::LoadedPlan too_big = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[)"
+        R"({"artifact":"a","provider":[{"mode":"normal"}],"weave":[],"optional":false}],)"
+        R"("choices":[]}})");
+    CHECK_FALSE(too_big.outcome.accepted);
 }

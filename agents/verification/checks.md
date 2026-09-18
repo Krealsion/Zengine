@@ -18,7 +18,8 @@ METHOD — A rig helper that steps until a cursor reaches a row needs a precondi
 BECAUSE — a picker walk kept pressing Down while a pane held the keyboard, repainting into the
 rig's canvas vector until the process took six gigabytes -- and where the same walk had asked for
 row zero it returned quietly, leaving a whole half-case reading the rows of a pane never seated.
-SEEN — `tests/workshop_support.hpp` `PaneRig::pick`.
+SEEN — `tests/workshop_support.hpp` `PaneRig::pick`, while it walked the retired picker; it
+spends the two presence doors now and walks nothing.
 
 ## VM-CHECK-02 — Grep code, not comments
 

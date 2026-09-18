@@ -174,9 +174,19 @@ nothing behind that says it is. A record whose provider mount failed does not go
 its weave.
 
 **A transaction across the whole plan was deliberately not built.** Artifacts that succeeded
-before the failure stay, and the host says how many did. Execution stops at the first refusal:
-carrying on would mean running a project nobody authored while reporting the one that was asked
-for.
+before the failure stay, and the host says how many did. Execution stops at the first refusal
+of a **required** row: carrying on would mean running a project nobody authored while
+reporting the one that was asked for.
+
+**A row the plan marks `"optional": true` is different, because its author said so.** Its
+refusal makes it an *unavailable tool*, not a refused project: the refusal is recorded with the
+same sentence, the row is stepped over, and every row after it is still performed in authored
+order. The plan still completes, and completing does not mean every row succeeded — the host
+prints each unavailable row (`zengine-workshop - unavailable: ...`), keeps it as a standing
+condition for the whole run, and the Arrangement and Project panes show the row as
+`unavailable` with its reason. Nothing is retried. The shipped plans mark the host's own
+infrastructure required and every pane optional, so a build tree short one pane's artifact
+still starts, and says which.
 
 **The durable plan is never rewritten to agree with a failed runtime.** Authored intent and
 resolved state are different truths — the same law an unresolvable `PaneRef` already lives under.
@@ -307,7 +317,7 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 **Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
 each under a name a maker switches to it by. Exactly one row of `artifacts` loads the office and is
 one of its choices; every other choice is loaded only when a switch asks for it. Both shipped plans
-are version 2 and author `standard` and `neovim` for `zengine.editor`. The choices' law, the
+author `standard` and `neovim` for `zengine.editor` (and are version 3, below). The choices' law, the
 switch and what crosses it are [editor-switch.md](editor-switch.md).
 
 ```json
@@ -330,6 +340,20 @@ switch and what crosses it are [editor-switch.md](editor-switch.md).
 A plan that authors no choices is still written as version 1, byte for byte what it always was, and
 a version-1 file is read exactly as before. A version-2 file with no choices is refused: one plan
 has one spelling.
+
+**Version 3 adds a row's `optional`** — a plain `true`/`false` on every artifact row, and the
+one field of a row that is not a list. `true` says this project stands without the row: its
+refusal makes it an unavailable tool rather than a refused project (see
+[failure](#failure-and-what-it-leaves-behind)). Both shipped plans are version 3. A plan that
+marks no row optional is still written as version 1 or 2, byte for byte, and those files are
+read exactly as before.
+
+```json
+{ "artifact": "zengine-info-pane",
+  "provider": [],
+  "weave":    [ { "role": "zengine.info" } ],
+  "optional": true }
+```
 
 Two things a hand-author needs to know:
 

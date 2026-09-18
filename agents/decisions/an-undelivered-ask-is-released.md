@@ -34,4 +34,9 @@ or a delete is accounted the same way against its own record.
 one that names no document ask is ignored. A suite stages these refusals by killing Workshop's
 weave or taking it off the bus between a send and its delivery, because no gesture can.
 
+**Since.** The desktop's Pane Creator holds one act at a time and met the same failure: a make
+the host's admission denied at dispatch held its slot, so every later make, save and discard said
+it was not sent. It keeps its act's ticket on these terms, paste included, and a delivered act
+still waits ([WL-MAKER-14](../workshop/maker-pane.md)).
+
 **Laws supported.** [WL-INFO-13](../workshop/info-body.md).

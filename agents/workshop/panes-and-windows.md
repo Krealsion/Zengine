@@ -57,18 +57,18 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-05 — Every cell a slot gains is paint and pointer alike
 
-LAW — The frame painter fills the whole rectangle, occupancy owns all of it, and a press inside it is answered with the panel's sentence rather than reaching the workspace.
+LAW — The frame painter fills the whole rectangle, occupancy owns all of it, and a press inside it is answered with the panel's sentence rather than reaching the bare room.
 
 MEANS
-- a drag begun on the workspace still walks under the panel and releases normally;
+- a press on a panel begins nothing, so a hand that leaves it drags nothing;
 - `room_w > kStackW` implies `x + w < room_w`: columns of the panel's rows stay reachable.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `paint_panel_frame`; `workshop/screen_chrome.cpp`
-`occupied_at`; `workshop/screen_gestures.cpp` `take_hold`; `workshop/screen.hpp` `kNoKind`,
-`Occupancy::what`; `workshop/weave_pointer.cpp` `on(PointerMoved)`;
-`tests/test_workshop_screen.cpp` case `"WIND-1: the columns the panel took are its own, and the
-band is the maker's"`, case `"a gesture that began on the workspace is not interrupted by a
-panel"`, case `"a visible panel occupies the pointer space it covers"`.
+`occupied_at`; `workshop/screen.hpp` `kNoKind`, `Occupancy::what`; `workshop/weave_pointer.cpp`
+`on(PointerMoved)`; `tests/test_workshop_screen.cpp` case `"WIND-1: the columns the panel took
+are its own, and the band is the maker's"`, case `"a press that lands on a panel begins nothing,
+so a hand that leaves it drags nothing"`, case `"a visible panel occupies the pointer space it
+covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
@@ -114,7 +114,7 @@ DOES NOT MEAN
 - that a refusal cannot be reached at all: a captured subject can be made unreachable after it.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp` `PaneProjection`;
-`workshop/screen_pane_editor.cpp` `pane_geometry_typeable`;
+`workshop/screen_pane_subject.cpp` `pane_geometry_typeable`;
 `workshop/weave_arrange.cpp` `arrange_geometry_ready`;
 `tests/test_workshop_screen.cpp` case `"WUX-7: every pane a maker can point at can be arranged,
 and the refusals are blind"`; `tests/test_workshop_panes_window.cpp`
@@ -141,11 +141,10 @@ LAW — `closed`, `unresolved`, `refused`, `waiting`, `off-room`, `covered`, `op
 
 MEANS
 - a pane with a pixel axis and no tile left is `refused`, because a taller window would not help;
-- two panes that each cover half of a third leave nothing of it showing;
-- the state column is eleven cells (`kPaneStateCols`), because `unresolved` is ten bytes.
+- two panes that each cover half of a third leave nothing of it showing.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `pane_state_of`, `pane_state_word`,
-`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`, `kPaneStateCols`,
+`pane_state_remedy`, `pane_is_covered`; `workshop/screen.hpp` `pane_state`,
 `PaneProjection`; `workshop/weave_session.cpp` `unresolved_note`; `workshop/panel.hpp`
 `Panels::waiting_for_room`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused pane
 is refused rather than waiting, and it still SEATS"`, case `"WIND-2: two panes that each cover
@@ -164,59 +163,43 @@ each axis is independent -- a place edit freezes no size, and back"`, case `"WIN
 width still follows the WIND-1 half-share after a place edit"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
-## WL-PANE-12 — The picker keeps presence, and arrangement never touches it
+## WL-PANE-12 — Presence is the desk's, through two doors, and arrangement never touches it
 
-LAW — `inventory_rows` is the catalog union every reference the setup names, `picker_population()` is the one inventory every picker consumer spends, and selecting an open row removes it.
+LAW — `inventory_rows` is the catalog union every reference the setup names, the one list presence spends; a launch opens or focuses a row, and a close takes one off whether or not anything offers it.
 
 MEANS
 - an unresolved row carries `kNoPaneKind`, so nothing can present it as the Builder;
 - arrangement binds no toggle, adds nothing and offers nothing.
 
-PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/weave_panels.cpp`
-`picker_population`, `choose_panel`, `picker_move`, `toggle_participation`;
-`workshop/weave_terminal.cpp` `command`; `workshop/weave_arrange.cpp` `arrangeable`;
-`workshop/panel.hpp` `kNoPaneKind`; `tests/test_workshop_screen.cpp` case `"WIND-2a: the picker
-can reach and remove an unresolved row"`; `tests/test_workshop_panes_window.cpp` case `"ARR-0:
-participation stays the picker's; arrangement does not add or offer"`;
-`tests/test_workshop_panels.cpp` case `"selecting an open kind REMOVES it, and says what was not
-touched"`.
+PROVEN BY — `workshop/setup.hpp` `inventory_rows`, `CatalogRow`; `workshop/weave_desktop.cpp`
+`launch_pane`, `close_pane`; `workshop/weave_arrange.cpp` `arrangeable`; `workshop/panel.hpp`
+`kNoPaneKind`; `tests/test_workshop_screen.cpp` case `"WIND-2a: the close door can reach and
+remove an unresolved row"`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: participation
+stays the doors'; arrangement does not add or offer"`; `tests/test_workshop_panes_seam.cpp` case
+`"closing a waiting row removes the intent, exactly as closing an open one does"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-13 — A panel is a kind and nothing else, and a kind has one instance
 
-LAW — An open panel carries a kind and nothing else; a kind is open once or not at all, per-kind view state lives beside the stack, and selecting an open kind removes it through the same door.
+LAW — An open panel carries a kind and nothing else; a kind is open once or not at all, per-kind view state lives beside the stack, and a close removes it through the one door.
 
 MEANS
 - a second copy of a tool's status in each instance would need a policy about several instances;
 - removing a panel touches nothing behind it: no message reaches the office.
 
 PROVEN BY — `workshop/panel.hpp` `Panel`, `Panels::has`, `open_panel`, `close_panel`;
-`tests/test_workshop_panels.cpp` case `"selecting an open kind REMOVES it, and says what was not
-touched"`, case `"a panel opens from the picker, is removed, and opens again"`.
+`tests/test_workshop_panels.cpp` case `"a built-in panel needs no weave, and opening one speaks to
+no office"`; `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-12: a close takes a pane off
+the desk and leaves its provider holding; a close of a pane that is not there is refused and
+opens nothing"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-14 — The picker is a mode, not a panel
+## WL-PANE-14 — RETIRED: the picker was a mode, not a panel
 
-LAW — The `+ panel` picker has no instance, no catalog row and nothing presents it: opening it opens nothing, choosing closes it, and Escape or its own key dismisses it having opened and removed nothing.
-
-MEANS
-- it cannot be opened from itself; its name is the words on the hint that opens it.
-
-PROVEN BY — `workshop/panel.hpp` `PanelPicker`, `kPickerName`; `tests/test_workshop_panels.cpp`
-case `"a panel opens from the picker, is removed, and opens again"`, case `"the picker can be
-dismissed without opening anything, two ways"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-15 — The picker covers the whole first slot
+## WL-PANE-15 — RETIRED: the picker covered the whole first slot
 
-LAW — The picker opens over the stack's first slot and paints a whole panel's worth of rows whatever it lists, so nothing shows through it, and while it is open a press on that slot is the picker's.
-
-MEANS
-- three rows over a nine-row panel left six rows of another panel reading as one box: measured.
-
-PROVEN BY — `workshop/screen.hpp` `kPickerRows`, `picker_bounds`;
-`tests/test_workshop_screen.cpp` case `"the picker occupies the slot it opens over, and answers
-for it while it is there"`.
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable

@@ -34,6 +34,16 @@ struct Condition {
     }
 };
 
+/// A TOOL THIS RUN STEPPED OVER, AS THE CONDITION IT IS FOR THE WHOLE RUN (P-WORK-22). Keyed and
+/// named by its artifact, because the compact row is the host's own furniture: it needs no tool to
+/// be read, so it is where a missing tool is still named when the missing tool is the desktop and
+/// nothing can open the Attention pane. The refusing layer's sentence is the detail.
+// WL-ATTN-01 -- agents/workshop/attention.md
+inline Condition unavailable_tool(const std::string& stem, const std::string& said) {
+    return Condition{"load.unavailable/" + stem, stem + " is not in this Workshop", said,
+                     surface::role::kAlert, "build its artifact, then launch again"};
+}
+
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline int attention_rank(std::int64_t role) noexcept {

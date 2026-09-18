@@ -5,12 +5,14 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// eight times since. Twenty-two shapes, five of them a second version of one declaration.
+// nine times since. Twenty-four shapes, five of them a second version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
 //     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
 //     v2::PaneActions        provider  ->  Workshop   "...and this row of mine stands in for one of yours."
+//     ActionsJudged          Workshop  ->  provider   "that declaration is in force as #n" / "refused: why."
+//     ActionsWithdrawn       Workshop  ->  provider   "declaration #n left the keymap, and why."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
 //     v2::PaneContent        provider  ->  Workshop   "...of this generation of my subject."
@@ -183,12 +185,12 @@ struct PaneCatalogRequested {
 };
 
 /// A PROVIDER NAMING ONE PANE IT CAN PRESENT -- its key in that provider's own
-/// namespace, and the two lines a maker reads in the picker.
+/// namespace, and the two lines a maker reads in the Pane Manager.
 ///
 /// WHOSE it is, is `mail.authored_role()`. See the header comment.
 struct PaneOffered {
     std::string pane;    ///< the durable pane key, in the AUTHORING office's namespace
-    std::string name;    ///< what the picker lists
+    std::string name;    ///< what the Pane Manager lists
     std::string summary; ///< one line, so a maker can tell what they are opening
     ZEN_SHAPE(PaneOffered, 1, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary));
 };
@@ -283,7 +285,7 @@ struct PanePressed {
 /// `keys_went_here` IS TRUE EXACTLY WHEN THIS PANE WAS WHERE AN ORDINARY KEY WENT immediately
 /// before Workshop handled this press: no mode and no hotkey view had the keys, and the pane
 /// the keyboard was pointed at was this one. A pane that is still the keyboard's candidate
-/// under an open picker was not where the keys went. It says nothing about the next key
+/// under an open mode was not where the keys went. It says nothing about the next key
 /// (a chord answered above every mode still is), nothing about any earlier press, and it
 /// commands nothing: a pane that activates only what was already its keys' subject reads it,
 /// and a pane with no such rule ignores it.
@@ -347,8 +349,8 @@ struct PanePressed {
 /// actions above every mode (which chords those are is the keymap's own truth --
 /// `workshop/keymap.hpp` declares them and a maker's authored keymap can move
 /// them; a comment here spelling them is how this sentence went stale twice), and
-/// the Terminal overlay, pane management, the setup-name editor and the pane
-/// picker each own the keyboard whole while they are open. A pane gets what is
+/// the arrangement scopes, the contextual surface and the setup-name editor each
+/// own the keyboard whole while they are open. A pane gets what is
 /// left, which is every ordinary key -- including the printable ones Workshop
 /// otherwise binds as commands, because a maker typing `p` into a field is typing
 /// a `p`.
@@ -438,9 +440,11 @@ struct PaneWheel {
 ///
 /// NO KEY NAME CROSSES, in either direction: a name is a spelling the host owns, and a
 /// provider switching on one would be switching on the host's grammar.
-/// THE HOST ACTIONS A PANE MAY DECLARE IT OWNS (`v2::PaneActionRow::supersedes`), spelled in
-/// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Workshop's
-/// own catalog is what makes the id real, and a suite pins the two spellings against each other.
+/// TWO HOST ACTIONS A PANE COULD DECLARE IT OWNED (`v2::PaneActionRow::supersedes`), spelled in
+/// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Both acted on
+/// the object document and RETIRED with it (`kRetiredActions`): a pane that still names one is
+/// admitted standing in for nothing, so a provider built against this header loads in a host on
+/// either side of the retirement, and a suite pins both spellings to the retired table.
 inline constexpr const char* kOwnableDocumentSave = "document.save";
 inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
@@ -476,8 +480,8 @@ struct PaneActions {
 /// THE SECOND VERSION OF THE DECLARATION, AND WHY IT IS A VERSION AND NOT A FIELD (VD-27)
 /// ============================================================================================
 ///
-/// A pane that holds a document of its own needs to say so -- that its `editor.save` row STANDS
-/// IN FOR Workshop's `document.save` while its keys are the maker's (WL-KEY-15). That is one
+/// A pane that holds a document of its own needed to say so -- that its `editor.save` row STOOD
+/// IN FOR Workshop's `document.save` (retired since) while its keys were the maker's. That is one
 /// more field on a declaration row, and one more field is a DIFFERENT SHAPE: Loom's identity
 /// across a `.so` seam is the content-id derived from the shape, a published `(name, version)`
 /// is frozen, and two parties agree iff their content-ids match (Loom GATE-04). Adding the
@@ -512,13 +516,13 @@ struct PaneActionRow {
     /// keyboard, or empty -- the declaration that makes an operation the PANE'S here without
     /// naming the pane anywhere in the host (WL-KEY-15).
     ///
-    /// A pane that holds a document of its own says `document.save`: while its keys are the
-    /// maker's, the host's save is not requestable and the pane's own row is, and that stays
-    /// true WHEREVER a maker's keymap file has moved either row -- supersession is by name,
-    /// never by matching gestures. It buys the pane one thing beside that: the collision law
-    /// lets THIS PANE's rows take the superseded row's key, because a superseded row is not
-    /// requestable anywhere in this pane. An id Workshop does not declare, or one Workshop
-    /// does not offer for ownership, supersedes nothing and is refused at admission.
+    /// A pane may name an APPLICATION row it stands in for (a desktop's launch, WL-DESK-07):
+    /// while its keys are the maker's, that row is not requestable and the pane's own row is,
+    /// and that stays true WHEREVER a maker's keymap file has moved either row -- supersession
+    /// is by name, never by matching gestures. It buys the pane one thing beside that: the
+    /// collision law lets THIS PANE's rows take the superseded row's key. A retired id
+    /// (`kOwnableDocumentSave`, `kOwnableDocumentOpen`) is admitted standing in for nothing; any
+    /// other id Workshop does not offer for ownership is refused at admission.
     std::string supersedes;
     ZEN_SHAPE(PaneActionRow, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
               ZEN_FIELD(modifiers), ZEN_FIELD(supersedes));
@@ -533,6 +537,43 @@ struct PaneActions {
 };
 
 } // namespace v2
+
+/// WORKSHOP'S VERDICT ON ONE ACTION DECLARATION (BL-WORK-04), ANSWERED TO THAT DECLARATION.
+///
+/// It travels as Loom's answer to the delivery it judges, so it carries the correlation the
+/// declaration was sent under and reaches only the incarnation that sent it -- a verdict can never
+/// cross a reload into a successor (Loom ANS-03). Workshop answers only a holder whose office
+/// accepts this shape; a provider built before it existed is told nothing and still declares.
+///
+/// `declaration` IS WORKSHOP'S NUMBER FOR AN ACCEPTED DECLARATION, minted once and never reused in
+/// the process; `ActionsWithdrawn` names it if that declaration later stops being in force. A
+/// refused declaration has none. `refusal` is the maker's sentence, never an identity to parse.
+///
+/// IT MANDATES NOTHING. The fact is Workshop's; recovery is the provider's -- declare again, keep
+/// working, tell the maker, or nothing. Silence establishes neither verdict: an answer can be
+/// refused at Loom's gate or dropped with the incarnation that asked.
+struct ActionsJudged {
+    std::string pane;             ///< the pane key declared; empty for application rows
+    bool accepted = false;
+    std::int64_t declaration = 0; ///< Workshop's number for it when accepted; 0 when refused
+    std::string refusal;          ///< Workshop's own sentence; empty exactly when accepted
+    ZEN_SHAPE(ActionsJudged, 1, ZEN_FIELD(pane), ZEN_FIELD(accepted), ZEN_FIELD(declaration),
+              ZEN_FIELD(refusal));
+};
+
+/// A DECLARATION WORKSHOP ACCEPTED IS NO LONGER IN FORCE -- the maker's keymap file, or rows the
+/// application declared later, took one of its gestures, so the whole declaration left the keymap.
+///
+/// Ordinary speech to the declaring office, because the delivery it judged is long over. That is
+/// why it names `declaration`: the number was told only to the incarnation that declared, so a
+/// successor holding the office after a replacement can see this is not about its own rows. The
+/// rows are not retained; the provider may declare again, and is not asked to.
+struct ActionsWithdrawn {
+    std::string pane;             ///< as the declaration named it; empty for application rows
+    std::int64_t declaration = 0; ///< the number `ActionsJudged` gave it
+    std::string refusal;          ///< why, in the maker's words
+    ZEN_SHAPE(ActionsWithdrawn, 1, ZEN_FIELD(pane), ZEN_FIELD(declaration), ZEN_FIELD(refusal));
+};
 
 /// A MAKER PRESSED THE GESTURE ONE OF THIS PANE'S ROWS ANSWERS TO, while the pane held
 /// the keyboard -- and this is the RESOLVED id, after the maker's own keymap moved the
@@ -689,10 +730,11 @@ struct PaneDragged {
 /// ---- WHAT WORKSHOP DOES WITH IT, IN THE DELIVERY THAT BRINGS IT -------------------------
 ///
 /// Exactly what it did for the built-in Editor when a source was opened, and all of it at
-/// once: judge the seat through the picker's own trial (`seat_panes` over a candidate setup)
-/// and EITHER seat the pane on the active desk if it is not there (`add_pane`, the picker's
-/// own membership door), select it, point the keyboard at it, say so and answer `seated`; OR
-/// refuse in the picker's own words with nothing authored, selected or focused. A reveal is a
+/// once: judge the seat through the launch door's own trial (`seat_panes` over a candidate
+/// setup) and EITHER seat the pane on the active desk if it is not there (`add_pane`, the
+/// launch door's own membership door), select it, point the keyboard at it, say so and answer
+/// `seated`; OR refuse in the launch door's own words with nothing authored, selected or
+/// focused. A reveal is a
 /// statement about the DESK -- membership, selection, keys -- and touches no file, no provider
 /// and no other pane's rows.
 ///
@@ -713,7 +755,7 @@ struct PaneDragged {
 /// eligibility -- a key, text, a press, a drag, the wheel, a declared action, a clipboard
 /// answer -- is held and replayed afterwards, exactly as Workshop holds every gesture while it
 /// asks the room whether it may quit. The desk cannot freeze its fact without holding a resize
-/// or a picker for everyone; it does not have to, because it makes the presentation TRUE in
+/// or a launch for everyone; it does not have to, because it makes the presentation TRUE in
 /// the same delivery that answers. That delivery is the commitment point: the asker's
 /// eligibility holds there because it was frozen, the presentation holds there because it was
 /// just written, and the asker completes its own half on the answer without judging anything
@@ -733,7 +775,7 @@ struct PaneDragged {
 ///
 /// `PaneOffered` puts a pane in the LIST and never on the screen, and that stays true: this
 /// shape is refused for a pane the office never offered, and it is honoured through the
-/// ordinary door a maker's own picker press goes through. What it buys is the half of "open a
+/// ordinary door a maker's own launch goes through. What it buys is the half of "open a
 /// source" that lived in the host while the host held the document: a Files row pressed by a
 /// maker asks the Editor to open; the Editor judges and asks to be shown. The abuse is named
 /// rather than assumed away: an office that asked for this on every beat would keep pulling
@@ -757,7 +799,7 @@ struct PaneRevealRequested {
 ///
 /// `seated`: the pane is on the active desk, seated by the screen, selected, and the keys are
 /// pointed at it -- all of it written before this was answered, so the asker may complete its
-/// own act on the strength of it. Otherwise the picker's own refusal, the one a maker reads on
+/// own act on the strength of it. Otherwise the launch door's own refusal, the one a maker reads on
 /// the notice line, and nothing anywhere moved.
 struct PaneRevealAnswered {
     std::string pane;

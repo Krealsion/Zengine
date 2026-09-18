@@ -9,12 +9,11 @@ seam is the protocol's law, in [`../panes.md`](../panes.md).
 LAW — `Panels::keyboard` is the keyboard-taking pane the maker last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
-- `pane_editor_has_keyboard` is the one built-in's; the Editor's went with the Editor (VD-25);
+- no built-in takes the keys: the Editor's went with it (VD-25), the Pane Manager's likewise;
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;
-`workshop/screen_arrange.cpp` `pane_editor_has_keyboard`; `workshop/weave_external.cpp`
-`keyboard_pane`;
+`workshop/weave_external.cpp` `keyboard_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: a press into an external pane's room points
 the keyboard at it"`, case `"MSG-0: a press into a second external pane moves the keyboard to
 it"`, case `"MSG-0: a pane that stops being presentable stops being typed into"`.
@@ -26,7 +25,7 @@ LAW — `PanelKind::takes_keyboard` is a fact about a kind on its catalog row; w
 
 MEANS
 - a loaded pane answers for itself and is always a candidate, the empty Editor included;
-- the Pane Manager carries the flag; nothing registered, no focus framework.
+- no built-in carries the flag now; nothing registered, no focus framework.
 
 PROVEN BY — `workshop/panel.hpp` `PanelKind::takes_keyboard`, `kind_takes_keyboard`,
 `kPanelCatalog`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W30: an empty Editor pane
@@ -43,12 +42,12 @@ MEANS
 - putting the line in the routing arms would be four decisions about one fact.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `kind_takes_keyboard`, `on(PointerButton)`;
-`workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_pane_editor.cpp` `pane_editor_at`;
-`workshop/panel.hpp` `Panels::keyboard`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: a
-press anywhere else takes the keyboard away again"`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: a press selects, and a second press on the same row activates"`, case `"with pane
-titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused
-has settled, and a later press opens gamma"`.
+`workshop/screen_chrome.cpp` `occupied_at`; `workshop/panel.hpp` `Panels::keyboard`;
+`tests/test_workshop_panes_input.cpp` case `"MSG-0: a press anywhere else takes the keyboard away
+again"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: a press selects, and a second
+press on the same row activates"`, case `"with pane titles hidden, a first press on the row
+painted gamma selects gamma once every delivery it caused has settled, and a later press opens
+gamma"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-04 — The press that points the keys is not an act in the pane
@@ -56,7 +55,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — A pane activates a row on a press only when Workshop reports its keys were already there, read before the press moved them; two presses from cold buys "no single press replaces what is open".
 
 MEANS
-- the pane decides from `keys_went_here`; a mode or the hotkey view having the keys is "not here";
+- the pane decides from `keys_went_here`; a mode having the keys is "not here";
 - a v1 press states no fact, so Files only selects on it and Return still opens;
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
@@ -116,12 +115,13 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-08 — The pane gets every bare key, `q` included
 
-LAW — The global survivors are chorded, and admission's refusal of a bare printable on a global row enforces it, which is why typing `p` into a field does not open the picker.
+LAW — The survivors above a pane are chorded, and admission's refusal of a bare printable on a row above every mode enforces it, which is why typing `a` into a field does not open the contextual surface.
 
-PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`; `workshop/keymap_persist.hpp`
-`from_text`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: typing `p` into a focused pane
-does not open the picker"`; `tests/test_workshop_document.cpp` case `"KEY-0: a global action
-cannot take a bare printable or the editing vocabulary"`.
+PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `join_app_rows`;
+`workshop/keymap_persist.hpp` `from_text`; `tests/test_workshop_panes_input.cpp` case `"MSG-0:
+typing `a` into a focused pane does not open the contextual surface"`;
+`tests/test_workshop_panes_actions.cpp` case `"an application row answered above every mode cannot
+take a bare printable or a chord the text box owns, whoever wrote it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-09 — `^c` follows the keyboard
@@ -146,19 +146,17 @@ LAW — The pane the keys point at wears the `> ` mark in its header; while ordi
 MEANS
 - two facts, not one twice: the mark names the pane the keys return to, the band where a key goes;
 - the legend rows after it spell the pane's declared rows first, then the chords (WL-KEY-15);
-- under a mode or the hotkey view the mark stays and the band names no pane: one `typing_pane`.
+- under a mode the mark stays and the band names no pane: one `typing_pane`.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_header`, `paint_external`;
 `workshop/screen.hpp` `kTypingHere`; `workshop/screen_compose.cpp` `band_region`;
 `workshop/panel.hpp` `keyboard_pane`; `workshop/screen_arrange.cpp` `typing_pane`;
 `tests/test_workshop_panes_input.cpp` case `"MSG-0: the screen says which pane the keys are going
 to, in two places"`; `tests/test_workshop_panes_actions.cpp` case `"the band's legend and the
-hotkey view print the pane's rows while it holds the keys"`, case `"a pane that declared nothing
-is described as ownership only, exactly as before"`; `tests/test_workshop_panes_files.cpp` case
-`"a press into Files while the picker has the keys never opens its selected row, and the band
-does not say typing goes to Files; with the picker closed the press opens it"`, case `"a press
-into Files while the hotkey view has the keys never opens its selected row, and the band does not
-say typing goes to Files; with the view closed the press opens it"`.
+effective keymap print the pane's rows while it holds the keys"`, case `"a pane that declared
+nothing is described as ownership only, exactly as before"`; `tests/test_workshop_panes_files.cpp`
+case `"a press into Files while the layout name line has the keys never opens its selected row,
+and the band does not say typing goes to Files; with the line closed the press opens it"`.
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
@@ -185,6 +183,6 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 - That hiding pane titles can hide where typing goes — the keyboard's pane keeps its title and
   its mark whatever the preference says (WL-FOCUS-11).
-- That the pane the keys point at is where an ordinary key goes — a mode or the hotkey view
-  above it takes the key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
+- That the pane the keys point at is where an ordinary key goes — a mode above it takes the
+  key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
 - That a focused pane above a live draft has its own witness — it does not (WL-FOCUS-06).

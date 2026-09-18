@@ -85,8 +85,8 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     // A PANE MADE FROM DATA HAS A DEFINITION, NOT CODE: its namespace is Workshop's own and no
     // office holds it, so the sentence names what it is rather than an absent holder.
     if (ref.provider == kMakerPaneProvider) {
-        say(name + " is made from data, not code: its definition is a file the Pane Manager "
-                   "edits -- nothing was opened",
+        say(name + " is made from data, not code: its definition is a file the Pane Creator "
+                   "keeps -- nothing was opened",
             true);
         return;
     }

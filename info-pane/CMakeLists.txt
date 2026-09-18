@@ -1,13 +1,13 @@
-# The Info pane package — the OBJECTS list and the PROPERTIES inspector, as a loadable weave
-# rather than C++ inside the Workshop host. It arrives through the external pane protocol
-# exactly as introspection/, composer/, files/, builder-pane/ and attention-pane/ do, and
-# Workshop compiles nothing for it.
+# The Info pane package — the PANES list and one pane's PROPERTIES, as a loadable weave rather
+# than C++ inside the Workshop host. It arrives through the external pane protocol exactly as
+# introspection/, composer/, files/, builder-pane/ and attention-pane/ do, and Workshop compiles
+# nothing for it.
 #
-# ⚠ THE DOCUMENT IS NOT IN THIS PACKAGE AND THAT IS THE MIGRATION'S DECISION. `document.hpp`,
-# `property.hpp` and `persist.hpp` stay in `workshop/`, with the host that owns them: this
-# package links `zengine-workshop-vocabulary` for the pane protocol and the document SEAM's
-# shapes, and nothing that could construct, read or write a `WorkshopDoc`. What it can do to a
-# document is ask.
+# ⚠ WHAT IT INSPECTS IS NOT IN THIS PACKAGE, AND THAT IS THE MIGRATION'S DECISION. The desk and
+# the rows over it stay in `workshop/`, with the host that owns them: this package links
+# `zengine-workshop-vocabulary` for the pane protocol and the inspection seam's shapes, and
+# nothing that could read or write a desk. What it can do to a pane's properties is ask. (It
+# inspected the prototype object document the same way until that document retired.)
 #
 # ONE TARGET, AND NO PLATFORM HALF. Everything this pane does is compose text from values it
 # was told; the weave is one translation unit. It links `zengine-component` for the editable

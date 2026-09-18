@@ -183,7 +183,7 @@ TEST_CASE("WIND-2: a refused VALUE writes nothing, on either axis") {
 
     // THE VALUE DOORS ARE ATOMIC WHOLE. `author_pane_place`/`author_pane_size` take one
     // stated value and judge it as one thing -- a proposal wrong anywhere writes nothing
-    // at all, `doc::move`/`doc::resize`'s law verbatim. This is deliberately NOT the
+    // at all, the law the object document's move and resize kept. This is deliberately NOT the
     // gesture door's law: a HAND's axes settle independently through
     // `author_pane_window` (WUX-2a), but a value stated as one thing is refused as one.
     CHECK_FALSE(author_pane_place(s, builder, 4, -1).accepted);
@@ -368,7 +368,6 @@ TEST_CASE("WIND-2: a version-1 file leaves the live setup and its on-file copy u
     const std::string path = dir.file("setup.json");
     Live t;
     t.host.setup_path = path;
-    t.host.document_path = dir.file("doc.json");
 
     // A LIVE, ARRANGED, SAVED SETUP -- so a refusal has something to damage.
     name_setup(t, "Mine");
@@ -399,7 +398,7 @@ TEST_CASE("WIND-2: a version-1 file leaves the live setup and its on-file copy u
 TEST_CASE("WIND-2: an unresolved reference round-trips every authored field exactly") {
     Setup s;
     s.name = "Later";
-    REQUIRE(add_pane(s, ref_of(panel::kPaneEditor)));
+    REQUIRE(add_pane(s, ref_of(second::kKind)));
     REQUIRE(add_pane(s, stranger()));
     // A PLACE FAR OFF ANY SCREEN THIS COMPOSITION LAYS OUT, deliberately: authored intent is
     // not clamped on the way in or on the way out, so a file may legally hold a place the
@@ -429,7 +428,7 @@ TEST_CASE("WIND-2: an unresolved reference round-trips every authored field exac
     CHECK(held->height.mode == pane_unit::kPixels);
     CHECK(held->height.amount == 400);
     CHECK(held->front == 0);
-    CHECK(pane_of(read.setup, ref_of(panel::kPaneEditor))->front == 1);
+    CHECK(pane_of(read.setup, ref_of(second::kKind))->front == 1);
     CHECK(setup_persist::to_text(read.setup) == a);
     CHECK_FALSE(resolvable(stranger(), no_providers()));
 }
@@ -439,7 +438,6 @@ TEST_CASE("WIND-2: dirty is structural -- an inverse edit makes a setup clean ag
     const std::string path = dir.file("setup.json");
     Live t;
     t.host.setup_path = path;
-    t.host.document_path = dir.file("doc.json");
     // A PANE A MAKER MAY ARRANGE. The default setup names only Info, whose place is the
     // screen's reserved column -- so a case about a geometry edit has to open an overlay
     // pane first, which is itself the reserved-column law being visible.
@@ -505,8 +503,9 @@ TEST_CASE("WIND-2: each axis is independent -- a place edit freezes no size, and
 TEST_CASE("WIND-2: a default width still follows the WIND-1 half-share after a place edit") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(s.setup.active, builder, subs(6), subs(5)).accepted);
 
@@ -533,8 +532,9 @@ cells_covered(bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect);
 TEST_CASE("WIND-2: an authored place is absolute canvas position, not an offset from the default") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     REQUIRE(author_pane_place(s.setup.active, ref_of(stock::kKind), 0, 0).accepted);
     const Screen sc = screen_of(s);
     // THE DEVELOPER'S OWN SLOT IS AT `kStackY`, NOT AT ZERO. So a place of (0,0) that
@@ -551,8 +551,9 @@ cells_covered(bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect);
 TEST_CASE("WIND-2: a partly off-room pane is clipped, and its intent is not rewritten") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(s.setup.active, builder, subs(sc.w - 4), subs(2)).accepted);
@@ -587,8 +588,9 @@ TEST_CASE("WIND-2: a partly off-room pane is clipped, and its intent is not rewr
 TEST_CASE("WIND-2: a wholly off-room pane is off-room, recoverable, and painted by nobody") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(s.setup.active, builder, subs(sc.w + 40), subs(sc.h + 40))
@@ -606,8 +608,7 @@ TEST_CASE("WIND-2: a wholly off-room pane is off-room, recoverable, and painted 
 
     // NOTHING IS PAINTED AND NOTHING IS MET, and neither needed a branch of its own: an
     // empty rectangle contains nothing and is drawn by nobody.
-    const WorkshopDoc d = two_panels();
-    const surface::SurfaceCanvas c = paint(d, s);
+    const surface::SurfaceCanvas c = paint(s);
     for (const surface::SurfaceRect& r : all_rects(c)) {
         CHECK_FALSE((r.x == sc.w + 40 && r.y == sc.h + 40));
     }
@@ -699,8 +700,9 @@ TEST_CASE("WIND-2: a pixel axis is setup-valid, projection-refused, and never fa
 
     Session sess;
     admit_stock(sess.panels); // the stand-in, first (stock)
+    admit_second(sess.panels); // ...and the second
     sess.setup.active = s;
-    sess.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    sess.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     for (const std::int64_t adv : {std::int64_t{0}, std::int64_t{8}}) {
         CAPTURE(adv);
         sess.text_advance_px = adv;
@@ -753,7 +755,7 @@ TEST_CASE("WIND-2: a refused pane is refused rather than waiting, and it still S
 TEST_CASE("WIND-2: every ordering operation is an exact permutation, ends included") {
     Setup s;
     s.name = "Three";
-    const PaneRef a = ref_of(panel::kPaneEditor);
+    const PaneRef a = ref_of(second::kKind);
     const PaneRef b = ref_of(stock::kKind);
     const PaneRef c = stranger();
     REQUIRE(add_pane(s, a));
@@ -819,7 +821,7 @@ TEST_CASE("WIND-2: a gapped or duplicated rank is refused, and a fresh one is no
     // valid for -- named rather than hidden.
     Setup one;
     one.name = "One";
-    REQUIRE(add_pane(one, ref_of(panel::kPaneEditor)));
+    REQUIRE(add_pane(one, ref_of(second::kKind)));
     CHECK(one.panes[0].front == 0);
     CHECK(check_setup(one).accepted);
 }
@@ -827,7 +829,7 @@ TEST_CASE("WIND-2: a gapped or duplicated rank is refused, and a fresh one is no
 TEST_CASE("WIND-2: 10,000 alternating ordering operations stay inside 0..n-1") {
     Setup s;
     s.name = "Bounded";
-    const PaneRef a = ref_of(panel::kPaneEditor);
+    const PaneRef a = ref_of(second::kKind);
     const PaneRef b = ref_of(stock::kKind);
     REQUIRE(add_pane(s, a));
     REQUIRE(add_pane(s, b));
@@ -858,17 +860,18 @@ TEST_CASE("WIND-2: 10,000 alternating ordering operations stay inside 0..n-1") {
 TEST_CASE("WIND-2: ordering changes paint order and NOTHING else") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.screen_w = 120;
     s.screen_h = 40;
     s.setup.active = two_overlays();
     REQUIRE(add_pane(s.setup.active, stranger()));
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const Screen sc = screen_of(s);
 
     const std::vector<std::int64_t> paint_before = painted_order(s);
     const FineRect builder_before =
         bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect;
-    const FineRect info_before = bounds_of(s.panels, s.setup.active, panel::kPaneEditor, sc).rect;
+    const FineRect info_before = bounds_of(s.panels, s.setup.active, second::kKind, sc).rect;
     const std::vector<std::int64_t> open_before = open_kinds(s.panels);
     const Setup geometry_before = s.setup.active;
 
@@ -880,7 +883,7 @@ TEST_CASE("WIND-2: ordering changes paint order and NOTHING else") {
     // ...AND NOTHING ELSE DID. Not a rectangle, not the open list, not a seat, and not one
     // authored geometry field. This is the absence of a write, not a rule somebody keeps.
     CHECK(bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect == builder_before);
-    CHECK(bounds_of(s.panels, s.setup.active, panel::kPaneEditor, sc).rect == info_before);
+    CHECK(bounds_of(s.panels, s.setup.active, second::kKind, sc).rect == info_before);
     CHECK(open_kinds(s.panels) == open_before);
     for (std::size_t i = 0; i < s.setup.active.panes.size(); ++i) {
         CAPTURE(i);
@@ -901,13 +904,14 @@ TEST_CASE("WIND-2: ordering changes paint order and NOTHING else") {
 TEST_CASE("WIND-2: hit order is the exact reverse of paint order") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.screen_w = 120;
     s.screen_h = 40;
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const Screen sc = screen_of(s);
     // TWO OVERLAY PANES ON ONE CELL. Info is the side region, so the second overlapping
-    // presentation is authored by placing the Builder ON the picker's slot and asking about
+    // presentation is authored by placing the Builder ON the stack's first slot and asking about
     // a cell both cover -- which the Builder and a placed Builder cannot both be. So this
     // case measures the ORDER function directly and the pointer through it.
     const std::vector<std::int64_t> paint = painted_order(s);
@@ -920,7 +924,7 @@ TEST_CASE("WIND-2: hit order is the exact reverse of paint order") {
     // THE POINTER ANSWERS WITH THE FRONT-MOST PANE ON A CELL, and the front-most is the LAST
     // painted. Asked of the Info column, which only Info covers, and then of the stack.
     const ui::Rect side =
-cells_covered(bounds_of(s.panels, s.setup.active, panel::kPaneEditor, sc).rect);
+cells_covered(bounds_of(s.panels, s.setup.active, second::kKind, sc).rect);
     CHECK(occupied_at(s.panels, s.setup.active, sc, side.x, side.y).occupied);
     const ui::Rect stack =
 cells_covered(bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect);
@@ -942,16 +946,17 @@ cells_covered(bounds_of(s.panels, s.setup.active, stock::kKind, sc).rect);
 TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in every state") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.screen_w = 120;
     s.screen_h = 40;
     Setup& setup = s.setup.active;
     setup = Setup{};
     setup.name = "Every state";
-    REQUIRE(add_pane(setup, ref_of(panel::kPaneEditor)));     // open
+    REQUIRE(add_pane(setup, ref_of(second::kKind)));     // open
     REQUIRE(add_pane(setup, ref_of(stock::kKind)));  // off-room, below
     REQUIRE(add_pane(setup, stranger()));               // unresolved
     REQUIRE(author_pane_place(setup, ref_of(stock::kKind), 4000, 4000).accepted);
-    s.panels.open = {Panel{panel::kPaneEditor}, Panel{stock::kKind}};
+    s.panels.open = {Panel{second::kKind}, Panel{stock::kKind}};
     const Screen sc = screen_of(s);
 
     const std::vector<CatalogRow> rows = inventory_rows(setup, s.panels);
@@ -979,7 +984,7 @@ TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in eve
         if (have.ref == ref_of(stock::kKind)) {
             CHECK(pane_state_of(s.panels, setup, sc, have) == pane_state::kOffRoom);
         }
-        if (have.ref == ref_of(panel::kPaneEditor)) {
+        if (have.ref == ref_of(second::kKind)) {
             CHECK(pane_state_of(s.panels, setup, sc, have) == pane_state::kOpen);
         }
     }
@@ -987,7 +992,7 @@ TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in eve
     // `closed` row, so the union did not swallow the population it started from.
     Setup only_info;
     only_info.name = "Only Info";
-    REQUIRE(add_pane(only_info, ref_of(panel::kPaneEditor)));
+    REQUIRE(add_pane(only_info, ref_of(second::kKind)));
     bool builder_closed = false;
     for (const CatalogRow& have : inventory_rows(only_info, s.panels)) {
         if (have.ref == ref_of(stock::kKind)) {
@@ -1003,7 +1008,6 @@ TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in eve
                                            pane_state::kOpen};
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(std::string(pane_state_word(all[i])).size() > 0);
-        CHECK(std::string(pane_state_word(all[i])).size() <= kPaneStateCols);
         for (std::size_t j = 0; j < i; ++j) {
             CHECK(std::string(pane_state_word(all[i])) != std::string(pane_state_word(all[j])));
         }
@@ -1085,16 +1089,17 @@ cells_covered(bounds_of(s.panels, setup, right.kind, sc).rect);
 TEST_CASE("WIND-2: coverage is the UNION of what is in front, not containment by one pane") {
     Session s;
     admit_stock(s.panels); // the stand-in, first (stock)
+    admit_second(s.panels); // ...and the second
     s.screen_w = 200;
     s.screen_h = 60;
     Setup& setup = s.setup.active;
     setup = Setup{};
     setup.name = "Covered";
     const PaneRef under = ref_of(stock::kKind);
-    const PaneRef over = ref_of(panel::kPaneEditor);
+    const PaneRef over = ref_of(second::kKind);
     REQUIRE(add_pane(setup, under));
     REQUIRE(add_pane(setup, over));
-    s.panels.open = {Panel{stock::kKind}, Panel{panel::kPaneEditor}};
+    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
     const Screen sc = screen_of(s);
     const CatalogRow row_under{stock::kKind, under, "Builder", ""};
 
@@ -1105,7 +1110,7 @@ TEST_CASE("WIND-2: coverage is the UNION of what is in front, not containment by
     // THE PANE IN FRONT IS PLACED FIRST, away from the stack's own corner, so the case has
     // room to move the covered one two cells left in the half below.
     REQUIRE(author_pane_place(setup, over, subs(10), subs(6)).accepted);
-    const ui::Rect side = cells_covered(bounds_of(s.panels, setup, panel::kPaneEditor, sc).rect);
+    const ui::Rect side = cells_covered(bounds_of(s.panels, setup, second::kKind, sc).rect);
     REQUIRE(side.w > 0);
     REQUIRE(author_pane_place(setup, under, subs(side.x), subs(side.y)).accepted);
     REQUIRE(author_pane_size(setup, under, PaneSize{pane_unit::kSubcells, subs(4)},
@@ -1126,7 +1131,7 @@ TEST_CASE("WIND-2: coverage is the UNION of what is in front, not containment by
     CHECK(bounds_of(s.panels, setup, stock::kKind, sc).rect == was);
     // ...and now the OTHER one is the covered question, asked of the union rather than of
     // one rectangle: Info is much taller than the Builder, so it is only partly covered.
-    CHECK(pane_state_of(s.panels, setup, sc, CatalogRow{panel::kPaneEditor, over, "Panes", ""}) ==
+    CHECK(pane_state_of(s.panels, setup, sc, CatalogRow{second::kKind, over, second::kName, ""}) ==
           pane_state::kOpen);
 }
 
@@ -1142,11 +1147,12 @@ TEST_CASE("WIND-2: the `w` that opens the desk arrangement does not type itself"
     // subject, and a selection prerequisite is exactly what the old mode had and this
     // one refuses.
     CHECK_FALSE(t.session().arrange.addressed());
-    // AND NOTHING ELSE TOOK THE CHARACTER: no name is being typed and no picker opened. The
+    // AND NOTHING ELSE TOOK THE CHARACTER: no name is being typed and no menu opened. The
     // inspector draft used to be asked here too; it is the Info weave's own line now, inside
-    // the pane's room, and this host has no draft to ask about.
+    // the pane's room, and this host has no draft to ask about. (So was the `p` picker, until
+    // it retired.)
     CHECK_FALSE(t.session().setup.naming.open);
-    CHECK_FALSE(t.session().panels.picker.open);
+    CHECK_FALSE(t.menu().open);
 }
 
 TEST_CASE("WIND-2: the keyboard alone reaches every window operation") {
@@ -1207,7 +1213,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
     CHECK(row->width.mode == pane_unit::kDefault);
 
     // SIZE, in the same state: a shifted arrow pulls the EXTENT, anchored at the place
-    // (`doc::resize`'s law said about a pane) -- `pull-right` widens, `pull-down`
+    // (the object document's resize law, said about a pane) -- `pull-right` widens, `pull-down`
     // heightens, and the place the arrows just authored does not move under either.
     // The other six anchors are the pointer's, on the handles themselves, and their law
     // is pinned by the pointer cases and `pane_window_proposal`'s own suite.
@@ -1286,9 +1292,9 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
 TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
-    select_pane(t, ref_of(panel::kPaneEditor));
+    select_pane(t, ref_of(second::kKind));
     // ⚠ THE PANE MOVES NOW, AND THAT IS THE CHANGE. This step refused with "is in the reserved
     // side column -- the screen owns its place", said about the one pane a maker could never
     // move; the screen reserves nothing (`the-room-is-the-screen`), so a geometry step on it
@@ -1296,7 +1302,7 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     // shipped desk gave it.
     t.key(input::scan::kRight);
     CHECK(t.notice().find("reserved side column") == std::string::npos);
-    CHECK(pane_of(t.session().setup.active, ref_of(panel::kPaneEditor))->place.mode ==
+    CHECK(pane_of(t.session().setup.active, ref_of(second::kKind))->place.mode ==
           pane_unit::kSubcells);
 
     // ORDER STILL WORKS ON IT, which is what makes a geometry refusal narrow rather than a
@@ -1308,9 +1314,9 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     CHECK(t.notice().find("already where") != std::string::npos);
 
     // AND ESCAPE FROM THE RESET PROMPT RETURNS ONE LEVEL WITHOUT UNDOING THE EDIT THAT
-    // WAS MADE -- the one prompt step arrangement still has (ARR-0). `p` is a
-    // COMMAND-mode key, so a maker leaves the scope to reach the picker -- which is the
-    // priority chain doing exactly its job.
+    // WAS MADE -- the one prompt step arrangement still has (ARR-0). (A maker left the scope
+    // here to reach the `p` picker, a command-mode key, until the picker retired; the case
+    // goes on the same way.)
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
     open_pane(t, ref_of(stock::kKind));
@@ -1396,7 +1402,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
     // Builder's, because a motion reads the pane that CLAIMED THE PRESS and never asks what
     // is under the pointer now.
     const ui::Rect side =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor,
+cells_covered(bounds_of(t.session().panels, t.session().setup.active, second::kKind,
                                     sc).rect);
     t.publish(loom::to_value(input::PointerMoved{side.x + 1,
                                                  side.y + 3 + surface::kTuiCanvasTopRow, 0, 0,
@@ -1425,17 +1431,21 @@ TEST_CASE("WIND-2: outside arrangement, an addressed pane behind another clicks 
     // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST. It was Info, which a fresh Workshop had
     // open; Info is a weave and arrives with its office, so a case that needs two panes on the
     // desk opens both.
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
-    // PUT THE EDITOR UNDER THE PANE MANAGER AND SEND IT TO THE BACK.
+    // PUT THE STAND-IN UNDER THE SECOND PANE AND SEND IT TO THE BACK -- two rows down from the
+    // second's own corner, in sub-units of the cells the second covers, so the two share a run
+    // of cells. (The place was written as the cells themselves, read as sub-units, until the
+    // host's Pane Manager on top retired; that put the stand-in wherever those small numbers
+    // landed.)
     const Screen sc = screen_of(t.session());
     const ui::Rect side =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor,
-                                    sc).rect);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), side.x,
-                              side.y + 2)
+        cells_covered(bounds_of(t.session().panels, t.session().setup.active, second::kKind,
+                                sc).rect);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), subs(side.x),
+                              subs(side.y + 2))
                 .accepted);
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
     t.key(input::scan::kEscape);
@@ -1444,56 +1454,38 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPa
     // there is no address to carry between visits...
     CHECK_FALSE(t.session().arrange.addressed());
 
-    // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered Editor is
+    // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered stand-in is
     // answered by the VISIBLE pane on top of it, which is what stops arrangement interest
     // from becoming a click-through.
     //
-    // THE OBSERVABLE IS THE FRONT PANE'S OWN STATE, NOT A SENTENCE. This cell used to be
-    // Info's, and Info had no press arm of its own -- so the proof was the generic
-    // occupancy line, "<pane> is here". The Pane Manager DOES have an arm
-    // (`pane_editor_press`), so that line is unreachable over it, and asking for it would
-    // be asking the wrong pane to behave like the one that left. What answers instead is
-    // stronger: the press moves the PANE MANAGER's own subject and moves nothing beneath.
-    //
-    // The cell is found rather than counted -- a body row of the Pane Manager that names an
-    // inventory row -- because an offset that happened to be a body row for Info's
-    // composition is a coincidence about Info, and this case is not about either
-    // composition.
-    std::int64_t at_x = 0;
-    std::int64_t at_y = 0;
-    std::size_t want_row = kNoObject;
-    for (std::int64_t y = side.y; y < side.y + side.h && want_row == kNoObject; ++y) {
-        const PaneEditorAt where =
-            pane_editor_at(t.session(), input::space::kCells, side.x + 1 + kChromeCells,
-                           y + surface::kTuiCanvasTopRow);
-        if (!where.present) {
-            continue;
-        }
-        const std::size_t row = editor_pane_at_prose_row(where.body, where.at.row);
-        if (row != kNoObject && row != t.session().pane_editor.cursor) {
-            at_x = side.x + 1 + kChromeCells;
-            at_y = y;
-            want_row = row;
-        }
-    }
-    REQUIRE(want_row != kNoObject); // an inventory row that is not already the subject
-
-    const Occupancy here = occupied_at(t.session().panels, t.session().setup.active, sc,
-                                       at_x, at_y);
+    // THE OBSERVABLE IS WHICH PANE THE PRESS SELECTED. It was the host's Pane Manager's own
+    // subject cursor, moved by that manager's press arm, until it retired; the pane on top is
+    // an ordinary pane now, and a press on one selects it. The cell is one both panes cover.
+    const ui::Rect back =
+        cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+                                screen_of(t.session())).rect);
+    const std::int64_t at_x = side.x + 2;
+    const std::int64_t at_y = side.y + 3;
+    REQUIRE(at_x < side.x + side.w);
+    REQUIRE(at_y < side.y + side.h);
+    REQUIRE(at_x >= back.x);
+    REQUIRE(at_x < back.x + back.w);
+    REQUIRE(at_y >= back.y);
+    REQUIRE(at_y < back.y + back.h);
+    const Occupancy here = occupied_at(t.session().panels, t.session().setup.active,
+                                       screen_of(t.session()), at_x, at_y);
     REQUIRE(here.occupied);
-    CHECK(here.what == std::string("Pane Manager"));
+    CHECK(here.what == std::string(second::kName));
+    REQUIRE(t.session().panels.selected != second::kKind);
 
     t.press_at(at_x, at_y + surface::kTuiCanvasTopRow, input::space::kCells);
 
     // THE PANE ON TOP TOOK IT...
-    CHECK(t.session().pane_editor.cursor == want_row);
-    CHECK_FALSE(t.session().pane_editor.on_rows);
-    // ...AND NOTHING UNDERNEATH SAW IT. `editor_press` is where a click-through would have
-    // landed, and its one visible effect on an empty editor is none -- so what is asserted
-    // is the pair that CAN move under this cell: no object was taken hold of beneath the
-    // panes, and no selection sweep began in either of them.
-    CHECK_FALSE(t.session().drag.active);
-    CHECK_FALSE(t.session().text_drag.active);
+    CHECK(t.session().panels.selected == second::kKind);
+    // ...AND NOTHING UNDERNEATH SAW IT: a selection sweep the press began is the front pane's.
+    // (An object beneath the panes could be taken hold of too, until the prototype canvas
+    // retired; and the host Pane Manager on top began no sweep at all, being no runtime pane.)
+    CHECK((!t.session().text_drag.active || t.session().text_drag.kind == second::kKind));
     // AND NO SELECTION AUTO-RAISED ANYTHING.
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->front == 0);
 }
@@ -1632,9 +1624,9 @@ TEST_CASE("WUX-6/SC-6: the notice says where a pane the maker did not place actu
     Live t;
     t.publish(loom::to_value(
         surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
-    step_to(t, ref_of(panel::kPaneEditor));
+    step_to(t, ref_of(second::kKind));
     const std::string reactive = t.notice();
     INFO(reactive);
     CHECK(reactive.find("-x-") != std::string::npos);
@@ -1644,22 +1636,22 @@ TEST_CASE("WUX-6/SC-6: the notice says where a pane the maker did not place actu
     // ...AND IT IS THE PANE'S OWN RECTANGLE, in that medium's unit, not a second answer.
     const Screen sc = screen_of(t.session());
     const PanelBounds b =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc);
+        bounds_of(t.session().panels, t.session().setup.active, second::kKind, sc);
     CHECK(reactive.find("now " + fine_rect_text(b.resolved, t.session().cell_px)) !=
           std::string::npos);
 
     // ONCE THE MAKER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
     // and saying it twice would be noise.
     Setup& desk = live(t).setup.active;
-    REQUIRE(author_pane_place(desk, ref_of(panel::kPaneEditor), subs(2), subs(2)).accepted);
+    REQUIRE(author_pane_place(desk, ref_of(second::kKind), subs(2), subs(2)).accepted);
     t.key(input::scan::kTab);
-    step_to(t, ref_of(panel::kPaneEditor));
+    step_to(t, ref_of(second::kKind));
     CHECK(t.notice().find(" -- now @") != std::string::npos); // extents still reactive
-    REQUIRE(author_pane_size(desk, ref_of(panel::kPaneEditor), PaneSize{pane_unit::kSubcells, subs(20)},
+    REQUIRE(author_pane_size(desk, ref_of(second::kKind), PaneSize{pane_unit::kSubcells, subs(20)},
                              PaneSize{pane_unit::kSubcells, subs(6)})
                 .accepted);
     t.key(input::scan::kTab);
-    step_to(t, ref_of(panel::kPaneEditor));
+    step_to(t, ref_of(second::kKind));
     INFO(t.notice());
     CHECK(t.notice().find(" -- now @") == std::string::npos);
 }
@@ -1667,10 +1659,10 @@ TEST_CASE("WUX-6/SC-6: the notice says where a pane the maker did not place actu
 TEST_CASE("WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger delta") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
-    const PaneRef info = ref_of(panel::kPaneEditor);
+    const PaneRef info = ref_of(second::kKind);
     enter_arrange_desk(t);
     step_to(t, builder);
 
@@ -1723,7 +1715,8 @@ TEST_CASE("WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger del
 TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome") {
     // WUX-5 took the permanent cheat sheets off the panes; a new gesture must not put one
     // back. So the coarse step is discoverable exactly where every other gesture is -- the
-    // keymap, the band's legend, and the full hotkey view -- and nowhere else.
+    // keymap, the band's legend, and the effective keymap the Hotkeys pane lists -- and nowhere
+    // else.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
 
@@ -1762,13 +1755,10 @@ TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane c
     CHECK(band.find("grow") != std::string::npos);
     CHECK(band.find("shrink") != std::string::npos);
 
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const std::string view = panel_text(
-        t.canvases.back(), pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
+    const std::string view = keymap_text(t.session());
     INFO(view);
-    CHECK(view.find("grow") != std::string::npos);
-    CHECK(view.find("shrink") != std::string::npos);
+    CHECK(view.find("arranging the desk | = | grow | manage.grow") != std::string::npos);
+    CHECK(view.find("arranging the desk | - | shrink | manage.shrink") != std::string::npos);
 }
 
 TEST_CASE("WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine one does") {
@@ -1802,18 +1792,19 @@ TEST_CASE("ARR-0: stepping names the pane, its state and its authored window in 
     // keeps an invisible pane recoverable by ear: step to it, read what it is, reset it.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
-    select_pane(t, ref_of(panel::kPaneEditor));
+    select_pane(t, ref_of(second::kKind));
     INFO(t.notice());
     CHECK(t.notice().find("arrange ") != std::string::npos);
     CHECK(t.notice().find("(open)") != std::string::npos);
     // A REACTIVE PANE SAYS `default` IN CHARACTERS rather than leaving the axes blank.
     CHECK(t.notice().find("-x-") != std::string::npos);
 
-    // AND RETURN IS NOT THE PICKER'S RETURN HERE. Selecting an open row in the picker
-    // REMOVES it (PNL-0); the desk's Return NARROWS to arranging exactly the addressed
-    // pane (ARR-0) and changes the setup's membership not at all.
+    // AND RETURN IS NOT A LIST'S RETURN HERE. Return on a row of the desktop's Pane Manager
+    // opens or focuses it (on an open row of the picker it REMOVED it, PNL-0, until the picker
+    // retired); the desk's Return NARROWS to arranging exactly the addressed pane (ARR-0) and
+    // changes the setup's membership not at all.
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
     open_pane(t, ref_of(stock::kKind));
@@ -1949,7 +1940,7 @@ TEST_CASE("ARR-0: the one-pane scope is bound -- another pane cannot be drawn in
     // THE OTHER PANE IS OPENED, NOT INHERITED. This case needs a second pane with a
     // rectangle of its own to press into; the desk's Info row is a weave with no office
     // here, and an unresolved row has no rectangle.
-    open_pane(t, ref_of(panel::kPaneEditor));
+    open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
         bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
@@ -1964,7 +1955,7 @@ TEST_CASE("ARR-0: the one-pane scope is bound -- another pane cannot be drawn in
     // A PRESS ON ANOTHER PANE is consumed with the sentence naming the state -- the Pane
     // Manager is not drawn in, nothing is dragged, and the binding does not move.
     const ui::Rect side = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor,
+        bounds_of(t.session().panels, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
             .rect);
     REQUIRE(side.w > 0); // it really is on the desk, with room of its own
@@ -1973,10 +1964,10 @@ TEST_CASE("ARR-0: the one-pane scope is bound -- another pane cannot be drawn in
     CHECK_FALSE(t.session().pane_drag.active);
     CHECK(t.notice().find("arranging") != std::string::npos);
 
-    // A PRESS ON EMPTY CANVAS is the same consumed sentence -- and it reaches no object
-    // beneath, because the mode owns the pointer whole.
+    // A PRESS ON EMPTY CANVAS is the same consumed sentence -- the mode owns the pointer whole,
+    // so the room's own "nothing there" is not said.
     t.press_canvas(60, 30);
-    CHECK_FALSE(t.session().drag.active);
+    CHECK_FALSE(t.session().pane_drag.active);
     CHECK(t.notice().find("arranging") != std::string::npos);
 
     // AND THE BOUND PANE ANSWERS BOTH MANIPULATIONS DIRECTLY: its body moves it...
@@ -2052,10 +2043,10 @@ TEST_CASE("ARR-0: the desk manipulates panes directly, and a press is its own ta
     CHECK(seat->presses.empty());
 }
 
-TEST_CASE("ARR-0: participation stays the picker's; arrangement does not add or offer") {
+TEST_CASE("ARR-0: participation stays the doors'; arrangement does not add or offer") {
     // The desk arranges what the setup names and OFFERS nothing: a catalog pane the
-    // setup does not name is the picker's row, unreachable from the desk -- the
-    // participation/arrangement split, spent as a keyboard walk.
+    // setup does not name is the Pane Manager's row, launched through the host's door and
+    // unreachable from the desk -- the participation/arrangement split, spent as a keyboard walk.
     Live t;
     REQUIRE_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
     enter_arrange_desk(t);
@@ -2066,7 +2057,7 @@ TEST_CASE("ARR-0: participation stays the picker's; arrangement does not add or 
         CHECK(has_pane(t.session().setup.active, t.session().arrange.pane));
     }
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
-    // Membership changes still go the picker's way -- and the picker still works after
+    // Membership changes still go through the doors -- and the launch door still works after
     // leaving, untouched by any of this.
     t.key(input::scan::kEscape);
     open_pane(t, ref_of(stock::kKind));

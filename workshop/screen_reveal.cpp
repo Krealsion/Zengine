@@ -1,30 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- which revealable row the pointer is on, the wheel a
-// cursor-windowed list spends, and the arrangement's affordance rings -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// The bodies of `screen.hpp`'s arrangement rings, compiled once into `zengine-workshop-logic` and
+// linked by the host and every suite; the declarations stay in the header.
 //
-// THE PROJECT BROWSER USED TO BE PRESENTED HERE and is a weave now (`Zengine/files/`). What
-// stayed is what was never only its: `spend_wheel`, which the Editor, the Pane Manager and
-// the picker all spend; the Info panel's reveal and the one dispatch every motion asks; and
-// the rings arrangement paints over every pane.
-// Workshop law: agents/workshop/pointer.md (+5 registers; agents/workshop.md routes)
+// THE PROJECT BROWSER USED TO BE PRESENTED HERE and is a weave now (`Zengine/files/`), and the
+// Info panel's reveal went with Info. `spend_wheel`, the wheel the Editor, the Pane Manager and
+// the picker spent, went with the last of them. What stayed is the rings arrangement paints
+// over every pane.
+// Workshop law: agents/workshop/arrangement.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 
 namespace zengine::workshop {
-
-// ---- THE PROJECT BROWSER, PRESENTED -----------------------------------------------------
-
-// WL-PTR-10 -- agents/workshop/pointer.md
-std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch) {
-    accum += dy * static_cast<double>(rows_per_notch);
-    const std::int64_t rows = static_cast<std::int64_t>(accum);
-    accum -= static_cast<double>(rows);
-    return rows;
-}
 
 // ⭐ READING PAST AN ELLIPSIS LEFT WITH THE INFO PANEL, AND IT IS A LOSS RATHER THAN A MOVE.
 // `info_reveal_at`, `reveal_at`, `reveal_for`, `RevealAt`, `Revealed`, `reveal_place`,

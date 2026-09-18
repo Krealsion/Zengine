@@ -52,8 +52,8 @@ inline constexpr const char* kTerminalPaneRole = "zengine.terminal";
 /// THE PANE KEY, in this office's namespace.
 inline constexpr const char* kTerminalPane = "terminal";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
-/// office.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office.
 inline constexpr const char* kTerminalPaneName = "Terminal";
 inline constexpr const char* kTerminalPaneSummary = "talk to the weaves on this bus";
 

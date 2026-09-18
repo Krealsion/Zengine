@@ -63,10 +63,12 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     // moment a new listener certainly exists, and it is cheap: it costs one publication of
     // a reading this host derives anyway.
     conditions_said_ = false;
-    document_said_ = false;   // ...and the same for the document's picture, for the same reason
     transcript_said_ = false; // ...and the terminal participant's record, for the same reason
+    inventory_published_ = false; // ...and the inventory, which a presenter reads (WL-DESK-04)
+    keymap_published_ = false;    // ...and the effective keymap, for the same reason (WL-DESK-11)
+    subject_published_ = false;   // ...and the inspector's subject (WL-INFO-14)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
-    // one path -- the same `apply_setup` the picker and a restore go through -- so a
+    // one path -- the same `apply_setup` the doors and a restore go through -- so a
     // setup naming `third.party/hello` opens the moment that office offers it, without
     // the file having been touched and without a second way to open a panel existing.
     apply_setup(mail);
@@ -109,7 +111,12 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     // exactly what they were.
     const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
-        say(admitted.written.refusal, true);
+        // ⭐ AND THE DECLARER IS ANSWERED (BL-WORK-04). The band names the pane and the reason
+        // for the MAKER; the verdict names them for the PROVIDER, which is the party that can do
+        // something about it -- as the answer to this declaration, so it carries the number the
+        // declaration was sent under. Both say the same words.
+        answer_declaration(std::string(office),
+                           ActionsJudged{pane, false, 0, admitted.written.refusal}, mail);
         repaint(mail);
         return;
     }
@@ -117,27 +124,45 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     const Written joined = join_pane_rows(candidate, admitted.kind, rows);
     if (!joined.accepted) {
         const RuntimePane* row = session_.panels.runtime.of_kind(admitted.kind);
-        say((row != nullptr ? row->name + " @" + row->provider + ": " : std::string()) +
-                joined.refusal,
-            true);
+        answer_declaration(std::string(office),
+                           ActionsJudged{pane, false, 0,
+                                         (row != nullptr ? row->name + " @" + row->provider + ": "
+                                                         : std::string()) +
+                                             joined.refusal},
+                           mail);
         repaint(mail);
         return;
     }
     // BOTH HALVES PASSED; ONLY NOW IS ANYTHING WRITTEN. The row is looked up again by
-    // handle, because nothing holds a pointer into `entries` (panel.hpp).
+    // handle, because nothing holds a pointer into `entries` (panel.hpp). The declaration gets
+    // its number here, and the verdict below is the only place the declarer learns it.
+    const std::int64_t declaration = ++declarations_;
     for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.kind == admitted.kind) {
             row.actions = rows;
+            row.declaration = declaration;
         }
     }
     session_.keymap = std::move(candidate);
+    answer_declaration(std::string(office), ActionsJudged{pane, true, declaration, std::string()},
+                       mail);
     repaint(mail); // the legend and the hotkey view read the map at every paint
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
+void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
     session_.keymap.panes.clear();
-    for (const RuntimePane& row : session_.panels.runtime.entries) {
+    // ⚠ THE PANE ROWS ARE COLLECTED BEFORE ANY REFUSAL IS SENT, and the copy is why. Telling a
+    // provider inside this walk would let a re-declaration arriving in that delivery mutate
+    // `entries` while the loop still holds its place in it.
+    struct Dropped {
+        std::string office;
+        std::string pane;
+        std::int64_t declaration = 0;
+        std::string refusal;
+    };
+    std::vector<Dropped> told;
+    for (RuntimePane& row : session_.panels.runtime.entries) {
         if (row.actions.empty()) {
             continue;
         }
@@ -149,7 +174,21 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals) {
         if (!refusals.empty()) {
             refusals += "; ";
         }
-        refusals += row.name + " @" + row.provider + ": " + joined.refusal;
+        const std::string said = row.name + " @" + row.provider + ": " + joined.refusal;
+        refusals += said;
+        told.push_back(Dropped{row.provider, row.pane, row.declaration, said});
+        // ...AND THE DECLARATION IS NOT KEPT. It left the keymap, and a declaration kept here
+        // would come back into force at the next re-join without its declarer being told.
+        row.actions.clear();
+        row.declaration = 0;
+    }
+    // ⭐ A RE-JOIN THAT DROPS A PANE'S ROWS IS A WITHDRAWAL (BL-WORK-04), and this one is the
+    // rejection a provider is LEAST able to see coming: its declaration was accepted, and a keymap
+    // file read afterwards took the gesture away. It is not an answer -- the delivery it judged is
+    // over -- so it names the declaration by the number its verdict gave it. Nothing about being
+    // told mandates a recovery: the pane may re-declare elsewhere, or simply know.
+    for (const Dropped& d : told) {
+        say_withdrawn(d.office, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
     }
 }
 
@@ -336,7 +375,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     // ⚠ THIS DELIVERY IS THE COMMITMENT POINT, AND IT IS ONE DELIVERY ON PURPOSE. The asker
     // has frozen its own eligibility until it hears back (pane_vocabulary.hpp says how), so
     // the one instant at which its fact and this desk's fact both hold is the instant this
-    // desk makes the presentation true. Judged first, through the picker's own trial seat, on
+    // desk makes the presentation true. Judged first, through the launch door's own trial seat, on
     // a COPY of the setup; written only if the seat is real. MEASURED, twice, the other ways:
     // seating at an answer the asker then refused, and answering capacity the asker spent
     // later, after the seat was gone.
@@ -346,12 +385,13 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
         seat_panes(candidate, session_.panels, stack_capacity(screen_of(session_)));
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
-            // THE PICKER'S OWN WORDS, and the picker's own outcome: nothing is authored
-            // behind a refusal, and the asker is told why in a sentence it can pass on. A
-            // screen the maker shrank before this arrived is exactly this case -- the pane
-            // is waiting for room, so there is no seat to commit to.
+            // THE LAUNCH DOOR'S OWN WORDS, and its own outcome: nothing is authored behind a
+            // refusal, and the asker is told why in a sentence it can pass on. A screen the
+            // maker shrank before this arrived is exactly this case -- the pane is waiting for
+            // room, so there is no seat to commit to. (It ended "then p again", the retired
+            // picker's key, until the picker retired.)
             const std::string refusal = "no room for " + name +
-                                        " on this screen -- make the window taller, then p "
+                                        " on this screen -- make the window taller, then try "
                                         "again";
             say(refusal, true);
             (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
@@ -475,8 +515,6 @@ Written WorkshopWeave::judge_content(const PaneContent& content, const ExternalP
 
 const Session& WorkshopWeave::session() const { return session_; }
 
-const WorkshopDoc& WorkshopWeave::document() const { return state_; }
-
 // WL-KEY-12 -- agents/workshop/keyboard.md
 bool WorkshopWeave::same_keystroke(const std::string& text, const std::string& owed) {
     if (text == owed) {
@@ -494,42 +532,14 @@ bool WorkshopWeave::same_keystroke(const std::string& text, const std::string& o
 
 std::string WorkshopWeave::hotkey(Act a) const { return hotkey_text(session_.keymap, a); }
 
-Row* WorkshopWeave::pane_editor_editing_row() {
-    for (Row& r : session_.pane_editor.rows) {
-        if (r.editing()) {
-            return &r;
-        }
-    }
-    return nullptr;
-}
+// ⭐ `pane_editor_editing_row` AND `editing_row` WERE HERE: the property draft under the keys,
+// the host's Pane Manager's being the last this host held. A property is drafted in an
+// inspector's own image now and crosses as finished text (`Row::commit_text`).
 
-// WL-PED-07 -- agents/workshop/pane-manager.md
-// ⭐ AND THE INSPECTOR'S HALF OF THIS IS GONE. It scanned `session_.rows` for a row in draft,
-// and nothing in this host opens one any more: the Info weave holds the draft, in its own line,
-// and commits it through the document door -- which writes with `commit_text` and leaves no row
-// editing. The Pane Manager's draft is the only one this host still has.
-//
-// ⚠ SO `^s` NO LONGER REFUSES OVER A HALF-TYPED PROPERTY, AND THAT IS A NAMED LOSS. The save
-// door asked this question so that a file could not be written while a maker was looking at a
-// value they had not committed; the host cannot see that draft now, and telling it about one
-// would be a second host-to-pane sentence this migration does not have. The Pane Manager's
-// draft is still guarded, by this same call.
-Row* WorkshopWeave::editing_row() {
-    if (pane_editor_has_keyboard(session_)) {
-        if (Row* mine = pane_editor_editing_row()) {
-            return mine;
-        }
-    }
-    return nullptr;
-}
-
-// WL-MAKER-11 -- agents/workshop/maker-pane.md; WL-TEXT-09 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- agents/workshop/text-box.md
 component::TextBox* WorkshopWeave::naming_line() {
     if (session_.setup.naming.open) {
         return &session_.setup.naming.line;
-    }
-    if (session_.pane_naming.open) {
-        return &session_.pane_naming.line;
     }
     return nullptr;
 }
@@ -537,9 +547,7 @@ component::TextBox* WorkshopWeave::naming_line() {
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-TEXT-09 -- agents/workshop/text-box.md
 WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     switch (keyboard_context(session_)) {
-    case KeyContext::kNaming:
-    case KeyContext::kPaneNaming: return PasteOwner::kNaming;
-    case KeyContext::kDraft: return PasteOwner::kDraft;
+    case KeyContext::kNaming: return PasteOwner::kNaming;
     default: return PasteOwner::kNone;
     }
 }
@@ -556,16 +564,6 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
             return; // unreachable while the resolver holds; written anyway
         }
         p.epoch = line->draft_epoch();
-        break;
-    }
-    case PasteOwner::kDraft: {
-        Row* row = editing_row();
-        if (row == nullptr) {
-            return; // unreachable while the mirror holds; written anyway
-        }
-        p.epoch = row->editor().draft_epoch();
-        p.object = session_.selected;
-        p.label = row->label();
         break;
     }
     }
@@ -593,213 +591,14 @@ WorkshopWeave::PendingPaste WorkshopWeave::take_pending_paste(std::uint64_t ask)
     return PendingPaste{};
 }
 
-// WL-DOC-20 -- agents/workshop/document.md
-void WorkshopWeave::on(const DocumentActRequested& asked, loom::Mail& mail) {
-    // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- the arrangement door's rule, and the
-    // reason it names nobody: a tool added tomorrow asks with no edit here.
-    if (mail.authored_role().empty()) {
-        return;
-    }
-    const auto answer = [&mail](bool accepted, std::string refusal) {
-        (void)mail.answer(DocumentActed{accepted, std::move(refusal)});
-    };
-    if (asked.act == kDocumentSelect) {
-        // A SELECTION IS NOT A REFUSABLE ACT. An identity the document does not have is the
-        // same answer as one it does: nothing is selected that was not already, and the
-        // picture published on this repaint says what is true. `select` is total.
-        select(asked.identity);
-        answer(true, std::string());
-        repaint(mail);
-        return;
-    }
-    if (asked.act == kDocumentCreate) {
-        const std::int64_t id = create(state_, session_);
-        if (id == 0) {
-            // The mint is spent. Unreachable by pressing `n`; reachable in one line of a
-            // loaded file, which is why this act has an answer rather than an overflow.
-            answer(false, "this document has no identity left to give -- nothing was created");
-            return;
-        }
-        say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
-        answer(true, std::string());
-        repaint(mail);
-        return;
-    }
-    if (asked.act == kDocumentDelete) {
-        const std::int64_t was = session_.selected;
-        const Written gone = delete_selected(state_, session_);
-        if (!gone.accepted) {
-            answer(false, gone.refusal);
-            return;
-        }
-        say(deleted_notice(was), false);
-        answer(true, std::string());
-        repaint(mail);
-        return;
-    }
-    if (asked.act == kDocumentCommit) {
-        // ⚠ A v1 COMMIT NAMES A ROW AND NOTHING THE ROW BELONGS TO, and a row index is that row
-        // of whatever is selected when the ask arrives -- another object's property, or the same
-        // number in a document loaded since. There is no subject to judge and none may be
-        // invented for it, so it is refused before any row is read, with no selection moved.
-        answer(false, kCommitNamesNoSubject);
-        return;
-    }
-    answer(false, "`" + asked.act + "` is not something this document can be asked for");
-}
+// ⭐ `editing_key` AND `refresh_inspector` WERE HERE -- a property draft's two controls, its
+// commit owing a reseat, and its horizontal window -- and left with the host's Pane Manager.
 
-// WL-DOC-21 -- agents/workshop/document.md
-void WorkshopWeave::on(const DocumentCommitRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return; // anonymous speech asks nothing, exactly as at the v1 door
-    }
-    const auto answer = [&mail](bool accepted, std::string refusal) {
-        (void)mail.answer(DocumentActed{accepted, std::move(refusal)});
-    };
-    // THE SUBJECT FIRST, BEFORE ANY ROW IS READ OR ANY SETTER REACHED. A name that is not the
-    // one these rows carry is a commit typed for another object, another layout or a document
-    // replaced since -- including one whose strings all match -- and it is refused whole: nothing
-    // written, no selection moved, no row of the current subject tried in its place.
-    if (session_.subject.name == 0 || asked.subject != session_.subject.name) {
-        answer(false, kCommitSubjectGone);
-        return;
-    }
-    if (asked.row < 0 || static_cast<std::size_t>(asked.row) >= session_.rows.size()) {
-        answer(false, "that row is not in this object's properties any more");
-        return;
-    }
-    Row& row = session_.rows[static_cast<std::size_t>(asked.row)];
-    if (!row.editable()) {
-        answer(false, row.label() + " is not authored -- it is what the workspace makes "
-                                    "of the authored value");
-        return;
-    }
-    const Commit result = row.commit_text(asked.text);
-    if (result != Commit::Accepted) {
-        // Two different failures, and the row already words each one for its own kind:
-        // an unparseable draft reads "not <what would have worked>", a refused value
-        // carries the setter's own reason.
-        answer(false, row.label() + ": " + row.refusal());
-        return;
-    }
-    say("committed " + row.label() + " = " + row.value(), false);
-    answer(true, std::string());
-    repaint(mail);
-}
+// ⭐ `press_selects_word` WAS HERE -- the one word-selecting press every editable line this host
+// held spent, arming on a first press and spending the arming on the completing one -- and it
+// left with its last caller, the host Pane Manager's draft. The layout name line takes keys and
+// text and no press, so nothing on this side selects a word under a pointer now.
 
-// WL-TEXT-02 -- agents/workshop/text-box.md
-void WorkshopWeave::editing_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-    Row* row = editing_row();
-    // A PANE EDITOR ROW'S COMMIT OWES A RESEAT. Its write closure spent the
-    // setup door; what a place write also changes is the SEATING -- an authored place
-    // leaves the reactive stack and every reactive pane below it moves up a slot --
-    // and `apply_setup` is the one path that reconciles it, exactly as it is for the
-    // arrangement's `arrange_place`. Asked once, here, for every accepted commit, so no
-    // write closure has to know which of the four axes it was.
-    const bool pane_row = row != nullptr && pane_editor_has_keyboard(session_) &&
-                          pane_editor_editing_row() == row;
-    // THE DRAFT'S OWN VOCABULARY FIRST. One call owns what four switches used
-    // to spell separately — the six editing keys, and now selection, clipboard, word
-    // movement and history behind them — and a `true` is bool: the gesture
-    // reached the layer that owns what it means, whether or not anything changed. The
-    // component's vocabulary outranks the application keymap INSIDE a text context,
-    // deliberately (owner-first refusal): a maker who remaps a draft control onto an
-    // editing chord has authored a binding the box will answer first, and the hotkey
-    // view shows both rows. What is left below is exactly the policy: what a draft
-    // MEANS when a maker commits or abandons it, which the component is deliberately
-    // unable to know -- resolved through the keymap executed here as
-    // ever.
-    if (row->consume(k.scancode, k.modifiers, session_.clipboard)) {
-        return;
-    }
-    switch (session_.keymap.action_for(KeyContext::kDraft, k.scancode, k.modifiers)) {
-    case Act::kDraftCommit: {
-        const Commit result = row->commit();
-        if (result == Commit::Accepted) {
-            if (pane_row) {
-                apply_setup(mail);
-            }
-            say("committed " + row->label() + " = " + row->value(), false);
-        } else {
-            // Two different failures, and the row already words each one for
-            // its own kind: an unparseable draft reads "not <what would have
-            // worked>", a refused value carries the setter's own reason. The
-            // first live run appended the expected form AGAIN here, which said
-            // it twice and then ran off the end of the line -- the notice is
-            // one line, so a line's worth is all it may spend.
-            (void)result;
-            say(row->label() + ": " + row->refusal(), true);
-        }
-        break;
-    }
-    case Act::kDraftCancel:
-        row->cancel();
-        say("edit cancelled -- nothing was written", false);
-        break;
-    default: break;
-    }
-}
-
-// WL-PED-07 -- agents/workshop/pane-manager.md
-void WorkshopWeave::refresh_inspector() {
-    const Screen sc = screen_of(session_);
-    // THE PANE EDITOR'S DRAFT FIRST, against ITS body's capacity -- the same
-    // one measurer, one pane over; a closed Pane Editor is skipped, not a zero.
-    const PanelBounds editor =
-        bounds_of(session_.panels, session_.setup.active, panel::kPaneEditor, sc);
-    if (editor.open) {
-        if (Row* mine = pane_editor_editing_row()) {
-            const PaneEditorBodyPlace body = pane_editor_body(session_, sc, editor.rect);
-            if (body.present) {
-                mine->keep_caret_visible(body.value_columns);
-            }
-        }
-    }
-    // ⭐ AND THE INFO PANEL'S DRAFT IS NOT KEPT HERE ANY MORE, because this host holds no such
-    // draft. `Session::rows` is still the derived inspector and the document door still commits
-    // through it, but the LINE a maker types into is the Info weave's own, windowed by the
-    // component inside the room the pane was granted -- which is the pane's measurer, not this
-    // one's.
-}
-
-// WL-PTR-02, WL-PTR-03 -- agents/workshop/pointer.md
-bool WorkshopWeave::press_selects_word(std::int64_t modifiers, std::int64_t place,
-                                       component::TextBox& box, std::size_t at) {
-    if (modifiers != zengine::input::mod::kNone) {
-        session_.click = ClickMemory{};
-        return false;
-    }
-    const component::WordSpan word = box.word_at(at);
-    const std::uint64_t epoch = box.draft_epoch();
-    const std::int64_t now = interaction_now();
-    if (doubles_a_click(session_.click, place, epoch, word, now)) {
-        // AND THE ARMING IS SPENT. A third press in the same place is an ordinary press
-        // again: there is no triple-click in this application, and an arming that
-        // survived its own gesture would make every press after a double-click select
-        // the word once more.
-        session_.click = ClickMemory{};
-        return box.select_word_at(at);
-    }
-    session_.click = click_landed(place, epoch, word, now);
-    return false;
-}
-
-bool WorkshopWeave::press_selects_word(std::int64_t modifiers, Row& row, std::size_t at) {
-    if (modifiers != zengine::input::mod::kNone) {
-        session_.click = ClickMemory{};
-        return false;
-    }
-    const component::WordSpan word = row.editor().word_at(at);
-    const std::uint64_t epoch = row.editor().draft_epoch();
-    const std::int64_t now = interaction_now();
-    if (doubles_a_click(session_.click, text_drag_place::kPropertyDraft, epoch, word,
-                        now)) {
-        session_.click = ClickMemory{};
-        return row.select_word_at(at);
-    }
-    session_.click = click_landed(text_drag_place::kPropertyDraft, epoch, word, now);
-    return false;
-}
 
 // ⭐ `info_press`, `actions_press` AND `objects_press` LEFT WITH THE INFO PANEL. They were the
 // panel's three inverses -- a press inside the live property draft, a press on a bracketed

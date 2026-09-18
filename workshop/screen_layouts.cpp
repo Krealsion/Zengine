@@ -83,8 +83,12 @@ std::string setup_rest_text(const SetupState& setup, const Panels& panels,
 }
 
 std::string workspace_text(const Session& s) {
-    return "workspace " + std::to_string(s.workspace_w) + "x" +
-           std::to_string(s.workspace_h) + " cells";
+    // THE ROOM'S SIZE IN CELLS -- the unit a pane's typed placement is in. It was the object
+    // canvas's root frame, which followed the room and could be refit narrower (`[` `]`) until
+    // that canvas retired; now the two are one number.
+    const Screen sc = screen_of(s);
+    return "workspace " + std::to_string(sc.room_w) + "x" + std::to_string(sc.room_h) +
+           " cells";
 }
 
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------

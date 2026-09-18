@@ -22,7 +22,8 @@ namespace zengine::workshop {
 namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
-inline constexpr std::int64_t kObject = 2; ///< a document object, by minted identity
+// ⭐ 2 WAS `kObject` -- a document object, by minted identity -- and retired with the prototype
+// canvas. The number is not reused: a subject kind is a bit in every row's declaration.
 inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by maker position
 } // namespace context_subject
 
@@ -34,17 +35,15 @@ inline constexpr std::int64_t context_bit(std::int64_t subject) noexcept {
 
 inline constexpr std::int64_t kOnRoot = context_bit(context_subject::kRoot);
 inline constexpr std::int64_t kOnPane = context_bit(context_subject::kPane);
-inline constexpr std::int64_t kOnObject = context_bit(context_subject::kObject);
 inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
 
-/// THE SURFACE'S OWN STATE -- a mode in the picker's family: open, a captured subject,
+/// THE SURFACE'S OWN STATE -- a mode, as the picker was: open, a captured subject,
 /// which group level is showing, and a cursor.
 // WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
 struct ContextMenu {
     bool open = false;
     std::int64_t subject = context_subject::kRoot;
     PaneRef pane;
-    std::int64_t object = 0;
     std::size_t layout = 0; ///< read exactly when `subject == kLayout`
     /// The open presentation group, "" for the top level. A group is its name -- it has
     /// no identity, no gesture and no dispatch arm, and an empty one is never shown.
@@ -68,20 +67,19 @@ struct ContextRow {
 // WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ContextRow kContextCatalog[] = {
     // -- the empty room: Workshop's own zero-target doors ------------------------------
-    {"object.new", kOnRoot, ""},
-    {"workshop.picker", kOnRoot, ""},
+    // ⚠ `workshop.picker` ("+ panel") WAS THE FIRST ROW HERE and retired with the picker. Choosing
+    // a pane is the desktop's Pane Manager's now, launched by an application row (`desktop.panes`)
+    // this catalog cannot name -- it references the host's own ids, so a stale one is a compile
+    // error -- and the room's floor says that key instead.
     {"workshop.manage", kOnRoot, ""},
-    // ⚠ `workshop.terminal` WAS A ROW HERE and left with the overlay it opened (VD-24),
-    // for the reason written one line down: the Terminal is a pane, reached from "choose a
-    // pane", and the contextual surface gained no route a key does not have.
-    // ⚠ `workshop.attention` WAS A ROW HERE and left with the overlay it opened. The
-    // current-condition view is a pane now and is opened from the picker, which is already
-    // on this list -- so what a maker reaches from the empty room is "choose a pane", not
-    // "open this one particular pane", and the contextual surface gained no route a key
-    // does not have (VD-22).
-    {"workshop.hotkeys", kOnRoot, ""},
-    {"document.save", kOnRoot, ""},
-    {"document.open", kOnRoot, ""},
+    // ⚠ `workshop.terminal` WAS A ROW HERE and left with the overlay it opened (VD-24): the
+    // Terminal is a pane, and the contextual surface gained no route a key does not have.
+    // ⚠ `workshop.attention` WAS A ROW HERE and left with the overlay it opened: the view is a
+    // pane, and what a maker reaches from the empty room is not "open this one pane" (VD-22).
+    // ⚠ `workshop.hotkeys` WAS A ROW HERE and left with the host's key-list overlay: the list is
+    // the desktop's Hotkeys pane, launched by an application row this catalog cannot name.
+    // ⚠ `object.new`, `document.save` AND `document.open` WERE ROOM ROWS HERE, and `object.delete`
+    // an object's one row: they retired with the prototype canvas and its document.
     {"setup.name", kOnRoot, ""},
     {"setup.restore", kOnRoot, ""},
     // Reset order is a fact about the WHOLE setup, not about one pane -- which is why it
@@ -108,8 +106,6 @@ inline constexpr ContextRow kContextCatalog[] = {
     // menu's at paint (WL-CTX-07).
     {"pane.edit-code", kOnPane, ""},
     {"manage.remove", kOnPane, ""},
-    // -- a document object -------------------------------------------------------------
-    {"object.delete", kOnObject, ""},
     // -- a layout tab ------------------------------------------------------------------
     //
     // THE FIVE OPERATIONS A MAKER CAN DO TO A TAB, on the tab they pointed at. Rename is

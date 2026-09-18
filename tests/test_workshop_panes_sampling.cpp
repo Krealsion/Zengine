@@ -551,8 +551,8 @@ TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
     const std::int64_t powers = open_powers(r);
     // A SECOND PANE FROM THE SAME OFFICE, which is the sharpest form of the question:
     // one weave, two panes, and only one of them may be typed into. It is opened BEFORE
-    // anything holds the keyboard, because `p` typed into a focused pane is a `p`
-    // (MSG-0) and would not open the picker at all.
+    // anything holds the keyboard, as it was when `p` typed into a focused pane was a `p`
+    // (MSG-0) and would not have opened the picker at all.
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;

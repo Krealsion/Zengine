@@ -54,6 +54,17 @@ declines a second aloud, a draft ended while one is unanswered says it was alrea
 no end says nothing was written, and an account replaces only its own sentence. A select, create
 or delete keeps its own record and cannot hide a commit.
 
+**And a number is allocated; a record is kept.** The desktop's name line drew its pastes and the
+Pane Creator's acts from one counter and read an answer against the latest number, so Return and
+Ctrl+V in one poll dropped the host's word that the pane was made (the review's probe at
+`cce15b9`). A newer ask of another kind is no verdict on the one awaited: the act keeps its own
+record — the act, the draft and the name it sent — and the rest is Info's rule at the Creator's
+size: one act at a time, a line closed only while it holds what it sent with no paste on its way,
+and a closed line saying what it made. The record keeps its ticket as well, because one act at a
+time turned a refused send into a block on every later act (the next review, at `e4d6a9f`):
+nothing queued, or Loom's own notice naming that attempt, releases it aloud, as an undelivered
+ask of Info's is released; an act the host received and has not answered still waits.
+
 **Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-INFO-12](../workshop/info-body.md),
-[WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md),
-[WL-TEXT-10](../workshop/text-box.md).
+[WL-MAKER-14](../workshop/maker-pane.md), [WL-TEXT-08](../workshop/text-box.md),
+[WL-TEXT-09](../workshop/text-box.md), [WL-TEXT-10](../workshop/text-box.md).

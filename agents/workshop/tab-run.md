@@ -5,11 +5,11 @@ ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-TAB-01 — The run, the association and the workspace fact are the Layouts pane
 
-LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, picker recovery and session persistence.
+LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, launch recovery and session persistence.
 
 MEANS
 - what moved is who owns the rectangle, hence what a maker may do to it; the composition did not;
-- removing the pane strands nobody: the keys still step the run and the picker brings it back.
+- removing the pane strands nobody: the keys step the run and the Pane Manager brings it back.
 
 PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`, `kDefaultPanels`;
 `workshop/screen_layouts.cpp` `paint_layouts`, `layouts_body`; `tests/test_workshop_screen.cpp`
@@ -117,8 +117,8 @@ MEANS
 - the status, the blank between and an omitted tab answer nothing.
 
 PROVEN BY — `workshop/screen_layouts.cpp` `band_tab_at`; `workshop/screen_chrome.cpp`
-`occupied_at`; `workshop/screen.hpp` `LayoutTabPress`; `workshop/weave_pointer.cpp` `take_hold`,
-`layouts_press`; `tests/test_workshop_panels.cpp` case
+`occupied_at`; `workshop/screen.hpp` `LayoutTabPress`; `workshop/weave_pointer.cpp`
+`on(PointerButton)`, `layouts_press`; `tests/test_workshop_panels.cpp` case
 `"WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches"`, case
 `"WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not"`;
 `tests/test_workshop_screen.cpp` case `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane
@@ -127,12 +127,12 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-10 — A second press on the same tab renames it
 
-LAW — A tab double-click is a second click record beside the word-selecting one, sharing the interval, the arm-on-the-way-out discipline and the spend-the-arming rule.
+LAW — A second press on the same tab within `kDoubleClickMs` renames it: the first press arms a record on the way out and the completing press spends it, so there is no triple-click.
 
 MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
 
-PROVEN BY — `workshop/screen.hpp` `ClickMemory`, `TabClickMemory`, `Session::tab_click`,
+PROVEN BY — `workshop/screen.hpp` `TabClickMemory`, `Session::tab_click`,
 `kDoubleClickMs`; `workshop/screen_arrange.cpp` `doubles_a_tab_click`;
 `tests/test_workshop_panels.cpp` case `"WUX-11/SC-3: a double-click on a tab renames THAT layout,
 and writes no file"`; `tests/test_workshop_persistence.cpp` case `"WUX-11/SC-3: the rename editor

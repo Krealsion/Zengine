@@ -168,12 +168,12 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
     TrialRoom out;
     const Screen sc = screen_of(session_);
     const StackCapacity capacity = stack_capacity(sc);
-    // THE PICKER'S OWN TRIAL, on the candidate setup: nothing moves.
+    // THE LAUNCH DOOR'S OWN TRIAL, on the candidate setup: nothing moves.
     const Seating trial = seat_panes(candidate, session_.panels, capacity);
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             out.refusal = "no room for " + name +
-                          " on this screen -- make the window taller, then p again";
+                          " on this screen -- make the window taller, then try again";
             return out;
         }
     }
@@ -347,7 +347,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         return false;
     }
     // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one
-    // door the picker and a restore go through, the seat through the same reconcile, the
+    // door the launch and a restore go through, the seat through the same reconcile, the
     // selection and the keys, and the pane's admitted room, rows and caret.
     session_.setup.active = trial_.candidate;
     apply_setup_now();

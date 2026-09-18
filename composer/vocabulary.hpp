@@ -16,7 +16,7 @@
 // that MSG-1 left nothing missing for a composer to invent.
 //
 // So what a consumer needs from this header is the two halves of one durable
-// `PaneRef` and the two lines a maker reads in the picker. There is no listener
+// `PaneRef` and the two lines a maker reads about the pane. There is no listener
 // interface, because nothing here publishes anything to listen to.
 //
 // WHY THE OFFICE IS HERE AND NOT ONLY IN THE .cpp: a `PaneRef` is what a saved
@@ -40,10 +40,11 @@ inline constexpr const char* kComposerRole = "zengine.composer";
 /// later phase and `zengine.composer/composer` would have left it nowhere to go.
 inline constexpr const char* kComposePane = "compose";
 
-/// The two lines the picker lists, and what Workshop's pane header says after the
-/// office (`Compose @zengine.composer`).
+/// The two lines a maker reads about the pane -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office
+/// (`Compose @zengine.composer`).
 ///
-/// SEVEN CHARACTERS, AGAINST A TEN-CELL PICKER COLUMN (`kPickerNameCols`) AND A
+/// SEVEN CHARACTERS, AGAINST THE RETIRED PICKER'S TEN-CELL COLUMN (`kPickerNameCols`) AND A
 /// THIRTY-TWO-BYTE ADMISSION BOUND. INTR-0 taught the column to mark its own cut
 /// and then chose a name that does not need the mark; this is the second tool to
 /// pay that lesson rather than rediscover it.

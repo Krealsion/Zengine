@@ -101,6 +101,26 @@ TEST_CASE("INTR-1: a partial arrangement cannot read as a complete one") {
     CHECK(rows[static_cast<std::size_t>(untried)].role == surface::role::kMuted);
 }
 
+TEST_CASE("an unavailable optional row reads as settled, with the owner's reason and next step, "
+          "and the heading keeps completion apart from every row succeeding") {
+    ws::v2::ResolvedArrangement said = intro::in_version_two(shaped_arrangement());
+    said.artifacts[2].state = ws::kUnavailableToken;
+    said.artifacts[2].optional = true;
+    said.artifacts[2].reason = "weave load refused: open failed";
+    said.artifacts[2].next = "make it available (build it), then relaunch Workshop";
+    said.artifacts[2].provider.clear();
+    said.artifacts[2].weave = 0;
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].text == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
+    const std::int64_t gone = row_with(rows, intro::kUnavailableRow);
+    REQUIRE(gone >= 0);
+    CHECK(rows[static_cast<std::size_t>(gone)].role == surface::role::kAlert);
+    CHECK(row_with(rows, intro::kNotReached) == -1); // the defect: it read as never attempted
+    CHECK(row_with(rows, "why   weave load refused: open failed") > gone);
+    CHECK(row_with(rows, "next  make it available (build it), then relaunch Workshop") > gone);
+}
+
 TEST_CASE("BOOT-0: a project still coming up shows LOADING, and it is not an alert") {
     // ⭐ THE STATE THAT COULD NOT EXIST BEFORE. Realization used to finish inside a
     // single stack frame before any pane could be mounted, so no maker could ever see a
@@ -1549,10 +1569,11 @@ TEST_CASE("SOURCE-1: knowing a power is still not authority to change it") {
     // AND NO ROW OF THE PROJECT PANE OFFERS A CONTROL EITHER -- it is unchanged.
     //
     // ⚠ THE KEYBOARD GOES BACK TO THE DESK FIRST, and this line is load-bearing: the presses
-    // above pointed the keys at the Powers pane, `p` is a command-mode row, and a picker that
+    // above pointed the keys at the Powers pane, `p` was a command-mode row, and a picker that
     // never opened left this half of the case reading the rows of a pane that was never
     // seated -- an empty vector every loop below walked in zero steps. Found when the rig's
-    // own picker helper started refusing a walk it could not make (VD-26).
+    // own picker helper started refusing a walk it could not make (VD-26); the rig launches
+    // through the host's door now, and the keys going back first is still the case's order.
     r.press_cell(0, screen_of(r.session()).h - 1);
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);

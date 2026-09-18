@@ -167,9 +167,8 @@ Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc
     // aligned-span law, so the cells and pixels a pane paints are exactly the ones on
     // which it answers. For whole-cell rectangles this is the cell containment this
     // walk has always performed.
-    if (panels.picker.open && picker_bounds(sc).contains_at(at.sub.x, at.sub.y, at.grain)) {
-        return Occupancy{true, kPickerName, kNoKind};
-    }
+    // (THE `+ panel` PICKER WAS ASKED FIRST HERE -- a mode with no catalog row that covered the
+    // stack's first slot while open -- and retired.)
     const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];

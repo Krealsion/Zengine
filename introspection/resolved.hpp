@@ -116,6 +116,10 @@ inline constexpr const char* kRefusedRow = "(refused)";
 /// choice that holds the office is its own row of the same view.
 inline constexpr const char* kSwitchedRow = "(switched: its office is held by another choice)";
 
+/// AN OPTIONAL ROW THAT REFUSED AND WAS STEPPED OVER: settled, not running, and not "not reached".
+/// Its `why` and `next` rows follow it, from the owner's answer (P-WORK-22).
+inline constexpr const char* kUnavailableRow = "(unavailable: optional, and this run stepped over it)";
+
 /// What an artifact row says where a surface was not authored at all.
 inline constexpr const char* kNoIntent = "none";
 
@@ -202,7 +206,7 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 /// visible. It is emphatically not two artifacts, and the stem above them says so by
 /// appearing once.
 inline std::vector<surface::SurfaceTextRow>
-artifact_rows(const workshop::ArtifactParticipation& a, std::int64_t columns) {
+artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
     std::vector<surface::SurfaceTextRow> rows;
     rows.push_back(surface::SurfaceTextRow{fit("  " + a.artifact, columns), surface::role::kFill});
 
@@ -236,13 +240,25 @@ artifact_rows(const workshop::ArtifactParticipation& a, std::int64_t columns) {
         const bool loading = a.state == workshop::kLoadingToken;
         const bool refused = a.state == workshop::kRefusedToken;
         const bool switched = a.state == workshop::kSwitchedToken;
-        const char* said = loading    ? kLoadingNow
-                           : refused  ? kRefusedRow
-                           : switched ? kSwitchedRow
-                                      : kNotReached;
+        const bool unavailable = a.state == workshop::kUnavailableToken;
+        const char* said = loading       ? kLoadingNow
+                           : refused     ? kRefusedRow
+                           : switched    ? kSwitchedRow
+                           : unavailable ? kUnavailableRow
+                                         : kNotReached;
         rows.push_back(surface::SurfaceTextRow{
             fit("    " + std::string(said), columns),
-            refused ? surface::role::kAlert : surface::role::kMuted});
+            refused || unavailable ? surface::role::kAlert : surface::role::kMuted});
+        // WHY, AND WHAT A MAKER CAN DO -- the owner's own two fields, shown as they came. A
+        // version 1 answer has neither, and says only the state.
+        if (!a.reason.empty()) {
+            rows.push_back(
+                surface::SurfaceTextRow{fit("    why   " + a.reason, columns), surface::role::kMuted});
+        }
+        if (!a.next.empty()) {
+            rows.push_back(
+                surface::SurfaceTextRow{fit("    next  " + a.next, columns), surface::role::kMuted});
+        }
         return rows;
     }
     if (!a.provider.empty()) {
@@ -284,25 +300,32 @@ artifact_rows(const workshop::ArtifactParticipation& a, std::int64_t columns) {
 /// the door computed and this view repeated, which is what makes the summary and the
 /// rows incapable of disagreeing.
 inline std::vector<surface::SurfaceTextRow>
-project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows,
+project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t rows,
                     std::int64_t columns) {
     std::vector<surface::SurfaceTextRow> out;
     if (rows <= 0 || columns <= 0) {
         return out;
     }
     std::size_t performed = 0;
+    std::size_t unavailable = 0;
     std::size_t providers = 0;
     std::size_t weaves = 0;
-    for (const workshop::ArtifactParticipation& a : said.artifacts) {
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
         // RESOLVED IS THE NUMERATOR, and it is exactly what the old `performed` bool
         // meant -- the count did not change when the field became four-valued.
         performed += a.state == workshop::kResolvedToken ? 1u : 0u;
+        unavailable += a.state == workshop::kUnavailableToken ? 1u : 0u;
         providers += !a.provider.empty() ? 1u : 0u;
         weaves += a.weave != 0 ? 1u : 0u;
     }
+    // A PLAN THAT COMPLETED IS NOT A PLAN WHOSE EVERY ROW RAN: the unavailable count is said
+    // beside the resolved one, never folded into it.
     out.push_back(surface::SurfaceTextRow{
         fit(std::to_string(performed) + " of " + std::to_string(said.artifacts.size()) +
-                " artifacts resolved -- " + std::to_string(providers) + " providers, " +
+                " artifacts resolved" +
+                (unavailable > 0 ? ", " + std::to_string(unavailable) + " unavailable"
+                                 : std::string()) +
+                " -- " + std::to_string(providers) + " providers, " +
                 std::to_string(weaves) + " weaves",
             columns),
         surface::role::kAccent});
@@ -312,7 +335,7 @@ project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows
     blocks.reserve(said.artifacts.size());
     heights.reserve(said.artifacts.size());
     std::int64_t total = 0;
-    for (const workshop::ArtifactParticipation& a : said.artifacts) {
+    for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
         blocks.push_back(artifact_rows(a, columns));
         heights.push_back(static_cast<std::int64_t>(blocks.back().size()));
         total += heights.back();
@@ -353,6 +376,33 @@ project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows
             surface::SurfaceTextRow{fit("plan: " + said.plan, columns), surface::role::kMuted});
     }
     return out;
+}
+
+/// A VERSION 1 ANSWER, read into the one projection above: the fields it has, and none it lacks.
+/// A host built before version 2 answers this way, and its rows say their state without a reason.
+inline workshop::v2::ResolvedArrangement in_version_two(const workshop::ResolvedArrangement& said) {
+    workshop::v2::ResolvedArrangement out;
+    out.plan = said.plan;
+    out.artifacts.reserve(said.artifacts.size());
+    for (const workshop::ArtifactParticipation& a : said.artifacts) {
+        workshop::v3::ArtifactParticipation row;
+        row.artifact = a.artifact;
+        row.authored_provider = a.authored_provider;
+        row.authored_role = a.authored_role;
+        row.state = a.state;
+        row.provider = a.provider;
+        row.powers = a.powers;
+        row.weave = a.weave;
+        row.offer = a.offer;
+        out.artifacts.push_back(std::move(row));
+    }
+    return out;
+}
+
+inline std::vector<surface::SurfaceTextRow>
+project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows,
+                    std::int64_t columns) {
+    return project_arrangement(in_version_two(said), rows, columns);
 }
 
 // ---- The powers view -------------------------------------------------------------
