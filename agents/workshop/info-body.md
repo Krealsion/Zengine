@@ -228,9 +228,9 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `InspectPaneRequested`,
 `PaneSubjectRequested`, `PaneSubjectShown`; `workshop/screen.hpp` `InspectedPane`,
-`pane_subject_rows`, `pane_subject_shown`; `workshop/screen_pane_editor.cpp` `inspected_region`,
+`pane_subject_rows`, `pane_subject_shown`; `workshop/screen_pane_subject.cpp` `inspected_region`,
 `pane_subject_shown`, `pane_subject_rows`; `workshop/setup.hpp` `SetupState::put_live`;
-`workshop/weave_pane_editor.cpp` `refresh_inspected`, `on(InspectPaneRequested)`,
+`workshop/weave_inspection.cpp` `refresh_inspected`, `on(InspectPaneRequested)`,
 `on(PaneSubjectRequested)`, `publish_pane_subject`; `tests/test_workshop_panes_info.cpp` case
 `"INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave
 it standing"`, case `"INFO-WEAVE: Info may inspect itself, and an edit to its own place is written
@@ -249,11 +249,11 @@ MEANS
 - an answer reaches only the incarnation that asked: a replaced Info is told nothing of it.
 
 DOES NOT MEAN
-- a general property editor: the rows are the ones the Pane Manager already showed.
+- a general property editor: the rows are the ones the host's Pane Manager showed.
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
-`workshop/weave_pane_editor.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
-`kPaneCommitSubjectGone`; `workshop/screen_pane_editor.cpp` `write_pane_axis`;
+`workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
+`kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on a value the maker owns is
 written to the desk"`, case `"an Info commit queued behind another desk put live, or another and
 back, is refused: neither desk is written and the pane says why"`, case `"an Info commit whose

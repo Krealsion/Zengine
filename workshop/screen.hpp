@@ -99,20 +99,6 @@ inline constexpr std::int64_t kStackW = 48;
 inline constexpr std::int64_t kStackRows = 9; ///< every panel placed here is this tall, for now
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
 
-/// How many rows of the picker carry anything: the header, then one per catalog entry. It
-/// has no instance and takes no slot -- it opens over the stack's FIRST slot, because it is
-/// a question rather than a thing.
-///
-/// IT PAINTS A WHOLE PANEL'S WORTH OF ROWS ANYWAY, and that is a live finding rather than a
-/// preference. A picker three rows tall over a panel nine rows tall left the panel's
-/// last six rows showing underneath it, and in a character medium there is no edge between
-/// them: the graphical Workshop read `Info  closed  objects and properties` and then, on the
-/// next line and in the same box, `exit  --  asks 0 ever`. One panel, saying two unrelated
-/// things. Covering the whole slot costs some blank rows while a question is open and buys a
-/// screen that cannot be misread; leaving a gap and marking its edge would be a second
-/// overlay convention for the same job.
-// WL-PANE-15 -- agents/workshop/panes-and-windows.md
-inline constexpr std::int64_t kPickerRows = 1 + static_cast<std::int64_t>(kPanelKinds);
 
 // ⭐ THE TERMINAL OVERLAY'S FURNITURE WAS HERE AND IS GONE (VD-24). `kTerminalWantW`,
 // `kTerminalMinH`, `kTerminalChrome` and `kTerminalMinCols` sized one particular tool's
@@ -509,23 +495,6 @@ static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
               "the side region reaches the screen's right edge");
 static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
               "the side region ends where the workspace does, above the bottom band");
-static_assert(kPickerRows + 2 * kChromeCells <= kStackRows,
-              "the picker still fits a panel's slot INSIDE its own chrome (WUX-5): the "
-              "declared floor is the compile-time catalog, and the slot must seat it plus "
-              "the boundary. A runtime-widened population outgrowing the slot is a "
-              "different and already-answered question -- `list_window` counts what it hid");
-
-/// WHERE THE PICKER OPENS: the stack's first slot, and it is a function rather than a repeated
-/// expression so that the mode that PAINTS there and the pointer that must not see THROUGH it
-/// read one answer. The picker has no catalog row to declare a place in -- it is a mode -- so
-/// this is the one presentation that names its own place, and now it names it once.
-// WL-PANE-15 -- agents/workshop/panes-and-windows.md
-inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
-    // Cell-lattice geometry on the fine lattice, exactly — the picker is screen
-    // furniture and never moves by less than a cell; what is fine is the machinery
-    // it shares with the panes (frames, prose places, occupancy).
-    return fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc));
-}
 
 /// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
 /// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
@@ -723,20 +692,6 @@ struct PaneArrange {
     bool addressed() const { return !pane.provider.empty(); }
 };
 
-/// THE PANE EDITOR'S OWN STATE: which pane it is DESCRIBING, and where a maker's
-/// hands are inside it.
-// WL-PED-02, WL-PED-03, WL-PED-04 -- agents/workshop/pane-manager.md
-struct PaneEditor {
-    PaneRef subject;               ///< the pane described; an empty provider is "none"
-    std::size_t cursor = 0;        ///< the PANES list's cursor; bounded at use
-    std::vector<Row> rows;         ///< the subject's rows, in the order the body paints them
-    std::size_t row_cursor = 0;    ///< which of those rows the keys are on
-    bool on_rows = false;          ///< the keys are in the rows (true) or the PANES list
-    double wheel_accum = 0.0;      /// < fractional wheel notches not yet worth a row
-
-    bool addressed() const { return !subject.provider.empty(); }
-};
-
 /// THE INSPECTOR'S SUBJECT: a pane an inspector (Info) named, the owner's rows over it, and the
 /// name this host gives what those rows address (`inspection_seam_vocabulary.hpp`).
 ///
@@ -755,13 +710,6 @@ struct InspectedPane {
     std::int64_t region = 0;   ///< the maker region the INTERIOR rows were built over; 0: none
 
     bool addressed() const { return !ref.provider.empty(); }
-};
-
-/// THE PANE CREATOR'S NAME PROMPT: open or not, and the line being typed.
-// WL-MAKER-11 -- agents/workshop/maker-pane.md
-struct PaneNaming {
-    bool open = false;
-    component::TextBox line;
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
@@ -812,7 +760,7 @@ struct TextDrag {
 inline constexpr std::int64_t kDoubleClickMs = 400;
 
 /// WHAT THE LAST PRESS ON AN EDITABLE LINE NAMED, so the next one can be a double.
-// WL-PTR-01, WL-PTR-03 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
+// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 struct ClickMemory {
     bool armed = false;
     std::int64_t place = text_drag_place::kNone;
@@ -927,16 +875,10 @@ struct Session {
     /// variable for both would make "a release ends the gesture it began" a question about
     /// which kind of thing was underneath rather than a fact about the press.
     PaneGesture pane_drag;
-    /// THE PANE EDITOR'S SUBJECT AND CURSORS -- see `PaneEditor`. Session and not
-    /// pane state, so that closing the editor's own presentation forgets nothing a maker
-    /// chose, and never persisted, because a subject is a fact about a maker's attention.
-    PaneEditor pane_editor;
-    /// THE INSPECTOR'S SUBJECT -- see `InspectedPane`. Beside the Pane Manager's and apart from
-    /// it: two readers of panes, each with the subject it chose.
+    /// THE INSPECTOR'S SUBJECT -- see `InspectedPane`. Session and never persisted, because a
+    /// subject is a fact about a maker's attention. (The host's Pane Manager held a second one,
+    /// and retired; the Pane Creator's name prompt left with it, into the desktop's pane.)
     InspectedPane inspected;
-    /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
-    /// layout-name editor's for the same reason: a maker's hand halfway through a word.
-    PaneNaming pane_naming;
     // ⭐ `Session::editor` WAS HERE AND IS GONE. The source document -- the path, the
     // multiline buffer with its caret/selection/history, the saved copy the dirty answer
     // derived from, the viewport -- was session state so that the Editor PANE could be
@@ -976,14 +918,6 @@ struct Session {
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px);
 }
-
-/// IS THE PANE EDITOR THE PANE A MAKER LAST PRESSED INTO, WITH SOMETHING TO SHOW?
-bool pane_editor_has_keyboard(const Session& s);
-
-/// IS A DRAFT LIVE ON ONE OF THE PANE EDITOR'S ROWS? Its own question: the object inspector's
-/// `draft_live` asked the same of the object document's rows until they retired, and Info's
-/// draft is the Info weave's own (WL-INFO-06).
-bool pane_editor_draft_live(const Session& s);
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
 /// them claims it. Split out of `keyboard_context` because the contextual surface needs
@@ -1275,10 +1209,8 @@ const char* pane_state_remedy(std::int64_t state);
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
 inline constexpr std::size_t kPaneStateCols = 11;
 
-/// HOW WIDE THE NAME COLUMN IS -- and it is a bound a party outside this build can
-/// reach, which is what makes it a constant rather than the `10` it used to be.
-// WL-PED-01 -- agents/workshop/pane-manager.md
-inline constexpr std::size_t kPickerNameCols = 13;
+// (`kPickerNameCols`, the picker's and the host Pane Manager's name column, WAS HERE and retired
+// with both: the desktop's list writes a name last on its row and marks the cut.)
 
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
 bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
@@ -1290,16 +1222,6 @@ bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
 std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Screen& sc,
                                   const CatalogRow& row);
 
-/// The one row-body spelling, so the painter and any reader of the picker's
-/// columns spend the same two column widths.
-std::string picker_entry_text(const std::string& name, const char* state,
-                                     const std::string& tail);
-
-/// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
-/// ALREADY OPEN, in a fixed column so the list reads down; it asks for the stack's first
-/// slot through `picker_bounds` rather than knowing where that is.
-void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
-                         const Screen& sc, const Keymap& keymap);
 
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
@@ -1726,16 +1648,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
 // the editor on this side is the one measurer every external pane already spends
 // (`external_body_place`) and the drag the seam gained for it (`PaneDragged`).
 
-// ---- A cursor-windowed list's wheel ------------------------------------------------------
-
-/// How many rows the wheel is worth in a cursor-windowed list -- the desktop convention,
-/// three. Spent by the Pane Manager and the picker; the browser and the editor that spent it
-/// as built-ins each take their own copy across the seam now.
-// WL-PTR-10 -- agents/workshop/pointer.md
-inline constexpr std::int64_t kListWheelRows = 3;
-
-/// TURN NOTCHES INTO WHOLE ROWS, CARRYING THE FRACTION.
-std::int64_t spend_wheel(double& accum, double dy, std::int64_t rows_per_notch);
+// ⭐ A CURSOR-WINDOWED LIST'S WHEEL WAS HERE -- `kListWheelRows` (three) and `spend_wheel`, which
+// turned notches into whole rows carrying the fraction -- and left with the last two lists this
+// host scrolled, the picker and the Pane Manager. A pane's list is the pane's, and the wheel
+// reaches it as `PaneWheel` (WL-PTR-10).
 
 // ---- The arrangement's affordance rings --------------------------------------------------
 //
@@ -2057,22 +1973,7 @@ const TextRegion* creator_subject_region(const Session& s);
 void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
                                       const Screen& sc);
 
-/// THE PANE CREATOR'S NAME PROMPT, as the Pane Manager's heading spells it while a name is
-/// being typed, and the columns the typed line may spend beside it (the prompt, then the
-/// caret's own column reserved, `kPropertyCaretCols`' rule).
-inline constexpr const char* kPaneNamePrompt = "new pane> ";
-std::int64_t pane_name_columns(std::int64_t heading_columns);
-
-// ---- THE PANE EDITOR: a Workshop pane as a SUBJECT, inspected and edited -----------------
-
-/// Prose rows the `PANES` heading keeps -- what `kInfoHeadingRows` was, one pane over.
-inline constexpr std::int64_t kPaneEditorHeadingRows = 1;
-
-/// THE INVENTORY ROW THE SUBJECT NAMES RIGHT NOW, or nothing -- a fresh view over the SAME
-/// population the picker walks (`inventory_rows`: the catalog, the admitted runtime panes,
-/// and every reference the active setup names). Nothing is cached: a subject is checked
-/// against the world at the moment somebody asks.
-std::optional<CatalogRow> pane_editor_subject_row(const Session& s);
+// ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
 
 /// THE WINDOW A TYPED EDIT MEASURES THE OTHER AXIS FROM: authored where authored, resolved
 /// where reactive -- `managed_window_base`'s spelling (weave.hpp), quarried out so the
@@ -2096,10 +1997,10 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 
 /// THE ROWS A PANE IS INSPECTED BY: its identity, then AUTHORED, then RESOLVED, then INTERIOR --
 /// every closure reading fresh, every setter an existing door (`write_pane_axis`, the
-/// definition's region doors). `manager_keys` words the Front and Open rows with the Pane
-/// Manager's own keys; an inspector that holds no such keys is told the facts alone.
+/// definition's region doors). The facts alone: the rows name no key, because the inspector
+/// reading them holds its own.
 // WL-INFO-14 -- agents/workshop/info-body.md
-std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref, bool manager_keys);
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
 
 /// WHICH MAKER REGION THE INTERIOR ROWS OVER `ref` WOULD BE BUILT ON NOW -- its id, or 0 when the
 /// interior is a capture (any pane that is not an open definition with a region). The arm the
@@ -2113,76 +2014,6 @@ PaneSubjectShown pane_subject_shown(const Session& s);
 
 /// ...AND WHETHER TWO READINGS SAY THE SAME THING, every field, for the publication's gate.
 bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
-
-/// THE SUBJECT'S ROWS: its identity, then AUTHORED, then RESOLVED. Every closure reads the
-std::vector<Row> pane_editor_rows(Session& s);
-
-/// THE ROW THAT MUST STAY ON SCREEN: the editing one, else the cursor's -- `inspector_focus`
-/// for this inspector, and for its reason.
-std::size_t pane_editor_focus(const Session& s);
-
-/// WHERE THE PANE EDITOR'S TWO LISTS ARE, HOW MANY ROWS EACH GETS, AND WHICH MEMBERS ARE
-/// SHOWN -- `InfoBodyPlace` without the footer. The `PANES` heading is the region's first
-/// prose row; the pane list begins at body row 0; the subject's rows begin at
-/// `panes_rows`.
-struct PaneEditorBodyPlace {
-    bool present = false;
-    std::int64_t region_x = 0;
-    std::int64_t region_y = 0;
-    std::int64_t region_w = 0;
-    std::int64_t region_h = 0;
-    std::int64_t region_sub_x = 0;
-    std::int64_t region_sub_y = 0;
-    std::int64_t region_sub_w = 0;
-    std::int64_t region_sub_h = 0;
-    surface::RegionFit fit{};
-    std::int64_t columns = 0;
-    std::int64_t value_columns = 0;
-    std::size_t capacity = 0;
-    std::size_t panes_rows = 0;
-    std::size_t field_rows = 0;
-    ListWindow panes{};
-    ListWindow fields{};
-};
-
-PaneEditorBodyPlace pane_editor_body_place(const FineRect& outer, const Screen& sc,
-                                                  std::size_t total_panes,
-                                                  std::size_t pane_cursor,
-                                                  std::size_t total_fields,
-                                                  std::size_t field_focus);
-
-/// The same resolution for the session a painter is holding -- one call, so no press can
-/// resolve the body against a population or a focus the paint did not.
-PaneEditorBodyPlace pane_editor_body(const Session& s, const Screen& sc,
-                                            const FineRect& outer);
-
-std::int64_t prose_row_of_editor_pane(const PaneEditorBodyPlace& p, std::size_t index);
-
-std::size_t editor_pane_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row);
-
-std::int64_t prose_row_of_field(const PaneEditorBodyPlace& p, std::size_t index);
-
-std::size_t field_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row);
-
-/// WHERE A POINTER FACT LANDED IN THE PANE EDITOR'S BODY -- `InfoBodyAt`'s shape: the pane
-/// open, the body resolved through the same `bounds_of` the painter used, the position
-/// located by the same `prose_at`, the heading subtracted here because it was reserved
-/// there.
-struct PaneEditorAt {
-    bool present = false;
-    PaneEditorBodyPlace body{};
-    ProseAt at{};
-};
-
-PaneEditorAt pane_editor_at(const Session& s, std::int64_t space, std::int64_t x,
-                                   std::int64_t y);
-
-/// THE PANE EDITOR, PAINTED: the inventory with the subject marked, then the subject's rows
-/// with a live draft's caret and selection on them. One region, in the active medium's own
-/// type; the picker's row spelling for a pane, the property row's spelling for a fact.
-void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
-                              const FineRect& b, const Screen& sc,
-                              std::int64_t chrome = kPaneChrome);
 
 // ⚠ `paint_panels` STANDS HERE AND NOT ABOVE, and the reason is the conversion itself
 //. This file defines everything before it is used -- there is not one forward

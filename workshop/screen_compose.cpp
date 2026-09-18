@@ -38,8 +38,6 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
                 // the rectangle is `bounds_of`'s, the order is `effective_pane_order`'s,
                 // and a pane a maker put in front of this one is drawn over it.
                 paint_layouts(layer, s, b, sc, chrome);
-            } else if (p.kind == panel::kPaneEditor) {
-                paint_pane_editor(layer, s, b, sc, chrome);
             } else if (is_maker_kind(p.kind)) {
                 // THE MAKER'S OWN PANE -- one more arm in the one walk, and that
                 // is the whole of what a pane made of DATA costs this function. Its
@@ -60,23 +58,18 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
     }
     // THE PANE CREATOR'S REGION MARK: over the panes, in the affordances' own
     // position and for their reason -- it says which rectangle of the maker's pane the
-    // rows they are editing describe, derived from the same resolution that painted it, and
-    // it is drawn on a plane of its own so the pane's own interior cannot cover it.
+    // rows an inspector is reading describe, derived from the same resolution that painted it,
+    // and it is drawn on a plane of its own so the pane's own interior cannot cover it.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_creator_region_mark(layer, s, sc);
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_pane_affordances(layer, s, sc);
     });
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_picker(layer, panels, s.setup.active, sc, s.keymap);
-    });
-    // ⚠ THE CURRENT-CONDITION VIEW USED TO BE A PLANE HERE, in the picker's own place, over
-    // the panes it covered. It is a PANE now and is drawn where its setup row puts it, by
-    // the same walk that draws every other pane -- so what covers what is a maker's own
-    // arrangement rather than a decision this function makes for them.
-    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND: over the picker, because it is the
-    // band's later, more deliberate gesture -- and it
+    // ⚠ THE `+ panel` PICKER WAS A PLANE HERE, over the panes it covered, and retired. The
+    // current-condition view used to be one in its place too, and is a pane.
+    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND: over everything, because it is the
+    // band's latest, most deliberate gesture -- and it
     // takes the band's keys first for the same reason (`keyboard_context`), so what is
     // frontmost and what answers agree.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
@@ -127,17 +120,12 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
         const std::int64_t typed = typing_pane(s);
         const RuntimePane* typed_into =
             typed == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typed);
-        // THE PANE MANAGER IS THE ONE BUILT-IN LEFT THAT TAKES THE KEYS, and it gets the
-        // same sentence for the same measured reason: keystrokes landing somewhere the
-        // screen does not name is the lie this row exists to refuse. (The source editor
-        // had a sentence of its own here; it is a pane, and the first arm names it.)
+        // (The host's Pane Manager was the last built-in that took the keys and had a sentence of
+        // its own here; the source editor had one before it. Both are panes now, named above.)
         std::string said;
         if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
                    " -- press elsewhere for Workshop's keys";
-        } else if (ctx == KeyContext::kPaneEditor &&
-                   s.keymap.resolved_legend() == legend_mode::kFull) {
-            said = "keys go to the Pane Manager -- press elsewhere for Workshop's keys";
         }
         if (!said.empty()) {
             if (legend_rows == 1) {

@@ -8,8 +8,11 @@
 // (*) WHAT IT REPLACES, AND WHY EACH PIECE WAS NEVER THE HOST'S. Four things arrive here:
 //
 //   the `p` picker overlay      a MODE the host owned, which took the keyboard whole and
-//                               TOGGLED participation. Launching is a pane now, and a launch
-//                               of an open tool focuses it rather than closing it.
+//   and the host's Pane Manager TOGGLED participation, and a built-in that also inspected.
+//                               The Pane Manager is this pane: a launch of an open tool focuses
+//                               it, a close is its own key, and making a pane is the Pane
+//                               Creator's three acts asked of the host that holds the one
+//                               definition. Inspecting a pane is Info's.
 //   `workshop.terminal`         a global row in the host's closed catalog. It is an
 //                               application row pointed at an ordinary pane now.
 //   Escape-to-deselect          a hard-coded line at the end of the host's key handler. It is
@@ -39,6 +42,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -70,6 +74,8 @@ using ws::DesktopFace;
 using ws::InventoryPane;
 using ws::KeymapRequested;
 using ws::KeymapShown;
+using ws::MakerPaneAnswered;
+using ws::MakerPaneRequested;
 using ws::ShownBinding;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
@@ -80,10 +86,12 @@ using ws::PaneCloseRequested;
 using ws::PaneContent;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
+using ws::PaneKey;
 using ws::PaneLaunchAnswered;
 using ws::PaneLaunchRequested;
 using ws::PaneOffered;
 using ws::PaneRoom;
+using ws::PaneTextInput;
 
 /// WHO THIS WEAVE IS TALKING TO -- the host's office, spelled as a literal exactly as every
 /// other provider spells it. A provider is a stranger to Workshop's internals and says who it
@@ -160,10 +168,13 @@ class DesktopWeave
           DesktopWeave, pane::DesktopState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
-                       PaneCloseAnswered, ActionsJudged, ActionsWithdrawn, KeymapShown>,
+                       PaneCloseAnswered, MakerPaneAnswered, ActionsJudged, ActionsWithdrawn,
+                       KeymapShown, PaneKey, PaneTextInput, surface::ClipboardCopy,
+                       surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, AppActions, PaneLaunchRequested,
-                     PaneCloseRequested, DeselectRequested, DesktopFace,
-                     PaneInventoryRequested, KeymapRequested>> {
+                     PaneCloseRequested, MakerPaneRequested, DeselectRequested, DesktopFace,
+                     PaneInventoryRequested, KeymapRequested, surface::ClipboardCopy,
+                     surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -243,6 +254,21 @@ public:
         if (asked.pane != pane::kLauncherPane) {
             return;
         }
+        // THE NAME LINE OWNS THE PANE'S ACTIONS WHILE IT IS OPEN, AND AN ID IT DOES NOT ANSWER TO
+        // IS NO ACT: the declaration and the keystroke race across two messages, so a row this
+        // image declared before the line opened (or after it closed) must mean nothing now.
+        if (naming_.open) {
+            if (asked.id == ws::kCreatorNameId) {
+                ask_maker(mail, ws::maker_pane_act::kCreate, naming_.line.text());
+            } else if (asked.id == ws::kCreatorCancelId) {
+                close_naming(mail);
+                notice_ = "no pane was made";
+            } else {
+                return;
+            }
+            say(mail);
+            return;
+        }
         if (asked.id == pane::kActionUp) {
             step(-1);
         } else if (asked.id == pane::kActionDown) {
@@ -251,8 +277,82 @@ public:
             launch_cursor(mail);
         } else if (asked.id == pane::kActionClose) {
             close_cursor(mail);
+        } else if (asked.id == ws::kCreatorNewId) {
+            open_naming(mail);
+        } else if (asked.id == ws::kCreatorSaveId) {
+            ask_maker(mail, ws::maker_pane_act::kSave, std::string());
+        } else if (asked.id == ws::kCreatorDiscardId) {
+            ask_maker(mail, ws::maker_pane_act::kDiscard, std::string());
         } else {
             return;
+        }
+        say(mail);
+    }
+
+    /// A KEY THE PANE DECLARED NO ROW FOR, while it holds the keyboard -- the name line's own
+    /// vocabulary while one is open, and nothing otherwise: a key that means nothing here is no
+    /// act, and says nothing.
+    void on(const PaneKey& key, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kLauncherPane ||
+            !naming_.open) {
+            return;
+        }
+        const std::uint64_t copied_before = clip_.writes;
+        const std::uint64_t pastes_before = clip_.paste_requests;
+        if (!naming_.line.consume(key.scancode, key.modifiers, clip_)) {
+            return;
+        }
+        if (clip_.writes != copied_before) {
+            mail.publish(surface::ClipboardCopy{clip_.text});
+        }
+        if (clip_.paste_requests != pastes_before) {
+            begin_paste(mail);
+        }
+        say(mail);
+    }
+
+    /// TEXT TYPED WHILE THE PANE HOLDS THE KEYBOARD -- into the name line, when one is open.
+    void on(const PaneTextInput& typed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || typed.pane != pane::kLauncherPane ||
+            !naming_.open || typed.text.empty()) {
+            return;
+        }
+        naming_.line.type(typed.text);
+        say(mail);
+    }
+
+    /// WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why it is a
+    /// mirror rather than a second store: a paste on a medium that cannot be read answers with it.
+    void on(const surface::ClipboardCopy& said, loom::Mail&) { clip_.text = said.text; }
+
+    /// THE SKIN'S ANSWER TO THIS IMAGE'S OWN PASTE, landing only in the name line that asked --
+    /// the same line, still open, in the same draft (`TextBox::draft_epoch`).
+    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+        if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
+            return;
+        }
+        paste_.awaiting = false;
+        if (!naming_.open || naming_.line.draft_epoch() != paste_.epoch) {
+            return; // the line that asked is gone; the text lands nowhere
+        }
+        const std::string text = a.readable ? a.text : clip_.text;
+        if (text.empty()) {
+            return;
+        }
+        naming_.line.type(text);
+        say(mail);
+    }
+
+    /// WHAT ONE OF THE PANE CREATOR'S ACTS CAME TO -- the host's own sentence, for this image's
+    /// latest ask and no older one. A pane that was made closes the name line; a name the host
+    /// refused leaves it open, holding what was typed, with the refusal under it.
+    void on(const MakerPaneAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask() || mail.correlation() != makes_) {
+            return;
+        }
+        notice_ = answer.said;
+        if (answer.act == ws::maker_pane_act::kCreate && answer.accepted && naming_.open) {
+            close_naming(mail);
         }
         say(mail);
     }
@@ -376,12 +476,7 @@ private:
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
                                                      pane::kLauncherSummary});
-        PaneActions actions;
-        actions.pane = pane::kLauncherPane;
-        actions.rows = pane_rows();
-        pane_rows_.attempt = ++attempts_;
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
+        declare_manager(mail);
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
                                                      pane::kHotkeysSummary});
@@ -425,18 +520,78 @@ private:
                          input::mod::kNone, ws::app_precedence::kDefault}};
     }
 
-    /// THE LAUNCHER'S OWN FOUR. Bare keys are legal here: nothing in this pane takes text.
+    /// THE PANE MANAGER'S OWN ROWS, as the one declaration its mode calls for. Bare keys are
+    /// legal while nothing in the pane takes text; while the name line is open the pane takes
+    /// text, so it declares the line's two keys and no more, and every other key reaches the line.
     ///
     /// `x` CLOSES, AND IS NOT RETURN'S SECOND MEANING. The picker toggled on one key, so a maker
     /// reaching for an open tool could take it off the desk; Return here only ever opens or
     /// focuses, and taking a pane off is its own deliberate key.
-    static std::vector<PaneActionRow> pane_rows() {
+    ///
+    /// THE PANE CREATOR'S KEYS ARE THE ONES IT HAD in the host's Pane Manager, under the same ids,
+    /// so a maker's authored override finds them: `n` new, `s` save, `ctrl+d` discard (a plain
+    /// ctrl+letter, which is what the POSIX wire can say), and Return and Escape on the name line.
+    std::vector<PaneActionRow> pane_rows() const {
+        if (naming_.open) {
+            return {PaneActionRow{ws::kCreatorNameId, "make the pane", input::scan::kReturn,
+                                  input::mod::kNone},
+                    PaneActionRow{ws::kCreatorCancelId, "cancel", input::scan::kEscape,
+                                  input::mod::kNone}};
+        }
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
                               input::mod::kNone},
                 PaneActionRow{pane::kActionLaunch, "open or focus", input::scan::kReturn,
                               input::mod::kNone},
-                PaneActionRow{pane::kActionClose, "close", input::scan::kX, input::mod::kNone}};
+                PaneActionRow{pane::kActionClose, "close", input::scan::kX, input::mod::kNone},
+                PaneActionRow{ws::kCreatorNewId, "new pane", input::scan::kN, input::mod::kNone},
+                PaneActionRow{ws::kCreatorSaveId, "save pane", input::scan::kS,
+                              input::mod::kNone},
+                PaneActionRow{ws::kCreatorDiscardId, "discard pane edits", input::scan::kD,
+                              input::mod::kCtrl}};
+    }
+
+    /// DECLARE THE PANE MANAGER'S ROWS AS THEY ARE FOR ITS MODE NOW, under a new attempt number,
+    /// so the verdict that comes back is read against this declaration and no older one.
+    void declare_manager(loom::Mail& mail) {
+        PaneActions actions;
+        actions.pane = pane::kLauncherPane;
+        actions.rows = pane_rows();
+        pane_rows_.attempt = ++attempts_;
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
+    }
+
+    // ---- The Pane Creator's name line ------------------------------------------------------
+
+    void open_naming(loom::Mail& mail) {
+        naming_.open = true;
+        naming_.line.clear();
+        notice_.clear();
+        declare_manager(mail);
+    }
+
+    void close_naming(loom::Mail& mail) {
+        naming_.open = false;
+        naming_.line.clear(); // the draft's incarnation ends: a late paste lands nowhere
+        declare_manager(mail);
+    }
+
+    /// ASK THE HOST FOR ONE OF THE CREATOR'S ACTS, under a number of this image's own. The host
+    /// holds the definition and every refusal; this pane holds the name line and the keys.
+    void ask_maker(loom::Mail& mail, std::int64_t act, const std::string& name) {
+        notice_.clear();
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, MakerPaneRequested{act, name}, ++makes_);
+    }
+
+    void begin_paste(loom::Mail& mail) {
+        paste_.pending = ++makes_;
+        paste_.epoch = naming_.line.draft_epoch();
+        paste_.awaiting = true;
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
+                          paste_.pending);
     }
 
     /// THE HOTKEYS PANE'S OWN FOUR: a scroll, a row at a time or to either end. Nothing in it takes
@@ -567,6 +722,19 @@ private:
             return;
         }
         push("PANES -- " + std::to_string(known_.size()), surface::role::kAccent);
+        // THE NAME LINE, UNDER THE HEADING, while one is open: the window follows the caret, and
+        // the caret itself does not cross the seam (the documented loss Info's draft carries).
+        if (naming_.open) {
+            const std::string prompt = "new pane: ";
+            const std::int64_t room =
+                columns_ - static_cast<std::int64_t>(prompt.size()) - 1;
+            if (room > 0) {
+                naming_.line.keep_caret_visible(room);
+                push(prompt + naming_.line.visible(room), surface::role::kAccent);
+            } else {
+                push(prompt, surface::role::kAccent);
+            }
+        }
         std::vector<std::string> notes;
         // THE MARKER HOLDING NOTHING IS SAID FOR AS LONG AS IT HOLDS NOTHING -- a state, not an
         // event, so a later sentence about something else cannot take its row.
@@ -579,7 +747,7 @@ private:
                 notes.push_back(*word);
             }
         }
-        std::int64_t budget = rows_ - 1;
+        std::int64_t budget = rows_ - 1 - (naming_.open ? 1 : 0);
         // AT LEAST ONE LIST ROW STAYS, so the marker is never the thing a notice pushed out.
         const std::int64_t room_for_notes = known_.empty() ? budget : budget - 1;
         const std::int64_t note_rows =
@@ -846,6 +1014,23 @@ private:
     /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH OR CLOSE, which the host's answer echoes: one
     /// counter, so an answer to an older request of either kind is history.
     std::uint64_t launches_ = 0;
+    /// ...AND OF ITS LATEST ASK OF THE PANE CREATOR OR OF THE SKIN, on a counter of their own.
+    std::uint64_t makes_ = 0;
+    /// THE PANE CREATOR'S NAME LINE: open or not, and the line being typed. Not in the state
+    /// shape: a reload resets it, and says nothing about a name nobody made.
+    struct Naming {
+        bool open = false;
+        zengine::component::TextBox line;
+    };
+    Naming naming_;
+    /// THE CLIPBOARD MIRROR THE LINE'S COPY, CUT AND PASTE WORK AGAINST, and the paste in flight.
+    zengine::component::Clipboard clip_;
+    struct Paste {
+        std::uint64_t pending = 0;
+        std::uint64_t epoch = 0;
+        bool awaiting = false;
+    };
+    Paste paste_;
 };
 
 } // namespace

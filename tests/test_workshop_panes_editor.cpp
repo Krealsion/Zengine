@@ -855,6 +855,27 @@ struct EditorRig {
 // THE OFFER, THE ROWS, AND THE KEYS
 // ============================================================================
 
+
+/// A SECOND STACK PANE, OFFERED BY A SECOND PROVIDER -- what takes the stack ahead of the Editor,
+/// or seats beside it, in the cases about room and about unrelated work going on. (It was the
+/// host's own Pane Manager, a built-in in the same stack, until that became the desktop's pane.)
+/// Offered once per rig; its handle is its catalog row's.
+struct SecondPane {
+    PaneRef ref;
+    std::int64_t kind = kNoPaneKind;
+};
+inline SecondPane second_pane(EditorRig& e) {
+    if (e.r.session().panels.runtime.find(kOtherOffice, "other") == nullptr) {
+        ProviderSeat* seat = e.r.mount_provider(kOtherOffice);
+        e.r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
+        });
+    }
+    const RuntimePane* row = e.r.session().panels.runtime.find(kOtherOffice, "other");
+    REQUIRE(row != nullptr);
+    return SecondPane{PaneRef{kOtherOffice, "other"}, row->kind};
+}
+
 TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an office") {
     // ⭐ THE BUILT-IN'S ROW IS GONE, and what replaces it arrives the way Files, the Builder
     // and the Terminal did: an offer from an office, admitted into the runtime catalog, picked
@@ -1111,16 +1132,16 @@ TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the reque
     e.press_doc(0, 2);
     const std::int64_t caret = e.seat()->caret_col;
     // ...AND THEN THE ONE STACK SLOT THE MINIMUM SCREEN HAS, TAKEN BY SOMETHING ELSE.
-    e.unfocus(); // the picker is command mode's row, and the Editor is holding the keys
-    e.r.pick(editor_ref()); // the picker's other direction: it removes an open pane
-    e.r.pick(ref_of(panel::kPaneEditor));
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    e.r.pick(editor_ref()); // the close door: it takes the open Editor off the desk
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref);
+    REQUIRE(e.r.session().panels.has(other.kind));
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "a.cpp", "held\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
     CHECK_FALSE(said.accepted);
     CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
-                          "then p again");
+                          "then try again");
     CHECK(e.r.session().notice == said.refusal);
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref())); // nothing authored
     // NOTHING MOVED IN THE PANE: the first document, its caret and its bytes stand.
@@ -1468,13 +1489,13 @@ TEST_CASE("EDIT-W24: an edit racing the exit check is judged at the answer, and 
                                             input::space::kCells, input::mod::kNone}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
     e.enqueue_text("?");
-    e.enqueue_key(input::scan::kP); // a KEY held too: routed at once it would open the picker
+    e.enqueue_key(input::scan::kA); // a KEY held too: routed at once it would open a menu
     e.settle();
     CHECK_FALSE(e.r.host.quit);
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
     CHECK(e.r.session().panels.keyboard == e.kind); // the held press was replayed...
     CHECK(e.doc_row(0) == "on?e!");                  // ...and the held text landed
-    CHECK_FALSE(e.r.session().panels.picker.open);   // ...and the held key went to the pane
+    CHECK_FALSE(e.r.session().context.open);         // ...and the held key went to the pane
     // CLEAN, WITH AN EDIT RACING: the quit is answered on the clean document and the process
     // ends; the character never reached a pane, so nothing was dirtied and nothing was lost.
     e.save();
@@ -1516,11 +1537,11 @@ TEST_CASE("EDIT-W26: printable text edits the source, and command letters stop b
     e.press_doc(0, 3);
     e.key(input::scan::kQ);
     e.type("q");
-    e.key(input::scan::kP);
-    e.type("p");
-    CHECK(e.doc_row(0) == "oneqp");
+    e.key(input::scan::kA);
+    e.type("a");
+    CHECK(e.doc_row(0) == "oneqa");
     CHECK_FALSE(e.r.host.quit);
-    CHECK_FALSE(e.r.session().panels.picker.open);
+    CHECK_FALSE(e.r.session().context.open);
 }
 
 TEST_CASE("EDIT-W27: ^c copies, does not quit, and the copy reaches the platform clipboard") {
@@ -1959,7 +1980,7 @@ TEST_CASE("EDIT-W45: a sweep in a pane that lost its seat ends, and sends nothin
     e.press_doc(0, 1);
     REQUIRE(e.r.session().text_drag.active);
     e.r.session().panels.keyboard = kNoPaneKind; // the keys put down with no gesture
-    e.r.pick(editor_ref()); // the pane is removed mid-sweep (the picker's own keys)
+    e.r.pick(editor_ref()); // the pane is closed mid-sweep, through the close door
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.motion_cell(body.x + 2, body.y + 3);
@@ -2681,17 +2702,18 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     // ⚔ THE FINDING, RE-ESTABLISHED AT THE NEW CONVERSATION'S MILESTONES. A real
     // `SurfaceExtent` delivered to the desk BEFORE the pane's ask leaves the Editor waiting for
     // room, so the trial seat has nothing to commit to and refuses. The document that was open
-    // stands, the requester is told the picker's words, and the desk did not move for this
+    // stands, the requester is told the launch door's words, and the desk did not move for this
     // operation -- the seat the Editor lost, it lost to the maker's own shrink.
     //
     // RESTAGED for the managed opening, at the managed door: the shrink lands
     // between the manager's binding of the desk and the desk's trial, so the trial finds no
-    // seat and refuses with the picker's words; nothing was offered and nothing published.
+    // seat and refuses with the launch door's words; nothing was offered and nothing published.
     EditorRig e("edit-shrink-before");
     e.open(160, 48, /*pick_it=*/false);
-    e.r.pick(ref_of(panel::kPaneEditor)); // the Pane Manager takes the stack ahead of it
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
-    const std::string a_path = e.open_file("a.cpp", "one\n"); // seated behind the Manager
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref); // the second pane takes the stack ahead of it
+    REQUIRE(e.r.session().panels.has(other.kind));
+    const std::string a_path = e.open_file("a.cpp", "one\n"); // seated behind the other
     REQUIRE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
@@ -2706,10 +2728,10 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
         loom::WeaveId{}, 0));
     // MILESTONE 2: one turn delivers the request (the manager binds the Editor and the desk as
     // they are, and asks the desk for a trial) and then the shrink (the Editor, authored
-    // behind the Manager, loses its seat). The trial is queued behind both, so this is the
+    // behind the other pane, loses its seat). The trial is queued behind both, so this is the
     // desk it will be judged on.
     (void)e.r.bus.pump_pending();
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    REQUIRE(e.r.session().panels.has(other.kind));
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));           // room lost...
     CHECK(has_pane(e.r.session().setup.active, editor_ref())); // ...by the shrink; the row stands
     CHECK(e.asker->opens.size() == before);                    // ...with the open still in flight
@@ -2721,8 +2743,8 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     REQUIRE(e.asker->opens.size() == before + 1);
     const SourceOpened said = e.asker->opens.back();
     CHECK_FALSE(said.accepted);
-    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, then p "
-                          "again");
+    CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, then "
+                          "try again");
     CHECK(e.r.session().notice == said.refusal);
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == "one\n");
@@ -2745,8 +2767,9 @@ TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation c
     // interleavings, because the reviewer's ran the shrink between the two owners' showings.
     EditorRig e("edit-shrink-after");
     e.open(160, 48, /*pick_it=*/false);
-    e.r.pick(ref_of(panel::kPaneEditor));
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref);
+    REQUIRE(e.r.session().panels.has(other.kind));
     const std::string a_path = e.open_file("a.cpp", "one\n");
     REQUIRE(e.r.session().panels.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
@@ -2895,9 +2918,9 @@ TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in wo
 
 TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
     // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT. RESTAGED for the managed
-    // opening: the picker's removal is queued behind the request, so one
-    // turn has the manager bind the desk as it is and then the picker take the Editor off
-    // it. The desk the operation bound is not the desk any more: its offer is refused by the
+    // opening: a close is queued behind the request, so one turn has the manager bind the
+    // desk as it is and then the close take the Editor off it. (The removal was the picker's,
+    // walked by keys in the same poll, until the picker retired.) The desk the operation bound is not the desk any more: its offer is refused by the
     // bus, the operation ends with nothing published, the requester is told, and the maker's
     // removal stands -- a stale preparation cannot undo newer intent. Asked again, the same
     // request seats the pane with B.
@@ -2906,26 +2929,14 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
     const std::string a_path = e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
-    e.unfocus(); // the picker is command mode's row
-    const std::vector<CatalogRow> rows = combined_catalog(e.r.session().panels);
-    std::size_t want = 0;
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].ref == editor_ref()) {
-            want = i;
-        }
-    }
     const std::size_t before = e.asker->opens.size();
     e.enqueue_open(b_path);
     REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
-    // THE REMOVAL, QUEUED BEHIND THE REQUEST: the picker opens, walks to the Editor's row, and
-    // Return removes it. None of it drains; it is one poll's burst.
-    e.enqueue_key(input::scan::kP);
-    for (std::size_t i = 0; i < want; ++i) {
-        e.enqueue_key(input::scan::kDown);
-    }
-    e.enqueue_key(input::scan::kReturn);
+    // THE REMOVAL, QUEUED BEHIND THE REQUEST: the close door, as an office asks it. Nothing
+    // drains.
+    enqueue_close(e.r, editor_ref());
     // ONE TURN: the manager binds the Editor and the desk and asks for a trial; then the
-    // picker removes the Editor. The flight is outstanding across the removal.
+    // close removes the Editor. The flight is outstanding across the removal.
     (void)e.r.bus.pump_pending();
     REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
@@ -2984,8 +2995,8 @@ TEST_CASE("EDIT-W62: an application row a pane stands in for belongs to every co
     CHECK_FALSE(k.app_row_active(*term, KeyContext::kPane, 7));
     CHECK(k.app_row_active(*term, KeyContext::kContext, 7));
     CHECK(k.app_row_active(*term, KeyContext::kNaming, 7));
-    CHECK(k.app_row_active(*term, KeyContext::kPicker, 7));
-    CHECK(k.app_row_active(*term, KeyContext::kDraft, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kArrangeDesk, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kCommand, 7));
     CHECK(Keymap::owner_of(KeyContext::kPane, 7) == 7);
     CHECK(Keymap::owner_of(KeyContext::kContext, 7) == kNoPaneKind);
 }
@@ -3451,10 +3462,10 @@ TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three
     CHECK(e.r.session().panels.selected == e.kind);
     CHECK(e.r.session().panels.keyboard == e.kind);
     CHECK(e.r.bus.joint_pending() == 0);
-    // ...AND UNRELATED PANE INTERACTION PROGRESSES: the picker seats the Pane Manager.
-    e.unfocus();
-    e.r.pick(ref_of(panel::kPaneEditor));
-    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    // ...AND UNRELATED PANE INTERACTION PROGRESSES: a second pane is launched and seated.
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref);
+    CHECK(e.r.session().panels.has(other.kind));
     CHECK(e.read("text") == typed + "|P|\n"); // ...and A is untouched by it
 }
 
@@ -3501,15 +3512,15 @@ TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arra
     CHECK(e.r.bus.joint_pending() == 0);
     CHECK(e.opening().committed == committed + 1);
     CHECK(e.opening().last_outcome == "committed");
-    // A LATER, INDEPENDENT SETUP CHANGE SURVIVES: the Pane Manager is seated; B, asked again,
+    // A LATER, INDEPENDENT SETUP CHANGE SURVIVES: a second pane is seated; B, asked again,
     // opens beside it and undoes nothing.
-    e.unfocus();
-    e.r.pick(ref_of(panel::kPaneEditor));
-    REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref);
+    REQUIRE(e.r.session().panels.has(other.kind));
     const std::size_t panes = e.r.session().setup.active.panes.size();
     const SourceOpened again = e.ask_open(b_path);
     CHECK_MESSAGE(again.accepted, again.refusal);
-    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    CHECK(e.r.session().panels.has(other.kind));
     CHECK(e.r.session().setup.active.panes.size() == panes);
     CHECK(e.doc_row(0) == "two");
 }
@@ -3668,9 +3679,10 @@ TEST_CASE("EDIT-W75: a silent or failed preparation stays pending and inspectabl
         REQUIRE(pending != nullptr);
         CHECK(pending->detail.find(kEditorRole) != std::string::npos);
         CHECK(pending->detail.find("prepare") != std::string::npos);
-        // UNRELATED WORK IS NOT BLOCKED: the picker seats the Pane Manager.
-        e.r.pick(ref_of(panel::kPaneEditor));
-        CHECK(e.r.session().panels.has(panel::kPaneEditor));
+        // UNRELATED WORK IS NOT BLOCKED: a second pane is launched and seated.
+        const SecondPane other = second_pane(e);
+        e.r.pick(other.ref);
+        CHECK(e.r.session().panels.has(other.kind));
         // A NEW REQUEST SUPERSEDES THE PENDING ONE: the first requester is told; the second is
         // pending in turn; nothing was ever fabricated.
         e.enqueue_open(c_path);
@@ -3903,22 +3915,22 @@ TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, 
         CHECK(e.opening().committed == 1);
         CHECK(e.opening().last_outcome == "committed");
     }
-    SUBCASE("no room refuses the open in the picker's words, and nothing is authored or moved") {
+    SUBCASE("no room refuses the open in the launch door's words, and nothing is authored or moved") {
         EditorRig e("edit-old-door-noroom");
         e.open(160, kMinScreen.h, /*pick_it=*/false);
         put_bytes(e.root / "first.cpp", "first\n");
         REQUIRE(e.ask_open_direct(spelled(e.root / "first.cpp")).accepted);
         REQUIRE(e.r.session().panels.has(e.kind));
-        e.unfocus();
-        e.r.pick(editor_ref()); // the picker's other direction: it removes the open pane
-        e.r.pick(ref_of(panel::kPaneEditor));
-        REQUIRE(e.r.session().panels.has(panel::kPaneEditor));
+        e.r.pick(editor_ref()); // the close door: it takes the open Editor off the desk
+        const SecondPane other = second_pane(e);
+        e.r.pick(other.ref);
+        REQUIRE(e.r.session().panels.has(other.kind));
         REQUIRE_FALSE(e.r.session().panels.has(e.kind));
         put_bytes(e.root / "a.cpp", "held\n");
         const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
         CHECK_FALSE(said.accepted);
         CHECK(said.refusal == "no room for Editor on this screen -- make the window taller, "
-                              "then p again");
+                              "then try again");
         CHECK(e.asker->opens_authentic.back());
         CHECK(e.r.session().notice == said.refusal);
         CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
@@ -4160,10 +4172,10 @@ TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is hel
         CHECK(a.value().get("fail_next")->as_int() == 0);
         CHECK(e.r.bus.has_failed_application(e.image)); // the read changed nothing
     }
-    // UNRELATED WORK GOES ON: the picker seats the Pane Manager.
-    e.unfocus();
-    e.r.pick(ref_of(panel::kPaneEditor));
-    CHECK(e.r.session().panels.has(panel::kPaneEditor));
+    // UNRELATED WORK GOES ON: a second pane is launched and seated.
+    const SecondPane other = second_pane(e);
+    e.r.pick(other.ref);
+    CHECK(e.r.session().panels.has(other.kind));
     // THE REPAIR: a real reload through the control door. The successor is shown the
     // published value at its first delivery (its own activation), applies it, and the bus
     // tells the manager -- which re-reads the record it RETAINED for exactly this late word
@@ -4812,11 +4824,11 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its offi
     CHECK_FALSE(stopped);
     CHECK_FALSE(std::filesystem::exists(session)); // an undeliverable question is no permission
     CHECK(e.r.bus.has_failed_application(e.image)); // the hold is Loom's, and untouched
-    // THE KEYS ARE THE MAKER'S: the picker opens, and closes.
-    e.r.key(input::scan::kP);
-    CHECK(e.r.session().panels.picker.open);
+    // THE KEYS ARE THE MAKER'S: the contextual surface opens, and closes.
+    e.r.key(input::scan::kA);
+    CHECK(e.r.session().context.open);
     e.r.key(input::scan::kEscape);
-    CHECK_FALSE(e.r.session().panels.picker.open);
+    CHECK_FALSE(e.r.session().context.open);
     // ASKED AGAIN BEFORE THE REPAIR, IT IS A FRESH QUIT, refused the same way -- never "waiting".
     CHECK_FALSE(e.quit_by_key());
     CHECK_MESSAGE(e.r.session().notice.rfind(refused, 0) == 0, e.r.session().notice);
@@ -4838,16 +4850,16 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     EditorRig e("quit-held-queued");
     hold_the_editor(e);
     e.unfocus();
-    // ONE POLL'S BATCH: the quit, and the picker right behind it.
+    // ONE POLL'S BATCH: the quit, and the contextual surface's key right behind it.
     e.enqueue_key(input::scan::kQ);
-    e.enqueue_key(input::scan::kP);
+    e.enqueue_key(input::scan::kA);
     e.settle();
     CHECK_FALSE(e.r.host.quit);
-    // THE HELD `p`, REPLAYED AFTER THE REFUSAL, opened the picker -- whose own hint is the notice
-    // now, as a replayed gesture's word always replaced the refusal it followed.
-    CHECK_MESSAGE(e.r.session().panels.picker.open, e.r.session().notice);
+    // THE HELD `a`, REPLAYED AFTER THE REFUSAL, opened the contextual surface. (It was `p` and the
+    // picker until the picker retired.)
+    CHECK_MESSAGE(e.r.session().context.open, e.r.session().notice);
     e.r.key(input::scan::kEscape);
-    REQUIRE_FALSE(e.r.session().panels.picker.open);
+    REQUIRE_FALSE(e.r.session().context.open);
     // ...AND THE QUIT IS OVER, not waiting: the close box asks afresh, and is refused afresh.
     close_box(e);
     CHECK_MESSAGE(e.r.session().notice.find("the quit could not ask ") == 0, e.r.session().notice);
@@ -4905,8 +4917,8 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
                   e.r.session().notice);
     CHECK(e.r.session().notice.find("zengine.test.quit-quiet") == std::string::npos);
     // THE KEYS ARE THE MAKER'S, although an answer is still owed.
-    e.r.key(input::scan::kP);
-    CHECK(e.r.session().panels.picker.open);
+    e.r.key(input::scan::kA);
+    CHECK(e.r.session().context.open);
     e.r.key(input::scan::kEscape);
     // REVIVED AND HOLDING WORK, THE PARTICIPANT THAT SHOWS NOTHING REFUSES THE NEXT QUIT in its
     // own words; the quiet one permits this time. Once it permits too, the quit is the exit.
@@ -4956,8 +4968,8 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     CHECK_FALSE(e.quit_by_key());
     close_box(e);
     REQUIRE(e.r.session().notice == waiting);
-    e.r.key(input::scan::kP);
-    CHECK_FALSE(e.r.session().panels.picker.open); // held, as an asked quit holds every gesture
+    e.r.key(input::scan::kA);
+    CHECK_FALSE(e.r.session().context.open); // held, as an asked quit holds every gesture
     REQUIRE(quiet->asks.size() == 1);
     const std::uint64_t live = quiet->asks[0]; // the live ask's own number, as it was delivered
     // EACH LOOK-ALIKE MUST REALLY HAPPEN, WITH THAT NUMBER, or its step proves nothing: the tap
@@ -5151,8 +5163,8 @@ TEST_CASE("the close box and the interrupt chord meet the same refusal as q when
     close_box(e);
     CHECK_FALSE(e.r.host.quit);
     CHECK_MESSAGE(e.r.session().notice.rfind(refused, 0) == 0, e.r.session().notice);
-    e.r.key(input::scan::kP);
-    CHECK(e.r.session().panels.picker.open);
+    e.r.key(input::scan::kA);
+    CHECK(e.r.session().context.open);
     e.r.key(input::scan::kEscape);
     e.unfocus();
     REQUIRE(e.r.session().notice.rfind(refused, 0) != 0);

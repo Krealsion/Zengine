@@ -291,14 +291,7 @@ TEST_CASE("SEL-0: management chrome gets first refusal, and a mode takes the pre
     // `(1, 1)` would be inside the pane it is meant to be outside of.
     const auto away = [&]() { r.press_cell(panel.x + 1, panel.y + panel.h + 1); };
 
-    SUBCASE("the picker is over the pane") {
-        seat->presses.clear();
-        away();
-        r.key(input::scan::kP);
-        REQUIRE(r.session().panels.picker.open);
-        r.press_cell(panel.x + 1, body_y);
-        CHECK(seat->presses.empty());
-    }
+    // (THE `p` PICKER OVER THE PANE WAS A SUBCASE HERE, and retired with the picker.)
     SUBCASE("pane management owns the pointer") {
         seat->presses.clear();
         away();
@@ -367,6 +360,10 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     // (`DocumentShown`, the object document's picture for Info, was an eighth and retired with
     // that document. Its successor `PaneSubjectShown` is said only once an inspector has named
     // a pane (WL-INFO-14), which nothing in this life does.)
+    //
+    // ⚠ `PaneLaunchAnswered` IS THE EIGHTH NOW, AND IT IS ADDRESSED. The pane is opened through
+    // the launch door (WL-DESK-03), whose answer goes to the office that asked -- this suite's
+    // hand, standing where the retired picker's keys stood -- and to nobody else.
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};
@@ -393,10 +390,10 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"PaneCatalogRequested", "PanePressed",
-                                           "PaneRoom",             "StandingConditions",
-                                           "SurfaceCanvas",        "SurfaceText",
-                                           "TranscriptShown"};
+    const std::vector<std::string> allowed{"PaneCatalogRequested", "PaneLaunchAnswered",
+                                           "PanePressed",          "PaneRoom",
+                                           "StandingConditions",   "SurfaceCanvas",
+                                           "SurfaceText",          "TranscriptShown"};
     CHECK(distinct == allowed);
 
     // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three
@@ -1151,7 +1148,7 @@ TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
     REQUIRE(ears.heard.size() == 1);
 
     CHECK(r.session().panels.open.size() == panels_before);
-    CHECK_FALSE(r.session().panels.picker.open);
+    CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
     CHECK(r.last_notice() == notice_before);
     CHECK(r.session().setup.active == setup_before);
@@ -1328,29 +1325,32 @@ TEST_CASE("MSG-0: a press into a second external pane moves the keyboard to it")
     CHECK(second->keys[0].scancode == input::scan::kDown);
 }
 
-TEST_CASE("MSG-0: typing `p` into a focused pane does not open the picker") {
+TEST_CASE("MSG-0: typing `a` into a focused pane does not open the contextual surface") {
     // Section 24's product pressure, measured in both directions. It is the one case
-    // that says the priority is real rather than described.
+    // that says the priority is real rather than described. (The letter was `p` and the mode
+    // the picker, until the picker retired; `a` is the bare command key that opens a mode now.)
     PaneRig r;
     r.mount_workshop();
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
 
-    // WITH NO OWNER, `p` IS STILL WORKSHOP'S. Nothing about the old binding moved.
-    r.key(input::scan::kP);
-    CHECK(r.session().panels.picker.open);
+    // WITH NO OWNER, `a` IS STILL WORKSHOP'S. Nothing about the binding moved.
+    press_outside(r, kind);
+    r.key(input::scan::kA);
+    r.text("a");
+    CHECK(r.session().context.open);
     r.key(input::scan::kEscape);
-    REQUIRE_FALSE(r.session().panels.picker.open);
+    REQUIRE_FALSE(r.session().context.open);
 
     press_body(r, kind);
-    r.key(input::scan::kP);
-    r.text("p"); // the character the same keystroke produced
-    CHECK_FALSE(r.session().panels.picker.open);
+    r.key(input::scan::kA);
+    r.text("a"); // the character the same keystroke produced
+    CHECK_FALSE(r.session().context.open);
     REQUIRE(seat->keys.size() == 1);
-    CHECK(seat->keys[0].scancode == input::scan::kP);
+    CHECK(seat->keys[0].scancode == input::scan::kA);
     REQUIRE(seat->typed.size() == 1);
-    CHECK(seat->typed[0].text == "p");
+    CHECK(seat->typed[0].text == "a");
 
     // ...and every other printable is the pane's too while it has the keyboard: `w` opens no
     // mode, and `n` and `d` (the retired object canvas's, once) reach the pane like any letter.
@@ -1377,17 +1377,17 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     // in this case. `p` reaches the PANE now, exactly as `a` does: a pane that holds the
     // keyboard holds it, and the way out is a press elsewhere.
     r.key(input::scan::kP);
-    CHECK_FALSE(r.session().panels.picker.open);
     REQUIRE(seat->keys.size() == 1);
     CHECK(seat->keys[0].scancode == input::scan::kP);
     r.key(input::scan::kA);
+    CHECK_FALSE(r.session().context.open);
     CHECK(seat->keys.size() == 2);
 
     // CTRL+C IS THE PANE'S WHILE IT HOLDS THE KEYBOARD (TEXT-0). A focused pane is a place
     // that takes text, and `^c` over text means copy, so the chord travels the chain and
-    // crosses the seam like any other -- the provider decides what it means. `^s` and `^o`
-    // still outrank the pane (the case below this one drives them), and quit is one
-    // press-elsewhere away.
+    // crosses the seam like any other -- the provider decides what it means. (`^s` and `^o`
+    // outranked the pane until the object document retired; the application's launches do
+    // now, and are the desktop's.) Quit is one press-elsewhere away.
     CHECK_FALSE(r.host.quit);
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(r.host.quit);
@@ -1414,17 +1414,17 @@ TEST_CASE("MSG-0: every Workshop mode owns the keyboard above a focused pane") {
     press_body(r, kind);
     REQUIRE(r.session().panels.keyboard == kind);
 
-    // THE PICKER. It is reachable only from command mode, which a focused pane is
-    // not -- so it is opened by the gesture that always could: a press elsewhere,
-    // then `p`.
-    press_outside(r, kind);
-    r.key(input::scan::kP);
-    REQUIRE(r.session().panels.picker.open);
-    press_body(r, kind); // a press while the picker is open is the picker's...
-    CHECK(r.session().panels.picker.open);
+    // THE CONTEXTUAL SURFACE, opened by a right press on the focused pane itself: pointing names
+    // a subject and moves no candidate (WL-CTX-01), and the surface owns the keys while it is
+    // open. (The first mode here was the `p` picker, until it retired.)
+    const ui::Rect slot = pane_body_cells(external_panel_rect(r.session(), kind));
+    r.right_press_cell(slot.x + 1, slot.y + 1);
+    REQUIRE(r.session().context.open);
+    REQUIRE(r.session().panels.keyboard == kind);
     r.key(input::scan::kDown);
-    CHECK(seat->keys.empty()); // ...and so is the key
+    CHECK(seat->keys.empty()); // the key is the surface's
     r.key(input::scan::kEscape);
+    REQUIRE_FALSE(r.session().context.open);
 
     // PANE MANAGEMENT owns the pointer and the keyboard whole while it is open.
     press_body(r, kind);
@@ -1470,16 +1470,15 @@ TEST_CASE("MSG-0: a pane that stops being presentable stops being typed into") {
     r.key(input::scan::kUp);
     REQUIRE(seat->keys.size() == 1);
 
-    // ...and the keyboard goes back to Workshop first, because `p` would otherwise be
-    // the pane's -- which is the rule this file's own case one row up establishes.
-    press_outside(r, kind);
-    r.pick(PaneRef{kHelloOffice, kHelloPane}); // the picker's Return closes an open row
+    // ...and the pane is closed from outside it, the way the Pane Manager closes one.
+    r.pick(PaneRef{kHelloOffice, kHelloPane}); // the close door, for an open row
     REQUIRE_FALSE(r.session().panels.has(kind));
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == 1); // nothing was sent
-    // ...and `p` is Workshop's again, because nothing owns the keyboard.
-    r.key(input::scan::kP);
-    CHECK(r.session().panels.picker.open);
+    // ...and `a` is Workshop's again, because nothing presentable owns the keyboard.
+    r.key(input::scan::kA);
+    r.text("a");
+    CHECK(r.session().context.open);
 }
 
 TEST_CASE("MSG-0: a press on a pane's header claims the keyboard and names no row") {
@@ -2856,7 +2855,7 @@ TEST_CASE("MSG-0: selecting a weave in the real Loaded pane retargets the real C
     // its own target. Nothing opened, closed, moved or was hidden.
     CHECK(r.session().panels.open.size() == 3); // Layouts, Loaded, Compose
     CHECK(r.session().panels.has(panel::kLayouts));
-    CHECK_FALSE(r.session().panels.picker.open);
+    CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
 }
 
@@ -2896,7 +2895,7 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK(r.last_notice() == notice_before);
     CHECK(r.session().panels.selected == selected_before);
     CHECK(r.session().panels.has(panel::kLayouts));
-    CHECK_FALSE(r.session().panels.picker.open);
+    CHECK_FALSE(r.session().context.open);
     CHECK_FALSE(r.session().arrange.open);
 }
 

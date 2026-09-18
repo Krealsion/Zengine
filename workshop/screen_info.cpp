@@ -39,11 +39,10 @@ BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
 
 // ⭐ `draft_live`, `document_shown` AND `same_document` WERE HERE -- a draft on the object
 // inspector's rows, and the object document's picture across the pane seam -- and retired with
-// the prototype canvas. A pane's picture is `pane_subject_shown` (`screen_pane_editor.cpp`).
+// the prototype canvas. A pane's picture is `pane_subject_shown` (`screen_pane_subject.cpp`).
 
 // ---- One windowed list's rows, mapped both ways ------------------------------------------
 
-// WL-PED-04 -- agents/workshop/pane-manager.md
 std::int64_t prose_row_in_window(const ListWindow& w, std::int64_t first_row,
                                  std::size_t index) {
     if (index < w.first || index - w.first >= w.count) {
@@ -109,10 +108,11 @@ TextSelectionSpan property_selection_columns(const Row& row,
 // the object row texts and `paint_info` went together, because they were one composition and
 // half of it would have been a geometry with nobody to draw.
 //
-// WHAT STAYED, AND WHY EACH ONE IS NOT THE PANEL'S. `share_body_rows` is the max-min share and
-// the Pane Manager spends it too; `prose_row_in_window` and `item_at_prose_row` are a WINDOW's
-// arithmetic with the same two callers; the three property-row functions below are the PANE
-// MANAGER's row composition, which happens to have been written here first. (`draft_live`,
+// WHAT STAYED, AND WHY EACH ONE WAS NOT THE PANEL'S. `share_body_rows` is the max-min share, and
+// the host's Pane Manager spent it too; `prose_row_in_window` and `item_at_prose_row` are a
+// WINDOW's arithmetic with the same two callers; the three property-row functions below were the
+// PANE MANAGER's row composition, which happened to have been written here first. That manager
+// retired as well, and took its callers with it. (`draft_live`,
 // `document_shown` and `same_document` stayed here too, and retired with the object document.)
 //
 // ⚠ AND `action_availability` LEFT AFTER THE OTHERS. It was kept one stage longer on the

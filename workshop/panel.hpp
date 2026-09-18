@@ -50,9 +50,10 @@ namespace panel {
 /// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE.
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kLayouts = 4;
-/// THE PANE EDITOR: the built-in whose SUBJECT is an ordinary Workshop pane.
-// WL-PED-01 -- agents/workshop/pane-manager.md
-inline constexpr std::int64_t kPaneEditor = 5;
+// 5 IS RETIRED. It was the host's Pane Manager -- the built-in whose subject was a pane -- until
+// its duties went to the desktop's Pane Manager (launching, closing, making a pane) and to Info
+// (a pane as a subject, and its properties). A desk that names it is converted at load
+// (`pane_migration.hpp`), and the number is left unused for 3's reason.
 } // namespace panel
 
 /// WHERE a panel kind is presented. Three, because Workshop has three places and no
@@ -138,13 +139,14 @@ namespace pane_key {
 // `pane_migration.hpp`, once, as a historical fact about files already written. `editor`
 // went the same way one migration later, to `editor-pane/vocabulary.hpp`.
 inline constexpr const char* kLayouts = "layouts";
-inline constexpr const char* kPaneEditor = "pane-editor";
+// `pane-editor` IS RETIRED HERE and spelled once, as a historical fact about files already
+// written, in `pane_migration.hpp`.
 } // namespace pane_key
 
-/// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
-/// opened, because the picker is the only door and the picker walks this array.
+/// THE CATALOG. Workshop's own, and complete: the one pane this host presents itself. Every
+/// other pane is offered by an office, and a launch or a restore resolves against the one
+/// inventory these rows open.
 // WL-FOCUS-02 -- agents/workshop/focus.md
-// WL-PED-01 -- agents/workshop/pane-manager.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr PanelKind kPanelCatalog[] = {
     // ⭐ THE SOURCE EDITOR'S ROW WAS FIRST HERE AND IS GONE. Its presentation AND its document
@@ -172,14 +174,11 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // takes the row while it is open, which is where a typed layout name goes.
     {panel::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
      "layout tabs and setup"},
-    // THE PANE MANAGER: the name a maker reads. Its durable pane key stays `pane-editor`
-    // because a key is a promise to every setup and session file that already names it;
-    // what moved is the word, because the surface inventories, places and orders panes and
-    // a maker-facing name that claimed to EDIT a pane's inside was claiming a tool that did
-    // not exist. The Pane Creator -- the workflow that makes a pane whose inside is authored
-    // data -- lives inside this pane (`n`), and is deliberately the narrower name.
-    {panel::kPaneEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kPaneEditor,
-     "Pane Manager", "manage a pane", true},
+    // ⭐ THE PANE MANAGER'S ROW WAS HERE, the host's own manager of every pane. It is the
+    // desktop's pane now (`zengine.desktop/launcher`, "Pane Manager"): an ordinary participant
+    // that lists the one inventory, launches and closes through the host's doors and makes a
+    // pane through the Pane Creator's, while a pane's subject and properties are Info's. A desk
+    // naming `zengine.workshop/pane-editor` is read as the desktop's (`pane_migration.hpp`).
 };
 
 // WL-CAT-01 -- agents/workshop/catalog.md
@@ -325,20 +324,9 @@ static_assert(every_reference_is_one_kind(),
               "two panel kinds share one durable reference: a saved setup naming it would "
               "resolve to whichever of them the catalog happens to list first");
 
-/// The `+ panel` picker: open or not, and which entry a maker is on.
-// WL-PANE-14 -- agents/workshop/panes-and-windows.md
-struct PanelPicker {
-    bool open = false;
-    std::size_t cursor = 0;
-    double wheel_accum = 0.0; /// < fractional wheel notches not yet worth a row
-};
-
-/// WHAT A MAKER CALLS THE PICKER — the words on the hint that opens it, so that a
-/// sentence about the box on the screen uses the name printed beside the key that
-/// put it there. It is here rather than in the catalog because the picker has no
-/// catalog row; it is the one presentation that names itself.
-// WL-PANE-14 -- agents/workshop/panes-and-windows.md
-inline constexpr const char* kPickerName = "+ panel";
+// ⚠ THE `+ panel` PICKER'S STATE (`PanelPicker`) AND ITS NAME WERE HERE. The picker was a mode
+// that took the keyboard whole and toggled participation; it retired once its two duties were
+// the desktop's Pane Manager's rows over the host's launch and close doors.
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
 /// spend and held by nobody.
@@ -534,11 +522,9 @@ inline std::vector<Panel> default_panels() {
     return open;
 }
 
-/// Every dynamic panel this session has open, plus the picker and the per-kind
-/// views. Session, never document.
+/// Every dynamic panel this session has open, and the per-kind views. Session, never document.
 struct Panels {
     std::vector<Panel> open = default_panels();
-    PanelPicker picker;
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones. It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE

@@ -49,7 +49,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 LAW — Info owns no act still: naming a subject and writing a property are the host's doors (`InspectPaneRequested`, `PaneCommitRequested`), answered by the party that owns the rows.
 
 PROVEN BY — `info-pane/pane.cpp` `ask_inspect`, `ask_commit`;
-`workshop/weave_pane_editor.cpp` `on(InspectPaneRequested)`, `on(PaneCommitRequested)`;
+`workshop/weave_inspection.cpp` `on(InspectPaneRequested)`, `on(PaneCommitRequested)`;
 `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on a pane row inspects it,
 through the host's own door"`.
 WHY — `agents/decisions/a-component-is-earned.md`

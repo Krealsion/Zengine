@@ -32,8 +32,8 @@ void WorkshopWeave::open_arrange_desk() {
     a.resetting = false;
     a.pane = PaneRef{};
     if (arrangeable().empty()) {
-        say("arrange desk -- this setup names no panes; " + hotkey(Act::kPicker) +
-                " opens one, " + hotkey(Act::kManageClose) + " leaves",
+        say("arrange desk -- this setup names no panes; the Pane Manager opens one, " +
+                hotkey(Act::kManageClose) + " leaves",
             false);
         return;
     }
@@ -91,7 +91,7 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
         false);
 }
 
-// WL-ARR-03 -- agents/workshop/arrangement.md; WL-PED-03 -- agents/workshop/pane-manager.md
+// WL-ARR-03 -- agents/workshop/arrangement.md
 void WorkshopWeave::forget_removed_selection() {
     // ⚠ THE PANE EDITOR'S SUBJECT IS DELIBERATELY NOT REPAIRED HERE. The
     // arrangement's address is a claim about a pane ON THE DESK, so a removal ends it;
@@ -148,7 +148,7 @@ std::string WorkshopWeave::arrange_status() const {
 void WorkshopWeave::arrange_step(std::int64_t by) {
     const std::vector<PaneRef> rows = arrangeable();
     if (rows.empty()) {
-        say("this setup names no panes -- " + hotkey(Act::kPicker) + " opens one", true);
+        say("this setup names no panes -- the Pane Manager opens one", true);
         return;
     }
     PaneArrange& a = session_.arrange;
@@ -185,8 +185,8 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     // the cause. For the mode's own selection this branch is unreachable today (the
     // clearing runs inside `apply_setup`), and it is written anyway: belt, not door.
     if (!has_pane(session_.setup.active, ref)) {
-        return Written::no(ref_text(ref) + " is no longer in this setup -- " +
-                           hotkey(Act::kPicker) + " can bring it back");
+        return Written::no(ref_text(ref) +
+                           " is no longer in this setup -- the Pane Manager can bring it back");
     }
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
     if (!kind.has_value()) {
@@ -350,7 +350,7 @@ void WorkshopWeave::arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& m
                    dx * surface::kCellSubs, dy * surface::kCellSubs, mail);
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-PED-05 -- agents/workshop/pane-manager.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mail) {
     if (ref.provider.empty()) {
         say("no pane is addressed -- " + hotkey(Act::kManageNext) + " steps to one",
@@ -359,8 +359,7 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     }
     Setup& s = session_.setup.active;
     if (!has_pane(s, ref)) {
-        say(ref_text(ref) + " is no longer in this setup -- " + hotkey(Act::kPicker) +
-                " can bring it back",
+        say(ref_text(ref) + " is no longer in this setup -- the Pane Manager can bring it back",
             true);
         return;
     }
@@ -427,14 +426,13 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
         if (!remove_pane(s, ref)) {
-            say(name + " is no longer in this setup -- " + hotkey(Act::kPicker) +
-                    " can bring it back",
+            say(name + " is no longer in this setup -- the Pane Manager can bring it back",
                 true);
             return;
         }
         apply_setup(mail);
-        say("removed " + name + " -- " + hotkey(Act::kPicker) +
-                " brings it back; nothing behind it was touched",
+        say("removed " + name + " -- the Pane Manager brings it back; nothing behind it was "
+                                "touched",
             false);
         return;
     }

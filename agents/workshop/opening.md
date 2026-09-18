@@ -94,7 +94,7 @@ LAW — No timeout, retry or forced recovery: an owner that never answers leaves
 
 MEANS
 - queue emptiness and elapsed time prove nothing; a newer request supersedes a preparation;
-- unrelated panes and the picker keep working while it stands;
+- unrelated panes and the doors keep working while it stands;
 - a refusal before any operation is the latest result under its own path and requester, with op 0;
 
 DOES NOT MEAN

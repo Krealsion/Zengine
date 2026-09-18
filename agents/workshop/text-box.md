@@ -26,7 +26,7 @@ WHY — `agents/decisions/a-component-is-earned.md`
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
 
 PROVEN BY — `component/text_box.hpp` `TextBox::consume`, `kEditingVocabulary`;
-`workshop/weave_seam.cpp` `editing_key`;
+`workshop/weave_session.cpp` `naming_key`;
 `workshop/property.hpp` `Row::keep_caret_visible`; `tests/test_component.cpp` case `"component:
 the capacity is an argument, so one box serves two different widths"`, case `"component: consume
 owns exactly the editing vocabulary and declines the rest"`.

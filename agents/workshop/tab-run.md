@@ -5,11 +5,11 @@ ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-TAB-01 — The run, the association and the workspace fact are the Layouts pane
 
-LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, picker recovery and session persistence.
+LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, launch recovery and session persistence.
 
 MEANS
 - what moved is who owns the rectangle, hence what a maker may do to it; the composition did not;
-- removing the pane strands nobody: the keys still step the run and the picker brings it back.
+- removing the pane strands nobody: the keys step the run and the Pane Manager brings it back.
 
 PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`, `kDefaultPanels`;
 `workshop/screen_layouts.cpp` `paint_layouts`, `layouts_body`; `tests/test_workshop_screen.cpp`

@@ -121,6 +121,17 @@ inline constexpr const char* kEditorProvider = "zengine.editor";
 /// row's `default` goes on meaning what it always meant and nothing is written.
 inline constexpr const char* kEditorPane = "editor";
 
+/// THE HOST'S OWN PANE MANAGER, AND THE DESKTOP'S PANE THAT IS THE PANE MANAGER NOW -- the fifth
+/// pair, and the first whose PANE KEY moved with its office: the host kept `pane-editor` for
+/// files' sake after the manager stopped editing anything, and the desktop's pane is `launcher`.
+/// What a maker authored -- that a pane manager sits on this desk, where and how large -- carries
+/// over; its subject and cursors were never in a file. Spelled here for `kFilesProvider`'s
+/// reasons, and checked against `desktop-pane/vocabulary.hpp` by a case.
+inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
+inline constexpr const char* kRetiredManagerPane = "pane-editor";
+inline constexpr const char* kManagerProvider = "zengine.desktop";
+inline constexpr const char* kManagerPane = "launcher";
+
 // ---- THE TABLE, AT THE THRESHOLD THIS FILE NAMED FOR ONE --------------------------------
 //
 // ⚠ THE THIRD PAIR IS THE ONE THAT BOUGHT THE TABLE, AND FOR THE REASON WRITTEN ABOVE RATHER
@@ -150,6 +161,8 @@ inline constexpr Retired kRetired[] = {
     {kRetiredBuilderProvider, kBuilderPane, kBuilderProvider, kBuilderPane, pane_unit::kDefault},
     {kRetiredInfoProvider, kInfoPane, kInfoProvider, kInfoPane, pane_unit::kRightColumn},
     {kRetiredEditorProvider, kEditorPane, kEditorProvider, kEditorPane, pane_unit::kDefault},
+    {kRetiredManagerProvider, kRetiredManagerPane, kManagerProvider, kManagerPane,
+     pane_unit::kDefault},
 };
 
 inline constexpr std::size_t kRetiredCount = sizeof(kRetired) / sizeof(kRetired[0]);
@@ -172,6 +185,11 @@ inline bool names_the_retired_info(const PaneRef& ref) {
 /// Is this the reference a saved file wrote for the built-in source Editor?
 inline bool names_the_retired_editor(const PaneRef& ref) {
     return ref.provider == kRetiredEditorProvider && ref.pane == kEditorPane;
+}
+
+/// Is this the reference a saved file wrote for the host's own Pane Manager?
+inline bool names_the_retired_manager(const PaneRef& ref) {
+    return ref.provider == kRetiredManagerProvider && ref.pane == kRetiredManagerPane;
 }
 
 /// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted per table row, because the sentence a

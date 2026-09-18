@@ -188,7 +188,7 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
                      "weave, @office for whoever holds a role, or * for everyone");
 }
 
-// WL-KEY-01 -- agents/workshop/keyboard.md; WL-PANE-12 -- agents/workshop/panes-and-windows.md
+// WL-KEY-01 -- agents/workshop/keyboard.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what the keymap changed is only
     // how a gesture becomes an action. The accidental subset aliases the old per-site tests
@@ -199,7 +199,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     // A maker's keymap row naming one of those ids is kept byte for byte and said at load
     // (`kRetiredActions`); nothing here answers it.
     switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
-    case Act::kPicker: open_picker(); break;
+    // ⭐ `p` WAS THE FIRST ARM HERE, and opened the picker; it retired with it (`kRetiredActions`).
     // ⭐ THE NINE BUILDER ARMS ARE GONE FROM COMMAND MODE (VD-22). `b`, `B`, `P`, `R`, `o`,
     // `c`, `C`, `f` and `e` were dispatched from here, each of them opening with "with no
     // Builder panel open this is an unbound key" -- which is what a command-mode row acting

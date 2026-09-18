@@ -52,9 +52,9 @@ MEANS
 PROVEN BY — `workshop/panel.hpp` `kMakerPaneKind`, `is_maker_kind`, `kind_takes_keyboard`,
 `placement_of`, `kFirstRuntimeKind`; `workshop/setup.hpp` `resolve_pane`, `resolvable`,
 `seat_panes`, `unresolved_panes`, `resolve_builtin_pane`; `workshop/screen_layouts.cpp`
-`setup_rest_text`; `tests/test_workshop_panels_creator.cpp` case "WUX-14/SC-1+SC-3+SC-9: `n` in
-the Pane Manager makes a named pane from data, and it lives on the desk exactly as every other
-pane does", case `"WUX-14/SC-19: a run with no maker pane is the run it always was"`.
+`setup_rest_text`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-1+SC-3+SC-9: the
+maker door makes a named pane from data, and it lives on the desk exactly as every other pane
+does"`, case `"WUX-14/SC-19: a run with no maker pane is the run it always was"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-05 — The pane on the desk is the preview; there is no second renderer
@@ -66,7 +66,7 @@ MEANS
 - a region authored at 126 px sits at pixel 126 of the interior; a terminal reads `~10 cells`;
 - too small for the face is the face's own answer; nothing rewrites the authored number to fit.
 
-PROVEN BY — `workshop/screen_compose.cpp` `paint_panels`; `workshop/screen_pane_editor.cpp`
+PROVEN BY — `workshop/screen_compose.cpp` `paint_panels`; `workshop/screen_pane_subject.cpp`
 `paint_maker_pane`, `present_region`; `workshop/screen_chrome.cpp` `bounds_of`, `pane_inside`,
 `fit_region_subs`; `workshop/screen.hpp` `clip_to_fine`; `surface/vocabulary.hpp` `kGroundOwn`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-8: a region is placed relative to the
@@ -84,7 +84,7 @@ MEANS
 - `paint_creator_region_mark` is a later plane: an accent rect at the exact resolved bounds;
 - proven by byte identity of `to_text` across faces, extents and repaints.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `maker_region`, `present_region`,
+PROVEN BY — `workshop/screen_pane_subject.cpp` `maker_region`, `present_region`,
 `paint_creator_region_mark`; `workshop/pane_definition_persist.hpp` `to_text`, `to_file`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-10: the Pane Creator marks the region it
 is editing on the pane itself, from the same resolution, and writes nothing"`, case `"WUX-14/SC-8:
@@ -98,9 +98,9 @@ LAW — One owner door per fact: a region's text and its four numbers go through
 
 MEANS
 - a region has no default mode: those are ordinary values the maker reads and retypes;
-- the manager's rows are adapters, the definition's doors are the law, Info owns none of it.
+- the subject's rows are adapters, the definition's doors are the law, Info owns none of it.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `write_region_text`, `write_region_axis`;
+PROVEN BY — `workshop/screen_pane_subject.cpp` `write_region_text`, `write_region_axis`;
 `workshop/screen_pane_state.cpp` `parse_face_amount`; `workshop/pane_definition.hpp`
 `set_region_text`, `author_region_axis`, `check_maker_pane_name`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-11: Text and the four numbers are edited
@@ -113,11 +113,12 @@ LAW — One session-owned open definition, dirty derived by comparison with its 
 
 MEANS
 - `close_panel` never touches `Panels::maker`; a never-saved pane is dirty by arithmetic;
-- refusals name `s` and `ctrl+d`; `open_maker_pane` is spent by startup and nothing else yet;
+- a refusal names the presenter's declared keys; `open_maker_pane` is spent by startup alone;
 - a refused file at the host's path is a wall (`kPaneWallKey`, `pane_refused_`) the save honours.
 
-PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_pane_editor.cpp` `open_maker_pane`,
-`save_maker_pane`, `discard_maker_pane_edits`, `new_maker_pane`; `workshop/weave.hpp`
+PROVEN BY — `workshop/weave_run.cpp` `quit`; `workshop/weave_maker.cpp` `open_maker_pane`,
+`save_maker_pane`, `discard_maker_pane_edits`, `new_maker_pane`, `pane_row_hotkey`,
+`maker_pane_dirty_sentence`; `workshop/weave.hpp`
 `WorkshopWeave::pane_refused_`, `HostContext::pane_path`; `workshop/weave_handlers.cpp`
 `host_pane_path`, `load_pane_definition`; `workshop/screen.hpp` `kPaneWallKey`;
 `workshop/pane_definition_persist.hpp` `LoadedDefinition`; `workshop/panel.hpp` `Panels::maker`;
@@ -159,19 +160,23 @@ WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-11 — The Pane Creator is the maker-facing workflow
 
-LAW — `n` in the Pane Manager opens a name prompt, Return makes the pane, `s` saves and `ctrl+d` discards; the default region is authored the moment it exists.
+LAW — The Pane Creator is the desktop Pane Manager's: `n` opens its name line, Return asks the host's maker door, `s` saves, `ctrl+d` discards; the default region is authored the moment it exists.
 
 MEANS
+- the host holds the definition and every refusal; the presenter holds the line and the keys;
 - `kNewRegionX/Y/W/H` are 0, 0, 24 cells, 2 cells: two tall so the face sets one row of type;
-- at the minimum composition a new pane lands `waiting`, says so, and stays the editable subject.
+- at the minimum composition a new pane lands `waiting`, says so, and stays editable.
 
-PROVEN BY — `workshop/keymap.hpp` `KeyContext::kPaneNaming`; `workshop/screen.hpp`
-`Session::pane_naming`, `PaneNaming`; `workshop/weave_pane_editor.cpp` `new_maker_pane`,
-`save_maker_pane`, `discard_maker_pane_edits`; `workshop/weave_seam.cpp` `naming_line`;
-`workshop/pane_definition.hpp` `kNewRegionX`; `tests/test_workshop_panels_creator.cpp` case
-`"WUX-14: the name prompt refuses a bad name in words and keeps it, cancels cleanly, and swallows
-its own trigger"`, case `"WUX-14: at the minimum composition a new pane lands waiting, is still
-the subject, and is still editable"`.
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `MakerPaneRequested`, `MakerPaneAnswered`,
+`kCreatorNewId`; `workshop/weave_maker.cpp` `new_maker_pane`, `on(MakerPaneRequested)`;
+`desktop-pane/pane.cpp` `open_naming`, `ask_maker`; `workshop/pane_definition.hpp`
+`kNewRegionX`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14: the maker door refuses a
+bad name in words and makes nothing"`, case `"WUX-14: at the minimum composition a new pane lands
+waiting, is still the subject, and is still editable"`; `tests/test_workshop_panes_actions.cpp`
+case `"WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name -- `n` opens its line,
+the trigger is not typed, and Return asks the host's door"`, case `"WL-MAKER-11: a name the host
+refuses keeps the line and what was typed, with the refusal under it; Escape cancels and makes
+nothing"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`
 
 ## WL-MAKER-12 — The code-backed answer is a capture
@@ -181,7 +186,7 @@ LAW — For every subject that is not the maker's pane, the interior is one read
 DOES NOT MEAN
 - that anything is decompiled or inferred: no controls, no pretence.
 
-PROVEN BY — `workshop/screen_pane_editor.cpp` `interior_capture_text`;
+PROVEN BY — `workshop/screen_pane_subject.cpp` `interior_capture_text`;
 `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-12: a code-backed subject's interior is
 a read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/one-way-a-pane-can-be-implemented.md`

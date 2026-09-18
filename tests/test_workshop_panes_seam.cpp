@@ -47,7 +47,7 @@
 //
 // One dynamically loaded external weave offers a read-only pane; Workshop
 // discovers it in either load order, resolves it through the unchanged two-string
-// `PaneRef`, lists it in the existing picker, opens it in Workshop-chosen room,
+// `PaneRef`, lists it in the one inventory, opens it in Workshop-chosen room,
 // grants it a prose budget, shows the rows it answers with, and closes it without
 // touching the provider.
 //
@@ -259,18 +259,15 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
     CHECK(admit_pane_offer(cat, kWorkshopProvider,
                            PaneOffered{pane_key::kLayouts, "Not Layouts", "a forgery"})
               .written.refusal == "`zengine.workshop/layouts` is a built-in pane");
-    CHECK(admit_pane_offer(cat, kWorkshopProvider,
-                           PaneOffered{pane_key::kPaneEditor, "Not Pane Manager", "a forgery"})
-              .written.accepted == false);
     CHECK(cat.entries.empty());
-    // ...and the built-ins still resolve to themselves.
-    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kPaneEditor}, panels).value_or(-1) ==
-          panel::kPaneEditor);
+    // ...and the built-in still resolves to itself. (The host's Pane Manager was a second built-in
+    // here until it became the desktop's pane.)
+    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kLayouts}, panels).value_or(-1) ==
+          panel::kLayouts);
 
     // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
     // admitted normally -- the `PaneRef` is the PAIR.
-    CHECK(admit_pane_offer(cat, kHelloOffice,
-                           PaneOffered{pane_key::kPaneEditor, "Pane Manager", "theirs"})
+    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kLayouts, "Layouts", "theirs"})
               .written.accepted);
     REQUIRE(cat.entries.size() == 1);
     CHECK(is_runtime_kind(cat.entries[0].kind));
@@ -480,13 +477,13 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     CHECK(panel_kind(hello).kind == kPanelCatalog[0].kind); // the fall-through, still total
     CHECK(panel_kind(hello).placed_in == placement::kTopBand);
     CHECK(placement_of(hello) == placement::kOverlayStack); // ...and a runtime kind never gets there
-    // ⭐ AND NO KIND ANSWERS `kSideRegion` NOW. Info was the one that did and Info is a weave,
-    // so the fall-through row above is the Pane Manager's and the right column is a place a
-    // DESK names rather than a kind's default (`kinds_placed_in(kSideRegion) == 0`, panel.hpp).
-    CHECK(placement_of(panel::kPaneEditor) == placement::kOverlayStack);
+    // ⭐ AND NO KIND ANSWERS `kSideRegion` NOW. Info was the one that did and Info is a weave, so
+    // the right column is a place a DESK names rather than a kind's default
+    // (`kinds_placed_in(kSideRegion) == 0`, panel.hpp); the one built-in left is the band's.
+    CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
     // ...and the NAME a maker reads is the offered one rather than the fall-through's.
     CHECK(kind_name(panels, hello) == "Hello");
-    CHECK(kind_name(panels, panel::kPaneEditor) == "Pane Manager");
+    CHECK(kind_name(panels, panel::kLayouts) == "Layouts");
     CHECK(kind_name(panels, 9999).empty());
 }
 
@@ -729,245 +726,12 @@ TEST_CASE("a forged room grants the provider nothing") {
     CHECK(watch->content[0].rows[0].text == "hello -- 4x20");
 }
 
-// ---- The picker, over the combined population -------------------------------------
-
-/// STEP THE OPEN PICKER'S CURSOR ONTO A ROW, so the window shows it. Since WUX-13 the
-/// built-in half is six rows, and at the minimum composition the picker's six-row body
-/// windows a seventh (`list_window`'s own rule: the selected row is always in the window,
-/// the rest is counted) -- so a case that reads an offered pane's row reads it where the
-/// picker actually paints it, on the cursor, rather than assuming the whole list fits.
-void picker_onto(PaneRig& r, const PaneRef& ref) {
-    REQUIRE(r.session().panels.picker.open);
-    const std::vector<CatalogRow> rows =
-        inventory_rows(r.session().setup.active, r.session().panels);
-    std::size_t want = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].ref == ref) {
-            want = i;
-        }
-    }
-    REQUIRE(want < rows.size());
-    for (std::size_t guard = 0; guard <= rows.size(); ++guard) {
-        if (r.session().panels.picker.cursor == want) {
-            break;
-        }
-        r.key(input::scan::kDown);
-    }
-    REQUIRE(r.session().panels.picker.cursor == want);
-}
-
-TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
-    // THE CONTROL FOR THE WHOLE WINDOWING CHANGE. A population that fits renders
-    // exactly as it did before `list_window` was spent here.
-    Session before;
-    before.panels.picker.open = true;
-    surface::SurfaceCanvas c;
-    paint_picker(plane(c), before.panels, before.setup.active, screen_of(before),
-                 before.keymap);
-    const std::string shown = stack_text(c);
-    CHECK(shown.find("+ PANEL") != std::string::npos);
-    CHECK(shown.find(detail::pad("Pane Manager", kPickerNameCols) + "closed") !=
-          std::string::npos);
-    CHECK(shown.find(detail::pad("Layouts", kPickerNameCols) + "open") != std::string::npos);
-    CHECK(shown.find("... ") == std::string::npos); // no omission marker at this population
-}
-
-TEST_CASE("the combined picker lists an offered pane with its name, summary and state") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-
-    r.key(input::scan::kP);
-    picker_onto(r, hello_ref());
-    const std::string closed = stack_text(r.last_canvas());
-    // THROUGH THE ROW'S OWN OWNER, so the case reads what the painter wrote rather than a
-    // second spelling of it (WIND-2). The row is still put through `detail::fit`, which is
-    // the painter's own call and is the identity when the row fits: at the minimum
-    // composition it used to be two cells longer than the slot and marked, and the slot is
-    // fifteen cells wider since the room became the surface (`the-room-is-the-screen`), so
-    // the same row is written whole. Asserting the unfitted string directly would be a case
-    // measuring a row nobody paints, whichever way the arithmetic went.
-    const ui::Rect slot = pane_body_cells(picker_bounds(screen_of(r.session())));
-    CHECK(closed.find(detail::fit(
-              "> " + picker_entry_text("Hello", "closed", "a bounded external greeting"),
-              slot.w)) != std::string::npos);
-    CHECK(closed.find(detail::kElided) == std::string::npos);
-
-    r.key(input::scan::kEscape);
-    r.pick(hello_ref());
-    r.key(input::scan::kP);
-    picker_onto(r, hello_ref());
-    const std::string open = stack_text(r.last_canvas());
-    CHECK(open.find(detail::pad("Hello", kPickerNameCols) + "open") != std::string::npos);
-    r.key(input::scan::kEscape);
-
-    // AND SELECTING IT AGAIN REMOVES IT -- the picker is still the one owner of
-    // presence, and an external pane earns no second door.
-    r.pick(hello_ref());
-    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
-    r.key(input::scan::kP);
-    picker_onto(r, hello_ref());
-    CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
-}
-
-TEST_CASE("a picker population larger than its rows is windowed, not truncated") {
-    // THE POPULATION IS THE CATALOG'S OWN CAPACITY, NOT A CENSUS (WG-1a). This case used
-    // to be written around "the two built-ins plus eighteen offers", with every cursor,
-    // marker count and conservation sum computed by hand from that twenty. That is the
-    // same defect as `kPanelKinds == 2` one tier over: an unrelated new built-in moves the
-    // arithmetic and reddens a law that is still perfectly true. So the offers fill the
-    // combined catalog to `kMaxPaneCatalogEntries` instead -- a later built-in simply takes
-    // one runtime row's place and the total does not move.
-    Panels panels;
-    for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kPanelKinds; ++i) {
-        REQUIRE(admit_pane_offer(panels.runtime, kHelloOffice,
-                                 PaneOffered{"p" + std::to_string(i),
-                                             "Pane" + std::to_string(i), "one of many"})
-                    .written.accepted);
-    }
-    const std::vector<CatalogRow> catalog = combined_catalog(panels);
-    const std::size_t total = catalog.size();
-    REQUIRE(total == kMaxPaneCatalogEntries);
-
-    panels.picker.open = true;
-    const Screen sc = kMinScreen;
-    const ui::Rect box = pane_body_cells(picker_bounds(sc));
-    const std::size_t budget = static_cast<std::size_t>(box.h - 1);
-    // A CAPACITY FACT AND NOT A CATALOG ONE. The picker asks for the stack's first slot,
-    // spends one cell on every side for the boundary it draws (WUX-5) and its top row on
-    // the heading; six is what this composition leaves for the list. It is asserted because
-    // everything below is derived from it, and it moves only when the composition does.
-    // Before WP-0 the picker's height was `1 + kPanelKinds` -- a catalog census standing in
-    // for a capacity, right until a catalog could outgrow the box.
-    REQUIRE(budget == 6);
-
-    // THE WINDOW RULES, STATED HERE rather than borrowed from `list_window`: an expected
-    // value computed by the function under test is not an expectation. A budget of `budget`
-    // rows shows `budget - 1` names beside ONE marker and `budget - 2` between TWO, because
-    // a marker is paid for OUT of the budget rather than added beneath it; the window is a
-    // contiguous run of the catalog's order; and every omitted row is counted on the side it
-    // was omitted on.
-    const std::size_t one_marker = budget - 1;
-    const std::size_t two_markers = budget - 2;
-    const std::size_t tail_first = total - one_marker;
-    // ...AND THE TWO-MARKER BRANCH MUST BE REACHABLE, which needs a cursor neither end's
-    // window can reach. If a future catalog capacity or picker height ever left no such
-    // cursor, this fails LOUDLY here rather than quietly testing a single-marker window
-    // twice: at a budget of eight it wants a population above fourteen.
-    REQUIRE(one_marker < tail_first);
-    const std::size_t mid_cursor = (one_marker + tail_first) / 2;
-
-    const auto rows_of = [&](std::size_t cursor) {
-        panels.picker.cursor = cursor;
-        surface::SurfaceCanvas c;
-        paint_picker(plane(c), panels, setup_for(panels), sc, Keymap{});
-        std::vector<std::string> out;
-        // THROUGH THE REAL CELL PROJECTION (TYPE-0): the picker is one bounded region now,
-        // so what a maker reads at a cell is `project_text_regions`' answer and not a
-        // label the painter wrote. The rows are byte-for-byte the ones it used to write.
-        for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-            // THE PICKER DID NOT GET TALLER, asserted at every cursor this case takes --
-            // markers coming out of the budget rather than being added beneath it is
-            // exactly what would fail here.
-            CHECK(l.y >= box.y);
-            CHECK(l.y < box.y + box.h);
-            out.push_back(l.text);
-        }
-        return out;
-    };
-    const auto earlier_marker = [](std::size_t n) {
-        return "... " + std::to_string(n) + " earlier";
-    };
-    const auto more_marker = [](std::size_t n) { return "... " + std::to_string(n) + " more"; };
-    // WHAT THIS CASE MEANS BY A WINDOW: `count` names from the catalog's order beginning at
-    // `first`, on consecutive rows from `line0`, with the cursor's row marked `> ` and every
-    // other `  ` -- and the cursor INSIDE that run, which is the rule a truncating list
-    // breaks.
-    const auto check_window = [&](const std::vector<std::string>& out, std::size_t line0,
-                                  std::size_t first, std::size_t count, std::size_t cursor) {
-        CHECK(cursor >= first);
-        CHECK(cursor < first + count);
-        for (std::size_t k = 0; k < count; ++k) {
-            const std::size_t at = first + k;
-            INFO("catalog row ", at, " on picker line ", line0 + k);
-            CHECK(out[line0 + k].find((at == cursor ? "> " : "  ") +
-                                      detail::pad(catalog[at].name, kPickerNameCols)) == 0);
-        }
-        std::size_t marked = 0;
-        for (const std::string& row : out) {
-            if (row.rfind("> ", 0) == 0) {
-                ++marked;
-            }
-        }
-        CHECK(marked == 1);
-    };
-
-    // AT THE HEAD: no `earlier` marker, one `more` marker on the budget's last row, and the
-    // window anchored at the top -- `one_marker` names beginning at the first.
-    const std::vector<std::string> head = rows_of(0);
-    REQUIRE(head.size() == static_cast<std::size_t>(box.h));
-    check_window(head, 1, 0, one_marker, 0);
-    CHECK(head[1 + one_marker].find(more_marker(total - one_marker)) != std::string::npos);
-    for (const std::string& row : head) {
-        CHECK(row.find("earlier") == std::string::npos);
-    }
-    CHECK(0 + one_marker + (total - one_marker) == total);
-
-    // AT THE TAIL: an `earlier` marker on the first row, no `more`, and the window anchored
-    // at the bottom -- `one_marker` names ending on the last of the population.
-    const std::vector<std::string> tail = rows_of(total - 1);
-    REQUIRE(tail.size() == static_cast<std::size_t>(box.h));
-    CHECK(tail[1].find(earlier_marker(tail_first)) != std::string::npos);
-    check_window(tail, 2, tail_first, one_marker, total - 1);
-    for (const std::string& row : tail) {
-        CHECK(row.find(" more") == std::string::npos);
-    }
-    CHECK(tail_first + one_marker + 0 == total);
-
-    // IN THE MIDDLE: both walls are real so both are said, both counts are exact, and both
-    // markers are paid for out of the same budget rather than added beneath it. The window
-    // is the earliest run that reaches the cursor, so the cursor is its LAST name.
-    const std::size_t mid_first = mid_cursor + 1 - two_markers;
-    const std::size_t mid_after = total - mid_first - two_markers;
-    const std::vector<std::string> mid = rows_of(mid_cursor);
-    REQUIRE(mid.size() == static_cast<std::size_t>(box.h));
-    CHECK(mid[1].find(earlier_marker(mid_first)) != std::string::npos);
-    check_window(mid, 2, mid_first, two_markers, mid_cursor);
-    CHECK(mid[1 + 1 + two_markers].find(more_marker(mid_after)) != std::string::npos);
-    // CONSERVATION: omitted-before + shown + omitted-after is the WHOLE population, and the
-    // box is still `box.h` rows. That is `list_window`'s third rule and the reason the
-    // picker did not grow to fit what it could not show.
-    CHECK(mid_first + two_markers + mid_after == total);
-}
-
-TEST_CASE("the picker cursor is bounded by the combined population") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-
-    r.key(input::scan::kP);
-    for (int i = 0; i < 10; ++i) {
-        r.key(input::scan::kDown);
-    }
-    // THE CURSOR STOPS ON THE LAST ROW OF THE POPULATION THE PICKER WALKS, which is
-    // `inventory_rows` -- and that is neither `kPanelKinds` nor the catalog. It is the
-    // catalog PLUS every reference the desk already authored that this run cannot present.
-    const std::vector<CatalogRow> walked =
-        inventory_rows(r.session().setup.active, r.session().panels);
-    CHECK(r.session().panels.picker.cursor == walked.size() - 1);
-
-    // AND THE TWO WAYS IT EXCEEDS `kPanelKinds` ARE BOTH REAL, one from each source: an
-    // OFFER this run admitted, and a DESK ROW nothing has offered. A bound taken from
-    // `kPanelKinds` would have cut the cursor short of both.
-    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 1); // the offer
-    CHECK(walked.size() == kPanelKinds + 2);                               // + the desk row
-    CHECK(has_pane(r.session().setup.active, info_ref()));
-    CHECK(walked.back().kind == kNoPaneKind); // the unresolved row names no kind
-    // (`kPanelKinds` is one smaller than it was, and the desk row is the other half of the
-    // same move: Info left the catalog with the panel and became a weave the desk names.)
-}
+// ---- (THE PICKER'S TIER WAS HERE) ---------------------------------------------------------
+//
+// ⭐ FOUR CASES AND A HELPER ABOUT THE `p` PICKER -- its painting with and without offered panes,
+// its window over a long population, its cursor's bound -- retired with it. The inventory those
+// rows spelled is said out loud as `PaneInventory` (WL-DESK-04), and the desktop's Pane Manager
+// lists it, windows it and holds its cursor by identity (WL-DESK-10).
 
 // ---- Setup resolution: an unchanged reference, resolved later ---------------------
 
@@ -1104,16 +868,21 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
     r.pick(hello_ref());
     const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
     REQUIRE(r.session().panels.has(hello));
+    // A SECOND PROVIDER OFFERING A SECOND STACK PANE. (It was the host's Pane Manager, a built-in in
+    // the same stack, until that became the desktop's pane.)
+    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
+    });
+    const PaneRef other_ref{kOtherOffice, "other"};
     const Setup before = r.session().setup.active;
 
-    // The Pane Manager is placed in the same stack, and there is room for one slot. (It was
-    // the Editor until the Editor became a weave; the Pane Manager is the stack built-in
-    // this host still compiles.)
-    r.pick(ref_of(panel::kPaneEditor));
-    CHECK_FALSE(r.session().panels.has(panel::kPaneEditor));
+    // The second pane is placed in the same stack, and there is room for one slot.
+    r.pick(other_ref);
+    CHECK_FALSE(has_pane(r.session().setup.active, other_ref));
     // THE REFUSAL IS VISIBLE...
-    CHECK(r.last_notice().find("no room for Pane Manager") != std::string::npos);
-    // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A picker that added first and read
+    CHECK(r.last_notice().find("no room for Other") != std::string::npos);
+    // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A launch that added first and read
     // `waiting` afterwards would have authored a pane the maker never saw.
     CHECK(r.session().setup.active == before);
     CHECK_FALSE(has_pane(r.session().setup.active, ref_of(stock::kKind)));
@@ -1134,20 +903,24 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
 
     // AUTHORED FIRST, THEN OFFERED -- the order a restored file meets a provider that
-    // loads afterwards, and the one the picker cannot produce (it refuses to author a
+    // loads afterwards, and the one a launch cannot produce (it refuses to author a
     // pane it could not seat). The offer's own admission runs the ONE reconciliation
     // path, so nothing here reaches past a message boundary to open anything.
+    const PaneRef other_ref{kOtherOffice, "other"};
     Setup both = r.session().setup.active;
-    (void)add_pane(both, ref_of(panel::kPaneEditor)); // the stack built-in this host still has
+    (void)add_pane(both, other_ref); // a second stack pane, authored first
     (void)add_pane(both, hello_ref());
     r.session().setup.active = both;
     r.session().setup.active_link = SetupLink{"setup.json", both};
     ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
-    (void)seat2;
+    r.drive(seat2, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
+    });
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
-    const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
-    CHECK(r.session().panels.has(panel::kPaneEditor)); // first come, first served
+    const std::int64_t other = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t hello = r.session().panels.runtime.entries[1].kind;
+    CHECK(r.session().panels.has(other)); // first come, first served
     CHECK_FALSE(r.session().panels.has(hello));
     CHECK(r.session().panels.waiting(hello));
     // NOT UNRESOLVED: this build knows exactly what it would draw. (The shipped desk's Info
@@ -1162,16 +935,20 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     CHECK(check_setup(r.session().setup.active).accepted);
     CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 
-    // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`. Two rows, read where
-    // the six-row window shows each: the first with the cursor at the top, the seventh
-    // with the cursor on it.
-    r.key(input::scan::kP);
-    CHECK(stack_text(r.last_canvas()).find(detail::pad("Pane Manager", kPickerNameCols) + "open") !=
-          std::string::npos);
-    picker_onto(r, hello_ref());
-    const std::string shown = stack_text(r.last_canvas());
-    CHECK(shown.find(detail::pad("Hello", kPickerNameCols) + "waiting") != std::string::npos);
-    r.key(input::scan::kEscape);
+    // THE STATE SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed` -- the reading the Pane
+    // Manager's `[room]` mark is made from (it was the picker's column until the picker retired).
+    const auto state_of = [&r](const PaneRef& ref) {
+        for (const CatalogRow& row :
+             inventory_rows(r.session().setup.active, r.session().panels)) {
+            if (row.ref == ref) {
+                return std::string(pane_state_word(pane_state_of(
+                    r.session().panels, r.session().setup.active, screen_of(r.session()), row)));
+            }
+        }
+        return std::string("absent");
+    };
+    CHECK(state_of(other_ref) == "open");
+    CHECK(state_of(hello_ref()) == "waiting");
 
     // GROWTH OPENS IT, with no gesture at all.
     r.extent(78, 42);
@@ -1191,26 +968,29 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     CHECK(r.session().panels.runtime.of_kind(hello) != nullptr); // nor is the catalog row
 }
 
-TEST_CASE("selecting a waiting row removes the intent, exactly as selecting an open one does") {
+TEST_CASE("closing a waiting row removes the intent, exactly as closing an open one does") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
+    const PaneRef other_ref{kOtherOffice, "other"};
     Setup both = r.session().setup.active;
-    (void)add_pane(both, ref_of(panel::kPaneEditor));
+    (void)add_pane(both, other_ref);
     (void)add_pane(both, hello_ref());
     r.session().setup.active = both;
+    r.drive(seat2, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
+    });
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
+    const std::int64_t hello = r.session().panels.runtime.entries[1].kind;
     REQUIRE(r.session().panels.waiting(hello));
 
-    r.pick(hello_ref());
+    r.pick(hello_ref()); // the close door: the desk names it, waiting
     // THE MAKER AUTHORED IT; WHETHER THIS SCREEN CAN SEAT IT IS WORKSHOP'S PROBLEM AND
     // NOT A REASON TO MAKE THE INTENT UNREMOVABLE.
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     CHECK_FALSE(r.session().panels.waiting(hello));
-    r.key(input::scan::kP);
-    picker_onto(r, hello_ref());
-    CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(r.last_notice().rfind("closed Hello", 0) == 0);
 }
 
 // ---- The room contract ------------------------------------------------------------
@@ -1476,12 +1256,12 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
 
 TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that recovers it") {
     // THE OTHER HALF OF THE ORDERING CLAIM, and the one with the sharpest consequence. The
-    // picker and the pane-management surface open OVER the overlay stack's first slot -- an
-    // intentional overlap, HD-10 names it -- so whatever is seated there is underneath them
-    // by construction. An external pane fills that slot with a REGION of a provider's rows,
-    // and before WIND-2a a region was the topmost thing on the whole canvas: the provider's
-    // text was drawn over the recovery surface's labels, and the row a maker reaches for to
-    // remove a pane was underneath the pane it removes.
+    // contextual surface opens OVER the pane it names -- an intentional overlap -- so the pane is
+    // underneath it by construction. An external pane fills its room with a REGION of a
+    // provider's rows, and before WIND-2a a region was the topmost thing on the whole canvas: the
+    // provider's text was drawn over the recovery surface's labels, and the row a maker reaches
+    // for to remove a pane was underneath the pane it removes. (The `p` picker, over the stack's
+    // first slot, was the surface this case first measured, until it retired.)
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -1507,22 +1287,25 @@ TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that rec
     REQUIRE(external_rows(r.last_canvas(), body).size() ==
             static_cast<std::size_t>(granted->rows));
 
-    // THE PICKER, OVER IT. What a maker reads in that slot is the picker's own list, and
-    // not one row of it is the provider's.
-    r.key(input::scan::kP);
-    REQUIRE(r.session().panels.picker.open);
-    picker_onto(r, hello_ref());
-    const std::string picker = stack_text(r.last_canvas());
-    INFO(picker);
-    CHECK(picker.find("+ PANEL") != std::string::npos);
-    CHECK(picker.find("Hello") != std::string::npos);
-    CHECK(picker.find("ZZZZZZZZ") == std::string::npos);
+    // THE CONTEXTUAL SURFACE, OVER IT. A right press on the pane opens the pane's own menu at the
+    // press -- `remove` among its rows, the recovery a maker reaches for -- and what a maker reads
+    // in the menu is the menu's own rows, not one row of the provider's. (It was the `p` picker
+    // over the slot, until the picker retired.)
+    r.right_press_cell(body.x + 1, body.y + kExternalHeaderRows);
+    REQUIRE(r.session().context.open);
+    std::string menu;
+    for (const std::string& row : context_rows_on(r.last_canvas(), r.session())) {
+        menu += row + "\n";
+    }
+    INFO(menu);
+    CHECK(menu.find("remove") != std::string::npos);
+    CHECK(menu.find("ZZZZZZZZ") == std::string::npos);
     r.key(input::scan::kEscape);
 
     // THE DESK ARRANGEMENT COVERS NOTHING (ARR-0): the roster panel is retired, so
     // entering the scope leaves the provider's text visible -- the state's visible
     // statement is the affordance ring ON the pane and the band's own rows, not a panel
-    // over it -- and the recovery surface for PARTICIPATION remains the picker above.
+    // over it -- and the recovery surface for PARTICIPATION is the Pane Manager's close.
     r.key(input::scan::kW);
     r.text("w");
     REQUIRE(r.session().arrange.open);
@@ -1802,7 +1585,7 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
 
     // ...AND IT CARRIES THE HANDLE IT MET SINCE SEL-0, so the one caller that needs a
     // further question of this answer asks it of THIS walk rather than resolving the
-    // pane a second time. The picker is a presentation with no kind and says so.
+    // pane a second time. Nothing at all is `kNoKind`, and says so.
     CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y).kind ==
           kind);
     CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y + panel.h)
@@ -1864,7 +1647,7 @@ TEST_CASE("closing an external pane destroys only Workshop's copy") {
     REQUIRE(r.session().panels.external_pane(kind)->heard);
     const std::int64_t said_count = seat->said;
 
-    r.pick(hello_ref()); // the picker is still the one door, in both directions
+    r.pick(hello_ref()); // the close door, as the Pane Manager spends it
     CHECK_FALSE(r.session().panels.has(kind));
     CHECK(r.session().panels.external_pane(kind) == nullptr); // room, cache, heard, refusal
 
@@ -1979,12 +1762,14 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     CHECK(r.session().panels.has(panel::kLayouts));
     const std::size_t said_before = static_cast<std::size_t>(seat->said);
 
-    r.pick(ref_of(panel::kPaneEditor));
-    CHECK(r.session().panels.has(panel::kPaneEditor));
-    CHECK(r.last_notice().find("opened Pane Manager") != std::string::npos);
-    r.pick(ref_of(panel::kPaneEditor));
-    CHECK_FALSE(r.session().panels.has(panel::kPaneEditor));
-    CHECK(r.last_notice().find("removed Pane Manager") != std::string::npos);
+    // THE BUILT-IN CLOSED AND OPENED THROUGH THE DOORS the Pane Manager spends. (It was the
+    // host's own Pane Manager, toggled by the picker, until both retired.)
+    r.pick(ref_of(panel::kLayouts));
+    CHECK_FALSE(r.session().panels.has(panel::kLayouts));
+    CHECK(r.last_notice().rfind("closed Layouts", 0) == 0);
+    r.pick(ref_of(panel::kLayouts));
+    CHECK(r.session().panels.has(panel::kLayouts));
+    CHECK(r.last_notice().find("opened Layouts") != std::string::npos);
 
     // NOTHING THE BUILT-INS DID REACHED THE PROVIDER.
     CHECK(static_cast<std::size_t>(seat->said) == said_before);
@@ -1995,62 +1780,6 @@ TEST_CASE("the built-in panels behave exactly as they did, with a provider in th
     CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
     CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels)
                     .has_value());
-}
-
-// ---- QR-18: the picker's windowed inventory is reached by the wheel ---------------------
-
-TEST_CASE("QR-18/SC-5: the picker's windowed inventory is reached by the wheel") {
-    // ⚔ MUTATION (F5): dropping the picker's wheel arm while the `... N more` row stays --
-    // the last offered name never reaches the box.
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    for (int i = 0; i < 6; ++i) {
-        r.drive(seat, [i](ProviderSeat& s, loom::Mail& m) {
-            s.offer(m, PaneOffered{"p" + std::to_string(i), "Offer" + std::to_string(i),
-                                   "one of several"});
-        });
-    }
-    r.ready();
-    const std::vector<CatalogRow> inventory =
-        inventory_rows(r.session().setup.active, r.session().panels);
-    const Screen sc = screen_of(r.session());
-    const ui::Rect box = pane_body_cells(picker_bounds(sc));
-    REQUIRE(inventory.size() > static_cast<std::size_t>(box.h - 1)); // it must window
-
-    r.key(input::scan::kP);
-    REQUIRE(r.session().panels.picker.open);
-    REQUIRE(r.session().panels.picker.cursor == 0);
-    const auto shown = [&] {
-        std::vector<std::string> out;
-        for (const surface::SurfaceLabel& l : cell_text_of(r.last_canvas())) {
-            if (l.y >= box.y && l.y < box.y + box.h) {
-                out.push_back(l.text);
-            }
-        }
-        return out;
-    };
-    const std::string last_name = inventory.back().name;
-    REQUIRE(row_with_text(shown(), " more") >= 0);
-    REQUIRE(row_with_text(shown(), last_name) < 0);
-
-    // THE WHEEL OVER THE BOX MOVES THE CURSOR, the window follows, the last row arrives.
-    for (int i = 0; i < 8 && r.session().panels.picker.cursor + 1 < inventory.size(); ++i) {
-        r.wheel_cell(-1.0, box.x + 2, box.y + 2);
-    }
-    CHECK(r.session().panels.picker.cursor == inventory.size() - 1);
-    CHECK(row_with_text(shown(), last_name) >= 0);
-    CHECK(row_with_text(shown(), " more") < 0);
-    CHECK(row_with_text(shown(), " earlier") >= 0);
-    CHECK(r.session().panels.picker.open); // looking opened nothing and removed nothing
-    const std::size_t open_before = r.session().panels.open.size();
-    // AND BACK: the first row returns.
-    for (int i = 0; i < 8; ++i) {
-        r.wheel_cell(+1.0, box.x + 2, box.y + 2);
-    }
-    CHECK(r.session().panels.picker.cursor == 0);
-    CHECK(row_with_text(shown(), inventory.front().name) >= 0);
-    CHECK(r.session().panels.open.size() == open_before);
 }
 
 // ============================================================================

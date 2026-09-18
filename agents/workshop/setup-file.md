@@ -102,7 +102,7 @@ PROVEN BY — `workshop/screen_chrome.cpp` `pane_unit_projectable`;
 `kMaxPanePixels`, `kPixels`, `check_pane_size`; `workshop/weave_arrange.cpp`
 `arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
 setup-valid, projection-refused, and never falls back"`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: a pixel axis refuses every current pane projection, Info included"`.
+`"WIND-2a: a pixel axis refuses every current pane projection"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-07 — `front` is a canonical rank, never a counter

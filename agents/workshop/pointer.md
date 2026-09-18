@@ -21,43 +21,12 @@ PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/sc
 does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
-## WL-PTR-02 — One seam, both editable lines
+## WL-PTR-02 — RETIRED: one word-selecting press served every editable line the host held
 
-LAW — One word-selecting press serves every editable line this host still holds, so a double-click selects the word under it in the Pane Manager's draft.
-
-MEANS
-- it served Info's property draft too, until that draft became a loaded image's own.
-
-DOES NOT MEAN
-- that the Editor's multiline machinery or the Composer's fields were taught it — neither was;
-- that a PANE gets it: a pane sweeps from the positions it is sent (WL-TEXT-14), never a word.
-
-**The live witness went with the Terminal's line, and is not replaced.** It was driven over
-the terminal overlay's own row; the Pane Manager's draft spends the same call and has no
-live case, so what is pinned now is the PURE qualification and not the spend. Named rather
-than counted away.
-
-PROVEN BY — `workshop/weave_seam.cpp` `press_selects_word`;
-`workshop/weave_pane_editor.cpp` `pane_editor_press`; `tests/test_workshop_screen.cpp` case
-`"WUX-7: what makes two presses one double-click, and what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
-## WL-PTR-03 — The record arms on the way out, and the completing press spends it
+## WL-PTR-03 — RETIRED: the record armed on the way out, and the completing press spent it
 
-LAW — The click that first lands in a word is an ordinary press with an arming beside it; the completing press spends the arming, so there is no triple-click.
-
-MEANS
-- a modifier-bearing press neither doubles nor arms, and its ordinary behaviour is untouched.
-
-**The three live subcases went with the Terminal's line (WL-PTR-02).** The spend is still
-written where it happens, and the qualification it consults is pinned pure and total; what
-no case drives any more is a third press, a modifier-bearing press and a spent arming
-against a real box.
-
-PROVEN BY — `workshop/screen.hpp` `ClickMemory`; `workshop/screen_arrange.cpp`
-`doubles_a_click`; `workshop/weave_seam.cpp` `press_selects_word`;
-`tests/test_workshop_screen.cpp` subcase `"nothing armed is nothing to double"`, subcase
-`"a different DRAFT of the same line is a different box"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 **Retired — WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08: reading past a fitted row.**
@@ -86,22 +55,18 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-10 — `on(PointerWheel)` is Workshop's one wheel router
 
-LAW — `on(PointerWheel)` routes every wheel: modes keep their ownership, the topmost occupancy decides (picker, then front order), a header row is not the body, and notches accumulate in `spend_wheel`.
+LAW — `on(PointerWheel)` routes every wheel: modes keep their ownership, the topmost occupancy decides by front order, and a pane in front is sent the notches; nothing under another pane scrolls.
 
 MEANS
-- both Pane Manager lists and the picker move their cursor by `kListWheelRows`;
-- an external pane's body: the notches cross as `PaneWheel`; the Editor scrolls, caret still.
+- an external pane's body: the notches cross as `PaneWheel`; the Editor scrolls, caret still;
+- the picker's and the host Pane Manager's lists scrolled here, and retired with them.
 
 DOES NOT MEAN
 - that there is a scroll framework, a scrollbar, a global offset map or a persisted position.
 
-PROVEN BY — `workshop/weave_pane_editor.cpp` `pane_editor_wheel`; `workshop/weave_panels.cpp`
-`picker_wheel`; `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/screen.hpp`
-`kListWheelRows`; `workshop/screen_gestures.cpp` `list_window`; `workshop/screen_reveal.cpp`
-`spend_wheel`; `editor-pane/pane.cpp` `on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`;
-`tests/test_workshop_panes_seam.cpp` case `"QR-18/SC-5: the picker's windowed inventory is
-reached by the wheel"`.
+PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
+`external_wheel`; `editor-pane/pane.cpp` `on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp`
+case `"EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## Do not assume

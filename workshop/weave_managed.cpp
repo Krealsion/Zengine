@@ -168,12 +168,12 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
     TrialRoom out;
     const Screen sc = screen_of(session_);
     const StackCapacity capacity = stack_capacity(sc);
-    // THE PICKER'S OWN TRIAL, on the candidate setup: nothing moves.
+    // THE LAUNCH DOOR'S OWN TRIAL, on the candidate setup: nothing moves.
     const Seating trial = seat_panes(candidate, session_.panels, capacity);
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             out.refusal = "no room for " + name +
-                          " on this screen -- make the window taller, then p again";
+                          " on this screen -- make the window taller, then try again";
             return out;
         }
     }

@@ -18,8 +18,6 @@ namespace zengine::workshop {
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     switch (ctx) {
     case KeyContext::kNaming: return "naming a layout";
-    case KeyContext::kPaneNaming: return "naming a new pane";
-    case KeyContext::kPicker: return "the + panel picker";
     case KeyContext::kContext: return "the contextual actions";
     case KeyContext::kArrangePane: {
         return s.arrange.addressed() ? "arranging " + ref_text(s.arrange.pane)
@@ -27,8 +25,6 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     }
     case KeyContext::kArrangeDesk: return "arranging the desk";
     case KeyContext::kArrangeReset: return "arranging -- reset";
-    case KeyContext::kDraft: return "editing a property";
-    case KeyContext::kPaneEditor: return "the Pane Manager";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* row =
@@ -88,13 +84,11 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
     }
     // ...THEN THE HOST'S OWN, grouped by where each is answered, in the catalog's order. An
     // action with several rows in one group is listed once: one override moves all of them.
-    const KeyContext order[] = {KeyContext::kGlobal,       KeyContext::kNoText,
-                                KeyContext::kUnlessOwned,  KeyContext::kCommand,
-                                KeyContext::kContext,      KeyContext::kArrangeDesk,
-                                KeyContext::kArrangePane,  KeyContext::kArrangeReset,
-                                KeyContext::kNaming,       KeyContext::kPaneNaming,
-                                KeyContext::kDraft,        KeyContext::kPicker,
-                                KeyContext::kPaneEditor};
+    const KeyContext order[] = {KeyContext::kGlobal,      KeyContext::kNoText,
+                                KeyContext::kUnlessOwned, KeyContext::kCommand,
+                                KeyContext::kContext,     KeyContext::kArrangeDesk,
+                                KeyContext::kArrangePane, KeyContext::kArrangeReset,
+                                KeyContext::kNaming};
     for (const KeyContext ctx : order) {
         std::vector<Act> listed;
         for (const ActionRow& row : kActionCatalog) {

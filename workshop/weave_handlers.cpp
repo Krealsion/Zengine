@@ -66,9 +66,13 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     std::string retired;
     for (const AuthoredOverride& o : session_.keymap.authored) {
         if (const char* with = retired_with(o.action)) {
-            retired += (retired.empty() ? "" : "; ") + ("`" + o.action + "` retired with " +
-                                                        std::string(with) +
-                                                        " -- kept, and nothing answers it");
+            const char* instead = retired_instead(o.action);
+            retired += (retired.empty() ? "" : "; ") +
+                       ("`" + o.action + "` retired with " + std::string(with) +
+                        " -- kept, and nothing answers it" +
+                        (instead != nullptr && *instead != 0
+                             ? " (" + std::string(instead) + ")"
+                             : std::string()));
         }
     }
     keymap_standing_ = "applied -- " + std::to_string(session_.keymap.authored.size()) +
@@ -376,18 +380,13 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     case KeyContext::kArrangeDesk:
     case KeyContext::kArrangeReset: arrange_key(k, mail); break;
     case KeyContext::kNaming: naming_key(k, mail); break;
-    case KeyContext::kPaneNaming: pane_naming_key(k, mail); break;
-    case KeyContext::kPicker: picker_key(k, mail); break;
     case KeyContext::kContext: context_key(k, mail); break;
     case KeyContext::kPane: crossed = external_key(keyboard_pane(), k, mail); break;
-    case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
-    case KeyContext::kDraft: editing_key(k, mail); break;
     default: command(k, mail); break;
     }
     // ESCAPE'S FINAL MEANING IS TO PUT THE SELECTED PANE DOWN. It is asked
     // LAST, after the resolved context has had the key: every mode, overlay and draft
-    // answers Escape with a row of its own (`picker.close`, `draft.cancel`,
-    // `manage.close`, `naming.cancel`,
+    // answers Escape with a row of its own (`manage.close`, `naming.cancel`,
     // `terminal.back`), the hotkey view took it further up -- and a bare Escape that
     // arrives here in a context where the keys are held by a LIST or by NOTHING, with
     // no binding claiming it, is an Escape nothing more specific owned. Then, if a pane

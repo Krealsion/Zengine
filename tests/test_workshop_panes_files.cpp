@@ -1086,22 +1086,23 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     CHECK(tap.requested == std::vector<std::string>{gamma});
 }
 
-TEST_CASE("a press into Files while the picker has the keys never opens its selected row, and the band does not say typing goes to Files; with the picker closed the press opens it") {
-    // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE (WL-FOCUS-06). A Files
-    // pane taller than the picker's slot can be pressed below it: the press makes Files the pane the
-    // keys return to, but an ordinary key reaches the picker. Workshop reports that, and says it:
-    // neither the press nor the band may claim the keys are Files'.
-    FilesRig f("files-under-picker");
+TEST_CASE("a press into Files while the layout name line has the keys never opens its selected row, and the band does not say typing goes to Files; with the line closed the press opens it") {
+    // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE (WL-FOCUS-06). The
+    // layout name line holds the keyboard and none of the pointer: a press on Files makes Files the
+    // pane the keys return to, but an ordinary key reaches the line. Workshop reports that, and says
+    // it: neither the press nor the band may claim the keys are Files'. (The mode was the `p`
+    // picker, over one slot, until it retired.)
+    FilesRig f("files-under-naming");
     for (std::int64_t i = 0; i < 12; ++i) {
         put_file(f.root / entry_name(i), "x\n");
     }
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
-    f.author_height(34, 160, 47); // taller than the picker's slot, so rows below it are Files'
+    f.author_height(34, 160, 47);
     press_outside(f.r, f.kind);
-    f.r.key(input::scan::kP);
-    REQUIRE(f.r.session().panels.picker.open);
+    open_rename_on_live_tab(f.r);
+    REQUIRE(f.r.session().setup.naming.open);
 
-    // AN ENTRY ROW OF FILES THE PICKER DOES NOT COVER, found by the walk a press spends.
+    // AN ENTRY ROW OF FILES, found by the walk a press spends.
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
     const std::vector<std::string> rows = pane_rows(f.r, f.kind);
     std::int64_t row = -1;
@@ -1114,7 +1115,7 @@ TEST_CASE("a press into Files while the picker has the keys never opens its sele
         }
     }
     const std::string seen = picture(rows);
-    INFO("Files under the picker showed:\n", seen);
+    INFO("Files beside the name line showed:\n", seen);
     REQUIRE(row >= 0);
     const std::string entry = rows[static_cast<std::size_t>(row)].substr(2);
     const std::string path =
@@ -1122,9 +1123,9 @@ TEST_CASE("a press into Files while the picker has the keys never opens its sele
 
     SeamTap tap(f.r.bus, f.files_id());
     press_pane(f.r, f.kind, row, 0); // selects it, and makes Files the candidate
-    REQUIRE(f.r.session().panels.picker.open);
+    REQUIRE(f.r.session().setup.naming.open);
     REQUIRE(keyboard_pane(f.r.session().panels) == f.kind);
-    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPicker);
+    REQUIRE(keyboard_context(f.r.session()) == KeyContext::kNaming);
     REQUIRE(f.at_cursor() == entry);
     for (const std::string& line : band_lines(f.r)) {
         CHECK_MESSAGE(line.find("typing goes to") == std::string::npos, line);
@@ -1133,16 +1134,16 @@ TEST_CASE("a press into Files while the picker has the keys never opens its sele
     REQUIRE(tap.pressed.size() == 2);
     CHECK(tap.keys_went_here == std::vector<int>{0, 0});
     CHECK(tap.attempts == 0);
-    CHECK(f.r.session().panels.picker.open);
-    // AN ORDINARY KEY IS THE PICKER'S, which is what the fact said.
-    const std::size_t picker_was = f.r.session().panels.picker.cursor;
-    f.r.key(input::scan::kDown);
-    CHECK(f.r.session().panels.picker.cursor != picker_was);
+    CHECK(f.r.session().setup.naming.open);
+    // AN ORDINARY KEY IS THE LINE'S, which is what the fact said.
+    const std::string name_was = f.r.session().setup.naming.line.text();
+    f.r.text("z");
+    CHECK(f.r.session().setup.naming.line.text() != name_was);
     CHECK(tap.keys + tap.actions == 0);
 
-    // CLOSING THE PICKER HANDS THE KEYS TO FILES, the band says so, and the press opens the row.
+    // CLOSING THE LINE HANDS THE KEYS TO FILES, the band says so, and the press opens the row.
     f.r.key(input::scan::kEscape);
-    REQUIRE_FALSE(f.r.session().panels.picker.open);
+    REQUIRE_FALSE(f.r.session().setup.naming.open);
     REQUIRE(keyboard_context(f.r.session()) == KeyContext::kPane);
     CHECK(band_lines(f.r).at(0).find("typing goes to Files @zengine.files") != std::string::npos);
     press_pane(f.r, f.kind, row, 0);

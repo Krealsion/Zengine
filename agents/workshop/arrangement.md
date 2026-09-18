@@ -186,7 +186,7 @@ MEANS
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `default_row_context`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
-clears the ordinary selection last, and the Pane Editor's subject stands"`, case `"QR-18/SC-2:
+clears the ordinary selection last, and the inspected subject stands"`, case `"QR-18/SC-2:
 every more-specific Escape meaning answers first, and deselection waits"`, case `"QR-18/SC-4: a
 desk with no unoccupied cell still reaches selection = none"`.
 WHY — `agents/decisions/escape-is-back.md`

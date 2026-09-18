@@ -520,11 +520,14 @@ TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already n
         CHECK(row_of_id(moved.c_str()) == nullptr);
     }
 
-    // ⭐ AND THE DRAFT'S TWO COULD NOT KEEP THEIR NAMES. `draft.commit` and `draft.cancel`
-    // are `KeyContext::kDraft`'s rows and the Pane Manager still declares them for ITS
-    // drafts, so this pane spells `info.commit` and `info.cancel` on the same gestures.
-    CHECK(row_of_id("draft.commit") != nullptr);
-    CHECK(row_of_id("draft.cancel") != nullptr);
+    // ⭐ AND THE DRAFT'S TWO COULD NOT KEEP THEIR NAMES. `draft.commit` and `draft.cancel` were
+    // `KeyContext::kDraft`'s rows, declared for the host Pane Manager's drafts while it lived, so
+    // this pane spells `info.commit` and `info.cancel` on the same gestures. The host's two
+    // retired with that manager: a maker's file naming them is kept and told where the act went.
+    CHECK(row_of_id("draft.commit") == nullptr);
+    CHECK(row_of_id("draft.cancel") == nullptr);
+    CHECK(retired_instead("draft.commit") != nullptr);
+    CHECK(retired_instead("draft.cancel") != nullptr);
     CHECK(row_of_id(pane::kActionCommit) == nullptr);
     CHECK(row_of_id(pane::kActionCancel) == nullptr);
 }
@@ -539,7 +542,7 @@ TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over
     f.open();
     const std::vector<CatalogRow> inventory =
         inventory_rows(f.r.session().setup.active, f.r.session().panels);
-    REQUIRE(inventory.size() >= 3);
+    REQUIRE(inventory.size() >= 2); // three while the host's Pane Manager was a built-in
 
     std::string all = f.text();
     CHECK(all.find("PANES -- " + std::to_string(inventory.size())) != std::string::npos);

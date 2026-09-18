@@ -6,14 +6,13 @@
 // What this source holds, under the `workshop_panels` entry: the value a maker-made pane's
 // interior IS and its law; the ninth durable artifact and what it cannot say; the identity a
 // definition earns from its NAME; the region on both faces through the ordinary pane path;
-// the Pane Manager's INTERIOR rows and the region mark; the one-open-definition lifecycle
+// the inspected subject's INTERIOR rows and the region mark; the one-open-definition lifecycle
 // (dirty refusals at the quit, at the open, at the naming door); relaunch by durable
 // reference; and the honest capture of a code-backed pane's interior.
 //
 // A SECOND SOURCE UNDER THE SAME ENTRY, for QR-13's reason: a suite is not a file, and the
-// Pane Manager's own cases already fill one large object. The helpers below are this file's
-// own copies of that file's (internal linkage, deliberately) so the two objects share
-// nothing but the support header.
+// panels suite already fills one large object. The helpers below are this file's own
+// (internal linkage, deliberately) so the two objects share nothing but the support header.
 
 #include "workshop_support.hpp"
 
@@ -30,63 +29,37 @@ namespace {
 
 namespace pdp = pane_definition_persist;
 
-// ---- The Pane Manager, driven by keys -- this file's own copies of the panels suite's ----
+// ---- The Pane Creator, through the doors an office asks ------------------------------------
+//
+// ⭐ THESE WERE KEYS IN THE HOST'S PANE MANAGER, until it retired: `n` opened a name prompt in
+// that manager's heading, a region's rows were that manager's drafts, and `s` and `ctrl+d` were
+// its rows. The keys and the name line are the desktop's Pane Manager's now, and its own suite
+// drives them; this file asks the host's doors the way that pane and Info do -- the maker door
+// for make, save and discard (WL-MAKER-11), the inspector's for the subject and its rows
+// (WL-INFO-14) -- and measures the same definition, file and desk through them.
 
-ui::Rect editor_cells(const Live& t) {
-    const Screen sc = screen_of(t.session());
-    const PanelBounds at =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc);
-    REQUIRE(at.open);
-    return pane_body_cells(at.rect, sc);
+const PaneRef kMine = maker_pane_ref("MyPane");
+
+/// MAKE A PANE AND INSPECT IT: the maker door, as the desktop's Pane Manager asks it, and then
+/// the inspector's, as a maker who opens Info on what they made -- the two gestures the host's
+/// manager spent as one. Answers what the maker door said.
+MakerPaneAnswered make_pane(Live& t, const std::string& name) {
+    const MakerPaneAnswered made = hand_maker(t, maker_pane_act::kCreate, name);
+    REQUIRE_MESSAGE(made.accepted, made.said);
+    REQUIRE(t.session().panels.maker.open());
+    REQUIRE(t.session().panels.maker.definition.name == name);
+    const PaneSubjectActed named = hand_inspect(t, maker_pane_ref(name));
+    REQUIRE_MESSAGE(named.accepted, named.refusal);
+    return made;
 }
 
-void press_into_editor(Live& t) {
-    const ui::Rect b = editor_cells(t);
-    t.press_canvas(b.x, b.y);
-    REQUIRE(t.session().panels.selected == panel::kPaneEditor);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-}
+/// ...AND SAVE IT, OR PUT IT BACK: the maker door's other two acts.
+MakerPaneAnswered save_pane(Live& t) { return hand_maker(t, maker_pane_act::kSave); }
+MakerPaneAnswered discard_pane(Live& t) { return hand_maker(t, maker_pane_act::kDiscard); }
 
-void open_editor(Live& t) {
-    open_pane(t, ref_of(panel::kPaneEditor));
-    REQUIRE(t.session().panels.has(panel::kPaneEditor));
-    press_into_editor(t);
-}
-
-std::size_t inventory_index(const Live& t, const PaneRef& ref) {
-    const std::vector<CatalogRow> rows =
-        inventory_rows(t.session().setup.active, t.session().panels);
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].ref == ref) {
-            return i;
-        }
-    }
-    FAIL("not in the inventory: ", ref_text(ref));
-    return rows.size();
-}
-
-void choose_by_keys(Live& t, const PaneRef& ref) {
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-    if (t.session().pane_editor.on_rows) {
-        t.key(input::scan::kTab);
-    }
-    REQUIRE_FALSE(t.session().pane_editor.on_rows);
-    const std::size_t want = inventory_index(t, ref);
-    for (int guard = 0; guard < 64; ++guard) {
-        const std::size_t at = t.session().pane_editor.cursor;
-        if (at == want) {
-            break;
-        }
-        t.key(at < want ? input::scan::kDown : input::scan::kUp);
-    }
-    REQUIRE(t.session().pane_editor.cursor == want);
-    t.key(input::scan::kReturn);
-    REQUIRE(t.session().pane_editor.subject == ref);
-}
-
-/// The index of the INTERIOR section row, or the row count when there is none.
+/// The index of the inspected pane's INTERIOR section row, or the row count when there is none.
 std::size_t interior_section(const Live& t) {
-    const std::vector<Row>& rows = t.session().pane_editor.rows;
+    const std::vector<Row>& rows = t.session().inspected.rows;
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (rows[i].section() && rows[i].label() == "INTERIOR") {
             return i;
@@ -95,108 +68,26 @@ std::size_t interior_section(const Live& t) {
     return rows.size();
 }
 
-/// The first row with this label AFTER the INTERIOR section -- the region's own row, told
-/// apart from the pane's AUTHORED row of the same name by the section that owns it.
-std::size_t region_row_index(const Live& t, const std::string& label) {
-    const std::vector<Row>& rows = t.session().pane_editor.rows;
-    for (std::size_t i = interior_section(t) + 1; i < rows.size(); ++i) {
-        if (rows[i].label() == label) {
-            return i;
-        }
-    }
-    return rows.size();
-}
-
+/// THE REGION'S OWN ROW -- the first with this label AFTER the INTERIOR section, told apart
+/// from the pane's AUTHORED row of the same name by the section that owns it.
 const Row* region_row(const Live& t, const std::string& label) {
-    const std::size_t at = region_row_index(t, label);
-    return at < t.session().pane_editor.rows.size() ? &t.session().pane_editor.rows[at]
-                                                     : nullptr;
+    return subject_row(t.session(), label, "INTERIOR");
 }
 
 std::string region_value(const Live& t, const std::string& label) {
-    const Row* row = region_row(t, label);
-    REQUIRE_MESSAGE(row != nullptr, "no INTERIOR row labelled ", label);
-    return row->value();
+    return subject_value(t.session(), label, "INTERIOR");
 }
 
-/// Put the row cursor on a row BY INDEX, by keys only: Tab into the rows, then step.
-void go_to_index(Live& t, std::size_t want) {
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-    if (!t.session().pane_editor.on_rows) {
-        t.key(input::scan::kTab);
-    }
-    REQUIRE(t.session().pane_editor.on_rows);
-    for (int guard = 0; guard < 96; ++guard) {
-        const std::size_t at = t.session().pane_editor.row_cursor;
-        if (at == want) {
-            return;
-        }
-        t.key(at < want ? input::scan::kDown : input::scan::kUp);
-    }
-    FAIL("could not reach row ", want);
-}
-
-/// TYPE A VALUE INTO A REGION ROW AND COMMIT IT -- the ordinary draft vocabulary, on the
-/// row the INTERIOR section owns.
-void type_region_value(Live& t, const std::string& label, const std::string& text) {
-    const std::size_t at = region_row_index(t, label);
-    REQUIRE(at < t.session().pane_editor.rows.size());
-    go_to_index(t, at);
-    t.key(input::scan::kReturn);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kDraft);
-    REQUIRE(t.session().pane_editor.rows[at].editing());
-    for (std::size_t i = 0; i < 300; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    for (const char c : text) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kReturn);
+/// WRITE A REGION ROW THROUGH THE COMMIT DOOR, as Info sends a finished draft, and answer what
+/// the door said -- a refusal is the asker's to show, in the owner's words, and the band says
+/// nothing of it.
+PaneSubjectActed type_region_value(Live& t, const std::string& label, const std::string& text) {
+    return hand_commit(t, label, text, "INTERIOR");
 }
 
 /// The pane's AUTHORED row of this label (the FIRST such row -- before INTERIOR).
 std::string pane_value(const Live& t, const std::string& label) {
-    for (const Row& r : t.session().pane_editor.rows) {
-        if (r.label() == label) {
-            return r.value();
-        }
-    }
-    FAIL("no Pane Manager row labelled ", label);
-    return {};
-}
-
-// ---- The Pane Creator, driven by keys ------------------------------------------------------
-
-const PaneRef kMine = maker_pane_ref("MyPane");
-
-/// PRESS `n` AS THE PLATFORM DELIVERS IT: the key transition and the character it produced,
-/// which the binding's swallow eats -- so a name typed afterwards starts with its own first
-/// letter and not with the trigger's.
-void press_new_pane(Live& t) {
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-    t.key(input::scan::kN);
-    t.text("n");
-}
-
-/// Type characters as the platform delivers them, one `TextEntered` each.
-void type_chars(Live& t, const std::string& name) {
-    for (const char c : name) {
-        t.text(std::string(1, c));
-    }
-}
-
-/// MAKE A PANE BY KEYS: the manager open with the keys in it, `n`, the name, Return.
-void make_pane(Live& t, const std::string& name) {
-    if (keyboard_context(t.session()) != KeyContext::kPaneEditor) {
-        open_editor(t);
-    }
-    press_new_pane(t);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneNaming);
-    type_chars(t,name);
-    t.key(input::scan::kReturn);
-    REQUIRE_MESSAGE(t.session().panels.maker.open(), t.notice());
-    REQUIRE(t.session().panels.maker.definition.name == name);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+    return subject_value(t.session(), label);
 }
 
 /// The maker-made pane's interior on this screen, through the ordinary pane path.
@@ -326,29 +217,6 @@ MakerEars* mount_maker_ears(Live& t) {
 }
 
 } // namespace
-
-// ============================================================================
-// SC-2 -- the maker-facing name
-// ============================================================================
-
-TEST_CASE("WUX-14/SC-2: the WUX-13 surface is the Pane Manager, and its durable key did not move") {
-    const PanelKind& k = panel_kind(panel::kPaneEditor);
-    CHECK(std::string(k.name) == "Pane Manager");
-    // THE KEY IS A PROMISE TO EVERY FILE THAT ALREADY NAMES IT; the word is what moved.
-    CHECK(std::string(k.pane) == "pane-editor");
-    CHECK(std::string(pane_key::kPaneEditor) == "pane-editor");
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    open_editor(t);
-    CHECK(keyboard_context_name(t.session(), KeyContext::kPaneEditor) == "the Pane Manager");
-    CHECK(panel_text(t.canvases.back(), editor_cells(t)).find("PANE MANAGER *") !=
-          std::string::npos);
-    // THE CREATOR'S KEYS ARE THE MANAGER CONTEXT'S OWN ROWS, listed where a maker looks.
-    const std::string keys = keymap_text(t.session());
-    CHECK(keys.find("the Pane Manager | n | new pane") != std::string::npos);
-    CHECK(keys.find("the Pane Manager | s | save pane") != std::string::npos);
-    CHECK(keys.find("the Pane Manager | ctrl+d | discard pane edits") != std::string::npos);
-}
 
 // ============================================================================
 // SC-6 / SC-7 -- the value and its law
@@ -573,18 +441,21 @@ TEST_CASE("WUX-14/SC-18: the definition and its file are structurally unable to 
 // SC-1 / SC-3 / SC-9 -- a pane from data, on the desk, through the ordinary path
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-1+SC-3+SC-9: `n` in the Pane Manager makes a named pane from data, and "
-          "it lives on the desk exactly as every other pane does") {
+TEST_CASE("WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, and it lives "
+          "on the desk exactly as every other pane does") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    make_pane(t, "MyPane");
+    const MakerPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
     // THE VALUE: one open definition, one empty text region, minted #1.
     REQUIRE(s.panels.maker.definition.regions.size() == 1);
     CHECK(s.panels.maker.definition.regions[0].id == kFirstRegionId);
     CHECK(s.panels.maker.definition.regions[0].text.empty());
     CHECK(s.panels.maker.dirty()); // never saved: dirty by arithmetic
-    CHECK(t.notice().find("Pane Creator: MyPane is on this layout") == 0);
+    // THE ASKER IS TOLD WHAT THE BAND SAYS, and the sentence says where the region's rows are:
+    // the door names nothing inspected (the host's manager did, until it retired).
+    CHECK(made.said.find("Pane Creator: MyPane is on this layout") == 0);
+    CHECK(made.said.find("inspect it in Info to write its text region") != std::string::npos);
     // THE IDENTITY: minted from the name under Workshop's own namespace, and it resolves.
     CHECK(kMine == PaneRef{kMakerPaneProvider, "MyPane"});
     REQUIRE(resolve_pane(kMine, s.panels).has_value());
@@ -614,11 +485,9 @@ TEST_CASE("WUX-14/SC-1+SC-3+SC-9: `n` in the Pane Manager makes a named pane fro
         }
     }
     CHECK(listed);
-    // THE CREATOR'S SUBJECT: the manager describes the new pane, keys on its text row.
-    CHECK(s.pane_editor.subject == kMine);
-    CHECK(s.pane_editor.on_rows);
-    REQUIRE(s.pane_editor.row_cursor < s.pane_editor.rows.size());
-    CHECK(s.pane_editor.rows[s.pane_editor.row_cursor].label() == "Text");
+    // THE SUBJECT IS THE INSPECTOR'S, named through its door (`make_pane` asks as Info does);
+    // which row a maker's keys are on is Info's own, in Info's image.
+    CHECK(s.inspected.ref == kMine);
     CHECK(pane_value(t, "Name") == "MyPane");
     CHECK(pane_value(t, "Identity") == "zengine.workshop.maker/MyPane");
     CHECK(pane_value(t, "Provider") == "zengine.workshop.maker (made here -- Pane Creator)");
@@ -626,22 +495,22 @@ TEST_CASE("WUX-14/SC-1+SC-3+SC-9: `n` in the Pane Manager makes a named pane fro
     CHECK(pane_value(t, "State") == "open");
     // THE INTERIOR ROWS, in order, under their own section.
     const std::size_t at = interior_section(t);
-    REQUIRE(at < s.pane_editor.rows.size());
+    REQUIRE(at < s.inspected.rows.size());
     const char* const expected[] = {"Region", "Text", "X", "Y", "Width", "Height", "Resolved",
                                     "Shown"};
-    REQUIRE(s.pane_editor.rows.size() == at + 1 + sizeof(expected) / sizeof(expected[0]));
+    REQUIRE(s.inspected.rows.size() == at + 1 + sizeof(expected) / sizeof(expected[0]));
     for (std::size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
         INFO(i);
-        CHECK(s.pane_editor.rows[at + 1 + i].label() == expected[i]);
+        CHECK(s.inspected.rows[at + 1 + i].label() == expected[i]);
     }
-    CHECK(region_value(t, "Region") == "#1 text -- the Pane Creator's subject");
+    CHECK(region_value(t, "Region") == "#1 text -- the Pane Creator made it");
     CHECK(region_value(t, "X") == "0 cells");
     CHECK(region_value(t, "Width") == "24 cells");
     CHECK(region_value(t, "Height") == "2 cells");
-    // THE PANE IS PAINTED, AND THE PICKER'S POPULATION GREW BY ONE ROW AND NOTHING ELSE: the
-    // built-ins, the stand-in every `Live` admits (one runtime row), and now the maker's.
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 2);
-    CHECK(s.panels.runtime.entries.size() == 1);
+    // THE PANE IS PAINTED, AND THE CATALOG GREW BY ONE ROW AND NOTHING ELSE: the built-ins, the
+    // two stand-ins every `Live` admits (two runtime rows), and now the maker's.
+    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 3);
+    CHECK(s.panels.runtime.entries.size() == 2);
     CHECK(s.panels.external.empty());
     // A PRESS INTO IT SELECTS IT AND POINTS NO KEYS (it takes none), like Info or Layouts.
     t.press_canvas(cells.x + 2, cells.y + 2);
@@ -662,41 +531,42 @@ TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the d
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
         make_pane(t, "MyPane");
-        // THE PANE'S OWN AUTHORED ROWS -- the manager's, unchanged -- move it.
+        // THE PANE'S OWN AUTHORED ROWS -- the inspected subject's, through the commit door --
+        // move it.
         const Screen sc = screen_of(t.session());
         const FineRect was = bounds_of(t.session().panels, t.session().setup.active,
                                        kMakerPaneKind, sc)
                                  .rect;
-        go_to_index(t, 5); // AUTHORED X, the pane's
-        REQUIRE(t.session().pane_editor.rows[5].label() == "X");
-        t.key(input::scan::kReturn);
-        for (int i = 0; i < 8; ++i) {
-            t.key(input::scan::kBackspace);
-        }
-        type_chars(t,"30");
-        t.key(input::scan::kReturn);
-        REQUIRE_FALSE(t.session().notice_is_bad);
+        const PaneSubjectActed wrote = hand_commit(t, "X", "30"); // AUTHORED X, the pane's
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         const FineRect now = bounds_of(t.session().panels, t.session().setup.active,
                                        kMakerPaneKind, sc)
                                  .rect;
         CHECK(now.x == subs(30));
         CHECK(now.x != was.x);
         CHECK(pane_of(t.session().setup.active, kMine)->place.x == subs(30));
-        // ORDER: the arrangement's own door, on the maker's reference.
+        // ORDER: the arrangement's own door, on the maker's reference. (It was the host manager's
+        // `b` until that retired; the desk's `b` is the same act.)
+        enter_arrange_desk(t);
+        select_pane(t, kMine);
         t.key(input::scan::kB);
         CHECK(pane_of(t.session().setup.active, kMine)->front == 0);
-        // PARTICIPATION: `o` removes it -- the picker's door -- and the definition stands.
-        t.key(input::scan::kO);
+        for (int i = 0; i < 3 && t.session().arrange.open; ++i) {
+            t.key(input::scan::kEscape);
+        }
+        REQUIRE_FALSE(t.session().arrange.open);
+        // PARTICIPATION: the close door removes it, and the definition stands. (It was the host
+        // manager's `o` until that retired.)
+        REQUIRE(hand_close(t, kMine).closed);
         CHECK_FALSE(has_pane(t.session().setup.active, kMine));
         CHECK_FALSE(t.session().panels.has(kMakerPaneKind));
         CHECK(t.session().panels.maker.open());
-        CHECK(t.session().pane_editor.subject == kMine);
-        t.key(input::scan::kO);
+        CHECK(t.session().inspected.ref == kMine);
+        REQUIRE(hand_launch(t, kMine).refusal.empty());
         CHECK(has_pane(t.session().setup.active, kMine));
         CHECK(t.session().panels.has(kMakerPaneKind));
         // SAVE, THEN LEAVE STANDING ON THE DESK.
-        t.key(input::scan::kS);
-        REQUIRE_FALSE(t.session().notice_is_bad);
+        REQUIRE(save_pane(t).accepted);
         CHECK_FALSE(t.session().panels.maker.dirty());
         t.press(90, 35);
         t.key(input::scan::kQ);
@@ -729,8 +599,7 @@ TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's nam
     t.host.pane_path = dir.file("pane.json");
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
-    t.key(input::scan::kS); // saved, so a second pane may be made
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(save_pane(t).accepted); // saved, so a second pane may be made
     make_pane(t, "Other");
     const Session& s = t.session();
     CHECK(resolve_pane(maker_pane_ref("Other"), s.panels) == kMakerPaneKind);
@@ -761,8 +630,8 @@ TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's nam
     CHECK_FALSE(refused.written.accepted);
     CHECK(refused.written.refusal.find("namespace for panes a maker made") != std::string::npos);
     CHECK(cat.entries.empty());
-    // THE MANAGER SAYS SO IN ITS OWN ROWS, for the pane whose file is not open.
-    choose_by_keys(t, kMine);
+    // THE SUBJECT'S ROWS SAY SO, for the pane whose file is not open.
+    REQUIRE(hand_inspect(t, kMine).accepted);
     CHECK(pane_value(t, "Provider").find("no open definition is named MyPane") !=
           std::string::npos);
     CHECK(region_value(t, "Interior") == "no open definition is named MyPane -- nothing to show");
@@ -780,9 +649,8 @@ TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and p
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
-    type_region_value(t, "Text", "hello from data");
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    CHECK(t.notice() == "committed Text = hello from data");
+    REQUIRE(type_region_value(t, "Text", "hello from data").accepted);
+    CHECK(t.notice() == "committed Text of MyPane = hello from data");
     const FineRect interior = interior_of(t);
     CHECK(interior.x > 0);
     CHECK(interior.y > 0);
@@ -830,15 +698,7 @@ TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and p
     CHECK(region_value(t, "Width") == "400 cells");
     // MOVING THE PANE MOVES THE REGION WITH IT -- the definition is untouched.
     const std::string before = definition_bytes(t);
-    go_to_index(t, 6); // the pane's AUTHORED Y
-    REQUIRE(t.session().pane_editor.rows[6].label() == "Y");
-    t.key(input::scan::kReturn);
-    for (int i = 0; i < 8; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    type_chars(t,"30");
-    t.key(input::scan::kReturn);
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(hand_commit(t, "Y", "30").accepted); // the pane's AUTHORED Y
     const FineRect moved = interior_of(t);
     CHECK(moved.y == subs(30) + kChromeSubs);
     CHECK(presentation_of(t).shown.y == moved.y + subs(1));
@@ -856,9 +716,8 @@ TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window an
     CHECK(region_value(t, "Width") == "288 px");
     CHECK(region_value(t, "Height") == "24 px");
     // A PIXEL THAT IS NOT A CELL: 126 px is 10 cells and 24 sub-units.
-    type_region_value(t, "X", "126");
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    CHECK(t.notice() == "committed X = 126 px");
+    REQUIRE(type_region_value(t, "X", "126").accepted);
+    CHECK(t.notice() == "committed X of MyPane = 126 px");
     CHECK(t.session().panels.maker.definition.regions[0].x == subs(10) + 24);
     CHECK(region_value(t, "X") == "126 px");
     CHECK(region_value(t, "Resolved") == "@126,0 288x24 px");
@@ -868,11 +727,10 @@ TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window an
     CHECK(p.fit.rows == 1);
     CHECK(p.fit.view.x == surface::px_of_subs(interior_of(t).x) + 126);
     const std::string authored = definition_bytes(t);
-    // THE OTHER FACE'S WORD IS REFUSED, NOT CONVERTED.
-    type_region_value(t, "Y", "2 cells");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "Y: this face reads px, not cells");
-    t.key(input::scan::kEscape);
+    // THE OTHER FACE'S WORD IS REFUSED, NOT CONVERTED -- to the asker, in the owner's words.
+    const PaneSubjectActed other = type_region_value(t, "Y", "2 cells");
+    CHECK_FALSE(other.accepted);
+    CHECK(other.refusal == "Y: this face reads px, not cells");
     CHECK(definition_bytes(t) == authored);
     // THE SAME DESK ON A TERMINAL: the same value, honestly projected, marked.
     tui_face(t);
@@ -893,8 +751,7 @@ TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window an
     CHECK(carried);
     CHECK(definition_bytes(t) == authored);
     // AND A TERMINAL'S OWN TYPING AUTHORS CELLS, exactly.
-    type_region_value(t, "X", "11 cells");
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(type_region_value(t, "X", "11 cells").accepted);
     CHECK(t.session().panels.maker.definition.regions[0].x == subs(11));
     CHECK(region_value(t, "X") == "11 cells");
     sdl_face(t);
@@ -919,14 +776,12 @@ TEST_CASE("WUX-14/SC-8: a region too small for the face is the face's own answer
     make_pane(t, "MyPane");
     type_region_value(t, "Text", "small");
     // ONE CELL TALL holds no row of an 18-pixel line: the cell projection, honestly named.
-    type_region_value(t, "Height", "12");
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(type_region_value(t, "Height", "12").accepted);
     CHECK(region_value(t, "Shown") == "1 row x 24 columns, presented as cells");
     CHECK(region_value(t, "Height") == "12 px");
     CHECK(t.session().panels.maker.definition.regions[0].h == subs(1));
     // THREE PIXELS TALL covers no cell and no row: nothing is drawn, and it says so.
-    type_region_value(t, "Height", "3");
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(type_region_value(t, "Height", "3").accepted);
     CHECK(region_value(t, "Shown") == "no room -- nothing of it is drawn on this face");
     CHECK(t.session().panels.maker.definition.regions[0].h == 12);
     CHECK(region_value(t, "Height") == "3 px");
@@ -981,20 +836,24 @@ TEST_CASE("WUX-14/SC-10: the Pane Creator marks the region it is editing on the 
     CHECK(pane_plane < mark_plane);
     CHECK(definition_bytes(t) == before);
     // ANOTHER SUBJECT, NO MARK: the mark is derived from the subject, held nowhere.
-    choose_by_keys(t, ref_of(panel::kLayouts));
+    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
     CHECK(creator_subject_region(t.session()) == nullptr);
     bool still = false;
     for (const surface::SurfaceRect& r : all_rects(t.canvases.back())) {
         still = still || (r.x == mark.x && r.y == mark.y && r.role == kRegionMark && r.w == mark.w);
     }
     CHECK_FALSE(still);
-    // ...AND BACK, IT RETURNS -- and removing the manager removes it with nothing to clear.
-    choose_by_keys(t, kMine);
+    // ...AND BACK, IT RETURNS -- and closing the pane takes the mark off with nothing to clear.
+    // (It was the host's Pane Manager closing that took it, until that manager retired; the
+    // subject is the inspector's to move, and the host holds no mark to forget.)
+    REQUIRE(hand_inspect(t, kMine).accepted);
     CHECK(creator_subject_region(t.session()) != nullptr);
-    choose_by_keys(t, ref_of(panel::kPaneEditor));
-    t.key(input::scan::kO);
-    CHECK_FALSE(t.session().panels.has(panel::kPaneEditor));
-    CHECK(creator_subject_region(t.session()) == nullptr);
+    REQUIRE(hand_close(t, kMine).closed);
+    bool left = false;
+    for (const surface::SurfaceRect& r : all_rects(t.canvases.back())) {
+        left = left || r.role == kRegionMark;
+    }
+    CHECK_FALSE(left);
     CHECK(definition_bytes(t) == before);
 }
 
@@ -1004,40 +863,28 @@ TEST_CASE("WUX-14/SC-11: Text and the four numbers are edited through the defini
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
     const std::string before = definition_bytes(t);
-    type_region_value(t, "X", "-");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "X: a region has no default to reset to -- type a whole number of cells");
-    t.key(input::scan::kEscape);
-    type_region_value(t, "Width", "0");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "Width: a region width must be positive");
-    t.key(input::scan::kEscape);
-    type_region_value(t, "Y", "abc");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("Y: not a whole number of cells") == 0);
-    t.key(input::scan::kEscape);
-    type_region_value(t, "Height", "-4");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "Height: a region height must be positive");
-    t.key(input::scan::kEscape);
-    type_region_value(t, "X", "5000");
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "X: a region place is at most 4096 cells");
-    t.key(input::scan::kEscape);
+    // REFUSED TO THE ASKER, IN THE OWNER'S WORDS -- and the band says nothing, because the
+    // draft that was refused is the inspector's own line, which keeps it.
+    const std::string notice = t.notice();
+    const auto refused = [&t](const char* label, const std::string& text) {
+        const PaneSubjectActed said = type_region_value(t, label, text);
+        CHECK_FALSE(said.accepted);
+        return said.refusal;
+    };
+    CHECK(refused("X", "-") ==
+          "X: a region has no default to reset to -- type a whole number of cells");
+    CHECK(refused("Width", "0") == "Width: a region width must be positive");
+    CHECK(refused("Y", "abc").find("Y: not a whole number of cells") == 0);
+    CHECK(refused("Height", "-4") == "Height: a region height must be positive");
+    CHECK(refused("X", "5000") == "X: a region place is at most 4096 cells");
+    CHECK(t.notice() == notice);
     CHECK(definition_bytes(t) == before);
     // TEXT: plain ASCII, judged at the door; a byte the media cannot draw is refused whole.
-    type_region_value(t, "Text", "plain words");
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(type_region_value(t, "Text", "plain words").accepted);
     CHECK(t.session().panels.maker.definition.regions[0].text == "plain words");
-    const std::size_t at = region_row_index(t, "Text");
-    go_to_index(t, at);
-    t.key(input::scan::kReturn);
-    t.text("\xC3\xA9");
-    t.key(input::scan::kReturn);
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice() == "Text: a text region holds plain ASCII with no control characters");
+    CHECK(refused("Text", "plain words\xC3\xA9") ==
+          "Text: a text region holds plain ASCII with no control characters");
     CHECK(t.session().panels.maker.definition.regions[0].text == "plain words");
-    t.key(input::scan::kEscape);
     // THE AUTHORED ROWS OF THE PANE AND THE REGION SHARE LABELS AND NOT DOORS: the pane's X
     // is the setup's, the region's X is the definition's.
     type_region_value(t, "X", "3");
@@ -1055,12 +902,11 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
           "unresolved one is nothing to inspect") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    open_editor(t);
-    choose_by_keys(t, ref_of(panel::kLayouts));
+    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
     const std::size_t at = interior_section(t);
-    REQUIRE(at + 2 == t.session().pane_editor.rows.size());
-    CHECK(t.session().pane_editor.rows[at + 1].label() == "Interior");
-    CHECK_FALSE(t.session().pane_editor.rows[at + 1].editable());
+    REQUIRE(at + 2 == t.session().inspected.rows.size());
+    CHECK(t.session().inspected.rows[at + 1].label() == "Interior");
+    CHECK_FALSE(t.session().inspected.rows[at + 1].editable());
     const std::string capture = region_value(t, "Interior");
     CHECK(capture.find("code-backed -- body @") == 0);
     CHECK(capture.find("as cells; no authored interior") != std::string::npos);
@@ -1074,11 +920,11 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
     // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
     // is the runtime stand-in, whose interior is its provider's (the last closed BUILT-IN was
     // the Editor, and it is a weave now).
-    choose_by_keys(t, ref_of(stock::kKind));
+    REQUIRE(hand_inspect(t, ref_of(stock::kKind)).accepted);
     CHECK(region_value(t, "Interior") == "a provider's own -- not presented; no authored interior");
     // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
     REQUIRE(add_pane(live(t).setup.active, stranger()));
-    choose_by_keys(t, stranger());
+    REQUIRE(hand_inspect(t, stranger()).accepted);
     CHECK(region_value(t, "Interior") == "unresolved -- nothing to inspect");
 }
 
@@ -1113,20 +959,22 @@ TEST_CASE("WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane an
     t.close_requested();
     CHECK_FALSE(t.host.quit);
     CHECK_FALSE(std::filesystem::exists(dir.file("session.json")));
-    // A SECOND NEW PANE.
-    press_into_editor(t);
-    press_new_pane(t);
-    CHECK(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-    CHECK(t.notice().find("no new pane was started") != std::string::npos);
+    // A SECOND NEW PANE, asked at the maker door: refused, and nothing is made.
+    const MakerPaneAnswered another = hand_maker(t, maker_pane_act::kCreate, "Second");
+    CHECK_FALSE(another.accepted);
+    CHECK(another.said.find("pane MyPane has unsaved changes") == 0);
+    CHECK(another.said.find("nothing was made") != std::string::npos);
+    CHECK_FALSE(has_pane(t.session().setup.active, maker_pane_ref("Second")));
     // A REPLACING OPEN -- the startup load, arriving after a maker has already made one.
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.session().panels.maker.definition.name == "MyPane");
     CHECK(t.notice().find("nothing was opened") != std::string::npos);
     CHECK(t.session().panels.maker.dirty());
     // SAVE IS THE WAY OUT: the file is written, the pane is clean, the quit proceeds.
-    t.key(input::scan::kS);
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    CHECK(t.notice() == "saved pane MyPane to " + spelled(path));
+    const MakerPaneAnswered saved = save_pane(t);
+    REQUIRE_MESSAGE(saved.accepted, saved.said);
+    CHECK(saved.said == "saved pane MyPane to " + spelled(path));
+    CHECK(t.notice() == saved.said);
     CHECK_FALSE(t.session().panels.maker.dirty());
     CHECK(pdp::load_file(path).definition.name == "MyPane");
     t.press(90, 35);
@@ -1143,35 +991,34 @@ TEST_CASE("WUX-14/SC-14: the discard door puts a saved pane back to its file, an
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
     // NEVER SAVED: the discard closes it whole; the row is intent and stays.
-    t.key(input::scan::kD, input::mod::kCtrl);
+    REQUIRE(discard_pane(t).accepted);
     CHECK_FALSE(t.session().panels.maker.open());
     CHECK(t.notice().find("never saved") != std::string::npos);
     CHECK(has_pane(t.session().setup.active, kMine));
     CHECK_FALSE(t.session().panels.has(kMakerPaneKind));
     CHECK_FALSE(resolve_pane(kMine, t.session().panels).has_value());
-    CHECK(t.session().pane_editor.subject == kMine); // the subject stands, honestly unresolved
+    CHECK(t.session().inspected.ref == kMine); // the subject stands, honestly unresolved
     CHECK(region_value(t, "Interior") == "no open definition is named MyPane -- nothing to show");
     // SAVED, THEN EDITED: the discard is the file's value again.
     make_pane(t, "Again");
-    type_region_value(t, "Text", "kept");
-    t.key(input::scan::kS);
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    type_region_value(t, "Text", "lost");
+    REQUIRE(type_region_value(t, "Text", "kept").accepted);
+    REQUIRE(save_pane(t).accepted);
+    REQUIRE(type_region_value(t, "Text", "lost").accepted);
     CHECK(t.session().panels.maker.dirty());
-    t.key(input::scan::kD, input::mod::kCtrl);
+    REQUIRE(discard_pane(t).accepted);
     CHECK_FALSE(t.session().panels.maker.dirty());
     CHECK(t.session().panels.maker.definition.regions[0].text == "kept");
     CHECK(t.notice().find("back to what") != std::string::npos);
-    t.key(input::scan::kD, input::mod::kCtrl);
-    CHECK(t.notice().find("nothing to discard") != std::string::npos);
+    CHECK(discard_pane(t).said.find("nothing to discard") != std::string::npos);
     // SAVE WITH NO FILE: a pane made in a run with no pane path is refused in words.
     Live nowhere;
     nowhere.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    make_pane(nowhere, "Floating");
-    CHECK(nowhere.notice().find("(no pane file this run)") != std::string::npos);
-    nowhere.key(input::scan::kS);
+    CHECK(make_pane(nowhere, "Floating").said.find("(no pane file this run)") !=
+          std::string::npos);
+    const MakerPaneAnswered unsaved = save_pane(nowhere);
+    CHECK_FALSE(unsaved.accepted);
     CHECK(nowhere.session().notice_is_bad);
-    CHECK(nowhere.notice() == "no pane file -- start Workshop with --pane <path>");
+    CHECK(unsaved.said == "no pane file -- start Workshop with --pane <path>");
     CHECK(nowhere.session().panels.maker.dirty());
 }
 
@@ -1185,9 +1032,8 @@ TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and 
     t.host.pane_path = path;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "Live");
-    type_region_value(t, "Text", "good");
-    t.key(input::scan::kS);
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    REQUIRE(type_region_value(t, "Text", "good").accepted);
+    REQUIRE(save_pane(t).accepted);
     const std::string good = definition_bytes(t);
     // THE FILE IS REPLACED BY A FORGERY BEHIND WORKSHOP'S BACK, then the open door runs.
     spillout(path, forge_first(slurp(path), "\"kind\":\"text\"", "\"kind\":\"button\""));
@@ -1205,11 +1051,11 @@ TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and 
     }
     CHECK(walled);
     const std::string forged_bytes = slurp(path);
-    press_into_editor(t);
-    type_region_value(t, "Text", "changed");
-    t.key(input::scan::kS);
+    REQUIRE(type_region_value(t, "Text", "changed").accepted);
+    const MakerPaneAnswered walled_save = save_pane(t);
+    CHECK_FALSE(walled_save.accepted);
     CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("will not be written over") != std::string::npos);
+    CHECK(walled_save.said.find("will not be written over") != std::string::npos);
     CHECK(slurp(path) == forged_bytes);
     // A MALFORMED FILE WITH NO LIVE DEFINITION LEAVES NONE, and says why, at startup.
     Live fresh;
@@ -1242,11 +1088,10 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
         t.publish(loom::to_value(surface::SurfaceReady{}));
         sdl_face(t);
         make_pane(t, "MyPane");
-        type_region_value(t, "Text", "hello from data");
-        type_region_value(t, "X", "126"); // a pixel that is not a cell
-        type_region_value(t, "Y", "6");
-        t.key(input::scan::kS);
-        REQUIRE_FALSE(t.session().notice_is_bad);
+        REQUIRE(type_region_value(t, "Text", "hello from data").accepted);
+        REQUIRE(type_region_value(t, "X", "126").accepted); // a pixel that is not a cell
+        REQUIRE(type_region_value(t, "Y", "6").accepted);
+        REQUIRE(save_pane(t).accepted);
         t.press(90, 35);
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
@@ -1283,10 +1128,11 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
         tui_face(back);
         CHECK(back.session().panels.has(kMakerPaneKind));
         CHECK(maker_pane_text(back).find("hello from data") != std::string::npos);
-        // THE MANAGER CAME BACK WITH THE DESK -- press into it rather than opening it twice.
-        REQUIRE(back.session().panels.has(panel::kPaneEditor));
-        press_into_editor(back);
-        choose_by_keys(back, kMine);
+        // THE SUBJECT DID NOT COME BACK, AND IS NOT OWED: an inspector's subject is its own and
+        // no session holds it (the host's manager came back with the desk, until it retired).
+        // Named again through the inspector's door, the same rows read the same file.
+        CHECK_FALSE(back.session().inspected.addressed());
+        REQUIRE(hand_inspect(back, kMine).accepted);
         CHECK(region_value(back, "X") == "~10 cells (~ projected)");
         CHECK(region_value(back, "Y") == "~0 cells (~ projected)");
         CHECK(region_value(back, "Text") == "hello from data");
@@ -1356,7 +1202,7 @@ TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and
         t.publish(loom::to_value(surface::SurfaceExtent{132 + i, 46, 0, 0}));
     }
     CHECK(ears->heard() == 0);
-    CHECK(t.session().panels.runtime.entries.size() == 1); // the stand-in, admitted by `Live`
+    CHECK(t.session().panels.runtime.entries.size() == 2); // the two stand-ins `Live` admits
     CHECK(t.session().panels.external.empty());
     CHECK(t.session().panels.keyboard == kNoPaneKind);
 }
@@ -1365,48 +1211,38 @@ TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and
 // The naming prompt, waiting for room, and what did not move
 // ============================================================================
 
-TEST_CASE("WUX-14: the name prompt refuses a bad name in words and keeps it, cancels cleanly, and "
-          "swallows its own trigger") {
+TEST_CASE("WUX-14: the maker door refuses a bad name in words and makes nothing") {
+    // THE NAME'S LAW IS THE HOST'S, AND SO ARE ITS WORDS. The prompt that kept a refused name for
+    // correcting, cancelled on Escape and swallowed its own `n` was drawn in the host's Pane
+    // Manager until that retired; it is the desktop Pane Manager's own line now, and its suite
+    // drives it. What the host owes that line is here: a refusal in words, and nothing made.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    open_editor(t);
-    press_new_pane(t);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneNaming);
-    CHECK(t.session().pane_naming.line.text().empty()); // the trigger's own `n` was swallowed
-    CHECK(keyboard_context_name(t.session(), KeyContext::kPaneNaming) == "naming a new pane");
-    CHECK(panel_text(t.canvases.back(), editor_cells(t)).find(kPaneNamePrompt) !=
-          std::string::npos);
-    type_chars(t,"My Pane");
-    t.key(input::scan::kReturn);
+    const std::size_t rows_before = t.session().setup.active.panes.size();
+    const MakerPaneAnswered spaced = hand_maker(t, maker_pane_act::kCreate, "My Pane");
+    CHECK_FALSE(spaced.accepted);
+    CHECK(spaced.said.find("no spaces") != std::string::npos);
     CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("no spaces") != std::string::npos);
-    CHECK(keyboard_context(t.session()) == KeyContext::kPaneNaming);
-    CHECK(t.session().pane_naming.line.text() == "My Pane");
     CHECK_FALSE(t.session().panels.maker.open());
-    for (int i = 0; i < 7; ++i) {
-        t.key(input::scan::kBackspace);
-    }
-    t.key(input::scan::kReturn);
-    CHECK(t.notice().find("cannot be empty") != std::string::npos);
-    t.key(input::scan::kEscape);
-    CHECK(keyboard_context(t.session()) == KeyContext::kPaneEditor);
-    CHECK(t.notice() == "no pane was made");
+    const MakerPaneAnswered empty = hand_maker(t, maker_pane_act::kCreate, "");
+    CHECK_FALSE(empty.accepted);
+    CHECK(empty.said.find("cannot be empty") != std::string::npos);
     CHECK_FALSE(t.session().panels.maker.open());
-    CHECK_FALSE(t.session().pane_naming.open);
-    // THE PROMPT'S KEYS ARE LISTED IN ITS OWN CONTEXT.
-    press_new_pane(t);
-    const std::string keys = keymap_text(t.session());
-    CHECK(keys.find("naming a new pane | return | make the pane") != std::string::npos);
-    CHECK(keys.find("the text box's own keys") != std::string::npos);
-    t.key(input::scan::kEscape);
+    // NOTHING WAS MADE: no row on the desk, and no definition.
+    CHECK(t.session().setup.active.panes.size() == rows_before);
+    // ...AND AN ACT THE DOOR DOES NOT HAVE IS REFUSED IN WORDS TOO.
+    const MakerPaneAnswered odd = hand_maker(t, 9);
+    CHECK_FALSE(odd.accepted);
+    CHECK(odd.said.find("make, save and discard are the three") != std::string::npos);
 }
 
 TEST_CASE("WUX-14: at the minimum composition a new pane lands waiting, is still the subject, and "
           "is still editable") {
-    Live t; // 78x22: one overlay slot, and the Pane Manager is standing in it
-    make_pane(t, "MyPane");
+    Live t; // 78x22: one overlay slot, and the stand-in is standing in it
+    open_pane(t, ref_of(stock::kKind)); // (it was the host's Pane Manager, until that retired)
+    const MakerPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
-    CHECK(t.notice().find("waiting for room") != std::string::npos);
+    CHECK(made.said.find("waiting for room") != std::string::npos);
     REQUIRE(has_pane(s.setup.active, kMine));
     CHECK_FALSE(s.panels.has(kMakerPaneKind));
     CHECK(s.panels.waiting(kMakerPaneKind));
@@ -1416,9 +1252,8 @@ TEST_CASE("WUX-14: at the minimum composition a new pane lands waiting, is still
             CHECK(pane_state_of(s.panels, s.setup.active, sc, row) == pane_state::kWaiting);
         }
     }
-    CHECK(s.pane_editor.subject == kMine);
-    type_region_value(t, "Text", "typed while waiting");
-    REQUIRE_FALSE(t.session().notice_is_bad);
+    CHECK(s.inspected.ref == kMine);
+    REQUIRE(type_region_value(t, "Text", "typed while waiting").accepted);
     CHECK(t.session().panels.maker.definition.regions[0].text == "typed while waiting");
     CHECK(region_value(t, "Resolved") == "- (the pane is not presented, or the region lies outside it)");
     CHECK(region_value(t, "Shown") == "no room -- nothing of it is drawn on this face");
@@ -1434,10 +1269,10 @@ TEST_CASE("WUX-14/SC-19: a run with no maker pane is the run it always was") {
     const Session& s = t.session();
     CHECK_FALSE(s.panels.maker.open());
     CHECK_FALSE(s.panels.maker.dirty());
-    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 1); // ...plus the stand-in
+    CHECK(combined_catalog(s.panels).size() == kPanelKinds + 2); // ...plus the two stand-ins
     // THE INVENTORY IS ONE LONGER THAN THE CATALOG, and the extra row is not a maker pane:
     // it is the desk's Info weave, authored by `default_setup` and offered by nobody here.
-    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 2);
+    CHECK(inventory_rows(s.setup.active, s.panels).size() == kPanelKinds + 3);
     CHECK(has_pane(s.setup.active, info_ref()));
     CHECK_FALSE(resolve_pane(kMine, s.panels).has_value());
     CHECK(kind_name(s.panels, kMakerPaneKind).empty());

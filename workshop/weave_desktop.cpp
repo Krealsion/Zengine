@@ -290,7 +290,7 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
     } else if (answer.opened) {
-        say("opened " + asked.pane, false);
+        say("opened " + inventory_name(PaneRef{asked.office, asked.pane}), false);
     }
     (void)mail.answer(answer);
     repaint(mail);

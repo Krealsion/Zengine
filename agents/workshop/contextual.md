@@ -87,7 +87,7 @@ LAW — A row shows its effective gesture exactly when its action owns a binding
 
 MEANS
 - a layout row only when the captured tab is the active one, else row and key act on two subjects;
-- a mode beneath that swallows bare keys (the picker) suppresses a command row's key.
+- a mode beneath that swallows bare keys (a pane holding them) suppresses a command row's key.
 
 PROVEN BY — `workshop/screen_attention.cpp` `context_annotation`, `context_row_text`;
 `workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`; `workshop/keymap.hpp` `active_in`,
@@ -114,7 +114,7 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-08 — The surface is a mode with first refusal
 
-LAW — `KeyContext::kContext` tops the picker band and the pointer branch consumes every press while open: inside, navigate or choose through `context_press_at`; outside, dismissal, consumed whole.
+LAW — `KeyContext::kContext` tops the modes beneath it and the pointer branch consumes every press while open: inside, navigate or choose through `context_press_at`; outside, dismissal, consumed whole.
 
 MEANS
 - a further right press re-targets rather than toggling.

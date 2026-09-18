@@ -68,7 +68,7 @@ const char* pane_state_word(std::int64_t state) {
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
 const char* pane_state_remedy(std::int64_t state) {
     switch (state) {
-    case pane_state::kClosed: return "open it from the picker";
+    case pane_state::kClosed: return "open it from the Pane Manager";
     case pane_state::kUnresolved: return "check the spelling, or the provider is not loaded";
     case pane_state::kRefused: return "reset its size, or open it on the other medium";
     case pane_state::kWaiting: return "make the window taller, or place it yourself";
@@ -184,81 +184,9 @@ std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Scree
     return pane_state::kOpen;
 }
 
-// WL-PED-01 -- agents/workshop/pane-manager.md
-std::string picker_entry_text(const std::string& name, const char* state,
-                              const std::string& tail) {
-    return detail::pad(detail::fit(name, static_cast<std::int64_t>(kPickerNameCols)),
-                       kPickerNameCols) +
-           detail::pad(state, kPaneStateCols) + tail;
-}
-
-void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
-                  const Screen& sc, const Keymap& keymap) {
-    const PanelPicker& picker = panels.picker;
-    if (!picker.open) {
-        return;
-    }
-    const FineRect b = picker_bounds(sc);
-    paint_panel_frame(layer, b, kTransientChrome);
-    // THE PICKER IS ONE BOUNDED REGION OF PROSE, and the budget it spends is the
-    // ACTIVE medium's row count rather than the slot's cell count. The two are the same
-    // number in a character medium and they are not in one that sets real type -- nine cells
-    // of slot is nine rows of a terminal and five rows of an 18-pixel face -- which is the
-    // same pair of honest projections the Info panel's body has had.
-    const PanelProsePlace place = panel_prose_place(b, sc);
-    if (!place.present) {
-        return; // a slot with no room for a row says nothing rather than lying about the room
-    }
-    surface::SurfaceTextRegion region = panel_prose_region(place);
-    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
-        region.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(text, place.columns), role});
-    };
-    say("+ PANEL -- " + hotkey_text(keymap, Act::kPickerUp) + "/" +
-            hotkey_text(keymap, Act::kPickerDown) + ", " +
-            hotkey_text(keymap, Act::kPickerChoose) + " opens or removes",
-        surface::role::kAccent);
-    // THE POPULATION IS THE COMBINED CATALOG AND THE BUDGET IS THE SLOT'S.
-    // Before this the list was `kPanelKinds` long and the picker's height was a
-    // constant derived from it, which is a catalog census standing in for a
-    // capacity -- it was right for exactly as long as no catalog could outgrow
-    // the box, and a runtime offer is precisely a catalog that can. So the rows
-    // under the heading are `list_window`'s to spend: the OBJECTS list's own
-    // function, its own three rules and its own wording (`omitted_text`), which
-    // is the second consumer the rule was established with and the fourth
-    // overall. There is no second scrolling algorithm here and the picker did not
-    // get taller.
-    //
-    // AND THE POPULATION IS THE SHARED INVENTORY -- the catalog UNION every
-    // reference the setup names -- so a pane a maker authored and this build cannot resolve
-    // has a row here too, and can be removed with the gesture that removes any other.
-    const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
-    const std::size_t budget =
-        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
-    const ListWindow win = list_window(rows.size(), picker.cursor, budget);
-    if (win.before > 0) {
-        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
-    }
-    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
-        const bool here = i == picker.cursor;
-        say(std::string(here ? "> " : "  ") +
-                picker_entry_text(rows[i].name,
-                                  pane_state_word(pane_state_of(panels, setup, sc, rows[i])),
-                                  rows[i].summary),
-            here ? surface::role::kAccent : surface::role::kFill);
-    }
-    if (win.after > 0) {
-        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
-    }
-    // THE REST OF THE SLOT IS THE REGION'S OWN EMPTINESS, and nobody writes it.
-    // A region owns what is inside its bounds, so its cell projection already pads every row
-    // it was not given -- the spaces that erase the panel underneath in a character medium are
-    // `project_one_text_region`'s, and the graphical medium clears the same rectangle once
-    // rather than a row at a time. What used to be a loop padding out to `b.h` is now the
-    // primitive's contract, which is why this painter no longer has one. See kPickerRows for
-    // why the whole slot is covered at all.
-    layer.texts.push_back(std::move(region));
-}
+// ⭐ `picker_entry_text` AND `paint_picker` WERE HERE -- the `+ panel` picker's one row spelling
+// and its painter, a mode over the stack's first slot. The picker retired; the desktop's Pane
+// Manager presents the same inventory as an ordinary pane, with the states this file names.
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
 

@@ -31,9 +31,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     if (conditions_taken_ != host_->conditions_generation) {
         take_host_conditions();
     }
-    refresh_inspector(); // and a draft's window is only true against the room it has now
-    refresh_setup_name(); // ...and so is the name editor's, against the same room
-    refresh_pane_name();  // ...and the Pane Creator's name prompt, against its heading
+    refresh_setup_name(); // a name editor's window is only true against the room it has now
     refresh_external_rooms(mail); // ...and an external pane's room, against the same one
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
@@ -264,12 +262,6 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
         }
     }
-}
-
-// WL-PED-07 -- agents/workshop/pane-manager.md
-std::string WorkshopWeave::finish_draft_first() const {
-    return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
-           hotkey(Act::kDraftCancel) + " cancels";
 }
 
 } // namespace zengine::workshop
