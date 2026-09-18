@@ -559,8 +559,8 @@ from the declaration — a tap records every shape the weave sends across a whol
 the set.
 
 **And the loader is wider than any of that, which is reported rather than hidden.** `Kernel::load`
-binds `Grant{}.allow_any()` to every library it opens, and a declared `Emit<...>` is informational
-rather than enforced. So the list above is a fact about what this weave *does* and what the pane
+binds `Grant{}.allow_any()` to every library it opens, and a declared `Emit<...>` registers what a
+shape means without gating any send. So the list above is a fact about what this weave *does* and what the pane
 protocol *reaches* — it is not a containment claim about the loader. An in-process dynamic weave
 shares this process's address space; that predates this tool and is identically true of the Skin,
 the reader and the Timer the same host boots.
