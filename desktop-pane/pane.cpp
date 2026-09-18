@@ -68,6 +68,9 @@ using ws::AppActions;
 using ws::DeselectRequested;
 using ws::DesktopFace;
 using ws::InventoryPane;
+using ws::KeymapRequested;
+using ws::KeymapShown;
+using ws::ShownBinding;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
@@ -155,9 +158,9 @@ class DesktopWeave
           DesktopWeave, pane::DesktopState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered, ActionsJudged,
-                       ActionsWithdrawn>,
+                       ActionsWithdrawn, KeymapShown>,
           loom::Emit<PaneOffered, PaneActions, PaneContent, AppActions, PaneLaunchRequested,
-                     DeselectRequested, DesktopFace, PaneInventoryRequested>> {
+                     DeselectRequested, DesktopFace, PaneInventoryRequested, KeymapRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -173,15 +176,22 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS THE LAUNCHER ITS ROOM.
+    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S TWO PANES ITS ROOM.
     void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kLauncherPane) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
-        granted_ = true;
-        say(mail);
+        if (room.pane == pane::kLauncherPane) {
+            rows_ = room.rows;
+            columns_ = room.columns;
+            granted_ = true;
+            say(mail);
+        } else if (room.pane == pane::kHotkeysPane) {
+            keys_room_rows_ = room.rows;
+            keys_room_columns_ = room.columns;
+            keys_granted_ = true;
+            say_keys(mail);
+        }
     }
 
     /// (*) ONE OF THE APPLICATION ROWS THIS WEAVE DECLARED, ASKED FOR BY NAME. Workshop resolved
@@ -205,6 +215,10 @@ public:
             launch(mail, pane::kDesktopRole, pane::kLauncherPane);
             return;
         }
+        if (asked.id == pane::kActionHotkeys) {
+            launch(mail, pane::kDesktopRole, pane::kHotkeysPane);
+            return;
+        }
         if (asked.id == pane::kActionDeselect) {
             (void)mail.as_role(pane::kDesktopRole)
                 .send_to_role(kWorkshopRole, DeselectRequested{}, mail.correlation());
@@ -213,9 +227,17 @@ public:
         // AN ID THIS WEAVE NEVER DECLARED IS NO ACT. It spends nothing and says nothing.
     }
 
-    /// ONE OF THE LAUNCHER PANE'S OWN ROWS, while it holds the keyboard.
+    /// ONE OF THIS WEAVE'S PANES' OWN ROWS, while that pane holds the keyboard.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kLauncherPane) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        if (asked.pane == pane::kHotkeysPane) {
+            scroll_keys(asked.id);
+            say_keys(mail);
+            return;
+        }
+        if (asked.pane != pane::kLauncherPane) {
             return;
         }
         if (asked.id == pane::kActionUp) {
@@ -243,6 +265,19 @@ public:
         face(mail);
     }
 
+    /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
+    /// changes or answered to this image's ask. The floor's key hints and the Hotkeys pane are
+    /// both read from it; this weave keeps no gesture of its own to print (WL-DESK-11).
+    void on(const KeymapShown& said, loom::Mail& mail) {
+        if (!from_workshop(mail)) {
+            return;
+        }
+        keymap_ = said;
+        keys_heard_ = true;
+        say_keys(mail);
+        face(mail);
+    }
+
     /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
     /// an answer to a launch the maker has since replaced says nothing about the newer one.
     void on(const PaneLaunchAnswered& answer, loom::Mail& mail) {
@@ -264,7 +299,7 @@ public:
         if (!mail.answers_ask()) {
             return; // a verdict is Loom's answer to a declaration of this incarnation's, or nothing
         }
-        Declared& d = said.pane.empty() ? app_ : pane_rows_;
+        Declared& d = declared_for(said.pane);
         if (mail.correlation() != d.attempt) {
             return;
         }
@@ -285,7 +320,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole)) {
             return; // ordinary speech: only the host's office may say it
         }
-        Declared& d = said.pane.empty() ? app_ : pane_rows_;
+        Declared& d = declared_for(said.pane);
         if (said.declaration == 0 || said.declaration != d.in_force) {
             return;
         }
@@ -303,13 +338,21 @@ private:
         return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
     }
 
-    /// ONE OF THIS IMAGE'S TWO DECLARATIONS: the number the latest attempt went out under, the
+    /// ONE OF THIS IMAGE'S DECLARATIONS: the number the latest attempt went out under, the
     /// number Workshop gave the one in force, and what to tell the maker about it.
     struct Declared {
         std::uint64_t attempt = 0;
         std::int64_t in_force = 0;
         std::string word;
     };
+
+    /// WHICH OF THIS IMAGE'S DECLARATIONS A VERDICT IS ABOUT, by the pane it names.
+    Declared& declared_for(const std::string& pane_key) {
+        if (pane_key.empty()) {
+            return app_;
+        }
+        return pane_key == pane::kHotkeysPane ? keys_rows_ : pane_rows_;
+    }
 
     // ---- Offering, declaring and asking ---------------------------------------------------
 
@@ -323,6 +366,15 @@ private:
         pane_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
+                                                     pane::kHotkeysSummary});
+        PaneActions keys;
+        keys.pane = pane::kHotkeysPane;
+        keys.rows = keys_rows();
+        keys_rows_.attempt = ++attempts_;
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, keys, keys_rows_.attempt);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a maker has pressed into the launcher; these act wherever the maker is
         // standing (WL-KEY-16).
@@ -334,6 +386,9 @@ private:
         // image arriving while nothing changes would otherwise wait for an unrelated change.
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneInventoryRequested{});
+        // ...AND THE KEYMAP IN FORCE, for the same reason: what the floor and the Hotkeys pane
+        // print is what the host resolved, never this image's own defaults.
+        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
         face(mail);
     }
 
@@ -348,6 +403,8 @@ private:
                          ws::app_precedence::kAboveModes},
             AppActionRow{pane::kActionPanes, "panes", input::scan::kP, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes},
+            AppActionRow{pane::kActionHotkeys, "hotkeys", input::scan::kK, input::mod::kCtrl,
+                         ws::app_precedence::kAboveModes},
             AppActionRow{pane::kActionDeselect, "put down", input::scan::kEscape,
                          input::mod::kNone, ws::app_precedence::kDefault}};
     }
@@ -358,6 +415,18 @@ private:
                 PaneActionRow{pane::kActionDown, "row down", input::scan::kDown,
                               input::mod::kNone},
                 PaneActionRow{pane::kActionLaunch, "open or focus", input::scan::kReturn,
+                              input::mod::kNone}};
+    }
+
+    /// THE HOTKEYS PANE'S OWN FOUR: a scroll, a row at a time or to either end. Nothing in it takes
+    /// text, so bare keys are legal.
+    static std::vector<PaneActionRow> keys_rows() {
+        return {PaneActionRow{pane::kActionKeysUp, "scroll up", input::scan::kUp,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionKeysDown, "scroll down", input::scan::kDown,
+                              input::mod::kNone},
+                PaneActionRow{pane::kActionKeysTop, "top", input::scan::kHome, input::mod::kNone},
+                PaneActionRow{pane::kActionKeysBottom, "bottom", input::scan::kEnd,
                               input::mod::kNone}};
     }
 
@@ -516,6 +585,131 @@ private:
             .send_to_role(kWorkshopRole, PaneContent{pane::kLauncherPane, std::move(out)});
     }
 
+    // ---- The Hotkeys pane ---------------------------------------------------------------------
+
+    /// THE KEYMAP AS LINES: a heading per place a key is answered, then its rows -- the key as a
+    /// keymap file spells it, the label, the id a file would name, and `*` where the maker's own
+    /// file moved or disabled it.
+    std::vector<surface::SurfaceTextRow> keys_lines() const {
+        std::vector<surface::SurfaceTextRow> lines;
+        std::string group;
+        for (const ShownBinding& b : keymap_.rows) {
+            if (b.group != group) {
+                group = b.group;
+                lines.push_back(surface::SurfaceTextRow{group, surface::role::kAccent});
+            }
+            std::string key = b.gesture.empty() ? "(no key)" : b.gesture;
+            if (key.size() < 14) {
+                key.append(14 - key.size(), ' ');
+            }
+            std::string text = "  " + key + " " + b.label;
+            if (!b.id.empty()) {
+                text += "  " + b.id;
+            }
+            if (b.authored) {
+                text += " *";
+            }
+            if (!b.remappable) {
+                text += "  (not remappable)";
+            }
+            lines.push_back(surface::SurfaceTextRow{text, surface::role::kFill});
+        }
+        return lines;
+    }
+
+    void scroll_keys(const std::string& id) {
+        if (id == pane::kActionKeysUp) {
+            keys_top_ = keys_top_ > 0 ? keys_top_ - 1 : 0;
+        } else if (id == pane::kActionKeysDown) {
+            ++keys_top_;
+        } else if (id == pane::kActionKeysTop) {
+            keys_top_ = 0;
+        } else if (id == pane::kActionKeysBottom) {
+            keys_top_ = static_cast<std::size_t>(-1); // clamped by the next composition
+        }
+    }
+
+    /// THE HEADING, THE LIST THROUGH A WINDOW, AND TWO FOOTER ROWS SAYING WHERE A KEY IS MOVED:
+    /// the file this run reads, what reading it came to, and the one line a maker writes.
+    void say_keys(loom::Mail& mail) {
+        if (!keys_granted_ || keys_room_rows_ <= 0 || keys_room_columns_ <= 0) {
+            return;
+        }
+        std::vector<surface::SurfaceTextRow> out;
+        const auto push = [&out, this](std::string text, std::int64_t role) {
+            if (static_cast<std::int64_t>(out.size()) < keys_room_rows_) {
+                out.push_back(
+                    surface::SurfaceTextRow{fit(std::move(text), keys_room_columns_), role});
+            }
+        };
+        if (!keys_heard_) {
+            push("HOTKEYS (waiting)", surface::role::kMuted);
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole, PaneContent{pane::kHotkeysPane, std::move(out)});
+            return;
+        }
+        const std::vector<surface::SurfaceTextRow> lines = keys_lines();
+        std::size_t bindings = 0;
+        for (const ShownBinding& b : keymap_.rows) {
+            bindings += b.remappable ? 1u : 0u;
+        }
+        push("HOTKEYS -- " + std::to_string(bindings) + " in force; * moved by your file",
+             surface::role::kAccent);
+        // WHERE A KEY IS MOVED, said last and reserved first: the grammar a maker writes, the file
+        // this run reads, and what reading it came to. A small room keeps the grammar alone.
+        std::vector<std::string> footer;
+        footer.push_back("move one: {\"action\": \"<id>\", \"gesture\": \"ctrl+g\"} in the "
+                         "keymap file; \"none\" disables it; read at launch");
+        footer.push_back("keymap file: " +
+                         (keymap_.file.empty() ? std::string("(none)") : keymap_.file));
+        if (!keymap_.word.empty()) {
+            footer.push_back("  " + keymap_.word);
+        }
+        std::int64_t budget = keys_room_rows_ - 1;
+        const std::int64_t footer_rows =
+            budget >= 3 + static_cast<std::int64_t>(footer.size())
+                ? static_cast<std::int64_t>(footer.size())
+                : (budget >= 4 ? 1 : 0);
+        budget -= footer_rows;
+        const std::size_t n = lines.size();
+        const std::size_t room = budget > 0 ? static_cast<std::size_t>(budget) : 0;
+        // A SCROLL, NOT A CURSOR: the first line shown moves, clamped so the last page is full,
+        // and each side that is cut says how much on a row of its own.
+        std::size_t top = keys_top_;
+        if (n <= room) {
+            keys_top_ = 0;
+            for (const surface::SurfaceTextRow& line : lines) {
+                push(line.text, line.role);
+            }
+        } else if (room >= 3) {
+            const std::size_t last_top = n - (room - 1); // the final page: `^` and the rest
+            top = top > last_top ? last_top : top;
+            keys_top_ = top;
+            std::size_t inner = room - (top > 0 ? 1u : 0u);
+            const bool below = top + inner < n;
+            inner -= below ? 1u : 0u;
+            if (top > 0) {
+                push("  ^ " + std::to_string(top) + " more above", surface::role::kMuted);
+            }
+            for (std::size_t i = top; i < top + inner; ++i) {
+                push(lines[i].text, lines[i].role);
+            }
+            if (below) {
+                push("  v " + std::to_string(n - top - inner) + " more below",
+                     surface::role::kMuted);
+            }
+        } else if (room > 0) {
+            top = top < n ? top : n - 1;
+            keys_top_ = top;
+            push(lines[top].text, lines[top].role);
+        }
+        for (std::int64_t i = 0; i < footer_rows; ++i) {
+            push(footer[static_cast<std::size_t>(i)], surface::role::kMuted);
+        }
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneContent{pane::kHotkeysPane, std::move(out)});
+    }
+
     // ---- What stands in the empty room ------------------------------------------------------
 
     /// (*) THE FLOOR. This is the small visible behaviour a replacement changes: rebuild this
@@ -528,8 +722,28 @@ private:
             out.push_back(surface::SurfaceTextRow{std::move(text), role});
         };
         push("Zen Workshop", surface::role::kAccent);
-        push("ctrl+t  terminal      ctrl+p  panes      ctrl+k  hotkeys",
-             surface::role::kMuted);
+        // (!) THE KEYS ARE THE HOST'S ANSWER, NOT THIS WEAVE'S DEFAULTS: a row the maker moved is
+        // printed where they moved it, one they disabled says so, and before the keymap is heard
+        // no key is claimed at all (WL-DESK-11).
+        if (keys_heard_) {
+            std::string hints;
+            for (const AppActionRow& mine : app_rows()) {
+                if (mine.precedence != ws::app_precedence::kAboveModes) {
+                    continue;
+                }
+                for (const ShownBinding& b : keymap_.rows) {
+                    if (b.id != mine.id) {
+                        continue;
+                    }
+                    const std::string hint =
+                        b.gesture.empty() ? b.label + ": no key" : b.gesture + "  " + b.label;
+                    hints += (hints.empty() ? "" : "      ") + hint;
+                }
+            }
+            if (!hints.empty()) {
+                push(hints, surface::role::kMuted);
+            }
+        }
         // (!) AND THE TOOLS THAT ARE NOT HERE ARE NAMED ON THE FLOOR. The host supplied the
         // fact (`InventoryPane::available`, asked of the office's holder now); this weave
         // decided it belongs here.
@@ -582,7 +796,15 @@ private:
     /// longer be true.
     std::uint64_t attempts_ = 0;
     Declared pane_rows_;
+    Declared keys_rows_;
     Declared app_;
+    /// THE HOTKEYS PANE: its room, the keymap the host last said, and how far it is scrolled.
+    std::int64_t keys_room_rows_ = 0;
+    std::int64_t keys_room_columns_ = 0;
+    bool keys_granted_ = false;
+    KeymapShown keymap_;
+    bool keys_heard_ = false;
+    std::size_t keys_top_ = 0;
     /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH, which the host's answer echoes.
     std::uint64_t launches_ = 0;
 };

@@ -18,7 +18,7 @@ types into keeps Escape while it holds the keys.
 
 **Alternatives considered.**
 - *Escape as a keymap action* — refused: a recovery gesture must not be authorable into a
-  lockout, the hotkey view's own reason; the ordering is pinned by case `"QR-18/SC-2: every
+  lockout, the retired hotkey view's own reason; the ordering is pinned by case `"QR-18/SC-2: every
   more-specific Escape meaning answers first, and deselection waits"`.
 - *Escape closing the pane, or touching rank, geometry, the Pane Manager's subject, provider
   state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"QR-18/SC-1+SC-3:

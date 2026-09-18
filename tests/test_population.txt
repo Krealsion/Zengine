@@ -1611,8 +1611,8 @@ builder                           doctest           always  59
 #                               file is named by the PROJECT door (`RecipeSourceSaid`), and
 #                               opening it is the Editor's.
 
-workshop_document                 doctest           always  104
-workshop_screen                   doctest           always  173
+workshop_document                 doctest           always  102
+workshop_screen                   doctest           always  169
 # EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
 # workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the
 # shape of the work: the Terminal pane's own interaction, one completer unit case, and two Neovim
@@ -1666,7 +1666,7 @@ workshop_screen                   doctest           always  173
 #                                pane is Neovim's with the pane still selected.
 #
 workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  599
+workshop_panes                    doctest           always  601
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  149
 workshop_editor_switch            doctest           always  11

@@ -2266,7 +2266,20 @@ TEST_CASE("WIND-2a/WUX-1: the opening gestures are claimed by the band's own tru
     };
     CHECK(has_pair("w arrange desk"));
     CHECK(has_pair("p + panel"));
-    CHECK(has_pair("^k hotkeys")); // the recovery key: the full list is one keystroke away
+    // THE KEY LIST IS AN APPLICATION ROW NOW: taught from the desktop's declaration, as it is in
+    // force, and not by this host's own catalog.
+    CHECK_FALSE(has_pair("^k hotkeys"));
+    Keymap with_desktop = s.keymap;
+    REQUIRE(join_app_rows(with_desktop,
+                          std::vector<AppRow>{AppRow{"desktop.hotkeys", "hotkeys",
+                                                     Gesture{input::scan::kK, input::mod::kCtrl},
+                                                     app_precedence::kAboveModes}})
+                .accepted);
+    bool taught = false;
+    for (const std::string& pair : help_pairs(with_desktop, KeyContext::kCommand)) {
+        taught = taught || pair == "^k hotkeys";
+    }
+    CHECK(taught);
 
     const std::vector<std::string> raster = rasterized(paint(d, s));
     REQUIRE_FALSE(raster.empty());
@@ -4679,7 +4692,7 @@ TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings"
     REQUIRE(t.menu().subject == context_subject::kRoot);
     CHECK(context_annotation(t.session(), entry_of("workshop.picker")) == "p");
     CHECK(context_annotation(t.session(), entry_of("workshop.manage")) == "w");
-    CHECK(context_annotation(t.session(), entry_of("workshop.hotkeys")) == "^k");
+    CHECK(context_annotation(t.session(), entry_of("document.save")) == "^s");
     CHECK(context_annotation(t.session(), entry_of("manage.reset-order")).empty());
 
     // ...AND THE PAINTED ROW CARRIES THE GESTURE AT THE LEVEL'S ANNOTATION COLUMN,
@@ -4721,7 +4734,7 @@ TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings"
     t.right_press(40, 15);
     REQUIRE(t.menu().open);
     CHECK(context_annotation(t.session(), entry_of("object.new")).empty());
-    CHECK(context_annotation(t.session(), entry_of("workshop.hotkeys")) == "^k");
+    CHECK(context_annotation(t.session(), entry_of("document.save")) == "^s");
     t.key(input::scan::kEscape); // the menu
     t.key(input::scan::kEscape); // the picker
     REQUIRE_FALSE(t.session().panels.picker.open);
@@ -4999,355 +5012,6 @@ TEST_CASE("WUX-5: the selection lift never reaches the file, and no session star
           presentation_order(t.session().setup.active, gone));
 }
 
-TEST_CASE("WUX-5: contextual help opens at the selected pane, and follows it") {
-    // ⚔ MUTATION: `hotkeys_bounds` ignoring the selection and answering the overlay column's
-    // corner, which is exactly where this view used to open unconditionally.
-    //
-    // A SCREEN WHOSE BAND HOLDS THE WHOLE LIST (QR-17). The view is its content's size now,
-    // and where the band is shorter than the list the view keeps the band and shifts to its
-    // top (the SC-4 case) -- so an anchor is only observable on a screen that has room for
-    // the view beneath it.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 70, 0, 0}));
-    // THE PANE IN THE RIGHT COLUMN IS AUTHORED. It was Info, a built-in the catalog put
-    // there; the place is unchanged and its occupant is a desk row now.
-    open_at_right_column(t, panel::kPaneEditor);
-    open_pane(t, ref_of(stock::kKind));
-    const Screen sc = screen_of(t.session());
-    const ui::Rect column = cells_covered(overlay_column(sc));
-
-    // NO SELECTION: the global place -- the overlay column's own CORNER, where this view
-    // always opened. Its extent is the content's since QR-17 (the QR-17 cases below), so
-    // the corner is the whole of what "byte-for-byte" means here.
-    REQUIRE(t.session().panels.selected == kNoPaneKind);
-    const ui::Rect global = cells_covered(hotkeys_bounds(t.session(), sc));
-    CHECK(global.x == column.x);
-    CHECK(global.y == column.y);
-
-    // SELECTED: the pane's own top-left corner, VERBATIM where the room allows it. The
-    // Builder is put well inside the surface first, so this half of the case is about the
-    // anchor and the clamp gets its own half below.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              surface::subs_of_cells(6), surface::subs_of_cells(4))
-                .accepted);
-    const ui::Rect first =
-        cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
-                                screen_of(t.session()))
-                          .rect);
-    t.press_canvas(first.x, first.y);
-    REQUIRE(t.session().panels.selected == stock::kKind);
-    const ui::Rect at_first = cells_covered(hotkeys_bounds(t.session(), screen_of(t.session())));
-    CHECK(at_first.x == first.x);
-    CHECK(at_first.y == first.y);
-    CHECK((at_first.x != global.x || at_first.y != global.y));
-
-    // ...AND IT FOLLOWS THE PANE THAT MOVES. Nothing is stored: the anchor is re-derived,
-    // so authoring a place moves the help on the next question.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              surface::subs_of_cells(11), surface::subs_of_cells(7))
-                .accepted);
-    const ui::Rect moved =
-        cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
-                                screen_of(t.session()))
-                          .rect);
-    t.press_canvas(moved.x, moved.y);
-    REQUIRE(t.session().panels.selected == stock::kKind);
-    const ui::Rect at_builder =
-        cells_covered(hotkeys_bounds(t.session(), screen_of(t.session())));
-    CHECK(at_builder.x == moved.x);
-    CHECK(at_builder.y == moved.y);
-    CHECK((at_builder.x != at_first.x || at_builder.y != at_first.y));
-
-    // A SELECTED PANE THE ROOM CANNOT HOLD THE VIEW BESIDE IS CLAMPED, not followed off
-    // the surface: the side region begins at the canvas's own top row and its far edge is
-    // the screen's, and the command list is wider than Info's column, so a view anchored
-    // there shifts on BOTH axes.
-    const ui::Rect side = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc).rect);
-    t.press_canvas(side.x + 1, side.y + 1);
-    REQUIRE(t.session().panels.selected == panel::kPaneEditor);
-    const ui::Rect at_side = cells_covered(hotkeys_bounds(t.session(), screen_of(t.session())));
-    REQUIRE(at_side.w > side.w); // the arrangement this half is about
-    CHECK(at_side.x < side.x);
-    CHECK(at_side.y == kStackY);
-    CHECK(at_side.x + at_side.w <= screen_of(t.session()).w);
-
-    // AND IT IS STILL WHOLE INSIDE THE ROOM, wherever the pane is: a selected pane near
-    // the floor shifts the view UP rather than letting it be drawn off the surface -- to
-    // exactly where its bottom meets the floor, since the view is its content's size.
-    const std::int64_t floor_y = kWorkspaceY + screen_of(t.session()).room_h;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              surface::subs_of_cells(2), surface::subs_of_cells(floor_y - 2))
-                .accepted);
-    const ui::Rect low =
-        cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
-                                screen_of(t.session()))
-                          .rect);
-    t.press_canvas(low.x, low.y);
-    REQUIRE(t.session().panels.selected == stock::kKind);
-    // The press pointed the keys at the stand-in, whose context the view would describe in
-    // rows of its own; what this half measures is the ANCHOR, so the keys go back to command
-    // mode and the view's content is the global one it was compared against above.
-    release_keys(t);
-    const ui::Rect clamped =
-        cells_covered(hotkeys_bounds(t.session(), screen_of(t.session())));
-    CHECK(clamped.x == low.x);
-    CHECK(clamped.y > kStackY);
-    CHECK(clamped.y < low.y);
-    CHECK(clamped.x + clamped.w <= screen_of(t.session()).w);
-    CHECK(clamped.y + clamped.h == floor_y);
-    // ...AND IT IS STILL THE SAME VIEW: the extent is the content's wherever the anchor
-    // is -- not the room under a low anchor, and not a floor minted to keep a sliver a
-    // view (QR-17 retired `kPickerRows` here; the content keeps a view a view).
-    CHECK(clamped.w == global.w);
-    CHECK(clamped.h == global.h);
-
-    // (THE ATTENTION VIEW USED TO BE MEASURED HERE TOO, because it was an overlay in this
-    // same column and the question "did it follow the anchor" was a real one. It is a pane
-    // now and is placed by the setup like any other, so there is no second box left in this
-    // family to compare against.)
-}
-
-// ============================================================================
-// QR-17 — the hotkey view fits what it says
-// ============================================================================
-//
-// WUX-5 put the full hotkey view beside the selected pane and left its extent where KEY-0
-// had it: the overlay column's width, and the room under the anchor. The rows the view
-// paints are derived from the keymap at every paint (`hotkeys_rows`), so the honest
-// rectangle is the one those rows need -- read into cells by the contextual surface's own
-// arithmetic (`popup_bounds_at`) rather than by the box a slot's reservation happened to
-// leave. These cases are that law's falsifiers: content owns the extent, in both
-// directions; the longest row and the last row fit; the room still bounds it; and a
-// smaller rectangle is still nobody's pointer space and moves no reservation.
-
-namespace {
-
-/// The rows a canvas paints inside a rectangle, one string per row with the region's
-/// padding trimmed -- so a composed row and its painted twin compare as what a maker reads.
-std::vector<std::string> painted_rows_in(const surface::SurfaceCanvas& c, const ui::Rect& body) {
-    std::vector<std::string> out;
-    std::string line;
-    for (const char ch : panel_text(c, body)) {
-        if (ch != '\n') {
-            line += ch;
-            continue;
-        }
-        while (!line.empty() && line.back() == ' ') {
-            line.pop_back();
-        }
-        out.push_back(line);
-        line.clear();
-    }
-    return out;
-}
-
-std::size_t longest_hotkey_row(const std::vector<HotkeyRow>& rows) {
-    std::size_t longest = 0;
-    for (const HotkeyRow& row : rows) {
-        longest = row.text.size() > longest ? row.text.size() : longest;
-    }
-    return longest;
-}
-
-} // namespace
-
-TEST_CASE("QR-17/SC-1..3: the hotkey view is as tall as its rows and as wide as its longest") {
-    // ⚔ MUTATIONS: the predecessor's fixed rectangle restored (the column, or the room under
-    // the anchor); the longest row under-counted by one column; the rows under-counted by
-    // one. Every painted row is compared with its composed twin BY INDEX, so a shortfall
-    // names the line it lost -- the cut row, or the missing last one.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 70, 0, 0}));
-    const auto measured = [&t](const char* beneath) {
-        INFO("beneath the view: ", std::string(beneath));
-        REQUIRE(t.session().hotkeys.open);
-        const Screen sc = screen_of(t.session());
-        const std::vector<HotkeyRow> rows = hotkeys_rows(t.session());
-        REQUIRE(rows.size() > 1);
-        const std::size_t longest = longest_hotkey_row(rows);
-        // The fixture's premise: this room holds the whole list, chrome included.
-        REQUIRE(static_cast<std::int64_t>(rows.size()) + 2 * kChromeCells <=
-                kWorkspaceY + sc.room_h - kStackY);
-        const ui::Rect outer = cells_covered(hotkeys_bounds(t.session(), sc));
-        const ui::Rect body = pane_body_cells(fine_of_cells(outer));
-        // ON A CELL MEDIUM THE INTERIOR IS EXACTLY THE CONTENT: one row per composed row
-        // and one column per character of the longest -- no filler row, no unused field.
-        CHECK(body.h == static_cast<std::int64_t>(rows.size()));
-        CHECK(body.w == static_cast<std::int64_t>(longest));
-        // ...AND EVERY COMPOSED ROW IS PAINTED WHOLE, ON ITS OWN ROW. Painted row i IS
-        // composed row i; nothing is cut and nothing is omitted. (Compared as far as both
-        // reach, so a view one row short names the row it lost rather than only a count.)
-        const std::vector<std::string> painted = painted_rows_in(t.canvases.back(), body);
-        CHECK(painted.size() == rows.size());
-        const std::size_t both = painted.size() < rows.size() ? painted.size() : rows.size();
-        for (std::size_t i = 0; i < both; ++i) {
-            CAPTURE(i);
-            CAPTURE(rows[i].text);
-            CHECK(painted[i] == rows[i].text);
-            CHECK(painted[i].rfind("  ... ", 0) != 0);
-        }
-        return outer;
-    };
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const ui::Rect command = measured("command mode");
-    t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.session().hotkeys.open);
-
-    // A SMALLER POPULATION IS A SMALLER VIEW, in both dimensions: the picker's own keys
-    // are a fraction of command mode's, and the view over it is measured the same way.
-    //
-    // (⚠ THIS USED TO MEASURE THE ATTENTION VIEW'S CONTEXT, which had four rows and was the
-    // smallest mode in the application. That context retired with the overlay -- the view
-    // is a pane, and a pane's rows are the PANE's context -- so the claim is asked of the
-    // picker, which is the smallest host context left and is measured the same way.)
-    t.key(input::scan::kP);
-    REQUIRE(keyboard_context(t.session()) == KeyContext::kPicker);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const ui::Rect picker = measured("the + panel picker");
-    CHECK(picker.h < command.h);
-    CHECK(picker.w < command.w);
-    // ...AND NEITHER IS THE PREDECESSOR'S BOX: narrower than the column and shorter than
-    // the room, both of them.
-    const ui::Rect column = cells_covered(overlay_column(screen_of(t.session())));
-    CHECK(command.w < column.w);
-    CHECK(command.h < column.h);
-    CHECK(picker.w < column.w);
-    CHECK(picker.h < column.h);
-    t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.session().hotkeys.open);
-    t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.session().panels.picker.open);
-
-    // ON THE SHIPPED FACE THE SAME ROWS RESOLVE THROUGH THE SAME MEASURER, in type. The
-    // rectangle is whole cells on every face (`chrome_outer_of` reserves the coarsest
-    // boundary, WUX-8), so the interior carries the face's slack and no more: every row
-    // fits and is published whole, nothing is cut, and it is still nothing like the column.
-    // (A taller screen: a row of type is a line and a half of cells, and the band has to
-    // hold the whole list for the extent to be the content's rather than the band's.)
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 90, 8, 18, 12}));
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    {
-        const Screen sc = screen_of(t.session());
-        const std::vector<HotkeyRow> rows = hotkeys_rows(t.session());
-        const std::size_t longest = longest_hotkey_row(rows);
-        const FineRect b = hotkeys_bounds(t.session(), sc);
-        const PanelProsePlace place = panel_prose_place(b, sc);
-        REQUIRE(place.present);
-        CHECK(place.fit.graphical());
-        CHECK(place.rows >= static_cast<std::int64_t>(rows.size()));
-        CHECK(place.columns >= static_cast<std::int64_t>(longest));
-        // The last plane is the view's (KEY-0's paint order): one region, every row whole.
-        const surface::SurfaceLayer& plane = t.canvases.back().layers.back();
-        REQUIRE(plane.texts.size() == 1);
-        const surface::SurfaceTextRegion& region = plane.texts.back();
-        REQUIRE(region.rows.size() == rows.size());
-        for (std::size_t i = 0; i < rows.size(); ++i) {
-            CAPTURE(i);
-            CHECK(region.rows[i].text == rows[i].text);
-        }
-        const ui::Rect outer = cells_covered(b);
-        const ui::Rect face_column = cells_covered(overlay_column(sc));
-        CHECK(outer.w < face_column.w);
-        CHECK(outer.h < face_column.h);
-        // ONE SIZING TRUTH (SC-8): the cells are the one measurer's own answer plus the
-        // chrome, and not a cell more -- a second inversion beside `region_cells_for`
-        // would show up here as a different rectangle.
-        const surface::RegionCells cells = surface::region_cells_for(
-            static_cast<std::int64_t>(longest), static_cast<std::int64_t>(rows.size()), 8, 18);
-        CHECK(outer.w == cells.w + 2 * kChromeCells);
-        CHECK(outer.h == cells.h + 2 * kChromeCells);
-    }
-    t.key(input::scan::kEscape);
-}
-
-TEST_CASE("QR-17/SC-4: a list the room cannot hold keeps the room and counts the cut") {
-    // ⚔ MUTATION: the popup growing past the band's floor, or past the canvas's edge, to
-    // hold its content. The minimum screen's band is sixteen rows and command mode's list
-    // is three times that, so this is the impossibility the existing law has to answer.
-    Live t;
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const Screen sc = screen_of(t.session());
-    const std::vector<HotkeyRow> rows = hotkeys_rows(t.session());
-    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
-    REQUIRE(static_cast<std::int64_t>(rows.size()) + 2 * kChromeCells > floor_y - kStackY);
-    const ui::Rect b = cells_covered(hotkeys_bounds(t.session(), sc));
-    CHECK(b.y == kStackY);
-    CHECK(b.y + b.h == floor_y); // the band's height, not the content's
-    CHECK(b.x >= 0);
-    CHECK(b.x + b.w <= sc.w);
-    // ...AND THE PAINTER SAYS WHAT IT CUT: the rows that fit, then a count of the rest --
-    // and the last composed row is among the rest.
-    const ui::Rect body = pane_body_cells(fine_of_cells(b));
-    const std::vector<std::string> painted = painted_rows_in(t.canvases.back(), body);
-    REQUIRE(painted.size() == static_cast<std::size_t>(body.h));
-    const std::size_t shown = painted.size() - 1;
-    for (std::size_t i = 0; i < shown; ++i) {
-        CAPTURE(i);
-        CHECK(painted[i] == rows[i].text);
-    }
-    CHECK(painted.back() == "  " + omitted_text(rows.size() - shown, "more"));
-    CHECK(panel_text(t.canvases.back(), body).find(rows.back().text) == std::string::npos);
-    t.key(input::scan::kEscape);
-
-    // THE WIDTH IS BOUNDED BY THE SAME FUNCTION: asked for more columns than the canvas
-    // has, `popup_bounds_at` answers the canvas, from its left edge, and never a rectangle
-    // that hangs off it.
-    const ui::Rect wide = cells_covered(popup_bounds_at(sc.w + 40, 3, 5, kStackY, sc));
-    CHECK(wide.x == 0);
-    CHECK(wide.w == sc.w);
-    CHECK(wide.h == 3 + 2 * kChromeCells);
-}
-
-TEST_CASE("QR-17/SC-6,7: the compact view owns no pointer space and moves no reservation") {
-    // ⚔ MUTATIONS: `occupied_at` answering the hotkey view's rectangle; the press chain
-    // consuming a press while the view is open; `screen_of` reading `hotkeys.open`.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 70, 0, 0}));
-    open_pane(t, ref_of(stock::kKind)); // slot 0: exactly where the unselected view opens
-    REQUIRE(t.session().panels.selected == kNoPaneKind);
-    const Screen before = screen_of(t.session());
-    const std::int64_t doc_w = t.session().workspace_w;
-    const std::int64_t doc_h = t.session().workspace_h;
-
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const Screen sc = screen_of(t.session());
-    CHECK(sc.room_w == before.room_w);
-    CHECK(sc.room_h == before.room_h);
-    CHECK(sc.notice_y == before.notice_y);
-    const ui::Rect view = cells_covered(hotkeys_bounds(t.session(), sc));
-    const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc).rect);
-    // The view's own corner is the pane's corner beneath it -- a cell inside BOTH.
-    REQUIRE(builder.contains(view.x, view.y));
-    const Occupancy under = occupied_at(t.session().panels, t.session().setup.active, sc,
-                                        view.x, view.y);
-    CHECK(under.occupied);
-    CHECK(under.kind == stock::kKind); // the view is not in the walk
-    t.press_canvas(view.x, view.y);
-    CHECK(t.session().panels.selected == stock::kKind); // the press reached the pane
-    CHECK(t.session().hotkeys.open);                        // ...and the view did not take it
-
-    // SELECTED NOW, so the view is anchored at the pane -- still nobody's pointer space,
-    // and still invisible to the reservation.
-    const ui::Rect anchored = cells_covered(hotkeys_bounds(t.session(), screen_of(t.session())));
-    CHECK(anchored.x == builder.x);
-    CHECK(anchored.y == builder.y);
-    CHECK(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
-                      anchored.x + 1, anchored.y + 1)
-              .kind == stock::kKind);
-    CHECK(screen_of(t.session()).room_w == before.room_w);
-    CHECK(screen_of(t.session()).room_h == before.room_h);
-    CHECK(t.session().workspace_w == doc_w);
-    CHECK(t.session().workspace_h == doc_h);
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().hotkeys.open);
-    CHECK(screen_of(t.session()).room_h == before.room_h);
-}
-
 TEST_CASE("WUX-5: a transient surface stays over the pane it covers, selected or not") {
     // ⚔ MUTATION: giving the selection lift priority over the overlay planes -- a pane
     // drawn in front of the contextual surface a maker just opened on it.
@@ -5478,10 +5142,7 @@ TEST_CASE("WUX-5: no ordinary pane spends a row teaching a key the keymap alread
     // keymap file (WL-KEY-15). A host that listed them unconditionally would be teaching a
     // key that does nothing where the maker is standing -- which is the thing this case is
     // about. The pane's own half is proved through the real seam in the panes suite.
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const std::string view = panel_text(
-        t.canvases.back(), pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
+    const std::string view = keymap_text(t.session());
     for (const char* label : {"+ panel", "titles", "arrange desk"}) {
         CHECK_MESSAGE(view.find(label) != std::string::npos, "the help lost '", label, "'");
     }

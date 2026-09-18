@@ -43,12 +43,12 @@ LAW — The popup remembers only the press's canvas cell; its rectangle is re-de
 MEANS
 - the keyboard entrance is `anchored == false` and opens at the overlay stack's corner;
 - a group re-derives at the same anchor; a level taller than the room is cut, and says so;
-- `popup_bounds_at`: one measurer, one chrome, one clamp in the overlay band; the hotkeys use it.
+- `popup_bounds_at`: one measurer, one chrome, one clamp in the overlay band.
 
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `ContextMenu::anchored`,
 `ContextMenu::anchor_x`; `workshop/screen_attention.cpp` `context_bounds`, `context_entry_text`;
 `workshop/screen_pane_state.cpp` `popup_bounds_at`; `workshop/screen.hpp` `kContextMaxCols`,
-`chrome_outer_of`; `workshop/screen_hotkeys.cpp` `hotkeys_bounds`; `surface/region.hpp`
+`chrome_outer_of`; `surface/region.hpp`
 `region_cells_for`; `tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's
 own cell, and its extent is its content"`, case `"ARR-0: the popup shifts to stay usable inside
 the room, at every boundary"`, case `"ARR-0: the keyboard entrance has no pointer and invents

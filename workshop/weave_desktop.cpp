@@ -384,6 +384,48 @@ void WorkshopWeave::publish_inventory(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
+// ---- The effective keymap, said out loud ---------------------------------------------------
+
+namespace {
+
+bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
+    if (a.file != b.file || a.word != b.word || a.rows.size() != b.rows.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.rows.size(); ++i) {
+        const ShownBinding& x = a.rows[i];
+        const ShownBinding& y = b.rows[i];
+        if (x.group != y.group || x.id != y.id || x.label != y.label || x.gesture != y.gesture ||
+            x.authored != y.authored || x.remappable != y.remappable) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+// WL-DESK-11 -- agents/workshop/desktop.md
+void WorkshopWeave::publish_keymap(loom::Mail& mail) {
+    KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
+    // COMPARED BEFORE IT IS PUBLISHED, `publish_inventory`'s rule: derived at every gesture,
+    // said only when it moved, and said again after a presenter arrives.
+    if (keymap_published_ && same_keymap(said, keymap_said_)) {
+        return;
+    }
+    keymap_said_ = said;
+    keymap_published_ = true;
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
+}
+
+// WL-DESK-11 -- agents/workshop/desktop.md
+void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // an office asks
+    }
+    (void)mail.answer(keymap_shown(session_, host_->keymap_path, keymap_standing_));
+}
+
 // ---- The floor of the empty room ------------------------------------------------------------
 
 // WL-DESK-05 -- agents/workshop/desktop.md

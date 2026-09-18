@@ -180,7 +180,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kObjectNew: create_object(); break;
     case Act::kPicker: open_picker(); break;
     case Act::kArrangeDesk: open_arrange_desk(); break;
-    case Act::kHotkeys: toggle_hotkeys(); break;
     case Act::kSaveDocument: save_document(); break;
     case Act::kOpenDocument: load_document(); break;
     case Act::kSetupSave: save_setup(); break;
@@ -276,12 +275,6 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         }
     }
     if (t.text.empty()) {
-        return;
-    }
-    // THE HOTKEY VIEW TAKES NO TEXT AND TYPES NONE, exactly as it spends the keys: a
-    // maker reading a key list is not typing anywhere, and the surface beneath must
-    // come back untouched when the view closes.
-    if (session_.hotkeys.open) {
         return;
     }
     // WHERE A CHARACTER GOES IS THE SAME QUESTION AS WHERE A KEY GOES, and since

@@ -1655,7 +1655,7 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "^s save | ^o open | ^k hotkeys"); // `^s` is the document's (VD-26)
+        CHECK(lines[1] == "^s save | ^o open"); // `^s` is the document's (VD-26)
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 

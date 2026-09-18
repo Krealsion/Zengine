@@ -2708,81 +2708,32 @@ TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no lo
     CHECK_FALSE(t.host.quit);
 }
 
-TEST_CASE("KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k close it") {
+TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and marks the text "
+          "box's keys as nobody's to move") {
     Live t;
-    t.key(input::scan::kK, input::mod::kCtrl);
-    CHECK(t.session().hotkeys.open);
-    t.key(input::scan::kEscape);
-    CHECK_FALSE(t.session().hotkeys.open);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    CHECK(t.session().hotkeys.open);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    CHECK_FALSE(t.session().hotkeys.open);
-}
-
-TEST_CASE("KEY-0: the view is keys-modal -- a maker reading a binding is not executing it") {
-    Live t;
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    const std::size_t before = t.doc().elements.size();
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before); // `n` swallowed, nothing created
-    t.key(input::scan::kP);
-    CHECK_FALSE(t.session().panels.picker.open); // `p` swallowed, no picker
-    t.key(input::scan::kQ);
-    CHECK_FALSE(t.host.quit); // `q` swallowed, no quit through the view
-    t.text("x");
-    CHECK_FALSE(t.host.quit); // text swallowed too, and lands nowhere
-    // ...and the other above-mode actions still answer over it, the terminal
-    // overlay's own rule for `^s`/`^o`.
-    t.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
-    // The context BENEATH is untouched when it closes.
-    t.key(input::scan::kEscape);
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before + 1);
-}
-
-TEST_CASE("KEY-0: the view lists the context beneath it, and three contexts differ") {
-    Live t;
-    t.mount_terminal();
-    // A TALL SCREEN, so the whole grouped list fits: at the minimum extent the slot
-    // elides the deeper groups behind `... N more`, which is its own pinned behavior;
-    // this case is about what the groups SAY when there is room to say it. The view is
-    // read at the slot the RESOLVED screen grants it (`stack_text` reads the minimum
-    // composition's rectangle, which this screen has outgrown).
-    t.publish(loom::to_value(surface::SurfaceExtent{120, 70, 0, 0}));
-    const auto view_text = [&t]() {
-        return panel_text(
-            t.canvases.back(),
-            pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
-    };
-
-    // COMMAND MODE BENEATH: the command vocabulary, its layer named.
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const std::string command_view = view_text();
-    CHECK(command_view.find("HOTKEYS") != std::string::npos);
-    CHECK(command_view.find("command mode") != std::string::npos);
-    CHECK(command_view.find("new") != std::string::npos);
-    CHECK(command_view.find("answered above every mode") != std::string::npos);
-    CHECK(command_view.find("^k") != std::string::npos);
-    t.key(input::scan::kEscape);
-
-    // EDITABLE TEXT BENEATH: its own controls, and the component's editing vocabulary
-    // shown from the component's own rows, marked as not this keymap's to move.
-    //
-    // ⚠ THE TERMINAL LINE USED TO BE THIS CONTEXT (VD-24) and is a pane's now, so the
-    // editable box this host still owns stands for the claim: naming a layout.
-    open_rename_on_tab(t, t.session().setup.active_at);
-    REQUIRE(t.session().setup.naming.open);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const std::string text_view = view_text();
-    CHECK(text_view.find("naming a layout") != std::string::npos);
-    CHECK(text_view.find("not remappable") != std::string::npos);
-    CHECK(text_view.find("copy") != std::string::npos);
-    // ^c means copy there, so quit's row is not in this context's list.
-    CHECK(text_view.find("quit") == std::string::npos);
-    CHECK(text_view != command_view);
+    const std::string keys = keymap_text(t.session());
+    // THE HOST'S OWN ROWS, each under the place it is answered, spelled as a file would.
+    CHECK(keys.find("command mode | n | new | object.new") != std::string::npos);
+    CHECK(keys.find("above every mode, unless text has the keys | ctrl+c | quit | workshop.quit") !=
+          std::string::npos);
+    CHECK(keys.find("naming a layout | return | rename | naming.commit") != std::string::npos);
+    // AN ACTION WITH TWO ROWS IN ONE PLACE IS LISTED ONCE: one override moves both.
+    std::size_t quits = 0;
+    for (std::size_t at = keys.find("| quit | workshop.quit"); at != std::string::npos;
+         at = keys.find("| quit | workshop.quit", at + 1)) {
+        ++quits;
+    }
+    CHECK(quits == 2); // the no-text chord and command mode's `q`, two places
+    // THE TEXT BOX'S OWN VOCABULARY, listed for discovery and marked.
+    CHECK(keys.find("the text box's own keys | ctrl+c | copy |  (not remappable)") !=
+          std::string::npos);
+    // AND NO APPLICATION ROW WITHOUT AN APPLICATION: a host whose desktop never declared lists none.
+    CHECK(keys.find("the application's") == std::string::npos);
+    DesktopSeat* desk = mount_desktop(t);
+    (void)desk;
+    CHECK(keymap_text(t.session()).find(
+              "above every mode -- the application's | ctrl+t | terminal | desktop.terminal") !=
+          std::string::npos);
 }
 
 TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spelling") {
@@ -2803,13 +2754,12 @@ TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spel
     t.key(input::scan::kG);
     CHECK(t.doc().elements.size() == before + 1);
 
-    // DISPLAY: the band's first help row and the hotkey view both spell the
+    // DISPLAY: the band's first help row and the effective keymap both spell the
     // same effective binding, because both project the same value dispatch read.
     const Screen sc = screen_of(t.session());
     CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("g new", 0) == 0);
-    t.key(input::scan::kK, input::mod::kCtrl);
-    const std::string view = stack_text(t.canvases.back());
-    CHECK(view.find("g             new") != std::string::npos);
+    CHECK(keymap_text(t.session()).find("command mode | g | new | object.new *") !=
+          std::string::npos);
 
 }
 
@@ -2950,7 +2900,7 @@ TEST_CASE("KEY-0: a global action cannot take a bare printable or the editing vo
     // text -- the standing law the old chain kept as a comment, enforced at the
     // door now that there is a door.
     const keymap_persist::LoadedKeymap bare = keymap_persist::from_text(
-        keymap_file_text("default", {{"workshop.hotkeys", "t"}}));
+        keymap_file_text("default", {{"document.save", "t"}}));
     CHECK_FALSE(bare.outcome.accepted);
     CHECK(bare.outcome.refusal.find("bare printable") != std::string::npos);
 
@@ -2959,7 +2909,7 @@ TEST_CASE("KEY-0: a global action cannot take a bare printable or the editing vo
     // avoid collision by discipline in two files, checkable nowhere; the
     // component's declaration rows make the wall real.
     const keymap_persist::LoadedKeymap owned = keymap_persist::from_text(
-        keymap_file_text("default", {{"workshop.hotkeys", "ctrl+v"}}));
+        keymap_file_text("default", {{"document.save", "ctrl+v"}}));
     CHECK_FALSE(owned.outcome.accepted);
     CHECK(owned.outcome.refusal.find("editing vocabulary") != std::string::npos);
 }
@@ -3133,10 +3083,16 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
 
     write_keymap_file(path, keymap_file_text("compact", {}));
     Keyed compact(path);
+    // THE COMPACT LEGEND IS THE APPLICATION'S ROWS ABOVE EVERY MODE, as they are in force --
+    // the launches and the key list, read off the keymap and named by no one here.
+    DesktopSeat* launches = mount_desktop(compact);
+    (void)launches;
+    compact.key(input::scan::kTab); // any gesture: the band is repainted
     const Screen sc = screen_of(compact.session());
     // The legend rows are rows of the band's one region since WUX-1, so they are read
     // through the cell projection with the region's padding trimmed.
-    CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y) == "^k hotkeys");
+    CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y) ==
+          "^t terminal | ^p panes | ^k hotkeys");
     CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y + 1).empty());
 
     write_keymap_file(path, keymap_file_text("hidden", {}));
@@ -3147,9 +3103,10 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
     CHECK(inspector_row(hidden.canvases.back(), 0, sc.help_y + 1).empty());
     // Hidden never makes the full list unreachable: the binding is dispatch's,
     // and the legend is read by nothing but the band's painter.
+    DesktopSeat* desk = mount_desktop(hidden);
     hidden.key(input::scan::kK, input::mod::kCtrl);
-    CHECK(hidden.session().hotkeys.open);
-    CHECK(stack_text(hidden.canvases.back()).find("HOTKEYS") != std::string::npos);
+    REQUIRE_FALSE(desk->asked().empty());
+    CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
 
     write_keymap_file(path, keymap_file_text("full", {}));
     Keyed full(path);
@@ -3448,7 +3405,17 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
         const surface::SurfaceCanvas compact_c = paint(d, s);
         const surface::SurfaceTextRegion* compact_b = band_on(compact_c, sc);
         REQUIRE(compact_b != nullptr);
-        CHECK(band_row(compact_b, legend_at) == "^k hotkeys");
+        // COMPACT IS THE APPLICATION'S ROWS ABOVE EVERY MODE; with no desktop, there are none.
+        CHECK(band_row(compact_b, legend_at).empty());
+        Session with_desktop = s;
+        REQUIRE(join_app_rows(with_desktop.keymap,
+                              std::vector<AppRow>{AppRow{"desktop.hotkeys", "hotkeys",
+                                                         Gesture{input::scan::kK,
+                                                                 input::mod::kCtrl},
+                                                         app_precedence::kAboveModes}})
+                    .accepted);
+        const surface::SurfaceCanvas compact_d = paint(d, with_desktop);
+        CHECK(band_row(band_on(compact_d, sc), legend_at) == "^k hotkeys");
 
         s.keymap.legend = legend_mode::kHidden;
         const surface::SurfaceCanvas hidden_c = paint(d, s);
@@ -3469,20 +3436,11 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
     }
 }
 
-TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the moved hints") {
+TEST_CASE("WUX-1/SC-2: the effective keymap remains the full claim surface for the moved hints") {
     // The three gestures the retired row advertised are ordinary keymap rows, so the
-    // authoritative surface -- the full hotkey view -- lists all three by label. A tall
-    // screen, so the whole grouped list fits (the minimum extent's `... N more` elision
-    // is the view's own pinned behavior, not this claim's).
+    // authoritative surface -- the effective keymap a Hotkeys pane lists -- has all three.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{120, 70, 0, 0}));
-    t.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(t.session().hotkeys.open);
-    // The view is the stack COLUMN, floor to ceiling -- taller than the first slot, so it
-    // is read at its own bounds rather than through the slot accessor.
-    const std::string view = panel_text(
-        t.canvases.back(),
-        pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
+    const std::string view = keymap_text(t.session());
     CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too

@@ -1217,6 +1217,7 @@ int main(int argc, char** argv) {
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
+    speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition

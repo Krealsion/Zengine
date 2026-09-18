@@ -154,6 +154,13 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     };
     take(true);
     take(false);
+    // ⭐ AND THE APPLICATION'S ROWS ABOVE EVERY MODE, as they are in force (WL-DESK-07): a launch
+    // a maker moved is taught where they moved it, and one they disabled is not taught at all.
+    for (const AppRow& row : k.app) {
+        if (row.precedence == app_precedence::kAboveModes && k.app_row_active(row, ctx, pane)) {
+            out.push_back(gesture_text(row.gesture) + " " + row.label);
+        }
+    }
     return out;
 }
 

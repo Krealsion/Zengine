@@ -49,6 +49,12 @@ inline constexpr const char* kLauncherPane = "launcher";
 inline constexpr const char* kLauncherName = "Panes";
 inline constexpr const char* kLauncherSummary = "open or focus a tool";
 
+/// THE SECOND PANE: every key in force, where it answers, and how a maker moves one. It replaces
+/// the host's key-list overlay, and it keeps no catalog: every row is the host's `KeymapShown`.
+inline constexpr const char* kHotkeysPane = "hotkeys";
+inline constexpr const char* kHotkeysName = "Hotkeys";
+inline constexpr const char* kHotkeysSummary = "every key in force, and how to move one";
+
 /// THE LIBRARY STEM A HOST BOOTS. Not part of any protocol and not durable the way the office
 /// is -- it is a file name, here because the host's boot plan and the suite's loader must agree.
 inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
@@ -71,11 +77,20 @@ inline constexpr const char* kActionPanes = "desktop.panes";
 /// disabled outright by a maker who writes `desktop.deselect = none` in their keymap file.
 inline constexpr const char* kActionDeselect = "desktop.deselect";
 
+/// OPEN OR FOCUS THE HOTKEYS PANE. `Ctrl+k`, the key the host's own overlay answered to, so the
+/// hand goes where it went; `workshop.hotkeys` in a maker's file is read as this id.
+inline constexpr const char* kActionHotkeys = "desktop.hotkeys";
+
 // ---- The actions its own pane declares (`PaneActions`) -------------------------------------
 
 inline constexpr const char* kActionUp = "launcher.up";       ///< the row cursor, up
 inline constexpr const char* kActionDown = "launcher.down";   ///< ...and down
 inline constexpr const char* kActionLaunch = "launcher.open"; ///< launch the row under it
+
+inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the list up a row
+inline constexpr const char* kActionKeysDown = "hotkeys.down";   ///< ...and down
+inline constexpr const char* kActionKeysTop = "hotkeys.top";     ///< ...to its first row
+inline constexpr const char* kActionKeysBottom = "hotkeys.bottom"; ///< ...and its last
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///

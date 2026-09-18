@@ -30,9 +30,12 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     }
     keymap_loaded_ = true;
     if (host_->keymap_path.empty()) {
+        keymap_standing_ = "no keymap file -- the shipped bindings stand";
         return;
     }
     if (!std::filesystem::exists(host_->keymap_path)) {
+        keymap_standing_ = "not written yet -- the shipped bindings stand; a row written there "
+                           "applies at the next launch";
         return;
     }
     const keymap_persist::LoadedKeymap loaded =
@@ -44,6 +47,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         // with the loader's own refusal as the explanation, and retracted by nobody
         // because nothing in a run can make an unreadable file readable.
         keymap_bad_ = true;
+        keymap_standing_ = "refused, so the shipped bindings stand: " + loaded.outcome.refusal;
         session_.conditions.establish(
             Condition{kKeymapWallKey, "keymap refused -- default bindings stand",
                       loaded.outcome.refusal, surface::role::kAlert, std::string()});
@@ -56,6 +60,21 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     // ran over the built-in rows and passed; a pane whose rows the file's bindings now
     // collide with is the party judged, so both load orders end the same way -- the file
     // in force, that pane's rows refused in words (WL-KEY-15).
+    // A ROW FOR AN ID WHOSE OWNER CHANGED IS READ AS ITS SUCCESSOR, and the load says so, naming
+    // the rename that would make the file say what it means (`kRenamedActions`).
+    std::string renamed;
+    for (const AuthoredOverride& o : session_.keymap.authored) {
+        if (const char* now = renamed_to(o.action)) {
+            renamed += (renamed.empty() ? "" : "; ") + ("`" + o.action + "` is read as `" +
+                                                        std::string(now) + "` -- rename it there");
+        }
+    }
+    keymap_standing_ = "applied -- " + std::to_string(session_.keymap.authored.size()) +
+                       " authored row" + (session_.keymap.authored.size() == 1 ? "" : "s") +
+                       (renamed.empty() ? std::string() : "; " + renamed);
+    if (!renamed.empty()) {
+        session_.keymap.note += (session_.keymap.note.empty() ? "" : "; ") + renamed;
+    }
     std::string refused;
     // THE APPLICATION'S ROWS FIRST, because a pane is judged against them (WL-DESK-07): the file
     // replaced the whole map, and the declaration the desktop has in force is owed the maker's
@@ -304,20 +323,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         load_document();
         repaint(mail);
         return;
-    case Act::kHotkeys:
-        toggle_hotkeys();
-        repaint(mail);
-        return;
     default: break;
-    }
-    // THE HOTKEY VIEW IS KEYS-MODAL WHILE IT IS OPEN: the five arms above still
-    // answer (its own toggle is one of them), and everything else is the view's to
-    // spend or swallow -- a maker reading a key list must not be executing it. The
-    // context beneath is untouched, which is why `ctx` above still names it.
-    if (session_.hotkeys.open) {
-        hotkeys_key(k);
-        repaint(mail);
-        return;
     }
     // THE CHAIN IS `keyboard_context`'S ANSWER NOW. Its order -- and every
     // recorded rationale behind it: the modes that own the keyboard whole, the
@@ -435,14 +441,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     repaint(mail);
 }
 
-void WorkshopWeave::toggle_hotkeys() { session_.hotkeys.open = !session_.hotkeys.open; }
-
-// WL-KEY-11 -- agents/workshop/keyboard.md
-void WorkshopWeave::hotkeys_key(const zengine::input::KeyPressed& k) {
-    if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone) {
-        session_.hotkeys.open = false;
-    }
-}
+// ⭐ `toggle_hotkeys` AND `hotkeys_key` LEFT WITH THE HOST'S KEY-LIST OVERLAY: the list is the
+// desktop's Hotkeys pane, and its keys are that pane's own rows.
 
 // ⚠ `toggle_attention` AND `attention_key` LEFT WITH THE VIEW. The first was a global's
 // arm and the second a whole keyboard context's dispatch; the pane declares three rows and

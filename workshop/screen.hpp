@@ -13,6 +13,7 @@
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
 #include "document_seam_vocabulary.hpp"  // ...and how the object document does
 #include "terminal_seam_vocabulary.hpp"   // ...and how the terminal participant's record does
+#include "desktop_seam_vocabulary.hpp"    // ...and the effective keymap a presenter shows
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "document.hpp"
@@ -530,7 +531,6 @@ inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
 /// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
 /// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
 /// setup line, so nothing placed here can erase the line naming the arrangement.
-// WL-KEY-10 -- agents/workshop/keyboard.md
 inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
     const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
     return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
@@ -852,11 +852,8 @@ ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
 // pane protocol is not given a hover so this host could keep it (VD-22).
 
 
-/// THE FULL HOTKEY VIEW'S ONE FACT: whether it is open.
-// WL-KEY-10, WL-KEY-11 -- agents/workshop/keyboard.md
-struct HotkeysView {
-    bool open = false;
-};
+// ⭐ `HotkeysView` WAS HERE, the host's key-list overlay's one fact. The list is the desktop's
+// Hotkeys pane now, over `keymap_shown` (below), and the host holds no mode for it.
 
 /// WHAT THE INSPECTOR'S ROWS ADDRESS, AND THE NAME THIS HOST GIVES IT -- the applicability a
 /// commit across the pane seam is judged by (`WorkshopWeave::on(DocumentCommitRequested)`).
@@ -982,7 +979,6 @@ struct Session {
     // WL-KEY-02 -- agents/workshop/keyboard.md
     Keymap keymap;
     /// ...and the full hotkey view over it, when a maker has opened one.
-    HotkeysView hotkeys;
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS -- a presentation preference.
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool pane_titles = true;
@@ -1533,25 +1529,16 @@ bool pane_window_partly_default(const SetupPane* row);
 FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                                 std::int64_t x, std::int64_t y, const Screen& sc);
 
-// ---- THE FULL HOTKEY VIEW -------------------------------------------------------------
+// ---- THE EFFECTIVE KEYMAP, AS A VALUE -----------------------------------------------------
 
-/// What to call the context beneath the view, in the heading's voice.
+/// What to call a keyboard context, in a group heading's voice.
 std::string keyboard_context_name(const Session& s, KeyContext ctx);
 
-/// ONE ROW OF THE VIEW AS IT IS PRESENTED: what a maker reads, and the role it is said in.
-struct HotkeyRow {
-    std::string text;
-    std::int64_t role;
-};
-
-/// THE ROWS, COMPOSED WHOLE -- the view's one composition, spent by its extent and by its
-/// painter alike.
-std::vector<HotkeyRow> hotkeys_rows(const Session& s);
-
-/// WHERE THE FULL HOTKEY VIEW OPENS, AND HOW BIG IT IS.
-FineRect hotkeys_bounds(const Session& s, const Screen& sc);
-
-void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+/// EVERY BINDING IN FORCE, GROUPED BY WHERE IT IS ANSWERED -- the host's own rows, the
+/// application's, every pane's, and the text box's own keys -- read off `Session::keymap`, the
+/// one effective truth dispatch reads. `file` and `word` are the keymap file and what loading it
+/// came to. A projection: it holds nothing and decides nothing (WL-DESK-11).
+KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word);
 
 // ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
 

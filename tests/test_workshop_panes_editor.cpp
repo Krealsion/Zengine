@@ -3019,9 +3019,9 @@ TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that 
     CHECK(k.pane_action_for(kSomePane, save.scancode, save.modifiers)->id == "x.newline");
     CHECK(k.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers, kSomePane) ==
           Act::kNone);
-    // A GENUINE COLLISION IS STILL REFUSED: `^k` is a global row, and no pane may own it.
+    // A GENUINE COLLISION IS STILL REFUSED: `^o` is a row this pane did not say it owns.
     Keymap other;
-    const Gesture keys = other.gesture_of(Act::kHotkeys);
+    const Gesture keys = other.gesture_of(Act::kOpenDocument);
     std::vector<v2::PaneActionRow> clash;
     clash.push_back(v2::PaneActionRow{"x.save", "save source", input::scan::kE, input::mod::kCtrl,
                                       std::string(kOwnableDocumentSave)});
@@ -3029,7 +3029,7 @@ TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that 
         v2::PaneActionRow{"x.keys", "keys", keys.scancode, keys.modifiers, std::string()});
     const Written refused = join_pane_rows(other, kSomePane, clash);
     CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == collision_sentence(keys, "workshop.hotkeys", "x.keys"));
+    CHECK(refused.refusal == collision_sentence(keys, "document.open", "x.keys"));
     CHECK(other.pane_rows(kSomePane) == nullptr); // and nothing was written
 }
 

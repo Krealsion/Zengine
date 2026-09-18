@@ -72,7 +72,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   provider's rows to decide what a press means, the seam has stopped being one.
 - **A press crosses ONCE, in the version the office's holder accepts.** `PanePressed v1`
   `{pane, row, column}` is frozen; `v2::PanePressed` adds `keys_went_here` — ordinary keys
-  reached this pane just before the press (`typing_pane`: a pane's context and no hotkey view,
+  reached this pane just before the press (`typing_pane`: the resolved context is a pane's,
   so a pane that is only the candidate under an open picker is "not here"). Workshop sends v2
   exactly when `HostContext::holder_accepts` answers that the office's current holder has that
   door — the host's `holder_accepts_on`, over the bus's role table and accept-sets, native and
