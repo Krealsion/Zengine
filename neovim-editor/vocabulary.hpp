@@ -49,11 +49,12 @@ inline constexpr const char* kNeovimEditorStem = "zengine-neovim-editor";
 
 // ---- THE ACTIONS THE PANE DECLARES ---------------------------------------------------------
 
-/// Write the current buffer (`:write`), on the save chord -- standing in for Workshop's own
-/// document save while this pane holds the keys, exactly as the standard Editor's save does.
+/// Write the current buffer (`:write`), on the save chord -- naming Workshop's retired document
+/// save as what it stands in for, exactly as the standard Editor's save does (a host from before
+/// the retirement still declares that row; this one admits the name standing in for nothing).
 inline constexpr const char* kActionWrite = "neovim.write";
 /// Neovim's own `<C-o>` (jump back; one Normal command from Insert), on the chord Workshop's
-/// `document.open` uses elsewhere -- standing in for it while this pane holds the keys.
+/// retired `document.open` used -- named as what it stands in for, for the same reason.
 inline constexpr const char* kActionJumpOlder = "neovim.jump-older";
 
 // ---- WHAT A PROBE READS (`zen.PokeRead`) ---------------------------------------------------

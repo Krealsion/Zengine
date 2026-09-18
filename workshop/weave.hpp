@@ -194,9 +194,12 @@ struct HostContext {
     // WL-AUTH-02 -- agents/workshop/authoring.md
     std::function<bool(const std::string& stem)> plan_names;
 
-    /// The one file this Workshop saves to and loads from.
-    // WL-SESSION-01 -- agents/workshop/session.md
-    std::string document_path;
+    /// AN OBJECT DOCUMENT THIS RUN WAS POINTED AT OR FOUND, AND WILL NOT OPEN -- the path a
+    /// `--document` named, or the retired default name when a file stands under it; empty when
+    /// neither. The canvas that read such files retired; the file is left exactly as it is, and
+    /// the host says so once at startup rather than reading its bytes as anything else.
+    // WL-DOC-22 -- agents/workshop/document-file.md
+    std::string retired_document;
 
     /// The one file this Workshop's SETUP saves to and restores from.
     // WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-SESSION-01 -- agents/workshop/session.md
@@ -305,7 +308,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
-    : public loom::WeaveBase<WorkshopWeave, WorkshopDoc,
+    : public loom::WeaveBase<WorkshopWeave, WorkshopState,
                              loom::Accept<zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
@@ -327,8 +330,6 @@ class WorkshopWeave
                                           zengine::workshop::PaneEscapeUnspent,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
-                                          zengine::workshop::DocumentActRequested,
-                                          zengine::workshop::DocumentCommitRequested,
                                           // an inspector's pane subject: which pane, the
                                           // picture now, and one write through its owner
                                           zengine::workshop::InspectPaneRequested,
@@ -377,9 +378,6 @@ class WorkshopWeave
                                         zengine::workshop::PaneQuitRequested,
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
-                                        zengine::workshop::DocumentShown,
-                                        zengine::workshop::v2::DocumentShown,
-                                        zengine::workshop::DocumentActed,
                                         zengine::workshop::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TranscriptShown,
@@ -422,16 +420,6 @@ public:
     /// of what this weave last said, which is the same thing `builder::BuildStatus`'s
     /// publisher keeps for the same reason.
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
-
-    /// SAY WHAT THE OBJECT DOCUMENT LOOKS LIKE, to anyone presenting it -- and only when it
-    /// CHANGED, on `say_conditions`' discipline and for its reason.
-    ///
-    /// ⚠ WHY THIS ONE IS A PUBLICATION AND NOT AN ANSWER. WL-DOC-14 requires the canvas, the
-    /// object list and the inspector to agree after every gesture, and the document changes
-    /// under a presenting pane constantly with no gesture into that pane at all -- a drag on
-    /// the workspace, a nudge, a create, a restore, a workspace refit. A pane that could only
-    /// ask would be a list that is wrong most of the time.
-    void say_document(loom::Mail& mail);
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
@@ -493,8 +481,7 @@ public:
     /// OPEN ON A PAINTED LAYOUT TAB -- the same surface, on the one subject the band owns.
     void open_context_on_layout(const PointedAt& at, std::size_t layout);
 
-    /// OPEN BY KEY, on the subject command mode can truthfully name: the selected object
-    /// while one resolves, else the room.
+    /// OPEN BY KEY, on the subject command mode can truthfully name: the room.
     void open_context_ambient();
 
     /// Close it whole: subject, group and cursor go together, so a later open cannot
@@ -544,10 +531,8 @@ public:
 
     /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed.
     ///
-    /// `pane` is meaningful only when `pane_held`; `document_id` only when `document`.
+    /// `pane` is meaningful only when `pane_held`.
     struct GesturesEnded {
-        bool document = false;
-        std::int64_t document_id = 0;
         bool pane_held = false;
         PaneRef pane;
     };
@@ -661,7 +646,7 @@ public:
     PaneLaunchAnswered launch_pane(const PaneRef& ref, loom::Mail& mail);
 
     /// SAY THE ONE INVENTORY OUT LOUD, if what it says has changed since the last time.
-    /// Compared before it is published, for `DocumentShown`'s reason: a presenter that is
+    /// Compared before it is published, for `StandingConditions`' reason: a presenter that is
     /// told the same thing twice repaints for nothing.
     void publish_inventory(loom::Mail& mail);
 
@@ -705,16 +690,6 @@ public:
     /// it, naming who could not be asked and why, and every other entry is discarded.
     void on(const QuitDeliveryRefusalNoted& noted, loom::Mail& mail);
 
-    /// THE OBJECT DOCUMENT'S ACTING DOOR, v1: select, create, delete -- and a v1 commit, which
-    /// names no subject and is refused with nothing written. Answered at this host's own office,
-    /// because the party that owns the document is the party that answers for it
-    /// (`document_seam_vocabulary.hpp`).
-    void on(const DocumentActRequested& asked, loom::Mail& mail);
-
-    /// WRITE ONE PROPERTY OF THE SUBJECT THE ASK NAMES, or refuse with nothing written: the
-    /// subject is judged against `Session::subject` before any setter is reached (WL-DOC-21).
-    void on(const DocumentCommitRequested& asked, loom::Mail& mail);
-
     // ---- A pane as an inspector's subject (WL-INFO-14, WL-INFO-15) -------------------------
 
     /// MAKE A PANE THE INSPECTOR'S SUBJECT -- the one writer of `Session::inspected`. An office
@@ -743,21 +718,11 @@ public:
         "the inspected pane, its desk or its rows changed before it arrived, so nothing was "
         "written";
 
-    /// THE TWO REFUSALS A COMMIT MAY MEET BEFORE ANY ROW IS READ (WL-DOC-21): a subject that is
-    /// no longer the rows' own, and a v1 commit, which names none. Each says nothing was written,
-    /// because nothing was; neither says which object was meant, because the host no longer
-    /// knows and a pane does.
-    static constexpr const char* kCommitSubjectGone =
-        "the selection or the document changed before it arrived, so nothing was written";
-    static constexpr const char* kCommitNamesNoSubject =
-        "a commit must name the subject it was typed for, and this one names none -- nothing "
-        "was written";
-
     /// AUTHOR ONE LINE AS THE TERMINAL PARTICIPANT, asked for by whoever presents it.
     ///
-    /// ANSWERED AT THIS OFFICE for `on(DocumentActRequested)`'s reason exactly: the party
-    /// that holds the participant is the party that answers for it, and a second office
-    /// would be a second answer to "who may speak as this terminal".
+    /// ANSWERED AT THIS OFFICE: the party that holds the participant is the party that answers
+    /// for it, and a second office would be a second answer to "who may speak as this
+    /// terminal".
     void on(const TerminalActRequested& asked, loom::Mail& mail);
 
     /// WHAT COULD BE SAID NEXT, given a line the asker is holding.
@@ -857,7 +822,6 @@ public:
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
     const Session& session() const;
-    const WorkshopDoc& document() const;
 
 private:
     // ---- The managed pane's bookkeeping ---------------------------------------------------
@@ -964,7 +928,6 @@ private:
         std::uint64_t ask = 0;
         PasteOwner owner = PasteOwner::kNone;
         std::uint64_t epoch = 0;
-        std::int64_t object = 0;
         std::string label;
     };
 
@@ -1304,88 +1267,18 @@ private:
     // (`on(PaneRevealRequested)`), which is `ensure_editor_pane`'s membership half made
     // general.
 
-    // ---- Save and open -------------------------------------------------------
+    // ⭐ THE OBJECT DOCUMENT'S DOORS WERE HERE -- save and open (`^s`, `^o`), create, delete,
+    // the nudges and the four resize keys, the workspace refit, select and the rows' rebuild --
+    // and retired with the prototype canvas. What the host keeps of a maker's hands is the desk
+    // (panes, layouts), and a file that was an object document is left exactly as it is.
 
-    /// Write the document to its file.
-    void save_document();
-
-    /// Replace the document with the one in its file.
-    void load_document();
-
-    /// Open onto the first object, or onto none. The rule a fresh Workshop uses
-    /// and the rule a load uses, written once so a loaded document and a new one
-    /// cannot come to open differently.
-    void open_on_first();
-
-    // ---- THE DOCUMENT'S GESTURES: the objects, the inspector, and what the tool says ----
-
-    /// Make one. The notice names the IDENTITY and not the label, because the
-    /// default label is the same word the other objects already carry -- which is
-    /// the lesson, arriving at the moment a maker can see it is not a problem.
-    void create_object();
-
-    /// What deleting THE SELECTED object says, read after the repair: where the selection
-    /// went.
-    std::string deleted_notice(std::int64_t was) const;
-
-    /// Delete the selected one, and say where the selection went.
-    void delete_object();
-
-    /// DELETE AN EXPLICIT OBJECT -- `delete_selected`'s target-taking sibling.
-    Written delete_object_at(std::int64_t id);
-
-    /// THE CONTEXTUAL DELETE: the captured object id, spent through the explicit-id door.
-    void context_delete_object(std::int64_t id);
-
-    /// One cell, through the same document operation a typed X or Y goes through.
-    void move_by(std::int64_t ddx, std::int64_t ddy);
-
-    /// One cell of SIZE, through the same document operation a typed Width or
-    /// Height goes through.
-    void size_by(std::int64_t dw, std::int64_t dh);
-
-    /// The two notices a direct manipulation produces, in one place so the
-    /// pointer and the keyboard cannot describe the same act differently.
-    static std::string edge_of(const Handled& done);
-    /// A move notice names the AUTHORED position and, when there is one, the
-    /// frame that position is authored IN.
-    static std::string move_notice(const ui::Element& e, const Handled& done);
-    static std::string size_notice(const ui::Element& e, const Handled& done);
-
-    // ⭐ `inspector_shown`, `inspector_absent`, `move_cursor` and `begin_edit` LEFT WITH THE
-    // INFO PANEL, and so did `Session::cursor`. They were the host's cursor into a list it
-    // painted; the list is published now and the Info weave holds the cursor and the draft.
-    // `Session::rows` stays: the rows are a fact about the SELECTION, the selection is not a
-    // panel's, and the document door commits through them.
-
-    /// Resize the workspace: NO authored value changes, and a share visibly
-    /// resolves to something else. One keystroke, and the difference between an
-    /// authored fact and a resolved one stops being an argument.
-    void resize_workspace(std::int64_t delta);
-
-    void select_next();
-
-    void select(std::int64_t id);
-
-    /// The rows are rebuilt, never patched.
-    void rebuild_rows();
-
-    /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- the
-    /// same call `refresh_inspector` makes for a property draft.
+    /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
 
     void say(std::string text, bool bad);
 
-    /// The status line: how many objects, which one is selected, WHICH FILE, and
-    /// whether it matches.
-    ///
-    /// The file half is not decoration. Once work survives a process, the first
-    /// thing a maker needs to know is whether the thing in front of them is the
-    /// thing on disk, and the second is which file that is. `unsaved` is
-    /// computed by comparing, so it is right by construction: a fresh Workshop
-    /// says `unsaved` because its opening document has genuinely never been
-    /// written, and a document edited and then edited BACK says `saved`, because
-    /// it is.
+    /// THE STATUS LINE: which layout is live, and what the desk's file says about it. It said
+    /// how many objects and whether the object document matched its file until that retired.
     std::string status_line() const;
 
     // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
@@ -1524,15 +1417,9 @@ private:
     /// the refused quit's promise that a maker who typed through it lost nothing.
     void replay_held(loom::Mail& mail);
 
-    /// What to say when there is no file to save to or load from. One sentence,
-    /// in one place, because a maker who meets it twice should not have to
-    /// wonder whether they met two different problems.
-    static constexpr const char* kNoDocumentFile =
-        "no document file -- start Workshop with --document <path>";
-
-    /// The same sentence for the OTHER file, and it is a different sentence
-    /// rather than a shared one because a maker who has a document file and no
-    /// setup file must be told which of the two they are missing.
+    /// What to say when there is no setup file to save to or restore from -- one sentence, in
+    /// one place, because a maker who meets it twice should not wonder whether they met two
+    /// different problems.
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
@@ -1685,14 +1572,6 @@ private:
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
 
-    /// ...AND THE SAME RECORD FOR THE DOCUMENT'S PICTURE. Not a copy of the document: the
-    /// document is `state_`, this is what this weave last SAID about it.
-    // WL-DOC-20 -- agents/workshop/document.md
-    DocumentShown said_document_;
-    bool document_said_ = false;
-    /// ...and the subject name the v2 picture last carried, which moves without a string moving.
-    // WL-DOC-21 -- agents/workshop/document.md
-    std::int64_t said_subject_ = 0;
     /// ...and the same pair for the terminal participant's record.
     TranscriptShown said_transcript_;
     bool transcript_said_ = false;
@@ -1700,11 +1579,6 @@ private:
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md
     bool medium_placed_ = false;
-
-    /// The document as it is ON DISK, or an empty one when nothing has been
-    /// written yet. Session, emphatically: it is a copy kept so the status line
-    /// can answer "is this saved" by comparing rather than by trusting a flag.
-    WorkshopDoc saved_;
 };
 
 } // namespace zengine::workshop

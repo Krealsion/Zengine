@@ -606,7 +606,7 @@ proves:
 
 | suite | what it proves |
 |---|---|
-| `tests/test_workshop_document.cpp` | the authored material and the maker's hands on it |
+| `tests/test_workshop_document.cpp` | the typed rows a property is edited through, the keymap, and Workshop's own text boxes |
 | `tests/test_workshop_screen.cpp` | composition and geometry — what is painted where |
 | `tests/test_workshop_panels.cpp` | the panels Workshop ships, and the attention surface |
 | `tests/test_workshop_panes_*.cpp` | the external pane seam, from both sides — five sources under one suite: the seam, the window, input, introspection, sampling |

@@ -1611,8 +1611,8 @@ builder                           doctest           always  59
 #                               file is named by the PROJECT door (`RecipeSourceSaid`), and
 #                               opening it is the Editor's.
 
-workshop_document                 doctest           always  102
-workshop_screen                   doctest           always  169
+workshop_document                 doctest           always  47
+workshop_screen                   doctest           always  133
 # EVERYDAY INTERACTION raised four floors -- workshop_panes 553 -> 581, workshop_panels 113 -> 114,
 # workshop_neovim (always) 7 -> 8 and (neovim) 10 -> 12 -- and moved no other. The spread is the
 # shape of the work: the Terminal pane's own interaction, one completer unit case, and two Neovim
@@ -1683,10 +1683,22 @@ workshop_screen                   doctest           always  169
 #                                 effective-keymap case.
 #   workshop_panes    601 -> 600  Info inspects panes: five cases about the object document and
 #                                 its two controls retired, four about the pane subject arrived.
+#   workshop_document 102 -> 47   the prototype object canvas and its document retired, and with
+#   workshop_screen   169 -> 133  them every case about the objects: their identities, properties,
+#   workshop_persistence 181 -> 156  names, moves, sizes, frames and hands, the document file and
+#   workshop_panels   114 -> 110  its `^s`/`^o`, the scene the canvas painted and the seam that
+#   workshop_panes    600 -> 599  showed it to Info -- 125 cases, each named with its reason in
+#                                 the commit that retired it (EDIT-W50 among them: supersession
+#                                 had a host row to supersede). Four arrived: the typed rows,
+#                                 re-proven over a plain subject, add a whole-number form and a
+#                                 commit of text never drafted; the status line; and an old
+#                                 document left alone. Two were rewritten in place: a shown row
+#                                 for a resolved one, and a maker's retired keymap id for the
+#                                 global walls no host row meets any more.
 #
-workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  600
-workshop_persistence              doctest           always  181
+workshop_panels                   doctest           always  110
+workshop_panes                    doctest           always  599
+workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  149
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8

@@ -48,28 +48,10 @@ the selector is row 0"`; `tests/test_workshop_screen.cpp` case `"TYPE-0/WUX-1: t
 band row, and the SENTENCE is never shortened"`.
 WHY — `agents/decisions/two-bands.md`
 
-## WL-RGN-04 — The workspace object's name is a `kGroundBeneath` region over its own rectangle
+## WL-RGN-04 — RETIRED: the workspace object's name was a ground-beneath region
 
-LAW — The name is set in the medium's own type on the object's material: not an ordinary region, which erases the material, and not a role carried as a ground, which replaces `glyph_for_role`'s `#`.
-
-PROVEN BY — `workshop/screen_pane_editor.cpp` `kGroundBeneath`; `surface/skin_tui.hpp`
-`glyph_for_role`; `tests/test_workshop_screen.cpp` case `"TYPE-1: the object's name is set in the
-medium's own type, ON its material"`, case `"TYPE-1: the character medium's picture did not move,
-and its `#` is why"`, case `"TYPE-1: the name is over every object's material and under nothing it
-should be"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
-## WL-RGN-05 — A name is bounded by the material it names
+## WL-RGN-05 — RETIRED: an object's name was bounded by the material it named
 
-LAW — The name's bounds are `min(object width, workspace right edge - x)` by the object's height, each floored at one cell, so a name that does not fit is marked by `detail::fit` rather than fading.
-
-MEANS
-- a one-cell object falls back to cells with no `if (h < N)` written anywhere;
-- the authored name is untouched; widening the object reveals more of the same bytes.
-
-PROVEN BY — `workshop/screen_bindings.cpp` `detail::fit`; `workshop/screen_compose.cpp` `paint`;
-`tests/test_workshop_screen.cpp` case `"QR-3: the name's bound is the OBJECT'S resolved width,
-clipped by the workspace"`, case `"QR-3: no part of a name is drawn outside the material it
-names"`, case `"TYPE-1: a tiny object shows its name in CELLS, and no rule was written to say
-so"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`

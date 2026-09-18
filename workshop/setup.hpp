@@ -8,13 +8,14 @@
 // that is allowed to mean.
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
-#include "document.hpp" // `doc::kMaxCells` -- the bound an authored cell count already has
+#include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
 #include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
 #include "pane_vocabulary.hpp"
 #include "panel.hpp"
 #include "property.hpp"
 
 #include "component/text_box.hpp"
+#include "ui/layout.hpp" // `ui::kMinCells` -- the one-cell floor an authored extent has
 
 #include <cstddef>
 #include <cstdint>
@@ -106,7 +107,7 @@ inline constexpr std::int64_t kRightColumn = 3;
 /// law has always enforced, expressed at the resolution the amounts now carry.
 // WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
-inline constexpr std::int64_t kPaneSubMax = doc::kMaxCells * surface::kCellSubs;
+inline constexpr std::int64_t kPaneSubMax = kMaxCells * surface::kCellSubs;
 
 /// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
@@ -403,7 +404,7 @@ inline Written check_pane_place_coord(std::int64_t v) {
         return Written::no("a pane place cannot be negative");
     }
     if (v > kPaneSubMax) {
-        return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
+        return Written::no("a pane place is at most " + std::to_string(kMaxCells) +
                            " cells");
     }
     return Written::ok();
@@ -456,7 +457,7 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         if (s.amount > kPaneSubMax) {
             return Written::no(std::string("a pane ") + which + " is at most " +
-                               std::to_string(doc::kMaxCells) + " cells");
+                               std::to_string(kMaxCells) + " cells");
         }
         return Written::ok();
     }

@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop document suite — the authored material, and the maker's hands on it.
+// The Workshop keys suite — the typed rows a maker edits through, the keymap that says which
+// gesture a key is, and the text a maker types into Workshop's own boxes.
 //
-// Everything here is headless and pure, or drives the real weave on a real bus. That is
-// not a limitation of the suite, it is a property of the design: the authored objects are
-// plain data, the operations on them are functions that can refuse, and a gesture is an
-// ordinary message. Nothing in Workshop's own logic needs a terminal, so nothing here
-// has one.
+// ⭐ THE NAME IS THE SUITE'S HISTORY. It held the object document -- the prototype canvas's
+// authored rectangles, their identities, the hands that moved and resized them, the file that
+// kept them and the seam that showed them to the Info pane -- until that canvas retired, and
+// the cases that remained were never about it. They stay here under the name the population
+// file, the registers and the build already use.
+//
+// Everything here is headless and pure, or drives the real weave on a real bus. Nothing in
+// Workshop's own logic needs a terminal, so nothing here has one.
 //
 // What it holds:
-//   1. THE VOCABULARY — the document is ordinary content, and identity is not the name.
-//   2. THE PROPERTY CONNECTION — read through the semantic surface, commit through it,
-//      and the two ways a commit can fail told apart. Includes the reuse pin: two
-//      properties of one type share every line of conversion.
-//   3. AUTHORED INTENT VERSUS RESOLVED VALUE, as a maker meets it, and selection against
-//      the real authored objects.
-//   4. THE MAKER'S OWN HANDS — create, move, delete, and the hand on an EXTENT.
-//   5. THE GESTURE PATH — input moments becoming maker gestures through the real weave,
-//      and which layer consumes a press.
-//   6. EDITABLE TEXT AS A COMPONENT — the property draft is a TextBox, end to end through
-//      the weave, and clipboard reads follow paste intent.
-//   7. THE KEYMAP — one executable binding truth: the context resolver, the authored file,
+//   1. THE TYPED PROPERTY CONNECTION -- read through the semantic surface, commit through it,
+//      the two ways a commit can fail told apart, and the reuse pin: two properties of one
+//      type share every line of conversion. Proven over a plain subject; the rows a maker
+//      edits are a pane's (`pane_subject_rows`), and their owner's cases are the Info suite's.
+//   2. THE WEAVE ON A REAL BUS -- the quit policy both doors reach, and a notice longer than
+//      its line.
+//   3. EDITABLE TEXT AS A COMPONENT -- the naming line is a TextBox, and clipboard reads
+//      follow paste intent.
+//   4. THE KEYMAP -- one executable binding truth: the context resolver, the authored file,
 //      the legend, and the chord.
 //
 // The screen these cases paint is asserted in `test_workshop_screen.cpp`; the panels they
@@ -32,2155 +33,340 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+// ============================================================================
+// Tier 1 — the typed property connection
+// ============================================================================
+//
+// ⭐ PROVEN OVER A PLAIN SUBJECT. These laws are about `Row` and `Property`, not about any
+// one owner of rows, so the subject below is nothing but its properties and setters that
+// refuse in words. They were proven over the object document's rectangles until that
+// document retired; the claims did not change, and neither did a line of `property.hpp`
+// they exercise.
+
 namespace {
 
-/// A WORKSPACE CELL WITH NOTHING ON IT, on the minimum screen -- what the cases below mean
-/// when they press "empty space".
-///
-/// ⚠ IT WAS THE WORKSPACE'S OWN FAR CORNER, `kWorkspaceW - 1`, and that cell is not empty any
-/// more. The room is the surface since the right column stopped being subtracted from it
-/// (`the-room-is-the-screen`), so the workspace's last column is under the pane standing in
-/// that place and a press there answers "Info is here" rather than "nothing there". The column
-/// just left of the place is the cell these cases have always meant: bare room, on a row below
-/// every object this document holds.
-constexpr std::int64_t kBareX = kWorkspaceW - kPanelCols - 1;
-constexpr std::int64_t kBareY = kWorkspaceH - 1;
+/// A name and three whole numbers, and nothing else.
+struct Probe {
+    std::string name = "panel";
+    std::int64_t x = 3;
+    std::int64_t width = 60;
+    std::int64_t height = 6;
+};
+
+Written probe_name(Probe& p, std::string v) {
+    if (v.empty()) {
+        return Written::no("a name cannot be empty");
+    }
+    p.name = std::move(v);
+    return Written::ok();
+}
+
+Written probe_x(Probe& p, std::int64_t v) {
+    if (v < 0) {
+        return Written::no("the room starts at 0");
+    }
+    p.x = v;
+    return Written::ok();
+}
+
+/// ONE CHECK FOR BOTH EXTENTS, so the reuse case can prove a refusal is the check's words.
+Written probe_extent(std::int64_t& at, std::int64_t v) {
+    if (v < 1 || v > 100) {
+        return Written::no("an extent is 1 to 100 cells");
+    }
+    at = v;
+    return Written::ok();
+}
+
+Property<std::string> name_of(Probe& p) {
+    return Property<std::string>([&p] { return p.name; },
+                                 [&p](std::string v) { return probe_name(p, std::move(v)); });
+}
+
+Property<std::int64_t> x_of(Probe& p) {
+    return Property<std::int64_t>([&p] { return p.x; },
+                                  [&p](std::int64_t v) { return probe_x(p, v); });
+}
+
+Property<std::int64_t> width_of(Probe& p) {
+    return Property<std::int64_t>([&p] { return p.width; },
+                                  [&p](std::int64_t v) { return probe_extent(p.width, v); });
+}
+
+Property<std::int64_t> height_of(Probe& p) {
+    return Property<std::int64_t>([&p] { return p.height; },
+                                  [&p](std::int64_t v) { return probe_extent(p.height, v); });
+}
+
+void clear_draft(Row& row) {
+    while (!row.draft().empty()) {
+        row.backspace();
+    }
+}
 
 } // namespace
 
-// ============================================================================
-// Tier 1 — the authored vocabulary
-// ============================================================================
-
-TEST_CASE("contract: the authored shapes derive their declared spellings exactly") {
-    using loom::Kind;
-    using loom::SchemaBuilder;
-
-    // The element and its extents are the UI package's shapes now (their own
-    // contract case lives in the ui suite). What is asserted HERE is that
-    // Workshop's document is still ordinary content built out of them -- the
-    // relocation moved a vocabulary, not the weave state's nature.
-    const auto extent = SchemaBuilder("Extent", 1)
-                            .field("mode", Kind::Int)
-                            .field("amount", Kind::Int)
-                            .build();
-    const auto element = SchemaBuilder("Element", 2)
-                             .field("id", Kind::Int)
-                             .field("label", Kind::Text)
-                             .field("context", Kind::Int)
-                             .field("x", Kind::Int)
-                             .field("y", Kind::Int)
-                             .message("width", extent)
-                             .message("height", extent)
-                             .build();
-
-    // Version 2, and the document's own two fields have never changed: what
-    // changed is the element inside it, and a content-id is over the WHOLE
-    // shape. A `WorkshopDoc v1` that now serialises differently would be the
-    // immutable-published-schema invariant broken quietly, so the version says
-    // so out loud.
-    const auto document = SchemaBuilder("WorkshopDoc", 2)
-                              .list("elements", loom::type_message(element))
-                              .field("next_id", Kind::Int)
-                              .build();
-    CHECK(schema_of<WorkshopDoc>()->content_id() == document->content_id());
-}
-
-TEST_CASE("identity is the id, not the name: two objects may be called the same thing") {
-    WorkshopDoc d = two_panels();
-    REQUIRE(d.elements.size() == 2);
-    CHECK(d.elements[0].label == d.elements[1].label);
-    CHECK(d.elements[0].id != d.elements[1].id);
-
-    // Renaming does NOT refuse a duplicate -- refusing one would quietly make
-    // the name an identifier, which is exactly the old builder's mistake.
-    CHECK(doc::rename(d, d.elements[1].id, "panel").accepted);
-
-    // And each is still separately reachable BY ID after the rename.
-    const ui::Element* first = doc::find(d, d.elements[0].id);
-    const ui::Element* second = doc::find(d, d.elements[1].id);
-    REQUIRE(first != nullptr);
-    REQUIRE(second != nullptr);
-    CHECK(first->x == 3);
-    CHECK(second->x == 6);
-
-    // An id nothing carries is a normal answer, not an error: a selection can
-    // outlive its object.
-    CHECK(doc::find(d, 9999) == nullptr);
-}
-
-// ============================================================================
-// Tier 2 — the typed property connection
-// ============================================================================
-
 TEST_CASE("a property reads the current typed value through the semantic surface") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    CHECK(doc::name_of(d, id).read() == "panel");
-    CHECK(doc::x_of(d, id).read() == 3);
-    CHECK(doc::width_of(d, id).read() == ui::Extent{ui::kExtentPercent, 60});
+    Probe p;
+    CHECK(name_of(p).read() == "panel");
+    CHECK(x_of(p).read() == 3);
+    CHECK(width_of(p).read() == 60);
 
     // A property is a LIVE connection, not a snapshot: a change made anywhere
     // else is what the next read returns. This is why no Row caches a value and
     // why nothing in this package has a "refresh the inspector" call.
-    REQUIRE(doc::rename(d, id, "renamed").accepted);
-    CHECK(doc::name_of(d, id).read() == "renamed");
+    p.name = "renamed";
+    CHECK(name_of(p).read() == "renamed");
+    const Row row = Row::edit("Name", name_of(p));
+    CHECK(row.value() == "renamed");
+    p.name = "again";
+    CHECK(row.value() == "again"); // the row reads through it too
 }
 
 TEST_CASE("a successful commit writes through the semantic setter") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    Row row = Row::edit("Width", doc::width_of(d, id));
+    Probe p;
+    Row row = Row::edit("Width", width_of(p));
     row.begin();
     CHECK(row.editing());
-    CHECK(row.draft() == "60%");
+    CHECK(row.draft() == "60");
 
     // The draft alone changes nothing.
     type_all(row, "x");
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
+    CHECK(p.width == 60);
 
     row.cancel();
     row.begin();
-    for (int i = 0; i < 3; ++i) {
-        row.backspace();
-    }
+    clear_draft(row);
     type_all(row, "24");
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60}); // still nothing
+    CHECK(p.width == 60); // still nothing
 
     CHECK(row.commit() == Commit::Accepted);
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentCells, 24});
+    CHECK(p.width == 24);
     CHECK_FALSE(row.editing());
     CHECK(row.refusal().empty());
     CHECK(row.value() == "24");
 }
 
 TEST_CASE("an unparseable draft leaves the property untouched and says so") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-    const ui::Extent before = d.elements[0].width;
-
-    Row row = Row::edit("Width", doc::width_of(d, id));
+    Probe p;
+    Row row = Row::edit("Width", width_of(p));
     row.begin();
-    for (int i = 0; i < 3; ++i) {
-        row.backspace();
-    }
+    clear_draft(row);
     type_all(row, "banana");
 
     CHECK(row.commit() == Commit::Unparseable);
-    CHECK(d.elements[0].width == before);       // the property never moved
-    CHECK(row.editing());                    // still in the draft, so it can be fixed
+    CHECK(p.width == 60);                     // the property never moved
+    CHECK(row.editing());                     // still in the draft, so it can be fixed
     CHECK(row.draft() == "banana");           // and the draft was NOT thrown away
     CHECK_FALSE(row.refusal().empty());       // the refusal is observable
-    // ...and it is shown AS a draft. Since HD-5 that is not a `_` this row appends: the
-    // insertion point is a published fact about the region the row is drawn in, and the
-    // caret is where it says the next keystroke lands rather than always at the end.
+    // ...and it is shown AS a draft: the insertion point is the component's, and the caret is
+    // where it says the next keystroke lands rather than always at the end.
     CHECK(row.display() == "banana");
     CHECK(row.editor().caret() == 6);         // the end, because that is where typing left it
     CHECK(row.editor().text() == "banana");
-    CHECK(row.value() == "60%");              // the committed value is still the real one
+    CHECK(row.value() == "60");               // the committed value is still the real one
 }
 
 TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with its reason") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    Row row = Row::edit("Width", doc::width_of(d, id));
+    Probe p;
+    Row row = Row::edit("Width", width_of(p));
     row.begin();
-    for (int i = 0; i < 3; ++i) {
-        row.backspace();
-    }
-    // `500%` IS an extent -- it parses. The setter is what says no, and a maker
-    // needs to tell that from "not a width at all": one is fixed by retyping,
+    clear_draft(row);
+    // `500` IS a whole number -- it parses. The setter is what says no, and a maker
+    // needs to tell that from "not a number at all": one is fixed by retyping,
     // the other by wanting something else.
-    type_all(row, "500%");
+    type_all(row, "500");
     CHECK(row.commit() == Commit::Refused);
-    CHECK(row.refusal() == "a share is 1% to 100%");
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
+    CHECK(row.refusal() == "an extent is 1 to 100 cells");
+    CHECK(p.width == 60);
     // The draft survives a REFUSAL too, not only an unparseable draft -- both
     // failures leave the maker looking at what they typed, so both are pinned.
     // (A mutation that cleared the draft here was green until this line.)
     CHECK(row.editing());
-    CHECK(row.draft() == "500%");
-    CHECK(row.display() == "500%");
-    // AND THE COMPONENT SURVIVES WITH IT (HD-5). A refused commit leaves the maker looking at
-    // what they typed AND at where they were typing it, which is the half a caret adds: a
-    // draft preserved with its insertion point thrown away would have to be re-navigated.
-    CHECK(row.editor().caret() == 4);
+    CHECK(row.draft() == "500");
+    CHECK(row.display() == "500");
+    // AND THE COMPONENT SURVIVES WITH IT. A refused commit leaves the maker looking at what
+    // they typed AND at where they were typing it, which is the half a caret adds: a draft
+    // preserved with its insertion point thrown away would have to be re-navigated.
+    CHECK(row.editor().caret() == 3);
     CHECK(row.editor().first_visible() == 0);
     row.left();
     row.left();
-    CHECK(row.editor().caret() == 2); // still an editor, not a preserved string
-    CHECK(row.value() == "60%");
+    CHECK(row.editor().caret() == 1); // still an editor, not a preserved string
+    CHECK(row.value() == "60");
 
-    // Zero cells is the other half of the same invariant, through the same row.
+    // Zero is the other edge of the same check, through the same row.
     row.cancel();
     row.begin();
-    for (int i = 0; i < 3; ++i) {
-        row.backspace();
-    }
+    clear_draft(row);
     type_all(row, "0");
     CHECK(row.commit() == Commit::Refused);
-    CHECK(row.refusal() == "at least 1 cell");
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
+    CHECK(row.refusal() == "an extent is 1 to 100 cells");
+    CHECK(p.width == 60);
 }
 
 TEST_CASE("an unparseable draft writes nothing even where a default WOULD be accepted") {
     // The sharp version of the previous case, and the one a mutation found
     // missing. On Width, a commit that wrongly wrote a default-constructed value
-    // is INVISIBLE: the default extent is 0 cells, which set_width refuses
+    // is INVISIBLE: the default whole number is 0, which the extent check refuses
     // anyway, so the setter masks the bug. X has no such luck -- 0 is a
     // perfectly legal position -- so this is where "an unparseable draft does
     // not write" is actually observable.
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-    REQUIRE(d.elements[0].x == 3);
+    Probe p;
+    REQUIRE(p.x == 3);
 
-    Row row = Row::edit("X", doc::x_of(d, id));
+    Row row = Row::edit("X", x_of(p));
     row.begin();
-    row.backspace();
+    clear_draft(row);
     type_all(row, "banana");
 
     CHECK(row.commit() == Commit::Unparseable);
-    CHECK(d.elements[0].x == 3); // not 0, and not anything else
+    CHECK(p.x == 3); // not 0, and not anything else
     CHECK(row.draft() == "banana");
     CHECK(row.value() == "3");
 
     // And the whole-number form's own edges, on the same row.
     row.cancel();
     row.begin();
-    row.backspace();
+    clear_draft(row);
     type_all(row, "-1");
     CHECK(row.commit() == Commit::Refused); // parses; the setter refuses it
-    CHECK(row.refusal() == "the workspace starts at 0");
-    CHECK(d.elements[0].x == 3);
+    CHECK(row.refusal() == "the room starts at 0");
+    CHECK(p.x == 3);
 
     row.cancel();
     row.begin();
-    row.backspace();
+    clear_draft(row);
     type_all(row, "0");
     CHECK(row.commit() == Commit::Accepted); // 0 IS a legal position
-    CHECK(d.elements[0].x == 0);
+    CHECK(p.x == 0);
 }
 
 TEST_CASE("cancel abandons the draft and never touched the property") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    Row row = Row::edit("Name", doc::name_of(d, id));
+    Probe p;
+    Row row = Row::edit("Name", name_of(p));
     row.begin();
     type_all(row, "zzz");
     row.cancel();
 
     CHECK_FALSE(row.editing());
     CHECK(row.display() == "panel");
-    CHECK(d.elements[0].label == "panel");
-}
+    CHECK(p.name == "panel");
 
-TEST_CASE("the name property's own refusals: empty and too long") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    Row row = Row::edit("Name", doc::name_of(d, id));
+    // ANY TEXT IS A STRING, so the text form never says "unparseable": an empty name is a
+    // value of the type, and the setter is what refuses it.
     row.begin();
-    for (int i = 0; i < 5; ++i) {
-        row.backspace();
-    }
-    CHECK(row.commit() == Commit::Refused); // any text parses; empty is REFUSED
-    CHECK(row.refusal() == "a name cannot be empty");
-    CHECK(d.elements[0].label == "panel");
-
-    row.cancel();
-    row.begin();
-    type_all(row, std::string(doc::kMaxNameLen, 'x'));
+    clear_draft(row);
     CHECK(row.commit() == Commit::Refused);
-    CHECK(d.elements[0].label == "panel");
-}
-
-TEST_CASE("QR-3: what the authored name bound IS, and what it is not a statement about") {
-    // THE POLICY, PINNED WHERE IT IS DECIDED. This bound arrived as 32 with the words
-    // `a label, not a document` and no other rationale anywhere in the history or the docs.
-    // The only rationale ever written for a 32 in this
-    // application is a SCREEN measurement (`setup::kMaxSetupNameLen`), and it was measurably
-    // false for this constant -- so the KIND of bound survived and the number moved.
-    CHECK(doc::kMaxNameLen == 64);
-
-    // IT IS AN INPUT BOUNDARY AND NOT A CAPACITY, which is what makes it one function rather
-    // than two: a maker's rename and a document from a FILE meet the same rule, in the same
-    // words. Exactly at the bound is legal; one byte past it is not, in both directions.
-    CHECK(doc::check_name(std::string(doc::kMaxNameLen, 'x')).accepted);
-    CHECK_FALSE(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).accepted);
-    CHECK(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).refusal ==
-          "a name is at most 64 bytes");
-    CHECK_FALSE(doc::check_name(std::string()).accepted);
-
-    // A NAME THE OLD BOUND REFUSED IS AUTHORED THROUGH THE ORDINARY OPERATION NOW, and the
-    // one the suite itself has needed since HD-7 is the fixture: 43 bytes, which HD-7 could
-    // only get by writing the element's field directly because no maker could type it.
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-    const std::string long_name = "the-quick-brown-fox-jumps-over-the-lazy-dog";
-    REQUIRE(long_name.size() == 43);
-    CHECK(doc::rename(d, id, long_name).accepted);
-    CHECK(doc::find(d, id)->label == long_name);
-    // ...and the whole document is still a document by its own law.
-    CHECK(doc::check_document(d).accepted);
-
-    // AND IT SURVIVES A SAVE AND A RESTORE, byte for byte. A validation policy is not a wire
-    // change: `kFormatVersion` did not move, and a name is an ordinary string in the file.
-    const std::string text = persist::to_text(d);
-    CHECK(text.find(long_name) != std::string::npos);
-    WorkshopDoc back = two_panels();
-    const Written loaded = persist::load_into(back, text);
-    REQUIRE(loaded.accepted);
-    CHECK(doc::find(back, id)->label == long_name);
-    CHECK(back == d);
-    CHECK(persist::kFormatVersion == 1);
-
-    // NOTHING ABOUT THE SETUP'S OWN NAME MOVED WITH IT. Two bounds, two reasons: the setup
-    // line has a width it must fit whole and an object's name no longer has one.
-    CHECK(kMaxSetupNameLen == 32);
-}
-
-TEST_CASE("QR-3: a name past the authored bound is still refused, from a file as from a hand") {
-    // THE OTHER HALF: raising a bound is not removing one. A document from a file meets the
-    // same `check_name`, and a refusal leaves the live document exactly as it was.
-    WorkshopDoc good = two_panels();
-    const std::string text = persist::to_text(good);
-    const std::string over(doc::kMaxNameLen + 1, 'x');
-    std::string forged = text;
-    const std::string was = "\"name\":\"panel\"";
-    const std::size_t at = forged.find(was);
-    REQUIRE(at != std::string::npos);
-    forged.replace(at, was.size(), "\"name\":\"" + over + "\"");
-
-    WorkshopDoc live = two_panels();
-    const Written refused = persist::load_into(live, forged);
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal.find("at most 64") != std::string::npos);
-    CHECK(live == good); // not one byte of the live document was written
-
-    // And through the maker's own operation.
-    CHECK_FALSE(doc::rename(live, live.elements[0].id, over).accepted);
-    CHECK(live.elements[0].label == "panel");
-}
-
-TEST_CASE("an object's name is bounded in bytes: sixty-four bytes of multibyte UTF-8 are a name, sixty-five are refused in bytes, and the name the refusal met stands") {
-    // THE REFUSAL SAYS THE UNIT THE CHECK COUNTS. `check_name` spends `size()` against the bound,
-    // and `size()` is bytes -- but the sentence said characters, so a name of twenty-two
-    // characters was refused as though it were more than sixty-four of them. What moved is the
-    // explanation: the bound, and which byte sequences are a name, are the ones the document
-    // already had.
-    const std::string euro = "\xE2\x82\xAC";     // U+20AC, three bytes
-    const std::string grin = "\xF0\x9F\x98\x80"; // U+1F600, four bytes
-    const std::string acute = "\xC3\xA9";        // U+00E9, two bytes
-    std::string at_bound;
-    for (int i = 0; i < 20; ++i) {
-        at_bound += euro;
-    }
-    at_bound += grin; // twenty-one characters
-    std::string past;
-    for (int i = 0; i < 21; ++i) {
-        past += euro;
-    }
-    past += acute; // twenty-two characters
-    REQUIRE(at_bound.size() == doc::kMaxNameLen);
-    REQUIRE(past.size() == doc::kMaxNameLen + 1);
-
-    CHECK(doc::check_name(at_bound).accepted);
-    const Written refused = doc::check_name(past);
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == "a name is at most 64 bytes");
-    // ...beside the rules that were already there, which did not move.
-    CHECK(doc::check_name(std::string(doc::kMaxNameLen, 'x')).accepted);
-    CHECK(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).refusal ==
-          "a name is at most 64 bytes");
-    CHECK(doc::check_name(std::string()).refusal == "a name cannot be empty");
-
-    // THROUGH THE OPERATION: the name at the bound is authored whole, and the one past it is
-    // refused in the same words while the name it met stands.
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-    CHECK(doc::rename(d, id, at_bound).accepted);
-    CHECK(doc::find(d, id)->label == at_bound);
-    const Written again = doc::rename(d, id, past);
-    CHECK_FALSE(again.accepted);
-    CHECK(again.refusal == "a name is at most 64 bytes");
-    CHECK(doc::find(d, id)->label == at_bound);
-    CHECK(doc::check_document(d).accepted);
+    CHECK(row.refusal() == "a name cannot be empty");
+    CHECK(p.name == "panel");
 }
 
 TEST_CASE("reuse: two properties of one type share every line of conversion") {
-    WorkshopDoc d = two_panels();
-    const std::int64_t id = d.elements[0].id;
-
-    // Width and Height are both extents. Building rows for them is one call
-    // each, and NEITHER call names a parse, a format, or a refusal wording --
-    // that is what TextForm<ui::Extent> already is. The old builder needed a
+    Probe p;
+    // Width and Height are both whole numbers under one check. Building rows for them is one
+    // call each, and NEITHER call names a parse, a format, or a refusal wording -- that is
+    // what TextForm<std::int64_t> and the shared check already are. The old builder needed a
     // whole row implementation per property; this pins that it no longer does.
-    Row width = Row::edit("Width", doc::width_of(d, id));
-    Row height = Row::edit("Height", doc::height_of(d, id));
+    Row width = Row::edit("Width", width_of(p));
+    Row height = Row::edit("Height", height_of(p));
 
-    // The same typed draft behaviour on both, including the percent spelling...
+    // The same typed draft behaviour on both...
     for (Row* row : {&width, &height}) {
         row->begin();
-        while (!row->draft().empty()) {
-            row->backspace();
-        }
-        type_all(*row, "40%");
+        clear_draft(*row);
+        type_all(*row, "40");
         CHECK(row->commit() == Commit::Accepted);
     }
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 40});
-    CHECK(d.elements[0].height == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(p.width == 40);
+    CHECK(p.height == 40);
 
     // ...and the same refusal, in the same words, from the shared check.
     for (Row* row : {&width, &height}) {
         row->begin();
-        while (!row->draft().empty()) {
-            row->backspace();
-        }
-        type_all(*row, "101%");
+        clear_draft(*row);
+        type_all(*row, "101");
         CHECK(row->commit() == Commit::Refused);
-        CHECK(row->refusal() == "a share is 1% to 100%");
+        CHECK(row->refusal() == "an extent is 1 to 100 cells");
     }
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 40});
-    CHECK(d.elements[0].height == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(p.width == 40);
+    CHECK(p.height == 40);
 }
 
-TEST_CASE("the extent text form: canonical out, and the typeable spelling in") {
-    using Form = TextForm<ui::Extent>;
-    CHECK(Form::format(ui::Extent{ui::kExtentCells, 12}) == "12");
-    CHECK(Form::format(ui::Extent{ui::kExtentPercent, 70}) == "70%");
+TEST_CASE("a commit of text the row never drafted meets the same conversion and the same refusals") {
+    // THE SEAM'S DOOR (`Row::commit_text`): an inspector whose draft lives in another image sends
+    // only its finished text, and the row judges it exactly as it judges its own draft -- the same
+    // parse, the same setter, the same words -- opening no draft of its own either way.
+    Probe p;
+    Row row = Row::edit("Width", width_of(p));
+    CHECK(row.commit_text("banana") == Commit::Unparseable);
+    CHECK(row.refusal() == "not a whole number");
+    CHECK(p.width == 60);
+    CHECK(row.commit_text("500") == Commit::Refused);
+    CHECK(row.refusal() == "an extent is 1 to 100 cells");
+    CHECK(p.width == 60);
+    CHECK(row.commit_text("24") == Commit::Accepted);
+    CHECK(row.refusal().empty());
+    CHECK(p.width == 24);
+    CHECK_FALSE(row.editing());
 
-    // Both spellings parse to the SAME value -- and `p` is not a convenience:
-    // `%` is Shift+5, and the input vocabulary has no modifiers, so the
-    // canonical display form is a form no maker can currently type.
-    CHECK(Form::parse("70%") == ui::Extent{ui::kExtentPercent, 70});
-    CHECK(Form::parse("70p") == ui::Extent{ui::kExtentPercent, 70});
-    CHECK(Form::parse("12") == ui::Extent{ui::kExtentCells, 12});
-    CHECK(Form::parse("-3") == ui::Extent{ui::kExtentCells, -3}); // parses; the setter refuses
+    // A shown row has nothing to write to, whoever sent the text.
+    Row shown = Row::show("Resolved", [] { return std::string("24 cells"); });
+    CHECK(shown.commit_text("12") == Commit::Refused);
+    CHECK(shown.refusal() == "not authored");
+}
+
+TEST_CASE("the whole-number text form: canonical out, and nothing but a whole number in") {
+    using Form = TextForm<std::int64_t>;
+    CHECK(Form::format(12) == "12");
+    CHECK(Form::format(-3) == "-3");
+
+    CHECK(Form::parse("12") == std::optional<std::int64_t>{12});
+    CHECK(Form::parse("-3") == std::optional<std::int64_t>{-3}); // parses; a setter may refuse
+    CHECK(Form::parse("9223372036854775807") ==
+          std::optional<std::int64_t>{9223372036854775807LL});
 
     CHECK_FALSE(Form::parse("").has_value());
-    CHECK_FALSE(Form::parse("%").has_value());
+    CHECK_FALSE(Form::parse("-").has_value());
     CHECK_FALSE(Form::parse("banana").has_value());
     CHECK_FALSE(Form::parse("12x").has_value());
+    CHECK_FALSE(Form::parse("70%").has_value());
     CHECK_FALSE(Form::parse("99999999999999999999").has_value()); // too big to be a number
+    CHECK(std::string(Form::expected()) == "a whole number");
 }
 
-TEST_CASE("a resolved row cannot be edited, because it has nothing to write to") {
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
+TEST_CASE("a shown row cannot be edited, because it has nothing to write to") {
+    // The structural answer to "never present a derived value as though it were a
+    // property": a `show` has no setter to reach, so begin() on one does nothing at all,
+    // and a section heading is the same with no value either.
+    Probe p;
+    Row shown = Row::show("Resolved", [&p] { return std::to_string(p.width) + " cells"; });
+    CHECK_FALSE(shown.editable());
+    shown.begin();
+    CHECK_FALSE(shown.editing());
+    CHECK(shown.value() == "60 cells");
+    p.width = 12;
+    CHECK(shown.value() == "12 cells"); // it reads through like every row
 
-    // The identity row and the resolved row are `show`s; every property is an
-    // `edit`. The structural answer to "never present a resolved value as though
-    // it were the authored property": begin() on one does nothing at all.
-    CHECK(s.rows[0].label() == "Identity");
-    CHECK_FALSE(s.rows[0].editable());
-    CHECK(s.rows[7].label() == "Resolved");
-    CHECK_FALSE(s.rows[7].editable());
-    for (std::size_t i = 1; i <= 5; ++i) {
-        CHECK(s.rows[i].editable());
-    }
+    Row heading = Row::section("PLACE");
+    CHECK_FALSE(heading.editable());
+    CHECK(heading.section());
+    heading.begin();
+    CHECK_FALSE(heading.editing());
 
-    s.rows[7].begin();
-    CHECK_FALSE(s.rows[7].editing());
-}
-
-// ============================================================================
-// Tier 2b — authored intent versus resolved value, as a maker meets it
-// ============================================================================
-//
-// WHAT resolution does is the ui suite's claim. What these cases pin is that
-// Workshop's inspector reports the UI package's answer and never a second one.
-
-TEST_CASE("authored and resolved are different facts, and only one of them moves") {
-    WorkshopDoc d;
-    const std::int64_t id =
-        doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 4});
-
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    refocus(d, s);
-    CHECK(s.rows[5].value() == "50%");       // the authored property
-    CHECK(s.rows[7].value() == "24 x 4 cells"); // what this workspace makes of it
-
-    // The resolved row is the SCENE's reading, not a second calculation that
-    // happens to agree. Ask the package directly and the numbers are the same
-    // ones, because they are the same numbers.
-    const ui::Scene scene = workspace_scene(d, s);
-    REQUIRE(ui::placed_for(scene, id) != nullptr);
-    CHECK(ui::placed_for(scene, id)->rect.w == 24);
-    CHECK(ui::placed_for(scene, id)->rect.h == 4);
-
-    // Narrow the workspace: the RESOLVED row changes, the AUTHORED row does not,
-    // and no authored value was written. This is the whole distinction in four
-    // lines, and it is the one the inspector must never collapse.
-    s.workspace_w = 24;
-    refocus(d, s);
-    CHECK(s.rows[5].value() == "50%");
-    CHECK(s.rows[7].value() == "12 x 4 cells");
-    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 50});
-
-    // A cells extent's two facts COINCIDE, which is not the same as being one
-    // fact -- the inspector still reports them as two rows.
-    CHECK(s.rows[6].value() == "4");
-}
-
-TEST_CASE("the painted rectangle IS the resolved rectangle, and the panel is not") {
-    WorkshopDoc d;
-    const std::int64_t id =
-        doc::add(d, "wide", 3, 2, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 6});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-    refocus(d, s);
-
-    // Every authored element on the canvas comes from the scene, offset by the
-    // workspace's origin ON THE CANVAS and by nothing else. A rectangle a maker
-    // can see is therefore one ui::hit can find, by construction rather than by
-    // two functions agreeing.
-    const ui::Scene wide = workspace_scene(d, s);
-    REQUIRE(ui::placed_for(wide, id) != nullptr);
-    const ui::Rect r = ui::placed_for(wide, id)->rect;
-    CHECK(has_rect(paint(d, s), kWorkspaceX + r.x, kWorkspaceY + r.y, r.w, r.h,
-                   surface::role::kFill));
-
-    // Resize the workspace and the same derivation still holds -- the painted
-    // rectangle followed the resolved one without anyone telling it to.
-    s.workspace_w = 24;
-    refocus(d, s);
-    const ui::Scene narrow = workspace_scene(d, s);
-    const ui::Rect r2 = ui::placed_for(narrow, id)->rect;
-    CHECK(r2.w == 12);
-    CHECK(has_rect(paint(d, s), kWorkspaceX + r2.x, kWorkspaceY + r2.y, r2.w, r2.h,
-                   surface::role::kFill));
-
-    // The workspace backdrop is NOT an authored element: it is a session fact
-    // painted as furniture, and it must not appear in the scene.
-    CHECK(narrow.items.size() == 1);
+    CHECK(Row::edit("Width", width_of(p)).editable());
 }
 
 // ============================================================================
-// Tier 2c — selection, against the real authored objects
-// ============================================================================
-
-TEST_CASE("a click selects the same authored object the maker can see") {
-    WorkshopDoc d;
-    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 10},
-                                       ui::Extent{ui::kExtentCells, 6});
-    const std::int64_t front = doc::add(d, "front", 4, 2, ui::Extent{ui::kExtentCells, 4},
-                                        ui::Extent{ui::kExtentCells, 2});
-    Session s;
-    s.selected = back;
-    refocus(d, s);
-
-    // Workshop asks the package, over the same scene it paints from, and gets
-    // back the AUTHORED IDENTITY -- not a rectangle index, not a label.
-    const ui::Scene scene = workspace_scene(d, s);
-    REQUIRE(ui::hit(scene, 0, 0) != nullptr);
-    CHECK(ui::hit(scene, 0, 0)->id == back);
-    REQUIRE(ui::hit(scene, 5, 3) != nullptr);
-    CHECK(ui::hit(scene, 5, 3)->id == front); // overlap: the last painted wins
-    CHECK(ui::hit(scene, 10, 0) == nullptr);  // one cell past the edge is nothing
-
-    // And what it selects with that identity is the object the whole screen
-    // agrees about: the ring, the list marker and the inspector's Identity row.
-    s.selected = ui::hit(scene, 5, 3)->id;
-    refocus(d, s);
-    const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(shown_object(d, s, 1) == "> #" + std::to_string(front) + " front");
-    CHECK(s.rows[0].value() == "#" + std::to_string(front));
-    const ui::Rect fr = ui::placed_for(scene, front)->rect;
-    CHECK(has_rect(c, kWorkspaceX + fr.x - 1, kWorkspaceY + fr.y - 1, fr.w + 2, fr.h + 2,
-                   surface::role::kAccent));
-}
-
-TEST_CASE("a share's hit area follows the workspace, because both read one scene") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "half", 0, 0, ui::Extent{ui::kExtentPercent, 50},
-                                     ui::Extent{ui::kExtentCells, 2});
-    Session s;
-    s.selected = id;
-
-    // There is no second copy of the geometry to fall out of step, because
-    // Workshop keeps no copy at all.
-    s.workspace_w = 48;
-    REQUIRE(ui::hit(workspace_scene(d, s), 20, 0) != nullptr); // 50% of 48 == 24 cells
-    CHECK(ui::hit(workspace_scene(d, s), 20, 0)->id == id);
-
-    s.workspace_w = 24;
-    CHECK(ui::hit(workspace_scene(d, s), 20, 0) == nullptr); // 50% of 24 == 12 cells
-    REQUIRE(ui::hit(workspace_scene(d, s), 5, 0) != nullptr);
-    CHECK(ui::hit(workspace_scene(d, s), 5, 0)->id == id);
-}
-
-// ============================================================================
-// Tier 2d — the maker's own hands: create, move, delete
-// ============================================================================
-//
-// Every case here drives the SAME functions workshop.cpp binds keys and pointer
-// events to. Nothing in this tier reaches into the document behind a gesture's
-// back, which is what makes it evidence about what a maker can do rather than
-// about what the data permits.
-
-TEST_CASE("creating mints a fresh identity, and the identity is not the label or the index") {
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-
-    const std::int64_t made = create(d, s);
-    REQUIRE(d.elements.size() == 3);
-
-    // A NEW identity: not any existing one, and not derived from where it landed
-    // in the vector (index 2) or from what it is called.
-    CHECK(made != d.elements[0].id);
-    CHECK(made != d.elements[1].id);
-    CHECK(made != 2);
-    CHECK(d.elements[2].id == made);
-
-    // Duplicate labels remain legal, and the default IS a duplicate -- so a maker
-    // meets "the name is not the identity" by making something, which is the
-    // cheapest moment to learn it.
-    CHECK(d.elements[2].label == doc::kNewLabel);
-    CHECK(d.elements[0].label == d.elements[2].label);
-    CHECK(doc::find(d, made) != nullptr);
-    CHECK(doc::find(d, made) != doc::find(d, d.elements[0].id));
-
-    // The new object is immediately the selected one, and the whole screen agrees
-    // about it: canvas ring, list marker, inspector Identity row.
-    CHECK(s.selected == made);
-    REQUIRE_FALSE(s.rows.empty());
-    CHECK(s.rows[0].value() == "#" + std::to_string(made));
-
-    const surface::SurfaceCanvas c = paint(d, s);
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(scene, made);
-    REQUIRE(placed != nullptr);
-    CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y, placed->rect.w,
-                   placed->rect.h, surface::role::kFill));
-    CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
-                   placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
-    CHECK(shown_object(d, s, 2) == "> #" + std::to_string(made) + " panel");
-}
-
-TEST_CASE("creation cannot author a state this document would refuse") {
-    // The defaults are values somebody chose, and the document's own checks are
-    // the only thing that can say whether they were chosen well. Without this,
-    // `add` -- which deliberately cannot refuse -- would be the one door through
-    // which an illegal object enters.
-    WorkshopDoc d;
-    Session s;
-    const std::int64_t made = create(d, s);
-    const ui::Element* e = doc::find(d, made);
-    REQUIRE(e != nullptr);
-
-    CHECK(doc::check_coord(e->x, e->context).accepted);
-    CHECK(doc::check_coord(e->y, e->context).accepted);
-    CHECK(doc::check_context(d.elements, e->id, e->context).accepted);
-    CHECK(doc::check_extent(e->width).accepted);
-    CHECK(doc::check_extent(e->height).accepted);
-    CHECK(doc::rename(d, made, e->label).accepted);
-}
-
-TEST_CASE("an identity is never handed out twice, even after its object is deleted") {
-    WorkshopDoc d;
-    Session s;
-
-    const std::int64_t first = create(d, s);
-    REQUIRE(delete_selected(d, s).accepted);
-    CHECK(d.elements.empty());
-
-    const std::int64_t second = create(d, s);
-    // The mint does not rewind. A notice, a selection, or a half-finished thought
-    // that still says "#1" can therefore never come to mean a different object --
-    // which is what an id being an IDENTITY rather than a slot number means.
-    CHECK(second != first);
-    CHECK(second > first);
-    CHECK(s.selected == second);
-}
-
-TEST_CASE("delete removes exactly one identity, and the other duplicate label survives") {
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-    const std::int64_t kept = d.elements[1].id;
-    REQUIRE(d.elements[0].label == d.elements[1].label); // the fixture's whole point
-
-    REQUIRE(delete_selected(d, s).accepted);
-    REQUIRE(d.elements.size() == 1);
-    REQUIRE(s.rows.size() == 8); // a selection survived, so the inspector has a subject
-    CHECK(doc::find(d, kept) != nullptr);
-    CHECK(doc::find(d, kept)->label == "panel"); // the twin is untouched
-    CHECK(doc::find(d, 1) == nullptr);
-
-    // No stale geometry, no stale list row, no stale inspector subject.
-    CHECK(ui::placed_for(workspace_scene(d, s), 1) == nullptr);
-    CHECK(workspace_scene(d, s).items.size() == 1);
-    const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(shown_object(d, s, 0) == "> #" + std::to_string(kept) + " panel");
-    // ONE OBJECT IS ONE ROW OF THE PICTURE, and the properties beside it are the survivor's.
-    // How many ROWS that object gets is the pane's composition and is asked there.
-    CHECK(document_shown(d, s).objects.size() == 1);
-    CHECK_FALSE(document_shown(d, s).properties.empty());
-    CHECK(s.rows[0].value() == "#" + std::to_string(kept));
-}
-
-TEST_CASE("the post-delete selection rule: the one that took its place, then the last, then none") {
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-    const std::int64_t third = create(d, s);
-    REQUIRE(d.elements.size() == 3);
-    const std::int64_t first = d.elements[0].id;
-    const std::int64_t second = d.elements[1].id;
-
-    // Deleting from the middle: the selection goes to whatever took that place.
-    s.selected = second;
-    refocus(d, s);
-    REQUIRE(delete_selected(d, s).accepted);
-    CHECK(s.selected == third);
-
-    // Deleting the LAST one: there is no successor, so the selection falls back.
-    REQUIRE(s.selected == d.elements.back().id);
-    REQUIRE(delete_selected(d, s).accepted);
-    CHECK(s.selected == first);
-
-    // Deleting the only one: the selection becomes NONE, explicitly, and the
-    // inspector has nothing to show rather than something stale to show.
-    REQUIRE(delete_selected(d, s).accepted);
-    CHECK(s.selected == 0);
-    CHECK(s.rows.empty());
-    CHECK(doc::find(d, s.selected) == nullptr);
-}
-
-TEST_CASE("deleting nothing is a refusal a maker can read, not a crash or a silence") {
-    WorkshopDoc empty;
-    Session s;
-    refocus(empty, s);
-    const Written on_empty = delete_selected(empty, s);
-    CHECK_FALSE(on_empty.accepted);
-    CHECK(on_empty.refusal == "no such object");
-    CHECK(empty.elements.empty());
-    CHECK(s.selected == 0);
-
-    // A selection can outlive its object; deleting it again must not take a
-    // second one with it.
-    WorkshopDoc d = two_panels();
-    Session stale;
-    stale.selected = 9999;
-    refocus(d, stale);
-    CHECK_FALSE(delete_selected(d, stale).accepted);
-    CHECK(d.elements.size() == 2);
-    CHECK(stale.selected == 9999); // a refusal changes neither the document nor the session
-}
-
-TEST_CASE("create after empty: the document comes back, and the tool never left") {
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-
-    while (!d.elements.empty()) {
-        REQUIRE(delete_selected(d, s).accepted);
-    }
-    REQUIRE(s.selected == 0);
-
-    const std::int64_t made = create(d, s);
-    REQUIRE(d.elements.size() == 1);
-    CHECK(s.selected == made);
-    CHECK(doc::find(d, made) != nullptr);
-    REQUIRE_FALSE(s.rows.empty());
-    CHECK(s.rows[0].value() == "#" + std::to_string(made));
-
-    // It resolves, it paints, and it can be hit -- a created-from-empty object is
-    // not a lesser object.
-    const ui::Scene scene = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(scene, made);
-    REQUIRE(placed != nullptr);
-    CHECK(ui::hit(scene, placed->rect.x, placed->rect.y)->id == made);
-    CHECK(has_rect(paint(d, s), kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
-                   placed->rect.w, placed->rect.h, surface::role::kFill));
-}
-
-TEST_CASE("a newly created object works with the existing property machinery, unchanged") {
-    WorkshopDoc d;
-    Session s;
-    const std::int64_t made = create(d, s);
-
-    // No per-object registration, no reflection, no inspector framework: the
-    // rows for a created object are built by exactly the call that builds them
-    // for a seeded one, and they write through exactly the same setters.
-    REQUIRE(s.rows.size() == 8);
-    CHECK(s.rows[1].label() == "Name");
-    CHECK(s.rows[5].label() == "Width");
-
-    Row& name = s.rows[1];
-    name.begin();
-    while (!name.draft().empty()) {
-        name.backspace();
-    }
-    type_all(name, "mine");
-    CHECK(name.commit() == Commit::Accepted);
-    CHECK(doc::find(d, made)->label == "mine");
-
-    Row& width = s.rows[5];
-    width.begin();
-    while (!width.draft().empty()) {
-        width.backspace();
-    }
-    type_all(width, "70p");
-    CHECK(width.commit() == Commit::Accepted);
-    CHECK(doc::find(d, made)->width == ui::Extent{ui::kExtentPercent, 70});
-
-    // And the refusals are the same refusals, in the same words.
-    width.begin();
-    while (!width.draft().empty()) {
-        width.backspace();
-    }
-    type_all(width, "500p");
-    CHECK(width.commit() == Commit::Refused);
-    CHECK(width.refusal() == "a share is 1% to 100%");
-}
-
-TEST_CASE("a nudge authors placement, and every reading of the object follows") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentPercent, 50},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    refocus(d, s);
-
-    const ui::Scene before = workspace_scene(d, s);
-    REQUIRE(ui::hit(before, 3, 2) != nullptr);
-    CHECK(ui::hit(before, 3, 2)->id == id);
-
-    REQUIRE(nudge(d, s, +1, 0).accepted());
-    CHECK(doc::find(d, id)->x == 4);
-    CHECK(doc::find(d, id)->y == 2); // the other coordinate did NOT move
-    REQUIRE(nudge(d, s, 0, +1).accepted());
-    CHECK(doc::find(d, id)->x == 4);
-    CHECK(doc::find(d, id)->y == 3);
-    CHECK(s.selected == id); // moving is not selecting
-
-    // The authored EXTENT is untouched: a move moves, it does not resize.
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 50});
-
-    // The resolved scene, the canvas, the inspector and the hit test all followed,
-    // because all four are derived from the one authored value that changed.
-    const ui::Scene after = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(after, id);
-    REQUIRE(placed != nullptr);
-    CHECK(placed->rect == ui::Rect{4, 3, 24, 4});
-    CHECK(has_rect(paint(d, s), kWorkspaceX + 4, kWorkspaceY + 3, 24, 4, surface::role::kFill));
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-    CHECK(s.rows[3].value() == "4"); // X
-    CHECK(s.rows[4].value() == "3"); // Y
-    CHECK(s.rows[7].value() == "24 x 4 cells"); // resolved size unchanged by a move
-
-    REQUIRE(ui::hit(after, 4, 3) != nullptr);
-    CHECK(ui::hit(after, 4, 3)->id == id);
-    // And the cell it used to occupy is no longer it -- the old position stopped
-    // being true rather than merely stopping being painted.
-    CHECK(ui::hit(after, 3, 2) == nullptr);
-}
-
-TEST_CASE("a move is ONE authored change: a refused move writes neither coordinate") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 0, 5, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-
-    // A diagonal gesture toward the top-left corner: y is legal, x is not. With
-    // two independent setters this would slide the object DOWN the left edge and
-    // report a refusal at the same time -- a refusal message beside a successful
-    // write.
-    const Written refused = doc::move(d, id, -1, 6);
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == "the workspace starts at 0");
-    CHECK(doc::find(d, id)->x == 0);
-    CHECK(doc::find(d, id)->y == 5); // NOT 6
-
-    // The same, with the illegal coordinate second.
-    CHECK_FALSE(doc::move(d, id, 7, -1).accepted);
-    CHECK(doc::find(d, id)->x == 0); // NOT 7
-    CHECK(doc::find(d, id)->y == 5);
-
-    // A nudge reaches the same operation, but it is a HAND, so the boundary
-    // policy applies before the proposal is made: it stops at the workspace edge
-    // and SLIDES along it rather than refusing, and it says which wall it met.
-    // The other coordinate still moves -- that is the whole difference a clamp
-    // buys, and the reason the two acts are worth telling apart.
-    const Handled slid = nudge(d, s, -1, +1);
-    CHECK(slid.accepted());
-    CHECK(slid.clamped());
-    CHECK(slid.boundary == kAtWorkspaceStart);
-    CHECK(doc::find(d, id)->x == 0); // already at the edge; stayed there
-    CHECK(doc::find(d, id)->y == 6); // and the legal half of the gesture happened
-
-    // And a legal move still writes both at once.
-    REQUIRE(doc::move(d, id, 0, 5).accepted);
-    REQUIRE(doc::move(d, id, 7, 6).accepted);
-    CHECK(doc::find(d, id)->x == 7);
-    CHECK(doc::find(d, id)->y == 6);
-}
-
-TEST_CASE("the inspector and the maker's hand write through ONE position operation") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 4, 4, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-
-    // A typed X of -1, through the Row the inspector actually holds.
-    Row& x_row = s.rows[3];
-    x_row.begin();
-    while (!x_row.draft().empty()) {
-        x_row.backspace();
-    }
-    type_all(x_row, "-1");
-    CHECK(x_row.commit() == Commit::Refused);
-    const std::string typed_refusal = x_row.refusal();
-
-    // The same illegal position, proposed to the document instead.
-    const Written dragged = doc::move(d, id, -1, 4);
-    const Handled nudged = nudge(d, s, -1, 0) /* 4 -> 3, legal */;
-    CHECK(nudged.accepted());
-    CHECK_FALSE(nudged.clamped());
-    REQUIRE(doc::set_x(d, id, 4).accepted); // put it back
-
-    // Identical wording, because it is not two rules that agree -- set_x IS
-    // doc::move holding y still, so there is no second place a gesture could
-    // acquire its own opinion about what a legal position is.
-    CHECK(typed_refusal == dragged.refusal);
-    CHECK(typed_refusal == doc::set_x(d, id, -1).refusal);
-    CHECK(typed_refusal == doc::set_y(d, id, -1).refusal);
-    CHECK(typed_refusal == "the workspace starts at 0");
-
-    // set_x moves only x; set_y moves only y. Delegating to a two-coordinate
-    // operation did not quietly make them move both.
-    REQUIRE(doc::set_x(d, id, 9).accepted);
-    CHECK(doc::find(d, id)->x == 9);
-    CHECK(doc::find(d, id)->y == 4);
-    REQUIRE(doc::set_y(d, id, 7).accepted);
-    CHECK(doc::find(d, id)->x == 9);
-    CHECK(doc::find(d, id)->y == 7);
-}
-
-TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point follows") {
-    WorkshopDoc d;
-    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 10},
-                                       ui::Extent{ui::kExtentCells, 6});
-    const std::int64_t front = doc::add(d, "front", 4, 2, ui::Extent{ui::kExtentCells, 4},
-                                        ui::Extent{ui::kExtentCells, 2});
-    Session s;
-    s.selected = back;
-    refocus(d, s);
-
-    // Press inside the overlap: the drag takes the TOPMOST object, because it
-    // asks the same ui::hit the click path asks, over the same painted scene.
-    CHECK(begin_drag(d, s, 5, 3) == front);
-    CHECK(s.drag.active);
-    CHECK_FALSE(s.drag.resizing); // a press on a BODY moves it
-    CHECK(s.drag.id == front);
-    CHECK(s.drag.grab_dx == 1); // 5 - 4
-    CHECK(s.drag.grab_dy == 1); // 3 - 2
-
-    // Drag to a new cell. The grabbed point ends up under the pointer, which is
-    // the whole behavioural claim of a drag, and it is checked against the
-    // RESOLVED scene rather than against the arithmetic that produced it.
-    REQUIRE(drag_to(d, s, 20, 9).accepted());
-    CHECK(doc::find(d, front)->x == 19);
-    CHECK(doc::find(d, front)->y == 8);
-    // The scene is NAMED, and that is not style: `placed_for` answers with a
-    // pointer INTO the scene, so binding it to a variable while the scene was a
-    // temporary is a use-after-free the plain lane cannot see. It shipped in this
-    // file's first draft and a sanitizer found it -- the same dangling-observation
-    // hazard `Placed` carries an id against -- met here, in the test that proves
-    // the design.
-    const ui::Scene moved = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(moved, front);
-    REQUIRE(placed != nullptr);
-    CHECK(placed->rect.x + s.drag.grab_dx == 20);
-    CHECK(placed->rect.y + s.drag.grab_dy == 9);
-    REQUIRE(ui::hit(workspace_scene(d, s), 20, 9) != nullptr);
-    CHECK(ui::hit(workspace_scene(d, s), 20, 9)->id == front);
-
-    // The object that was NOT grabbed did not move, and the drag holds no
-    // position of its own to have gone stale.
-    CHECK(doc::find(d, back)->x == 0);
-    CHECK(doc::find(d, back)->y == 0);
-
-    end_drag(s);
-    CHECK_FALSE(s.drag.active);
-    CHECK_FALSE(drag_to(d, s, 30, 9).accepted()); // and nothing moves after release
-    CHECK(doc::find(d, front)->x == 19);
-}
-
-TEST_CASE("a press on empty space grabs nothing, and a drag against the edge slides along it") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 5, 5, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-
-    CHECK(begin_drag(d, s, 40, 12) == 0);
-    CHECK_FALSE(s.drag.active);
-    CHECK_FALSE(drag_to(d, s, 41, 12).accepted());
-
-    // Grab the top-left cell, then drag OFF the left edge of the workspace while
-    // still moving down. Refusing this outright and leaving the object put would
-    // be truthful and brusque; the boundary policy stops the HAND at the wall
-    // instead: the proposal is reduced to the first cell the workspace has,
-    // the legal half of the gesture still happens, and the notice says which wall
-    // was met -- so nothing was silently corrected, it was openly stopped.
-    REQUIRE(begin_drag(d, s, 5, 5) == id);
-    CHECK(s.drag.grab_dx == 0);
-    const Handled slid = drag_to(d, s, -1, 7);
-    CHECK(slid.accepted());
-    CHECK(slid.clamped());
-    CHECK(slid.boundary == kAtWorkspaceStart);
-    CHECK(doc::find(d, id)->x == 0); // stopped at the edge, not left where it was
-    CHECK(doc::find(d, id)->y == 7); // and it kept sliding down it
-
-    // The TYPED path is untouched by that decision, and the two now differ in
-    // exactly the way the policy says they should: a hand is stopped, a written
-    // value is refused, and the document still holds the only opinion about what
-    // is legal.
-    const Written typed = doc::move(d, id, -1, 7);
-    CHECK_FALSE(typed.accepted);
-    CHECK(typed.refusal == "the workspace starts at 0");
-    CHECK(doc::find(d, id)->x == 0);
-
-    // The drag is still live afterwards, so the maker can keep going without
-    // re-pressing.
-    CHECK(s.drag.active);
-    REQUIRE(drag_to(d, s, 2, 5).accepted());
-    CHECK(doc::find(d, id)->x == 2);
-}
-
-TEST_CASE("a nudge survives an authored coordinate no setter would have produced") {
-    // WorkshopDoc is ZEN_EXPOSE()d, so a poke writes x directly, past every
-    // refusal in document.hpp. A nudge COMPUTES its proposal, so it meets values
-    // a typed edit never could -- and the neighbour of the largest representable
-    // cell is not representable. (The same widening `resolve_extent` meets one
-    // layer down.)
-    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "poked", 0, 0, ui::Extent{ui::kExtentCells, 2},
-                                     ui::Extent{ui::kExtentCells, 2});
-    Session s;
-    s.selected = id;
-
-    doc::find_mut(d, id)->x = kMax; // the poke
-    CHECK(nudge(d, s, +1, 0).accepted());
-    CHECK(doc::find(d, id)->x == kMax); // saturated: it went nowhere, and legally
-    CHECK(nudge(d, s, -1, 0).accepted());
-    CHECK(doc::find(d, id)->x == kMax - 1);
-
-    // The other end is only reachable by a poke at all, and it must not wrap
-    // either -- a nudge up from the most negative cell would otherwise become the
-    // most positive one. Under the boundary policy the gesture then does what it
-    // does at any wall: it stops at the first cell the workspace HAS, and says so.
-    // A hand can therefore recover an object a poke put somewhere impossible,
-    // which is the same rule as everywhere else rather than a special case.
-    doc::find_mut(d, id)->y = (std::numeric_limits<std::int64_t>::min)();
-    const Handled down = nudge(d, s, 0, -1);
-    CHECK(down.accepted());
-    CHECK(down.clamped());
-    CHECK(doc::find(d, id)->y == doc::kFirstCell);
-    // and the document itself still refuses the impossible value outright
-    CHECK_FALSE(doc::move(d, id, 0, (std::numeric_limits<std::int64_t>::min)()).accepted);
-}
-
-TEST_CASE("a reported pointer position survives every integer the wire can carry") {
-    // Coordinates are int64 cells and not doubles, so one hazard --
-    // `static_cast<int64_t>` of a double that does not fit, which is UNDEFINED --
-    // is gone at the type. The REMAINING hazard is the one the type cannot
-    // remove: the numbers still come from whichever weave holds the input role,
-    // and `INT64_MIN - 3` is undefined behaviour produced by data.
-    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
-    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-
-    CHECK(workspace_cell_x(12) == 12);
-    CHECK(workspace_cell_y(kWorkspaceY) == 0);
-
-    // The saturating ends, which is where a plain subtraction would be UB.
-    CHECK(workspace_cell_y(kMin) == kMin);
-    CHECK(workspace_cell_x(kMin) == kMin);
-    CHECK(workspace_cell_y(kMax) == kMax - kWorkspaceY);
-
-    // And a saturated position is still just a cell: it hits nothing, and it
-    // cannot make the arithmetic downstream of it overflow either.
-    WorkshopDoc d;
-    doc::add(d, "one", 0, 0, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    CHECK(begin_drag(d, s, workspace_cell_x(kMin), workspace_cell_y(kMin)) == 0);
-    CHECK(begin_drag(d, s, workspace_cell_x(kMax), workspace_cell_y(kMax)) == 0);
-    CHECK(take_hold(d, s, workspace_cell_x(kMin), workspace_cell_y(kMin)) == 0);
-    CHECK(take_hold(d, s, workspace_cell_x(kMax), workspace_cell_y(kMax)) == 0);
-}
-
-TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
-    // Two translations, and only the second one is Workshop's (screen.hpp).
-    // A terminal Skin starts the canvas at terminal row 3; the workspace is one
-    // row into the canvas. So a pointer on terminal row 3 is workspace row -1 and
-    // terminal row 4 is workspace row 0. An off-by-one here would select the
-    // object above the one a maker clicked, which is the kind of wrong that looks
-    // like a bug in the hit test.
-    const auto term = [](std::int64_t x, std::int64_t y) {
-        const PointedAt at = canvas_point_of(input::space::kCells, x, y);
-        REQUIRE(at.understood);
-        return std::pair<std::int64_t, std::int64_t>{workspace_cell_x(at.cell.x),
-                                                     workspace_cell_y(at.cell.y)};
-    };
-    CHECK(term(0, surface::kTuiCanvasTopRow + kWorkspaceY).first == -kWorkspaceX);
-    CHECK(term(0, surface::kTuiCanvasTopRow + kWorkspaceY).second == 0);
-    CHECK(term(0, surface::kTuiCanvasTopRow).second == -kWorkspaceY);
-
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    // The object's authored top-left (3,2) is terminal (3, 2 + kWorkspaceY + the terminal's
-    // own two rows) -- 6 since QR-14 put a band above the workspace, 5 before it.
-    const std::int64_t top = 2 + kWorkspaceY + surface::kTuiCanvasTopRow;
-    CHECK(begin_drag(d, s, term(3, top).first, term(3, top).second) == id);
-    CHECK(s.drag.grab_dx == 0);
-    CHECK(s.drag.grab_dy == 0);
-    end_drag(s);
-    CHECK(begin_drag(d, s, term(3, top - 1).first, term(3, top - 1).second) == 0); // above
-}
-
-TEST_CASE("the SAME object is under the pointer whichever medium reported it") {
-    // The projection question, asserted as the only thing that actually matters:
-    // a maker pointing at the middle of an object hits THAT object, and which
-    // medium they were looking through is not the document's business
-    // (docs/reference/pointer-spaces.md).
-    //
-    // The two media disagree about every number on the way in -- the terminal
-    // reports canvas cells offset by two rows, the window reports pixels at
-    // kCanvasCellPx each with no offset -- and agree about the answer. That is
-    // what makes `12 / 12 == 1` the wrong test and this the right one.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentCells, 6},
-                                     ui::Extent{ui::kExtentCells, 4});
-    // The object's own middle, in workspace cells, then on the canvas.
-    const std::int64_t wx = 3 + 6 / 2;
-    const std::int64_t wy = 2 + 4 / 2;
-    const std::int64_t cx = wx + kWorkspaceX;
-    const std::int64_t cy = wy + kWorkspaceY;
-
-    const auto hit_through = [&d](std::int64_t space, std::int64_t x, std::int64_t y) {
-        const PointedAt at = canvas_point_of(space, x, y);
-        REQUIRE(at.understood);
-        Session s;
-        return begin_drag(d, s, workspace_cell_x(at.cell.x), workspace_cell_y(at.cell.y));
-    };
-
-    // Terminal: canvas cells, two rows down.
-    CHECK(hit_through(input::space::kCells, cx, cy + surface::kTuiCanvasTopRow) == id);
-    // Window: the pixel at that cell's top-left, its middle, and its last pixel
-    // are all the same cell and therefore the same object.
-    const std::int64_t px = cx * surface::kCanvasCellPx;
-    const std::int64_t py = cy * surface::kCanvasCellPx;
-    CHECK(hit_through(input::space::kPixels, px, py) == id);
-    CHECK(hit_through(input::space::kPixels, px + surface::kCanvasCellPx / 2,
-                      py + surface::kCanvasCellPx / 2) == id);
-    CHECK(hit_through(input::space::kPixels, px + surface::kCanvasCellPx - 1,
-                      py + surface::kCanvasCellPx - 1) == id);
-    // One pixel further is the NEXT cell, and at the object's right edge that is
-    // off it. (The object spans cells 3..8; cell 9 is not the object.)
-    const std::int64_t right_px = (3 + 6 + kWorkspaceX) * surface::kCanvasCellPx;
-    CHECK(hit_through(input::space::kPixels, right_px, py) == 0);
-    CHECK(hit_through(input::space::kPixels, right_px - 1, py) == id);
-
-    // A space this application cannot place is not guessed at.
-    CHECK_FALSE(canvas_point_of(input::space::kUnknown, px, py).understood);
-    CHECK_FALSE(canvas_point_of(9999, px, py).understood);
-}
-
-TEST_CASE("canvas, object list and inspector agree after every gesture in a session") {
-    // One maker's session, end to end, with the three views checked against each
-    // other after each act. This is the case that would catch a gesture that
-    // updated the document but left one of the three reading something else.
-    WorkshopDoc d;
-    Session s;
-    refocus(d, s);
-
-    const auto agree = [&](std::int64_t id, std::int64_t row) {
-        const surface::SurfaceCanvas c = paint(d, s);
-        const ui::Scene scene = workspace_scene(d, s);
-        const ui::Placed* placed = ui::placed_for(scene, id);
-        REQUIRE(placed != nullptr);
-        // REQUIRE before indexing, and not CHECK: a mutation that loses the
-        // selection would otherwise walk off an empty vector and take the whole
-        // binary down, and a crashed run is not a red -- it is a run that
-        // stopped reporting. (Found by the mutation harness doing exactly that.)
-        REQUIRE(s.rows.size() == 8);
-        // canvas: the fill and the ring are where the scene put it
-        CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
-                       placed->rect.w, placed->rect.h, surface::role::kFill));
-        CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
-                       placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
-        // list: the marker is on this identity
-        CHECK(shown_object(d, s, static_cast<std::size_t>(row)).rfind("> #" + std::to_string(id), 0) == 0);
-        // inspector: the same identity, and the authored position it is drawn at
-        CHECK(s.rows[0].value() == "#" + std::to_string(id));
-        CHECK(s.rows[3].value() == std::to_string(placed->rect.x));
-        CHECK(s.rows[4].value() == std::to_string(placed->rect.y));
-        // and the hit test answers with it at its own top-left cell
-        REQUIRE(ui::hit(scene, placed->rect.x, placed->rect.y) != nullptr);
-        CHECK(ui::hit(scene, placed->rect.x, placed->rect.y)->id == id);
-    };
-
-    const std::int64_t a = create(d, s);
-    agree(a, 0);
-
-    REQUIRE(nudge(d, s, +2, +3).accepted()); // hjkl arrives as repeated single steps;
-    REQUIRE(nudge(d, s, +1, 0).accepted());  // the operation is the same either way
-    refocus(d, s);
-    agree(a, 0);
-
-    const std::int64_t b = create(d, s);
-    refocus(d, s);
-    agree(b, 1);
-
-    REQUIRE(begin_drag(d, s, doc::find(d, b)->x, doc::find(d, b)->y) == b);
-    REQUIRE(drag_to(d, s, 22, 11).accepted());
-    end_drag(s);
-    refocus(d, s);
-    agree(b, 1);
-
-    // ...and a resize, through the handle, in the same session: the three views
-    // still agree afterwards, and the object is still the same identity.
-    const Handle grip = size_handle(d, s);
-    REQUIRE(grip.shown);
-    REQUIRE(take_hold(d, s, grip.x, grip.y) == b);
-    REQUIRE(s.drag.resizing);
-    REQUIRE(drag_to(d, s, 30, 16).accepted());
-    end_drag(s);
-    refocus(d, s);
-    agree(b, 1);
-
-    REQUIRE(delete_selected(d, s).accepted);
-    CHECK(s.selected == a);
-    refocus(d, s);
-    agree(a, 0);
-}
-
-// ============================================================================
-// Tier 2e — the maker's hand on an EXTENT: resize
-// ============================================================================
-//
-// The tier the phase exists for. A move could be dragged because authored and
-// resolved placement are the same number; an EXTENT is interpreted, so a hand on
-// an edge has to decide what to author. Every case here drives the same
-// functions workshop.cpp binds the handle and the four resize keys to.
-
-TEST_CASE("resizing a cells extent authors cells, and every reading of the object follows") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "box", 3, 2, ui::Extent{ui::kExtentCells, 12},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-    refocus(d, s);
-
-    // The handle is the cell just past the object's bottom-right corner, so a
-    // pointer resting ON it proposes the size the object already has.
-    const Handle grip = size_handle(d, s);
-    REQUIRE(grip.shown);
-    CHECK(grip.id == id);
-    CHECK(grip.x == 3 + 12);
-    CHECK(grip.y == 2 + 4);
-    REQUIRE(take_hold(d, s, grip.x, grip.y) == id);
-    REQUIRE(s.drag.resizing);
-    REQUIRE(drag_to(d, s, grip.x, grip.y).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 12}); // unchanged
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 4});
-
-    // Pull it five cells right and two down. 12 -> 17, exactly the phase prompt's
-    // arithmetic, and the AUTHORED value is what changed.
-    REQUIRE(drag_to(d, s, grip.x + 5, grip.y + 2).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 17});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 6});
-
-    // Identity, label and POSITION are untouched: a resize resizes.
-    CHECK(doc::find(d, id)->id == id);
-    CHECK(doc::find(d, id)->label == "box");
-    CHECK(doc::find(d, id)->x == 3);
-    CHECK(doc::find(d, id)->y == 2);
-    CHECK(s.selected == id);
-    CHECK(d.elements.size() == 1);
-
-    // The resolved rect, the canvas, the hit region and the inspector all follow,
-    // because all four are derived from the one authored value that changed.
-    const ui::Scene after = workspace_scene(d, s);
-    const ui::Placed* placed = ui::placed_for(after, id);
-    REQUIRE(placed != nullptr);
-    CHECK(placed->rect == ui::Rect{3, 2, 17, 6});
-    CHECK(has_rect(paint(d, s), kWorkspaceX + 3, kWorkspaceY + 2, 17, 6, surface::role::kFill));
-    REQUIRE(ui::hit(after, 3 + 16, 2 + 5) != nullptr); // the newly occupied corner
-    CHECK(ui::hit(after, 3 + 16, 2 + 5)->id == id);
-    CHECK(ui::hit(after, 3 + 17, 2) == nullptr); // one past it is still nothing
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-    CHECK(s.rows[5].value() == "17");           // authored Width
-    CHECK(s.rows[6].value() == "6");            // authored Height
-    CHECK(s.rows[7].value() == "17 x 6 cells"); // and what the workspace makes of it
-
-    // Shrinking is the same gesture backwards, and the cell it no longer occupies
-    // STOPPED BEING TRUE rather than merely stopping being painted.
-    REQUIRE(drag_to(d, s, 3 + 5, 2 + 2).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 5});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 2});
-    CHECK(ui::hit(workspace_scene(d, s), 3 + 16, 2 + 5) == nullptr);
-    end_drag(s);
-}
-
-TEST_CASE("resizing a share authors a SHARE, and the number is the smallest one that fits") {
-    // The phase's central experiment, with the phase prompt's own numbers.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 60},
-                                     ui::Extent{ui::kExtentCells, 6});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-    REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28); // 60% of 48
-
-    // Pull the edge out to 34 resolved cells. The maker manipulated a property
-    // they authored as a SHARE, so a share is what gets written -- and the number
-    // is 71%, which is the smallest share this workspace resolves to 34 cells.
-    REQUIRE(size_to(d, s, id, 34, 6).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 71});
-    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 34); // it means what it says
-    CHECK(ui::resolve_extent(ui::Extent{ui::kExtentPercent, 70}, 48) == 33); // and 70% would not
-
-    // The height was authored in CELLS and stays cells, in the same operation.
-    // Two extents, two modes, one gesture: mode is per-property, not per-object.
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 6});
-
-    // A share is never converted to cells behind the maker's back, at any size.
-    for (const std::int64_t want : {1, 5, 24, 47, 48}) {
-        REQUIRE(size_to(d, s, id, want, 6).accepted());
-        CHECK(doc::find(d, id)->width.mode == ui::kExtentPercent);
-        CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == want);
-    }
-}
-
-TEST_CASE("the projection is stable: the same resolved size always names the same share") {
-    // §11's property, and the reason the rounding rule is not a taste. The
-    // resolver FLOORS, so the projection must take the SMALLEST share that
-    // reaches the asked-for size. `nearest` would send 28 cells to 58%, which
-    // resolves to 27 -- so merely grabbing an edge and letting go would shrink the
-    // object, and repeated resizes to the same place would walk the number down.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 60},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-
-    // Asking for the size it already has re-authors NOTHING: the share it carries
-    // already says exactly that, and rewriting it to the canonical spelling would
-    // change a maker's number for no reason a maker could see.
-    REQUIRE(size_to(d, s, id, 28, 4).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 60});
-
-    // Resize away and back: the same PICTURE, and — because 60% was never the
-    // canonical name for 28 cells — a different NUMBER. That is a true fact about
-    // shares (58%, 59% and 60% are all 28 cells at this workspace), not a defect,
-    // and the projection is honest that it authors a NEW value rather than
-    // reconstructing the old one.
-    REQUIRE(size_to(d, s, id, 34, 4).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 71});
-    REQUIRE(size_to(d, s, id, 28, 4).accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 59});
-    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28); // the picture came back
-
-    // And from there it does not move again, however many times the maker asks
-    // for the same place. One resolved size, one authored share, forever.
-    for (int i = 0; i < 5; ++i) {
-        REQUIRE(size_to(d, s, id, 28, 4).accepted());
-        CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 59});
-    }
-
-    // Every reachable size round-trips EXACTLY, at every workspace this tool has:
-    // a percent is finer than a cell below 100 cells of span, so the ceil rule is
-    // not merely stable but exact. Asked of the resolver, so the two cannot drift.
-    for (std::int64_t span = kWorkspaceMinW; span <= kWorkspaceW; ++span) {
-        s.workspace_w = span;
-        for (std::int64_t want = 1; want <= span; ++want) {
-            std::string boundary;
-            const ui::Extent got =
-                extent_from_drag(ui::Extent{ui::kExtentPercent, 50}, want, span, boundary);
-            REQUIRE(got.mode == ui::kExtentPercent);
-            CHECK(ui::resolve_extent(got, span) == want);
-            CHECK(doc::check_extent(got).accepted);
-        }
-    }
-}
-
-TEST_CASE("a resize is ONE authored change: a refused proposal writes neither extent") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 10},
-                                     ui::Extent{ui::kExtentCells, 5});
-
-    // A diagonal proposal whose width is legal and whose height is not. With two
-    // independent setters this would narrow the object AND report a refusal -- a
-    // refusal message beside a successful write, which is exactly what placement
-    // refuses to produce, met here at the other property.
-    const Written refused = doc::resize(d, id, ui::Extent{ui::kExtentCells, 7},
-                                        ui::Extent{ui::kExtentCells, 0});
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == "at least 1 cell");
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 10}); // NOT 7
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5});
-
-    // The same, with the illegal extent first.
-    CHECK_FALSE(doc::resize(d, id, ui::Extent{ui::kExtentPercent, 500},
-                            ui::Extent{ui::kExtentCells, 9})
-                    .accepted);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 10});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5}); // NOT 9
-
-    // And a legal resize still writes both at once.
-    REQUIRE(doc::resize(d, id, ui::Extent{ui::kExtentCells, 7}, ui::Extent{ui::kExtentCells, 9})
-                .accepted);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 7});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 9});
-}
-
-TEST_CASE("the inspector and the maker's hand write through ONE size operation") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 10},
-                                     ui::Extent{ui::kExtentCells, 5});
-    Session s;
-    s.selected = id;
-    refocus(d, s);
-    REQUIRE(s.rows.size() == 8);
-
-    // A typed Width of 0, through the Row the inspector actually holds.
-    Row& width = s.rows[5];
-    width.begin();
-    while (!width.draft().empty()) {
-        width.backspace();
-    }
-    type_all(width, "0");
-    CHECK(width.commit() == Commit::Refused);
-    const std::string typed_refusal = width.refusal();
-
-    // Identical wording from every door, because it is not several rules that
-    // agree -- set_width IS doc::resize holding the height still, so there is no
-    // second place a gesture could acquire its own opinion about a legal extent.
-    CHECK(typed_refusal == "at least 1 cell");
-    CHECK(typed_refusal ==
-          doc::set_width(d, id, ui::Extent{ui::kExtentCells, 0}).refusal);
-    CHECK(typed_refusal ==
-          doc::set_height(d, id, ui::Extent{ui::kExtentCells, 0}).refusal);
-    CHECK(typed_refusal == doc::resize(d, id, ui::Extent{ui::kExtentCells, 0},
-                                       ui::Extent{ui::kExtentCells, 5})
-                               .refusal);
-
-    // set_width writes only the width; set_height only the height. Delegating to
-    // a two-extent operation did not quietly make them write both.
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 40}).accepted);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 40});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5});
-    REQUIRE(doc::set_height(d, id, ui::Extent{ui::kExtentCells, 8}).accepted);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 40});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 8});
-
-    // And a value the hand authors is a value the inspector will accept back:
-    // the gesture never produces an extent the document's own check refuses.
-    REQUIRE(size_to(d, s, id, 34, 6).accepted());
-    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-    CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
-    refocus(d, s);
-    CHECK(s.rows[5].value() == TextForm<ui::Extent>::format(doc::find(d, id)->width));
-}
-
-TEST_CASE("the authored minimum is the DOCUMENT's, not the resolution floor") {
-    // §12. `ui::kMinCells` is what resolution refuses to round a share BELOW; it
-    // is not the editor's authoring rule, and the two are different questions
-    // that happen to agree at one end.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 6},
-                                     ui::Extent{ui::kExtentCells, 6});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // What the document permits a maker to author, by its own check and nothing
-    // else: no zero-cell extent, no zero-percent share.
-    CHECK_FALSE(doc::check_extent(ui::Extent{ui::kExtentCells, 0}).accepted);
-    CHECK_FALSE(doc::check_extent(ui::Extent{ui::kExtentPercent, 0}).accepted);
-    CHECK(doc::check_extent(ui::Extent{ui::kExtentCells, ui::kMinCells}).accepted);
-    CHECK(doc::check_extent(ui::Extent{ui::kExtentPercent, 1}).accepted);
-
-    // A hand that asks for less stops at that minimum -- the SAME minimum, not a
-    // handle-specific one -- and says so.
-    Handled done = size_to(d, s, id, -40, 0);
-    CHECK(done.accepted());
-    CHECK(done.boundary == kAtSmallest);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, ui::kMinCells});
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, ui::kMinCells});
-    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-
-    // The two floors are different rules, and here they visibly disagree: 1% of a
-    // 12-cell workspace is 0 cells by arithmetic, and resolution floors it to
-    // kMinCells so a maker never loses an object they authored. The AUTHORING
-    // rule never sees that number at all.
-    s.workspace_w = kWorkspaceMinW;
-    CHECK(ui::resolve_extent(ui::Extent{ui::kExtentPercent, 1}, kWorkspaceMinW) == ui::kMinCells);
-    CHECK(doc::check_extent(ui::Extent{ui::kExtentPercent, 1}).accepted);
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 1}).accepted);
-    done = size_to(d, s, id, 0, 1);
-    CHECK(done.accepted());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 1}); // still the smallest share
-}
-
-TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they are told apart") {
-    // The distinction is not decoration: after a
-    // clamp something WAS written (the boundary value), after a refusal nothing
-    // was -- so a maker who cannot tell them apart cannot tell what their document
-    // now says.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 50},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // PHYSICAL OVERSHOOT, on a share: the far wall is 100%, and it is the
-    // VOCABULARY's wall rather than the workspace being a barrier -- a share OF
-    // the viewport cannot be more than the whole of it.
-    // `far_end`, not `far`: the Windows SDK still carries the 16-bit memory-model
-    // keywords as empty object-like macros (`#define far` in minwindef.h), so a
-    // variable named `far` vanishes mid-declaration under MSVC and the line after it
-    // becomes a syntax error. Same in the two other places this name was natural.
-    const Handled far_end = size_to(d, s, id, 400, 4);
-    CHECK(far_end.accepted());
-    CHECK(far_end.clamped());
-    CHECK(far_end.boundary == kAtWholeContext);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
-    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 48);
-
-    // A CELLS extent has no such wall, because an absolute size has nothing to do
-    // with the viewport: the same overshoot authors 400 cells and the canvas
-    // simply clips, exactly as an object may be positioned past the edge.
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentCells, 10}).accepted);
-    const Handled past = size_to(d, s, id, 400, 4);
-    CHECK(past.accepted());
-    CHECK_FALSE(past.clamped());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 400});
-    // ...until the document's OWN limit, which is where it does stop.
-    const Handled huge = size_to(d, s, id, doc::kMaxCells + 1000, 4);
-    CHECK(huge.accepted());
-    CHECK(huge.boundary == kAtLargest);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, doc::kMaxCells});
-
-    // SEMANTIC INVALID AUTHORING, through the typed path, at the same extremes:
-    // refused, and the authored state does not move.
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 50}).accepted);
-    const Written typed = doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 400});
-    CHECK_FALSE(typed.accepted);
-    CHECK(typed.refusal == "a share is 1% to 100%");
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 50}); // untouched
-
-    // The gesture never hands the document a proposal it would refuse -- that is
-    // what makes "the clamp lives in the gesture and the judgement in the
-    // document" a division of labour rather than two chances to be wrong.
-    for (const std::int64_t want : {-99999, 0, 1, 47, 48, 49, 100000}) {
-        REQUIRE(size_to(d, s, id, want, want).accepted());
-        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
-    }
-}
-
-TEST_CASE("move and resize meet the workspace with one policy, in two different walls") {
-    // §16. The philosophy is shared: a hand stops and says so, a written value is
-    // refused. The WALLS differ, and they differ because the properties do --
-    // which is a fact about the vocabulary rather than a rule Workshop invented.
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // Position: the origin is a wall (there are no cells before it) and the far
-    // edge is not (the canvas clips).
-    CHECK(nudge(d, s, -1, -1).clamped());
-    CHECK(doc::find(d, id)->x == doc::kFirstCell);
-    REQUIRE(doc::move(d, id, 100, 100).accepted);
-    const Handled beyond = nudge(d, s, +1, +1);
-    CHECK(beyond.accepted());
-    CHECK_FALSE(beyond.clamped()); // past the far edge is not a wall for a position
-    CHECK(doc::find(d, id)->x == 101);
-
-    // Size: the smallest authorable extent is a wall for both modes; the far wall
-    // exists only for a share, and it is 100%.
-    REQUIRE(doc::move(d, id, 0, 0).accepted);
-    CHECK(grow(d, s, -99, -99).clamped());
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, ui::kMinCells});
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 99}).accepted);
-    CHECK(grow(d, s, +5, 0).boundary == kAtWholeContext);
-    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
-
-    // And every one of those is a CLAMP, never a refusal: the document's refusals
-    // still belong to typed values only.
-    CHECK(nudge(d, s, -1, -1).accepted());
-    CHECK(grow(d, s, -99, -99).accepted());
-    CHECK_FALSE(doc::move(d, id, -1, 0).accepted);
-    CHECK_FALSE(doc::set_width(d, id, ui::Extent{ui::kExtentCells, 0}).accepted);
-}
-
-TEST_CASE("a share keeps following the workspace after a resize; cells do not") {
-    // §23 and §24, as one contrast. This is the maker-facing consequence of
-    // preserving the authored mode, and the reason converting a dragged share to
-    // cells would have destroyed something the maker cannot get back.
-    WorkshopDoc d;
-    const std::int64_t share = doc::add(d, "share", 0, 0, ui::Extent{ui::kExtentPercent, 60},
-                                        ui::Extent{ui::kExtentCells, 3});
-    const std::int64_t fixed = doc::add(d, "fixed", 0, 8, ui::Extent{ui::kExtentCells, 28},
-                                        ui::Extent{ui::kExtentCells, 3});
-    Session s;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // Both are 28 cells wide right now, by two different truths.
-    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 28);
-    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 28);
-
-    // Resize BOTH to 34 resolved cells, by hand.
-    s.selected = share;
-    REQUIRE(size_to(d, s, share, 34, 3).accepted());
-    s.selected = fixed;
-    REQUIRE(size_to(d, s, fixed, 34, 3).accepted());
-    CHECK(doc::find(d, share)->width == ui::Extent{ui::kExtentPercent, 71});
-    CHECK(doc::find(d, fixed)->width == ui::Extent{ui::kExtentCells, 34});
-    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 34);
-    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 34);
-
-    // Now narrow the workspace, exactly as `[` does. NO authored value changes,
-    // and the two objects part company: the one authored as a share is still a
-    // share OF THE NEW WORKSPACE, the one authored in cells is still 34 cells.
-    s.workspace_w = 24;
-    CHECK(doc::find(d, share)->width == ui::Extent{ui::kExtentPercent, 71});
-    CHECK(doc::find(d, fixed)->width == ui::Extent{ui::kExtentCells, 34});
-    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 17); // 71% of 24
-    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 34); // clipped, not resized
-
-    // Had the drag written cells, the share object would now be indistinguishable
-    // from the other one -- and nothing in the document would remember that a
-    // maker ever asked for a proportion. That is the intent the mode carries.
-    CHECK(doc::find(d, share)->width.mode != doc::find(d, fixed)->width.mode);
-}
-
-TEST_CASE("the size handle is derived, is Workshop's, and grabs the right identity") {
-    WorkshopDoc d;
-    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 20},
-                                       ui::Extent{ui::kExtentCells, 8});
-    const std::int64_t front = doc::add(d, "front", 2, 2, ui::Extent{ui::kExtentCells, 4},
-                                        ui::Extent{ui::kExtentCells, 3});
-    Session s;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // No selection, no handle: the affordance belongs to the selected object.
-    CHECK_FALSE(size_handle(d, s).shown);
-
-    // It follows the RESOLVED rectangle, so it moves when the object moves,
-    // resizes when the object resizes, and follows a share when the workspace
-    // changes -- without anything telling it to.
-    s.selected = back;
-    CHECK(size_handle(d, s).x == 20);
-    REQUIRE(doc::move(d, back, 3, 1).accepted);
-    CHECK(size_handle(d, s).x == 23);
-    CHECK(size_handle(d, s).y == 9);
-    REQUIRE(doc::set_width(d, back, ui::Extent{ui::kExtentPercent, 50}).accepted);
-    CHECK(size_handle(d, s).x == 3 + 24);
-    s.workspace_w = 24;
-    CHECK(size_handle(d, s).x == 3 + 12);
-    s.workspace_w = 48;
-
-    // It is PAINTED, as a glyph a maker can tell from the ring, the body and the
-    // workspace -- and it is painted at exactly the cell it is grabbed at.
-    //
-    // The glyph is written out as the LITERAL a maker sees, deliberately NOT as
-    // `kHandleGlyph`. An expectation read from the constant under test moves with
-    // it, so it can only ever agree with it: a canary that changed
-    // `kHandleGlyph "+" -> "*"` left this whole suite GREEN, because both
-    // sides of the comparison changed together. The duplication is the point. What
-    // it duplicates is the README's contract -- the handle is the `+` on the
-    // selection ring's bottom-right corner -- and `*` is precisely what the glyph
-    // must not become, since that is already the accent role's own character in the
-    // terminal medium, which is the ring this affordance has to be told apart from.
-    // The position below stays DERIVED; only the appearance is pinned from outside.
-    const Handle grip = size_handle(d, s);
-    REQUIRE(grip.shown);
-    CHECK(label_at(paint(d, s), kWorkspaceX + grip.x, kWorkspaceY + grip.y) == "+");
-
-    // The handle sits one cell outside its own object, so it can lie over a
-    // neighbour. It wins -- and that priority is WORKSHOP's, in Workshop's own
-    // gesture: ui::hit still answers with the topmost authored element, which at
-    // that cell is the object underneath.
-    s.selected = front;
-    const Handle small = size_handle(d, s);
-    REQUIRE(small.shown);
-    CHECK(small.x == 6);
-    CHECK(small.y == 5);
-    REQUIRE(ui::hit(workspace_scene(d, s), small.x, small.y) != nullptr);
-    CHECK(ui::hit(workspace_scene(d, s), small.x, small.y)->id == back); // the package's answer
-    CHECK(take_hold(d, s, small.x, small.y) == front);                   // Workshop's
-    CHECK(s.drag.resizing);
-    end_drag(s);
-
-    // One cell away from the handle is an ordinary press: the body under the
-    // pointer, moved and not resized.
-    CHECK(take_hold(d, s, small.x + 1, small.y) == back);
-    CHECK_FALSE(s.drag.resizing);
-    end_drag(s);
-
-    // An object whose handle would fall outside the workspace has none -- what a
-    // maker cannot see, a maker cannot grab. The keyboard and the inspector still
-    // reach it, so it is never stuck.
-    s.selected = back;
-    REQUIRE(doc::set_width(d, back, ui::Extent{ui::kExtentCells, 200}).accepted);
-    CHECK_FALSE(size_handle(d, s).shown);
-    CHECK(take_hold(d, s, 60, 9) == 0);
-    CHECK(grow(d, s, -190, 0).accepted());
-    CHECK(size_handle(d, s).shown);
-}
-
-TEST_CASE("the four resize keys and the handle are ONE gesture, reached two ways") {
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "wide", 1, 1, ui::Extent{ui::kExtentPercent, 60},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // The keyboard asks for one more RESOLVED cell than it can see, which is the
-    // same question the pointer asks by landing one cell further out -- so both
-    // go through one projection and one document operation, and a share dragged
-    // and a share grown cannot become different numbers.
-    REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28);
-    REQUIRE(grow(d, s, +1, 0).accepted());
-    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 29);
-    const ui::Extent by_key = doc::find(d, id)->width;
-
-    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 60}).accepted);
-    const Handle grip = size_handle(d, s);
-    REQUIRE(take_hold(d, s, grip.x, grip.y) == id);
-    REQUIRE(drag_to(d, s, grip.x + 1, grip.y).accepted());
-    CHECK(doc::find(d, id)->width == by_key); // the same authored value, to the digit
-    end_drag(s);
-
-    // Growing and shrinking returns the same SIZE. On a share it need not return
-    // the same number, because the projection authors the one canonical share for
-    // a given cell count -- so the value settles instead of walking.
-    const std::int64_t was = ui::placed_for(workspace_scene(d, s), id)->rect.w;
-    REQUIRE(grow(d, s, +3, +2).accepted());
-    REQUIRE(grow(d, s, -3, -2).accepted());
-    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == was);
-    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 4});
-    const ui::Extent settled = doc::find(d, id)->width;
-    REQUIRE(grow(d, s, +3, 0).accepted());
-    REQUIRE(grow(d, s, -3, 0).accepted());
-    CHECK(doc::find(d, id)->width == settled);
-}
-
-TEST_CASE("a resize survives every extent and pointer a poke or a wire can produce") {
-    // §25. A resize's proposal is a DIFFERENCE between a pointer off the bus and
-    // an authored edge a poke can write, so both terms are untrusted numeric
-    // input and the arithmetic must be total before anything is validated.
-    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
-    CHECK(detail::minus(0, kMin) == kMax);       // saturates instead of wrapping
-    CHECK(detail::minus(kMin, 1) == kMin);
-    CHECK(detail::minus(5, 3) == 2);
-    CHECK(detail::minus(-5, 3) == -8);
-
-    WorkshopDoc d;
-    const std::int64_t id = doc::add(d, "one", 0, 0, ui::Extent{ui::kExtentCells, 4},
-                                     ui::Extent{ui::kExtentCells, 4});
-    Session s;
-    s.selected = id;
-    s.workspace_w = 48;
-    s.workspace_h = 16;
-
-    // A poked extent no setter would ever have produced: the handle refuses to be
-    // shown somewhere the object is not, and the projection still lands on a legal
-    // authored value.
-    for (const std::int64_t poked :
-         std::initializer_list<std::int64_t>{kMin, kMin + 1, -1, 0, kMax - 1, kMax}) {
-        doc::find_mut(d, id)->width = ui::Extent{ui::kExtentCells, poked};
-        doc::find_mut(d, id)->height = ui::Extent{ui::kExtentCells, poked};
-        // Shown or not, the grip never lands somewhere the object is not: the
-        // additions that would say where it goes are not representable for most of
-        // these, and the answer is "nowhere" rather than a wrapped cell.
-        const Handle grip = size_handle(d, s);
-        if (grip.shown) {
-            CHECK(grip.x >= 0);
-            CHECK(grip.x < s.workspace_w);
-            CHECK(grip.y >= 0);
-            CHECK(grip.y < s.workspace_h);
-        }
-        REQUIRE(grow(d, s, +1, -1).accepted());
-        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
-    }
-
-    // A poked MODE is neither cells nor a share. The document refuses to accept
-    // one, and the gesture repairs rather than propagates it: what a hand writes
-    // is always something the document would have accepted.
-    doc::find_mut(d, id)->width = ui::Extent{7, 3};
-    CHECK_FALSE(doc::check_extent(doc::find(d, id)->width).accepted);
-    REQUIRE(grow(d, s, +1, 0).accepted());
-    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-
-    // A poked POSITION, with the pointer at the far ends of what the wire can
-    // carry: the difference saturates rather than wrapping, and the clamp lands.
-    REQUIRE(doc::resize(d, id, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4})
-                .accepted);
-    doc::find_mut(d, id)->x = kMax;
-    doc::find_mut(d, id)->y = kMin;
-    s.drag = Drag{true, true, id, 0, 0};
-    for (const std::int64_t at : std::initializer_list<std::int64_t>{kMin, kMax, 0, -1, 1}) {
-        const Handled done = drag_to(d, s, workspace_cell_x(at), workspace_cell_y(at));
-        CHECK(done.accepted());
-        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
-    }
-    end_drag(s);
-
-    // And a hostile WORKSPACE: resolution is total over those, so the projection
-    // it is written in terms of is too.
-    doc::find_mut(d, id)->width = ui::Extent{ui::kExtentPercent, 60};
-    for (const std::int64_t span : std::initializer_list<std::int64_t>{kMin, -1, 0, 1, kMax}) {
-        s.workspace_w = span;
-        REQUIRE(size_to(d, s, id, 34, 4).accepted());
-        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
-        CHECK(doc::find(d, id)->width.mode == ui::kExtentPercent);
-    }
-}
-
-// ============================================================================
-// Tier 4 — the WEAVE, through a real bus: input moments become maker gestures
+// Tier 2 — the weave, through a real bus
 // ============================================================================
 //
 // This tier exists because `WorkshopWeave` lives in workshop/weave.hpp rather
-// than in the host's anonymous namespace. In the host it would be unreachable,
-// leaving `gesture -> document` provable and `message -> gesture` not -- and the
-// binding is the one part of the pointer path nothing else witnesses. The
-// location is the whole mechanism; there is no test hook, no framework,
-// and no seam that exists only for this file.
-//
-// What it buys is the phase's own headline, asserted rather than argued: a
-// press carries the position it happened at, so the chain from a published
-// message to a semantic document operation can be walked end to end WITHOUT the
-// weave ever being told where the pointer is by anything except the event it is
-// handling.
-
-// ⭐ SIX MORE CASES LEFT WITH THE INFO PANEL'S DRAFT. They drove the canonical text route, the
-// text/keys split, a multi-byte character, the message path's authority, a close request and
-// TEXT-0's clipboard THROUGH a property draft opened with `begin_editing` -- three command-mode
-// keys and an inspector cursor this host no longer has. The claims are not lost: the text route
-// and the clipboard are `component::TextBox`'s and are pinned by `tests/test_component.cpp`,
-// the message path's authority is pinned by the document door's own cases below, and the draft
-// itself is the Info weave's, in `tests/test_workshop_panes_info.cpp`.
-//
-// AND ONE MORE THAT WAS THE PANEL'S PICTURE: `"the selection marker never disappears as a maker
-// walks past the list's share"` read the panel's object lines and property rows out of the
-// canvas. The window it was about is the pane's window now.
-
-TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still moves") {
-    // A wire that cannot say "with Shift held" makes a second directional gesture
-    // cost four literal keys (`,` `.` `-` `=`). This one can say it.
-    Live t;
-    const std::int64_t x0 = t.first()->x;
-    const std::int64_t y0 = t.first()->y;
-    const std::int64_t w0 = t.first()->width.amount;
-
-    t.key(input::scan::kL); // bare: moves
-    CHECK(t.first()->x == x0 + 1);
-    CHECK(t.first()->width.amount == w0);
-
-    t.key(input::scan::kL, input::mod::kShift); // shifted: resizes
-    CHECK(t.first()->x == x0 + 1);              // position untouched
-    CHECK(t.first()->width.amount > w0);
-    CHECK(t.first()->width.mode == ui::kExtentPercent); // and the MODE is preserved
-
-    t.key(input::scan::kJ);
-    CHECK(t.first()->y == y0 + 1);
-    const std::int64_t h0 = t.first()->height.amount;
-    t.key(input::scan::kJ, input::mod::kShift);
-    CHECK(t.first()->y == y0 + 1);
-    CHECK(t.first()->height.amount == h0 + 1);
-
-    t.key(input::scan::kK, input::mod::kShift);
-    CHECK(t.first()->height.amount == h0);
-
-    // Shrinking back returns the same SIZE and not necessarily the same NUMBER,
-    // which is the canonical-share property arriving through the binding rather
-    // than a behaviour of its own: 60% and 59% both resolve to 28 cells at a
-    // 48-cell workspace, and the projection authors the canonical one.
-    const std::int64_t wide = resolved_w(t);
-    t.key(input::scan::kH, input::mod::kShift);
-    CHECK(resolved_w(t) == wide - 1);
-    CHECK(t.first()->width.mode == ui::kExtentPercent);
-    t.key(input::scan::kL, input::mod::kShift);
-    CHECK(resolved_w(t) == wide);
-
-    // The four workaround keys are GONE, not merely unrecommended: they do
-    // nothing at all, so nothing can quietly keep depending on them.
-    const std::int64_t w1 = t.first()->width.amount;
-    const std::int64_t h1 = t.first()->height.amount;
-    for (const std::int64_t sc : {input::scan::kComma, input::scan::kPeriod,
-                                  input::scan::kMinus, input::scan::kEquals}) {
-        t.key(sc);
-    }
-    CHECK(t.first()->width.amount == w1);
-    CHECK(t.first()->height.amount == h1);
-}
-
-TEST_CASE("a press grabs from ITS OWN position, with no motion event anywhere") {
-    // THE PHASE, in one case. Not one PointerMoved is published before the
-    // press -- which under a vocabulary whose buttons carry no position would
-    // mean the weave believed the pointer was at 0,0 and grabbed what was there.
-    Live t;
-    const std::int64_t id2 = t.second()->id;
-    const std::int64_t x = t.second()->x;
-    const std::int64_t y = t.second()->y;
-
-    t.press(x + 2, y + 1);
-    CHECK(t.session().selected == id2);
-    CHECK(t.session().drag.active);
-    CHECK(t.session().drag.id == id2);
-    CHECK_FALSE(t.session().drag.resizing);
-    CHECK(t.notice() == "holding #" + std::to_string(id2) + " -- drag to move it");
-    // The grab offset proves the position was believed: the press was 2 cells
-    // right and 1 down of the object's own corner.
-    CHECK(t.session().drag.grab_dx == 2);
-    CHECK(t.session().drag.grab_dy == 1);
-
-    // Drag, and the object follows the pointer, still with no prior motion state.
-    t.motion(x + 7, y + 1);
-    CHECK(t.second()->x == x + 5);
-    CHECK(t.second()->y == y);
-    t.release(x + 7, y + 1);
-    CHECK_FALSE(t.session().drag.active);
-}
-
-TEST_CASE("a press after a long silence uses the press, not the last thing seen") {
-    // The exact failure a reconstruction produces, recreated at the weave: the
-    // pointer is reported somewhere, then the platform goes quiet (a console
-    // reports no motion while it lacks focus), then a click arrives somewhere
-    // else entirely. A reconstruction answers with the stale position.
-    Live t;
-    const std::int64_t id1 = t.first()->id;
-    const std::int64_t id2 = t.second()->id;
-
-    // The pointer is last SEEN over object #1...
-    t.motion(t.first()->x + 1, t.first()->y + 1);
-    CHECK_FALSE(t.session().drag.active); // motion outside a drag does nothing at all
-
-    // ...and the click, with nothing in between, lands on object #2.
-    t.press(t.second()->x + 1, t.second()->y + 1);
-    CHECK(t.session().selected == id2);
-    CHECK(t.session().drag.id == id2);
-    CHECK(t.session().selected != id1);
-
-    // And the release is its own moment too: it does not need a motion to know
-    // where it happened.
-    t.release(t.second()->x + 1, t.second()->y + 1);
-    CHECK(t.notice() == "released #" + std::to_string(id2));
-}
-
-TEST_CASE("a press on the body reaches move; a press on the size handle reaches resize") {
-    Live t;
-    const std::int64_t id2 = t.second()->id;
-    t.press(t.second()->x, t.second()->y); // select it so its handle is shown
-    t.release(t.second()->x, t.second()->y);
-    REQUIRE(t.session().selected == id2);
-
-    const ui::Scene scene = workspace_scene(t.doc(), t.session());
-    const ui::Placed* p = ui::placed_for(scene, id2);
-    REQUIRE(p != nullptr);
-    const std::int64_t px = p->rect.x;
-    const std::int64_t py = p->rect.y;
-    const std::int64_t hx = px + p->rect.w;
-    const std::int64_t hy = py + p->rect.h;
-    const std::int64_t w0 = t.second()->width.amount;
-
-    // The handle: one cell past the bottom-right corner.
-    t.press(hx, hy);
-    CHECK(t.session().drag.active);
-    CHECK(t.session().drag.resizing);
-    CHECK(t.notice() == "holding #" + std::to_string(id2) + " -- drag to resize it");
-    t.motion(hx + 3, hy);
-    CHECK(t.second()->width.amount == w0 + 3);
-    CHECK(t.second()->x == px); // a resize moved nothing
-    t.release(hx + 3, hy);
-
-    // The body: the same object, inside its own rectangle.
-    t.press(px + 1, py);
-    CHECK(t.session().drag.active);
-    CHECK_FALSE(t.session().drag.resizing);
-    t.release(px + 1, py);
-
-    // Empty space: nothing grabbed, and it says so.
-    t.press(kBareX, kBareY);
-    CHECK_FALSE(t.session().drag.active);
-    CHECK(t.notice() == "nothing there");
-}
-
-TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-placed") {
-    // `space` earning its field, in BOTH directions
-    // (docs/reference/pointer-spaces.md). A backend reporting a space this
-    // application cannot place is
-    // not talking about anything the document has, and guessing an equivalence is
-    // exactly the mistake the field exists to prevent -- while a backend
-    // reporting one it CAN place is now projected rather than refused.
-    Live t;
-    const std::int64_t id2 = t.second()->id;
-    t.press(t.second()->x, t.second()->y);
-    t.release(t.second()->x, t.second()->y);
-    REQUIRE(t.session().selected == id2);
-
-    const std::int64_t before_x = t.second()->x;
-    // An unstamped event -- the default -- names no medium and is placed by none.
-    t.publish(loom::to_value(input::PointerButton{1, true, Live::term_x(t.second()->x),
-                                                  Live::term_y(t.second()->y),
-                                                  input::space::kUnknown, input::mod::kNone}));
-    CHECK_FALSE(t.session().drag.active);
-    t.publish(loom::to_value(input::PointerMoved{9999, 9999, 0, 0, input::space::kUnknown,
-                                                  input::mod::kNone}));
-    CHECK(t.second()->x == before_x);
-    // Nor is a space nobody has defined. A future medium must be READ, not
-    // assumed into whichever projection happens to be nearest.
-    t.publish(loom::to_value(input::PointerButton{1, true, 0, 0, 4242, input::mod::kNone}));
-    CHECK_FALSE(t.session().drag.active);
-}
-
-TEST_CASE("a click in the WINDOW selects the object the maker is pointing at") {
-    // The graphical half of "a click selects the same authored object the maker
-    // can see". Same weave, same gesture, same document operation -- the only
-    // difference is that the numbers arrived in pixels, and the projection is
-    // what makes that not matter.
-    Live t;
-    const std::int64_t id1 = t.first()->id;
-    const std::int64_t id2 = t.second()->id;
-    REQUIRE(t.session().selected == id1);
-
-    t.press_px(t.second()->x + 1, t.second()->y + 1);
-    CHECK(t.session().selected == id2);
-    CHECK(t.session().drag.active);
-    CHECK_FALSE(t.session().drag.resizing);
-    t.release_px(t.second()->x + 1, t.second()->y + 1);
-    CHECK_FALSE(t.session().drag.active);
-
-    // And empty space is still empty space: no selection change, no grab.
-    t.press_px(kBareX, kBareY);
-    CHECK(t.session().selected == id2);
-    CHECK_FALSE(t.session().drag.active);
-    CHECK(t.notice() == "nothing there");
-}
-
-TEST_CASE("a drag in the WINDOW authors placement, through the same document operation") {
-    Live t;
-    const std::int64_t id2 = t.second()->id;
-    const std::int64_t x0 = t.second()->x;
-    const std::int64_t y0 = t.second()->y;
-
-    t.press_px(x0, y0); // the object's own top-left: grab offset 0,0
-    REQUIRE(t.session().selected == id2);
-    REQUIRE(t.session().drag.active);
-    CHECK(t.session().drag.grab_dx == 0);
-    CHECK(t.session().drag.grab_dy == 0);
-
-    t.motion_px(x0 + 4, y0 + 3);
-    CHECK(t.second()->x == x0 + 4);
-    CHECK(t.second()->y == y0 + 3);
-    t.release_px(x0 + 4, y0 + 3);
-    CHECK_FALSE(t.session().drag.active);
-
-    // The document is the authority, not the pointer: a drag past the workspace
-    // edge stops at the edge and SAYS it stopped, exactly as the terminal's does.
-    t.press_px(t.second()->x, t.second()->y);
-    t.motion_px(-6, 0);
-    CHECK(t.second()->x == -kWorkspaceX);
-    CHECK(t.notice().find(kAtWorkspaceStart) != std::string::npos);
-    t.release_px(0, 0);
-}
-
-TEST_CASE("the resize handle can be grabbed in the WINDOW, and authors an extent") {
-    // The resize semantics, reached through pixels: the handle is one cell past the
-    // object's own last cell, a pointer resting ON it proposes the size the
-    // object already has, and the mode a maker authored is preserved.
-    Live t;
-    t.press_px(t.second()->x, t.second()->y); // select #2, whose extents are cells
-    t.release_px(t.second()->x, t.second()->y);
-    const std::int64_t id2 = t.session().selected;
-    REQUIRE(t.second()->id == id2);
-    REQUIRE(t.second()->width.mode == ui::kExtentCells);
-
-    const Handle h = size_handle(t.doc(), t.session());
-    REQUIRE(h.shown);
-    t.press_px(h.x, h.y);
-    CHECK(t.session().drag.active);
-    CHECK(t.session().drag.resizing);
-
-    const std::int64_t w0 = t.second()->width.amount;
-    const std::int64_t h0 = t.second()->height.amount;
-    t.motion_px(h.x + 3, h.y + 2);
-    CHECK(t.second()->width.mode == ui::kExtentCells); // the authored MODE survives
-    CHECK(t.second()->width.amount == w0 + 3);
-    CHECK(t.second()->height.amount == h0 + 2);
-    t.release_px(h.x + 3, h.y + 2);
-}
-
-TEST_CASE("the maker's hands reach the same object whichever medium they arrive through") {
-    // The sharpest form of "no shadow interaction model": drive HALF a gesture
-    // from the terminal and half from the window. If the graphical path had its
-    // own selection, its own drag state or its own hit test, this could not work
-    // -- and it is one document, one session and one set of operations, so it
-    // does.
-    Live t;
-    t.press(t.second()->x, t.second()->y); // press: terminal cells
-    REQUIRE(t.session().drag.active);
-    const std::int64_t id2 = t.session().selected;
-
-    t.motion_px(t.second()->x + 2, t.second()->y); // drag: window pixels
-    CHECK(t.second()->x == 6 + 2);
-
-    t.release(t.second()->x, t.second()->y); // release: terminal cells again
-    CHECK_FALSE(t.session().drag.active);
-    CHECK(t.notice() == "released #" + std::to_string(id2));
-}
+// than in the host's anonymous namespace, so the chain from a published message to
+// what the host does can be walked end to end with no test hook, no framework, and
+// no seam that exists only for this file. (It walked the pointer and the keys to the
+// object document's operations until that document retired: move, resize, the size
+// handle, both media's presses. What is left is the host's own.)
 
 TEST_CASE("the native close request reaches the quit policy `q` already had") {
     // The lifecycle half. It is NOT a key: nothing below publishes a scancode,
@@ -2211,87 +397,58 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     CHECK(stopped);
 }
 
-TEST_CASE("canvas, object list and inspector stay coherent through a message-driven session") {
-    // The tiers above prove this over the gesture functions. This proves it over
-    // the MESSAGES.
+TEST_CASE("the status line names the live layout and its panes, and claims no file") {
+    // ⭐ IT COUNTED OBJECTS AND COMPARED THE OBJECT DOCUMENT WITH ITS FILE (`saved` / `UNSAVED`)
+    // until that document retired. What a medium's own status line shows beside the room now is
+    // which desk is live and how many panes it names; whether that desk is saved is the layout
+    // band's to say, so this line claims nothing about any file.
     Live t;
-    const std::size_t frames_at_start = t.canvases.size();
-
-    t.key(input::scan::kN); // create
-    const std::int64_t made = t.session().selected;
-    CHECK(t.doc().elements.size() == 3);
-    CHECK(t.notice() == "created #" + std::to_string(made) + " -- a new identity, not a new name");
-
-    t.key(input::scan::kL);                     // move it
-    t.key(input::scan::kL, input::mod::kShift); // and resize it
-
-    // The canvas is republished on every one of those, and it is derived from
-    // the document rather than patched: what the hit test answers about is what
-    // was painted.
-    CHECK(t.canvases.size() > frames_at_start);
-    const ui::Scene scene = workspace_scene(t.doc(), t.session());
-    const ui::Placed* p = ui::placed_for(scene, made);
-    REQUIRE(p != nullptr);
-    const ui::Placed* under = ui::hit(scene, p->rect.x, p->rect.y);
-    REQUIRE(under != nullptr);
-    CHECK(under->id == made);
-
-    // The inspector follows the selection, and reads through the properties.
-    CHECK(t.row("Identity")->value() == "#" + std::to_string(made));
-    CHECK(t.row("X")->value() == std::to_string(t.doc().elements.back().x));
-
-    // Tab moves the selection and the inspector follows.
-    t.key(input::scan::kTab);
-    CHECK(t.session().selected != made);
-    CHECK(t.row("Identity")->value() == "#" + std::to_string(t.session().selected));
-
-    // Delete says where the selection went.
-    const std::int64_t doomed = t.session().selected;
-    t.key(input::scan::kD);
-    CHECK(t.doc().elements.size() == 2);
-    CHECK(t.notice().rfind("deleted #" + std::to_string(doomed), 0) == 0);
-    CHECK(t.session().selected != doomed);
-
-    // The workspace keys still work, and change no authored value.
-    const std::int64_t authored = t.first()->width.amount;
-    t.key(input::scan::kLeftBracket);
-    CHECK(t.session().workspace_w == kWorkspaceW - 4);
-    CHECK(t.first()->width.amount == authored);
-    t.key(input::scan::kRightBracket);
-    CHECK(t.session().workspace_w == kWorkspaceW);
-
-    // And a status line went out with every frame.
+    t.key(input::scan::kTab); // any turn: a status note goes out with every frame
     REQUIRE_FALSE(t.notes.empty());
-    CHECK(t.status_note().rfind("[workshop] 2 objects", 0) == 0);
+    const std::size_t named = t.session().setup.active.panes.size();
+    CHECK(t.status_note() == "[workshop] layout " +
+                                 quoted_setup_name(t.session().setup.active.name) + " | " +
+                                 std::to_string(named) + (named == 1 ? " pane" : " panes"));
+    CHECK(t.status_note().find("saved") == std::string::npos);
+    CHECK(t.status_note().find("UNSAVED") == std::string::npos);
+
+    // ...AND IT FOLLOWS THE DESK: a pane taken off it is a pane fewer on the line.
+    pick(t, panel::kLayouts);
+    const std::size_t now = t.session().setup.active.panes.size();
+    REQUIRE(now + 1 == named);
+    CHECK(t.status_note() == "[workshop] layout " +
+                                 quoted_setup_name(t.session().setup.active.name) + " | " +
+                                 std::to_string(now) + (now == 1 ? " pane" : " panes"));
 }
 
 TEST_CASE("a notice a maker's own path makes too long is marked on screen, not cut in the session") {
     // The overlong notice through the real message path, on one Workshop produces
-    // honestly. A document path is the maker's own input and may be any length the
-    // platform allows, so `cannot read <path>` is a sentence this tool can be
+    // honestly. A setup path is the maker's own input and may be any length the
+    // platform allows, so a refusal naming it is a sentence this tool can be
     // asked to say and cannot show. Nothing is forged and nothing is distorted
     // to produce it: one ordinary keystroke, on a path that is simply not there.
+    // (The keystroke was the object document's `^o`, until that document retired.)
+    TempDir dir("long-notice");
     Live t;
-    t.host.document_path =
-        "a-workshop-document-with-a-name-its-maker-chose-and-this-terminal-cannot-show-all-of.json";
+    t.host.setup_path = dir.file(
+        "a-workshop-setup-with-a-name-its-maker-chose-and-this-terminal-cannot-show-all-of.json");
 
-    t.key(input::scan::kO, input::mod::kCtrl);
+    t.key(input::scan::kR);
 
     // The refusal is whole in the session, and it is genuinely longer than a
     // line -- the path alone overruns the screen, whatever the platform's own
     // wording for a missing file happens to be.
     REQUIRE(t.notice().size() > static_cast<std::size_t>(kMinScreen.w));
-    CHECK(t.notice().find(t.host.document_path) != std::string::npos);
+    CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 
     const std::string shown = label_at(t.canvases.back(), 0, kMinScreen.notice_y);
     CHECK(shown.size() == static_cast<std::size_t>(kMinScreen.w));
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
 
-    // And the refusal cost the maker nothing but the notice, exactly as before:
-    // the live document, the selection and the mint are all untouched.
-    CHECK(t.doc().elements.size() == 2);
-    CHECK(t.session().selected == t.first()->id);
+    // And the refusal cost the maker nothing but the notice: no file became the desk's.
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.session().setup.active_link.path.empty());
 }
 
 // ============================================================================================
@@ -2319,9 +476,9 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 // WHERE EACH CLAIM LIVES NOW. The pane's own composition, its draft and its presses are the
 // pane's, in `tests/test_workshop_panes_info.cpp`, driven through the real loaded image and the
 // pane protocol. The editable line's own laws are `component::TextBox`'s and are pinned by
-// `tests/test_component.cpp`, which is where they always were. What this suite keeps is the
+// `tests/test_component.cpp`, which is where they always were. What this suite kept then was the
 // DOCUMENT -- the operations, the identities, the canvas, the selection and the seam the host
-// publishes -- which is what it is named for.
+// published -- and that retired with the object canvas (see the head of this file).
 //
 // ⚠ AND ONE CLAIM HAS NO HOME AND IS A NAMED LOSS: `"CTX-0: a live draft holds a contextual
 // deletion back"`. The rule rested on this host being able to see a live inspector draft, and
@@ -2688,24 +845,21 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
 
 TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no longer fire") {
     Live t;
-    // Ctrl+Shift+S used to save (the old test asked only whether Ctrl was among the
-    // bits); the honest witness is the sentence save speaks with no document file --
-    // the widened chord no longer reaches it, and the exact one still does.
-    t.key(input::scan::kS, input::mod::kCtrl | input::mod::kShift);
-    CHECK(t.notice().empty());
-    t.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
-    // Ctrl+N used to create; under exact matching a chord is a different gesture
-    // from its bare key.
-    const std::size_t before = t.doc().elements.size();
-    t.key(input::scan::kN, input::mod::kCtrl);
-    CHECK(t.doc().elements.size() == before);
-    // ...and the bare key still creates: exact matching narrowed, it did not move.
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before + 1);
+    // Ctrl+Shift+C is not Ctrl+C: the old test asked only whether Ctrl was among the bits, so
+    // the widened chord quit too. Under exact matching it reaches nothing.
+    t.key(input::scan::kC, input::mod::kCtrl | input::mod::kShift);
+    CHECK_FALSE(t.host.quit);
+    // A chord is a different gesture from its bare key: `=` adds a layout, `^=` does not...
+    const std::size_t before = layout_count(t.session().setup);
+    t.key(input::scan::kEquals, input::mod::kCtrl);
+    CHECK(layout_count(t.session().setup) == before);
+    // ...and the bare key still does: exact matching narrowed, it did not move.
+    t.key(input::scan::kEquals);
+    CHECK(layout_count(t.session().setup) == before + 1);
     // Alt+Q used to quit.
     t.key(input::scan::kQ, input::mod::kAlt);
     CHECK_FALSE(t.host.quit);
+    // (The witness was `^s`/`^n` on the object document until it retired.)
 }
 
 TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and marks the text "
@@ -2713,7 +867,7 @@ TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and 
     Live t;
     const std::string keys = keymap_text(t.session());
     // THE HOST'S OWN ROWS, each under the place it is answered, spelled as a file would.
-    CHECK(keys.find("command mode | n | new | object.new") != std::string::npos);
+    CHECK(keys.find("command mode | = | new layout | layout.new") != std::string::npos);
     CHECK(keys.find("above every mode, unless text has the keys | ctrl+c | quit | workshop.quit") !=
           std::string::npos);
     CHECK(keys.find("naming a layout | return | rename | naming.commit") != std::string::npos);
@@ -2739,49 +893,52 @@ TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and 
 TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spelling") {
     TempDir dir("keymap-override");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "g"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.new", "g"}}));
     Keyed t(path);
     // The load was announced first, in words, with the override counted -- read it
     // before any gesture writes its own sentence over the one notice line.
     CHECK(t.notice().find("1 override") != std::string::npos);
 
-    // DISPATCH: `g` creates and `n` no longer does -- the override moved the
-    // binding, not the action. (`g`, because it is a still-free letter: `e` stopped
-    // being one when the Builder's edit-source door took it.)
-    const std::size_t before = t.doc().elements.size();
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before);
+    // DISPATCH: `g` adds a layout and `=` no longer does -- the override moved the
+    // binding, not the action. (`g`, because it is a free letter in command mode.)
+    const std::size_t before = layout_count(t.session().setup);
+    t.key(input::scan::kEquals);
+    CHECK(layout_count(t.session().setup) == before);
     t.key(input::scan::kG);
-    CHECK(t.doc().elements.size() == before + 1);
+    CHECK(layout_count(t.session().setup) == before + 1);
 
-    // DISPLAY: the band's first help row and the effective keymap both spell the
-    // same effective binding, because both project the same value dispatch read.
+    // DISPLAY: the band's help row and the effective keymap both spell the same
+    // effective binding, because both project the same value dispatch read.
+    // (The legend packs the command rows in catalog order and wraps; this pair is its second
+    // row's on the minimum screen.)
     const Screen sc = screen_of(t.session());
-    CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("g new", 0) == 0);
-    CHECK(keymap_text(t.session()).find("command mode | g | new | object.new *") !=
+    const std::string legend = label_at(t.canvases.back(), 0, sc.help_y) + " | " +
+                               label_at(t.canvases.back(), 0, sc.help_y + 1);
+    CHECK(legend.find("g new layout") != std::string::npos);
+    CHECK(legend.find("= new layout") == std::string::npos);
+    CHECK(keymap_text(t.session()).find("command mode | g | new layout | layout.new *") !=
           std::string::npos);
-
 }
 
 TEST_CASE("KEY-0: an override survives restart, and deleting the file restores defaults") {
     TempDir dir("keymap-restart");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "g"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.new", "g"}}));
     {
         Keyed first(path);
-        const std::size_t before = first.doc().elements.size();
+        const std::size_t before = layout_count(first.session().setup);
         first.key(input::scan::kG);
-        REQUIRE(first.doc().elements.size() == before + 1);
+        REQUIRE(layout_count(first.session().setup) == before + 1);
     }
     // RESTART: a new process reads the same authored file and reaches the same
     // effective truth.
     {
         Keyed again(path);
-        const std::size_t before = again.doc().elements.size();
+        const std::size_t before = layout_count(again.session().setup);
         again.key(input::scan::kG);
-        CHECK(again.doc().elements.size() == before + 1);
-        again.key(input::scan::kN);
-        CHECK(again.doc().elements.size() == before + 1);
+        CHECK(layout_count(again.session().setup) == before + 1);
+        again.key(input::scan::kEquals);
+        CHECK(layout_count(again.session().setup) == before + 1);
     }
     // RESET: deleting the file IS returning to the defaults -- nothing else to
     // clear, nothing rewritten.
@@ -2789,28 +946,28 @@ TEST_CASE("KEY-0: an override survives restart, and deleting the file restores d
     std::filesystem::remove(path, drop);
     Keyed defaults(path);
     CHECK(defaults.notice().empty()); // an absent file is not a complaint
-    const std::size_t before = defaults.doc().elements.size();
-    defaults.key(input::scan::kN);
-    CHECK(defaults.doc().elements.size() == before + 1);
+    const std::size_t before = layout_count(defaults.session().setup);
+    defaults.key(input::scan::kEquals);
+    CHECK(layout_count(defaults.session().setup) == before + 1);
     defaults.key(input::scan::kG);
-    CHECK(defaults.doc().elements.size() == before + 1);
+    CHECK(layout_count(defaults.session().setup) == before + 1);
 }
 
 TEST_CASE("KEY-0: a same-context collision is refused naming both actions and the gesture") {
-    // `d` is object.delete's default; authoring object.new onto it would put two
+    // `s` is setup.name's default; authoring layout.new onto it would put two
     // actions on one gesture in one context, which is a lockout and must not be
     // savable -- the whole candidate is refused and the defaults stand.
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(
-        keymap_file_text("default", {{"object.new", "d"}}));
+        keymap_file_text("default", {{"layout.new", "s"}}));
     CHECK_FALSE(loaded.outcome.accepted);
-    CHECK(loaded.outcome.refusal.find("object.new") != std::string::npos);
-    CHECK(loaded.outcome.refusal.find("object.delete") != std::string::npos);
-    CHECK(loaded.outcome.refusal.find("`d`") != std::string::npos);
+    CHECK(loaded.outcome.refusal.find("layout.new") != std::string::npos);
+    CHECK(loaded.outcome.refusal.find("setup.name") != std::string::npos);
+    CHECK(loaded.outcome.refusal.find("`s`") != std::string::npos);
 
     // ...and the refused file leaves a live Workshop on its defaults, out loud.
     TempDir dir("keymap-collide");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "d"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.new", "s"}}));
     Keyed t(path);
     // ...OUT LOUD, AND AS A CONDITION. The file is still refused an hour
     // later and at the next launch, so it is not a sentence about a moment: it stands
@@ -2819,48 +976,50 @@ TEST_CASE("KEY-0: a same-context collision is refused naming both actions and th
     const std::vector<Condition> now = attention_conditions(t.session());
     const Condition* wall = condition_by_key(now, kKeymapWallKey);
     REQUIRE(wall != nullptr);
-    CHECK(wall->detail.find("object.delete") != std::string::npos);
+    CHECK(wall->detail.find("setup.name") != std::string::npos);
     CHECK(wall->compact.find("default bindings stand") != std::string::npos);
     CHECK(wall->role == surface::role::kAlert);
-    const std::size_t before = t.doc().elements.size();
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before + 1); // the default still creates
+    const std::size_t before = layout_count(t.session().setup);
+    t.key(input::scan::kEquals);
+    CHECK(layout_count(t.session().setup) == before + 1); // the default still adds one
 }
 
 TEST_CASE("KEY-0: reusing one gesture across mutually exclusive contexts is legal") {
-    // `h` moves an object in command mode; the picker cannot be open at the same
-    // moment, so authoring picker.up onto `h` collides with nothing -- the
-    // defaults already live this way (`s` names a setup and sizes a pane).
+    // `t` toggles pane titles in command mode; the contextual menu cannot be open while
+    // command mode resolves a key, so authoring context.up onto `t` collides with nothing --
+    // the defaults already live this way (`w` arranges the desk and is also an arrangement
+    // scope's own key). (The witness was `h`, the object canvas's move, until it retired.)
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(
-        keymap_file_text("default", {{"picker.up", "h"}}));
+        keymap_file_text("default", {{"context.up", "t"}}));
     REQUIRE(loaded.outcome.accepted);
 
     TempDir dir("keymap-reuse");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"picker.up", "h"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"context.up", "t"}}));
     Keyed t(path);
-    const std::int64_t x_before = t.first()->x;
-    t.key(input::scan::kH);
-    CHECK(t.first()->x == x_before - 1); // command context: `h` still moves left
-    t.key(input::scan::kP);
-    t.text("p");
-    REQUIRE(t.session().panels.picker.open);
+    const bool titles = t.session().pane_titles;
+    t.key(input::scan::kT);
+    CHECK(t.session().pane_titles != titles); // command context: `t` still toggles titles
+    t.key(input::scan::kA);
+    t.text("a");
+    REQUIRE(t.menu().open);
     t.key(input::scan::kDown);
-    REQUIRE(t.session().panels.picker.cursor == 1);
-    t.key(input::scan::kH); // picker context: the authored `h` steps up
-    CHECK(t.session().panels.picker.cursor == 0);
+    REQUIRE(t.menu().cursor == 1);
+    t.key(input::scan::kT); // menu context: the authored `t` steps up
+    CHECK(t.menu().cursor == 0);
+    CHECK(t.session().pane_titles != titles); // ...and toggled nothing
 }
 
 TEST_CASE("KEY-0: an override for an unknown action survives with its intent whole") {
     // The setup law's ACCEPTED clause, applied to the sixth file: a well-formed
     // row this build cannot resolve is not an error and must never become one.
     const std::string text = keymap_file_text(
-        "default", {{"object.new", "g"}, {"future.action", "hyper+z"}});
+        "default", {{"layout.new", "g"}, {"future.action", "hyper+z"}});
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
     REQUIRE(loaded.outcome.accepted);
     // The known row was applied...
     REQUIRE(loaded.keymap.overrides.size() == 1);
-    CHECK(loaded.keymap.overrides[0].first == Act::kObjectNew);
+    CHECK(loaded.keymap.overrides[0].first == Act::kLayoutNew);
     // ...the unknown row is preserved byte-for-byte, its gesture unjudged (that
     // spelling is outside THIS build's grammar, and it is not this build's to
     // normalise)...
@@ -2874,17 +1033,17 @@ TEST_CASE("KEY-0: an override for an unknown action survives with its intent who
 
 TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in words") {
     const keymap_persist::LoadedKeymap bad_key = keymap_persist::from_text(
-        keymap_file_text("default", {{"object.new", "f13"}}));
+        keymap_file_text("default", {{"layout.new", "f13"}}));
     CHECK_FALSE(bad_key.outcome.accepted);
     CHECK(bad_key.outcome.refusal.find("`f13` is not a key") != std::string::npos);
 
     const keymap_persist::LoadedKeymap bad_mod = keymap_persist::from_text(
-        keymap_file_text("default", {{"object.new", "meta+n"}}));
+        keymap_file_text("default", {{"layout.new", "meta+n"}}));
     CHECK_FALSE(bad_mod.outcome.accepted);
     CHECK(bad_mod.outcome.refusal.find("`meta` is not a modifier") != std::string::npos);
 
     const keymap_persist::LoadedKeymap twice = keymap_persist::from_text(
-        keymap_file_text("default", {{"object.new", "g"}, {"object.new", "i"}}));
+        keymap_file_text("default", {{"layout.new", "g"}, {"layout.new", "i"}}));
     CHECK_FALSE(twice.outcome.accepted);
     CHECK(twice.outcome.refusal.find("authored twice") != std::string::npos);
 
@@ -2895,23 +1054,49 @@ TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in 
           std::string::npos);
 }
 
-TEST_CASE("KEY-0: a global action cannot take a bare printable or the editing vocabulary") {
-    // A bare printable cannot be global once anything on the screen can take
-    // text -- the standing law the old chain kept as a comment, enforced at the
-    // door now that there is a door.
-    const keymap_persist::LoadedKeymap bare = keymap_persist::from_text(
-        keymap_file_text("default", {{"document.save", "t"}}));
-    CHECK_FALSE(bare.outcome.accepted);
-    CHECK(bare.outcome.refusal.find("bare printable") != std::string::npos);
+TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing answers it") {
+    // ⭐ THE OBJECT CANVAS'S KEYS AND THE DOCUMENT'S TWO GLOBALS RETIRED (`kRetiredActions`), and
+    // a maker's file may still name them. Such a row is a well-formed row this build cannot
+    // resolve -- the accepted clause holds for it exactly as for a future id -- and the old
+    // global's bare printable is not judged, because no row of this build answers it.
+    const std::string text =
+        keymap_file_text("default", {{"object.new", "g"}, {"document.save", "t"}});
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
+    REQUIRE(loaded.outcome.accepted);
+    CHECK(loaded.keymap.overrides.empty());
+    REQUIRE(loaded.keymap.authored.size() == 2);
+    CHECK(keymap_persist::to_text(loaded.keymap) == text); // nothing tidied, nothing dropped
 
-    // ...and the TextBox vocabulary would consume a chord it owns before any
-    // global could mean it, in every text context. The two vocabularies used to
-    // avoid collision by discipline in two files, checkable nowhere; the
-    // component's declaration rows make the wall real.
-    const keymap_persist::LoadedKeymap owned = keymap_persist::from_text(
-        keymap_file_text("default", {{"document.save", "ctrl+v"}}));
-    CHECK_FALSE(owned.outcome.accepted);
-    CHECK(owned.outcome.refusal.find("editing vocabulary") != std::string::npos);
+    // SAID AT THE LOAD, each by what took it...
+    TempDir dir("keymap-retired");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, text);
+    Keyed t(path);
+    CHECK(t.notice().find("`object.new` retired with the object canvas -- kept, and nothing "
+                          "answers it") != std::string::npos);
+    CHECK(t.notice().find("`document.save` retired with the object document") !=
+          std::string::npos);
+    // ...AND ANSWERED BY NOTHING: `g` is nobody's, and `t` is still the titles toggle it was.
+    const std::size_t layouts = layout_count(t.session().setup);
+    const bool titles = t.session().pane_titles;
+    t.key(input::scan::kG);
+    CHECK(layout_count(t.session().setup) == layouts);
+    t.key(input::scan::kT);
+    CHECK(t.session().pane_titles != titles);
+    CHECK(retired_with("object.new") != nullptr);
+    CHECK(retired_with("layout.new") == nullptr);
+
+    // ⚠ AND THE HOST DECLARES NO ROW ABOVE EVERY MODE BUT QUIT'S. The two walls a global row
+    // meets at the file -- no bare printable, no chord the text box owns -- guarded the
+    // document's `^s`/`^o`; the rows answered above every mode now are the application's, and
+    // they meet the same walls when the desktop declares them (`join_app_rows`, witnessed in
+    // `tests/test_workshop_panes_actions.cpp`). A host row declared global again must bring
+    // its own witness for the file's walls, and this line is where it will find out.
+    for (const ActionRow& row : kActionCatalog) {
+        CAPTURE(row.id);
+        CHECK(row.context != KeyContext::kGlobal);
+        CHECK(row.context != KeyContext::kUnlessOwned);
+    }
 }
 
 TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewritten") {
@@ -2956,14 +1141,14 @@ TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSI
     // carry it, and the gap said once at the load. Nothing in the file is rewritten.
     TempDir dir("keymap-ctrl-shift-gap");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "ctrl+shift+g"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.new", "ctrl+shift+g"}}));
     Keyed t(path);
     CHECK(t.notice().find("collapses to plain ctrl+letter") != std::string::npos);
-    const std::size_t before = t.doc().elements.size();
+    const std::size_t before = layout_count(t.session().setup);
     t.key(input::scan::kG, input::mod::kCtrl | input::mod::kShift);
-    CHECK(t.doc().elements.size() == before + 1);
-    t.key(input::scan::kN);
-    CHECK(t.doc().elements.size() == before + 1); // the default it replaced no longer fires
+    CHECK(layout_count(t.session().setup) == before + 1);
+    t.key(input::scan::kEquals);
+    CHECK(layout_count(t.session().setup) == before + 1); // the default it replaced no longer fires
 }
 
 TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says so") {
@@ -3110,7 +1295,7 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
 
     write_keymap_file(path, keymap_file_text("full", {}));
     Keyed full(path);
-    CHECK(label_at(full.canvases.back(), 0, sc.help_y).rfind("n new | d delete", 0) == 0);
+    CHECK(label_at(full.canvases.back(), 0, sc.help_y).rfind("q quit", 0) == 0);
 }
 
 TEST_CASE("KEY-0: the picker still closes on the key that opened it, wherever it moved") {
@@ -3259,25 +1444,23 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 } // namespace
 
 TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as real type") {
-    // THE PHASE'S TARGET LAW, as one sweep: at the shipped metric, a full screen --
-    // Info open, the Editor open, an object selected -- publishes its prose as regions the
-    // graphical medium sets in type, and the only `SurfaceLabel`s left are the ones whose
-    // CELL is the meaning (the size handle; management's edge glyphs when arranging).
-    WorkshopDoc d = two_panels();
+    // THE PHASE'S TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open
+    // and the stand-in open -- publishes its prose as regions the graphical medium sets in
+    // type, and no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning,
+    // and the one such glyph off the arrangement (the object canvas's size handle) retired
+    // with the canvas.
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    s.selected = d.elements[0].id;
-    refocus(d, s);
     (void)open_panel(s.panels, stock::kKind);
-    const surface::SurfaceCanvas c = paint(d, s);
+    const surface::SurfaceCanvas c = paint(s);
 
     for (const surface::SurfaceLabel& l : all_labels(c)) {
         CAPTURE(l.text);
         CHECK(l.text == std::string(kHandleGlyph));
     }
+    CHECK(all_labels(c).empty());
 
     // ...and every published region's bounds hold at least one row of the face, so none
-    // of them falls back to the cell voice: the band, the Builder, the whole Info panel
-    // (heading included), and each object's name over material at least two cells tall.
+    // of them falls back to the cell voice: the band and every pane's region.
     const Screen sc = screen_of(s);
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
         CAPTURE(r.x);
@@ -3288,18 +1471,14 @@ TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as r
 }
 
 TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0") {
-    WorkshopDoc d;
-    doc::add_default(d);
-
     // A CHARACTER MEDIUM: two rows at the top (the layout selector with the setup's status,
     // then the workspace fact) and four at the foot (the notice, then the legend takes what
     // the notice leaves). Five facts in six reserved rows, which is what the screen has
     // always reserved -- WUX-1 left one of them blank at row 0 and QR-14 spends it.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    cells.notice = "created #1";
-    refocus(d, cells);
+    cells.notice = "a notice";
     const Screen csc = screen_of(cells);
-    const surface::SurfaceCanvas cell_canvas = paint(d, cells);
+    const surface::SurfaceCanvas cell_canvas = paint(cells);
 
     const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, cells, csc);
     REQUIRE(ctop != nullptr);
@@ -3314,14 +1493,14 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
     REQUIRE(cband->rows.size() == 4);
-    CHECK(band_row(cband, 0) == "created #1");
-    CHECK(band_row(cband, 1).rfind("n new | d delete", 0) == 0);
+    CHECK(band_row(cband, 0) == "a notice");
+    CHECK(band_row(cband, 1).rfind("q quit", 0) == 0);
     CHECK_FALSE(band_row(cband, 2).empty());
     CHECK_FALSE(band_row(cband, 3).empty()); // no reserved row is left spare
     // ...AND NO ROW SAYS ANYTHING TWICE. The identity is the top band's and the notice is
     // the bottom band's, and neither writes in the other's rectangle.
     CHECK(band_row(cband, 0).find("\"Default\"") == std::string::npos);
-    CHECK(band_row(ctop, 0).find("created #1") == std::string::npos);
+    CHECK(band_row(ctop, 0).find("a notice") == std::string::npos);
     CHECK(ctop->y + ctop->h == cells_covered(fine_of_cells(ui::Rect{0, kWorkspaceY, 1, 1})).y);
     CHECK(cband->y == kWorkspaceY + csc.room_h); // the body ends where the band begins
 
@@ -3329,10 +1508,9 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     // WUX-1's own fold) and two at the foot (the notice and one packed legend row). THREE
     // face rows of chrome, exactly as many as the single five-cell band held.
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    sdl.notice = "created #1";
-    refocus(d, sdl);
+    sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
-    const surface::SurfaceCanvas sdl_canvas = paint(d, sdl);
+    const surface::SurfaceCanvas sdl_canvas = paint(sdl);
     const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
     const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
     REQUIRE(stop != nullptr);
@@ -3343,30 +1521,28 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     REQUIRE(sband->rows.size() == 2);
     CHECK(band_row(stop, 0).rfind(">Default<", 0) == 0);
     CHECK(band_row(stop, 0).find("| workspace 78x16 cells") != std::string::npos);
-    CHECK(band_row(sband, 0) == "created #1");
-    CHECK(band_row(sband, 1).rfind("n new | d delete", 0) == 0);
+    CHECK(band_row(sband, 0) == "a notice");
+    CHECK(band_row(sband, 1).rfind("q quit", 0) == 0);
 
     // DEGRADE HONESTLY BELOW THAT, and each band degrades in its own rectangle: the legend
     // gives way first at the foot, and the workspace fact folds into the identity at the top.
     Session three = screen_session(kScreenMinW, kScreenMinH, 8, 14); // 44/14 = 3 band rows
-    three.notice = "created #1";
-    refocus(d, three);
-    const surface::SurfaceCanvas three_canvas = paint(d, three);
+    three.notice = "a notice";
+    const surface::SurfaceCanvas three_canvas = paint(three);
     const surface::SurfaceTextRegion* tband = band_on(three_canvas, screen_of(three));
     REQUIRE(tband != nullptr);
     REQUIRE(tband->rows.size() == 3);
-    CHECK(band_row(tband, 0) == "created #1");
-    CHECK(band_row(tband, 1).rfind("n new | d delete", 0) == 0);
+    CHECK(band_row(tband, 0) == "a notice");
+    CHECK(band_row(tband, 1).rfind("q quit", 0) == 0);
 
     Session one = screen_session(kScreenMinW, kScreenMinH, 8, 30); // 44/30 = 1 band row
-    one.notice = "created #1";
-    refocus(d, one);
-    const surface::SurfaceCanvas one_canvas = paint(d, one);
+    one.notice = "a notice";
+    const surface::SurfaceCanvas one_canvas = paint(one);
     const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));
     const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, one, screen_of(one));
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
-    CHECK(band_row(oband, 0) == "created #1"); // the tool's voice wins the one row
+    CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
     // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW ANY MORE. It has a band of its own
     // that no budget down here can take, which is the whole point of the move: a maker never
     // loses sight of which desk they are in because the tool had something to say.
@@ -3375,34 +1551,31 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
 
     one.notice.clear();
-    const surface::SurfaceCanvas quiet_canvas = paint(d, one);
+    const surface::SurfaceCanvas quiet_canvas = paint(one);
     const surface::SurfaceTextRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
     REQUIRE(qband->rows.size() == 1);
-    CHECK(qband->rows[0].text.rfind("n new | d delete", 0) == 0); // the legend, with nothing said
+    CHECK(qband->rows[0].text.rfind("q quit", 0) == 0); // the legend, with nothing said
 }
 
 TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budgets") {
-    WorkshopDoc d;
-    doc::add_default(d);
     for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
         CAPTURE(line);
         Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
         s.notice = "a notice";
-        refocus(d, s);
         const Screen sc = screen_of(s);
         // THE LEGEND IS THE BOTTOM BAND'S SECOND ROW ON EVERY MEDIUM SINCE QR-14: the
         // notice leads that band and the legend takes what it leaves.
         const std::size_t legend_at = 1;
 
         s.keymap.legend = legend_mode::kFull;
-        const surface::SurfaceCanvas full_c = paint(d, s);
+        const surface::SurfaceCanvas full_c = paint(s);
         const surface::SurfaceTextRegion* full_b = band_on(full_c, sc);
         REQUIRE(full_b != nullptr);
-        CHECK(band_row(full_b, legend_at).rfind("n new | d delete", 0) == 0);
+        CHECK(band_row(full_b, legend_at).rfind("q quit", 0) == 0);
 
         s.keymap.legend = legend_mode::kCompact;
-        const surface::SurfaceCanvas compact_c = paint(d, s);
+        const surface::SurfaceCanvas compact_c = paint(s);
         const surface::SurfaceTextRegion* compact_b = band_on(compact_c, sc);
         REQUIRE(compact_b != nullptr);
         // COMPACT IS THE APPLICATION'S ROWS ABOVE EVERY MODE; with no desktop, there are none.
@@ -3414,11 +1587,11 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
                                                                  input::mod::kCtrl},
                                                          app_precedence::kAboveModes}})
                     .accepted);
-        const surface::SurfaceCanvas compact_d = paint(d, with_desktop);
+        const surface::SurfaceCanvas compact_d = paint(with_desktop);
         CHECK(band_row(band_on(compact_d, sc), legend_at) == "^k hotkeys");
 
         s.keymap.legend = legend_mode::kHidden;
-        const surface::SurfaceCanvas hidden_c = paint(d, s);
+        const surface::SurfaceCanvas hidden_c = paint(s);
         const surface::SurfaceTextRegion* hidden_b = band_on(hidden_c, sc);
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
@@ -3495,10 +1668,10 @@ TEST_CASE("WUX-1/SC-5+SC-9: the titles action remaps and collides like every oth
     // new action cannot be authored onto another command gesture.
     Keymap refused;
     const Written verdict =
-        apply_overrides({{"workshop.pane-titles", "n"}}, legend_mode::kDefault, refused);
+        apply_overrides({{"workshop.pane-titles", "a"}}, legend_mode::kDefault, refused);
     CHECK_FALSE(verdict.accepted);
     CHECK(verdict.refusal.find("workshop.pane-titles") != std::string::npos);
-    CHECK(verdict.refusal.find("object.new") != std::string::npos);
+    CHECK(verdict.refusal.find("workshop.context") != std::string::npos);
 }
 
 TEST_CASE("WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane keeps its own") {
@@ -3608,355 +1781,14 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
 }
 
 // ============================================================================
-// CTX-0 — deleting the pointed object: the explicit-id door
+// CTX-0 — the catalog the contextual rows reference
 // ============================================================================
 //
-// `delete_object_at(id)` is `delete_selected`'s target-taking sibling, and the pin is the
-// branch: the neighbour/selection repair runs EXACTLY when the deleted id is the selected
-// one, and a deletion that touched no selection perturbs none.
-
-TEST_CASE("CTX-0: contextually deleting the selected object uses the existing repair") {
-    Live t;
-    REQUIRE(t.session().selected == 1);
-    t.right_press(4, 3); // #1's body -- the selected one
-    REQUIRE(t.menu().subject == context_subject::kObject);
-    REQUIRE(t.menu().object == 1);
-    t.key(input::scan::kReturn); // the object's one row: delete
-    CHECK_FALSE(t.menu().open);
-    CHECK(doc::find(t.doc(), 1) == nullptr);
-    // The post-delete selection rule, byte for byte the keyboard's: the object that took
-    // the deleted one's place in authored order.
-    CHECK(t.session().selected == 2);
-    CHECK(t.notice() == "deleted #1 -- now on #2");
-}
-
-TEST_CASE("CTX-0: contextually deleting a pointed object preserves an unrelated selection") {
-    Live t;
-    REQUIRE(t.session().selected == 1);
-    t.right_press(7, 11); // #2's body -- NOT the selection
-    REQUIRE(t.menu().object == 2);
-    t.key(input::scan::kReturn);
-    CHECK(doc::find(t.doc(), 2) == nullptr);
-    CHECK(t.session().selected == 1); // the maker's selection was never transport
-    CHECK(t.notice() == "deleted #2");
-    // ...and the inspector still describes the selected object, rebuilt, never patched.
-    REQUIRE_FALSE(t.session().rows.empty());
-}
-
-TEST_CASE("WL-DOC-20: the document crosses as a picture, and only when it changed") {
-    // ⭐ THIS MIGRATION'S ONE NEW SENTENCE. The Info pane shows the object document and
-    // derives none of it; the host says what the document looks like, in the form the
-    // built-in's own painter already had it, and says it again the moment it differs.
-    //
-    // ⚠ AND IT IS A PUBLICATION RATHER THAN AN ANSWER because WL-DOC-14 is a law: the
-    // canvas, the object list and the inspector agree after every gesture, and the document
-    // changes with no gesture into the pane at all -- which the second half below is.
-    //
-    // ⚔ MUTATION: drop the `say_document` call from `repaint`. Nothing is ever said.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    REQUIRE_FALSE(t.said_documents.empty());
-    const DocumentShown first = t.said_documents.back();
-    REQUIRE(first.objects.size() == 2); // the two the fresh document holds
-    CHECK(first.objects[0].identity == t.first()->id);
-    CHECK(first.objects[0].name == t.first()->label);
-    CHECK(first.selected == t.session().selected);
-    CHECK_FALSE(first.properties.empty());
-
-    // THE ROWS ARE THE INSPECTOR'S OWN, VALUE INCLUDED -- a fresh read through the property,
-    // which is what makes a cached copy impossible on either side.
-    bool named = false;
-    for (const ShownProperty& row : first.properties) {
-        named = named || (row.label == "Name" && row.editable);
-    }
-    CHECK(named);
-
-    // A REPAINT WITH NO NEWS IN IT SAYS NOTHING, which is what stops the seam looping: a
-    // pane answers a publication by publishing rows, and content ends in a repaint.
-    const std::size_t after_first = t.said_documents.size();
-    t.key(input::scan::kTab);
-    t.key(input::scan::kTab); // back to where it was: the selection is the same again
-    CHECK(t.said_documents.size() > after_first); // ...but it moved in between, twice
-    const std::size_t settled = t.said_documents.size();
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK(t.said_documents.size() == settled);
-
-    // ...AND A CHANGE MADE WITH NO GESTURE INTO ANY PANE IS STILL NEWS. This is the half a
-    // door could not carry: `l` nudges the selected object on the WORKSPACE, and the list
-    // and the inspector are owed the new picture.
-    t.key(input::scan::kL);
-    REQUIRE(t.said_documents.size() == settled + 1);
-    bool moved = false;
-    for (const ShownProperty& row : t.said_documents.back().properties) {
-        moved = moved || (row.label == "X" && row.value != "0");
-    }
-    CHECK(moved);
-}
-
-TEST_CASE("WL-DOC-20: the four acts are the writes the keys are bound to, and the refusals "
-          "are the document's") {
-    // THE DOOR, AT THE OFFICE THIS HOST ALREADY HOLDS. Four acts, each the same call the
-    // host's own key is bound to, so both gestures converge on one write, one selection rule
-    // and one sentence.
-    //
-    // ⚔ MUTATION: answer `accepted` unconditionally in `on(DocumentActRequested)`. The three
-    //   refusal checks below go red and a maker is told a write happened that did not.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    DocumentAsker* seat = mount_document_asker(t);
-    const std::size_t objects = t.doc().elements.size();
-
-    // CREATE mints one, exactly as `n` does.
-    ask_document_act(t, seat, kDocumentCreate);
-    CHECK(t.doc().elements.size() == objects + 1);
-    REQUIRE_FALSE(seat->answers.empty());
-    CHECK(seat->answers.back().accepted);
-
-    // SELECT is total: an identity the document does not have selects nothing new, and is
-    // not an error -- a selection outlives a list.
-    ask_document_act(t, seat, kDocumentSelect, t.doc().elements[0].id);
-    CHECK(t.session().selected == t.doc().elements[0].id);
-    CHECK(seat->answers.back().accepted);
-
-    // COMMIT writes through the property, named by the subject the host gave its rows, and a
-    // value the property refuses comes back in the document's own words with nothing written.
-    std::size_t width_row = 0;
-    for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
-        if (t.session().rows[i].label() == "Width") {
-            width_row = i;
-        }
-    }
-    const std::int64_t subject = t.session().subject.name;
-    REQUIRE(subject != 0);
-    ask_subject_commit(t, seat, subject, static_cast<std::int64_t>(width_row), "40%");
-    CHECK(seat->answers.back().accepted);
-    CHECK(t.session().rows[width_row].value() == "40%");
-    ask_subject_commit(t, seat, subject, static_cast<std::int64_t>(width_row), "banana");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal.find("Width") != std::string::npos);
-    CHECK(t.session().rows[width_row].value() == "40%"); // and nothing was written
-
-    // A ROW THE SUBJECT DOES NOT HAVE IS REFUSED BY NAME rather than applied to a neighbour.
-    ask_subject_commit(t, seat, subject, 9999, "40%");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal.find("not in this object") != std::string::npos);
-
-    // ...AND v1's COMMIT, WHICH NAMES A ROW AND NO SUBJECT, IS REFUSED BEFORE ANY ROW IS READ: the
-    // row it names is a real, editable row of the object selected now, and nothing is written.
-    const std::size_t answered = seat->answers.size();
-    ask_document_commit(t, seat, static_cast<std::int64_t>(width_row), "50%");
-    REQUIRE(seat->answers.size() == answered + 1);
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitNamesNoSubject);
-    CHECK(t.session().rows[width_row].value() == "40%");
-    CHECK(t.session().selected == t.doc().elements[0].id);
-
-    // DELETE removes exactly one, exactly as `d` does.
-    const std::size_t before_delete = t.doc().elements.size();
-    ask_document_act(t, seat, kDocumentDelete);
-    CHECK(seat->answers.back().accepted);
-    CHECK(t.doc().elements.size() == before_delete - 1);
-}
-
-namespace {
-
-/// WHERE A LABEL SITS in the host's own inspector rows, as an index a commit names.
-inline std::int64_t row_labelled(const Live& t, const std::string& label) {
-    for (std::size_t i = 0; i < t.session().rows.size(); ++i) {
-        if (t.session().rows[i].label() == label) {
-            return static_cast<std::int64_t>(i);
-        }
-    }
-    FAIL("the selected object has no row called ", label);
-    return -1;
-}
-
-/// One object's authored name, by identity, or an empty string when the document holds none.
-inline std::string label_of(const Live& t, std::int64_t id) {
-    const ui::Element* e = doc::find(t.doc(), id);
-    return e == nullptr ? std::string() : e->label;
-}
-
-} // namespace
-
-TEST_CASE("a commit is written only while its subject is the rows' own: another selection, the same object again, a name never given and a deleted object write nothing, and a room, a refit and a moved value keep the name") {
-    // ⭐ THE DOOR JUDGES WHAT A COMMIT WAS TYPED FOR, NOT THE ROW IT NAMES. Every object has
-    // `Name` on the same row, so a row index is true of whatever is selected when the ask arrives;
-    // the name the host gave its rows is what says whether that row is still the one the maker saw.
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    DocumentAsker* seat = mount_document_asker(t);
-    const std::int64_t first = t.doc().elements[0].id;
-    const std::int64_t second = t.doc().elements[1].id;
-    REQUIRE(t.session().selected == first);
-    const std::int64_t name_row = row_labelled(t, "Name");
-    const std::int64_t typed_for_first = t.session().subject.name;
-    REQUIRE(typed_for_first != 0);
-
-    // THE ORDINARY UPDATES KEEP THE NAME: a new room, the workspace refit both ways, and a value of
-    // the same object moved on the workspace -- each rebuilds or re-reads the rows, and none of
-    // them changes what a row addresses.
-    t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
-    t.key(input::scan::kLeftBracket);
-    t.key(input::scan::kRightBracket);
-    const std::int64_t x_before = t.doc().elements[0].x;
-    t.key(input::scan::kL);
-    REQUIRE(t.doc().elements[0].x != x_before);
-    CHECK(t.session().subject.name == typed_for_first);
-    ask_subject_commit(t, seat, typed_for_first, name_row, "kept");
-    REQUIRE_FALSE(seat->answers.empty());
-    CHECK(seat->answers.back().accepted);
-    CHECK(label_of(t, first) == "kept");
-
-    // ANOTHER SELECTION: the name moves, and a commit typed for #1 writes neither object.
-    const std::string second_name = label_of(t, second);
-    t.key(input::scan::kTab);
-    REQUIRE(t.session().selected == second);
-    CHECK(t.session().subject.name != typed_for_first);
-    ask_subject_commit(t, seat, typed_for_first, name_row, "stale");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
-    CHECK(label_of(t, first) == "kept");
-    CHECK(label_of(t, second) == second_name);
-    CHECK(t.session().selected == second);
-
-    // THE SAME OBJECT SELECTED AGAIN is not the subject the commit was typed for: its rows, labels
-    // and values are what they were, and nothing is written.
-    t.key(input::scan::kTab);
-    REQUIRE(t.session().selected == first);
-    CHECK(t.session().subject.name != typed_for_first);
-    ask_subject_commit(t, seat, typed_for_first, name_row, "stale");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(label_of(t, first) == "kept");
-    CHECK(t.session().selected == first);
-
-    // A NAME NEVER GIVEN is refused in the same words, whatever row it names.
-    ask_subject_commit(t, seat, t.session().subject.name + 1, name_row, "guessed");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
-    CHECK(label_of(t, first) == "kept");
-
-    // THE OBJECT DELETED: the selection moves to the object that took its place, and a commit typed
-    // for the deleted one does not become that object's.
-    const std::int64_t typed_before_delete = t.session().subject.name;
-    ask_document_act(t, seat, kDocumentDelete);
-    REQUIRE(seat->answers.back().accepted);
-    REQUIRE(t.session().selected == second);
-    ask_subject_commit(t, seat, typed_before_delete, name_row, "stale");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
-    CHECK(label_of(t, second) == second_name);
-    CHECK(t.session().selected == second);
-    // ...and the name its rows carry now is written to.
-    ask_subject_commit(t, seat, t.session().subject.name, name_row, "current");
-    CHECK(seat->answers.back().accepted);
-    CHECK(label_of(t, second) == "current");
-}
-
-TEST_CASE("a load names a new subject over the document's own bytes and says only that, a refused load keeps the name, and an identity minted again names a new subject under the same selection") {
-    // ⭐ THE SECOND IDENTITY BOUNDARY. A load restores the file's mint, so #1 after it may be
-    // another object than #1 before -- or the very same bytes -- and no row a picture shows can
-    // tell those apart. The host can: it opened a document.
-    Live t;
-    TempDir dir("doc21-load");
-    t.host.document_path = dir.document();
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    DocumentAsker* seat = mount_document_asker(t);
-    const std::int64_t first = t.doc().elements[0].id;
-    const std::int64_t name_row = row_labelled(t, "Name");
-    t.key(input::scan::kS, input::mod::kCtrl);
-    REQUIRE_FALSE(t.session().notice_is_bad);
-
-    // A REFUSED LOAD MOVES NOTHING, THE NAME INCLUDED, so work typed against it is still written.
-    const std::int64_t before_refusal = t.session().subject.name;
-    t.host.document_path = dir.file("not-a-document.json");
-    {
-        std::ofstream bad(t.host.document_path, std::ios::binary);
-        bad << "{";
-    }
-    t.key(input::scan::kO, input::mod::kCtrl);
-    REQUIRE(t.session().notice_is_bad);
-    CHECK(t.session().subject.name == before_refusal);
-    ask_subject_commit(t, seat, before_refusal, name_row, "still");
-    REQUIRE_FALSE(seat->answers.empty());
-    CHECK(seat->answers.back().accepted);
-    CHECK(label_of(t, first) == "still");
-
-    // THE DOCUMENT'S OWN BYTES, LOADED OVER IT: written first, so identities, labels and values are
-    // the same on both sides of the load.
-    t.host.document_path = dir.document();
-    t.key(input::scan::kS, input::mod::kCtrl);
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    const std::int64_t typed = t.session().subject.name;
-    const DocumentShown rows_before = t.said_documents.back();
-    const std::size_t pictures = t.said_documents.size();
-    const std::size_t named = t.said_named_documents.size();
-    t.key(input::scan::kO, input::mod::kCtrl);
-    REQUIRE_FALSE(t.session().notice_is_bad);
-    REQUIRE(t.session().selected == first);
-    CHECK(t.session().subject.name != typed);
-    // ...SAID, AND SAID ONLY WHERE IT IS NEWS: no v1 row moved, so no v1 picture; the named picture
-    // carries the same rows and the new name.
-    CHECK(t.said_documents.size() == pictures);
-    REQUIRE(t.said_named_documents.size() == named + 1);
-    const v2::DocumentShown said = t.said_named_documents.back();
-    CHECK(said.subject == t.session().subject.name);
-    CHECK(same_document(DocumentShown{said.objects, said.selected, said.properties}, rows_before));
-    ask_subject_commit(t, seat, typed, name_row, "stale");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
-    CHECK(label_of(t, first) == "still");
-    // ...and a repaint with nothing new says neither.
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK(t.said_documents.size() == pictures);
-    CHECK(t.said_named_documents.size() == named + 1);
-
-    // AN IDENTITY HANDED OUT AGAIN. No gesture rewinds the mint; the construction layer's reset
-    // door does (staged here as a root send), leaving the selection's number and its rows standing.
-    // `n` then mints #1 again -- another object under the number the rows were built for.
-    const std::int64_t before_reset = t.session().subject.name;
-    (void)t.bus.send(t.workshop_id, loom::Message(loom::to_value(loom::PokeResetState{}),
-                                                  loom::WeaveId{}, loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-    REQUIRE(t.doc().elements.empty());
-    REQUIRE(t.doc().next_id == first);
-    REQUIRE(t.session().selected == first);
-    t.key(input::scan::kN);
-    REQUIRE(t.doc().elements.size() == 1);
-    REQUIRE(t.doc().elements[0].id == first);
-    REQUIRE(t.session().selected == first);
-    CHECK(t.session().subject.name != before_reset);
-    const std::string made = label_of(t, first);
-    ask_subject_commit(t, seat, before_reset, name_row, "stale");
-    CHECK_FALSE(seat->answers.back().accepted);
-    CHECK(seat->answers.back().refusal == WorkshopWeave::kCommitSubjectGone);
-    CHECK(label_of(t, first) == made);
-}
-
-TEST_CASE("CTX-0: replacing the document drops a captured object subject") {
-    Live t;
-    TempDir dir("ctx-doc");
-    t.host.document_path = dir.document();
-    t.key(input::scan::kS, input::mod::kCtrl); // save the two-object document
-    REQUIRE_FALSE(t.session().notice_is_bad);
-
-    SUBCASE("an object subject cannot alias into the replacement") {
-        t.right_press(7, 11);
-        REQUIRE(t.menu().subject == context_subject::kObject);
-        // `document.open` is a global, answered above the open surface -- which is
-        // exactly why the surface must notice the ground moving underneath it.
-        t.key(input::scan::kO, input::mod::kCtrl);
-        REQUIRE_FALSE(t.session().notice_is_bad);
-        CHECK_FALSE(t.menu().open);
-    }
-    SUBCASE("a room subject names nothing the replacement touched, and stands") {
-        t.right_press(40, 0);
-        REQUIRE(t.menu().subject == context_subject::kRoot);
-        t.key(input::scan::kO, input::mod::kCtrl);
-        REQUIRE_FALSE(t.session().notice_is_bad);
-        CHECK(t.menu().open);
-    }
-}
+// ⭐ THE OBJECT DOCUMENT'S CASES WERE HERE: CTX-0's explicit-id deletion and its selection
+// repair, the document crossing the pane seam as a picture (WL-DOC-20) and a commit written
+// only to the subject the host named (WL-DOC-21). They retired with the object canvas. The
+// Info pane inspects a PANE now, through the subject the host names for it -- the same
+// discipline over a real subject, in `tests/test_workshop_panes_info.cpp` (WL-INFO).
 
 TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
     // `apply_overrides` over an empty authored set runs the same-gesture collision sweep

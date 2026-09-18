@@ -440,9 +440,11 @@ struct PaneWheel {
 ///
 /// NO KEY NAME CROSSES, in either direction: a name is a spelling the host owns, and a
 /// provider switching on one would be switching on the host's grammar.
-/// THE HOST ACTIONS A PANE MAY DECLARE IT OWNS (`v2::PaneActionRow::supersedes`), spelled in
-/// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Workshop's
-/// own catalog is what makes the id real, and a suite pins the two spellings against each other.
+/// TWO HOST ACTIONS A PANE COULD DECLARE IT OWNED (`v2::PaneActionRow::supersedes`), spelled in
+/// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Both acted on
+/// the object document and RETIRED with it (`kRetiredActions`): a pane that still names one is
+/// admitted standing in for nothing, so a provider built against this header loads in a host on
+/// either side of the retirement, and a suite pins both spellings to the retired table.
 inline constexpr const char* kOwnableDocumentSave = "document.save";
 inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
@@ -478,8 +480,8 @@ struct PaneActions {
 /// THE SECOND VERSION OF THE DECLARATION, AND WHY IT IS A VERSION AND NOT A FIELD (VD-27)
 /// ============================================================================================
 ///
-/// A pane that holds a document of its own needs to say so -- that its `editor.save` row STANDS
-/// IN FOR Workshop's `document.save` while its keys are the maker's (WL-KEY-15). That is one
+/// A pane that holds a document of its own needed to say so -- that its `editor.save` row STOOD
+/// IN FOR Workshop's `document.save` (retired since) while its keys were the maker's. That is one
 /// more field on a declaration row, and one more field is a DIFFERENT SHAPE: Loom's identity
 /// across a `.so` seam is the content-id derived from the shape, a published `(name, version)`
 /// is frozen, and two parties agree iff their content-ids match (Loom GATE-04). Adding the
@@ -514,13 +516,13 @@ struct PaneActionRow {
     /// keyboard, or empty -- the declaration that makes an operation the PANE'S here without
     /// naming the pane anywhere in the host (WL-KEY-15).
     ///
-    /// A pane that holds a document of its own says `document.save`: while its keys are the
-    /// maker's, the host's save is not requestable and the pane's own row is, and that stays
-    /// true WHEREVER a maker's keymap file has moved either row -- supersession is by name,
-    /// never by matching gestures. It buys the pane one thing beside that: the collision law
-    /// lets THIS PANE's rows take the superseded row's key, because a superseded row is not
-    /// requestable anywhere in this pane. An id Workshop does not declare, or one Workshop
-    /// does not offer for ownership, supersedes nothing and is refused at admission.
+    /// A pane may name an APPLICATION row it stands in for (a desktop's launch, WL-DESK-07):
+    /// while its keys are the maker's, that row is not requestable and the pane's own row is,
+    /// and that stays true WHEREVER a maker's keymap file has moved either row -- supersession
+    /// is by name, never by matching gestures. It buys the pane one thing beside that: the
+    /// collision law lets THIS PANE's rows take the superseded row's key. A retired id
+    /// (`kOwnableDocumentSave`, `kOwnableDocumentOpen`) is admitted standing in for nothing; any
+    /// other id Workshop does not offer for ownership is refused at admission.
     std::string supersedes;
     ZEN_SHAPE(PaneActionRow, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
               ZEN_FIELD(modifiers), ZEN_FIELD(supersedes));

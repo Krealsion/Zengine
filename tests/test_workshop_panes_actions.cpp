@@ -300,39 +300,48 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
               nullptr);
     }
     SUBCASE("the collision law runs over what is active while a pane holds the keys") {
-        // ⭐ `document.save` (^s) IS REFUSED HERE AGAIN, AND ONE DECLARATION BUYS IT (VD-26).
-        // The row is active while a pane holds the keys, so a pane taking its chord for an
+        // ⭐ AN APPLICATION ROW ABOVE EVERY MODE IS REFUSED HERE, AND ONE DECLARATION BUYS IT
+        // (VD-26). It is active while a pane holds the keys, so a pane taking its chord for an
         // unrelated operation really would be two meanings on one gesture -- unless the pane
-        // says the row is standing in for it, which is one meaning in two scopes.
-        const Gesture save = k.gesture_of(Act::kSaveDocument);
-        CHECK(refused({declared("x.s", "save", save.scancode, save.modifiers)}) ==
-              collision_sentence(save, "document.save", "x.s"));
-        const Keymap with_save = accepted(
-            {declared("x.s", "save", save.scancode, save.modifiers, kOwnableDocumentSave)});
-        REQUIRE(with_save.pane_rows(kSomePane) != nullptr);
-        CHECK(with_save.pane_supersedes(kSomePane, kOwnableDocumentSave));
-        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
-                                          kSomePane) == Act::kNone);
+        // says the row is standing in for it, which is one meaning in two scopes. (The host's
+        // `document.save` and `document.open` were the rows here until they retired with the
+        // object document; no host row is active in a pane any more but the no-text quit.)
+        REQUIRE(join_app_rows(k, std::vector<AppRow>{
+                                     AppRow{"desktop.terminal", "terminal",
+                                            Gesture{input::scan::kT, input::mod::kCtrl}, 0},
+                                     AppRow{"desktop.panes", "panes",
+                                            Gesture{input::scan::kP, input::mod::kCtrl}, 0}})
+                    .accepted);
+        const Gesture term{input::scan::kT, input::mod::kCtrl};
+        CHECK(refused({declared("x.t", "term", term.scancode, term.modifiers)}) ==
+              collision_sentence(term, "desktop.terminal", "x.t"));
+        const Keymap with_term = accepted(
+            {declared("x.t", "term", term.scancode, term.modifiers, "desktop.terminal")});
+        REQUIRE(with_term.pane_rows(kSomePane) != nullptr);
+        CHECK(with_term.pane_supersedes(kSomePane, "desktop.terminal"));
+        CHECK_FALSE(with_term.app_row_active(*with_term.app_row_of_id("desktop.terminal"),
+                                             KeyContext::kPane, kSomePane));
         // ...AND ANOTHER PANE'S KEYS ARE NOT THIS ONE'S DECLARATION.
-        CHECK(with_save.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
-                                          kSomePane + 1) == Act::kSaveDocument);
-        // AN ID WORKSHOP DOES NOT DECLARE, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
+        CHECK(with_term.app_row_active(*with_term.app_row_of_id("desktop.terminal"),
+                                       KeyContext::kPane, kSomePane + 1));
+        // AN ID NOTHING DECLARES, AND ONE A PANE MAY NOT OWN, ARE BOTH REFUSED.
         CHECK(refused({declared("x.z", "z", input::scan::kZ, input::mod::kCtrl, "no.such")})
                   .find("not an action id this Workshop knows") != std::string::npos);
         CHECK(refused({declared("x.k", "k", input::scan::kUnknown, input::mod::kNone,
                                 "workshop.quit")})
                   .find("not an action a pane may own") != std::string::npos);
-        // ...AND `document.open` (^o) IS OWNABLE the way `document.save` is: one declaration buys
-        // it, and only for the pane that made it.
-        const Gesture open = k.gesture_of(Act::kOpenDocument);
-        CHECK(refused({declared("x.o", "jump", open.scancode, open.modifiers)}) ==
-              collision_sentence(open, "document.open", "x.o"));
-        const Keymap with_open = accepted(
-            {declared("x.o", "jump", open.scancode, open.modifiers, kOwnableDocumentOpen)});
-        CHECK(with_open.above_mode_action(KeyContext::kPane, open.scancode, open.modifiers,
-                                          kSomePane) == Act::kNone);
-        CHECK(with_open.above_mode_action(KeyContext::kPane, open.scancode, open.modifiers,
-                                          kSomePane + 1) == Act::kOpenDocument);
+        // ...BUT ONE THAT RETIRED IS ADMITTED, STANDING IN FOR NOTHING: `document.save` was
+        // published as ownable before the object document retired, and a pane built then keeps
+        // its keys. Its row is simply its own.
+        const Keymap with_retired = accepted({declared("x.s", "save", input::scan::kS,
+                                                       input::mod::kCtrl, kOwnableDocumentSave)});
+        CHECK_FALSE(with_retired.pane_supersedes(kSomePane, kOwnableDocumentSave));
+        REQUIRE(with_retired.pane_action_for(kSomePane, input::scan::kS, input::mod::kCtrl) !=
+                nullptr);
+        // ...AND A RETIRED ID IS STILL NOBODY'S TO DECLARE AS ITS OWN: a maker's row for it is
+        // kept, and must not come to move a stranger's key.
+        CHECK(refused({declared("document.save", "save", input::scan::kS, input::mod::kCtrl)})
+                  .find("retired with the object document") != std::string::npos);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
         // holds the keys (WL-FOCUS-09): a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);
@@ -365,10 +374,15 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(moved.pane_action_for(kSomePane, input::scan::kUp, input::mod::kNone) == nullptr);
         REQUIRE(moved.pane_action_for(kSomePane, input::scan::kU, input::mod::kCtrl) != nullptr);
         // AN OVERRIDE THAT LANDS ON A ROW ACTIVE ABOVE THE MODES IS THE SAME COLLISION, said the
-        // same way.
-        k.authored[0].gesture = "ctrl+s";
+        // same way -- an application row's, now that no host row but the quit is active here.
+        REQUIRE(join_app_rows(k, std::vector<AppRow>{AppRow{
+                                     "desktop.terminal", "terminal",
+                                     Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
+                    .accepted);
+        k.authored[0].gesture = "ctrl+t";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)}) ==
-              collision_sentence(k.gesture_of(Act::kSaveDocument), "document.save", "x.up"));
+              collision_sentence(Gesture{input::scan::kT, input::mod::kCtrl}, "desktop.terminal",
+                                 "x.up"));
         // A GESTURE OUTSIDE THE GRAMMAR, and an id authored twice: `apply_overrides`' words.
         k.authored[0].gesture = "hyper+u";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)}).find("`x.up`: `hyper`") !=
@@ -776,11 +790,10 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
         REQUIRE(lines.size() == 2);
         CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloOffice)) !=
               std::string::npos);
-        // THE PANE'S OWN ROWS FIRST, then the chorded survivors; an unbound row teaches
-        // no key (WL-KEY-13).
-        // (`^s save` is back in this row: `document.save` is requestable while a pane that
-        // did not declare it owns the keys; VD-26.)
-        CHECK(lines[1] == "up row up | m mark | ^s save | ^o open");
+        // THE PANE'S OWN ROWS, and nothing after them: an unbound row teaches no key
+        // (WL-KEY-13), and no host row is requestable while a pane holds the keys since the
+        // object document's `^s save` and `^o open` retired (VD-26 kept them here until then).
+        CHECK(lines[1] == "up row up | m mark");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
     const std::string group = "pane Seat @" + std::string(kHelloOffice);
@@ -805,10 +818,13 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     PaneRig r;
     r.mount_workshop();
     r.ready();
+    (void)mount_desktop(r); // the application's launches: what survives above a pane
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    CHECK(band_lines(r).at(1) == "^s save | ^o open"); // `^s` is back (VD-26)
+    // The survivors are the application's (the object document's `^s save | ^o open` were,
+    // until it retired), and nothing of the pane's own.
+    CHECK(band_lines(r).at(1) == "^t terminal | ^p panes | ^k hotkeys");
     // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
     CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) == std::string::npos);
@@ -986,16 +1002,19 @@ TEST_CASE("a pane built against the published version one still registers, decla
     REQUIRE_MESSAGE(!old_pane->said.empty(), "the old pane's own row did not dispatch");
     CHECK(old_pane->said.back() == "old.mark");
 
-    // ...AND THE OLD PANE, WHICH OWNS NOTHING, LEAVES `^s` TO THE OBJECT DOCUMENT.
-    const Gesture save = r.session().keymap.gesture_of(Act::kSaveDocument);
+    // ...AND `^s`, WHICH THE OLD PANE DID NOT DECLARE, REACHES IT AS NOTHING -- and is nothing of
+    // the host's either: the object document's save retired with the document.
+    const Gesture save{input::scan::kS, input::mod::kCtrl};
     const std::size_t before_save = old_pane->said.size();
     r.key(save.scancode, save.modifiers);
     CHECK(old_pane->said.size() == before_save);
     CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
-                                               kind) == Act::kSaveDocument);
+                                               kind) == Act::kNone);
 
-    // BESIDE IT, A PANE THAT OWNS `document.save` -- the second version, on the same host and
-    // in the same session. (This rig's screen holds one stack pane, so the old one steps out.)
+    // BESIDE IT, A PANE THAT STILL NAMES `document.save` AS THE ROW IT STANDS IN FOR -- the second
+    // version, on the same host and in the same session. The id retired, and the pane is admitted
+    // standing in for nothing: its row is its own. (This rig's screen holds one stack pane, so the
+    // old one steps out.)
     r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk, for the picker
     r.pick(PaneRef{kOtherOffice, "old"});
     REQUIRE_FALSE(r.session().panels.has(kind));
@@ -1089,12 +1108,12 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     r.key(input::scan::kM);
     REQUIRE(pane_rows(r, kind).size() >= 2);
     CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image
-    // ...AND `^s` THERE IS THE OBJECT DOCUMENT'S: the old pane owns nothing.
-    const Gesture save = r.session().keymap.gesture_of(Act::kSaveDocument);
+    // ...AND `^s` THERE IS NOBODY'S: the old pane owns nothing, and the host's save retired.
+    const Gesture save{input::scan::kS, input::mod::kCtrl};
     r.key(save.scancode, save.modifiers);
     CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark");
     CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
-                                               kind) == Act::kSaveDocument);
+                                               kind) == Act::kNone);
 #endif
 }
 

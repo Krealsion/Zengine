@@ -13,7 +13,6 @@ namespace zengine::workshop {
 // ---- What can I do with this? The contextual-action surface ---------------
 
 // WL-CTX-01 -- agents/workshop/contextual.md
-// WL-CTX-01 -- agents/workshop/contextual.md
 void WorkshopWeave::open_context_at(const PointedAt& at) {
     ContextMenu next;
     next.open = true;
@@ -39,14 +38,9 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
                 break;
             }
         }
-    } else {
-        const std::int64_t id = object_at(state_, session_, workspace_cell_x(at.cell.x),
-                                          workspace_cell_y(at.cell.y));
-        if (id != 0) {
-            next.subject = context_subject::kObject;
-            next.object = id;
-        }
     }
+    // ⭐ A PRESS ON AN OBJECT OPENED THE OBJECT'S MENU HERE until the canvas retired; the room
+    // under the hand is the room now, whatever the floor says there.
     session_.context = next;
 }
 
@@ -66,11 +60,7 @@ void WorkshopWeave::open_context_on_layout(const PointedAt& at, std::size_t layo
 void WorkshopWeave::open_context_ambient() {
     ContextMenu next;
     next.open = true;
-    if (doc::find(state_, session_.selected) != nullptr) {
-        next.subject = context_subject::kObject;
-        next.object = session_.selected;
-    }
-    session_.context = next;
+    session_.context = next; // the room: the selected object it named retired with the canvas
 }
 
 void WorkshopWeave::close_context() { session_.context = ContextMenu{}; }
@@ -162,8 +152,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     // selection or the keyboard's pane, and nothing is selected, focused or seated on the way.
     case Act::kEditCode:
     case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
-    // -- the pointed object -------------------------------------------------------
-    case Act::kObjectDelete: context_delete_object(spent.object); break;
     // -- the pointed LAYOUT TAB ---------------------------------------------------
     //
     // EVERY ONE OF THESE TAKES THE CAPTURED POSITION and none of them switches first.
@@ -177,11 +165,8 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kLayoutMoveRight: shift_layout(spent.layout, +1); break;
     case Act::kLayoutRemove: drop_layout(spent.layout, mail); break;
     // -- the room -----------------------------------------------------------------
-    case Act::kObjectNew: create_object(); break;
     case Act::kPicker: open_picker(); break;
     case Act::kArrangeDesk: open_arrange_desk(); break;
-    case Act::kSaveDocument: save_document(); break;
-    case Act::kOpenDocument: load_document(); break;
     case Act::kSetupSave: save_setup(); break;
     case Act::kSetupRestore: restore_setup(mail); break;
     case Act::kManageResetOrder: reset_front_order(); break;
@@ -235,7 +220,7 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
         break;
     case PasteOwner::kDraft:
         row = editing_row();
-        if (row == nullptr || row->label() != p.label || session_.selected != p.object ||
+        if (row == nullptr || row->label() != p.label ||
             row->editor().draft_epoch() != p.epoch) {
             row = nullptr; // a different draft is standing (or none); not this paste's
         }
@@ -321,11 +306,6 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
 // WL-ARR-02 -- agents/workshop/arrangement.md; WL-TAB-11 -- agents/workshop/tab-run.md
 WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
     GesturesEnded out;
-    if (session_.drag.active) {
-        out.document = true;
-        out.document_id = session_.drag.id;
-        end_drag(session_);
-    }
     if (session_.pane_drag.active) {
         out.pane_held = true;
         out.pane = session_.pane_drag.pane;
@@ -557,12 +537,12 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 ? session_.panels.selected
                 : kNoPaneKind;
         // A VISIBLE PANEL OCCUPIES POINTER SPACE, and this is the
-        // whole of it: the press is asked what it landed on before the
-        // document is asked anything, and a press that landed on a panel
-        // never reaches `take_hold` -- so it cannot select, cannot begin a
-        // move and cannot begin a resize, because all three are that one
-        // call. The question names no kind and knows no coordinate; it is
-        // the same `bounds_of` the painter used for the same panel.
+        // whole of it: the press is asked what it landed on before
+        // anything else is asked, and a press that landed on a panel is that
+        // panel's -- the bare room never hears it. (It reached `take_hold`,
+        // the object canvas's grab, until that canvas retired.) The question
+        // names no kind and knows no coordinate; it is the same `bounds_of`
+        // the painter used for the same panel.
         //
         // IT SAYS SO RATHER THAN GOING QUIET. Every other press writes the
         // notice line, so a press that changed nothing and said nothing
@@ -570,7 +550,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // maker who has just done something else -- a stale statement,
         // which is the one thing this tool is arranged against. It is also
         // the only way a maker learns that the panel is a thing rather than
-        // a picture, since `[ Build ]` is not clickable yet.
+        // a picture.
         //
         // (`here` was resolved at the top of this branch -- one walk, for
         // two questions that are about the same press.)
@@ -634,38 +614,25 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                 false);
         } else {
-            const std::int64_t id = take_hold(state_, session_, workspace_cell_x(at.cell.x),
-                                              workspace_cell_y(at.cell.y));
-            if (id != 0) {
-                const bool sizing = session_.drag.resizing;
-                select(id);
-                say("holding #" + std::to_string(id) +
-                        (sizing ? " -- drag to resize it" : " -- drag to move it"),
-                    false);
-            } else {
-                say("nothing there", false);
-            }
+            // THE BARE ROOM: nothing to take hold of. It held the prototype canvas's objects
+            // until that retired; what stands there now is the desktop's floor, which is words.
+            say("nothing there", false);
         }
     } else {
         // A RELEASE IS NOT ASKED THE SAME QUESTION, and the asymmetry is the
-        // reason no capture state exists here. A gesture that began on the
-        // workspace owns the pointer until it ends, so its release must end
-        // it wherever the maker's hand happens to be -- occluding the
-        // release would strand `drag.active` true with the button up, and
-        // the next motion would drag an object nobody was holding. The
-        // other direction needs nothing at all: a press on a panel starts no
-        // drag, so a release after one finds none and does nothing at all.
-        // The absence of a drag IS the memory.
+        // reason no capture state exists here. A gesture that began somewhere
+        // owns the pointer until it ends, so its release must end it wherever
+        // the maker's hand happens to be -- occluding the release would strand
+        // a held gesture with the button up. The other direction needs
+        // nothing at all: a press that began no gesture leaves none for a
+        // release to find. The absence of a held gesture IS the memory.
         //
         // THROUGH THE SAME OWNER AS EVERY OTHER MODE, so there is one place
         // that knows what a button-1 release ends and three places that decide what to
         // SAY about it. No pane gesture can reach this branch today -- one is begun
         // only while management is open, which routes above -- and asking the owner
         // rather than a field is what keeps that a fact rather than an assumption.
-        const GesturesEnded done = end_held_gestures();
-        if (done.document) {
-            say("released #" + std::to_string(done.document_id), false);
-        }
+        (void)end_held_gestures();
     }
     repaint(mail);
 }
@@ -684,7 +651,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     // scroll a truncated row under the hand; that feature was Info's alone, needs the row's
     // unfitted text, and the text is the pane's now (`screen_reveal.cpp` says the rest). What
     // this handler does now is what it always did after that: carry a tab, sweep a selection,
-    // move an object, size a pane.
+    // size a pane.
 
     // ---- CARRYING A LAYOUT TAB ALONG THE RUN -----------------------------------------
     //
@@ -755,27 +722,8 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         external_drag(session_.text_drag.kind, m, mail);
         return;
     }
-    const PointedAt at = canvas_point_of(m.space, m.x, m.y);
-    if (!at.understood || !session_.drag.active) {
-        return;
-    }
-    const bool sizing = session_.drag.resizing;
-    const Handled done = drag_to(state_, session_, workspace_cell_x(at.cell.x),
-                                 workspace_cell_y(at.cell.y));
-    if (!done.accepted()) {
-        // A gesture can still propose something the document refuses, and it
-        // must say so rather than have the setter quietly correct it. What it
-        // may do -- and does -- is STOP at a boundary before proposing; that
-        // is a different event, reported below in different words, with the
-        // object actually changed.
-        say(done.written.refusal, true);
-    } else {
-        const ui::Element* e = doc::find(state_, session_.drag.id);
-        if (e != nullptr) {
-            say(sizing ? size_notice(*e, done) : move_notice(*e, done), false);
-        }
-    }
-    repaint(mail);
+    // ⭐ AN OBJECT DRAG FOLLOWED THE HAND HERE until the canvas retired; outside a pane's sweep
+    // and the arrangement's gestures (routed above this handler), a motion means nothing.
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md

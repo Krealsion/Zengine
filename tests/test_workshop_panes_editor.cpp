@@ -899,97 +899,49 @@ TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spe
           nullptr);
 }
 
-TEST_CASE("EDIT-W3: one physical ^s is the document's save or the source's, by who holds the keys") {
-    // ⭐ `document.save` IS `kUnlessOwned`: everywhere, unless the pane holding the keyboard
-    // DECLARED that it stands in for it. That is the sentence `kNoEditor` used to spell by
-    // naming one built-in, with the exception moved to where the exception lives -- so the
-    // object document's save is still the maker's key in a layout name, a draft, and every
-    // pane that holds no document of its own, and it is the Editor's inside the Editor.
+TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere") {
+    // ⭐ `document.save` WAS `kUnlessOwned` -- the object document's save everywhere, unless the
+    // pane holding the keys declared that it stood in for it -- and it retired with the document.
+    // The Editor still says `supersedes: "document.save"` on its save row, a spelling the protocol
+    // published; it is admitted standing in for nothing (`kRetiredActions`). So ^s is the Editor's
+    // inside the Editor, and nobody's outside it.
     const Keymap k;
-    CHECK(k.action_for(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
-          Act::kSaveDocument);
-    CHECK(k.action_for(KeyContext::kNaming, input::scan::kS, input::mod::kCtrl) ==
-          Act::kSaveDocument);
-    CHECK(k.action_for(KeyContext::kDraft, input::scan::kS, input::mod::kCtrl) ==
-          Act::kSaveDocument);
+    CHECK(k.action_for(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) == Act::kNone);
     CHECK(k.above_mode_action(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
-          Act::kSaveDocument);
-    // A PANE THAT DECLARED NOTHING KEEPS IT; the Editor's own handle is what takes it away,
-    // and that handle is not in this bare keymap.
-    CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kS, input::mod::kCtrl) ==
-          Act::kSaveDocument);
-    // `^o` opens the object document from a pane holding the keys too, while that pane declares
-    // no row standing in for it -- the Editor declares none.
+          Act::kNone);
     CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kO, input::mod::kCtrl) ==
-          Act::kOpenDocument);
-    // ...and the class is a superset of every mode, because what removes it is not a mode.
-    CHECK(active_in(KeyContext::kUnlessOwned, KeyContext::kCommand));
-    CHECK(active_in(KeyContext::kUnlessOwned, KeyContext::kPane));
-    CHECK(contexts_intersect(KeyContext::kUnlessOwned, KeyContext::kPane));
-    // THE PANE PROTOCOL'S SPELLING OF THE ID AND THE HOST'S CATALOG AGREE.
-    REQUIRE(row_of_id(kOwnableDocumentSave) != nullptr);
-    CHECK(row_of_id(kOwnableDocumentSave)->act == Act::kSaveDocument);
-    REQUIRE(row_of_id(kOwnableDocumentOpen) != nullptr);
-    CHECK(row_of_id(kOwnableDocumentOpen)->act == Act::kOpenDocument);
-    CHECK(row_of_id(kOwnableDocumentOpen)->context == KeyContext::kUnlessOwned);
+          Act::kNone);
+    // THE PROTOCOL'S TWO SPELLINGS NAME IDS THAT RETIRED, and say with what.
+    CHECK(row_of_id(kOwnableDocumentSave) == nullptr);
+    CHECK(row_of_id(kOwnableDocumentOpen) == nullptr);
+    REQUIRE(retired_with(kOwnableDocumentSave) != nullptr);
+    CHECK(std::string(retired_with(kOwnableDocumentSave)) == "the object document");
+    CHECK(std::string(retired_with(kOwnableDocumentOpen)) == "the object document");
 
-    // LIVE: ^s with the Editor holding the keys saves the SOURCE and not the document.
+    // LIVE: the Editor's declaration is admitted whole, and ^s with the Editor holding the keys
+    // saves the SOURCE.
     EditorRig e("edit-ctrl-s");
     e.open();
-    const std::string path = e.open_file("a.cpp", "one\n");
-    CHECK(e.r.session().keymap.pane_supersedes(e.kind, kOwnableDocumentSave));
+    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.newline",
+                                                   "editor.save", "editor.tab"});
+    CHECK_FALSE(e.r.session().keymap.pane_supersedes(e.kind, kOwnableDocumentSave));
+    e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
     e.type("x");
     REQUIRE(e.dirty());
-    const std::string doc_notice = e.r.session().notice;
     e.save();
     CHECK(e.clean());
     CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
-    CHECK(e.r.session().notice == doc_notice); // the host's save never ran
-    // ...AND THE HOST'S SAVE IS THE MAKER'S KEY AGAIN THE MOMENT THE KEYS ARE NOT THE PANE'S.
+    // ...AND WITH THE KEYS ELSEWHERE ^s WRITES NOTHING AT ALL: the source stays unsaved.
+    e.press_doc(0, 4);
+    e.type("y");
+    REQUIRE(e.dirty());
     e.unfocus();
+    const std::string before = e.r.session().notice;
     e.r.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(e.r.session().notice != doc_notice);
-}
-
-TEST_CASE("EDIT-W50: supersession is by name, so moving either key moves neither meaning") {
-    // ⚔ THE TWO WAYS A GESTURE-MATCHING RULE WOULD BREAK, driven over the real pane: with
-    // `editor.save` moved off ^s, ^s must still not save the object document while the
-    // Editor holds the keys; with `document.save` moved onto another chord, that chord must
-    // not save the object document there either. Neither pane row nor host row is where the
-    // relationship lives -- the declaration is (WL-KEY-15).
-    SUBCASE("the pane's own row moved, and the host's row is still stood down") {
-        EditorRig e("edit-remap-pane");
-        e.overrides.push_back({"editor.save", "ctrl+e"});
-        e.open();
-        e.open_file("a.cpp", "one\n");
-        e.press_doc(0, 3);
-        e.type("x");
-        REQUIRE(e.dirty());
-        const std::string before = e.r.session().notice;
-        e.r.key(input::scan::kS, input::mod::kCtrl); // the object document's default chord
-        CHECK(e.dirty());                            // no source save
-        CHECK(e.r.session().notice == before);       // and no document save either
-        CHECK(bytes_of(e.root / "a.cpp") == "one\n");
-        e.r.key(input::scan::kE, input::mod::kCtrl); // where the maker put the source save
-        CHECK(e.clean());
-        CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
-    }
-    SUBCASE("the host's row moved, and the pane still owns it") {
-        EditorRig e("edit-remap-host");
-        e.overrides.push_back({"document.save", "ctrl+y"});
-        e.open();
-        e.open_file("a.cpp", "one\n");
-        e.press_doc(0, 3);
-        e.type("x");
-        const std::string before = e.r.session().notice;
-        e.r.key(input::scan::kY, input::mod::kCtrl);
-        CHECK(e.r.session().notice == before); // the object document was not saved here
-        CHECK(e.dirty());
-        e.unfocus();
-        e.r.key(input::scan::kY, input::mod::kCtrl);
-        CHECK(e.r.session().notice != before); // ...and it is that key everywhere else
-    }
+    CHECK(e.dirty());
+    CHECK(e.r.session().notice == before);
+    CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
 }
 
 TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded pane") {
@@ -1539,17 +1491,18 @@ TEST_CASE("EDIT-W27: ^c copies, does not quit, and the copy reaches the platform
     CHECK(e.doc_row(0) == "one two");
 }
 
-TEST_CASE("EDIT-W28: ^o keeps its global object-document meaning while the Editor has the keys") {
+TEST_CASE("EDIT-W28: ^o is the Editor's to hear while it has the keys, and the host answers it "
+          "nowhere") {
     EditorRig e("edit-ctrl-o");
     e.open();
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 0);
     const std::string before = e.r.session().notice;
     e.key(input::scan::kO, input::mod::kCtrl);
-    // The host's open ran (this rig names no document file, so it refused in its own
-    // words), and the keys never left the pane; the chord was not a keystroke to it.
-    CHECK(e.r.session().notice != before);
-    CHECK(e.r.session().notice.find("document") != std::string::npos);
+    // ⭐ `^o` OPENED THE OBJECT DOCUMENT FROM ABOVE THE EDITOR until that document retired. No
+    // host row answers it now: the host said nothing, the keys never left the pane, and a
+    // chord the Editor declares no row for is not a keystroke to its text either.
+    CHECK(e.r.session().notice == before);
     CHECK(e.r.session().panels.keyboard == e.kind);
     CHECK(e.doc_row(0) == "one");
 }
@@ -2966,70 +2919,70 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
     CHECK(e.r.session().notice.find("forged") == std::string::npos);
 }
 
-TEST_CASE("EDIT-W62: the object document's save belongs to every context that is not the pane's own") {
+TEST_CASE("EDIT-W62: an application row a pane stands in for belongs to every context that is not the pane's own") {
     // ⚔ THE DEFECT: supersession consulted the REMEMBERED keyboard pane, and that memory
-    // outlives the mode. A maker with the Editor focused who opened the contextual menu was
-    // typing into the MENU -- and `^s` there wrote nothing at all, because the Editor's
-    // handle still suppressed the host's save. Ownership is the resolved context and the
-    // remembered pane together.
-    const Keymap k;
-    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kContext, 7));
-    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kNaming, 7));
-    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kPicker, 7));
-    CHECK(k.row_active(*row_of_id("document.save"), KeyContext::kDraft, 7));
+    // outlives the mode. A maker with a pane focused who opened the contextual menu is typing
+    // into the MENU, and a row the pane stands in for must answer there. It was pinned over the
+    // object document's save; that row retired, and the same rule governs the application's rows
+    // above every mode. Ownership is the resolved context and the remembered pane together.
+    Keymap k;
+    REQUIRE(join_app_rows(k, std::vector<AppRow>{AppRow{
+                                 "desktop.terminal", "terminal",
+                                 Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
+                .accepted);
+    const v2::PaneActionRow own{"x.term", "terminal here", input::scan::kE, input::mod::kCtrl,
+                                "desktop.terminal"};
+    REQUIRE(join_pane_rows(k, 7, {own}).accepted);
+    const AppRow* term = k.app_row_of_id("desktop.terminal");
+    REQUIRE(term != nullptr);
+    CHECK_FALSE(k.app_row_active(*term, KeyContext::kPane, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kContext, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kNaming, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kPicker, 7));
+    CHECK(k.app_row_active(*term, KeyContext::kDraft, 7));
     CHECK(Keymap::owner_of(KeyContext::kPane, 7) == 7);
     CHECK(Keymap::owner_of(KeyContext::kContext, 7) == kNoPaneKind);
-
-    // LIVE, THROUGH THE REAL PANE AND THE REAL MENU.
-    EditorRig e("edit-context-save");
-    e.open();
-    e.open_file("a.cpp", "one\n");
-    e.press_doc(0, 3);
-    REQUIRE(e.r.session().panels.keyboard == e.kind);
-    const std::string doc_path = (e.root / "doc.json").generic_string();
-    e.r.host.document_path = doc_path;
-    // THE CONTEXTUAL MENU, OPENED OVER THE PANE THE KEYS BELONG TO.
-    e.r.right_press_cell(2, 2);
-    REQUIRE(e.r.session().context.open);
-    e.r.key(input::scan::kS, input::mod::kCtrl);
-    CHECK(std::filesystem::exists(doc_path)); // the object document was written
-    CHECK(e.clean());                         // ...and the SOURCE was not touched
-    CHECK(e.read("text") == "one\n");
 }
 
 TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that action's key") {
     constexpr std::int64_t kSomePane = kFirstRuntimeKind;
     // ⚔ THE DEFECT: the collision law exempted only the superseding ROW, though dispatch
-    // suppresses the host action throughout the pane. So `editor.save` on `ctrl+e` beside
-    // `editor.newline` on `ctrl+s` -- which the keymap before all this accepted -- was
-    // refused, and a rejoin then dropped the pane's whole action set.
+    // suppresses the owned action throughout the pane. So `editor.save` on `ctrl+e` beside
+    // `editor.newline` on `ctrl+s` was refused, and a rejoin then dropped the pane's whole action
+    // set. Pinned over the object document's save until that retired; the owned action is an
+    // application row above every mode now, which a pane stands in for by the same declaration.
+    const std::vector<AppRow> app{
+        AppRow{"desktop.terminal", "terminal", Gesture{input::scan::kT, input::mod::kCtrl}, 0},
+        AppRow{"desktop.panes", "panes", Gesture{input::scan::kP, input::mod::kCtrl}, 0}};
     Keymap k;
-    const Gesture save = k.gesture_of(Act::kSaveDocument);
+    REQUIRE(join_app_rows(k, app).accepted);
+    const Gesture term{input::scan::kT, input::mod::kCtrl};
     std::vector<v2::PaneActionRow> rows;
-    rows.push_back(v2::PaneActionRow{"x.save", "save source", input::scan::kE, input::mod::kCtrl,
-                                     std::string(kOwnableDocumentSave)});
+    rows.push_back(v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
+                                     input::mod::kCtrl, "desktop.terminal"});
     rows.push_back(
-        v2::PaneActionRow{"x.newline", "newline", save.scancode, save.modifiers, std::string()});
+        v2::PaneActionRow{"x.newline", "newline", term.scancode, term.modifiers, std::string()});
     const Written joined = join_pane_rows(k, kSomePane, rows);
     CHECK_MESSAGE(joined.accepted, joined.refusal);
     REQUIRE(k.pane_rows(kSomePane) != nullptr);
     CHECK(k.pane_rows(kSomePane)->rows.size() == 2);
-    // BOTH ROWS RESOLVE, and the host's row is stood down for the whole pane.
-    REQUIRE(k.pane_action_for(kSomePane, save.scancode, save.modifiers) != nullptr);
-    CHECK(k.pane_action_for(kSomePane, save.scancode, save.modifiers)->id == "x.newline");
-    CHECK(k.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers, kSomePane) ==
-          Act::kNone);
-    // A GENUINE COLLISION IS STILL REFUSED: `^o` is a row this pane did not say it owns.
+    // BOTH ROWS RESOLVE, and the application's row is stood down for the whole pane.
+    REQUIRE(k.pane_action_for(kSomePane, term.scancode, term.modifiers) != nullptr);
+    CHECK(k.pane_action_for(kSomePane, term.scancode, term.modifiers)->id == "x.newline");
+    CHECK_FALSE(k.app_row_active(*k.app_row_of_id("desktop.terminal"), KeyContext::kPane,
+                                 kSomePane));
+    // A GENUINE COLLISION IS STILL REFUSED: `^p` is a row this pane did not say it owns.
     Keymap other;
-    const Gesture keys = other.gesture_of(Act::kOpenDocument);
+    REQUIRE(join_app_rows(other, app).accepted);
     std::vector<v2::PaneActionRow> clash;
-    clash.push_back(v2::PaneActionRow{"x.save", "save source", input::scan::kE, input::mod::kCtrl,
-                                      std::string(kOwnableDocumentSave)});
-    clash.push_back(
-        v2::PaneActionRow{"x.keys", "keys", keys.scancode, keys.modifiers, std::string()});
+    clash.push_back(v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
+                                      input::mod::kCtrl, "desktop.terminal"});
+    clash.push_back(v2::PaneActionRow{"x.keys", "keys", input::scan::kP, input::mod::kCtrl,
+                                      std::string()});
     const Written refused = join_pane_rows(other, kSomePane, clash);
     CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == collision_sentence(keys, "document.open", "x.keys"));
+    CHECK(refused.refusal.find("desktop.panes") != std::string::npos);
+    CHECK(refused.refusal.find("x.keys") != std::string::npos);
     CHECK(other.pane_rows(kSomePane) == nullptr); // and nothing was written
 }
 
@@ -4709,13 +4662,13 @@ public:
     }
 };
 
-/// A STRANGER GRANTED THE QUIT QUESTION, THE HOST'S WAKE-UP AND A DOCUMENT ASK -- and taking no
+/// A STRANGER GRANTED THE QUIT QUESTION, THE HOST'S WAKE-UP AND AN INVENTORY ASK -- and taking no
 /// answer -- so the cases below prove what Workshop and the watch refuse and not what the bus
 /// does. It says what `next` says, inside its own delivery.
 class QuitForger
     : public loom::WeaveBase<QuitForger, SeenState, loom::Accept<SeatDo>,
                              loom::Emit<PaneQuitRequested, QuitDeliveryRefusalNoted,
-                                        DocumentActRequested>> {
+                                        PaneInventoryRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
     void on(const SeatDo&, loom::Mail& mail) {
@@ -4943,7 +4896,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     loom::Grant forge;
     forge.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     forge.allow_to_any(QuitDeliveryRefusalNoted::zen_name, QuitDeliveryRefusalNoted::zen_version);
-    forge.allow_to_any(DocumentActRequested::zen_name, DocumentActRequested::zen_version);
+    forge.allow_to_any(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
     const loom::WeaveId forger_id = e.r.bus.register_weave(std::move(forger_seat),
                                                            std::move(forge),
                                                            std::string(kQuitForgerOffice));
@@ -4975,7 +4928,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
             ++foreign_quit_refused;
         }
         if (ev.sender == workshop && ev.target == forger_id &&
-            ev.schema_name == DocumentActed::zen_name &&
+            ev.schema_name == PaneInventory::zen_name &&
             ev.refusal.reason == loom::RefusalReason::NotAccepted) {
             ++echoed_answer_refused;
         }
@@ -5001,10 +4954,9 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     // 3. WORKSHOP'S OWN ANSWER OF ANOTHER SHAPE, echoing the live ask's number: the stranger asks
-    // the document door with it, and does not take the answer, so Loom refuses Workshop's reply.
+    // the inventory door with it, and does not take the answer, so Loom refuses Workshop's reply.
     forge_next([workshop, live](loom::Mail& mail) {
-        (void)mail.as_role(kQuitForgerOffice)
-            .send(workshop, DocumentActRequested{kDocumentSelect, 0, 0, std::string()}, live);
+        (void)mail.as_role(kQuitForgerOffice).send(workshop, PaneInventoryRequested{}, live);
     });
     e.settle();
     CHECK(echoed_answer_refused == 1);

@@ -57,18 +57,18 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-05 — Every cell a slot gains is paint and pointer alike
 
-LAW — The frame painter fills the whole rectangle, occupancy owns all of it, and a press inside it is answered with the panel's sentence rather than reaching the workspace.
+LAW — The frame painter fills the whole rectangle, occupancy owns all of it, and a press inside it is answered with the panel's sentence rather than reaching the bare room.
 
 MEANS
-- a drag begun on the workspace still walks under the panel and releases normally;
+- a press on a panel begins nothing, so a hand that leaves it drags nothing;
 - `room_w > kStackW` implies `x + w < room_w`: columns of the panel's rows stay reachable.
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `paint_panel_frame`; `workshop/screen_chrome.cpp`
-`occupied_at`; `workshop/screen_gestures.cpp` `take_hold`; `workshop/screen.hpp` `kNoKind`,
-`Occupancy::what`; `workshop/weave_pointer.cpp` `on(PointerMoved)`;
-`tests/test_workshop_screen.cpp` case `"WIND-1: the columns the panel took are its own, and the
-band is the maker's"`, case `"a gesture that began on the workspace is not interrupted by a
-panel"`, case `"a visible panel occupies the pointer space it covers"`.
+`occupied_at`; `workshop/screen.hpp` `kNoKind`, `Occupancy::what`; `workshop/weave_pointer.cpp`
+`on(PointerMoved)`; `tests/test_workshop_screen.cpp` case `"WIND-1: the columns the panel took
+are its own, and the band is the maker's"`, case `"a press that lands on a panel begins nothing,
+so a hand that leaves it drags nothing"`, case `"a visible panel occupies the pointer space it
+covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot

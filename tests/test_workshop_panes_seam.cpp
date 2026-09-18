@@ -1808,22 +1808,22 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y + panel.h)
               .kind == kNoKind);
 
-    // THE PRESS IS THE PANE'S, WHATEVER ELSE HAPPENS TO IT. Nothing under the pane is
-    // selected, nothing begins a drag, and that is unchanged since PNL-2 -- SEL-0 moved
-    // where a press GOES, never whether a pane swallows one.
+    // THE PRESS IS THE PANE'S, WHATEVER ELSE HAPPENS TO IT: it selects the pane, and nothing
+    // behind the pane is reached -- unchanged since PNL-2, and SEL-0 moved where a press GOES,
+    // never whether a pane swallows one. (What stood behind a pane was the prototype object
+    // canvas, whose objects a press could take hold of, until that canvas retired.)
     //
     // ⚠ THE POSITION IS A TERMINAL POSITION, and this case used to get that wrong: it
     // published `{panel.x, panel.y}` in `space::kCells`, which the medium's own inverse
     // reads as canvas row `panel.y - kTuiCanvasTopRow` -- two rows ABOVE the pane. The
     // press it asserted about never touched the panel, so the assertion held for a
     // reason that had nothing to do with the claim.
-    const std::int64_t before = r.session().selected;
     r.press_cell(panel.x, panel.y);
-    CHECK_FALSE(r.session().drag.active);
-    CHECK(r.session().selected == before);
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().notice != "nothing there");
     r.press_cell(panel.x + 1, panel.y + 1);
-    CHECK_FALSE(r.session().drag.active);
-    CHECK(r.session().selected == before);
+    CHECK(r.session().panels.selected == kind);
+    CHECK(r.session().notice != "nothing there");
 }
 
 TEST_CASE("a read-only pane that ignores presses is unchanged by SEL-0") {
@@ -1845,7 +1845,7 @@ TEST_CASE("a read-only pane that ignores presses is unchanged by SEL-0") {
         r.press_cell(body.x + 2, body.y + kExternalHeaderRows + row);
     }
     CHECK(external_rows(r.last_canvas(), body) == before);
-    CHECK_FALSE(r.session().drag.active);
+    CHECK(r.session().notice != "nothing there"); // the presses were the pane's, not the room's
 }
 
 // ---- Lifecycle, and the exact limit of what silence proves --------------------------

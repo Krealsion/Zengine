@@ -183,7 +183,7 @@ TEST_CASE("WIND-2: a refused VALUE writes nothing, on either axis") {
 
     // THE VALUE DOORS ARE ATOMIC WHOLE. `author_pane_place`/`author_pane_size` take one
     // stated value and judge it as one thing -- a proposal wrong anywhere writes nothing
-    // at all, `doc::move`/`doc::resize`'s law verbatim. This is deliberately NOT the
+    // at all, the law the object document's move and resize kept. This is deliberately NOT the
     // gesture door's law: a HAND's axes settle independently through
     // `author_pane_window` (WUX-2a), but a value stated as one thing is refused as one.
     CHECK_FALSE(author_pane_place(s, builder, 4, -1).accepted);
@@ -368,7 +368,6 @@ TEST_CASE("WIND-2: a version-1 file leaves the live setup and its on-file copy u
     const std::string path = dir.file("setup.json");
     Live t;
     t.host.setup_path = path;
-    t.host.document_path = dir.file("doc.json");
 
     // A LIVE, ARRANGED, SAVED SETUP -- so a refusal has something to damage.
     name_setup(t, "Mine");
@@ -439,7 +438,6 @@ TEST_CASE("WIND-2: dirty is structural -- an inverse edit makes a setup clean ag
     const std::string path = dir.file("setup.json");
     Live t;
     t.host.setup_path = path;
-    t.host.document_path = dir.file("doc.json");
     // A PANE A MAKER MAY ARRANGE. The default setup names only Info, whose place is the
     // screen's reserved column -- so a case about a geometry edit has to open an overlay
     // pane first, which is itself the reserved-column law being visible.
@@ -606,8 +604,7 @@ TEST_CASE("WIND-2: a wholly off-room pane is off-room, recoverable, and painted 
 
     // NOTHING IS PAINTED AND NOTHING IS MET, and neither needed a branch of its own: an
     // empty rectangle contains nothing and is drawn by nobody.
-    const WorkshopDoc d = two_panels();
-    const surface::SurfaceCanvas c = paint(d, s);
+    const surface::SurfaceCanvas c = paint(s);
     for (const surface::SurfaceRect& r : all_rects(c)) {
         CHECK_FALSE((r.x == sc.w + 40 && r.y == sc.h + 40));
     }
@@ -1207,7 +1204,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
     CHECK(row->width.mode == pane_unit::kDefault);
 
     // SIZE, in the same state: a shifted arrow pulls the EXTENT, anchored at the place
-    // (`doc::resize`'s law said about a pane) -- `pull-right` widens, `pull-down`
+    // (the object document's resize law, said about a pane) -- `pull-right` widens, `pull-down`
     // heightens, and the place the arrows just authored does not move under either.
     // The other six anchors are the pointer's, on the handles themselves, and their law
     // is pinned by the pointer cases and `pane_window_proposal`'s own suite.
@@ -1489,10 +1486,9 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kPa
     CHECK(t.session().pane_editor.cursor == want_row);
     CHECK_FALSE(t.session().pane_editor.on_rows);
     // ...AND NOTHING UNDERNEATH SAW IT. `editor_press` is where a click-through would have
-    // landed, and its one visible effect on an empty editor is none -- so what is asserted
-    // is the pair that CAN move under this cell: no object was taken hold of beneath the
-    // panes, and no selection sweep began in either of them.
-    CHECK_FALSE(t.session().drag.active);
+    // landed, and its one visible effect on an empty editor is none -- so what is asserted is
+    // what CAN move under this cell: no selection sweep began in either pane. (An object beneath
+    // the panes could be taken hold of too, until the prototype canvas retired.)
     CHECK_FALSE(t.session().text_drag.active);
     // AND NO SELECTION AUTO-RAISED ANYTHING.
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->front == 0);
@@ -1971,10 +1967,10 @@ TEST_CASE("ARR-0: the one-pane scope is bound -- another pane cannot be drawn in
     CHECK_FALSE(t.session().pane_drag.active);
     CHECK(t.notice().find("arranging") != std::string::npos);
 
-    // A PRESS ON EMPTY CANVAS is the same consumed sentence -- and it reaches no object
-    // beneath, because the mode owns the pointer whole.
+    // A PRESS ON EMPTY CANVAS is the same consumed sentence -- the mode owns the pointer whole,
+    // so the room's own "nothing there" is not said.
     t.press_canvas(60, 30);
-    CHECK_FALSE(t.session().drag.active);
+    CHECK_FALSE(t.session().pane_drag.active);
     CHECK(t.notice().find("arranging") != std::string::npos);
 
     // AND THE BOUND PANE ANSWERS BOTH MANIPULATIONS DIRECTLY: its body moves it...

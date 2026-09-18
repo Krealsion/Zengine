@@ -930,7 +930,8 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # population -- and both are about it being presented to the machine as one indivisible
 # job. So the file was cut along the seams its own headings already had:
 #
-#   workshop_document      the authored material and the maker's hands on it
+#   workshop_document      the typed rows, the keymap, and Workshop's own text boxes (the name is
+#                          the object document's, which the suite held until it retired)
 #   workshop_screen        composition and geometry -- what is painted where
 #   workshop_panels        the panels Workshop ships, and the attention surface
 #   workshop_panes         the external pane seam, from both sides

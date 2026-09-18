@@ -49,8 +49,8 @@ PROVEN BY — `workshop/screen_arrange.cpp` `keyboard_context`, `keyboard_contex
 `workshop/keymap.hpp` `context_takes_text`, `KeyContext`; `workshop/weave_seam.cpp`
 `paste_owner_now`; `workshop/weave_handlers.cpp` `on(KeyPressed)`; `workshop/weave_pointer.cpp`
 `on(TextEntered)`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: every Workshop mode owns
-the keyboard above a focused pane"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: one
-physical ^s is the document's save or the source's, by who holds the keys"`;
+the keyboard above a focused pane"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: ^s
+is the Editor's save while it holds the keys, and the host answers ^s nowhere"`;
 `tests/test_workshop_document.cpp` case `"KEY-0: the effective keymap lists every place a key is
 answered, and marks the text box's keys as nobody's to move"`.
 WHY — `agents/decisions/one-binding-truth.md`
@@ -70,8 +70,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
 
 MEANS
-- `workshop.terminal`, `workshop.hotkeys` are global; `workshop.quit` (`^c`) is `kNoText`;
-- `document.save` (`^s`) and `document.open` (`^o`) are `kUnlessOwned`;
+- the host's one row above a mode is `workshop.quit` (`^c`, `kNoText`); the launches are an app's;
+- ⭐ `kGlobal` and `kUnlessOwned` hold no host row since `^s`/`^o` retired; the classes stand;
 - `Keymap::row_active` is the one answer for all three; every view spends it.
 
 DOES NOT MEAN
@@ -79,9 +79,9 @@ DOES NOT MEAN
 - ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared (VD-26).
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
-`KeyContext::kUnlessOwned`, `Keymap::above_mode_action`, `workshop.quit`, `document.save`;
+`KeyContext::kUnlessOwned`, `Keymap::above_mode_action`, `workshop.quit`;
 `workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W3: one physical ^s is the document's save or the source's, by who holds the keys"`;
+`"EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere"`;
 `tests/test_workshop_document.cpp` case `"TEXT-0: ^c still quits exactly where nothing takes
 text"`; `tests/test_workshop_panes_input.cpp` case `"MSG-0: the keys that mean the same thing in
 every mode still outrank a pane"`.
@@ -92,19 +92,20 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — An action's identity is kept across migrations; a retired id's authored row is preserved byte-for-byte, and applied when something declares it or, for a renamed id, its successor.
 
 MEANS
-- `workshop.terminal` and `workshop.hotkeys` are read as `desktop.` ids, said at load;
+- a renamed id is read as its successor; a retired one (the canvas's) is kept, said, unanswered;
 - a row that left this host for a PANE keeps its id, so the maker's override moves with it;
 - reusing one gesture across mutually exclusive contexts is legal.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.next`,
 `manage.previous`, `workshop.manage`, `AuthoredOverride`, `contexts_intersect`, `RenamedAction`,
-`kRenamedActions`, `renamed_to`, `join_app_rows`; `workshop/weave_handlers.cpp` `load_keymap`;
-`tests/test_workshop_document.cpp` case `"KEY-0: an override for an unknown action survives with
-its intent whole"`, case `"KEY-0: reusing one gesture across mutually exclusive contexts is
-legal"`; `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a maker's authored override
-for a retired Workshop id keeps working"`; `tests/test_workshop_panes_actions.cpp` case `"a
-keymap row written for an id whose owner changed is read as its successor, once, and the load
-says which rename to make"`.
+`kRenamedActions`, `renamed_to`, `RetiredAction`, `kRetiredActions`, `retired_with`,
+`join_app_rows`; `workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp`
+case `"KEY-0: an override for an unknown action survives with its intent whole"`, case `"KEY-0:
+reusing one gesture across mutually exclusive contexts is legal"`, case `"KEY-0: a retired id in
+a maker's file is kept and said, and nothing answers it"`; `tests/test_workshop_panes_builder.cpp`
+case `"BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working"`;
+`tests/test_workshop_panes_actions.cpp` case `"a keymap row written for an id whose owner changed
+is read as its successor, once, and the load says which rename to make"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences
@@ -124,19 +125,20 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-08 — Admission refuses, naming what a maker can fix
 
-LAW — Refused: a gesture outside the grammar on a known action, an action authored twice, a same-context collision over the effective map, a bare printable or a component chord on a global.
+LAW — Refused: a gesture outside the grammar on a known action, an action authored twice, a same-context collision over the effective map, a bare printable or a component chord above every mode.
 
 MEANS
 - an unknown action's row is preserved unjudged;
 - a known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
 
 PROVEN BY — `workshop/keymap.hpp` `posix_gap`, `contexts_intersect`, `component_owns_gesture`,
-`apply_overrides`, `AuthoredOverride`; `workshop/keymap_persist.hpp` `from_text`;
-`workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp` case `"KEY-0: a
-same-context collision is refused naming both actions and the gesture"`, case `"KEY-0: a gesture
-outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a global action cannot
-take a bare printable or the editing vocabulary"`, case `"KEY-0: a known backend gap is accepted
-and said, never silently rewritten"`.
+`apply_overrides`, `AuthoredOverride`, `join_app_rows`; `workshop/keymap_persist.hpp`
+`from_text`; `workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp`
+case `"KEY-0: a same-context collision is refused naming both actions and the gesture"`, case
+`"KEY-0: a gesture outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a
+known backend gap is accepted and said, never silently rewritten"`;
+`tests/test_workshop_panes_actions.cpp` case `"an application row answered above every mode
+cannot take a bare printable or a chord the text box owns, whoever wrote it"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
@@ -220,7 +222,7 @@ LAW — A pane declares rows beside its offer, in either published version; Work
 
 MEANS
 - input's OWNER is the pane's handle only while the resolved context is that pane's;
-- a v2 row may name one `kUnlessOwned` action it owns: it is inactive throughout the pane;
+- a v2 row may name an application row it stands in for; a retired id (`^s`) stands for nothing;
 - a refusal keeps the previous rows; a file's load re-joins every pane and withdraws the loser.
 
 DOES NOT MEAN
@@ -244,9 +246,9 @@ and a refusal writes nothing"`, case `"a declared gesture arrives as the resolve
 undeclared one as the key; typing still crosses raw"`, case `"the keymap file wins: a pane whose
 rows its bindings collide with is refused in words, in both orders"`, case `"a pane built against
 the published version one still registers, declares and dispatches"`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W62: the object document's save belongs to
-every context that is not the pane's own"`, case `"EDIT-W63: a pane that owns one action may put
-its other rows on that action's key"`.
+`tests/test_workshop_panes_editor.cpp` case `"EDIT-W62: an application row a pane stands in for
+belongs to every context that is not the pane's own"`, case `"EDIT-W63: a pane that owns one
+action may put its other rows on that action's key"`.
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## Do not assume
