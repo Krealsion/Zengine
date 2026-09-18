@@ -1720,9 +1720,14 @@ workshop_screen                   doctest           always  129
 #                                 Creator's answer is read against its own act, draft and name --
 #                                 a paste, a second Return, typed text, a cancel and a newer
 #                                 draft crossing it in one poll.
+#   workshop_panes    607 -> 612  the review after them: a Pane Creator act Loom refuses at
+#                                 dispatch, or that nothing could queue, is released and tried
+#                                 afresh while delivered silence still waits, a forged notice
+#                                 settles nothing and the host's denial is said per attempt; and
+#                                 Info keeps a lost list choice lost across its own replacement.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  607
+workshop_panes                    doctest           always  612
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
