@@ -154,8 +154,9 @@ and points at `B`, which is the gesture that builds *and* loads a named artifact
 
 ## Using it
 
-Open the pane with **`p`** → `Builder` → `Enter`, then **press into it**. The Builder is a pane
-like any other and its keys are its own: they act while your typing is pointed at it, and from
+Open the pane from the Pane Manager — **`Ctrl`+`p`**, move to `Builder`, `Enter` — and it opens,
+or comes forward, with your keys in it. The Builder is a pane like any other and its keys are its
+own: they act while your typing is pointed at it, and from
 anywhere else they do nothing. Nothing builds by default from across the desk.
 
 | key | does |

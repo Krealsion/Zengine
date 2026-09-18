@@ -232,10 +232,9 @@ TEST_CASE("two setups are the same setup when they name the same panes in the sa
     b.name = "Analysis";
     CHECK_FALSE(a == b);
 
-    // ...AND SO IS THE ORDER. Today's two built-ins occupy different places so
-    // the order changes no rectangle; the value still distinguishes them,
-    // because the day a second kind is placed in the stack the order IS which
-    // slot each one takes (`bounds_of`).
+    // ...AND SO IS THE ORDER. The two stand-ins here share the stack, so the
+    // order IS which slot each one takes (`bounds_of`); the value distinguishes
+    // them whether or not the order moves a rectangle.
     const Setup other_way = setup_of("Build", {stock::kKind, second::kKind});
     CHECK_FALSE(a == other_way);
 }

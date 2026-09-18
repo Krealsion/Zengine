@@ -65,10 +65,11 @@ inline constexpr const char* kBuilderPaneRole = "zengine.builder-pane";
 /// under `zengine.workshop`; the conversion moves the office and keeps the key.
 inline constexpr const char* kBuilderPane = "builder";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
-/// office. Bounded by Workshop's admission law before a byte is retained -- a name at 32
-/// bytes, a summary at 64 -- and written short deliberately, inside the ten cells the
-/// picker's name column actually shows. They are the built-in's own two lines, unchanged.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office.
+/// Bounded by Workshop's admission law before a byte is retained -- a name at 32 bytes, a
+/// summary at 64 -- and written short deliberately, to the ten cells the retired picker's
+/// name column showed. They are the built-in's own two lines, unchanged.
 inline constexpr const char* kBuilderPaneName = "Builder";
 inline constexpr const char* kBuilderPaneSummary = "build a chosen recipe";
 

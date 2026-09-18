@@ -6,8 +6,10 @@ goes from what is actually on the bus.
 
 ## Opening the pane, and what it is
 
-The Terminal is an ordinary pane. Press **`p`**, choose **Terminal**, press Return, then press
-into it — its keys are its own only while it holds the keyboard, exactly like every other pane.
+The Terminal is an ordinary pane. Press **`Ctrl`+`t`** — from anywhere, even inside another
+pane — and it opens, or comes forward, with your keys in it (the Pane Manager's `Terminal` row
+does the same). Its keys are its own only while it holds the keyboard, exactly like every other
+pane.
 
 What you are looking at is **one participant on this Workshop's own bus**: a weave with its own
 identity, its own vocabulary and its own narrow authority. You type a line; it authors the

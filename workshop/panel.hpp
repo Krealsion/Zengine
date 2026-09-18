@@ -153,7 +153,8 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // are `Zengine/editor-pane/`'s now: the weave holds the one open source, and a maker's
     // desk names it as `zengine.editor/editor` (converted from the built-in's spelling at
     // load, `pane_migration.hpp`). What this catalog keeps is exactly what the host still
-    // presents itself: its own standing identity, and the manager of every pane.
+    // presents itself: its own standing identity. (The manager of every pane was the other row,
+    // until it became the desktop's -- below.)
     // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW. Until this row existed
     // the layout run, the Setup association and the workspace fact were painted by `paint`
     // into a rectangle nothing could name: not in the picker, not in a setup file, not in
@@ -381,9 +382,10 @@ struct RuntimePane {
 /// silently move the other, which is the shape of a bound that stops meaning
 /// anything.
 ///
-/// Thirty-two against two built-ins leaves thirty distinct runtime `PaneRef`s. It
-/// is four times the tallest picker this composition could show, which is the same
-/// argument `kMaxSetupPanes` is chosen by, and it bounds what a chatty or
+/// Thirty-two against the one built-in left (Layouts) leaves thirty-one distinct
+/// runtime `PaneRef`s. It is four times the tallest picker this composition could
+/// show -- the retired list it was chosen against, and the same argument
+/// `kMaxSetupPanes` is chosen by -- and it bounds what a chatty or
 /// malicious provider can make this session hold to a few kilobytes.
 // WL-CAT-04 -- agents/workshop/catalog.md
 inline constexpr std::size_t kMaxPaneCatalogEntries = 32;

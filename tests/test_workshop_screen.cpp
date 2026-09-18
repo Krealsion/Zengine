@@ -824,7 +824,7 @@ char cell_seen_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t 
 TEST_CASE("WIND-2a: an overlapping pane is painted where it is hit, in both front orders") {
     // ⭐ REWRITTEN OVER TWO PANES THAT STILL EXIST. It was the Builder over Info, and the one
     // cell they could both claim had to be AUTHORED because the side region was reserved and
-    // the stack's slots were disjoint. Both built-ins share the stack now, so the overlap is
+    // the stack's slots were disjoint. Both stand-ins share the stack, so the overlap is
     // authored the same way and the claim is unchanged: what the hand meets is what the eye
     // reads, in either front order.
     Session s;

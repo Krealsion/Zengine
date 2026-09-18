@@ -58,8 +58,9 @@ inline constexpr const char* kInfoPaneRole = "zengine.info";
 /// under `zengine.workshop`; the conversion moves the office and keeps the key.
 inline constexpr const char* kInfoPane = "info";
 
-/// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
-/// office. They are the built-in's own two lines, unchanged.
+/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// summary in Info -- and what Workshop's pane header says after the office. They are the
+/// built-in's own two lines, unchanged.
 inline constexpr const char* kInfoPaneName = "Info";
 inline constexpr const char* kInfoPaneSummary = "the panes, and one pane's properties";
 

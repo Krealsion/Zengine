@@ -112,7 +112,7 @@ Four directories take part, and each has one job:
 | the **checkout** | the source you edit | you, through the Editor |
 | the **build tree** — `cmake-build-debug`, or `Zengine/build` | everything CMake builds, each pane target in its own directory, the launch in `workshop/` | `b` in the Builder, CLion's build before a Run, and any `cmake --build` of yours |
 | the **runtime** — `workshop-runtime` in the build tree | the Workshop that runs: the host, every artifact it loads, both load plans and both recipe catalogs, copied once | the launch makes it; a reload copies into it and a promotion writes it; no build does |
-| the **project directory** — `workshop-project` in the build tree | Workshop's project files: the document, setups, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
+| the **project directory** — `workshop-project` in the build tree | Workshop's project files: setups, a pane you made, and any plan or recipes you author ([arguments](getting-started.md#arguments)) | Workshop, when you save |
 
 Configuring writes two files beside the host, in the build tree's `workshop/` directory (under a
 multi-config generator, in a directory per configuration, with a runtime per configuration too):
@@ -300,6 +300,7 @@ The development catalog holds a recipe for each pane weave Zengine ships:
 |---|---|---|
 | `zengine-attention-pane` | Attention | `attention-pane/pane.cpp` |
 | `zengine-builder-pane` | Builder | `builder-pane/pane.cpp` |
+| `zengine-desktop-pane` | the desktop: the Pane Manager, Hotkeys, the room's floor and the keys that work anywhere | `desktop-pane/pane.cpp` |
 | `zengine-editor-pane` | Editor | `editor-pane/pane.cpp` |
 | `zengine-neovim-editor` | Neovim (the Editor, when you switch to it) | `neovim-editor/pane.cpp` |
 | `zengine-files` | Files | `files/files.cpp` |
@@ -309,8 +310,8 @@ The development catalog holds a recipe for each pane weave Zengine ships:
 | `zengine-composer` | Compose | `composer/composer.cpp` |
 
 **Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
-and the two operator providers are what every pane stands on, and Workshop's own panels (Layouts,
-Pane Manager) are part of the host — `edit code` on one says so. Changing any of those is an
+and the two operator providers are what every pane stands on, and Workshop's own panel (Layouts)
+is part of the host — `edit code` on it says so. Changing any of those is an
 ordinary rebuild, a new runtime and a relaunch.
 
 **Whether a rebuilt pane reloads is decided at the reload**, by the same owner that decides it for

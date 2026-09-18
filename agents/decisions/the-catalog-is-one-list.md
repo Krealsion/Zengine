@@ -40,5 +40,9 @@ rather than a pointer into a row that may move. The setup a maker saves holds th
 a reference and never a row of the catalog; a fresh Workshop starts with an empty runtime catalog
 and earns every row again from a live offer.
 
+**Since.** The picker retired. The one list is the inventory Workshop publishes and the
+desktop's Pane Manager reads (`PaneInventory`, WL-DESK-04) — the same union, in the same order,
+never a second inventory. With one built-in left, the bound leaves thirty-one runtime references.
+
 **Laws supported.** [WL-CAT-01](../workshop/catalog.md), [WL-CAT-03](../workshop/catalog.md),
 [WL-CAT-04](../workshop/catalog.md), [WL-CAT-05](../workshop/catalog.md).

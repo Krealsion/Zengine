@@ -61,7 +61,7 @@ an `E282: Cannot read from "User"` message — a third configuration you did not
 
 ## Switch while you work
 
-Open the **Terminal** pane from the picker (`p`), press into its line, and type:
+Open the **Terminal** (`Ctrl`+`t`) — your keys land in its line — and type:
 
 ```text
 ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim

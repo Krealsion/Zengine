@@ -40,7 +40,8 @@ namespace zengine::neovim_editor {
 inline constexpr const char* kEditorOffice = "zengine.editor";
 inline constexpr const char* kEditorPane = "editor";
 
-/// WHAT THE PICKER AND THE PANE HEADER SAY while this implementation holds the office.
+/// WHAT THE PANE MANAGER, INFO AND THE PANE HEADER SAY while this implementation holds the
+/// office.
 inline constexpr const char* kPaneName = "Neovim";
 inline constexpr const char* kPaneSummary = "edit a source file in Neovim";
 

@@ -60,9 +60,15 @@ does nothing, Escape sheds no selection, and the floor is empty. That is the hon
 replaceable shell and it is diagnosable from three surfaces at once — the boot's own stdout, the
 standing conditions the Attention pane lists, and the launcher's `[gone]` rows. Every suite that
 asserts the deselect now supplies the declarer, which is stronger evidence than the line it
-replaced: it exercises the whole relocated path. The `p` picker and the object canvas are still
-standing; their retirement waits on Info gaining a real pane subject, which is the arc's other
-half.
+replaced: it exercises the whole relocated path. The `p` picker and the object canvas were
+still standing when this was decided; their retirement waited on Info gaining a real pane
+subject, which was the arc's other half.
+
+**Since.** Both retired in the continuation. Info gained a pane subject (WL-INFO-14, WL-INFO-15);
+the object canvas and its document went, and an old document is named once and left (WL-DOC-22);
+the picker went with the host's own Pane Manager, whose duties the desktop's Pane Manager
+presents — launching, closing (WL-DESK-12) and making a pane (WL-MAKER-11) — while its Hotkeys
+pane presents the effective keymap (WL-DESK-11).
 
 **Laws supported.** [WL-DESK-01](../workshop/desktop.md),
 [WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),

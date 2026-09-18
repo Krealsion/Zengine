@@ -138,8 +138,8 @@ It needs a terminal at least **78x22**. For the windowed build, pass the graphic
 ./Zengine/build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json
 ```
 
-`p` opens the pane picker, `w` manages pane geometry, `q` quits. See
-[docs/workshop/getting-started.md](docs/workshop/getting-started.md).
+`Ctrl`+`p` opens the Pane Manager (open, close or make a pane), `Ctrl`+`t` the Terminal, `w`
+arranges the desk, `q` quits. See [docs/workshop/getting-started.md](docs/workshop/getting-started.md).
 
 ## Where to go next
 

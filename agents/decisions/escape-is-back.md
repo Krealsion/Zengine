@@ -53,7 +53,8 @@ fourth writer of `Panels::selected`. A pane that takes text keeps Escape unless 
 the Terminal sheds its list, then its line, then itself, and the two editors keep every Escape, so
 the way out of them is the way in -- press a pane that takes no text (every desk has Layouts) or
 the workspace. A pane whose holder takes no keys at all is put down by Escape where it used to
-swallow it at Loom's gate. The picker remains how presence changes.
+swallow it at Loom's gate. Presence changes only through the two doors the Pane Manager spends
+(WL-DESK-03, WL-DESK-12); the picker was that door when this was decided.
 
 **Laws supported.** [WL-ARR-13](../workshop/arrangement.md),
 [WL-ARR-14](../workshop/arrangement.md), [WL-ARR-15](../workshop/arrangement.md),
