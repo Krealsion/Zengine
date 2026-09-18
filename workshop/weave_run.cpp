@@ -67,6 +67,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     publish_inventory(mail);
     // ...AND THE EFFECTIVE KEYMAP, to whoever presents keys (WL-DESK-11), on the same terms.
     publish_keymap(mail);
+    publish_pane_subject(mail);
     // ...AND WHAT THE OBJECT DOCUMENT LOOKS LIKE, to whoever is listing it. The workspace
     // plane below draws the same document; this is the same truth in the form a pane can
     // read, said on the same beat and by the same rule.

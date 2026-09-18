@@ -74,6 +74,8 @@
 // v1 stays exactly what it was for select, create and delete, and a v1 `commit`, which can
 // name no subject, is refused in words and writes nothing: there is no target to invent for it.
 
+#include "inspection_seam_vocabulary.hpp" // `ShownProperty`
+
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
@@ -92,19 +94,8 @@ struct ShownObject {
     ZEN_SHAPE(ShownObject, 1, ZEN_FIELD(identity), ZEN_FIELD(name));
 };
 
-/// ONE INSPECTOR ROW, AS THE PANEL SHOWED IT.
-///
-/// `value` is a FRESH READ through the property at the moment the host derived this picture
-/// -- there is no cached copy on either side to go stale, which is the same property
-/// `Row::value()` has always had, said one seam out.
-struct ShownProperty {
-    std::string label;
-    std::string value;
-    bool editable = false; ///< false for a derived row (a resolved size, a count)
-    bool section = false;  ///< a heading inside the list: a label, no value, never editable
-    ZEN_SHAPE(ShownProperty, 1, ZEN_FIELD(label), ZEN_FIELD(value), ZEN_FIELD(editable),
-              ZEN_FIELD(section));
-};
+// ONE INSPECTOR ROW (`ShownProperty`) is the inspection seam's now
+// (`inspection_seam_vocabulary.hpp`), unchanged: a pane's rows are shown in the same shape.
 
 /// WHAT THE OBJECT DOCUMENT CURRENTLY LOOKS LIKE, in the host's own order.
 ///

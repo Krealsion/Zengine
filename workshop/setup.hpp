@@ -1393,6 +1393,12 @@ struct SetupState {
     LayoutNaming naming;
     std::vector<Layout> shelved;
     std::size_t active_at = 0;
+    /// HOW MANY TIMES ANOTHER DESK HAS BEEN PUT LIVE -- a switch, a restored run, a new or a
+    /// removed live layout, a desk restored from its file. Never persisted and never compared
+    /// across runs: it is how a reader that named "this pane on this desk" learns the desk under
+    /// the name is another one (`InspectedPane::desk`), where an edit of the same desk is not.
+    // WL-INFO-14 -- agents/workshop/info-body.md
+    std::uint64_t put_live = 0;
 };
 
 /// HOW MANY LAYOUTS THIS WORKSHOP IS HOLDING, the active one included.
@@ -1445,6 +1451,7 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
     s.active_link = std::move(s.shelved[to].link);
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(to));
     s.active_at = to;
+    ++s.put_live;
     return true;
 }
 
@@ -1472,6 +1479,7 @@ inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size
     run.erase(run.begin() + static_cast<std::ptrdiff_t>(active));
     s.shelved = std::move(run);
     s.active_at = active;
+    ++s.put_live;
     return true;
 }
 
@@ -1486,6 +1494,7 @@ inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     s.active = default_setup();
     s.active_link = SetupLink{};
     s.active_at = s.shelved.size();
+    ++s.put_live;
     return true;
 }
 
@@ -1521,6 +1530,7 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
     s.active_link = std::move(s.shelved[take].link);
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
     s.active_at = take;
+    ++s.put_live;
     return true;
 }
 

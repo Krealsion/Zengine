@@ -1257,6 +1257,10 @@ int main(int argc, char** argv) {
     // `PaneRoom`'s reason -- Loom picks the recipient of an answer, it is the weave that
     // asked, and no rule written here at boot could name it.
     speak.allow_to_any(DocumentActed::zen_name, DocumentActed::zen_version);
+    // ...AND AN INSPECTOR'S PANE SUBJECT (WL-INFO-14): the picture, published and answered, and
+    // the answer to an inspect or a commit -- `to_any` for the same two reasons.
+    speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
+    speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
     // ...AND WHAT THE TERMINAL PARTICIPANT'S RECORD HOLDS, on the same terms again. It is a
     // reading of a participant THIS PROCESS mounted and holds a pointer to; publishing it
     // is not speaking as that participant, and could not be -- an identity is fixed when a

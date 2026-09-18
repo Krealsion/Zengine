@@ -7,7 +7,13 @@
 // The Info pane's DURABLE NAMES -- the office it holds, the one pane it offers, the action
 // ids its keys answer to, and the state a same-shape reload keeps.
 //
-// WHY THE OFFICE IS NOT `zengine.workshop`. This pane shows the host's own document, so the
+// WHAT IT INSPECTS. Panes: the one inventory the host says, and one pane of it as a SUBJECT the
+// maker names here -- its identity, where the desk places it, what the screen made of that, and
+// (for a pane a maker made) its region -- with a property edit written by the pane's owner
+// (`workshop/inspection_seam_vocabulary.hpp`). It inspected the prototype object document
+// before that document retired; the office, the key and the draft discipline are the same.
+//
+// WHY THE OFFICE IS NOT `zengine.workshop`. This pane shows the host's own rows, so the
 // host's office would have looked like the honest address -- and it is exactly the address a
 // migrated pane may not have: `zengine.workshop` is the host's singleton role and admission
 // refuses a pane offered by whoever holds it as a forgery (WL-CAT-03).
@@ -19,12 +25,13 @@
 //
 // ⚠ AND THIS PANE IS THE SIDE REGION, which no migrated pane has been before. Files and the
 // Builder were overlay-stack panes and Attention was chrome; `Info` is the column a maker
-// reads their objects and properties in, and it is where a fresh session's Workshop puts its
+// reads a pane's facts and placement in, and it is where a fresh session's Workshop puts its
 // own material. That is a placement, not a protocol fact -- the placement lives in the
 // catalog row Workshop mints from the offer -- but it is why this migration is felt more than
 // the other three.
 //
-// WHY THREE OF THE FIVE IDS ARE THE BUILT-IN'S AND TWO ARE NEW. `info.up`, `info.down` and
+// WHY THREE OF THE SIX IDS ARE THE BUILT-IN'S AND THREE ARE NEW (`info.switch` arrived with the
+// pane list, below). `info.up`, `info.down` and
 // `info.edit` were WORKSHOP command-mode rows and are the pane's now, spelled and defaulted
 // exactly as they were, so a maker's authored override keeps working. The draft's two --
 // commit and cancel -- could NOT keep `draft.commit` / `draft.cancel`: those rows are
@@ -38,6 +45,7 @@
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
+#include <string>
 
 namespace zengine::info_pane {
 
@@ -53,7 +61,7 @@ inline constexpr const char* kInfoPane = "info";
 /// THE TWO LINES A MAKER READS IN THE PICKER, and what Workshop's pane header says after the
 /// office. They are the built-in's own two lines, unchanged.
 inline constexpr const char* kInfoPaneName = "Info";
-inline constexpr const char* kInfoPaneSummary = "objects and properties";
+inline constexpr const char* kInfoPaneSummary = "the panes, and one pane's properties";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
 /// office is -- it is a file name, here because the host's boot plan and the suite's loader
@@ -62,9 +70,13 @@ inline constexpr const char* kInfoPaneStem = "zengine-info-pane";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
 
-inline constexpr const char* kActionUp = "info.up";     ///< the property cursor, up
+inline constexpr const char* kActionUp = "info.up";     ///< the cursor of the list with the keys, up
 inline constexpr const char* kActionDown = "info.down"; ///< ...and down
-inline constexpr const char* kActionEdit = "info.edit"; ///< open a draft on the cursor's row
+/// RETURN: on the pane list, inspect the pane under the cursor; on the properties, open a
+/// draft on the cursor's row. One id, labelled for the list it answers in.
+inline constexpr const char* kActionEdit = "info.edit";
+/// TAB: move the keys between the pane list and the subject's properties.
+inline constexpr const char* kActionSwitch = "info.switch";
 
 /// THE DRAFT'S TWO, DECLARED ONLY WHILE ONE IS OPEN (WL-FILES-16's rule): a pane is ONE
 /// keyboard context, so while a maker is typing, these two are the only rows this pane
@@ -72,26 +84,32 @@ inline constexpr const char* kActionEdit = "info.edit"; ///< open a draft on the
 inline constexpr const char* kActionCommit = "info.commit";
 inline constexpr const char* kActionCancel = "info.cancel";
 
-/// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
+/// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1): the maker's POSITION, and nothing shown.
 ///
-/// ONE FIELD, AND IT IS THE ONLY THING HERE THAT IS THE MAKER'S POSITION. Everything this
-/// pane SHOWS is the host's reading, re-said the moment it changes, so keeping a copy would
-/// make this pane a second owner of the document
-/// (`agents/decisions/a-presentation-owns-no-facts.md`).
+/// Everything this pane SHOWS is the host's reading, re-said the moment it changes, so keeping a
+/// copy would make this pane a second owner of the desk
+/// (`agents/decisions/a-presentation-owns-no-facts.md`). The subject is not here either: the
+/// host records which pane this office inspects, so a reload finds it standing.
 ///
-/// ⚠ THE CURSOR IS KEPT HERE AND WAS NOT KEPT BY THE ATTENTION PANE, and the difference is
-/// the population rather than a preference. Attention's rows are ranked by loudness and
-/// reorder wholesale when anything resolves, so an index carried across a reload would point
-/// into a list the new image has not seen. An object's properties are a stable list in a
-/// stable order -- name, context, the four extents, the resolved size -- so the row a maker
-/// was standing on is still that row, and landing them back on it is worth one integer.
+/// THE LIST CURSOR IS AN IDENTITY, NOT AN INDEX (WL-DESK-10's rule, one pane over): a pane
+/// inserted above it moves the marker with it, and a pane that left the list leaves the marker
+/// holding nothing rather than on whichever pane slid into its place. The property cursor is an
+/// index, because a pane's rows are a stable list in a stable order.
 ///
 /// AND THE DRAFT IS NOT HERE. It is work in flight, and a reload is entitled to drop it: the
 /// Builder's role line makes the same trade for the same reason. Dropping it loses only what was
-/// never written: a commit it already sent is the document's either way.
+/// never written: a commit it already sent is the owner's either way.
+///
+/// (!) VERSION 2, AND A LIVE RELOAD FROM VERSION 1 IS REFUSED (RELOAD-1): the Info that showed
+/// the object document kept one integer. A Workshop still running that image takes this one at
+/// its next launch.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the maker is on
-    ZEN_SHAPE(InfoPaneState, 1, ZEN_FIELD(cursor));
+    std::string list_office; ///< which pane the list cursor holds, by identity; both empty is
+    std::string list_pane;   ///< none
+    bool on_panes = true;    ///< the keys are in the pane list (true) or the properties
+    ZEN_SHAPE(InfoPaneState, 2, ZEN_FIELD(cursor), ZEN_FIELD(list_office), ZEN_FIELD(list_pane),
+              ZEN_FIELD(on_panes));
 };
 
 } // namespace zengine::info_pane

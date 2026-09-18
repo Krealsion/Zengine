@@ -12,6 +12,7 @@
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
 #include "document_seam_vocabulary.hpp"  // ...and how the object document does
+#include "inspection_seam_vocabulary.hpp" // ...and how a pane as an inspector's subject does
 #include "terminal_seam_vocabulary.hpp"   // ...and how the terminal participant's record does
 #include "desktop_seam_vocabulary.hpp"    // ...and the effective keymap a presenter shows
 #include "complete.hpp"
@@ -751,6 +752,26 @@ struct PaneEditor {
     bool addressed() const { return !subject.provider.empty(); }
 };
 
+/// THE INSPECTOR'S SUBJECT: a pane an inspector (Info) named, the owner's rows over it, and the
+/// name this host gives what those rows address (`inspection_seam_vocabulary.hpp`).
+///
+/// WRITTEN BY ONE DOOR (`WorkshopWeave::on(InspectPaneRequested)`) and read by the publication
+/// and the commit door; the selection, the keys, a press elsewhere and Escape never touch it.
+/// The name moves when the pane, the live desk or the rows' INTERIOR arm does
+/// (`refresh_inspected`), and nowhere else: a value, a room or a provider moving leaves it.
+/// Session, and never persisted: a subject is a fact about a maker's attention.
+// WL-INFO-14 -- agents/workshop/info-body.md
+struct InspectedPane {
+    PaneRef ref;               ///< the pane an inspector asked for; an empty provider is "none"
+    std::vector<Row> rows;     ///< the owner's rows over it (`pane_subject_rows`)
+    std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
+    std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
+    std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
+    std::int64_t region = 0;   ///< the maker region the INTERIOR rows were built over; 0: none
+
+    bool addressed() const { return !ref.provider.empty(); }
+};
+
 /// THE PANE CREATOR'S NAME PROMPT: open or not, and the line being typed.
 // WL-MAKER-11 -- agents/workshop/maker-pane.md
 struct PaneNaming {
@@ -947,6 +968,9 @@ struct Session {
     /// pane state, so that closing the editor's own presentation forgets nothing a maker
     /// chose, and never persisted, because a subject is a fact about a maker's attention.
     PaneEditor pane_editor;
+    /// THE INSPECTOR'S SUBJECT -- see `InspectedPane`. Beside the Pane Manager's and apart from
+    /// it: two readers of panes, each with the subject it chose.
+    InspectedPane inspected;
     /// THE PANE CREATOR'S NAME PROMPT -- see `PaneNaming`. A mode, beside the
     /// layout-name editor's for the same reason: a maker's hand halfway through a word.
     PaneNaming pane_naming;
@@ -2248,6 +2272,26 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
 /// through that axis's reset door for `-`.
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
                                const std::string& text);
+
+/// THE ROWS A PANE IS INSPECTED BY: its identity, then AUTHORED, then RESOLVED, then INTERIOR --
+/// every closure reading fresh, every setter an existing door (`write_pane_axis`, the
+/// definition's region doors). `manager_keys` words the Front and Open rows with the Pane
+/// Manager's own keys; an inspector that holds no such keys is told the facts alone.
+// WL-INFO-14 -- agents/workshop/info-body.md
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref, bool manager_keys);
+
+/// WHICH MAKER REGION THE INTERIOR ROWS OVER `ref` WOULD BE BUILT ON NOW -- its id, or 0 when the
+/// interior is a capture (any pane that is not an open definition with a region). The arm the
+/// rows were built with is part of what their name means.
+std::int64_t inspected_region(const Session& s, const PaneRef& ref);
+
+/// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
+/// the name of the rows and every row read fresh. Pure over the session.
+// WL-INFO-14 -- agents/workshop/info-body.md
+PaneSubjectShown pane_subject_shown(const Session& s);
+
+/// ...AND WHETHER TWO READINGS SAY THE SAME THING, every field, for the publication's gate.
+bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 
 /// THE SUBJECT'S ROWS: its identity, then AUTHORED, then RESOLVED. Every closure reads the
 std::vector<Row> pane_editor_rows(Session& s);

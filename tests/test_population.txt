@@ -1665,8 +1665,27 @@ workshop_screen                   doctest           always  169
 #                                that runs and the pane says which one, and Escape in the Neovim
 #                                pane is Neovim's with the pane still selected.
 #
+# THE DESKTOP FOUNDATION'S CONTINUATION moved five floors, each to the count measured at its
+# commit, and every decrease is a case that retired with the thing it described (the commit that
+# retired it names it and says why):
+#
+#   workshop_panes    584 -> 599  the six reviewed repairs, against the real desktop and Info
+#                                 images (`test_workshop_panes_actions.cpp`, the introspection
+#                                 source); the first pass's own desktop cases had not moved it.
+#   workshop_load     143 -> 149  an optional row the run stepped over is `unavailable`, with
+#                                 the realization's reason and next action, and the answer's
+#                                 version is chosen for the asker.
+#   workshop_panes    599 -> 601  the keys as they are in force: the floor and the Hotkeys pane
+#   workshop_document 104 -> 102  over the effective keymap, the renamed ids, the admission wall
+#   workshop_screen   173 -> 169  -- and the host's hotkey overlay retired: eight cases about its
+#                                 placement, extent, modality and context list (three document,
+#                                 four screen, one Files), one of them replaced by the
+#                                 effective-keymap case.
+#   workshop_panes    601 -> 600  Info inspects panes: five cases about the object document and
+#                                 its two controls retired, four about the pane subject arrived.
+#
 workshop_panels                   doctest           always  114
-workshop_panes                    doctest           always  601
+workshop_panes                    doctest           always  600
 workshop_persistence              doctest           always  181
 workshop_load                     doctest           always  149
 workshop_editor_switch            doctest           always  11
