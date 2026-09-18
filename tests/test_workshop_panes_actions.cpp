@@ -1967,6 +1967,99 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
     CHECK(marked_row(r).find("[open] Info") != std::string::npos);
 }
 
+TEST_CASE("a choice whose row left stays unchosen across a desktop replacement and the "
+          "publications after it: Return and x reach no neighbour, and a row chosen then is "
+          "obeyed") {
+    // MUTATION (K1): `find_cursor` clearing the keys of a choice whose row left, as the reviewed
+    // image did -- the successor reads them as never chosen and gives its marker to the pane that
+    // slid into the place: Return then hands Info the keys, and x takes it off the desk.
+    TempDir copy("desktop-lost-choice");
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    load_real_desktop(r);
+    REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
+    Session& s = const_cast<Session&>(r.session());
+    const PaneRef info{"zengine.info", "info"};
+    const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
+    REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
+
+    // THE MAKER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
+    // the desk -- and, since nothing offers it, out of the list.
+    r.key(input::scan::kP, input::mod::kCtrl);
+    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        at = rows[i].ref == ghost ? i : at;
+    }
+    REQUIRE(at < rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < at; ++i) {
+        r.key(input::scan::kDown);
+    }
+    REQUIRE(marked_row(r).find("removed-pane") != std::string::npos);
+    r.key(input::scan::kX);
+    REQUIRE_FALSE(has_pane(s.setup.active, ghost));
+    // INFO SLID INTO THE PLACE THE CHOSEN ROW HELD: the neighbour a replacement must not take.
+    REQUIRE(marked_row(r).rfind("? [open] Info", 0) == 0);
+    REQUIRE(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+
+    // AN UNCHANGED COPY OF THE DESKTOP, RELOADED THROUGH THE KERNEL -- then one publication more.
+    const std::string image =
+        copy.file(("zengine-desktop-again" +
+                   std::filesystem::path(WORKSHOP_SO_DESKTOP_PANE).extension().string())
+                      .c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_DESKTOP_PANE, image);
+    r.enqueue_reload(dp::kDesktopStem, image);
+    r.bus.drain_until_idle();
+    REQUIRE(r.load_refusals.empty());
+    CHECK(marked_row(r).rfind("? ", 0) == 0);
+    CHECK(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+    ProviderSeat* tools = r.mount_provider("zengine.test.tools");
+    r.drive(tools, [](ProviderSeat& p, loom::Mail& m) {
+        p.offer(m, PaneOffered{"tool", "Tool", "a publication after the replacement"});
+    });
+    CHECK(marked_row(r).rfind("? ", 0) == 0);
+    CHECK(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+
+    // RETURN AND x, WITH THE PANE MANAGER HOLDING THE KEYS: the keys stay, and the desk is as it was.
+    r.key(input::scan::kP, input::mod::kCtrl);
+    const RuntimePane* manager = s.panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    const RuntimePane* inspector = s.panels.runtime.find(info.provider, info.pane);
+    REQUIRE(manager != nullptr);
+    REQUIRE(inspector != nullptr);
+    REQUIRE(s.panels.keyboard == manager->kind);
+    const std::vector<SetupPane> desk = s.setup.active.panes;
+    r.key(input::scan::kReturn);
+    CHECK(s.panels.keyboard == manager->kind);
+    CHECK(s.setup.active.panes == desk);
+    CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
+    r.key(input::scan::kX);
+    CHECK(has_pane(s.setup.active, info));
+    CHECK(s.setup.active.panes == desk);
+    CHECK(launcher_text(r).find("x closed nothing") != std::string::npos);
+
+    // A ROW THE MAKER CHOOSES NOW IS THE CHOICE, and Return obeys it.
+    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
+    std::size_t info_at = now.size();
+    for (std::size_t i = 0; i < now.size(); ++i) {
+        info_at = now[i].ref == info ? i : info_at;
+    }
+    REQUIRE(info_at < now.size());
+    for (std::size_t i = 0; i < now.size(); ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (std::size_t i = 0; i < info_at; ++i) {
+        r.key(input::scan::kDown);
+    }
+    REQUIRE(marked_row(r).rfind("> [open] Info", 0) == 0);
+    r.key(input::scan::kReturn);
+    CHECK(s.panels.keyboard == inspector->kind);
+}
+
 TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, and only for the "
           "attempt it is waiting on") {
     TempDir dir("desktop-own-verdict");
@@ -2030,6 +2123,57 @@ struct CreatorRig {
         r.extent(160, 48);
         load_real_desktop(r);
     }
+};
+
+/// A KEY OR TYPED TEXT QUEUED AND NOT DISPATCHED. Several queued, then one drain, are what a
+/// platform delivers in one poll: every one is in the queue before the first is dispatched, so
+/// the replies to the first cross the later ones. (`r.key` and `r.text` drain, one poll each.)
+void queue_key(PaneRig& r, std::int64_t code, std::int64_t mods = input::mod::kNone) {
+    (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{code, "", mods}),
+                                      loom::WeaveId{}, loom::WeaveId{}, 0));
+}
+
+void queue_text(PaneRig& r, const std::string& typed) {
+    (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{typed}), loom::WeaveId{},
+                                      loom::WeaveId{}, 0));
+}
+
+/// ONE OF THE PANE MANAGER'S OWN IDS SAID AS WORKSHOP'S OFFICE, QUEUED -- the verified door
+/// `workshop_action` spends, undrained. A key resolves against the rows Workshop holds, and those
+/// trail the pane's own re-declaration by a delivery, so a burst that must open a new draft before
+/// an answer arrives says the ids Workshop would send in the order it would send them.
+void queue_as_workshop(PaneRig& r, const char* id) {
+    const loom::Ticket sent = r.bus.office_send_to_role_as(
+        r.workshop_id, kWorkshopProvider, kDesktopRole,
+        loom::Message(loom::to_value(PaneActionRequested{dp::kLauncherPane, id}), r.workshop_id,
+                      r.workshop_id, 0));
+    REQUIRE(sent.valid());
+}
+
+/// WHAT CROSSED THE CREATOR'S DOOR, read at delivery: the name each make the host's door received
+/// carried, and how many answers reached the desktop -- the asks that LEFT the pane, not the ones
+/// it meant to send.
+struct MakerTap {
+    loom::Switchboard& bus;
+    loom::ObserverId tap{};
+    std::vector<std::string> asked;
+    int answered = 0;
+    MakerTap(loom::Switchboard& on, loom::WeaveId host, loom::WeaveId desktop) : bus(on) {
+        tap = bus.add_observer([this, host, desktop](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            if (ev.target == host && ev.schema_name == MakerPaneRequested::zen_name &&
+                ev.payload != nullptr) {
+                asked.push_back(loom::from_value<MakerPaneRequested>(*ev.payload).name);
+            } else if (ev.target == desktop && ev.schema_name == MakerPaneAnswered::zen_name) {
+                ++answered;
+            }
+        });
+    }
+    ~MakerTap() { bus.remove_observer(tap); }
+    MakerTap(const MakerTap&) = delete;
+    MakerTap& operator=(const MakerTap&) = delete;
 };
 
 } // namespace
@@ -2137,6 +2281,142 @@ TEST_CASE("WL-MAKER-11: the name line pastes what the platform holds -- asked on
     r.key(input::scan::kReturn);
     REQUIRE(r.session().panels.maker.open());
     CHECK(r.session().panels.maker.definition.name == "MyPasted");
+}
+
+TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said, the pasted text "
+          "stays in the line that asked, and closing that line takes no pane back") {
+    // MUTATION (P1): the paste numbered as the make's record, one counter for both as reviewed --
+    // the make's answer is dropped unread: no sentence, though the host made Alpha.
+    // MUTATION (P2): an accepted make closing its line while a paste is on its way into it -- the
+    // line closes holding `Alpha`, and `Tail` lands nowhere.
+    // MUTATION (P3): the cancel sentence forgetting what the line made -- Escape says no pane was
+    // made, of a line whose make the host carried out.
+    CreatorRig c("creator-make-paste");
+    PaneRig& r = c.r;
+    SkinSeat* skin = r.mount_skin_seat();
+    skin->platform = "Tail";
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Alpha");
+    REQUIRE(launcher_text(r).find("new pane: Alpha\n") != std::string::npos);
+    MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+    // RETURN AND CTRL+V IN ONE POLL: the paste is asked for before the make is answered.
+    queue_key(r, input::scan::kReturn);
+    queue_key(r, input::scan::kV, input::mod::kCtrl);
+    r.bus.drain_until_idle();
+    // THE HOST MADE WHAT THE LINE ASKED FOR, ONCE...
+    CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+    CHECK(tap.answered == 1);
+    CHECK(skin->clipboard_reads == 1);
+    REQUIRE(r.session().panels.maker.open());
+    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    // ...THE PANE SAYS SO, AND THE TEXT PASTED AFTER RETURN IS STILL IN THE LINE.
+    const std::string shown = launcher_text(r);
+    CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+    CHECK(shown.find("new pane: AlphaTail") != std::string::npos);
+    // CLOSING THE LINE SAYS WHAT IT MADE, and nothing the host made is taken back.
+    r.key(input::scan::kEscape);
+    const std::string closed = launcher_text(r);
+    CHECK(closed.find("new pane:") == std::string::npos);
+    CHECK(closed.find("Alpha was already made") != std::string::npos);
+    CHECK(closed.find("no pane was made") == std::string::npos);
+    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    CHECK(has_pane(r.session().setup.active, maker_pane_ref("Alpha")));
+}
+
+TEST_CASE("a second Pane Creator make while the first is unanswered is not sent, text typed after "
+          "Return outlives the answer, and a refusal keeps the line and all it holds") {
+    // MUTATION (P4): an accepted make closing its line whatever the line now holds -- `Alpha2`, a
+    // name nobody asked for, is cleared.
+    // MUTATION (P5): a make sent while one is unanswered -- the second takes the first's record, the
+    // first's answer is dropped, and the second's refusal is said over the pane the first made.
+    CreatorRig c("creator-make-twice");
+    PaneRig& r = c.r;
+    open_launcher(r);
+    press_letter(r, input::scan::kN, "n");
+    type_into(r, "Alpha");
+    MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+    queue_key(r, input::scan::kReturn);
+    queue_key(r, input::scan::kReturn);
+    queue_text(r, "2");
+    r.bus.drain_until_idle();
+    // ONE MAKE LEFT THE PANE, and the host made that one.
+    CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+    REQUIRE(r.session().panels.maker.open());
+    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    // ITS ANSWER IS SAID, and the line keeps the text typed after Return.
+    const std::string shown = launcher_text(r);
+    CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+    CHECK(shown.find("new pane: Alpha2") != std::string::npos);
+    // THAT TEXT ASKED FOR NOW IS REFUSED -- Alpha is unsaved -- AND THE LINE KEEPS ALL OF IT.
+    r.key(input::scan::kReturn);
+    CHECK(tap.asked.size() == 2);
+    const std::string refused = launcher_text(r);
+    CHECK(refused.find("new pane: Alpha2") != std::string::npos);
+    CHECK(refused.find("unsaved changes") != std::string::npos);
+    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    // ...AND CLOSING IT SAYS WHAT IT MADE.
+    r.key(input::scan::kEscape);
+    CHECK(launcher_text(r).find("Alpha was already made") != std::string::npos);
+    CHECK(has_pane(r.session().setup.active, maker_pane_ref("Alpha")));
+}
+
+TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already asked for until its "
+          "answer takes that sentence's place, and an answer closes no newer draft") {
+    // MUTATION (P6): the cancel sentence ignoring a make still unanswered -- the rows Workshop
+    // holds say no pane was made while the host is making it.
+    // MUTATION (P7): an accepted make closing whichever line is open when it arrives -- the newer
+    // draft, holding the same text, closes and loses it.
+    {
+        CreatorRig c("creator-make-cancel");
+        PaneRig& r = c.r;
+        open_launcher(r);
+        press_letter(r, input::scan::kN, "n");
+        type_into(r, "Alpha");
+        MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+        queue_key(r, input::scan::kReturn);
+        queue_key(r, input::scan::kEscape);
+        // TURN BY TURN: the rows Workshop holds show the line closed before the answer arrives.
+        for (int turns = 0; turns < 16 && tap.answered == 0 &&
+                            launcher_text(r).find("new pane:") != std::string::npos;
+             ++turns) {
+            (void)r.bus.pump_pending();
+        }
+        CHECK(tap.answered == 0);
+        const std::string waiting = launcher_text(r);
+        CHECK(waiting.find("new pane:") == std::string::npos);
+        CHECK(waiting.find("Alpha was already asked for, and may still be made") !=
+              std::string::npos);
+        CHECK(waiting.find("no pane was made") == std::string::npos);
+        r.bus.drain_until_idle();
+        CHECK(tap.answered == 1);
+        REQUIRE(r.session().panels.maker.open());
+        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        const std::string answered = launcher_text(r);
+        CHECK(answered.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+        CHECK(answered.find("no pane was made") == std::string::npos);
+    }
+    {
+        // A MAKE, A CANCEL AND A NEW LINE IN ONE BURST, the new line typed into with the very name
+        // the first one sent: the answer arrives while the newer draft is open, and is not its.
+        CreatorRig c("creator-make-newer");
+        PaneRig& r = c.r;
+        open_launcher(r);
+        press_letter(r, input::scan::kN, "n");
+        type_into(r, "Alpha");
+        MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+        queue_as_workshop(r, kCreatorNameId);
+        queue_as_workshop(r, kCreatorCancelId);
+        queue_as_workshop(r, kCreatorNewId);
+        queue_text(r, "Alpha");
+        r.bus.drain_until_idle();
+        CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+        CHECK(tap.answered == 1);
+        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        const std::string shown = launcher_text(r);
+        CHECK(shown.find("new pane: Alpha\n") != std::string::npos);
+        CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+    }
 }
 
 TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS the cut") {

@@ -31,9 +31,10 @@
 // of those is the host's answer, and asking does not change it (VD-21).
 //
 // (!) WHAT IT KEEPS, AND WHAT IT ASKS FOR AGAIN. A reload keeps `DesktopState` (the row the maker
-// was on, by identity). Everything the host said -- the inventory, the verdicts on its
-// declarations -- belongs to the image that heard it, so a new image declares again and asks for
-// the inventory as it is now, instead of waiting for it to change.
+// chose, by identity -- or the choice whose row has left, which a successor must not replace).
+// Everything the host said -- the inventory, the verdicts on its declarations -- belongs to the
+// image that heard it, so a new image declares again and asks for the inventory as it is now,
+// instead of waiting for it to change.
 
 #include "desktop-pane/vocabulary.hpp"
 
@@ -261,8 +262,8 @@ public:
             if (asked.id == ws::kCreatorNameId) {
                 ask_maker(mail, ws::maker_pane_act::kCreate, naming_.line.text());
             } else if (asked.id == ws::kCreatorCancelId) {
+                notice_ = cancel_sentence(); // said of the line before closing it ends the draft
                 close_naming(mail);
-                notice_ = "no pane was made";
             } else {
                 return;
             }
@@ -343,16 +344,34 @@ public:
         say(mail);
     }
 
-    /// WHAT ONE OF THE PANE CREATOR'S ACTS CAME TO -- the host's own sentence, for this image's
-    /// latest ask and no older one. A pane that was made closes the name line; a name the host
-    /// refused leaves it open, holding what was typed, with the refusal under it.
+    // WL-MAKER-14 -- agents/workshop/maker-pane.md
+    /// WHAT ONE OF THE PANE CREATOR'S ACTS CAME TO -- the host's own sentence, said as the notice
+    /// whatever the line now holds, about the act `making_` records and no other ask.
+    ///
+    /// (!) A NEWER ASK IS NOT A VERDICT ON THIS ONE. A paste asked for after Return is numbered
+    /// from the same counter, and while one number stood for both it took the make's place: the
+    /// host's word that the pane was made arrived and was dropped unread. The record is the make's
+    /// own, and only its answer -- or this image's end -- retires it.
+    ///
+    /// AN ACCEPTED MAKE CLOSES ONLY THE LINE THAT ASKED, AND ONLY IF NOTHING CAME AFTER: the same
+    /// draft, holding exactly the name it sent, with no paste on its way into it. Text typed or
+    /// pasted since is a name nobody asked for, so that line and its text stand, now a line that
+    /// already made its pane; a newer draft is not the one that asked. A refusal closes nothing.
     void on(const MakerPaneAnswered& answer, loom::Mail& mail) {
-        if (!mail.answers_ask() || mail.correlation() != makes_) {
+        if (!mail.answers_ask() || !making_.awaiting || mail.correlation() != making_.pending) {
             return;
         }
+        const Making was = std::move(making_);
+        making_ = Making{};
         notice_ = answer.said;
-        if (answer.act == ws::maker_pane_act::kCreate && answer.accepted && naming_.open) {
-            close_naming(mail);
+        if (was.act == ws::maker_pane_act::kCreate && answer.accepted && naming_.open &&
+            naming_.line.draft_epoch() == was.draft) {
+            const bool pasting = paste_.awaiting && paste_.epoch == was.draft;
+            if (naming_.line.text() == was.name && !pasting) {
+                close_naming(mail);
+            } else {
+                naming_.made = was.name;
+            }
         }
         say(mail);
     }
@@ -567,26 +586,69 @@ private:
     void open_naming(loom::Mail& mail) {
         naming_.open = true;
         naming_.line.clear();
+        naming_.made.clear();
         notice_.clear();
         declare_manager(mail);
     }
 
+    /// THE DRAFT ENDS: its text, and what it made. A make it asked for is still `making_`'s, and
+    /// a late paste lands nowhere, because the draft that asked for it is over.
     void close_naming(loom::Mail& mail) {
         naming_.open = false;
-        naming_.line.clear(); // the draft's incarnation ends: a late paste lands nowhere
+        naming_.line.clear();
+        naming_.made.clear();
         declare_manager(mail);
     }
 
-    /// ASK THE HOST FOR ONE OF THE CREATOR'S ACTS, under a number of this image's own. The host
-    /// holds the definition and every refusal; this pane holds the name line and the keys.
+    // WL-MAKER-14 -- agents/workshop/maker-pane.md
+    /// ASK THE HOST FOR ONE OF THE CREATOR'S ACTS, under a number of this image's own, and record
+    /// which act it was -- for a make, the draft that asked and the name it sent. The host holds
+    /// the definition and every refusal; this pane holds the name line and the keys.
+    ///
+    /// ONE ACT UNANSWERED AT A TIME. A second would be answered on its own number while the first
+    /// was still owed its account -- two makes in one poll would say the second's refusal over
+    /// the first's pane -- so it is not sent, aloud, and nothing else is touched: the line, its
+    /// text and the first act's record stand, and the key asks again once the first is answered.
     void ask_maker(loom::Mail& mail, std::int64_t act, const std::string& name) {
+        if (making_.awaiting) {
+            notice_ = std::string(act_word(act)) +
+                      " not sent -- an earlier ask is still unanswered";
+            return;
+        }
         notice_.clear();
+        making_.awaiting = true;
+        making_.pending = ++asks_;
+        making_.act = act;
+        making_.draft = naming_.line.draft_epoch();
+        making_.name = name;
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, MakerPaneRequested{act, name}, ++makes_);
+            .send_to_role(kWorkshopRole, MakerPaneRequested{act, name}, making_.pending);
+    }
+
+    static const char* act_word(std::int64_t act) {
+        return act == ws::maker_pane_act::kSave      ? "save"
+               : act == ws::maker_pane_act::kDiscard ? "discard"
+                                                     : "make";
+    }
+
+    // WL-MAKER-14 -- agents/workshop/maker-pane.md
+    /// WHAT CLOSING THE NAME LINE ENDED, and nothing it did not. A make this line asked for that
+    /// the host has not answered may still be made, and one it answered was made; a line that
+    /// asked for nothing made nothing. Closing a line takes back no pane the host made.
+    std::string cancel_sentence() const {
+        if (making_.awaiting && making_.act == ws::maker_pane_act::kCreate &&
+            making_.draft == naming_.line.draft_epoch()) {
+            return "name line closed -- " + making_.name +
+                   " was already asked for, and may still be made";
+        }
+        if (!naming_.made.empty()) {
+            return "name line closed -- " + naming_.made + " was already made";
+        }
+        return "no pane was made";
     }
 
     void begin_paste(loom::Mail& mail) {
-        paste_.pending = ++makes_;
+        paste_.pending = ++asks_;
         paste_.epoch = naming_.line.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kDesktopRole)
@@ -609,34 +671,36 @@ private:
     // ---- The cursor, held by identity -------------------------------------------------------
 
     // WL-DESK-10 -- agents/workshop/desktop-presenting.md
-    /// FIND THE ROW THE MAKER WAS ON, in the list as the host just said it. By identity, so a
-    /// row inserted above it moves the marker with it; a pane that left the list leaves the
-    /// marker where it was, holding nothing, and says so -- Return then waits for a choice
-    /// rather than acting on whichever pane slid into that place.
+    /// FIND THE ROW THE MAKER CHOSE, in the list as the host just said it. By identity, so a row
+    /// inserted above it moves the marker with it, and one that returns is found again.
+    ///
+    /// (!) A CHOICE WHOSE ROW LEFT IS STILL A CHOICE, AND ITS ABSENCE IS STATE. The keys stay in
+    /// `DesktopState`; the marker stays where the row was, holding nothing, and says so, and
+    /// Return and `x` wait for a new choice rather than acting on whichever pane slid into that
+    /// place -- in this image and in every image a reload hands the state to. Only a cursor that
+    /// was never given a pane (both keys empty) takes the row it stands on: that is the first
+    /// activation's default, and a lost choice once read as it (cleared keys crossed a reload,
+    /// and the successor gave the marker to a neighbour).
     void find_cursor() {
         const std::int64_t n = static_cast<std::int64_t>(known_.size());
-        if (!state_.cursor_office.empty() || !state_.cursor_pane.empty()) {
-            for (std::int64_t i = 0; i < n; ++i) {
-                const InventoryPane& p = known_[static_cast<std::size_t>(i)];
-                if (p.office == state_.cursor_office && p.pane == state_.cursor_pane) {
-                    state_.cursor = i;
-                    held_name_ = p.name;
-                    return;
-                }
+        const bool chosen = !state_.cursor_office.empty() || !state_.cursor_pane.empty();
+        for (std::int64_t i = 0; chosen && i < n; ++i) {
+            const InventoryPane& p = known_[static_cast<std::size_t>(i)];
+            if (p.office == state_.cursor_office && p.pane == state_.cursor_pane) {
+                state_.cursor = i;
+                held_name_ = p.name;
+                lost_ = false;
+                return;
             }
-            lost_name_ = held_name_.empty() ? state_.cursor_pane : held_name_;
-            state_.cursor_office.clear();
-            state_.cursor_pane.clear();
-            held_name_.clear();
-            lost_ = true;
         }
+        lost_ = chosen;
         if (state_.cursor >= n) {
             state_.cursor = n > 0 ? n - 1 : 0;
         }
         if (state_.cursor < 0) {
             state_.cursor = 0;
         }
-        if (!lost_ && n > 0) {
+        if (!chosen && n > 0) {
             hold(state_.cursor);
         }
     }
@@ -737,9 +801,11 @@ private:
         }
         std::vector<std::string> notes;
         // THE MARKER HOLDING NOTHING IS SAID FOR AS LONG AS IT HOLDS NOTHING -- a state, not an
-        // event, so a later sentence about something else cannot take its row.
+        // event, so a later sentence about something else cannot take its row. The name is the
+        // one this image last saw on the row; an image that never saw it says the durable key.
         const std::string lost =
-            lost_ ? lost_name_ + " left the list -- choose a row before Return opens anything"
+            lost_ ? (held_name_.empty() ? state_.cursor_pane : held_name_) +
+                        " left the list -- choose a row before Return opens anything"
                   : std::string();
         const std::string* said[] = {&lost, &notice_, &pane_rows_.word, &app_.word};
         for (const std::string* word : said) {
@@ -995,11 +1061,12 @@ private:
     /// WHERE THE LIST'S WINDOW BEGAN LAST TIME, so it scrolls by the least it can.
     std::size_t first_ = 0;
     std::string notice_;
-    /// THE NAME OF THE PANE THE MARKER HOLDS, for the sentence if it leaves the list.
+    /// THE NAME THIS IMAGE LAST SAW ON THE CHOSEN ROW, for the sentence if it leaves the list.
     std::string held_name_;
-    /// THE MARKER'S PANE LEFT THE LIST, and the maker has not chosen another since; and its name.
+    /// THE CHOSEN PANE IS NOT IN THE LIST, and the maker has not chosen another since -- derived
+    /// from `DesktopState`'s keys by `find_cursor` whenever the list is said, never kept apart
+    /// from them, so a reload cannot forget it.
     bool lost_ = false;
-    std::string lost_name_;
     /// THIS IMAGE'S TWO DECLARATIONS AND THE ATTEMPT COUNTER THEY SHARE. Not in the state shape:
     /// a verdict answers only the incarnation that asked (Loom ANS-03), and a new image declares
     /// again and is judged again, so carrying an old verdict across would show one that may no
@@ -1018,13 +1085,28 @@ private:
     /// THE NUMBER OF THIS IMAGE'S LATEST LAUNCH OR CLOSE, which the host's answer echoes: one
     /// counter, so an answer to an older request of either kind is history.
     std::uint64_t launches_ = 0;
-    /// ...AND OF ITS LATEST ASK OF THE PANE CREATOR OR OF THE SKIN, on a counter of their own.
-    std::uint64_t makes_ = 0;
-    /// THE PANE CREATOR'S NAME LINE: open or not, and the line being typed. Not in the state
-    /// shape: a reload resets it, and says nothing about a name nobody made.
+    /// ...AND THE NUMBER ITS NEXT ASK OF THE PANE CREATOR OR OF THE SKIN GOES OUT UNDER. One
+    /// counter, and never a record: which ask an answer is about is the records' to say
+    /// (`making_`, `paste_`), so a paste numbered after a make does not replace it.
+    std::uint64_t asks_ = 0;
+    /// THE PANE CREATOR'S ACT AWAITING ITS ANSWER -- at most one (`ask_maker`): its number, which
+    /// act, and for a make the name line's draft (`TextBox::draft_epoch`) and the name it sent.
+    /// Not in the state shape: an answer reaches only the incarnation that asked (Loom ANS-03).
+    struct Making {
+        bool awaiting = false;
+        std::uint64_t pending = 0;
+        std::int64_t act = 0;
+        std::uint64_t draft = 0;
+        std::string name;
+    };
+    Making making_;
+    /// THE PANE CREATOR'S NAME LINE: open or not, the line being typed, and the pane this draft
+    /// already made while it went on holding later text. Not in the state shape: a reload resets
+    /// it, and says nothing about a name nobody made.
     struct Naming {
         bool open = false;
         zengine::component::TextBox line;
+        std::string made;
     };
     Naming naming_;
     /// THE CLIPBOARD MIRROR THE LINE'S COPY, CUT AND PASTE WORK AGAINST, and the paste in flight.

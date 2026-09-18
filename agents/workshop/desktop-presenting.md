@@ -33,18 +33,21 @@ LAW — The launcher holds the row a maker is on by its two durable keys, shows 
 
 MEANS
 - a row moving under the cursor moves the marker with it, and Return opens what is marked;
-- a marked pane that leaves the list is said, and Return waits for a choice, not a neighbour;
+- a chosen pane that leaves is said; Return and `x` wait for a choice -- across a reload too;
 - every cut in the list is counted on a row of its own.
 
 DOES NOT MEAN
 - that the launcher owns the inventory: it keeps the host's last reading and edits none of it.
+- that both keys empty is a lost choice: it is a cursor never given a pane, which takes its row.
 
 PROVEN BY — `desktop-pane/vocabulary.hpp` `DesktopState`, `DesktopState::cursor_office`,
 `DesktopState::cursor_pane`; `desktop-pane/pane.cpp` `window_for`, `ListWindow`,
-`find_cursor`, `launch_cursor`; `tests/test_workshop_panes_actions.cpp` case `"the launcher
-keeps the row it will open in view, and its feedback on a row of its own"`, case `"the
-launcher's cursor is an identity: rows moving under it do not retarget Return, and a row that
-left the list is said, not replaced"`.
+`find_cursor`, `launch_cursor`, `close_cursor`; `tests/test_workshop_panes_actions.cpp` case
+`"the launcher keeps the row it will open in view, and its feedback on a row of its own"`, case
+`"the launcher's cursor is an identity: rows moving under it do not retarget Return, and a row
+that left the list is said, not replaced"`, case `"a choice whose row left stays unchosen across a
+desktop replacement and the publications after it: Return and x reach no neighbour, and a row
+chosen then is obeyed"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-11 — The effective keymap is said out loud, and presenters print only it

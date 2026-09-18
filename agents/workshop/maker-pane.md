@@ -201,6 +201,28 @@ no door could have made"`, case `"WUX-14/SC-13: the pane file round-trips, refus
 by shape, and holds nothing but the definition"`.
 WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
+## WL-MAKER-14 — A Creator's answer is read against the act, the draft and the name that asked
+
+LAW — The Pane Creator sends one act at a time; an accepted make closes only the line that asked while it holds exactly the name sent with no paste in flight, and closing a line takes no pane back.
+
+MEANS
+- a paste keeps its own record: a newer ask of another kind is no verdict on the act awaited;
+- an act asked while one is unanswered is not sent, aloud; the line and its text stand;
+- text typed or pasted after Return stays, and a newer draft is not the one that asked.
+
+DOES NOT MEAN
+- that an act the host never answers ends: it holds the Creator's asks until the desktop reloads.
+
+PROVEN BY — `desktop-pane/pane.cpp` `on(MakerPaneAnswered)`, `ask_maker`, `cancel_sentence`,
+`Making`, `making_`, `asks_`, `Naming::made`, `paste_`; `component/text_box.hpp`
+`TextBox::draft_epoch`; `tests/test_workshop_panes_actions.cpp` case `"a Pane Creator make and a
+paste in one poll: the host's make is said, the pasted text stays in the line that asked, and
+closing that line takes no pane back"`, case `"a second Pane Creator make while the first is
+unanswered is not sent, text typed after Return outlives the answer, and a refusal keeps the line
+and all it holds"`, case `"a Pane Creator make and a cancel in one poll say the make was already
+asked for until its answer takes that sentence's place, and an answer closes no newer draft"`.
+WHY — `agents/decisions/a-paste-is-a-conversation.md`
+
 ## Do not assume
 
 - That a pane made by the Pane Creator is an external pane, or that `Panels::maker` is a
