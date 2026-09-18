@@ -2364,6 +2364,7 @@ struct PaneRig {
         speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
         speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
         speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
+        speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
         speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
         speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
         // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
@@ -3421,8 +3422,9 @@ inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
                              loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
-                                          SeatDo>,
-                             loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested>> {
+                                          PaneLaunchAnswered, PaneCloseAnswered, SeatDo>,
+                             loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested,
+                                        PaneCloseRequested>> {
 public:
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         asked_.push_back(asked.id);
@@ -3448,6 +3450,9 @@ public:
         withdrawals_.push_back(said);
         refusals_.push_back(said.refusal);
     }
+    /// WHAT ITS LAUNCHES AND CLOSES CAME TO, kept in arrival order.
+    void on(const PaneLaunchAnswered& said, loom::Mail&) { launched_.push_back(said); }
+    void on(const PaneCloseAnswered& said, loom::Mail&) { closed_.push_back(said); }
 
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -3469,6 +3474,10 @@ public:
         (void)mail.as_role(kDesktopRole)
             .send_to_role(kWorkshopProvider, PaneLaunchRequested{office, pane});
     }
+    void close(loom::Mail& mail, const std::string& office, const std::string& pane) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, PaneCloseRequested{office, pane});
+    }
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
     void deselect_answering(loom::Mail& mail, std::uint64_t answering) {
@@ -3487,6 +3496,8 @@ public:
     };
     const std::vector<Verdict>& verdicts() const { return verdicts_; }
     const std::vector<ActionsWithdrawn>& withdrawals() const { return withdrawals_; }
+    const std::vector<PaneLaunchAnswered>& launched() const { return launched_; }
+    const std::vector<PaneCloseAnswered>& closed() const { return closed_; }
     /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
     /// about a DISHONEST one has to be able to miss on purpose.
     std::uint64_t last_ask() const { return last_ask_; }
@@ -3509,6 +3520,8 @@ private:
     std::vector<std::string> refusals_;
     std::vector<Verdict> verdicts_;
     std::vector<ActionsWithdrawn> withdrawals_;
+    std::vector<PaneLaunchAnswered> launched_;
+    std::vector<PaneCloseAnswered> closed_;
     std::uint64_t last_ask_ = 0;
 };
 
@@ -3551,6 +3564,8 @@ inline DesktopSeat* mount_desktop(Rig& t, AppActions rows = shipped_app_actions(
     grant.allow_to_role(DeselectRequested::zen_name, DeselectRequested::zen_version,
                         kWorkshopProvider);
     grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
                         kWorkshopProvider);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(kDesktopRole));

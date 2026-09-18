@@ -157,6 +157,29 @@ struct PaneLaunchAnswered {
               ZEN_FIELD(focused), ZEN_FIELD(refusal));
 };
 
+/// TAKE THIS PANE OFF THE DESK -- deliberate participation removal, the one duty of the retired
+/// picker's toggle that launching does not do.
+///
+/// ⚠ CLOSING IS NOT UNLOADING, AND IT IS NOT THE OTHER HALF OF A TOGGLE. The pane's row leaves
+/// the live desk and its presentation leaves the screen; its provider stays loaded and keeps
+/// everything it holds -- an Editor's unsaved source, a Terminal's history -- so a launch finds
+/// it as it was. A pane that is not on the desk is refused in words: a close never opens one.
+struct PaneCloseRequested {
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(PaneCloseRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+};
+
+/// WHAT THE CLOSE CAME TO -- addressed back to whoever asked.
+struct PaneCloseAnswered {
+    std::string office;
+    std::string pane;
+    bool closed = false; ///< it was on the desk, and now is not
+    std::string refusal; ///< empty iff it was closed
+    ZEN_SHAPE(PaneCloseAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(closed),
+              ZEN_FIELD(refusal));
+};
+
 /// PUT DOWN WHATEVER THE MAKER HAS PICKED UP -- the host operation the shipped desktop asks for
 /// when its Escape row is requested, and the first member of the "ask the host to do the
 /// application-default thing" family.

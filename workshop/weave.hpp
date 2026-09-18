@@ -340,6 +340,7 @@ class WorkshopWeave
                                           // it asks this host to open or focus
                                           zengine::workshop::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
+                                          zengine::workshop::PaneCloseRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
@@ -373,6 +374,7 @@ class WorkshopWeave
                                         zengine::workshop::ActionsJudged,
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
+                                        zengine::workshop::PaneCloseAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
                                         zengine::workshop::PaneQuitRequested,
@@ -627,6 +629,10 @@ public:
     /// through the same door the launcher and a restore share, and answered either way.
     void on(const PaneLaunchRequested& asked, loom::Mail& mail);
 
+    /// TAKE THIS PANE OFF THE DESK, AND UNLOAD NOTHING. Its row leaves the live desk through the
+    /// setup's own door; its provider and everything it holds are untouched. Answered either way.
+    void on(const PaneCloseRequested& asked, loom::Mail& mail);
+
     /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
     /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
     void on(const DesktopFace& face, loom::Mail& mail);
@@ -644,6 +650,14 @@ public:
     /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
     /// and every host-side caller spend, so "launch" means one thing.
     PaneLaunchAnswered launch_pane(const PaneRef& ref, loom::Mail& mail);
+
+    /// PERFORM ONE CLOSE, WITHOUT ASKING WHO WANTED IT -- `launch_pane`'s partner, and not its
+    /// inverse: it removes participation and never unloads, and it never opens anything.
+    PaneCloseAnswered close_pane(const PaneRef& ref, loom::Mail& mail);
+
+    /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
+    /// names it -- for a sentence about it.
+    std::string inventory_name(const PaneRef& ref) const;
 
     /// SAY THE ONE INVENTORY OUT LOUD, if what it says has changed since the last time.
     /// Compared before it is published, for `StandingConditions`' reason: a presenter that is

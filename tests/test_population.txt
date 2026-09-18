@@ -1695,9 +1695,12 @@ workshop_screen                   doctest           always  133
 #                                 document left alone. Two were rewritten in place: a shown row
 #                                 for a resolved one, and a maker's retired keymap id for the
 #                                 global walls no host row meets any more.
+#   workshop_panes    599 -> 602  closing participation, the picker's toggle's other half: the
+#                                 door, the launcher's `x` on the real desktop, and an Editor
+#                                 whose unsaved source survives a close and a launch.
 #
 workshop_panels                   doctest           always  110
-workshop_panes                    doctest           always  599
+workshop_panes                    doctest           always  602
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  149
 workshop_editor_switch            doctest           always  11

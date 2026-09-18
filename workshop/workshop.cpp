@@ -1233,6 +1233,7 @@ int main(int argc, char** argv) {
     speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
+    speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
