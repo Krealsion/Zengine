@@ -2262,18 +2262,28 @@ struct StandInVoice {
 };
 
 /// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO MAKER DOOR. With Workshop's
-/// weave off the bus, nothing on it declares `MakerPaneRequested`, so a make meets Loom's seam
-/// before anything is queued.
+/// weave off the bus, nothing on it declares `MakerPaneRequested` -- nor, with no skin mounted,
+/// `ClipboardTextRequested` -- so a make, or a paste, meets Loom's seam before anything is queued.
+/// `paste` makes the next `SeatDo` hand the name line Ctrl+V instead of saying the name id.
 class DoorlessDesk
     : public loom::WeaveBase<DoorlessDesk, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
-                             loom::Emit<PaneActionRequested>> {
+                             loom::Emit<PaneActionRequested, PaneKey>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
     void on(const PaneActions&, loom::Mail&) {}
     void on(const PaneContent& said, loom::Mail& mail) { voice.heard(said, mail); }
-    void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (!paste) {
+            StandInVoice::say_name(mail);
+            return;
+        }
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(kDesktopRole,
+                          PaneKey{dp::kLauncherPane, input::scan::kV, input::mod::kCtrl});
+    }
     StandInVoice voice;
+    bool paste = false;
 };
 
 /// ...AND ONE THAT TAKES THE PANE CREATOR'S ASKS AND ANSWERS NOTHING, EVER: delivered silence.
@@ -2300,6 +2310,7 @@ Office* stand_in(PaneRig& r, loom::WeaveId& id) {
     loom::Grant say;
     say.allow_to_role(PaneActionRequested::zen_name, PaneActionRequested::zen_version,
                       kDesktopRole);
+    say.allow_to_role(PaneKey::zen_name, PaneKey::zen_version, kDesktopRole);
     id = r.bus.register_weave(std::move(held), std::move(say), std::string(kWorkshopProvider));
     raw->zen_set_self(id);
     return raw;
@@ -2675,6 +2686,29 @@ TEST_CASE("a Pane Creator make nothing could queue is released at once and tried
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(r.session().panels.maker.definition.name == "Alpha");
+    }
+    SUBCASE("a paste nothing could queue is not on its way: the next make closes its line") {
+        // MUTATION (QP): a paste left `awaiting` whatever its ticket said -- the accepted make then
+        // keeps open a line nothing will ever paste into.
+        REQUIRE(r.bus.resolve_schema(surface::ClipboardTextRequested::zen_name,
+                                     surface::ClipboardTextRequested::zen_version) == nullptr);
+        loom::WeaveId office_id{};
+        DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
+        office->paste = true;
+        SendTap pastes(r.bus, desk, surface::ClipboardTextRequested::zen_name);
+        stand_in_says(r, office_id);
+        CHECK(pastes.reasons == std::vector<std::string>{"SeamUnresolved"});
+        CHECK(pastes.notices == 0);
+        REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
+        r.put_workshop_back(std::move(workshop));
+        r.extent(150, 44);
+        MakerTap tap(r.bus, r.workshop_id, desk);
+        r.key(input::scan::kReturn);
+        CHECK(tap.asked == std::vector<std::string>{"Alpha"});
+        REQUIRE(r.session().panels.maker.open());
+        const std::string shown = launcher_text(r);
+        CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
+        CHECK(shown.find("new pane:") == std::string::npos);
     }
     SUBCASE("delivered and never answered: outstanding, and nothing guesses its fate") {
         loom::WeaveId office_id{};
