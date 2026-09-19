@@ -363,6 +363,323 @@ void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
+// ---- Editing a binding: the candidate judged whole, applied live, then written -------------
+
+namespace {
+
+/// A KEYMAP FILE-ROW SPELLING OF A GESTURE, `none` for an unbound one -- the same grammar a
+/// maker writes, because an edit writes what a hand would have.
+std::string authored_spelling(const Gesture& g) {
+    return is_bound(g) ? gesture_word(g) : std::string("none");
+}
+
+} // namespace
+
+// WL-KEY-17, WL-KEY-18 -- agents/workshop/keymap-edit.md
+void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // an office asks; personal speech is answered by nobody
+    }
+    KeymapEditAnswered answer;
+    answer.action = asked.action;
+    const auto refuse = [&](const std::string& why) {
+        answer.accepted = false;
+        answer.refusal = why;
+        answer.sentence = "`" + asked.action + "` unchanged -- " + why;
+        say(answer.sentence, true);
+        (void)mail.answer(answer);
+        repaint(mail);
+    };
+    // A FILE REFUSED AT LAUNCH IS A STANDING WALL, and an edit does not climb it: the host never
+    // writes over a file the maker has not repaired, and a live change beside a refused file
+    // would be a map the next launch does not have.
+    if (keymap_bad_) {
+        refuse("the keymap file was refused at launch (" + keymap_standing_ +
+               ") -- fix the file, launch again, then edit");
+        return;
+    }
+    // WHICH ID, AND ITS DECLARED DEFAULT: a host row, an application row, or a pane's row --
+    // the one keymap's three populations, resolved against what is in force now.
+    Gesture declared = kNoGesture;
+    bool known = false;
+    if (const ActionRow* host_row = row_of_id(asked.action)) {
+        declared = host_row->gesture;
+        known = true;
+    }
+    if (!known) {
+        for (const AppActionRow& d : app_actions_) {
+            if (d.id == asked.action) {
+                declared = Gesture{d.scancode, d.modifiers};
+                known = true;
+                break;
+            }
+        }
+    }
+    if (!known) {
+        for (const RuntimePane& row : session_.panels.runtime.entries) {
+            for (const v2::PaneActionRow& d : row.actions) {
+                if (d.id == asked.action) {
+                    declared = Gesture{d.scancode, d.modifiers};
+                    known = true;
+                    break;
+                }
+            }
+            if (known) {
+                break;
+            }
+        }
+    }
+    if (!known) {
+        refuse("no action `" + asked.action + "` is in force in this Workshop");
+        return;
+    }
+    // THE GESTURE THE EDIT NAMES: two numbers this keymap can spell, or a spelling in the
+    // file's own grammar for a chord no pane can capture.
+    Gesture named = kNoGesture;
+    const bool spelled = asked.op == keymap_edit::kSetSpelled ||
+                         asked.op == keymap_edit::kAddSpelled ||
+                         asked.op == keymap_edit::kRemoveSpelled;
+    const bool takes_gesture = asked.op == keymap_edit::kSet || asked.op == keymap_edit::kAdd ||
+                               asked.op == keymap_edit::kRemove || spelled;
+    if (spelled) {
+        const ParsedGesture parsed = parse_gesture(asked.text);
+        if (!parsed.accepted) {
+            refuse(parsed.refusal);
+            return;
+        }
+        named = parsed.gesture;
+    } else if (takes_gesture) {
+        named = Gesture{asked.scancode, asked.modifiers};
+        if (!is_bound(named) || key_name_of(asked.scancode) == nullptr) {
+            refuse("that key is not one this keymap can name -- type its spelling instead");
+            return;
+        }
+    }
+    const std::int64_t op = asked.op == keymap_edit::kSetSpelled      ? keymap_edit::kSet
+                            : asked.op == keymap_edit::kAddSpelled    ? keymap_edit::kAdd
+                            : asked.op == keymap_edit::kRemoveSpelled ? keymap_edit::kRemove
+                                                                      : asked.op;
+    // THE SET IN FORCE FOR THIS ID: the authored rows if the file names it, the declared
+    // default otherwise -- what `add` extends and `remove` subtracts from.
+    std::vector<std::string> before;
+    for (const AuthoredOverride& o : session_.keymap.authored) {
+        if (o.action == asked.action) {
+            before.push_back(o.gesture);
+        }
+    }
+    const bool authored = !before.empty();
+    if (!authored) {
+        before.push_back(authored_spelling(declared));
+    }
+    std::vector<std::string> after;
+    const std::string word = authored_spelling(named);
+    switch (op) {
+    case keymap_edit::kSet:
+        if (!is_bound(named)) {
+            refuse("`none` is not a key -- disable the action, or reset it");
+            return;
+        }
+        after = {word};
+        break;
+    case keymap_edit::kAdd: {
+        if (!is_bound(named)) {
+            refuse("`none` is not a key to add");
+            return;
+        }
+        for (const std::string& g : before) {
+            if (g == word) {
+                refuse("`" + word + "` already requests `" + asked.action + "`");
+                return;
+            }
+        }
+        for (const std::string& g : before) {
+            if (g != "none") {
+                after.push_back(g);
+            }
+        }
+        after.push_back(word);
+        break;
+    }
+    case keymap_edit::kRemove: {
+        bool had = false;
+        for (const std::string& g : before) {
+            if (g == word) {
+                had = true;
+            } else {
+                after.push_back(g);
+            }
+        }
+        if (!had) {
+            refuse("`" + word + "` does not request `" + asked.action + "` -- nothing to remove");
+            return;
+        }
+        // REMOVING THE LAST KEY DISABLES THE ACTION, aloud -- never a silent fall-back to the
+        // default the maker just took away; reset is the way back to it.
+        if (after.empty()) {
+            after = {"none"};
+        }
+        break;
+    }
+    case keymap_edit::kDisable: after = {"none"}; break;
+    case keymap_edit::kReset: after.clear(); break;
+    default: refuse("an edit this Workshop does not know"); return;
+    }
+    // THE CANDIDATE AUTHORED LIST: every other id's rows exactly as written, in their order;
+    // this id's rows replaced in place (the first one's position) or appended.
+    std::vector<std::pair<std::string, std::string>> rows;
+    bool placed = false;
+    for (const AuthoredOverride& o : session_.keymap.authored) {
+        if (o.action != asked.action) {
+            rows.emplace_back(o.action, o.gesture);
+            continue;
+        }
+        if (!placed) {
+            for (const std::string& g : after) {
+                rows.emplace_back(asked.action, g);
+            }
+            placed = true;
+        }
+    }
+    if (!placed) {
+        for (const std::string& g : after) {
+            rows.emplace_back(asked.action, g);
+        }
+    }
+    // JUDGED EXACTLY AS A FILE IS JUDGED AT LOAD, into a copy: the override law over the host
+    // rows, then the application rows and every pane's rows re-joined against the candidate. A
+    // refusal anywhere is that law's own sentence, attributed to this edit, and nothing moves.
+    Keymap candidate;
+    const Written applied = apply_overrides(rows, session_.keymap.legend, candidate);
+    if (!applied.accepted) {
+        refuse(applied.refusal);
+        return;
+    }
+    if (!app_actions_.empty()) {
+        std::vector<AppRow> app;
+        for (const AppActionRow& d : app_actions_) {
+            app.push_back(AppRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.precedence});
+        }
+        const Written joined = join_app_rows(candidate, app);
+        if (!joined.accepted) {
+            refuse("the application's keys: " + joined.refusal);
+            return;
+        }
+    }
+    for (const RuntimePane& row : session_.panels.runtime.entries) {
+        if (row.actions.empty()) {
+            continue;
+        }
+        const Written joined = join_pane_rows(candidate, row.kind, row.actions);
+        if (!joined.accepted) {
+            refuse(row.name + " @" + row.provider + ": " + joined.refusal);
+            return;
+        }
+    }
+    // APPLIED LIVE: the candidate is the map now, and every presenter is told (WL-DESK-11).
+    session_.keymap = std::move(candidate);
+    answer.accepted = true;
+    answer.applied = true;
+    std::string how;
+    switch (op) {
+    case keymap_edit::kSet: how = "now `" + word + "`"; break;
+    case keymap_edit::kAdd: how = "also `" + word + "`"; break;
+    case keymap_edit::kRemove:
+        how = after.size() == 1 && after[0] == "none"
+                  ? "`" + word + "` removed -- no key requests it now; reset restores the default"
+                  : "`" + word + "` removed";
+        break;
+    case keymap_edit::kDisable: how = "disabled -- no key requests it; reset restores the default"; break;
+    default: how = "reset to its default"; break;
+    }
+    // ...THEN WRITTEN, AND THE TWO TOLD APART. An isolated run has no file; a file another hand
+    // changed since this host read it is never overwritten; a write that fails says so. In each
+    // case the live change stands for this run only, and a standing condition says the next
+    // launch will not have it.
+    if (host_->keymap_path.empty()) {
+        answer.file_refusal = "isolated run -- no keymap file; the change stands for this run";
+    } else {
+        std::error_code ec;
+        const bool exists = std::filesystem::exists(host_->keymap_path, ec);
+        bool changed = exists != keymap_file_present_;
+        if (!changed && exists) {
+            const persist::FileText now = persist::read_file(
+                host_->keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
+            changed = !now.outcome.accepted || now.text != keymap_bytes_;
+        }
+        if (changed) {
+            answer.file_refusal = "the keymap file changed since this Workshop read it -- not "
+                                  "written; relaunch to read the file, then edit again";
+        } else {
+            const std::string text = keymap_persist::to_text(session_.keymap);
+            const Written wrote = persist::write_file(host_->keymap_path, text);
+            if (wrote.accepted) {
+                answer.written = true;
+                keymap_bytes_ = text;
+                keymap_file_present_ = true;
+            } else {
+                answer.file_refusal = "not written: " + wrote.refusal;
+            }
+        }
+    }
+    if (answer.written) {
+        session_.conditions.retract(kKeymapUnwrittenKey);
+    } else {
+        session_.conditions.establish(Condition{
+            kKeymapUnwrittenKey, "a binding changed for this run only",
+            "`" + asked.action + "` " + how + " -- " + answer.file_refusal, surface::role::kAlert,
+            std::string()});
+    }
+    answer.sentence = "`" + asked.action + "` " + how +
+                      (answer.written ? " -- written to the keymap file"
+                                      : " -- " + answer.file_refusal);
+    keymap_standing_ = answer.written
+                           ? "edited -- " + std::to_string(session_.keymap.authored.size()) +
+                                 " authored row" +
+                                 (session_.keymap.authored.size() == 1 ? "" : "s") + " written"
+                           : "edited for this run -- " + answer.file_refusal;
+    say(answer.sentence, false);
+    keymap_published_ = false;
+    publish_keymap(mail);
+    (void)mail.answer(answer);
+    repaint(mail);
+}
+
+// WL-DESK-13 -- agents/workshop/desktop.md
+void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
+    if (mail.authored_role().empty()) {
+        return; // an office, and only an office -- the seam's rule for changing the desk
+    }
+    const PaneRef ref{asked.office, asked.pane};
+    PaneToggleAnswered answer;
+    answer.office = asked.office;
+    answer.pane = asked.pane;
+    // JUDGED AGAINST THE DESK NOW, not against whatever the asker last heard: on the desk --
+    // seated or waiting for room -- means hide; off it means show and focus. Through the two
+    // doors a launch and a close already go through, so a toggle can do nothing they cannot.
+    if (has_pane(session_.setup.active, ref)) {
+        const PaneCloseAnswered closed = close_pane(ref, mail);
+        answer.closed = closed.closed;
+        answer.refusal = closed.refusal;
+        if (closed.closed) {
+            say("closed " + inventory_name(ref) +
+                    " -- its provider and what it holds are untouched; launching it opens it again",
+                false);
+        }
+    } else {
+        const PaneLaunchAnswered opened = launch_pane(ref, mail);
+        answer.opened = opened.opened;
+        answer.refusal = opened.refusal;
+        if (opened.opened) {
+            say("opened " + inventory_name(ref), false);
+        }
+    }
+    if (!answer.refusal.empty()) {
+        say(answer.refusal, true);
+    }
+    (void)mail.answer(answer);
+    repaint(mail);
+}
+
 // ---- Whether anybody is there to fill a pane -----------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md

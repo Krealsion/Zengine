@@ -193,17 +193,28 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
-    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, mail);
+    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, std::nullopt,
+                  mail);
+}
+
+// Content numbering its picture: v2's admission, and the number recorded for the press to echo.
+void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
+    admit_content(mail.authored_role(), content.pane, content.rows,
+                  content.generation > 0 ? std::optional<std::int64_t>(content.generation)
+                                         : std::nullopt,
+                  content.picture, mail);
 }
 
 // Content naming its generation (WL-OPEN-03).
 void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
-    admit_content(mail.authored_role(), content.pane, content.rows, content.generation, mail);
+    admit_content(mail.authored_role(), content.pane, content.rows, content.generation,
+                  std::nullopt, mail);
 }
 
 void WorkshopWeave::admit_content(std::string_view office, const std::string& pane_key,
                                   const std::vector<surface::SurfaceTextRow>& rows,
-                                  std::optional<std::int64_t> generation, loom::Mail& mail) {
+                                  std::optional<std::int64_t> generation,
+                                  std::optional<std::int64_t> picture, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -267,6 +278,11 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
     pane->clear_refusal();
     if (generation.has_value()) {
         pane->content_generation = *generation;
+    }
+    // THE PICTURE'S NUMBER, RECORDED AND NEVER JUDGED: what every press this host sends the pane
+    // from now on echoes, so the pane can refuse one aimed at an older picture (v3::PanePressed).
+    if (picture.has_value()) {
+        pane->picture = *picture;
     }
     // ⚠ AND THE CARET IS RE-JUDGED AGAINST THE ROWS THAT JUST ARRIVED. A pane sends its
     // content and its caret as two messages, in that order, so between them there is one

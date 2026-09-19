@@ -1087,7 +1087,7 @@ input                             doctest           sdl     3
 surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  40
+component                         doctest           always  44
 editor                            doctest           always  20
 operator                          doctest           always  126
 composer                          doctest           always  35
@@ -1727,7 +1727,7 @@ workshop_screen                   doctest           always  129
 #                                 Info keeps a lost list choice lost across its own replacement.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  612
+workshop_panes                    doctest           always  649
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

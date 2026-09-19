@@ -28,8 +28,9 @@ namespace zengine::workshop::keymap_persist {
 /// handing Workshop the wrong one of its own files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-keymap";
 
-/// The only keymap format version this build reads or writes.
-inline constexpr std::int64_t kFormatVersion = 1;
+/// The keymap format version this build WRITES, and the newest it reads; version 1 is read
+/// through its own import path (`v1::WorkshopKeymap`, below).
+inline constexpr std::int64_t kFormatVersion = 2;
 
 /// A keymap is the smallest of the six files: a handful of two-string rows and one word.
 /// The ceiling is the read side of the decoder's own materialisation law -- a hostile file
@@ -62,7 +63,25 @@ struct WorkshopKeymapRow {
 };
 
 /// A whole saved keymap: what it is, which version of that it is, the legend preference,
-/// and the override rows IN AUTHORED ORDER.
+/// and the override rows IN AUTHORED ORDER. FORMAT VERSION 2: the same four fields as
+/// version 1, and an action may be authored on several rows -- one action, several keys
+/// (WL-KEY-08). A build that reads version 1 refuses this file by its number.
+struct WorkshopKeymap {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string legend;
+    std::vector<WorkshopKeymapRow> overrides;
+
+    ZEN_SHAPE(WorkshopKeymap, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(legend), ZEN_FIELD(overrides));
+};
+
+/// VERSION 1, KEPT VERBATIM UNDER ITS OWN WIRE IDENTITY (`WorkshopKeymap`, 1) so a file a
+/// maker wrote before this build is READ, explicitly, rather than refused by a number: its rows
+/// are the same two strings, and one action per row. `from_text` admits a claimed version 1
+/// against this shape and everything else against the current one.
+namespace v1 {
+
 struct WorkshopKeymap {
     std::string format;
     std::int64_t format_version = 0;
@@ -72,6 +91,10 @@ struct WorkshopKeymap {
     ZEN_SHAPE(WorkshopKeymap, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(legend), ZEN_FIELD(overrides));
 };
+
+} // namespace v1
+
+inline constexpr std::int64_t kFormatVersionOne = 1;
 
 /// The envelope's shape version and the keymap format version are ONE NUMBER --
 /// setup_persist's coupling, for its reason: it is what lets `from_text` refuse a future
@@ -133,8 +156,8 @@ struct LoadedKeymap {
 /// One sentence for a version this build does not read, shared by the envelope preflight
 /// and the field check so the two doors cannot word it differently.
 inline std::string wrong_version(std::int64_t found) {
-    return "keymap version " + std::to_string(found) + " -- this Workshop reads version " +
-           std::to_string(kFormatVersion);
+    return "keymap version " + std::to_string(found) + " -- this Workshop reads versions 1 and " +
+           std::to_string(kFormatVersion) + " and writes " + std::to_string(kFormatVersion);
 }
 
 /// The legend value a written word means. False for a word outside the closed set.
@@ -161,21 +184,34 @@ inline bool legend_in(const std::string& word, std::int64_t& out) {
 /// A WRITTEN KEYMAP, AS A LIVE ONE -- its format word, its version, its legend word, and
 /// then the override law (`apply_overrides`: grammar, the global walls, twice-authored,
 /// and the same-context collision refusal, each in words naming what a maker can fix).
-inline Written keymap_in(const WorkshopKeymap& file, Keymap& out) {
-    if (file.format != kFormat) {
-        return Written::no("not a Workshop keymap: it says it is `" + file.format + "`");
+inline Written keymap_rows_in(const std::string& format, std::int64_t format_version,
+                              std::int64_t expected_version, const std::string& legend_word,
+                              const std::vector<WorkshopKeymapRow>& overrides, bool repeats,
+                              Keymap& out) {
+    if (format != kFormat) {
+        return Written::no("not a Workshop keymap: it says it is `" + format + "`");
     }
-    if (file.format_version != kFormatVersion) {
-        return Written::no(wrong_version(file.format_version));
+    if (format_version != expected_version) {
+        return Written::no(wrong_version(format_version));
     }
     std::int64_t legend = legend_mode::kDefault;
-    if (!legend_in(file.legend, legend)) {
-        return Written::no("`" + file.legend + "` is not a legend mode (" + kLegendWords +
-                           ")");
+    if (!legend_in(legend_word, legend)) {
+        return Written::no("`" + legend_word + "` is not a legend mode (" + kLegendWords + ")");
     }
     std::vector<std::pair<std::string, std::string>> rows;
-    rows.reserve(file.overrides.size());
-    for (const WorkshopKeymapRow& row : file.overrides) {
+    rows.reserve(overrides.size());
+    for (const WorkshopKeymapRow& row : overrides) {
+        // A VERSION-1 FILE CANNOT HOLD REPEATS, and one that does is refused as version 1
+        // refused it -- the format's own promise, kept for the file that made it.
+        if (!repeats) {
+            for (const std::pair<std::string, std::string>& earlier : rows) {
+                if (earlier.first == row.action) {
+                    return Written::no("`" + row.action +
+                                       "` is authored twice -- one gesture per action in a "
+                                       "version 1 keymap");
+                }
+            }
+        }
         rows.emplace_back(row.action, row.gesture);
     }
     Keymap candidate;
@@ -185,6 +221,19 @@ inline Written keymap_in(const WorkshopKeymap& file, Keymap& out) {
     }
     out = std::move(candidate);
     return Written::ok();
+}
+
+inline Written keymap_in(const WorkshopKeymap& file, Keymap& out) {
+    return keymap_rows_in(file.format, file.format_version, kFormatVersion, file.legend,
+                          file.overrides, true, out);
+}
+
+/// THE VERSION-1 IMPORT: read explicitly, one action per row, and applied as this build's
+/// keymap. The next write is version 2; the file's identity changes with it, and the guide says
+/// so (`docs/workshop/hotkeys.md`).
+inline Written keymap_in(const v1::WorkshopKeymap& file, Keymap& out) {
+    return keymap_rows_in(file.format, file.format_version, kFormatVersionOne, file.legend,
+                          file.overrides, false, out);
 }
 
 /// Text to a keymap. Total: every input is either a keymap or a refusal with a reason,
@@ -197,20 +246,31 @@ inline LoadedKeymap from_text(std::string_view bytes) {
             loom::admit(claim, loom::schema_of<WorkshopKeymap>(), loom::Report::FirstError);
         return LoadedKeymap::no("not a Workshop keymap: " + refused.first_error().message());
     }
-    if (claim.claimed_name() == std::string(WorkshopKeymap::zen_name) &&
-        claim.claimed_version() != WorkshopKeymap::zen_version) {
-        return LoadedKeymap::no(
-            wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
-    }
-    const loom::Admission admitted =
-        loom::admit(claim, loom::schema_of<WorkshopKeymap>(), loom::Report::FirstError);
-    if (!admitted.ok()) {
-        return LoadedKeymap::no(admitted.first_error().message());
-    }
-
     Keymap candidate;
-    const Written understood =
-        keymap_in(loom::from_value<WorkshopKeymap>(admitted.value()), candidate);
+    Written understood = Written::ok();
+    if (claim.claimed_name() == std::string(WorkshopKeymap::zen_name) &&
+        claim.claimed_version() == v1::WorkshopKeymap::zen_version) {
+        // THE VERSION-1 IMPORT PATH: admitted against the version-1 shape kept above, before any
+        // row is judged, so an old file is read rather than refused by a number it never knew.
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<v1::WorkshopKeymap>(), loom::Report::FirstError);
+        if (!admitted.ok()) {
+            return LoadedKeymap::no(admitted.first_error().message());
+        }
+        understood = keymap_in(loom::from_value<v1::WorkshopKeymap>(admitted.value()), candidate);
+    } else {
+        if (claim.claimed_name() == std::string(WorkshopKeymap::zen_name) &&
+            claim.claimed_version() != WorkshopKeymap::zen_version) {
+            return LoadedKeymap::no(
+                wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
+        }
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<WorkshopKeymap>(), loom::Report::FirstError);
+        if (!admitted.ok()) {
+            return LoadedKeymap::no(admitted.first_error().message());
+        }
+        understood = keymap_in(loom::from_value<WorkshopKeymap>(admitted.value()), candidate);
+    }
     if (!understood.accepted) {
         return LoadedKeymap::no(understood.refusal);
     }

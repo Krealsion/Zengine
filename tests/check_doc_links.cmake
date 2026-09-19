@@ -88,6 +88,7 @@ set(ZEN_DOC_EXCLUDE
     "^cmake-build"
     "^_install"
     "^\\.git/"
+    "^\\.git$"              # a worktree's gitdir pointer: one line naming another tree, not a document
     "^out/"                  # a build tree name .gitignore also names
     "^\\.idea/"              # editor state, gitignored: it holds this machine's paths by design
     "^\\.vscode/"

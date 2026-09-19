@@ -472,6 +472,10 @@ struct ExternalPane {
     /// naming an OLDER generation is refused rather than admitted, so a queued picture of a
     /// document that has since been replaced cannot repaint the one that replaced it.
     std::int64_t content_generation = 0;
+    /// THE NUMBER OF THE `v3::PaneContent` THIS PANE LAST HAD ADMITTED, echoed on every press
+    /// the host sends it so the pane can tell a press aimed at this picture from one aimed at
+    /// an older one; 0 for a pane that never numbered a picture. Recorded, never judged.
+    std::int64_t picture = 0;
 
     /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.
     // WL-ATTN-04 -- agents/workshop/attention.md

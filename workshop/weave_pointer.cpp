@@ -67,7 +67,7 @@ void WorkshopWeave::close_context() { session_.context = ContextMenu{}; }
 
 void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     ContextMenu& menu = session_.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     menu.cursor = context_cursor_bound(menu.cursor, rows.size());
     switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
     case Act::kContextUp:
@@ -84,8 +84,11 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
     case Act::kContextBack:
         // ESCAPE DOES THE APPROPRIATE SMALLER THING: out of an open group, else out
         // of the surface -- pane management's done/close pair, in a surface whose
-        // depth is presentation state rather than a submode.
-        if (!menu.group.empty()) {
+        // depth is presentation state rather than a submode. A pane's menu has no groups:
+        // Escape answers it unchosen and closes it.
+        if (menu.foreign) {
+            retire_foreign_menu(false, std::string(), "dismissed", mail);
+        } else if (!menu.group.empty()) {
             leave_context_group();
         } else {
             close_context();
@@ -95,7 +98,11 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
         // THE KEY THAT OPENED IT CLOSES IT -- the shared rule, following the
         // opener's effective binding wherever a maker moved it.
         if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
-            close_context();
+            if (menu.foreign) {
+                retire_foreign_menu(false, std::string(), "dismissed", mail);
+            } else {
+                close_context();
+            }
         }
         break;
     }
@@ -106,7 +113,7 @@ void WorkshopWeave::leave_context_group() {
     const std::string was = menu.group;
     menu.group.clear();
     menu.cursor = 0;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (rows[i].is_group && was == rows[i].group) {
             menu.cursor = i;
@@ -118,11 +125,17 @@ void WorkshopWeave::leave_context_group() {
 // WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::choose_context_row(loom::Mail& mail) {
     ContextMenu& menu = session_.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     if (menu.cursor >= rows.size()) {
         return; // the belt, not the door
     }
     const ContextEntry chosen = rows[menu.cursor];
+    // A PANE'S ROW IS RETURNED, NOT SPENT: the choice goes back to the office that offered the
+    // rows, subject-bound, and the host performs nothing on the strength of it (WL-CTX-09).
+    if (chosen.foreign) {
+        retire_foreign_menu(true, chosen.id, std::string(), mail);
+        return;
+    }
     if (chosen.is_group) {
         menu.group = chosen.group;
         menu.cursor = 0;
@@ -179,7 +192,13 @@ void WorkshopWeave::context_press(const PointedAt& at, std::int64_t space, std::
     const ContextPressAt hit =
         context_press_at(session_, screen_of(session_), space, x, y, at);
     if (!hit.inside) {
-        close_context();
+        // AN OUTSIDE PRESS DISMISSES AND IS SPENT ON DISMISSING -- a pane's menu is answered
+        // unchosen; nothing beneath the press is selected, focused or sent the press.
+        if (session_.context.foreign) {
+            retire_foreign_menu(false, std::string(), "dismissed", mail);
+        } else {
+            close_context();
+        }
         return;
     }
     if (!hit.entry) {
@@ -338,6 +357,12 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // motion drags an object nobody is holding.
     if (session_.arrange.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THIS MODE OPENED: a mode never occludes
+        // a release (WL-PRESS-06).
+        if (!b.pressed && (b.button == 2 || b.button == 3)) {
+            (void)external_release(b.button, b, mail);
+            return;
+        }
         if (b.pressed && b.button == 3) {
             close_arrange();
             repaint(mail);
@@ -372,8 +397,29 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // pointed at now -- opening is re-targeting, not a toggle.
     if (session_.context.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE SURFACE OPENED (WL-PRESS-06).
+        if (!b.pressed && (b.button == 2 || b.button == 3)) {
+            (void)external_release(b.button, b, mail);
+            return;
+        }
         if (b.pressed && b.button == 3) {
             if (where.understood) {
+                // A PANE'S MENU IS ANSWERED UNCHOSEN BY THE NEWER PRESS, and the press then asks
+                // the ordinary question -- a pane under it with the door is offered it first.
+                if (session_.context.foreign) {
+                    retire_foreign_menu(false, std::string(), "a newer press", mail);
+                    const Occupancy taker = occupied_at(session_.panels, session_.setup.active,
+                                                        screen_of(session_), where);
+                    if (taker.occupied && is_runtime_kind(taker.kind)) {
+                        const ExternalPressAt aimed = external_press_at(
+                            session_.panels, session_.setup.active, screen_of(session_),
+                            taker.kind, session_.pane_titles, b.space, b.x, b.y);
+                        if (aimed.named && external_button(taker.kind, b.button, aimed, where, mail)) {
+                            repaint(mail);
+                            return;
+                        }
+                    }
+                }
                 open_context_at(where);
                 repaint(mail);
             }
@@ -398,12 +444,35 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         return;
     }
     const PointedAt at = canvas_point_of(b.space, b.x, b.y);
-    // A RIGHT PRESS ASKS "WHAT CAN I DO WITH THIS?". Before this branch a
-    // second button meant nothing anywhere in Workshop, so consuming it displaces no
-    // behaviour and steals nothing from any provider -- the pane seam cannot say a
-    // second button, deliberately, and no `PanePressed` is sent for one. Only a press
-    // opens; a release of button 3 falls through to the gate below and is dropped, as
-    // every non-primary transition always was.
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-PRESS-06). A secondary RELEASE is the hold's
+    // pane's wherever the pointer is, and never asks the occupancy question; one that ends no
+    // hold is dropped as every non-primary release always was.
+    if (!b.pressed && (b.button == 2 || b.button == 3)) {
+        if (external_release(b.button, b, mail)) {
+            repaint(mail);
+        }
+        return;
+    }
+    // A secondary PRESS over a pane whose holder has the `PaneButton` door is DELIVERED, and
+    // delivery is consumption: no menu, no selection change, no keyboard change. Only a press
+    // that names a row of the BODY is the pane's; the chrome stays the host's, and a holder
+    // without the door is sent nothing -- the host's own menu answers below, as it always did.
+    if (b.pressed && (b.button == 2 || b.button == 3) && at.understood) {
+        const Occupancy taker =
+            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+        if (taker.occupied && is_runtime_kind(taker.kind)) {
+            const ExternalPressAt aimed =
+                external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+                                  taker.kind, session_.pane_titles, b.space, b.x, b.y);
+            if (aimed.named && external_button(taker.kind, b.button, aimed, at, mail)) {
+                repaint(mail);
+                return;
+            }
+        }
+    }
+    // A RIGHT PRESS NOBODY TOOK ASKS "WHAT CAN I DO WITH THIS?" -- the host's own surface, on
+    // the chrome, the room, a tab, or a pane whose holder has no door for the button. Only a
+    // press opens; a middle press nobody took is dropped below.
     if (b.pressed && b.button == 3 && at.understood) {
         //...AND A TAB IS A SUBJECT IT CAN NAME -- BEHIND OCCUPANCY.
         // The tab inverse is asked only once the ordinary walk has answered that the

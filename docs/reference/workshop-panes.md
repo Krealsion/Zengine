@@ -643,6 +643,66 @@ evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing 
 Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
 of any kind**, and no setup format movement.
 
+## The second button, a menu a pane asks for, and a picture's number
+
+> **A right-click is the pane's first, delivery is the disposition, and a pane keeps no menu
+> state.**
+
+Three more things a pane may do, each an ordinary optional door in
+`workshop/pane_vocabulary.hpp`, and none of which changes a pane that does not take it:
+
+```text
+PaneButton          Workshop -> provider   button 2 or 3 down / up at (row, column), or a `lost`
+                                           release the host sent because no hand could;
+                                           `picture` is the admitted picture's number
+PanePassRequested   provider -> Workshop   "that press was not mine": the host's own pane menu
+                                           opens once, while the press is the latest act
+PaneMenuRequested   provider -> Workshop   present these rows (id, label) beside (row, column),
+                                           about `subject`, continuing the gesture by its number
+PaneMenuAnswered    Workshop -> provider   chosen + id, or not chosen + why; once per request
+PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
+                                           continues a menu answer, once
+v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
+v3::PanePressed     Workshop -> provider   v2's press + the picture the host had admitted
+```
+
+- **Delivery is consumption.** A secondary press over a pane's body is sent only to a holder
+  whose accept set has `PaneButton`, read off the bus at the send; nothing opens, and neither
+  selection nor keys move. The release goes to the pressing pane wherever the pointer is,
+  unclamped, and under an open mode too. A pane closed while a button is down hears one `lost`
+  release; a press of a button the host believes down ends the old hold aloud, never silently.
+  A holder without the door, the title row, the border, a tab and the room still get the host's
+  own menu.
+- **Every continuation echoes a number.** The host mints a correlation per secondary press and
+  per `PaneActionRequested`; a pass-back or a menu request echoes it in Loom's envelope (the
+  `PaneEscapeUnspent` discipline) and is judged where the host acts: newest press of its
+  button, unspent, its pane on the desk, and nothing but its own release since. Closing the pane
+  invalidates the continuation whether or not the button is up. A stale, zero, spent or foreign
+  number moves nothing.
+- **A menu is presented, not performed.** The host paints the offered rows beside the place the
+  pane named and returns the choice, subject-bound — `answer.subject` is the pane's own word,
+  echoed unread, so a pane keeps no menu state and judges the choice against what it holds when
+  the answer arrives. The surface takes no keys and no selection, and restores nothing after: a
+  press elsewhere is the way on. Escape, an outside press (spent on dismissing), a newer menu
+  and the pane leaving the desk each answer the open menu unchosen. At most `kMaxPaneMenuRows`
+  rows; a level taller than the room is windowed and says so. A chosen row is a fact about the
+  maker's gesture, never an authority grant.
+- **A press names its picture.** A pane that composes with `v3::PaneContent` numbers each
+  composition — the shipped panes use `component::RowMap`, whose number moves exactly when the
+  row-to-meaning map does, so a repaint that moves no row keeps it — and the host echoes on
+  `v3::PanePressed` and `PaneButton` the number it had admitted when it handled the press. A
+  pane acts only when that is its current map's, else refuses in words. What this does not
+  close: a press the input backend read after a newer picture was admitted but which the hand
+  made against the older one — the poll cadence plus the medium's presentation latency; that
+  residue is named, and no frame history is kept.
+- **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
+  `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
+  request continuing the delivery's gesture; `pass_back`, `manage`, `chosen` and `HeldButton`
+  are the other four lines a consumer would otherwise write. A pane may write the raw shapes
+  instead. The shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane
+  Manager and the Hotkeys pane offer menus; the Neovim editor passes a right press and release
+  to Neovim and nothing more (no secondary drag crosses the seam).
+
 ## The desk comes back on its own (WUX-0)
 
 A maker can **close Workshop after arranging it and reopen it into the same desk, at the same

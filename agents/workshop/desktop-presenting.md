@@ -41,13 +41,47 @@ DOES NOT MEAN
 - that both keys empty is a lost choice: it is a cursor never given a pane, which takes its row.
 
 PROVEN BY — `desktop-pane/vocabulary.hpp` `DesktopState`, `DesktopState::cursor_office`,
-`DesktopState::cursor_pane`; `desktop-pane/pane.cpp` `window_for`, `ListWindow`,
-`find_cursor`, `launch_cursor`, `close_cursor`; `tests/test_workshop_panes_actions.cpp` case
-`"the launcher keeps the row it will open in view, and its feedback on a row of its own"`, case
-`"the launcher's cursor is an identity: rows moving under it do not retarget Return, and a row
-that left the list is said, not replaced"`, case `"a choice whose row left stays unchosen across a
-desktop replacement and the publications after it: Return and x reach no neighbour, and a row
-chosen then is obeyed"`.
+`DesktopState::cursor_pane`; `desktop-pane/pane.cpp` `find_cursor`, `write_choice`,
+`launch_cursor`, `close_cursor`; `component/held_choice.hpp` `HeldChoice`;
+`component/list_window.hpp` `ListWindow`, `cursor_window`;
+`tests/test_workshop_panes_actions.cpp` case `"the launcher keeps the row it will open in view,
+and its feedback on a row of its own"`, case `"the launcher's cursor is an identity: rows moving
+under it do not retarget Return, and a row that left the list is said, not replaced"`, case `"a
+choice whose row left stays unchosen across a desktop replacement and the publications after it:
+Return and x reach no neighbour, and a row chosen then is obeyed"`.
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
+## WL-DESK-14 — Both panes are usable by mouse, and a press names the picture it was aimed at
+
+LAW — A composition records what its rows and controls mean and is numbered by it; a press acts only if it names the current picture, the wheel walks the cursor, a right press or `m` offers the row's menu.
+
+MEANS
+- the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
+- its menu: open/focus/close, `manage...` (the host's menu on that pane), `inspect in Info`;
+- the Hotkeys pane: a press chooses a binding and its menu edits it (WL-KEY-17); others hand back.
+
+DOES NOT MEAN
+- that an older picture's press acts (refused in words), or that a same-map repaint renumbers;
+- that a press read after a newer picture was admitted names the older: P-WORK-25's residue, open.
+
+PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
+`workshop/panel.hpp` `ExternalPane::picture`; `workshop/weave_seam.cpp` `admit_content`,
+`on(v3::PaneContent)`; `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
+`launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,
+`keys_chose`, `LauncherMeaning`, `KeysMeaning`, `kMovedSentence`, `take_notches`;
+`component/row_map.hpp` `RowMap`, `solid_columns`; `component/columns.hpp` `layout_columns`,
+`table_line`; `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: a press on a row's mark
+shows or hides that pane; a press on its name only moves the marker"`, case `"WL-DESK-14: a
+deliberate second press on the marked name, with the keys already here, opens it -- or focuses
+and lifts it when it is open and covered"`, case `"WL-DESK-14: the wheel walks the marker one
+row per notch, and a press names the picture it was aimed at -- a press queued behind a change
+of the list is refused, never resolved against the moved rows"`, case `"WL-DESK-14: a right
+press on a row offers its menu -- open, manage and inspect -- and `manage...` opens the host's
+own pane menu on THAT pane; the menu key offers the marked row's"`, case `"WL-DESK-14: the Pane
+Manager renders within every budget the screen grants -- down to a heading alone -- and never
+says an omission marker it did not seat"`, case `"WL-KEY-17: the table has coherent columns, a
+visible cursor the wheel and the keys walk, a press that chooses a row, and a heading press that
+is handed back; a small room keeps the notice"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-11 — The effective keymap is said out loud, and presenters print only it
@@ -59,7 +93,7 @@ MEANS
 - the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
 
 DOES NOT MEAN
-- that a presenter rebinds anything: a key moves in the keymap file, which is read at launch.
+- that a presenter rebinds anything: a key moves through the host's edit door or the file.
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `ShownBinding`, `KeymapShown`,
 `KeymapRequested`; `workshop/screen.hpp` `keymap_shown`; `workshop/screen_hotkeys.cpp`

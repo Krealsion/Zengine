@@ -1226,6 +1226,11 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+    // ...THE PRESS'S THIRD VERSION, THE SECOND BUTTON, AND A PANE'S MENU ANSWERED -- `to_any`
+    // for `PanePressed`'s reason: which pane a press or an answer reaches is the desk's fact.
+    speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
+    speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
+    speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
     // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
     // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
     // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of
@@ -1236,6 +1241,8 @@ int main(int argc, char** argv) {
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
     speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
+    speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
+    speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
     speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);

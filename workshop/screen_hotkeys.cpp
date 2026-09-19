@@ -103,8 +103,12 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
                 continue;
             }
             listed.push_back(row.act);
-            add(keyboard_context_name(s, ctx), row.id, row.label, spelled(k.row_gesture(row)),
-                k.override_for(row.act) != nullptr, true);
+            // ...ONE LINE PER KEY: an action with several keys in force is listed once per key,
+            // in the authored order, so the pane can offer each key for removal on its own.
+            for (const Gesture& g : k.row_gestures(row)) {
+                add(keyboard_context_name(s, ctx), row.id, row.label, spelled(g),
+                    k.override_for(row.act) != nullptr, true);
+            }
         }
     }
     // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by.
