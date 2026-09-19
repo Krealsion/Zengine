@@ -138,10 +138,11 @@ LAW — Each requester keeps its ticket and clears only the ask whose exact atte
 MEANS
 - no document-only fallback, and no standalone mode inferred from a refusal;
 - a manager with no Editor to bind refuses at once, in words: never silence;
-- an enqueue that queued nothing, Loom's later refusal of a queued attempt, and a forgery differ.
+- an unqueued enqueue (ticket branch, source-traced), a refused attempt and a forgery differ.
 
 DOES NOT MEAN
-- that handler failure or delivered silence is a dispatch refusal.
+- that handler failure or delivered silence is a dispatch refusal;
+- that a shape a pane declares can go unqueued for want of a registrar (Loom ABI v9): it resolves.
 
 PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-pane/pane.cpp`
 `on(DispatchRefused)`, `edit_source`; `editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
@@ -149,9 +150,10 @@ PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-
 case `"FILES-WEAVE: an open refused at dispatch is said by that exact attempt, and a fresh
 attempt takes once an opening office is present"`, case `"FILES-WEAVE: a forged refusal
 naming the pane's own live attempt settles nothing, and the open completes"`;
-`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup nothing could queue is
-refused at once in words, an open queued to an office nobody holds is refused at dispatch by
-that attempt, and a fresh e takes once each office is present"`, case `"BLD-WEAVE: a lookup
+`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup queued to a project office
+nobody holds and an open queued to an opening office nobody holds are each refused at dispatch
+by that attempt, in words, and a fresh e takes once each office is present"`, case
+`"BLD-WEAVE: a lookup
 queued to the project office and refused at dispatch -- the office gone before delivery -- is
 said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the
 office is back"`, case `"BLD-WEAVE: a forged refusal naming the pane's own live attempt
