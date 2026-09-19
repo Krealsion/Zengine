@@ -1768,9 +1768,18 @@ workshop_screen                   doctest           always  129
 #                                 withdrawal that queued nothing answered at once, a forged
 #                                 refusal settling nothing, and the withdrawn menu's record
 #                                 forgotten when its fence comes round.
+#   workshop_panes    667 -> 671  the presenter cancellation: an interaction the holder of the
+#                                 office cannot carry is given back rather than dropped. A
+#                                 withdrawal a fresh holder does not carry, settled by the host
+#                                 while it still keeps who asked (with the arrival-first control,
+#                                 and both shipped images); an act reaching an image that refused
+#                                 the grant, given back and taking nothing from the refusal's own
+#                                 answer; a menu the image answered not reopened by a give-back
+#                                 that follows it; and the give-back as one office's word about
+#                                 one grant -- forged, unknown and older ones settling nothing.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  674
+workshop_panes                    doctest           always  678
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

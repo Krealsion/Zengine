@@ -381,6 +381,7 @@ class WorkshopWeave
                                           // what it shows, when it ends it, and that it arrived
                                           zengine::workshop::MenuShown,
                                           zengine::workshop::MenuClosed,
+                                          zengine::workshop::MenuReturned,
                                           zengine::workshop::PresenterReady,
                                           // ...and the host's own fence behind a menu it
                                           // withdrew, whose requester may still be owed
@@ -893,9 +894,13 @@ public:
     /// THE PRESENTER SHOWS THE OPEN MENU'S LINES -- drawn when they fit the room granted, the menu
     /// withdrawn in words when they cannot be drawn.
     void on(const MenuShown& shown, loom::Mail& mail);
-    /// THE PRESENTER ENDED THE OPEN MENU; a choice is recorded as the continuation of the act the
-    /// presenter names, if that act was one this host forwarded to it.
+    /// THE PRESENTER ENDED THE OPEN MENU AND ANSWERED ITS REQUESTER; a choice is recorded as the
+    /// continuation of the act the presenter names, if that act was one this host forwarded to
+    /// it. One about a menu already withdrawn says nothing more is owed, and its record goes.
     void on(const MenuClosed& closed, loom::Mail& mail);
+    /// THE PRESENTER GAVE AN INTERACTION BACK -- it holds no such menu, so that requester has no
+    /// answer coming: this host settles it, open or withdrawn, and nothing newer is touched.
+    void on(const MenuReturned& returned, loom::Mail& mail);
     /// A HOLDER OF THE PRESENTER'S OFFICE ARRIVED: it carries the open menu (a handoff across a
     /// reload), or it does not and the menu ends, answered by this host.
     void on(const PresenterReady& ready, loom::Mail& mail);
@@ -1428,6 +1433,9 @@ private:
     /// ANSWER A WITHDRAWN MENU'S REQUESTER, unchosen, as this office, under the ask's number: the
     /// presenter could not be told. The menu is already off the screen, so nothing is repainted.
     void answer_withdrawn(const WithdrawnMenu& menu, const std::string& why, loom::Mail& mail);
+    /// STOP KEEPING WHO ASKED FOR A WITHDRAWN MENU, if this host still is: nothing more is owed
+    /// about it. The fence's second hop and the presenter's own `MenuClosed` both end here.
+    void forget_withdrawn(std::int64_t menu);
     /// SETTLE THE MENU WHOSE SENTENCE LOOM REFUSED, by the attempt Loom names -- the open menu if
     /// the attempt is its own, a withdrawn one whose attempts span it, else nothing: an older
     /// menu's refusal ends, alters and answers no newer one. Returns whether a menu was settled.

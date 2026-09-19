@@ -453,7 +453,7 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
                                             std::int64_t column) const {
     PointedAt out;
@@ -483,7 +483,7 @@ PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
     return out;
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
@@ -559,7 +559,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& asked,
                                std::uint64_t correlation, const PointedAt& at, loom::Mail& mail) {
     // ONE SURFACE AT A TIME: an older menu is withdrawn (its presenter answers it) and the host's
@@ -600,7 +600,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     session_.presented.first_attempt = sent.seq;
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
     if (!session_.presented.open) {
         return;
@@ -636,7 +636,7 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
         .send_to_role(kWorkshopProvider, WithdrawalFence{ended.menu, 1});
 }
 
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::answer_withdrawn(const WithdrawnMenu& menu, const std::string& why,
                                      loom::Mail& mail) {
     // THE HOST ANSWERS WHAT NO PRESENTER CAN -- unchosen, as its office, about the pane and subject
@@ -647,7 +647,7 @@ void WorkshopWeave::answer_withdrawn(const WithdrawnMenu& menu, const std::strin
                       menu.correlation);
 }
 
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 bool WorkshopWeave::end_refused_menu(const loom::Ticket& refused_attempt,
                                      const std::string& reason, loom::Mail& mail) {
     if (!refused_attempt.valid()) {
@@ -678,7 +678,17 @@ bool WorkshopWeave::end_refused_menu(const loom::Ticket& refused_attempt,
     return false;
 }
 
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
+void WorkshopWeave::forget_withdrawn(std::int64_t menu) {
+    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
+        if (withdrawn_[i].menu == menu) {
+            withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
+            return;
+        }
+    }
+}
+
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
     if (!mail.authored_from_role(kWorkshopProvider) || fence.menu <= 0 || fence.menu > menus_) {
         return; // only this office's own fence, about a menu it granted, forgets anything
@@ -691,19 +701,17 @@ void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
     if (fence.hop != 2) {
         return;
     }
-    // EVERY REFUSAL OF THE MENU'S SENTENCES HAS BEEN HEARD: a record still here was delivered, and
-    // its answer is the presenter's to give.
-    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
-        if (withdrawn_[i].menu == fence.menu) {
-            withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
-            return;
-        }
-    }
+    // EVERY REFUSAL OF THE MENU'S SENTENCES HAS BEEN HEARD, AND SO HAS THE PRESENTER'S OWN WORD
+    // ABOUT IT: the withdrawal was dispatched before this fence's first hop, and whatever the
+    // presenter said back -- it answered (`MenuClosed`) or it gave the interaction back
+    // (`MenuReturned`) -- was queued while that first hop was being handled, ahead of this
+    // second one. A record still here was delivered and answered where it was delivered.
+    forget_withdrawn(fence.menu);
 }
 
 const std::vector<WithdrawnMenu>& WorkshopWeave::withdrawn_menus() const { return withdrawn_; }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail) {
     if (!session_.presented.open) {
         return;
@@ -721,13 +729,13 @@ void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 bool WorkshopWeave::about_open_menu(std::int64_t menu, const loom::Mail& mail) const {
     return mail.authored_from_role(kPresenterRole) && session_.presented.open && menu > 0 &&
            menu == session_.presented.menu;
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
                                        std::int64_t scancode, std::int64_t modifiers,
                                        std::int64_t button, std::int64_t line, loom::Mail& mail) {
@@ -755,7 +763,7 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
     }
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // THE MAKER'S OWN CONTEXTUAL ROWS NAME THE KEY -- wherever they moved `context.up`, the
     // presenter hears "up" -- and the key that opens a menu closes it, the shared rule. What each
@@ -776,7 +784,7 @@ void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& ma
     forward_menu_input(menu_input::kKey, verb, k.scancode, k.modifiers, 0, -1, mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
     // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE MENU OPENED (WL-PRESS-06): custody first.
     if (!b.pressed && (b.button == 2 || b.button == 3)) {
@@ -814,7 +822,7 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
     return true;
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
     if (!about_open_menu(shown.menu, mail)) {
         return; // not the presenter, or not the menu that is open: nothing moves
@@ -855,9 +863,17 @@ void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     if (!about_open_menu(closed.menu, mail)) {
+        // A MENU THIS HOST ALREADY TOOK OFF THE SCREEN, ENDED BY THE IMAGE THAT HELD IT: this
+        // word comes no later than the answer that image gave its requester, so nothing more is
+        // owed and who asked need not be kept. Without this, an interaction given back behind it
+        // -- the same image meeting the withdrawal of work it had just finished -- would find the
+        // record still there and answer a second time.
+        if (mail.authored_from_role(kPresenterRole) && closed.menu > 0) {
+            forget_withdrawn(closed.menu);
+        }
         return;
     }
     const PresentedMenu ended = session_.presented;
@@ -884,7 +900,35 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
+void WorkshopWeave::on(const MenuReturned& returned, loom::Mail& mail) {
+    if (!mail.authored_from_role(kPresenterRole) || returned.menu <= 0 ||
+        returned.menu > menus_) {
+        return; // the office that presents, about a menu this host granted, and nobody else
+    }
+    // AN INTERACTION HANDED BACK UNANSWERED. The office that presents says it cannot answer this
+    // requester, and no other party can: so this host does -- for the menu still on the screen...
+    if (session_.presented.open && session_.presented.menu == returned.menu) {
+        end_menu_unanswered("the presenter could not answer it -- " + returned.why, mail);
+        return;
+    }
+    // ...or for one already withdrawn while who asked is still kept: answered once, and forgotten.
+    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
+        if (withdrawn_[i].menu != returned.menu) {
+            continue;
+        }
+        const WithdrawnMenu given = withdrawn_[i];
+        withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
+        answer_withdrawn(given,
+                         given.why + " -- the presenter could not answer it (" + returned.why + ")",
+                         mail);
+        return;
+    }
+    // A MENU THAT IS OVER AND SETTLED: its requester was answered where it ended, so this takes
+    // nothing -- least of all from a newer menu, which is another grant with another number.
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
     if (!mail.authored_from_role(kPresenterRole) || !session_.presented.open) {
         return;
@@ -901,7 +945,7 @@ void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
     end_menu_unanswered("the presenter was replaced", mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
@@ -945,7 +989,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {

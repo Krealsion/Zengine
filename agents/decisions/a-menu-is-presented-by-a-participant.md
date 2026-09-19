@@ -1,7 +1,7 @@
 # A pane's menu is presented by a participant
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
-it supports are in [contextual](../workshop/contextual.md).
+it supports are in [pane-menu](../workshop/pane-menu.md).
 
 **Context.** A pane's own menu was presented by the host: `ContextMenu::foreign` held the rows,
 the cursor, the office and the request's number, and the host's key and press handlers walked
@@ -42,6 +42,16 @@ subject that moved is judged by the requester when the choice arrives.
   hearing the press, with the presenter killed and revived around the older withdrawal, saw that
   refusal end the NEWER menu. The host now keeps a withdrawn menu's asker and attempt span until
   its own fence has come round twice, and a refusal settles only the menu its attempt names.
+- *Tried: one word for both endings (`MenuClosed{menu, false, 0}`)* — replaced. A presenter said
+  it for an offer it refused, whose requester it had answered, and for a menu it did not hold,
+  whose requester nobody had; the host closed the popup on both and could tell them apart in
+  neither. An independent probe loaded a fresh image while a press withdrew the open menu: the
+  withdrawal was delivered, the image ignored it, and the ask stayed pending — reproduced on
+  both shipped images, and on the numbered one as well. `MenuReturned` is the second word now.
+  `MenuClosed` means answered, and is what lets the host stop keeping who asked; a give-back
+  means unanswered, and the host settles that requester, open or withdrawn, once.
+- *Argued: read every unchosen close as unanswered* — refused: a refused offer's requester was
+  already answered by the presenter, so it would hear a second and contrary word about its ask.
 - *Argued: the presenter acknowledges each withdrawal, or the host answers every one* — refused:
   an acknowledgement a silent presenter never sends keeps its record forever, and the host
   answering would take the answer from the party that decides it. No timeout either.
@@ -57,10 +67,12 @@ subject that moved is judged by the requester when the choice arrives.
   a menu about rows its predecessor was showing. A pane that wants transfer carries it on purpose.
 
 **Consequences.** A Workshop without a presenter refuses a pane's menu in words and keeps every
-host route. A presenter's lines are judged like a pane's rows and a presenter that overflows its
+host route. An interaction a holder cannot carry ends somewhere: the seam has a word for it, and
+the two shipped images say it alike. It adds no completion guarantee — a delivered withdrawal an
+image simply never answers is still that presenter's silence. A presenter's lines are judged like a pane's rows and a presenter that overflows its
 room loses the menu. The seam is installed, so a stranger can build a presenter as well as a
 requester, and the numbered example replaces the shipped one both from a plan row and by a live
 reload that keeps the open menu. A press on a presented menu names the picture the medium held,
 through the same fence a pane's press does.
 
-**Laws supported.** [WL-CTX-10](../workshop/contextual.md).
+**Laws supported.** [WL-CTX-10](../workshop/pane-menu.md).
