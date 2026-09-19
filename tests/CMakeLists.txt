@@ -1059,6 +1059,9 @@ set(ZENGINE_WORKSHOP_DEFS
     # SHIPPED DESK already names (`default_setup`), so a suite that loads this image is also
     # the only place a fresh Workshop's own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
+    # ...AND THE CONNECTIONS PANE, on the same terms: the other hosts connected to this
+    # Workshop, as a loaded image the guests cases drive through the real seam.
+    "WORKSHOP_SO_CONNECTIONS_PANE=\"$<TARGET_FILE:zengine-connections-pane>\""
     # ...AND THE DESKTOP, the application's own defaults as a loaded weave. The cases that
     # reload it, launch through it and read its launcher load THIS image, never a stand-in.
     "WORKSHOP_SO_DESKTOP_PANE=\"$<TARGET_FILE:zengine-desktop-pane>\""
@@ -1097,6 +1100,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
+    zengine-connections-pane
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
@@ -1497,6 +1501,59 @@ target_compile_definitions(zengine-builder-tests PRIVATE
     "ZENGINE_TEST_HOST_SOURCE=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
 
 zengine_doctest_test(builder zengine-builder-tests)
+
+# ---- THE GUESTS SUITE: who may connect to this Workshop, and what each may then say -------
+#
+# The guest door and the file that becomes its policy (workshop/guests.hpp, guest_door.hpp),
+# driven over a REAL loopback socket with the real Input weave (over a fake reader) on the same
+# bus, and Loom's exported client on the far side of the socket in this process. It links the
+# guests library the host links and nothing of Workshop's screen; the Skin is the surface
+# suite's. Standalone rather than a Workshop suite for the Builder suite's reason: no rig, no
+# window, no plan -- a bus, a socket and the door.
+add_executable(zengine-workshop-guests-tests test_workshop_guests.cpp doctest_main.cpp)
+target_link_libraries(zengine-workshop-guests-tests
+    PRIVATE loom::bridge loom::switchboard loom::core zengine-workshop-guests
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-workshop-guests-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(workshop_guests zengine-workshop-guests-tests)
+
+# ---- THE PROBE SUITE: the reusable journey's orchestration and assertions ------------------
+#
+# The real probe weave (examples/workshop-probe) on one bus, with the real Input weave behind a
+# scripted link that keeps the link's contract: when the probe may say PASS, which answers may
+# move it, what it closes before it stops, and which inventory row is its own session. The
+# crossing is Loom's (suite `bridge`); the door, the Skin and the socket are `workshop_guests`
+# and the two-process journey's.
+add_executable(zengine-workshop-probe-tests test_workshop_probe.cpp doctest_main.cpp)
+target_link_libraries(zengine-workshop-probe-tests
+    PRIVATE loom::kernel loom::bridge loom::switchboard loom::core zengine-workshop-guests
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-workshop-probe-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(workshop_probe zengine-workshop-probe-tests)
+
+# ---- THE GUEST JOURNEY, ACROSS TWO REAL PROCESSES --------------------------------------
+#
+# A real `zengine-workshop`, launched with a guests file and the shipped terminal plan staged
+# beside it, and this program as the other host: admitted by credential, refused by a wrong
+# one, an input session through the real Input weave, the desktop's own chord injected, the
+# desktop office asked what it accepts, a picture of what the real terminal Skin presents
+# fetched by chunk and read for the Pane Manager the chord opened. A `program` entry: no
+# doctest population, so the contract is that it exists and runs.
+add_executable(zengine-guest-journey guest_journey.cpp)
+target_link_libraries(zengine-guest-journey
+    PRIVATE loom::bridge loom::switchboard loom::core
+            zengine-input-vocabulary zengine-surface-vocabulary
+            zengine-warnings zengine-sanitize)
+add_dependencies(zengine-guest-journey zengine-workshop)
+zengine_program_test(guest_journey zengine-guest-journey
+    $<TARGET_FILE:zengine-workshop>
+    $<TARGET_FILE_DIR:zengine-workshop>/default-load-plan.json
+    ${CMAKE_BINARY_DIR}/guest-journey-work)
+set_tests_properties(guest_journey PROPERTIES TIMEOUT 120)
 
 # ---- The BUILD WITNESS: a host, and deliberately NOT a CTest entry (BLD-1) --------------
 #

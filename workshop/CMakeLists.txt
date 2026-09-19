@@ -237,9 +237,27 @@ zengine_provider(zengine-workshop-session-history session_migration_provider.cpp
 target_link_libraries(zengine-workshop-session-history
     PRIVATE zengine-workshop-vocabulary zengine-operator)
 
+# ---- THE GUESTS FILE AND THE DOOR'S POLICY, COMPILED ONCE --------------------------------
+#
+# `workshop/guests.hpp` is the file a maker writes to admit another host, read through the gate,
+# and the grants its three powers are worth; `guest_door.hpp` is the participant that holds the
+# listener over Loom's exported crossing (loom::bridge). They are a library rather than part of
+# the host's own translation unit so the guests suite can pin the policy -- which credential
+# admits as whom, what each power reaches, what a stranger gets -- without a window or a plan.
+add_library(zengine-workshop-guests STATIC guests.cpp)
+target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(zengine-workshop-guests
+    PUBLIC loom::bridge loom::switchboard loom::core
+           zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+           zengine-workshop-vocabulary
+    PRIVATE zengine-warnings zengine-sanitize)
+
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
+            # ...and the crossing, through the guests library: the door this host mounts when a
+            # guests file names other hosts, and the policy that file becomes.
+            zengine-workshop-guests loom::bridge
             zengine-workshop-vocabulary
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
@@ -445,7 +463,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
-                               zengine-desktop-pane
+                               zengine-desktop-pane zengine-connections-pane
                                zengine-info-pane zengine-terminal-pane
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
@@ -555,6 +573,7 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
 # none of them gets a row, so building one from here is not offered. Which rows a running
 # Workshop may RELOAD is still the realization owner's to say, row by row, at the reload.
 set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-desktop-pane
+                                 zengine-connections-pane
                                  zengine-editor-pane
                                  zengine-neovim-editor zengine-files zengine-info-pane
                                  zengine-terminal-pane

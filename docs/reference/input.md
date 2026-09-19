@@ -60,3 +60,41 @@ The weave arranges its own execution: on the TimerService's hello it asks for a 
 role-addressed beat (`zengine.input.pump`, 10ms — the package owns its own pace) and polls on
 each firing; `PumpInput` stays as the same hands on direct request, for suites and timer-less
 hosts.
+
+## An input session: a second source of moments for the one producer
+
+The floor does not move — one Input weave produces the shapes above. A **session** is a second
+*source* for that producer: a participant on the bus (an agent's proxy across the crossing, a
+test weave, a script) hands the weave moments it composed, and the weave publishes them as the
+same `KeyPressed`, `TextEntered`, `PointerButton` and the rest, in the order handed, from the
+same identity, to the same consumers. Nothing downstream can tell an injected moment from a
+platform one; everything from the bus onward is exercised for real. What is *not* exercised is
+the platform edge — the console reader, the SDL queue, the OS translation — which only a hand
+on a device reaches.
+
+| shape | what it does |
+|---|---|
+| `InputSessionRequested{purpose}` → `InputSessionOpened{session}` / `zen.Refused` | opens the one session; a second opener is refused `busy` and told which session stands |
+| `InjectInput{session, events}` → `InputInjected{admitted, first_seq, last_seq}` / `zen.Refused` | publishes the moments, in order; judged **whole** — one bad moment (an unknown kind, an unknown pointer space, a button outside 1..3, a key outside 1..511, a press that would hold more than 16 keys down, more than 64 moments) publishes nothing and names its index |
+| `InputSessionClosed{session, holder}` → `zen.Ack` / `zen.Refused` | closes it; every key and button the session still held down is **released first**, as ordinary published moments. An office may say `session` 0 for "whatever that holder holds" |
+
+A session belongs to the bus-stamped sender that opened it, never to a name in a payload. It is
+closed by that holder personally, or **on its behalf by an office speaking deliberately** —
+Workshop's guest door closes a guest's session when the guest's connection dies — and never by
+a stranger's personal word. Admitted is not processed: `InputInjected` says the moments are on
+the bus in order; what a consumer makes of them is that consumer's, later, on its own delivery.
+A session is not focus, not a lease on the keyboard and not a claim against the platform: a
+person at the keyboard is still heard while one is open, and the two sources interleave in
+arrival order.
+
+**What a session may hold down is bounded, and so is what closing it costs.** A key moment names
+a scancode in SDL's space, `1..kMaxScancode` (511; 0 is "unknown key", which nobody presses on
+purpose) — the values every backend already speaks, so an injected key means on every backend
+what a platform one means. A session holds at most `kMaxHeldKeys` (16) keys down at once;
+buttons are 1..3 already. Each batch is judged against the held state it *would* leave, moment
+by moment, before anything is published: pressing a key that is already down is an auto-repeat
+and holds nothing new, a release makes room, and a batch that would pass the bound at any
+moment — even one that lets the key go again later in the same batch — is refused whole, naming
+that moment. Closing therefore publishes at most sixteen key releases and three button releases.
+The bound is on what a session holds, never on how long: nothing expires, and a key held
+legitimately stays held until it is released or the session closes.
