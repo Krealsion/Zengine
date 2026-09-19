@@ -27,6 +27,10 @@
 //                                                    // validate it against the desktop that
 //                                                    // exists NOW and apply what is safe; a
 //                                                    // medium with no desktop does nothing
+//   std::optional<CapturedPicture> capture();        // what I am presenting RIGHT NOW, read
+//                                                    // back from my own surface (a window's
+//                                                    // pixels, a terminal's cells); nullopt
+//                                                    // when there is no picture to read
 //
 // `clipboard_copy` is REQUIRED of a Medium rather than detected on one, the Sink's own rule
 // (skin_tui.hpp) for the Sink's own reason: a Medium that quietly lacked it would be a
@@ -66,6 +70,7 @@
 #include "timer/vocabulary.hpp"      // the skin asks for its own beat now
 
 #include <zen/weave.hpp>
+#include <zen/weave/standard_shapes.hpp>
 
 #include <cstdint>
 #include <optional>
@@ -99,11 +104,14 @@ class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                                   SurfaceText, ClipboardCopy,
                                                   ClipboardTextRequested,
                                                   SurfacePlacementRemembered, PumpSurface,
+                                                  SurfaceCaptureRequested,
+                                                  SurfaceCaptureChunkRequested,
                                                   loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
                                      loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement,
-                                                ClipboardText,
+                                                ClipboardText, SurfaceCaptured,
+                                                SurfaceCaptureChunk, loom::Refused,
                                                 zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
@@ -115,6 +123,7 @@ public:
         ++this->state_.frames;
         report_placement(mail);
         report_extent(mail); // the first frame is what brings a window into existence
+        capture_if_due(mail);
     }
 
     /// The general canvas — the same act as a frame, from general intent
@@ -128,6 +137,57 @@ public:
         ++this->state_.frames;
         report_placement(mail);
         report_extent(mail);
+        capture_if_due(mail);
+    }
+
+    /// A PICTURE OF WHAT THIS MEDIUM PRESENTS (vocabulary.hpp says what it proves). Now, or on
+    /// the paint that passes `after_frame`; one may wait at a time.
+    void on(const SurfaceCaptureRequested& asked, loom::Mail& mail) {
+        announce_surface_once(mail);
+        if (asked.after_frame >= 0 && asked.after_frame >= this->state_.frames) {
+            if (pending_capture_.valid()) {
+                (void)mail.answer(refused_capture("a capture is already waiting for frame " +
+                                                  std::to_string(pending_after_ + 1) +
+                                                  "; one waits at a time"));
+                return;
+            }
+            pending_capture_ = mail.defer_answer();
+            if (!pending_capture_.valid()) {
+                (void)mail.answer(refused_capture("this delivery cannot defer its answer"));
+                return;
+            }
+            pending_after_ = asked.after_frame;
+            return;
+        }
+        (void)mail.answer(take_capture());
+    }
+
+    /// ONE CHUNK OF THE RETAINED PICTURE, or a refusal naming which picture is retained now.
+    void on(const SurfaceCaptureChunkRequested& asked, loom::Mail& mail) {
+        if (retained_.number == 0 || asked.capture != retained_.number) {
+            (void)mail.answer(loom::Refused{
+                retained_.number == 0
+                    ? std::string("no picture is retained; ask for a capture first")
+                    : "capture " + std::to_string(asked.capture) + " is gone; the retained one is " +
+                          std::to_string(retained_.number)});
+            return;
+        }
+        const std::int64_t total = static_cast<std::int64_t>(retained_.picture.bytes.size());
+        if (asked.offset < 0 || asked.offset > total) {
+            (void)mail.answer(loom::Refused{"offset " + std::to_string(asked.offset) +
+                                            " is outside a picture of " + std::to_string(total) +
+                                            " bytes"});
+            return;
+        }
+        SurfaceCaptureChunk chunk;
+        chunk.capture = retained_.number;
+        chunk.offset = asked.offset;
+        chunk.total = total;
+        const std::int64_t n = total - asked.offset < kCaptureChunkBytes ? total - asked.offset
+                                                                          : kCaptureChunkBytes;
+        const auto begin = retained_.picture.bytes.begin() + asked.offset;
+        chunk.data.assign(begin, begin + n);
+        (void)mail.answer(chunk);
     }
 
     void on(const SurfaceText& t, loom::Mail& mail) {
@@ -216,7 +276,63 @@ public:
 
     Medium& medium() { return medium_; }
 
+    /// The frame count, for a suite that pins the ordering rule.
+    std::int64_t frames() const noexcept { return this->state_.frames; }
+
 private:
+    /// THE ONE RETAINED PICTURE, numbered. Plain members: a picture belongs to the surface an
+    /// incarnation held, and a successor has painted nothing yet.
+    struct Retained {
+        std::int64_t number = 0;
+        std::int64_t frame = 0;
+        CapturedPicture picture;
+    };
+
+    static SurfaceCaptured refused_capture(std::string why) {
+        SurfaceCaptured c;
+        c.ok = false;
+        c.refusal = std::move(why);
+        return c;
+    }
+
+    /// READ THE MEDIUM'S PICTURE and retain it, replacing the previous one. The medium may
+    /// have nothing to show (no window yet, no terminal) and says so; a picture over the bound
+    /// is refused whole rather than cut.
+    SurfaceCaptured take_capture() {
+        std::optional<CapturedPicture> picture = medium_.capture();
+        if (!picture.has_value()) {
+            return refused_capture("this medium has no picture to read back right now");
+        }
+        if (static_cast<std::int64_t>(picture->bytes.size()) > kMaxCaptureBytes) {
+            return refused_capture("the picture is " + std::to_string(picture->bytes.size()) +
+                                   " bytes, over the " + std::to_string(kMaxCaptureBytes) +
+                                   " this Skin retains");
+        }
+        retained_.number = ++captures_;
+        retained_.frame = this->state_.frames;
+        retained_.picture = std::move(*picture);
+        SurfaceCaptured c;
+        c.ok = true;
+        c.capture = retained_.number;
+        c.frame = retained_.frame;
+        c.width = retained_.picture.width;
+        c.height = retained_.picture.height;
+        c.cell_px = retained_.picture.cell_px;
+        c.format = retained_.picture.format;
+        c.bytes = static_cast<std::int64_t>(retained_.picture.bytes.size());
+        return c;
+    }
+
+    /// The deferred capture, spent on the paint that passed its frame -- and only then.
+    void capture_if_due(loom::Mail& mail) {
+        if (!pending_capture_.valid() || this->state_.frames <= pending_after_) {
+            return;
+        }
+        loom::DeferredAnswer due = std::move(pending_capture_);
+        pending_capture_ = loom::DeferredAnswer{};
+        (void)loom::answer_deferred(due, mail, take_capture());
+    }
+
     /// One hello per INCARNATION, not per identity: a deliberate plain member
     /// (the v2 world's `asked_` stance), never state — a successor or a
     /// reloaded instance re-claims its surface, so it must re-announce even
@@ -339,6 +455,10 @@ private:
     SurfacePlacement said_placement_{}; ///< ...and the last one that was
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Medium medium_;
+    Retained retained_;
+    std::int64_t captures_ = 0;
+    loom::DeferredAnswer pending_capture_;
+    std::int64_t pending_after_ = -1;
 };
 
 } // namespace zengine::surface
