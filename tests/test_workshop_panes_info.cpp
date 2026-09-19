@@ -2145,7 +2145,7 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
     }
 }
 
-TEST_CASE("an Info commit nothing could queue is released at once: the draft stands, the next "
+TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stands, the next "
           "commit tries again, and it is written once the door is back") {
     // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its session untouched
     // -- and an office with no subject door holds `zengine.workshop` meanwhile. The commit's

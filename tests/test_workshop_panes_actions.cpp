@@ -2647,8 +2647,9 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     }
 }
 
-TEST_CASE("a Pane Creator make nothing could queue is released at once and tried afresh, while one "
-          "delivered and never answered stays outstanding: no timeout, no retry, no guess") {
+TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispatch is released by "
+          "Loom's notice and tried afresh, while one delivered and never answered stays "
+          "outstanding: no timeout, no retry, no guess") {
     // MUTATION (Q1): the ticket discarded -- a make nothing queued holds the slot for good, and the
     // next name is `make not sent`.
     CreatorRig c("creator-make-unqueued");

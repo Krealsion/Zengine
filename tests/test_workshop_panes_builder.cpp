@@ -1132,7 +1132,7 @@ public:
 // BLD-WEAVE -- a refusal at enqueue, a refusal at dispatch, and a forgery are three facts (WL-OPEN-07)
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: a lookup nothing could queue is refused at once in words, an open queued to an office nobody holds is refused at dispatch by that attempt, and a fresh e takes once each office is present") {
+TEST_CASE("BLD-WEAVE: a lookup queued to a project office nobody holds and an open queued to an opening office nobody holds are each refused at dispatch by that attempt, in words, and a fresh e takes once each office is present") {
     // THE FIRST DOOR REACHES NOBODY: no project office is held. The lookup's shape still
     // resolves -- this pane DECLARES `RecipeSourceRequested` in its `Emit<...>`, and since Loom's
     // ABI v9 a declared shape is registered by its emitter at load, for as long as it lives --
@@ -1140,7 +1140,7 @@ TEST_CASE("BLD-WEAVE: a lookup nothing could queue is refused at once in words, 
     // own notice names the attempt; the pane handles it in words naming the lookup as the stage
     // that failed. (Not silence, and never a fabricated stage. The pane's other branch -- a
     // ticket that is not valid because nothing was queued -- is no longer reachable through a
-    // shape this pane declares, and stays source-traced: `begin_lookup` in builder-pane/pane.cpp.)
+    // shape this pane declares, and stays source-traced: `edit_source` in builder-pane/pane.cpp.)
     BuilderRig a("bld-lookup-refused");
     a.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     a.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
