@@ -78,8 +78,10 @@ does not save process identity, pending queues, grants or resumable native conti
 generation path. **Import** brings such a project into this editor. Workspace files additionally
 contain unfinished authoring work and presentation; they are not executable projects.
 
-An orderly Workshop quit waits for outstanding host work and fresh state inspection, then refuses unsaved Flow work. Saving an older snapshot while a send is pending does not bypass that wait. Save it, or choose **Discard** and type
-`discard` to allow closing without saving. Pane reload restores the workspace and reconnects to
+An orderly Workshop quit is refused while host work or its fresh state inspection is pending.
+Try quitting again after the result arrives. Saving an older snapshot while a send is pending
+does not bypass that refusal. Save unsaved Flow work, or choose **Discard** and type `discard`
+to allow closing without saving. Pane reload restores the workspace and reconnects to
 the session through its office. The selected page, unconfirmed dialog text and selection, and
 the distinction between a deliberate initial-state edit and observed live state also survive
 reload. Unconfirmed dialog text is separate from a saved workspace. Drawing grants and hit maps
