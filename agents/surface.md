@@ -434,6 +434,24 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
 `kUnknown`. A constant here is not a claim that every backend can produce one —
 `translate.hpp` remains where each backend's honest reach is written.
 
+## The Medium reads back its own picture, and the shell orders it by frame
+
+A capture is the Medium's (`capture()`, required of every Medium like the clipboard pair): the
+SDL medium re-draws the last canvas, reads the renderer before presenting it again, and hands a
+24-bit BMP; the terminal medium hands the cell projection (`canvas_cells`, the same grids
+`canvas_body` paints, less the ink). The shell (`skin.hpp`) numbers and retains ONE picture,
+answers chunks of it, and defers a request whose `after_frame` is not yet passed to the paint
+that passes it — spending the deferred answer inside `capture_if_due`, once. A picture is
+presentation at one frame and proves nothing about queued work; `surface/vocabulary.hpp` says
+the whole of what it proves. Witness: `test_surface.cpp`, the four `capture:` cases.
+
+`after_frame` orders a picture after A LATER FRAME, never after a given input: a consumer that
+paints after deliveries of its own is overtaken by a request queued after the injection's
+answer, FIFO or not. Ordering after input is the injector's host's — a Loom fence, `settle`
+across a link — and `test_workshop_guests.cpp`'s `order:` cases hold both halves (the capture
+on admission shows the old canvas; the one after settlement shows the input's paint, first run
+and later runs, with an unrelated paint in between).
+
 ## Do not assume
 
 - A metric identifies a graphical medium — `RegionFit::graphical()` is the partition, and a
