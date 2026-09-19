@@ -182,9 +182,13 @@ ZEN_EXPORT_WEAVE(Oven)
 
 Five things to notice, because each is a rule rather than a style:
 
-- **`Accept<>` and `Emit<>` are the manifest.** They are not documentation — Loom refuses a
-  shape you did not declare, in either direction, and a loaded weave's undeclared emission is
-  rejected at the artifact boundary.
+- **`Accept<>` and `Emit<>` are the manifest.** They are not documentation — every shape they
+  name is registered when the weave is admitted, with every shape it nests, so two participants
+  that spell one `(name, version)` differently are refused at the door rather than at the first
+  delivery; a shape you did not list in `Accept<>` is refused `NotAccepted` when it arrives; and
+  a loaded weave's emission of a shape nothing in the process ever declared is rejected at the
+  artifact boundary. What `Emit<>` is not: an exhaustive send list, or a grant — declaring a
+  shape says what it means, never that this weave may send it.
 - **`state_` is the only state.** `WeaveBase` gives it to you; it is a shape, so it can be
   inspected and serialized. A weave with state somewhere else is a weave that cannot be
   replaced.
@@ -537,11 +541,14 @@ registered in this Loom; nothing was queued
 ```
 
 Read it as two facts. `SeamUnresolved` means *a loaded weave reached out with a shape nothing
-in this process has ever declared* — and a shape is declared by being in some weave's
-`Accept<...>`, not by `#include`ing the header that defines it and not by an `Emit<...>`. So
-the Timer service is not in the process, and therefore neither is its vocabulary. The role is
-the address the oven named: `zengine.timer`, the office it was reaching for. Together they are
-the whole diagnosis — what was said, and where it was going.
+in this process has ever declared* — and a shape is declared by being in some live weave's
+`Accept<...>`, `Emit<...>`, `Claims<...>` or state (or nested inside one of those), not by
+`#include`ing the header that defines it. The oven's own emit-set is registered when it loads,
+but `StartTimer` is the Timer's word: the oven sends it from its handler without listing it in
+its `Emit<...>`, and in a process with no Timer nobody declares it. So the Timer service is not
+in the process, and therefore neither is its vocabulary. The role is the address the oven named: `zengine.timer`, the office
+it was reaching for. Together they are the whole diagnosis — what was said, and where it was
+going.
 
 `loom::name_of(RefusalReason)` gives the reason's name and `Refusal::message()` gives the text.
 

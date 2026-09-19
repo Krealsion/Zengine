@@ -559,8 +559,13 @@ from the declaration — a tap records every shape the weave sends across a whol
 the set.
 
 **And the loader is wider than any of that, which is reported rather than hidden.** `Kernel::load`
-binds `Grant{}.allow_any()` to every library it opens, and a declared `Emit<...>` is informational
-rather than enforced. So the list above is a fact about what this weave *does* and what the pane
+mints no grant of its own: a Kernel asks the admission policy its host installed, and one with no
+policy admits nothing. Workshop installs Loom's `trust_every_artifact(...)`, named with the reason
+the host gives, so every artifact its authored load plan names receives the permissive baseline by
+that policy — a per-row request and a maker-visible policy seat are the shape Workshop is waiting
+for (`workshop/workshop.cpp`); a host that names a grant at the call site (`Kernel::load` with a
+`Grant`) decides for that load alone. And a declared `Emit<...>` registers what a shape means
+without gating any send. So the list above is a fact about what this weave *does* and what the pane
 protocol *reaches* — it is not a containment claim about the loader. An in-process dynamic weave
 shares this process's address space; that predates this tool and is identically true of the Skin,
 the reader and the Timer the same host boots.

@@ -1721,7 +1721,10 @@ workshop_screen                   doctest           always  129
 #                                 a paste, a second Return, typed text, a cancel and a newer
 #                                 draft crossing it in one poll.
 #   workshop_panes    607 -> 612  the review after them: a Pane Creator act Loom refuses at
-#                                 dispatch, or that nothing could queue, is released and tried
+#                                 dispatch, or that nothing could queue (since Loom ABI v9 a
+#                                 declared shape resolves while its pane lives, so that case now
+#                                 measures a make queued to a doorless office and refused at
+#                                 dispatch), is released and tried
 #                                 afresh while delivered silence still waits, a forged notice
 #                                 settles nothing and the host's denial is said per attempt; and
 #                                 Info keeps a lost list choice lost across its own replacement.
