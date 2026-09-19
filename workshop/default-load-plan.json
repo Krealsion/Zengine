@@ -121,6 +121,16 @@
         "optional": true
       },
       {
+        "artifact": "zengine-connections-pane",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.connections"
+          }
+        ],
+        "optional": true
+      },
+      {
         "artifact": "zengine-info-pane",
         "provider": [],
         "weave": [

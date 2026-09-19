@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+#ifndef ZENGINE_WORKSHOP_GUESTS_HPP
+#define ZENGINE_WORKSHOP_GUESTS_HPP
+
+// WHO MAY CONNECT TO THIS WORKSHOP, AND WHAT EACH MAY THEN SAY -- the guests file, and the
+// admission policy it becomes.
+//
+// A maker who wants an agent's host to drive this Workshop writes one file:
+//
+//     {
+//       "listen": "127.0.0.1:0",
+//       "port_file": "workshop-guests.port",
+//       "guests": [
+//         { "name": "agent", "credential": "open-sesame", "may": ["input", "capture", "inspect"] },
+//         { "name": "watcher", "credential": "later", "admit": "ask", "may": ["inspect"] }
+//       ]
+//     }
+//
+// and launches with `--guests <file>`. No file, no listener: connecting is impossible rather
+// than merely refused. `listen` is a loopback address and a port (0 lets the OS choose, and
+// `port_file` is where the chosen port is written for a script to read). Each row is one
+// guest THIS HOST knows: the name is the host's word for it -- what the policy ESTABLISHES,
+// whatever the peer claims -- the credential is what the peer must present, and `may` is the
+// whole of what the session may then say, as three powers:
+//
+//     input     open an input session, inject moments, close it        -> zengine.input
+//     capture   take a picture of the surface and fetch it by chunk    -> zengine.skin
+//     inspect   ask any participant what it accepts (zen.DescribeAccepted), and the guest
+//               door for the connection inventory                     -> zengine.guests
+//
+// `admit` is "now" (the default) or "ask": an "ask" row is admitted by nobody until the host
+// decides -- today at the console or by a test, tomorrow by the popup the founder expects --
+// and its connection waits, able to act on nothing. That is the decision seam, enforced.
+//
+// WHAT THIS IS NOT. Not an identity system: a credential is a shared secret between a maker
+// and their own file, and the file is as private as the maker keeps it. Not network security:
+// the listener is loopback and the bridge carries no transport security (Loom's bridge
+// reference says so). Not a grant of anything the row does not name: a guest that can inject
+// input cannot read the bus, load a weave, or speak to any office the three powers omit.
+
+#include <zen/bridge/server.hpp>
+#include <zen/switchboard/grant.hpp>
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace zengine::workshop::guests {
+
+inline constexpr const char* kPowerInput = "input";
+inline constexpr const char* kPowerCapture = "capture";
+inline constexpr const char* kPowerInspect = "inspect";
+
+struct GuestRow {
+    std::string name;
+    std::string credential;
+    std::vector<std::string> may;
+    bool ask = false; ///< admitted only when the host decides (`"admit": "ask"`)
+};
+
+struct GuestsFile {
+    std::string path;
+    std::string listen = "127.0.0.1:0";
+    std::string port_file;
+    std::vector<GuestRow> rows;
+};
+
+/// Read and gate the file. A missing file is an error here -- a maker who named one is owed
+/// its absence -- and every refusal names the row and the word.
+bool read_guests_file(const std::string& path, GuestsFile* out, std::string* error);
+
+/// THE GRANT ONE ROW'S POWERS ARE WORTH, and nothing else. Spelled once, here, so the policy
+/// and a suite that pins what a power reaches agree by construction.
+loom::Grant grant_for(const GuestRow& row);
+
+/// Split "host:port" into its halves; false when it is not one.
+bool split_listen(const std::string& listen, std::string* host, std::uint16_t* port);
+
+/// THE POLICY: the file's rows as a `loom::BridgeAdmission`. A presented credential that
+/// matches a row admits AS THAT ROW (its name, its grant, no observation); a row marked
+/// "ask" defers; anything else is refused in words. An empty credential never matches.
+loom::BridgeAdmission admission_of(const GuestsFile& file);
+
+} // namespace zengine::workshop::guests
+
+#endif // ZENGINE_WORKSHOP_GUESTS_HPP

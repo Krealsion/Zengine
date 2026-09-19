@@ -1165,7 +1165,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 15); // ...the Desktop joined them (WL-DESK-01), and the presenter
+    REQUIRE(p.artifacts.size() == 16); // the Desktop (WL-DESK-01), Connections, the presenter
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1212,30 +1212,36 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[10].weave.has_value());
     CHECK(p.artifacts[10].weave->role == "zengine.attention");
     CHECK_FALSE(p.artifacts[10].provider.has_value());
+    // ...AND THE CONNECTIONS PANE: the other hosts connected to this Workshop, shown by a
+    // pane that arrives by a row and holds nothing -- the guest door owns the fact.
+    CHECK(p.artifacts[11].stem == "zengine-connections-pane");
+    REQUIRE(p.artifacts[11].weave.has_value());
+    CHECK(p.artifacts[11].weave->role == "zengine.connections");
+    CHECK_FALSE(p.artifacts[11].provider.has_value());
     // ...AND THE TERMINAL PANE, the fifth and last of the migrations, and the first that was
     // never a pane OR chrome: it was a MODE, opened by a global chord, owning the keyboard
     // and the pointer whole, drawn on a plane after every pane so nothing a maker arranged
     // could stand in front of it. It is a row here now, which means a maker can remove it: a
     // Workshop with no Terminal pane still MOUNTS the participant and still prints its
     // identity at boot, and there is simply nothing on the desk that can type at it.
-    CHECK(p.artifacts[12].stem == "zengine-terminal-pane");
-    REQUIRE(p.artifacts[12].weave.has_value());
-    CHECK(p.artifacts[12].weave->role == "zengine.terminal");
-    CHECK_FALSE(p.artifacts[12].provider.has_value());
+    CHECK(p.artifacts[13].stem == "zengine-terminal-pane");
+    REQUIRE(p.artifacts[13].weave.has_value());
+    CHECK(p.artifacts[13].weave->role == "zengine.terminal");
+    CHECK_FALSE(p.artifacts[13].provider.has_value());
     // ...AND THE EDITOR PANE, thirteenth and last of the migrations: the image that holds a
     // maker's source document, a weave in the room like every other pane's.
-    CHECK(p.artifacts[13].stem == "zengine-editor-pane");
-    REQUIRE(p.artifacts[13].weave.has_value());
-    CHECK(p.artifacts[13].weave->role == "zengine.editor");
-    CHECK_FALSE(p.artifacts[13].provider.has_value());
+    CHECK(p.artifacts[14].stem == "zengine-editor-pane");
+    REQUIRE(p.artifacts[14].weave.has_value());
+    CHECK(p.artifacts[14].weave->role == "zengine.editor");
+    CHECK_FALSE(p.artifacts[14].provider.has_value());
     // ⭐ ...AND THE MENU PRESENTER, LAST: the participant that presents a pane's offered menu,
     // holding `zengine.presenter` because this line grants it. A maker who names another artifact
     // here replaces it; one who removes the line gets a Workshop whose panes' menus are refused in
     // words, with every management route the host keeps for itself still there (WL-CTX-09).
-    CHECK(p.artifacts[14].stem == "zengine-menu-presenter");
-    REQUIRE(p.artifacts[14].weave.has_value());
-    CHECK(p.artifacts[14].weave->role == "zengine.presenter");
-    CHECK_FALSE(p.artifacts[14].provider.has_value());
+    CHECK(p.artifacts[15].stem == "zengine-menu-presenter");
+    REQUIRE(p.artifacts[15].weave.has_value());
+    CHECK(p.artifacts[15].weave->role == "zengine.presenter");
+    CHECK_FALSE(p.artifacts[15].provider.has_value());
     // ⭐ AND THE SHIPPED PLAN AUTHORS THE ESSENTIAL/RECOVERABLE SPLIT (P-WORK-22). The
     // services a Workshop cannot be seen, driven or timed without stop everything; every
     // PANE is a tool a maker can be told about instead. This is the authored policy, not an

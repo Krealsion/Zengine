@@ -215,6 +215,101 @@ public:
             return;
         }
         pump();
+        last_canvas_ = c;
+        paint(c);
+        SDL_RenderPresent(renderer_);
+        note_room_given();
+    }
+
+    /// WHAT THIS WINDOW PRESENTS, READ BACK FROM THE RENDERER, as a 24-bit BMP.
+    ///
+    /// A presented backbuffer is not promised readable afterwards on every SDL backend, so the
+    /// medium does not read what it presented: it draws the last canvas again -- the same plan
+    /// through the same two lists, the picture the window is showing -- reads the renderer's
+    /// output BEFORE presenting, and presents that same picture. The pixels a person sees and
+    /// the pixels handed back are one drawing. A window that has painted nothing has nothing to
+    /// read and says so.
+    std::optional<CapturedPicture> capture() {
+        if (!ok_ || renderer_ == nullptr || window_ == nullptr || !last_canvas_.has_value()) {
+            return std::nullopt;
+        }
+        paint(*last_canvas_);
+        SDL_Surface* read = SDL_RenderReadPixels(renderer_, nullptr);
+        if (read == nullptr) {
+            complain("SDL_RenderReadPixels");
+            SDL_RenderPresent(renderer_);
+            return std::nullopt;
+        }
+        SDL_Surface* bgr = SDL_ConvertSurface(read, SDL_PIXELFORMAT_BGR24);
+        SDL_DestroySurface(read);
+        if (bgr == nullptr) {
+            complain("SDL_ConvertSurface");
+            SDL_RenderPresent(renderer_);
+            return std::nullopt;
+        }
+        CapturedPicture p;
+        p.width = bgr->w;
+        p.height = bgr->h;
+        p.cell_px = kCanvasCellPx;
+        p.format = "image/bmp";
+        p.bytes = bmp_of(*bgr);
+        SDL_DestroySurface(bgr);
+        SDL_RenderPresent(renderer_);
+        return p;
+    }
+
+private:
+    /// A 24-bit bottom-up BMP of a BGR24 surface: the plainest image a reader without an
+    /// image library can open. Rows are padded to four bytes as the format requires.
+    static std::string bmp_of(const SDL_Surface& src) {
+        const std::uint32_t w = static_cast<std::uint32_t>(src.w > 0 ? src.w : 0);
+        const std::uint32_t h = static_cast<std::uint32_t>(src.h > 0 ? src.h : 0);
+        const std::uint32_t row = (w * 3 + 3) & ~3u;
+        const std::uint32_t pixels = row * h;
+        const std::uint32_t total = 14 + 40 + pixels;
+        std::string out;
+        out.reserve(total);
+        const auto u16 = [&out](std::uint16_t v) {
+            out.push_back(static_cast<char>(v & 0xffu));
+            out.push_back(static_cast<char>((v >> 8) & 0xffu));
+        };
+        const auto u32 = [&out](std::uint32_t v) {
+            for (int i = 0; i < 4; ++i) {
+                out.push_back(static_cast<char>((v >> (8 * i)) & 0xffu));
+            }
+        };
+        out += "BM";
+        u32(total);
+        u16(0);
+        u16(0);
+        u32(14 + 40);
+        u32(40); // BITMAPINFOHEADER
+        u32(w);
+        u32(h); // positive: bottom-up
+        u16(1);
+        u16(24);
+        u32(0); // BI_RGB
+        u32(pixels);
+        u32(2835);
+        u32(2835);
+        u32(0);
+        u32(0);
+        const auto* base = static_cast<const std::uint8_t*>(src.pixels);
+        for (std::uint32_t y = 0; y < h; ++y) {
+            const std::uint32_t src_row = h - 1 - y;
+            const std::uint8_t* line = base + static_cast<std::size_t>(src_row) *
+                                                  static_cast<std::size_t>(src.pitch);
+            out.append(reinterpret_cast<const char*>(line), static_cast<std::size_t>(w) * 3u);
+            for (std::uint32_t pad = w * 3; pad < row; ++pad) {
+                out.push_back('\0');
+            }
+        }
+        return out;
+    }
+
+    /// DRAW ONE CANVAS INTO THE RENDERER, presenting nothing: the picture is the same whether
+    /// it is presented next or read back first.
+    void paint(const SurfaceCanvas& c) {
         SDL_SetRenderDrawColor(renderer_, kCanvasBackground.r, kCanvasBackground.g,
                                kCanvasBackground.b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer_);
@@ -259,10 +354,9 @@ public:
         // layer and draws nothing at all, which is how the indicator disappears when the
         // last condition resolves.
         execute(plan_attention_chip(score_, c, metric, drawable()));
-        SDL_RenderPresent(renderer_);
-        note_room_given();
     }
 
+public:
     void note(std::string_view slot, std::string_view text) {
         if (slot == kSlotStatus) {
             status_ = std::string(text);
@@ -692,6 +786,7 @@ private:
     bool have_normal_ = false;  ///< ...and whether it has ever been observed at all
     OfferedMaximize offered_max_ = OfferedMaximize::kNone; ///< a maximize owed a room (QR-16)
     SdlTypeface text_; ///< the real face, when there is one; see skin_sdl_text.hpp
+    std::optional<SurfaceCanvas> last_canvas_; ///< what the window shows, kept for `capture`
     std::string status_;
     std::string score_;
     bool ok_ = false;
