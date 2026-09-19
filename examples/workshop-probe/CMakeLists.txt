@@ -12,7 +12,7 @@
 #     cmake --build build/probe
 #
 # The product is `zengine-workshop-probe.<so|dll>`, which a `loom-boot.json` row names. The
-# journey it runs, and the console words that start it, are in probe.cpp and in
+# journey it runs, and the console words that start it, are in probe.hpp and in
 # docs/workshop/external-host.md.
 
 cmake_minimum_required(VERSION 3.16)

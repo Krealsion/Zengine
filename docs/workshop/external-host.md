@@ -3,8 +3,8 @@
 **Walkthrough.** Let an agent's own Loom host connect to a running Workshop, be admitted as a
 guest you named, open an input session, press keys, take a picture of what Workshop presents,
 and keep the whole exchange in its own history — with Workshop showing the connection while it
-lasts. Two processes on one machine; nothing is discovered automatically and nothing crosses a
-network.
+lasts. Two processes on one machine, connected by a loopback socket; no automatic discovery
+or connections from other machines.
 
 ```
 Workshop (--guests file)  <--- loopback socket --->  loom-host (a `links` row + the probe weave)
@@ -75,9 +75,11 @@ In an empty directory of the agent's own, `loom-boot.json`:
   "history": {
     "log": "probe-run.log",
     "retain": [ { "shape": "SurfaceCaptureChunk", "last_n": "1", "in_recent": false,
-                  "retain_payload": false } ],
+                  "retain_payload": false },
+                { "shape": "loom.link.Crossed", "last_n": "8", "retain_payload": false } ],
     "keep":   [ { "shape": "InputInjected" }, { "shape": "SurfaceCaptured" },
-                { "shape": "GuestConnections" }, { "shape": "loom.link.Outcome" } ]
+                { "shape": "GuestConnections" }, { "shape": "loom.link.Outcome" },
+                { "shape": "loom.link.Crossed", "cap": "256" } ]
   }
 }
 ```
@@ -100,11 +102,13 @@ The probe did not run: being named in a boot plan is not permission to execute n
 ```text
 loom> authority trust probe
 loom> authority allow probe loom.link.Ask v1 -> role loom.link.workshop
+loom> authority allow probe loom.link.StatusRequested v1 -> role loom.link.workshop
 loom> start probe /abs/path/to/build/probe/zengine-workshop-probe.so
 ```
 
-The second line is the whole of what the probe may say: one envelope, to one office. What the
-link's *session* may say to Workshop is Workshop's guests file, and nothing here widens it.
+The two allow lines let the probe query its link and send requests through that one office.
+The authenticated Status answer establishes which link answers it and which far session belongs
+to it. What that *session* may say to Workshop is Workshop's guests file; neither grant widens it.
 
 ## 3. Run the journey
 
@@ -115,10 +119,13 @@ loom> weaves
 loom> send 6 RunProbe 1 link=workshop text= scancode=19 modifiers=2 inspect=zengine.guests picture=workshop-probe.bmp
   sent.  no answer yet (ask 3; 'asks' to see it)
 loom>
-  [ask 3 settled] zen.Result v1  from weave 6  PASS: session 1 opened by zengine.input; injected 2 moment(s),
-  session seq 1..2; zengine.guests lists 1 connection(s); this session is 'agent' (claimed 'agent-from-elsewhere',
-  weave 20); capture 1 at frame 100: 1920x1009 image/bmp, 5811894 bytes; picture written to workshop-probe.bmp
-  (5811894 of 5811894 bytes, image/bmp); session 1 closed
+  [ask 3 settled] zen.Result v1 from weave 6
+  PASS: link 'workshop' admitted as 'agent' (far session 20); session 1 opened by zengine.input;
+  injected 2 moment(s), session seq 1..2, settled on Workshop's bus;
+  zengine.guests lists 1 connection(s); this session is 'agent' (claimed 'agent-from-elsewhere',
+  weave 20); capture 1 at frame 100: 1920x1009 image/bmp, 5811894 bytes;
+  picture written to workshop-probe.bmp (5811894 of 5811894 bytes, image/bmp, read back whole);
+  session 1 closed
 ```
 
 The console names every field (`send` composes from the schema, not from the struct's
@@ -133,17 +140,23 @@ in it.
 
 **What a picture proves, and what it does not.** It is evidence of *presentation* at one frame,
 in the medium's units (`cell_px` maps its pixels to the canvas lattice a pointer moment is
-spelled in). The probe asks for it *after the frame it last saw*, and the bus's order puts the
-chord's consumer's repaint before the request that followed its answer — so the picture shows
-what that input did to the screen. It says nothing about asynchronous work still pending, and
-it is not a second renderer: a terminal Skin hands back its cells (`text/cells`), a window its
-pixels (`image/bmp`), and either is what the medium itself drew.
+spelled in). The probe sends injection with `loom.link.Ask.settle=true`: the link waits for
+both the Input owner's answer and Workshop's dispatch fence before handing that answer back.
+The fence follows the injection and messages synchronously queued by its dispatch descendants,
+including the consumer's repaint. Only then does the probe request the current presentation.
+This is a causal ordering guarantee for that bus work, not a delay or an assumption about FIFO.
+It does not wait for timers, asynchronous child-process replies, another host, or all background
+work, and settlement alone does not say whether the intended application operation succeeded.
+Those owners still need their own completion answers. A terminal Skin hands back its cells
+(`text/cells`), a window its pixels (`image/bmp`); either is what that medium itself drew.
 
 **What injection tests, and what it does not.** An injected moment enters at the Input weave
 and is published as the same `KeyPressed`, `TextEntered` and `PointerButton` every consumer
 already accepts, in order, from the same producer — so everything from the bus onward is the
 real thing. The platform edge — the console reader, the SDL queue, the OS — is not exercised;
-only a hand on a device is.
+only a hand on a device is. Each injected batch has at most 64 events, with scancodes 1..511
+and at most 16 keys held across batches. Validation checks the whole prospective held state
+before publishing anything; an invalid batch is refused whole.
 
 ## 4. Read what happened, from the agent's side
 
@@ -166,18 +179,28 @@ loom> log read
   ... BusObservation SurfaceCaptured v1 ...
 ```
 
-The 137 picture chunks were observed and, by the plan's `retain` row, kept one deep with no
-payload and out of recent context -- `history recent` shows the asks around them and not the
-flood -- which is what "bounded" means here: the recorder's recent window forgot 86 records
-and the log took 8.
+The picture chunks are observed but kept one deep without payload and outside recent context.
+Crossing records retain their metadata without payload in recent context and eight deep in the
+last-call window. The durable log keeps the first 256 crossing **records**, including their
+payloads, then records that its per-shape cap was reached. It does not mean 256 bytes per record
+or a rolling log. Other selected shapes continue. These are host policy choices, not promises
+that every crossing or a whole picture will remain available.
 
-The recorder is the host's bounded working memory; the log is what it chose not to forget,
-selected by shape in the boot plan. Both are Loom's own
-([history](https://github.com/Krealsion/Loom/blob/main/docs/reference/history.md)); what the
-agent's host records are **its own deliveries** — the link's speech to the probe, carrying the
-far owners' answers — with the far session and correlation intact. Receiving `SurfaceCaptured`
-here is evidence the Skin answered; it is not an observation of the Skin's execution, and the
-host does not relabel it as one.
+For an investigation that needs recent remote provenance decoded in the console, set that
+Crossed row's `retain_payload` to `true` and choose a suitable `last_n`; `history.payload_budget`
+sets the recorder's total byte budget (for example, `"8388608"` for 8 MiB). Picture chunks occur
+inside Crossed payloads too, so more retention costs memory. Forgotten or unretained bytes remain
+reported as such. The durable log's independent selection can preserve them beyond memory.
+
+The recorder is the host's bounded working memory; the log is what it chose not to forget
+([Loom history](https://github.com/Krealsion/Loom/blob/main/docs/reference/history.md)). These
+are observations of **local deliveries**, not observations of execution on the remote bus.
+The link first says `loom.link.Crossed` to itself with the far session, attempt, remote author,
+answer kind and payload. Its resulting typed answer names that crossing as its dispatch parent.
+`history last loom.link.Crossed`, `history payload <retained-id>` and `log read` let the operator
+follow this evidence within the selected retention. The typed answer has the local ask's
+correlation and Loom answer authority; an ordinary participant saying the same words cannot
+settle the ask. The link authenticates its own crossing record before using it.
 
 The five outcomes a crossing can have are kept apart in that record: an owner's answer (its
 own shape), the link's `loom.link.Outcome` — `refused` (dropped before Workshop's bus),
@@ -186,6 +209,14 @@ session), `lost` (the link went down after the send: unknown, and nothing is res
 silence, which has no shape and leaves the probe's own book open.
 
 ## 5. Refusals, and the connection's end
+
+A run reports PASS only after the matching connection row, attributable owner answers, complete
+capture transfer, successful file write/flush/close and input-session closure. A reachable failure
+after opening input first attempts closure; STOPPED reports both the original reason and the
+cleanup outcome. An unwritable `picture` path therefore stops rather than passing with no file.
+A refused or silent cleanup remains refused or pending. A lost link is unknown; the probe does
+not replay the action or claim it observed closure. The guest door owns disconnect cleanup.
+After observed closure, another `RunProbe` can open a fresh session.
 
 Connect with a wrong credential and the link is told in Workshop's words:
 

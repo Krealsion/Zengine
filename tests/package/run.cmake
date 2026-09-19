@@ -208,7 +208,7 @@ set(probe_src "${work}/probe")
 file(REMOVE_RECURSE "${probe_src}")
 file(MAKE_DIRECTORY "${probe_src}")
 file(GLOB probe_fixture "${repo}/examples/workshop-probe/CMakeLists.txt"
-     "${repo}/examples/workshop-probe/*.cpp")
+     "${repo}/examples/workshop-probe/*.cpp" "${repo}/examples/workshop-probe/*.hpp")
 file(COPY ${probe_fixture} DESTINATION "${probe_src}")
 set(probe_bin "${work}/probe-build")
 file(REMOVE_RECURSE "${probe_bin}")

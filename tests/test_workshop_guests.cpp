@@ -25,6 +25,7 @@
 
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
+#include "surface/skin.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -537,6 +538,317 @@ TEST_CASE("door: a guest injects through the real Input weave, and its socket's 
         }
     }
     CHECK(said_closed);
+}
+
+// =============================================================================
+// Presentation after input: WHEN may an agent take the picture of what its input did?
+// =============================================================================
+//
+// One bus, the real Input weave and the real Skin shell (over a medium that records what it
+// was last told to paint), and an ordinary input consumer that does not paint in the delivery
+// that heard the key: it takes several deliveries of its own first, as a desk that asks a
+// pane for its rows does. The agent asks for a picture the moment the Input weave says its
+// moments are published.
+
+namespace {
+
+/// A medium that remembers the width of the last canvas it painted and hands that back as
+/// its picture -- enough to tell which paint a capture saw.
+struct WidthMedium {
+    std::int64_t width = 0;
+    std::int64_t painted = 0;
+    void frame(const zengine::snake::SnakeVisual&, bool) {}
+    void canvas(const surface::SurfaceCanvas& c, bool) {
+        width = c.width;
+        ++painted;
+    }
+    void note(std::string_view, std::string_view) {}
+    void pump() {}
+    void clipboard_copy(const std::string&) {}
+    std::optional<std::string> clipboard_text() { return std::nullopt; }
+    surface::SurfaceExtent extent() const { return {}; }
+    std::optional<surface::SurfacePlacement> placement() { return std::nullopt; }
+    void place(const surface::SurfacePlacementRemembered&) {}
+    std::optional<surface::CapturedPicture> capture() {
+        if (painted == 0) {
+            return std::nullopt;
+        }
+        surface::CapturedPicture p;
+        p.width = width;
+        p.height = 1;
+        p.format = "text/cells";
+        p.bytes = std::string(static_cast<std::size_t>(width), '#') + "\n";
+        return p;
+    }
+};
+
+struct DeskStep {
+    std::int64_t left = 0;
+    ZEN_SHAPE(DeskStep, 1, ZEN_FIELD(left));
+};
+
+/// An ordinary consumer of input: a key starts `steps` deliveries of its own, and only the
+/// last one paints -- at `width_`, which the case sets per run.
+class SlowDesk : public loom::WeaveBase<SlowDesk, EarsState, loom::Accept<input::KeyPressed, DeskStep>,
+                                        loom::Emit<DeskStep, surface::SurfaceCanvas>> {
+public:
+    std::int64_t steps = 3;
+    std::int64_t width_ = 20;
+    void on(const input::KeyPressed&, loom::Mail& mail) {
+        ++state_.heard;
+        (void)mail.send(this->self_, DeskStep{steps});
+    }
+    void on(const DeskStep& s, loom::Mail& mail) {
+        if (s.left > 0) {
+            (void)mail.send(this->self_, DeskStep{s.left - 1});
+            return;
+        }
+        surface::SurfaceCanvas c;
+        c.width = width_;
+        c.height = 1;
+        mail.publish(c);
+    }
+};
+
+/// The agent: opens a session, injects, and asks for a picture when told its moments are
+/// published -- the ordering the capture door used to promise.
+class OrderAgent : public loom::WeaveBase<OrderAgent, EarsState,
+                                          loom::Accept<input::PumpInput, input::InputSessionOpened,
+                                                       input::InputInjected, loom::Ack, loom::Refused,
+                                                       surface::SurfaceCaptured>,
+                                          loom::Emit<input::InputSessionRequested, input::InjectInput,
+                                                     surface::SurfaceCaptureRequested>> {
+public:
+    std::function<void(loom::Mail&)> next_;
+    std::int64_t session = 0;
+    bool capture_on_admission = true;
+    std::vector<surface::SurfaceCaptured> pictures;
+    std::vector<std::string> said;
+    void on(const input::PumpInput&, loom::Mail& mail) {
+        if (next_) {
+            next_(mail);
+        }
+    }
+    void on(const input::InputSessionOpened& o, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            session = o.session;
+        }
+    }
+    void on(const input::InputInjected& i, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        said.push_back("injected " + std::to_string(i.admitted));
+        if (capture_on_admission) {
+            (void)mail.send_to_role(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+        }
+    }
+    void on(const loom::Ack&, loom::Mail&) {}
+    void on(const loom::Refused& r, loom::Mail&) { said.push_back("refused: " + r.reason); }
+    void on(const surface::SurfaceCaptured& c, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            pictures.push_back(c);
+        }
+    }
+};
+
+struct OrderRig {
+    loom::Switchboard bus;
+    std::vector<std::vector<InputEvent>> feed;
+    loom::WeaveId input_id{};
+    loom::WeaveId skin_id{};
+    surface::SkinT<WidthMedium>* skin = nullptr;
+    SlowDesk* desk = nullptr;
+    OrderAgent* agent = nullptr;
+    loom::WeaveId agent_id{};
+
+    OrderRig() {
+        {
+            auto w = std::make_unique<input::InputWeaveT<FakeReader>>(FakeReader{&feed});
+            input::InputWeaveT<FakeReader>* raw = w.get();
+            loom::Grant grant = loom::emit_default_grant(*raw);
+            loom::allow_poke_answers(grant);
+            input_id = bus.register_weave(std::move(w), std::move(grant),
+                                          std::string(input::kInputRole));
+            raw->zen_set_self(input_id);
+        }
+        {
+            auto w = std::make_unique<surface::SkinT<WidthMedium>>();
+            skin = w.get();
+            loom::Grant grant = loom::emit_default_grant(*skin);
+            loom::allow_poke_answers(grant);
+            skin_id = bus.register_weave(std::move(w), std::move(grant),
+                                         std::string(surface::kSkinRole));
+            skin->zen_set_self(skin_id);
+        }
+        const loom::WeaveId desk_id = loom::mount<SlowDesk>(bus);
+        desk = static_cast<SlowDesk*>(bus.weave(desk_id));
+        agent_id = loom::mount<OrderAgent>(bus);
+        agent = static_cast<OrderAgent*>(bus.weave(agent_id));
+        surface::SurfaceCanvas first;
+        first.width = 10;
+        first.height = 1;
+        (void)bus.send(skin_id, loom::Message(loom::to_value(first)));
+        bus.drain_until_idle();
+    }
+    void act(std::function<void(loom::Mail&)> f) {
+        agent->next_ = std::move(f);
+        (void)bus.send(agent_id, loom::Message(loom::to_value(input::PumpInput{})));
+        bus.drain_until_idle();
+        agent->next_ = nullptr;
+    }
+};
+
+input::InjectedEvent ctrl_p() {
+    input::InjectedEvent e;
+    e.kind = "KeyPressed";
+    e.scancode = input::scan::kP;
+    e.modifiers = input::mod::kCtrl;
+    return e;
+}
+
+} // namespace
+
+TEST_CASE("order: a picture taken on the injection's answer can miss what the input painted") {
+    // THE PINNED NEGATIVE. `InputInjected` says the moments are PUBLISHED -- admission, not
+    // presentation -- and a consumer that paints after deliveries of its own is overtaken by a
+    // request queued after that answer, FIFO or not. Nobody may promise otherwise again.
+    OrderRig r;
+    r.act([](loom::Mail& m) {
+        (void)m.send_to_role(input::kInputRole, input::InputSessionRequested{"order"});
+    });
+    REQUIRE(r.agent->session == 1);
+    r.act([&](loom::Mail& m) {
+        input::InjectInput batch;
+        batch.session = r.agent->session;
+        batch.events = {ctrl_p()};
+        (void)m.send_to_role(input::kInputRole, batch);
+    });
+    REQUIRE(r.agent->pictures.size() == 1);
+    const surface::SurfaceCaptured& shot = r.agent->pictures[0];
+    INFO("the picture: width " << shot.width << " at frame " << shot.frame << "; the medium then "
+                               << "shows width " << r.skin->medium().width << " at frame "
+                               << r.skin->frames());
+    CHECK(shot.width == 10);                  // the canvas from before the key
+    CHECK(r.skin->medium().width == 20);      // ...which the key's own paint replaced afterwards
+}
+
+TEST_CASE("order: a picture asked for after the injection SETTLES shows what the input painted, every run") {
+    OrderRig r;
+    r.agent->capture_on_admission = false;
+    r.act([](loom::Mail& m) {
+        (void)m.send_to_role(input::kInputRole, input::InputSessionRequested{"order"});
+    });
+    REQUIRE(r.agent->session == 1);
+    std::int64_t seen_frame = 1; // what an agent that remembered frames would have remembered
+    for (const std::int64_t width : {std::int64_t{20}, std::int64_t{40}}) {
+        r.desk->width_ = width;
+        const std::size_t shots = r.agent->pictures.size();
+        // THE HOST INJECTS ON THE AGENT'S BEHALF, FENCED -- as a door does for a guest.
+        input::InjectInput batch;
+        batch.session = r.agent->session;
+        batch.events = {ctrl_p()};
+        loom::Fence fence;
+        REQUIRE(r.bus
+                    .send_as_to_role_fenced(r.agent_id, input::kInputRole,
+                                            loom::Message(loom::to_value(batch)), &fence)
+                    .valid());
+        // ...and somebody else paints in the middle of the input's work: a frame newer than
+        // the last one the agent saw, which is not the input's.
+        surface::SurfaceCanvas unrelated;
+        unrelated.width = 30;
+        unrelated.height = 1;
+        (void)r.bus.send(r.skin_id, loom::Message(loom::to_value(unrelated)));
+        int turns = 0;
+        bool newer_before_settled = false;
+        while (r.bus.fence_state(fence) == loom::FenceState::Open && turns < 50) {
+            (void)r.bus.pump_pending();
+            ++turns;
+            if (r.bus.fence_state(fence) == loom::FenceState::Open && r.skin->frames() > seen_frame) {
+                newer_before_settled = true; // "a later frame" arrived before the input was done
+            }
+        }
+        REQUIRE(r.bus.fence_state(fence) == loom::FenceState::Settled);
+        r.bus.release_fence(fence);
+        CHECK(newer_before_settled);
+        // THE PICTURE, ASKED FOR NOW: after everything the injection set in motion.
+        r.act([](loom::Mail& m) {
+            (void)m.send_to_role(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+        });
+        REQUIRE(r.agent->pictures.size() == shots + 1);
+        const surface::SurfaceCaptured& shot = r.agent->pictures.back();
+        INFO("run for width " << width << ": the picture is width " << shot.width << " at frame "
+                              << shot.frame);
+        CHECK(shot.ok);
+        CHECK(shot.width == width);
+        CHECK(shot.frame == r.skin->frames());
+        seen_frame = shot.frame;
+    }
+}
+
+TEST_CASE("order: through the real door, a settle-requested injection is told Settled after the desk painted") {
+    guests::GuestsFile file;
+    guests::GuestRow agent;
+    agent.name = "agent";
+    agent.credential = "open-sesame";
+    agent.may = {guests::kPowerInput, guests::kPowerCapture};
+    file.rows.push_back(agent);
+    Rig r(file);
+    // The desk and the Skin, beside the door and the Input weave.
+    const loom::WeaveId desk_id = loom::mount<SlowDesk>(r.bus);
+    (void)desk_id;
+    surface::SkinT<WidthMedium>* skin = nullptr;
+    loom::WeaveId skin_id{};
+    {
+        auto w = std::make_unique<surface::SkinT<WidthMedium>>();
+        skin = w.get();
+        loom::Grant grant = loom::emit_default_grant(*skin);
+        loom::allow_poke_answers(grant);
+        skin_id = r.bus.register_weave(std::move(w), std::move(grant),
+                                       std::string(surface::kSkinRole));
+        skin->zen_set_self(skin_id);
+    }
+    surface::SurfaceCanvas first;
+    first.width = 10;
+    first.height = 1;
+    (void)r.bus.send(skin_id, loom::Message(loom::to_value(first)));
+    r.bus.drain_until_idle();
+    Guest g(r.port, "agent", "open-sesame");
+    REQUIRE(r.beat_until([&] {
+        g.poll();
+        return g.client->admitted();
+    }));
+    g.ask(input::kInputRole, 1, input::InputSessionRequested{"order through the door"});
+    REQUIRE(r.beat_until([&] {
+        g.poll();
+        return g.answered<input::InputSessionOpened>(1).has_value();
+    }));
+    input::InjectInput batch;
+    batch.session = g.answered<input::InputSessionOpened>(1)->session;
+    batch.events = {ctrl_p()};
+    g.client->send_to_role(input::kInputRole, 2, loom::serialize(loom::to_value(batch)),
+                           /*settle=*/true);
+    g.client->flush();
+    bool answered_first = false;
+    REQUIRE(r.beat_until([&] {
+        g.poll();
+        for (const loom::BridgeEvent& e : g.events) {
+            if (e.kind == loom::BridgeEvent::Kind::Settled && e.correlation == 2) {
+                answered_first = g.answered<input::InputInjected>(2).has_value();
+                return true;
+            }
+        }
+        return false;
+    }));
+    CHECK(answered_first);
+    CHECK(skin->medium().width == 20); // the desk's paint is done by the time Settled is told
+    g.ask(surface::kSkinRole, 3, surface::SurfaceCaptureRequested{});
+    REQUIRE(r.beat_until([&] {
+        g.poll();
+        return g.answered<surface::SurfaceCaptured>(3).has_value();
+    }));
+    CHECK(g.answered<surface::SurfaceCaptured>(3)->width == 20);
+    CHECK(r.bus.fences_held() == 0); // the door let its fence go once it told the guest
 }
 
 TEST_SUITE_END();

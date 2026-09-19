@@ -334,6 +334,17 @@ struct PumpInput {
 // stranger's personal word. Closing publishes a release for every key and button the session
 // still held down, so no held input survives a session into unrelated work.
 //
+// WHAT A SESSION MAY HOLD DOWN IS BOUNDED, AND SO IS WHAT CLOSING IT COSTS. A key moment names a
+// scancode in SDL's space, 1..`kMaxScancode` -- the same values every backend already speaks, so
+// an injected key means on every backend what a platform one means -- and a session holds at
+// most `kMaxHeldKeys` keys down at once (buttons are 1..3 already). Each batch is judged against
+// the held state it WOULD leave, moment by moment, before anything is published: a press of a
+// key already down is an auto-repeat and holds nothing new, a release makes room, and a batch
+// that would pass the bound at any moment -- even one that lets go again later in the same batch
+// -- is refused whole, naming the moment. The bound is on what one session holds, never on how
+// long it holds it: nothing expires, and a key held legitimately stays held until it is released
+// or the session closes.
+//
 // A SESSION IS NOT FOCUS, NOT A LEASE ON THE KEYBOARD AND NOT A CLAIM AGAINST THE PLATFORM.
 // A person at the keyboard is still heard while a session is open; the weave interleaves the
 // two sources in the order it received them, and an application that wants arbitration
@@ -389,8 +400,9 @@ struct InjectedEvent {
 };
 
 /// PUBLISH THESE MOMENTS, IN THIS ORDER, through the session. Judged whole: a batch with an
-/// unknown kind, an unknown pointer space, or more than `kMaxInjectedEvents` publishes nothing
-/// and is refused with the offending index. Answered `InputInjected`.
+/// unknown kind, an unknown pointer space, a key outside 1..`kMaxScancode`, a moment that would
+/// hold more than `kMaxHeldKeys` keys down, or more than `kMaxInjectedEvents` moments publishes
+/// nothing and is refused with the offending index. Answered `InputInjected`.
 struct InjectInput {
     std::int64_t session = 0;
     std::vector<InjectedEvent> events;
@@ -411,8 +423,18 @@ struct InputInjected {
 };
 
 /// The most moments one `InjectInput` may carry. A bound on what one delivery can put on the
-/// bus, so an agent's batch is a batch and not a flood dressed as one message.
+/// bus, so an agent's batch is a batch and not a flood dressed as one message. It bounds ONE
+/// delivery; what a session accumulates across deliveries is bounded below.
 inline constexpr std::size_t kMaxInjectedEvents = 64;
+
+/// The largest scancode a key moment may name: SDL's scancode space is 0..511
+/// (`SDL_SCANCODE_COUNT` is 512), and 0 is "unknown key", which no one can press or release on
+/// purpose. A key moment outside 1..kMaxScancode is refused, with its batch.
+inline constexpr std::int64_t kMaxScancode = 511;
+
+/// The most keys one session holds down at once. More than any chord a hand plays, and a
+/// fixed ceiling on what a session keeps and on what closing it publishes.
+inline constexpr std::size_t kMaxHeldKeys = 16;
 
 /// The role slot the Input weave holds: the address "whoever provides input",
 /// which outlives any particular implementation being swapped in or out.

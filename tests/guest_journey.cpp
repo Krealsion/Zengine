@@ -216,11 +216,25 @@ struct Guest {
         }
     }
     template <class T>
-    std::uint64_t ask(const char* far_role, const T& msg) {
+    std::uint64_t ask(const char* far_role, const T& msg, bool settle = false) {
         const std::uint64_t c = next_correlation++;
-        client->send_to_role(far_role, c, loom::serialize(loom::to_value(msg)));
+        client->send_to_role(far_role, c, loom::serialize(loom::to_value(msg)), settle);
         client->flush();
         return c;
+    }
+    /// Wait for the host's `Settled` under `correlation`; true when it came.
+    bool settled(std::uint64_t correlation, int timeout_ms = 10000) {
+        return until(
+            [&] {
+                poll();
+                for (const loom::BridgeEvent& e : events) {
+                    if (e.kind == loom::BridgeEvent::Kind::Settled && e.correlation == correlation) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            timeout_ms);
     }
     const loom::BridgeEvent* delivered(std::uint64_t correlation) const {
         for (const loom::BridgeEvent& e : events) {
@@ -387,7 +401,7 @@ int main(int argc, char** argv) {
     check(opened_event != nullptr && opened_event->answers_ask,
           "...with Loom's attestation that this is THE answer");
 
-    // A picture BEFORE the chord, so the ordering claim below is about a later frame.
+    // A picture BEFORE the chord, so the picture after it can be told apart from it.
     const std::uint64_t before = g.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
     const std::optional<surface::SurfaceCaptured> first = g.answer<surface::SurfaceCaptured>(before);
     check(first.has_value() && first->ok, "the Skin took a picture before the chord");
@@ -402,10 +416,15 @@ int main(int argc, char** argv) {
     input::InjectedEvent up = down;
     up.kind = "KeyReleased";
     batch.events = {down, up};
-    const std::uint64_t inject = g.ask(input::kInputRole, batch);
+    // SETTLED: the Workshop tells this session when everything the injection set in motion on
+    // its bus -- the desktop's handling of the chord and every delivery it caused, the repaint
+    // among them -- has been dispatched. The answer says only that the moments were published.
+    const std::uint64_t inject = g.ask(input::kInputRole, batch, /*settle=*/true);
     const std::optional<input::InputInjected> injected = g.answer<input::InputInjected>(inject);
     check(injected.has_value() && injected->admitted == 2,
           "Ctrl+P was injected through the real Input weave (2 moments)");
+    check(g.settled(inject),
+          "...and the Workshop said what the injection set in motion has all been dispatched");
 
     const std::uint64_t inspect = g.ask("zengine.desktop", loom::DescribeAccepted{});
     const std::optional<loom::Value> shapes = g.answer_as(inspect, loom::accepted_shapes_schema());
@@ -413,13 +432,11 @@ int main(int argc, char** argv) {
     check(shapes.has_value() && accepted > 0,
           "the desktop office described what it accepts (" + std::to_string(accepted) + " shapes)");
 
-    // A picture AFTER the frame the injection's consumer painted: deferred to that paint.
-    surface::SurfaceCaptureRequested after;
-    after.after_frame = frame_before;
-    const std::uint64_t capture = g.ask(surface::kSkinRole, after);
+    // A picture asked for NOW, after the settlement: every paint the chord caused is behind it.
+    const std::uint64_t capture = g.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
     const std::optional<surface::SurfaceCaptured> pic = g.answer<surface::SurfaceCaptured>(capture, 10000);
     check(pic.has_value() && pic->ok && pic->frame > frame_before,
-          "the Skin captured a later frame (" +
+          "the Skin captured a frame the chord's paint produced (" +
               std::to_string(pic.has_value() ? pic->frame : -1) + " > " +
               std::to_string(frame_before) + ")");
     std::string picture;
