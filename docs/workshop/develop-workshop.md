@@ -334,6 +334,7 @@ presenter:
 | `zengine-attention-pane` | Attention | `attention-pane/pane.cpp` |
 | `zengine-builder-pane` | Builder | `builder-pane/pane.cpp` |
 | `zengine-desktop-pane` | the desktop: the Pane Manager, Hotkeys, the room's floor and the keys that work anywhere | `desktop-pane/pane.cpp` |
+| `zengine-connections-pane` | Connections: the other hosts connected to this Workshop ([driving it from another host](external-host.md)) | `connections-pane/pane.cpp` |
 | `zengine-editor-pane` | Editor | `editor-pane/pane.cpp` |
 | `zengine-neovim-editor` | Neovim (the Editor, when you switch to it) | `neovim-editor/pane.cpp` |
 | `zengine-files` | Files | `files/files.cpp` |
