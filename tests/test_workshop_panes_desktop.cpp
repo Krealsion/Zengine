@@ -743,6 +743,115 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
     CHECK_FALSE(d.open("gamma"));
 }
 
+TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and refused as moved") {
+    // THE PRODUCTION BOUNDARY, NOT AN IDEAL STAMP. The inventory swap reaches the real desktop,
+    // which composes picture B and queues it; a RAW press is queued behind it, captured while the
+    // host still admits A and the medium still shows A. Nothing here supplies a picture number.
+    bool shown_first = false;
+    SUBCASE("the press is read before B reaches the medium: refused") {}
+    SUBCASE("control -- the press is read after B was handed to the medium: it acts on B") {
+        shown_first = true;
+    }
+    Desk d;
+    const auto row = d.row_of("Alpha");
+    REQUIRE(row >= 0);
+    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->aimed_picture;
+    REQUIRE(old_picture == d.r.session().panels.external_pane(d.launcher)->picture);
+    PaneInventory inventory = d.r.w->inventory_reading();
+    std::size_t alpha = inventory.panes.size();
+    std::size_t gamma = inventory.panes.size();
+    for (std::size_t i = 0; i < inventory.panes.size(); ++i) {
+        if (inventory.panes[i].office == "zengine.test.tools") {
+            if (inventory.panes[i].pane == "alpha") alpha = i;
+            if (inventory.panes[i].pane == "gamma") gamma = i;
+        }
+    }
+    REQUIRE(alpha < inventory.panes.size());
+    REQUIRE(gamma < inventory.panes.size());
+    std::swap(inventory.panes[alpha], inventory.panes[gamma]);
+    REQUIRE(d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider, kDesktopRole,
+        loom::Message(loom::to_value(inventory), d.r.workshop_id, d.r.workshop_id, 0)).valid());
+    // Deliver the inventory to the real desktop. Its newly composed B waits in the next batch.
+    REQUIRE(d.r.bus.pump_pending() >= 1);
+    REQUIRE(d.r.session().panels.external_pane(d.launcher)->picture == old_picture);
+    REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Alpha") != std::string::npos);
+    if (shown_first) {
+        d.r.bus.drain_until_idle(); // B admitted, painted, and the fence round twice behind it
+        REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
+        REQUIRE(d.r.session().panels.external_pane(d.launcher)->aimed_picture !=
+                old_picture);
+    }
+    queue_button(d.r, 1, true, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
+    queue_button(d.r, 1, false, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
+    d.r.bus.drain_until_idle();
+    if (shown_first) {
+        CHECK(d.open("gamma")); // the row the medium showed under the hand
+        CHECK_FALSE(d.open("alpha"));
+    } else {
+        CHECK_FALSE(d.open("gamma")); // never the row that moved in behind the hand
+        CHECK_FALSE(d.open("alpha"));
+        CHECK(joined(d.rows()).find("the list moved -- press again") != std::string::npos);
+    }
+}
+
+TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or separated, capture or typed spelling; a newer act still defeats it") {
+    bool typed = false;
+    bool separated = false;
+    bool newer = false;
+    SUBCASE("capture; the choosing press and its release in one batch") {}
+    SUBCASE("capture; the release on a later turn") { separated = true; }
+    SUBCASE("typed spelling; one batch") { typed = true; }
+    SUBCASE("typed spelling; the release on a later turn") {
+        typed = true;
+        separated = true;
+    }
+    SUBCASE("a newer key queued behind the click defeats the late keyboard grab") { newer = true; }
+    Keys k("corr-mouse-choice-keyboard");
+    ProviderSeat* other = k.r.mount_provider("review.other");
+    k.r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "the prior keyboard owner"});
+    });
+    (void)hand_launch(k.r, PaneRef{"review.other", "other"});
+    const std::int64_t others = kind_of(k.r, "review.other", "other");
+    REQUIRE(k.r.session().panels.keyboard == others);
+    const auto row = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(row >= 0);
+    k.right(row);
+    REQUIRE(k.r.session().context.foreign);
+    const std::size_t entry = typed ? 1 : 0;
+    REQUIRE(k.r.session().context.rows[entry].label ==
+            (typed ? "Modify (type a spelling)" : "Modify (press a key)"));
+    const auto x = context_cell_x(k.r.session());
+    const auto y = context_entry_cell_y(k.r.session(), entry);
+    // ONE ACTUAL CLICK'S TWO TRANSITIONS; nothing else a maker did comes between them.
+    queue_button(k.r, 1, true, x, y);
+    if (separated) {
+        k.r.bus.drain_until_idle();
+    }
+    queue_button(k.r, 1, false, x, y);
+    if (newer) {
+        queue_key(k.r, input::scan::kDown, input::mod::kNone); // a genuinely newer act
+    }
+    k.r.bus.drain_until_idle();
+    REQUIRE_FALSE(k.r.session().context.open);
+    CHECK(k.text().find(typed ? "type the key for `desktop.terminal`"
+                              : "press the key for `desktop.terminal`") != std::string::npos);
+    if (newer) {
+        CHECK(k.r.session().panels.keyboard == others); // the late grab was refused
+        return;
+    }
+    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    if (typed) {
+        k.r.text("ctrl+g");
+        k.r.key(input::scan::kReturn);
+    } else {
+        k.r.key(input::scan::kG, input::mod::kCtrl);
+    }
+    const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(bound != nullptr);
+    CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+}
+
 TEST_CASE("WL-CTX-09: a printable menu shortcut and the text its own key produced are one gesture, so the menu opens") {
     Desk d;
     queue_key(d.r, input::scan::kM, input::mod::kNone);

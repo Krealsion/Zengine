@@ -331,7 +331,16 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
+    // A PRESS BEGINS A GESTURE; ITS RELEASE COMPLETES THAT ONE AND BEGINS NONE. Counting the
+    // release as a newer act made a click defeat its own continuation: the press chose a menu row,
+    // the release of the same click was counted before the chooser's keyboard request arrived,
+    // and the request was refused as late though no new human act intervened (the review's
+    // first finding against the corrections). A release is never a new intention -- it is the
+    // end of one already counted -- so a genuinely newer key, character, press or wheel still
+    // defeats a late continuation, and the release of the choosing click does not. (WL-PRESS-06)
+    if (b.pressed) {
+        ++gestures_;
+    }
     // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
     // open it took every pointer event anywhere -- a press outside its own regions was
     // consumed rather than falling through -- because it was drawn over the room with no
@@ -542,11 +551,12 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // be measured under a title that was not painted when the maker aimed. Nothing is
         // kept: the two values are spent by this press and gone with it.
         //
-        // ⚠ THEY DESCRIBE THE PICTURE AS THIS HANDLER FINDS IT, which is the painted one for a
-        // press handled in the turn it arrived. A press queued behind another that moved the
-        // pane's content is measured against the picture after that move, and no press names
-        // the picture it was aimed at; this is where one would be read, if a later version of
-        // the press is to carry it.
+        // ⚠ THEY DESCRIBE THE GEOMETRY AS THIS HANDLER FINDS IT. Which ROW-TO-MEANING picture the
+        // press names is a separate fact, and it is not read from the admitted content either:
+        // `external_press` stamps the picture the medium held when the press was read
+        // (`ExternalPane::aimed_picture`, set by the host's own fence), so a press queued behind
+        // content that moved the rows is refused by the pane as moved rather than resolved
+        // against the rows that moved in.
         const std::int64_t typing_before = typing_pane(session_);
         const ExternalPressAt aimed =
             here.occupied && is_runtime_kind(here.kind)

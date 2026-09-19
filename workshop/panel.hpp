@@ -472,10 +472,32 @@ struct ExternalPane {
     /// naming an OLDER generation is refused rather than admitted, so a queued picture of a
     /// document that has since been replaced cannot repaint the one that replaced it.
     std::int64_t content_generation = 0;
-    /// THE NUMBER OF THE `v3::PaneContent` THIS PANE LAST HAD ADMITTED, echoed on every press
-    /// the host sends it so the pane can tell a press aimed at this picture from one aimed at
-    /// an older one; 0 for a pane that never numbered a picture. Recorded, never judged.
+    /// THE NUMBER OF THE `v3::PaneContent` THIS PANE LAST HAD ADMITTED; 0 for a pane that never
+    /// numbered a picture. Recorded, never judged -- and NOT what a press is stamped with: an
+    /// admitted picture the medium has not been handed yet is not one a hand can have aimed at.
     std::int64_t picture = 0;
+    /// THE PICTURE A PRESS IS STAMPED WITH: the newest one the medium had been handed when the
+    /// press was read, established by the host's own fence (`PictureFence`) coming round twice
+    /// behind the canvas that first showed it. Echoed on `v3::PanePressed` and `PaneButton` so
+    /// the pane can refuse a press aimed at an older picture; 0 until a numbered picture is.
+    std::int64_t aimed_picture = 0;
+    /// PICTURES HANDED OUT BUT NOT YET FENCED, oldest first, as (fence number, picture). Bounded
+    /// (`kPicturesInFlight`): a pane that renumbers faster than the fence comes round loses its
+    /// oldest entry, which only keeps a press stamped with an older picture -- refused as moved,
+    /// never resolved against a newer one.
+    struct InFlight {
+        std::int64_t fence = 0;
+        std::int64_t picture = 0;
+    };
+    std::vector<InFlight> in_flight;
+    static constexpr std::size_t kPicturesInFlight = 8;
+    /// THE PANE STARTS OVER: a re-offer (a reloaded image numbers its pictures afresh) or a close.
+    /// Nothing an earlier incarnation numbered may stamp a press aimed at what comes next.
+    void forget_pictures() {
+        picture = 0;
+        aimed_picture = 0;
+        in_flight.clear();
+    }
 
     /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.
     // WL-ATTN-04 -- agents/workshop/attention.md

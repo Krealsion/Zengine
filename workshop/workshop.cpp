@@ -1231,6 +1231,9 @@ int main(int argc, char** argv) {
     speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
     speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
     speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
+    // ...AND THE HOST'S OWN FENCE BEHIND A PICTURE IT HANDED THE MEDIUM, to its own office and
+    // nowhere else: which picture a press names is this host's fact alone (P-WORK-25).
+    speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
     // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
     // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
     // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of

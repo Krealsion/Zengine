@@ -97,11 +97,13 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     // would be a second gesture delivered after whatever the maker did next.
     if (host_->holder_accepts &&
         host_->holder_accepts(row->provider, *loom::schema_of<v3::PanePressed>())) {
-        // ...THE THIRD VERSION NAMES THE PICTURE this host had admitted for the pane when it
-        // handled the press -- recorded at admission, echoed here, judged by the pane.
+        // ...THE THIRD VERSION NAMES THE PICTURE THE PRESS WAS AIMED AT: the newest one the
+        // medium had been handed when the press was read (`PictureFence`), not merely the newest
+        // admitted -- a picture queued ahead of this press but not yet shown is not one the hand
+        // could have aimed at. Echoed here, judged by the pane.
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, v3::PanePressed{row->pane, at.row, at.column,
-                                                         keys_went_here, pane->picture});
+                                                         keys_went_here, pane->aimed_picture});
     } else if (host_->holder_accepts &&
                host_->holder_accepts(row->provider, *loom::schema_of<v2::PanePressed>())) {
         (void)mail.as_role(kWorkshopProvider)
@@ -267,7 +269,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
         mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
                           PaneButton{row->pane, button, true, at.row, at.column, false,
-                                     pane->picture},
+                                     pane->aimed_picture},
                           answering);
     if (!sent.valid()) {
         return false; // nothing queued: known non-delivery, and the host's surface answers
@@ -299,14 +301,11 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
     const std::int64_t kind = h.kind;
     h = SecondaryHold{};
     // THE RELEASE ENDS CUSTODY AND NEVER RESTORES ELIGIBILITY: a continuation stays eligible only
-    // if nothing but this release happened since its press.
+    // if nothing but this release happened since its press -- and the release itself is no
+    // gesture (`on(PointerButton)`), so "nothing since" is the count still standing at the press.
     SecondaryContinuation& c = secondary_cont_[s];
     if (c.live && !c.released) {
         c.released = true;
-        c.gesture_at_release = gestures_;
-        if (gestures_ != c.gesture_at_press + 1) {
-            c.interrupted = true;
-        }
     }
     const RuntimePane* row = session_.panels.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -419,8 +418,7 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     if (c == nullptr || c->kind != row->kind || c->spent) {
         return; // stale, another pane's, or already handed back
     }
-    const std::uint64_t expected = c->released ? c->gesture_at_release : c->gesture_at_press;
-    if (c->interrupted || gestures_ != expected) {
+    if (c->interrupted || gestures_ != c->gesture_at_press) {
         return; // the maker did something since: the press is not their latest act
     }
     c->spent = true;
@@ -519,8 +517,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         if (!c.live || c.correlation != mail.correlation()) {
             continue;
         }
-        const std::uint64_t expected = c.released ? c.gesture_at_release : c.gesture_at_press;
-        if (c.kind == row->kind && !c.spent && !c.interrupted && gestures_ == expected) {
+        if (c.kind == row->kind && !c.spent && !c.interrupted && gestures_ == c.gesture_at_press) {
             c.spent = true;
             at = c.cell;
             eligible = true;

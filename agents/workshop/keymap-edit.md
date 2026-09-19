@@ -26,7 +26,9 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `KeymapEditRequested`,
 `keys_key`, `keys_action`, `Capture`, `Typing`; `desktop-pane/vocabulary.hpp` `kMenuModifyPress`,
 `kMenuModifyType`, `kMenuAddPress`, `kMenuAddType`, `kMenuRemove`, `kMenuDisable`, `kMenuReset`;
 `tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane
-takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17:
+takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17: a
+mouse choice and its own release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or
+separated, capture or typed spelling; a newer act still defeats it"`, case `"WL-KEY-17:
 right-click a binding, Modify (press a
 key): the change is live at once, written to the file, listed in the table, and the floor
 teaches it; the keys stayed where they were"`, case `"WL-KEY-17: Add a key, Remove one, remove

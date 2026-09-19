@@ -654,7 +654,7 @@ Three more things a pane may do, each an ordinary optional door in
 ```text
 PaneButton          Workshop -> provider   button 2 or 3 down / up at (row, column), or a `lost`
                                            release the host sent because no hand could;
-                                           `picture` is the admitted picture's number
+                                           `picture` is the number of the picture shown
 PanePassRequested   provider -> Workshop   "that press was not mine": the host's own pane menu
                                            opens once, while the press is the latest act
 PaneMenuRequested   provider -> Workshop   present these rows (id, label) beside (row, column),
@@ -663,7 +663,7 @@ PaneMenuAnswered    Workshop -> provider   chosen + id, or not chosen + why; onc
 PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
                                            continues a menu answer, once
 v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
-v3::PanePressed     Workshop -> provider   v2's press + the picture the host had admitted
+v3::PanePressed     Workshop -> provider   v2's press + the picture the press was aimed at
 ```
 
 - **Delivery is consumption.** A secondary press over a pane's body is sent only to a holder
@@ -690,11 +690,13 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the host had
 - **A press names its picture.** A pane that composes with `v3::PaneContent` numbers each
   composition — the shipped panes use `component::RowMap`, whose number moves exactly when the
   row-to-meaning map does, so a repaint that moves no row keeps it — and the host echoes on
-  `v3::PanePressed` and `PaneButton` the number it had admitted when it handled the press. A
-  pane acts only when that is its current map's, else refuses in words. What this does not
-  close: a press the input backend read after a newer picture was admitted but which the hand
-  made against the older one — the poll cadence plus the medium's presentation latency; that
-  residue is named, and no frame history is kept.
+  `v3::PanePressed` and `PaneButton` the number of the picture the medium held when the press
+  was read: a newer picture counts only once the medium has handled the canvas that showed it,
+  so a press queued ahead of new content, or read before the medium drew it, names the older
+  picture. A pane acts only when that is its current map's, else refuses in words. What this
+  does not close: the medium's own drawing latency after it handled the canvas, and a press the
+  platform buffered before the input beat read it; that residue is named, and no frame history
+  is kept.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture; `pass_back`, `manage`, `chosen` and `HeldButton`

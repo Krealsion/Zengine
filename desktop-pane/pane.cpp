@@ -43,8 +43,8 @@
 // the Hotkeys table lays its columns out once (`component::columns`), and a right press or the
 // menu key OFFERS rows the host presents and returns chosen (`workshop/pane_menu.hpp`). A
 // press names the PICTURE it was aimed at: every composition is numbered by its row map, the
-// host echoes the number it admitted, and a press about an older picture is refused in words
-// rather than acted on against whatever moved into its place.
+// host echoes the number the medium held when the press was read, and a press about an older
+// picture is refused in words rather than acted on against whatever moved into its place.
 
 #include "desktop-pane/vocabulary.hpp"
 
@@ -652,8 +652,8 @@ public:
 
     // ---- The mouse: a press names a picture, a wheel walks the cursor, a right press offers --
 
-    /// A PRIMARY PRESS IN ONE OF THIS WEAVE'S PANES, naming the picture the host had admitted
-    /// when it handled it. A press about an older picture is refused in words -- never resolved
+    /// A PRIMARY PRESS IN ONE OF THIS WEAVE'S PANES, naming the picture the medium held when the
+    /// press was read. A press about an older picture is refused in words -- never resolved
     /// against whatever row has since moved into its place (WL-DESK-14).
     void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {

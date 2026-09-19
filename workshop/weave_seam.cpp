@@ -50,6 +50,10 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
             pane->heard = false;
             pane->awaiting = true;
             pane->granted = false;
+            // ...AND ITS PICTURES START OVER: a re-offer is how a reloaded image arrives, and a
+            // new image numbers from one again -- a press stamped with a number the old image
+            // gave out must not match the new image's picture of the same number.
+            pane->forget_pictures();
             // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
@@ -203,6 +207,66 @@ void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
                   content.generation > 0 ? std::optional<std::int64_t>(content.generation)
                                          : std::nullopt,
                   content.picture, mail);
+}
+
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+void WorkshopWeave::fence_pictures(loom::Mail& mail) {
+    // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME. A picture already in
+    // flight, or already the one presses are stamped with, needs no second fence; a repaint that
+    // moved no picture sends nothing, so the bus is not asked to carry a fence per repaint.
+    const std::int64_t number = fences_ + 1;
+    bool handed_out = false;
+    for (ExternalPane& pane : session_.panels.external) {
+        const std::int64_t newest =
+            pane.in_flight.empty() ? pane.aimed_picture : pane.in_flight.back().picture;
+        if (pane.picture == newest) {
+            continue;
+        }
+        if (pane.in_flight.size() >= ExternalPane::kPicturesInFlight) {
+            // BOUNDED: the oldest entry goes, which leaves presses stamped with an OLDER picture
+            // for longer -- refused as moved, never resolved against a newer one.
+            pane.in_flight.erase(pane.in_flight.begin());
+        }
+        pane.in_flight.push_back(ExternalPane::InFlight{number, pane.picture});
+        handed_out = true;
+    }
+    if (!handed_out) {
+        return;
+    }
+    fences_ = number;
+    // AUTHORED AS THE OFFICE AND ADDRESSED TO IT, so no other participant can make one: a fence
+    // another weave could forge would let it decide which picture a maker's press names.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(kWorkshopProvider, PictureFence{number, 1});
+}
+
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
+    if (!mail.authored_from_role(kWorkshopProvider) || fence.number <= 0 ||
+        fence.number > fences_) {
+        return; // only this office's own fence, and only one it minted, moves a stamp
+    }
+    if (fence.hop == 1) {
+        // THE FIRST TIME ROUND IT IS HANDLED RIGHT AFTER THE MEDIUM HANDLED THE CANVAS; a press
+        // read before that is already queued ahead of the second hop, which is what keeps it
+        // stamped with the picture the medium was still showing.
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(kWorkshopProvider, PictureFence{fence.number, 2});
+        return;
+    }
+    if (fence.hop != 2) {
+        return;
+    }
+    for (ExternalPane& pane : session_.panels.external) {
+        std::size_t done = 0;
+        while (done < pane.in_flight.size() && pane.in_flight[done].fence <= fence.number) {
+            pane.aimed_picture = pane.in_flight[done].picture;
+            ++done;
+        }
+        pane.in_flight.erase(pane.in_flight.begin(),
+                             pane.in_flight.begin() + static_cast<std::ptrdiff_t>(done));
+    }
+    // Nothing is repainted: what a press is stamped with is not something a maker sees.
 }
 
 // Content naming its generation (WL-OPEN-03).

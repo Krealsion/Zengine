@@ -36,7 +36,7 @@
 //     PaneMenuAnswered       Workshop  ->  provider   "this row was chosen" / "nothing was; here is why."
 //     PaneManageRequested    provider  ->  Workshop   "open your pane menu for THAT pane."
 //     v3::PaneContent        provider  ->  Workshop   "...and this is picture number n."
-//     v3::PanePressed        Workshop  ->  provider   "...and the picture you had admitted was n."
+//     v3::PanePressed        Workshop  ->  provider   "...aimed at the picture n you had shown."
 //
 // THE EDITOR'S MIGRATION ADDED FIVE, and each is a contract a built-in had and a pane
 // could not say. A drag swept a selection across a document (`PaneDragged`); a pane whose act
@@ -928,11 +928,13 @@ struct PaneQuitAnswered {
 // A PRESS NAMES THE PICTURE IT WAS AIMED AT, OR IS REFUSED (P-WORK-25, bounded). A pane that
 // composes with `v3::PaneContent` numbers its picture -- the identity of its row-to-meaning map,
 // unchanged by a repaint that moves no row -- and the host echoes on `v3::PanePressed` and on
-// `PaneButton` the picture it had ADMITTED for that pane when it handled the press. The pane acts
-// only when that is its current map's number; otherwise it refuses in words and retargets
-// nothing. What this does not close: a press the input backend reads after the host admitted
-// and published a newer picture but which the hand made against the older one -- the poll
-// cadence plus the medium's presentation latency; that residue stays named as P-WORK-25.
+// `PaneButton` the picture the MEDIUM had been handed when the press was read: an admitted
+// picture becomes the stamp only after the host's own fence has come round twice behind the
+// canvas that first showed it, so a press queued ahead of a newer picture, or read before the
+// medium handled it, names the older one. The pane acts only when that is its current map's
+// number; otherwise it refuses in words and retargets nothing. What this does not close: the
+// medium's own latency after it handled a canvas, and a press the platform buffered before the
+// input beat read it -- that residue stays named as P-WORK-25.
 
 /// A PRESS OR RELEASE OF BUTTON 2 (MIDDLE) OR 3 (RIGHT) AT A PLACE IN THIS PANE'S ROOM, or the
 /// end of a hold the host could no longer keep (`lost`).
@@ -941,8 +943,8 @@ struct PaneQuitAnswered {
 /// press is consumed by delivery. The release is the PRESSING pane's wherever the pointer is,
 /// resolved against its body now and UNCLAMPED as `PaneDragged` is; a `lost` release carries no
 /// place a pane may read. Never button 1: the primary press stays `PanePressed`. `picture` is
-/// the number of the `v3::PaneContent` the host had admitted for this pane when it handled the
-/// press, and 0 for a pane that never numbered one.
+/// the number of the `v3::PaneContent` the medium had been handed for this pane when the press
+/// was read, and 0 for a pane that never numbered one.
 struct PaneButton {
     std::string pane;
     std::int64_t button = 0;   ///< 2 (middle) or 3 (right)
@@ -950,7 +952,7 @@ struct PaneButton {
     std::int64_t row = 0;      ///< the granted lattice (a press); unclamped (a release)
     std::int64_t column = 0;
     bool lost = false;         ///< a release the host sent because no hand could: owner loss, arbitration
-    std::int64_t picture = 0;  ///< the admitted picture's number at the press; 0 = unnumbered
+    std::int64_t picture = 0;  ///< the picture the medium held at the press; 0 = unnumbered
     ZEN_SHAPE(PaneButton, 1, ZEN_FIELD(pane), ZEN_FIELD(button), ZEN_FIELD(pressed),
               ZEN_FIELD(row), ZEN_FIELD(column), ZEN_FIELD(lost), ZEN_FIELD(picture));
 };
@@ -1053,8 +1055,8 @@ struct PaneContent {
               ZEN_FIELD(picture));
 };
 
-/// v2's press, naming the picture the host had admitted for this pane when it handled the press
-/// (0 when the pane never numbered one). Sent instead of v2/v1 exactly to a holder with this
+/// v2's press, naming the picture the medium had been handed for this pane when the press was
+/// read (0 when the pane never numbered one). Sent instead of v2/v1 exactly to a holder with this
 /// door, `v2::PanePressed`'s rule.
 struct PanePressed {
     std::string pane;

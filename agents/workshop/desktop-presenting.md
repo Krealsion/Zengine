@@ -53,7 +53,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-14 — Both panes are usable by mouse, and a press names the picture it was aimed at
 
-LAW — A composition records what its rows and controls mean and is numbered by it; a press acts only if it names the current picture, the wheel walks the cursor, a right press or `m` offers the row's menu.
+LAW — A composition is numbered by what its rows mean; a press names the picture the medium held when read, acting only on the current one; the wheel walks the cursor; a right press or `m` offers a menu.
 
 MEANS
 - the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
@@ -62,16 +62,20 @@ MEANS
 
 DOES NOT MEAN
 - that an older picture's press acts, or a repaint moving no row renumbers; a subject swap does;
-- that a press read after a newer picture was admitted names the older: P-WORK-25's residue, open.
+- that the medium's own latency after it handled a canvas is seen: P-WORK-25's residue, open.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
-`workshop/panel.hpp` `ExternalPane::picture`; `workshop/weave_seam.cpp` `admit_content`,
-`on(v3::PaneContent)`; `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
+`workshop/vocabulary.hpp` `PictureFence`; `workshop/panel.hpp` `ExternalPane::picture`,
+`ExternalPane::aimed_picture`, `ExternalPane::forget_pictures`; `workshop/weave_seam.cpp`
+`admit_content`, `on(v3::PaneContent)`, `fence_pictures`, `on(PictureFence)`;
+`workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
 `launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,
 `keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`, `KeysMeaning::ref`,
 `launcher_ref`, `keys_line_ref`, `kMovedSentence`, `take_notches`;
 `component/row_map.hpp` `RowMap`, `solid_columns`; `component/columns.hpp` `layout_columns`,
-`table_line`; `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: a same-length inventory
+`table_line`; `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: content queued ahead
+of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture
+the medium had, and refused as moved"`, case `"WL-DESK-14: a same-length inventory
 swap changes the picture, so a press stamped with the old number opens nothing -- the meaning
 carries the subject, not just the slot"`, case `"WL-DESK-14: a press on a row's mark
 shows or hides that pane; a press on its name only moves the marker"`, case `"WL-DESK-14: a

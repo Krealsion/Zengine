@@ -2635,6 +2635,8 @@ struct PaneRig {
         speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
         speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
         speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
+        // ...and the host's own picture fence, to its own office alone, as workshop.cpp grants it.
+        speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
         // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
         // a request for a declared row belongs to the office that declared it, and a refusal of a
         // declaration belongs to the party that made it; a broadcast of either would tell every
