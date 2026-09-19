@@ -518,8 +518,12 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
 - **Injection enters at the Input weave**, below the platform edge: the console reader, the
   SDL queue and the OS are not exercised by it.
 - **One session at a time, and no arbitration** between a hand and an agent beyond arrival
-  order.
+  order. A session holds at most 16 keys down at once, from SDL's scancodes 1..511.
 - **One picture retained at a time**, fetched in 32 KiB chunks; over 32 MiB is refused.
+- **A picture after input waits for what the injection set in motion on Workshop's bus, and no
+  more.** An injection asked with `settle` is answered once every delivery it caused has been
+  dispatched -- the desk's handling and its repaint among them. Work a participant defers to a
+  timer or a later turn is not waited for, and the picture shows the frame it was taken at.
 
 ## Platforms
 

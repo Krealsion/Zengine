@@ -754,14 +754,21 @@ struct ClipboardText {
 // terminal's cell projection), so a capture cannot disagree with the window.
 //
 // ORDERING, SAID HONESTLY. Every painted frame counts on `SkinState::frames`, and a capture
-// carries the count it was taken at. `after_frame` lets a requester ask for a picture taken
-// once a LATER frame than the one it last saw has been painted: the answer is deferred until
-// `frames > after_frame`, and comes back on the delivery that paints that frame. Combined with
-// the bus's FIFO -- an injected moment's consumer repaints in a delivery queued before the
-// capture request that followed its answer -- that is what "a capture after this input was
-// processed and a subsequent presentation occurred" means here, and all it means: asynchronous
-// work may still be pending, and the capture says which frame it is, never that nothing else
-// was about to change.
+// carries the count it was taken at. `after_frame` asks for a picture taken once a LATER frame
+// than a given one has been painted: the answer is deferred until `frames > after_frame` and
+// comes back on the delivery that paints that frame. A later frame is NOT the frame that shows
+// a given input: anybody's paint passes it, and a consumer that paints only after deliveries of
+// its own has not painted yet when a request queued after the injection's answer arrives --
+// FIFO orders envelopes as they are queued, and the consumer's follow-ups are queued as they
+// happen. So `after_frame` promises nothing about input, and neither does asking "now" when
+// `InputInjected` arrives: that answer says the moments are PUBLISHED.
+//
+// The ordering a picture of an input's consequences needs is the injector's host's, not this
+// door's: the host fences the injection (`loom::Fence`, and across a link the `settle` of an
+// ask) and says when everything it set in motion has been dispatched -- the consumer's handling
+// and every delivery it caused, the repaint among them. A capture asked for after that shows
+// those paints, and says which frame it is. It still proves nothing about work deferred to a
+// timer, a later turn or another host, and nothing about what was about to change.
 //
 // BOUNDED, IN BOTH DIRECTIONS. One capture is retained at a time (the newest replaces it, and
 // says so by number); a picture is fetched in chunks of `kCaptureChunkBytes` through the

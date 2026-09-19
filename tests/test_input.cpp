@@ -2462,3 +2462,96 @@ TEST_CASE("session: an office may close a session on its holder's behalf, and a 
     r.inject({typed("x")});
     CHECK(r.last() == "refused: no open input session numbered 1");
 }
+
+TEST_CASE("session: arbitrary scancodes pressed batch after batch cannot pile up held state") {
+    // THE COUNTEREXAMPLE, VERBATIM: 64 allowed batches of 64 distinct arbitrary scancodes, each
+    // pressed and never released. A batch limit bounds one delivery, not what a session holds.
+    SessionRig r;
+    r.open();
+    REQUIRE(r.last() == "opened 1");
+    std::int64_t next = 1;
+    std::size_t accepted = 0;
+    for (int b = 0; b < 64; ++b) {
+        std::vector<InjectedEvent> batch;
+        for (std::size_t i = 0; i < kMaxInjectedEvents; ++i) {
+            batch.push_back(key_down(next++));
+        }
+        r.inject(batch);
+        if (r.last().rfind("injected", 0) == 0) {
+            ++accepted;
+        }
+    }
+    const std::size_t pressed = r.heard.size();
+    r.heard.clear();
+    r.close();
+    INFO("batches accepted: " << accepted << ", presses published: " << pressed
+                              << ", releases the close published: " << r.heard.size());
+    CHECK(r.last() == "ack");
+    // Held state stays within the session's stated bound, and so does the close's work.
+    CHECK(pressed <= kMaxHeldKeys);
+    CHECK(r.heard.size() <= kMaxHeldKeys);
+    // Here every batch asked for 64 keys at once, so every one was refused whole.
+    CHECK(accepted == 0);
+    CHECK(pressed == 0);
+}
+
+TEST_CASE("session: a key outside the supported domain is refused, and its whole batch with it") {
+    SessionRig r;
+    r.open();
+    for (const std::int64_t sc : {std::int64_t{0}, kMaxScancode + 1, std::int64_t{4096},
+                                  std::int64_t{-3}}) {
+        r.inject({typed("a"), key_down(sc)});
+        INFO("scancode " << sc << ": " << r.last());
+        CHECK(r.last().rfind("refused: moment 1: scancode " + std::to_string(sc) +
+                                 " is outside the supported key domain 1..511",
+                             0) == 0);
+        r.inject({key_up(sc)});
+        CHECK(r.last().rfind("refused: moment 0: scancode", 0) == 0);
+    }
+    CHECK(r.heard.empty()); // not even the text before the bad key
+    r.inject({key_down(1), key_up(1), key_down(kMaxScancode), key_up(kMaxScancode)});
+    CHECK(r.last() == "injected 1..4 (4)"); // the domain's own edges are keys
+}
+
+TEST_CASE("session: held keys accumulate across batches only to the limit, and a release makes room") {
+    SessionRig r;
+    r.open();
+    std::int64_t next = scan::kA;
+    // Four keys at a time, never let go: 16 held after four batches.
+    for (int b = 0; b < 4; ++b) {
+        r.inject({key_down(next), key_down(next + 1), key_down(next + 2), key_down(next + 3)});
+        next += 4;
+        REQUIRE(r.last().rfind("injected", 0) == 0);
+    }
+    REQUIRE(r.heard.size() == kMaxHeldKeys);
+    r.heard.clear();
+    // One more key is refused, whole -- and so is a batch that lets one go FIRST and then
+    // presses two, because at its last moment it would hold 17.
+    r.inject({key_down(next)});
+    CHECK(r.last() == "refused: moment 0: pressing scancode " + std::to_string(next) +
+                          " would hold 17 keys down at once; a session holds at most 16 -- "
+                          "release one first");
+    r.inject({key_up(scan::kA), key_down(next), key_down(next + 1)});
+    CHECK(r.last().rfind("refused: moment 2: pressing scancode", 0) == 0);
+    // ...and a press and its release in one batch, at the limit, is refused too: the press
+    // would hold 17 at its moment, whatever comes after it.
+    r.inject({key_down(next), key_up(next)});
+    CHECK(r.last().rfind("refused: moment 0: pressing scancode", 0) == 0);
+    CHECK(r.heard.empty()); // nothing of any refused batch was published
+    // A key already down pressed again is an auto-repeat: it holds nothing new.
+    r.inject({key_down(scan::kA), key_down(scan::kA)});
+    CHECK(r.last() == "injected 17..18 (2)");
+    // A release makes room, and the room is taken.
+    r.inject({key_up(scan::kA)});
+    REQUIRE(r.last().rfind("injected", 0) == 0);
+    r.inject({key_down(next)});
+    CHECK(r.last().rfind("injected", 0) == 0);
+    // Closing releases exactly what is held: sixteen keys, and no more.
+    r.heard.clear();
+    r.close();
+    CHECK(r.last() == "ack");
+    CHECK(r.heard.size() == kMaxHeldKeys);
+    for (const InputEvent& e : r.heard) {
+        CHECK(std::holds_alternative<KeyReleased>(e));
+    }
+}

@@ -75,7 +75,7 @@ on a device reaches.
 | shape | what it does |
 |---|---|
 | `InputSessionRequested{purpose}` → `InputSessionOpened{session}` / `zen.Refused` | opens the one session; a second opener is refused `busy` and told which session stands |
-| `InjectInput{session, events}` → `InputInjected{admitted, first_seq, last_seq}` / `zen.Refused` | publishes the moments, in order; judged **whole** — one bad moment (an unknown kind, an unknown pointer space, a button outside 1..3, more than 64 moments) publishes nothing and names its index |
+| `InjectInput{session, events}` → `InputInjected{admitted, first_seq, last_seq}` / `zen.Refused` | publishes the moments, in order; judged **whole** — one bad moment (an unknown kind, an unknown pointer space, a button outside 1..3, a key outside 1..511, a press that would hold more than 16 keys down, more than 64 moments) publishes nothing and names its index |
 | `InputSessionClosed{session, holder}` → `zen.Ack` / `zen.Refused` | closes it; every key and button the session still held down is **released first**, as ordinary published moments. An office may say `session` 0 for "whatever that holder holds" |
 
 A session belongs to the bus-stamped sender that opened it, never to a name in a payload. It is
@@ -86,3 +86,15 @@ the bus in order; what a consumer makes of them is that consumer's, later, on it
 A session is not focus, not a lease on the keyboard and not a claim against the platform: a
 person at the keyboard is still heard while one is open, and the two sources interleave in
 arrival order.
+
+**What a session may hold down is bounded, and so is what closing it costs.** A key moment names
+a scancode in SDL's space, `1..kMaxScancode` (511; 0 is "unknown key", which nobody presses on
+purpose) — the values every backend already speaks, so an injected key means on every backend
+what a platform one means. A session holds at most `kMaxHeldKeys` (16) keys down at once;
+buttons are 1..3 already. Each batch is judged against the held state it *would* leave, moment
+by moment, before anything is published: pressing a key that is already down is an auto-repeat
+and holds nothing new, a release makes room, and a batch that would pass the bound at any
+moment — even one that lets the key go again later in the same batch — is refused whole, naming
+that moment. Closing therefore publishes at most sixteen key releases and three button releases.
+The bound is on what a session holds, never on how long: nothing expires, and a key held
+legitimately stays held until it is released or the session closes.

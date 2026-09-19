@@ -185,10 +185,14 @@ public:
             return;
         }
         // JUDGED WHOLE BEFORE ANYTHING IS PUBLISHED: a batch with one bad moment publishes
-        // nothing, so an agent never has to guess how far a refused batch got.
+        // nothing, so an agent never has to guess how far a refused batch got. Each moment is
+        // judged on its own and against the keys the session WOULD hold down after the moments
+        // before it -- so a batch that passes the held-key bound at any moment is refused whole,
+        // before one press is published or one key is remembered.
+        std::vector<std::int64_t> would_hold = session_.keys_down;
         for (std::size_t i = 0; i < batch.events.size(); ++i) {
             std::string why;
-            if (!well_formed(batch.events[i], &why)) {
+            if (!well_formed(batch.events[i], &why) || !holds(batch.events[i], would_hold, &why)) {
                 (void)mail.answer(loom::Refused{"moment " + std::to_string(i) + ": " + why});
                 return;
             }
@@ -236,6 +240,12 @@ private:
             *why = "a pointer moment needs a known space (cells or pixels)";
             return false;
         }
+        if ((e.kind == "KeyPressed" || e.kind == "KeyReleased") &&
+            (e.scancode < 1 || e.scancode > kMaxScancode)) {
+            *why = "scancode " + std::to_string(e.scancode) +
+                   " is outside the supported key domain 1.." + std::to_string(kMaxScancode);
+            return false;
+        }
         if (e.kind == "PointerButton" && (e.button < 1 || e.button > 3)) {
             *why = "a button is 1, 2 or 3";
             return false;
@@ -243,6 +253,29 @@ private:
         if (e.kind == "TextEntered" && e.text.empty()) {
             *why = "TextEntered carries text";
             return false;
+        }
+        return true;
+    }
+
+    /// WHAT THE SESSION WOULD HOLD after this moment, carried forward in `held`: a press of a
+    /// key already down holds nothing new (an auto-repeat), a release lets one go, and a press
+    /// past `kMaxHeldKeys` is refused -- the whole batch with it.
+    static bool holds(const InjectedEvent& e, std::vector<std::int64_t>& held, std::string* why) {
+        if (e.kind == "KeyPressed") {
+            for (const std::int64_t k : held) {
+                if (k == e.scancode) {
+                    return true;
+                }
+            }
+            if (held.size() >= kMaxHeldKeys) {
+                *why = "pressing scancode " + std::to_string(e.scancode) + " would hold " +
+                       std::to_string(held.size() + 1) + " keys down at once; a session holds at "
+                       "most " + std::to_string(kMaxHeldKeys) + " -- release one first";
+                return false;
+            }
+            held.push_back(e.scancode);
+        } else if (e.kind == "KeyReleased") {
+            forget(held, e.scancode);
         }
         return true;
     }

@@ -1519,6 +1519,22 @@ target_include_directories(zengine-workshop-guests-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(workshop_guests zengine-workshop-guests-tests)
 
+# ---- THE PROBE SUITE: the reusable journey's orchestration and assertions ------------------
+#
+# The real probe weave (examples/workshop-probe) on one bus, with the real Input weave behind a
+# scripted link that keeps the link's contract: when the probe may say PASS, which answers may
+# move it, what it closes before it stops, and which inventory row is its own session. The
+# crossing is Loom's (suite `bridge`); the door, the Skin and the socket are `workshop_guests`
+# and the two-process journey's.
+add_executable(zengine-workshop-probe-tests test_workshop_probe.cpp doctest_main.cpp)
+target_link_libraries(zengine-workshop-probe-tests
+    PRIVATE loom::kernel loom::bridge loom::switchboard loom::core zengine-workshop-guests
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-workshop-probe-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(workshop_probe zengine-workshop-probe-tests)
+
 # ---- THE GUEST JOURNEY, ACROSS TWO REAL PROCESSES --------------------------------------
 #
 # A real `zengine-workshop`, launched with a guests file and the shipped terminal plan staged

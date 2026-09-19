@@ -1082,7 +1082,7 @@ neovim                            doctest           always  21
 neovim_live                       doctest           neovim  12
 snake                             doctest           always  22
 timer                             doctest           always  82
-input                             doctest           always  47
+input                             doctest           always  50
 input                             doctest           sdl     3
 surface                           doctest           always  104
 surface                           doctest           sdl     7
@@ -1114,7 +1114,18 @@ builder                           doctest           always  59
 #   input            42 -> 47
 #   surface         100 -> 104
 #   workshop_guests  new, 6
-workshop_guests                   doctest           always  6
+#
+# ITS CORRECTIONS raised two floors and added one suite: a session bounds what it holds down
+# (the counterexample, the key domain, the held-key limit across batches); the guests suite
+# holds the ordering of a picture after input (the capture on admission pinned stale, the
+# capture after settlement, and settlement through the real door); and the reusable probe
+# is a suite of its own, over the real probe weave and the real Input weave.
+#
+#   input            47 -> 50
+#   workshop_guests   6 -> 9
+#   workshop_probe   new, 14
+workshop_guests                   doctest           always  9
+workshop_probe                    doctest           always  14
 guest_journey                     program           always
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
