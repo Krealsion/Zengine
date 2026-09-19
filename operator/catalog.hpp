@@ -409,6 +409,8 @@ private:
             std::optional<loom::Cell> answered;
             try {
                 answered = def.invoke_native(admitted.value());
+            } catch (const Refusal& e) {
+                return Evaluation::refuse(e.reason());
             } catch (const std::exception& e) {
                 return Evaluation::refuse("'" + def.identity() +
                                           "' could not be spent: " + e.what());

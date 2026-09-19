@@ -193,7 +193,7 @@ TEST_CASE("a Source is a SHAPE and not a species: zero unbound maker inputs, and
     }
     SUBCASE("there is exactly ONE store, and it holds both kinds") {
         const std::vector<std::string> identities = catalog.identities();
-        CHECK(identities.size() == 6); // two primitives, two Sources, two Operators
+        CHECK(identities.size() == 8); // four primitives, two Sources, two Operators
         std::size_t sources = 0;
         for (const std::string& id : identities) {
             sources += op::is_source(*catalog.find(id)) ? 1U : 0U;
@@ -296,7 +296,7 @@ TEST_CASE("registration, mounting, lookup, classification and description evalua
     const op::OperatorDef* def = catalog.find(kOwned);
     REQUIRE(def != nullptr);
     CHECK(op::is_source(*def));
-    CHECK(catalog.identities().size() == 4);
+    CHECK(catalog.identities().size() == 6); // four primitives and two Sources
     CHECK(catalog.contributions("test.source.mounted").size() == 1);
     CHECK(catalog.providers().size() == 1);
 

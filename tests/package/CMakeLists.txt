@@ -26,6 +26,8 @@ add_executable(witness-surfaces public_surface.cpp)
 target_link_libraries(witness-surfaces
     PRIVATE
         zengine::activation
+        zengine::maker
+        zengine::flow
         zengine::timer
         zengine::surface
         zengine::input
@@ -93,3 +95,18 @@ message(STATUS
     "kitchen: the installed package advertises ${ZENGINE_RUNTIME_ARTIFACTS} in "
     "${ZENGINE_ARTIFACT_DIR} -- weaves and a provider in one list, which is why they are "
     "called artifacts")
+
+# Flow authored, compiled and loaded entirely against the installed package.
+add_executable(flow-author flow_author.cpp)
+target_link_libraries(flow-author PRIVATE zengine::flow zengine::maker)
+set(flow_source "${CMAKE_CURRENT_BINARY_DIR}/flow-generated.cpp")
+add_custom_command(OUTPUT "${flow_source}"
+    COMMAND $<TARGET_FILE:flow-author> "${flow_source}"
+    DEPENDS flow-author VERBATIM)
+add_library(flow-native SHARED "${flow_source}")
+target_link_libraries(flow-native PRIVATE zengine::flow loom::core loom::switchboard)
+loom_weave_build_contract(flow-native)
+set_target_properties(flow-native PROPERTIES PREFIX "")
+add_executable(flow-host flow_host.cpp)
+target_link_libraries(flow-host PRIVATE zengine::flow loom::kernel)
+add_dependencies(flow-host flow-native)

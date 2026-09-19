@@ -24,7 +24,8 @@ the panel, the editor's gesture that registers one — is the panel phase's, not
 
 **Where the code is.** `maker/definition.hpp` (the schemas, `Definition`, encode, admit, the two
 readers), `maker/write.hpp` (the default, the pack, the field-wise write), `maker/weave.hpp` (the
-interpreter, registration, the behaviour edit), `maker/succession.hpp` (the coordinator, the
+interpreter, registration, the behaviour edit), `maker/runtime.hpp` (shared message/state
+behavior), `maker/succession.hpp` (the coordinator, the
 schema edit), `maker/vocabulary.hpp` (the five ceremony shapes), `maker/files.hpp` (the two files
 on disk). A `// MW-` pointer sits above a declaration a law names.
 
@@ -45,4 +46,5 @@ with the family spelled `MW` and the pointer `// MW-… -- agents/maker/<file>`.
   other's path by name.
 - That a stale state file is converted at load. Reload is shape-only this phase; the edge a
   successor mounts is the seam, and the reader does not take it (MW-DEF-07).
-- That the package is exported. It is in-tree only until the panel phase decides.
+- That generation changes maker meaning: [Flow](flow.md) shares the runtime and preserves live
+  catalog resolution. Both packages are exported; packaging owns the installed headers.

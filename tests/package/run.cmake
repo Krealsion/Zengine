@@ -23,7 +23,7 @@
 #   2. does the installed package name any path back to the machine that built it
 #   3. does any installed public material assume this project's development environment
 #   4. does an unrelated project outside both trees configure with find_package(zengine)
-#   5. do all ten exported targets compile and run from the installed headers
+#   5. do all exported capability targets compile and run from the installed headers
 #   6. does a real weave build, load and drive the installed Timer service -- and does the
 #      successful run look successful, while the same program's real failure still speaks
 #   7. does the same package still work after the prefix is MOVED
@@ -232,6 +232,19 @@ zen_find_program_in(kitchen kitchen-host "${stranger_bin}")
 get_filename_component(kitchen_dir "${kitchen}" DIRECTORY)
 zen_run("a weave drives the installed Timer service" "${kitchen}" "${kitchen_dir}")
 
+zen_find_program_in(flow_host flow-host "${stranger_bin}")
+get_filename_component(flow_host_dir "${flow_host}" DIRECTORY)
+if(WIN32)
+    set(flow_artifact "${flow_host_dir}/flow-native.dll")
+elseif(APPLE)
+    set(flow_artifact "${flow_host_dir}/flow-native.dylib")
+else()
+    set(flow_artifact "${flow_host_dir}/flow-native.so")
+endif()
+zen_run("Flow native authoring loop from installed packages" "${flow_host}" "${flow_artifact}")
+zen_find_program_in(flow_tool zengine-flow "${prefix}/bin")
+zen_run("the installed Flow workbench starts" "${flow_tool}" --help)
+
 # ---- 6b. and the same program's nearby genuine failure (FRIC-0) -------------------------
 #
 # The arm above passes only if the successful run reported NO refusal, which on its own is
@@ -261,6 +274,10 @@ endif()
 zen_find_program_in(moved_kitchen kitchen-host "${moved_bin}")
 get_filename_component(moved_dir "${moved_kitchen}" DIRECTORY)
 zen_run("the same package works from a moved prefix" "${moved_kitchen}" "${moved_dir}")
+zen_find_program_in(moved_flow flow-host "${moved_bin}")
+get_filename_component(moved_flow_dir "${moved_flow}" DIRECTORY)
+get_filename_component(flow_artifact_name "${flow_artifact}" NAME)
+zen_run("Flow works from a moved prefix" "${moved_flow}" "${moved_flow_dir}/${flow_artifact_name}")
 
 # ---- 8. CANARY: remove one installed header ---------------------------------------------
 #
