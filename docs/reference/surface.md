@@ -158,6 +158,40 @@ as zero: a value nobody could mean resolves to the whole-cell picture, never a g
 one publisher that earned the fineness is Workshop's pane arrangement; the prose lattice
 (rows, columns, carets, selections) and the canvas's own extent stay as coarse as they were.
 
+## A capture: what the active surface presented, through its own medium
+
+`SurfaceCaptureRequested{after_frame}` → `SurfaceCaptured{ok, capture, frame, width, height,
+cell_px, format, bytes, refusal}`, then `SurfaceCaptureChunkRequested{capture, offset}` →
+`SurfaceCaptureChunk{capture, offset, total, data}` (32 KiB a chunk) or `zen.Refused`. The
+Skin's **Medium** reads back what it drew — the SDL renderer's own pixels as a 24-bit
+`image/bmp`, re-drawn from the last canvas and read before it is presented again, so the
+picture and the window are one drawing; a terminal's cell projection as `text/cells`, one row
+per line — so a capture cannot disagree with the screen and is not a second renderer. One
+picture is retained at a time (the newest replaces it, by number); one over 32 MiB is refused,
+never cut.
+
+**What a picture proves.** Presentation at one frame, in the medium's units: `frame` is the
+Skin's own count, `cell_px` maps a window's pixels to the canvas lattice a pointer moment is
+spelled in (0 on a terminal, where a cell is the unit). It proves nothing about asynchronous
+work still pending.
+
+**Ordering a picture after input is the injector's host's job, not this door's.**
+`after_frame` defers the answer until `frames > after_frame` and hands it over on the paint
+that passes it (one may wait at a time) — a *later* frame, which anybody's paint provides. It
+is not the frame that shows a given input, and neither is a picture asked for the moment
+`InputInjected` arrives: that answer says the moments were published, and an input consumer
+that paints only after deliveries of its own has not painted yet. The bus's FIFO orders
+envelopes as they are *queued*; the consumer's follow-ups are queued as they happen, so a
+request that arrives in the middle of them is dispatched in the middle of them.
+
+What orders it is the host that injected: it fences the injection
+([Loom: fences](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#fences-when-what-one-send-set-in-motion-has-been-dispatched))
+— across a link, the ask's `settle` — and says when everything the injection set in motion has
+been dispatched: the consumer's handling of each moment and every delivery it caused, the
+repaint among them. A capture asked for after that shows those paints. It says nothing about
+work deferred to a timer, a later turn or another host, and a later unrelated paint may already
+stand on top of it; the picture says which frame it is.
+
 ## Current wire versions
 
 A shape's version is part of its identity at the admission gate. These compose upward: a

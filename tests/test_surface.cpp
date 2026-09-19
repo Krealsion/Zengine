@@ -66,6 +66,7 @@
 #include <cstdlib>
 #include <limits>
 #include <map>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -197,6 +198,17 @@ struct FakeMedium {
     void place(const SurfacePlacementRemembered& want) {
         log->push_back("place x=" + std::to_string(want.x) + " y=" + std::to_string(want.y) +
                        " max=" + (want.maximized ? "1" : "0"));
+    }
+
+    /// Required of every Medium since the capture door, for the clipboard pair's reason. A
+    /// fake hands back whatever a case set -- nullopt is "nothing to read back" -- and counts
+    /// the reads, so "the medium is read exactly when a capture is taken" is pinnable.
+    std::optional<CapturedPicture> picture{};
+    int captures = 0;
+    std::optional<CapturedPicture> capture() {
+        ++captures;
+        log->push_back("capture");
+        return picture;
     }
 };
 
@@ -5037,4 +5049,233 @@ TEST_CASE("ARR-0: region_cells_for is fit_region read backwards, and minimal") {
     // A NON-POSITIVE ASK IS AN EMPTY EXTENT, never a negative one.
     CHECK(region_cells_for(0, 5, 8, 18) == RegionCells{});
     CHECK(region_cells_for(5, -1, 8, 18) == RegionCells{});
+}
+
+// =============================================================================
+// A capture: what the medium presents, read back through the medium
+// =============================================================================
+//
+// vocabulary.hpp says what a picture proves and what the frame count orders. These cases drive
+// the two doors through the shell over the fake medium (the shell's rule) and the real terminal
+// medium (the cells a terminal presents), and read what an ordinary asker was answered --
+// settled on Loom's own attestation, as a guest across the crossing settles it.
+
+namespace {
+
+struct CaptureAskerState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(CaptureAskerState, 1, ZEN_FIELD(asked));
+};
+
+/// The asker of a picture, kicked by the suite with a PumpSurface of its own.
+class CaptureAsker
+    : public loom::WeaveBase<CaptureAsker, CaptureAskerState,
+                             loom::Accept<PumpSurface, SurfaceCaptured, SurfaceCaptureChunk,
+                                          loom::Refused>,
+                             loom::Emit<SurfaceCaptureRequested, SurfaceCaptureChunkRequested>> {
+public:
+    std::function<void(loom::Mail&)> next_;
+    std::vector<SurfaceCaptured> captured;
+    std::vector<SurfaceCaptureChunk> chunks;
+    std::vector<std::string> refusals;
+    void on(const PumpSurface&, loom::Mail& mail) {
+        if (next_) {
+            ++state_.asked;
+            next_(mail);
+        }
+    }
+    void on(const SurfaceCaptured& c, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            captured.push_back(c);
+        }
+    }
+    void on(const SurfaceCaptureChunk& c, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            chunks.push_back(c);
+        }
+    }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            refusals.push_back(r.reason);
+        }
+    }
+};
+
+struct CaptureRig {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    loom::WeaveId skin{};
+    SkinT<FakeMedium>* raw = nullptr;
+    CaptureAsker* asker = nullptr;
+    loom::WeaveId asker_id{};
+
+    CaptureRig() {
+        // IN ITS OFFICE, because a capture is asked of `zengine.skin`, never of a WeaveId.
+        auto weave = std::make_unique<SkinT<FakeMedium>>(FakeMedium{&log});
+        raw = weave.get();
+        loom::Grant grant = loom::emit_default_grant(*raw);
+        loom::allow_poke_answers(grant);
+        loom::allow_describe_answers(grant);
+        skin = bus.register_weave(std::move(weave), std::move(grant), std::string(kSkinRole));
+        raw->zen_set_self(skin);
+        asker_id = loom::mount<CaptureAsker>(bus);
+        asker = static_cast<CaptureAsker*>(bus.weave(asker_id));
+        // A picture the fake hands back: three cells of "text", one row.
+        CapturedPicture p;
+        p.width = 3;
+        p.height = 1;
+        p.format = "text/cells";
+        p.bytes = "abc\n";
+        raw->medium().picture = p;
+    }
+    void act(std::function<void(loom::Mail&)> f) {
+        asker->next_ = std::move(f);
+        bus.send(asker_id, loom::Message(loom::to_value(PumpSurface{})));
+        bus.drain_until_idle();
+        asker->next_ = nullptr;
+    }
+    void ask_capture(std::int64_t after = -1) {
+        act([after](loom::Mail& m) {
+            (void)m.send_to_role(kSkinRole, SurfaceCaptureRequested{after});
+        });
+    }
+    void ask_chunk(std::int64_t capture, std::int64_t offset) {
+        act([capture, offset](loom::Mail& m) {
+            (void)m.send_to_role(kSkinRole, SurfaceCaptureChunkRequested{capture, offset});
+        });
+    }
+    void paint() {
+        bus.send(skin, loom::Message(loom::to_value(canvas_of(4, 2))));
+        bus.drain_until_idle();
+    }
+};
+
+} // namespace
+
+TEST_CASE("capture: a picture is read back through the medium, numbered, and fetched by chunk") {
+    CaptureRig r;
+    r.paint();
+    r.ask_capture();
+    REQUIRE(r.asker->captured.size() == 1);
+    const SurfaceCaptured& c = r.asker->captured[0];
+    CHECK(c.ok);
+    CHECK(c.capture == 1);
+    CHECK(c.frame == 1);
+    CHECK(c.width == 3);
+    CHECK(c.height == 1);
+    CHECK(c.format == "text/cells");
+    CHECK(c.bytes == 4);
+    CHECK(r.raw->medium().captures == 1); // the medium was read exactly once, on the ask
+    r.ask_chunk(1, 0);
+    REQUIRE(r.asker->chunks.size() == 1);
+    CHECK(r.asker->chunks[0].total == 4);
+    CHECK(r.asker->chunks[0].offset == 0);
+    CHECK(std::string(r.asker->chunks[0].data.begin(), r.asker->chunks[0].data.end()) == "abc\n");
+    // A second capture replaces the first, and the first's chunks are refused by number.
+    r.ask_capture();
+    REQUIRE(r.asker->captured.size() == 2);
+    CHECK(r.asker->captured[1].capture == 2);
+    r.ask_chunk(1, 0);
+    REQUIRE(r.asker->refusals.size() == 1);
+    CHECK(r.asker->refusals[0] == "capture 1 is gone; the retained one is 2");
+    r.ask_chunk(2, 9);
+    CHECK(r.asker->refusals.back().rfind("offset 9 is outside", 0) == 0);
+}
+
+TEST_CASE("capture: a medium with nothing to show, or a picture over the bound, is refused in words") {
+    CaptureRig r;
+    r.raw->medium().picture.reset();
+    r.ask_capture();
+    REQUIRE(r.asker->captured.size() == 1);
+    CHECK_FALSE(r.asker->captured[0].ok);
+    CHECK(r.asker->captured[0].refusal == "this medium has no picture to read back right now");
+    r.ask_chunk(1, 0);
+    CHECK(r.asker->refusals.back() == "no picture is retained; ask for a capture first");
+    CapturedPicture huge;
+    huge.width = 1;
+    huge.height = 1;
+    huge.format = "image/bmp";
+    huge.bytes.assign(static_cast<std::size_t>(kMaxCaptureBytes) + 1, 'x');
+    r.raw->medium().picture = huge;
+    r.ask_capture();
+    REQUIRE(r.asker->captured.size() == 2);
+    CHECK_FALSE(r.asker->captured[1].ok);
+    CHECK(r.asker->captured[1].refusal.find("over the") != std::string::npos);
+}
+
+TEST_CASE("capture: `after_frame` defers the answer to the paint that passes it, and one waits at a time") {
+    CaptureRig r;
+    r.paint(); // frame 1
+    r.ask_capture(/*after=*/1);
+    CHECK(r.asker->captured.empty()); // nothing yet: frame 1 is not after frame 1
+    CHECK(r.raw->medium().captures == 0);
+    r.ask_capture(/*after=*/5);
+    REQUIRE(r.asker->captured.size() == 1); // the second waiter is refused at once
+    CHECK_FALSE(r.asker->captured[0].ok);
+    CHECK(r.asker->captured[0].refusal.rfind("a capture is already waiting", 0) == 0);
+    r.paint(); // frame 2: the waiting capture is taken ON this paint
+    REQUIRE(r.asker->captured.size() == 2);
+    CHECK(r.asker->captured[1].ok);
+    CHECK(r.asker->captured[1].frame == 2);
+    CHECK(r.raw->medium().captures == 1);
+    // Taken exactly once: a third paint does not re-answer a spent deferral.
+    r.paint();
+    CHECK(r.asker->captured.size() == 2);
+    CHECK(r.raw->medium().captures == 1);
+    // ...and `after_frame` below the count answers now.
+    r.ask_capture(/*after=*/1);
+    REQUIRE(r.asker->captured.size() == 3);
+    CHECK(r.asker->captured[2].frame == 3);
+}
+
+TEST_CASE("capture: a terminal medium hands back the cells it painted, one row per line") {
+    using Tui = SkinT<TuiMedium<ClassicStyle, StringSink>>;
+    loom::Switchboard bus;
+    loom::WeaveId skin{};
+    Tui* raw = nullptr;
+    {
+        auto weave = std::make_unique<Tui>();
+        raw = weave.get();
+        loom::Grant grant = loom::emit_default_grant(*raw);
+        skin = bus.register_weave(std::move(weave), std::move(grant), std::string(kSkinRole));
+        raw->zen_set_self(skin);
+    }
+    (void)raw;
+    const loom::WeaveId asker_id = loom::mount<CaptureAsker>(bus);
+    CaptureAsker* asker = static_cast<CaptureAsker*>(bus.weave(asker_id));
+    // No canvas yet: nothing to read back.
+    asker->next_ = [](loom::Mail& m) { (void)m.send_to_role(kSkinRole, SurfaceCaptureRequested{}); };
+    bus.send(asker_id, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(asker->captured.size() == 1);
+    CHECK_FALSE(asker->captured[0].ok);
+    // A canvas with one label, then the picture is exactly its cells.
+    SurfaceCanvas c = canvas_of(5, 2);
+    SurfaceLayer layer;
+    SurfaceLabel l;
+    l.x = 1;
+    l.y = 1;
+    l.text = "hi";
+    layer.labels.push_back(l);
+    c.layers.push_back(layer);
+    bus.send(skin, loom::Message(loom::to_value(c)));
+    bus.drain_until_idle();
+    bus.send(asker_id, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(asker->captured.size() == 2);
+    CHECK(asker->captured[1].ok);
+    CHECK(asker->captured[1].format == "text/cells");
+    CHECK(asker->captured[1].width == 5);
+    CHECK(asker->captured[1].height == 2);
+    CHECK(asker->captured[1].cell_px == 0);
+    asker->next_ = [&](loom::Mail& m) {
+        (void)m.send_to_role(kSkinRole, SurfaceCaptureChunkRequested{asker->captured[1].capture, 0});
+    };
+    bus.send(asker_id, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(asker->chunks.size() == 1);
+    const std::string cells(asker->chunks[0].data.begin(), asker->chunks[0].data.end());
+    CHECK(cells == "     \n hi  \n");
+    // ...and the same cells are what canvas_body drew, less the ink.
+    CHECK(canvas_cells(c) == cells);
 }

@@ -1082,9 +1082,9 @@ neovim                            doctest           always  21
 neovim_live                       doctest           neovim  12
 snake                             doctest           always  22
 timer                             doctest           always  82
-input                             doctest           always  42
+input                             doctest           always  50
 input                             doctest           sdl     3
-surface                           doctest           always  100
+surface                           doctest           always  104
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  44
@@ -1103,6 +1103,30 @@ maker                             doctest           always  26
 # `drain` bounded by a wall clock instead of by two million looks -- moved no floor and added
 # no case: the same population, no longer able to fail for having looked too fast.
 builder                           doctest           always  59
+# THE EXTERNAL HOST raised two floors and added one suite. The Input weave gained a SESSION -- a
+# second source of moments for the one producer (five cases: the same shapes in order, a batch
+# judged whole, one session at a time, closing releases what was held, an office closes on the
+# holder's behalf); the Skin gained a CAPTURE read back through its medium (four cases: numbered
+# and chunked, refused in words, deferred to the paint that passes `after_frame`, the terminal's
+# cells); and the guest door -- the listener, the policy the guests file becomes, the inventory --
+# is a suite of its own over a real loopback socket (`test_workshop_guests.cpp`).
+#
+#   input            42 -> 47
+#   surface         100 -> 104
+#   workshop_guests  new, 6
+#
+# ITS CORRECTIONS raised two floors and added one suite: a session bounds what it holds down
+# (the counterexample, the key domain, the held-key limit across batches); the guests suite
+# holds the ordering of a picture after input (the capture on admission pinned stale, the
+# capture after settlement, and settlement through the real door); and the reusable probe
+# is a suite of its own, over the real probe weave and the real Input weave.
+#
+#   input            47 -> 50
+#   workshop_guests   6 -> 9
+#   workshop_probe   new, 14
+workshop_guests                   doctest           always  9
+workshop_probe                    doctest           always  14
+guest_journey                     program           always
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that

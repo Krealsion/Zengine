@@ -181,9 +181,12 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # a stranger can build the participant that presents a pane's menu as well as the pane that asks
 # for one. Nothing else under workshop/ is public: the host, its seams and its doors stay this
 # repository's.
+# ...and the guest seam beside it: what this Workshop says about the other hosts connected to
+# it, so a probe on another host can ask the guest door for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
                                       workshop/pane_menu.hpp
-                                      workshop/presenter_vocabulary.hpp)
+                                      workshop/presenter_vocabulary.hpp
+                                      workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 

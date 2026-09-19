@@ -23,6 +23,8 @@
 #include "editor_switch.hpp"  // the editor switch this host mounts
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 #include "provenance.hpp"     // what stands behind an office's running code, from three owners
+#include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
+#include "guests.hpp"         // ...and the file that says who they are
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -32,6 +34,7 @@
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/bridge/channel.hpp>
 #include <zen/history/dump.hpp>
 #include <zen/history/logger.hpp>
 #include <zen/history/recorder.hpp>
@@ -163,6 +166,9 @@ struct Arguments {
     std::string recipes;
     std::string log;  ///< empty = keep nothing durably
     std::string dump; ///< empty = write no snapshot of working memory at exit
+    /// THE GUESTS FILE: who may connect to this Workshop from another host, and what each may
+    /// then say (workshop/guests.hpp). Empty = no listener, so connecting is impossible.
+    std::string guests;
 };
 
 Arguments parse_arguments(int argc, char** argv) {
@@ -177,7 +183,7 @@ Arguments parse_arguments(int argc, char** argv) {
         if (arg == "--document" || arg == "--setup" || arg == "--pane" ||
             arg == "--session" || arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
             arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
-            arg == "--dump") {
+            arg == "--dump" || arg == "--guests") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -228,6 +234,13 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.log = value;
             } else if (arg == "--dump") {
                 args.dump = value;
+            } else if (arg == "--guests") {
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = "--guests needs a path";
+                    return args;
+                }
+                args.guests = value;
             } else if (arg == "--setup") {
                 args.setup = value;
             } else if (arg == "--pane") {
@@ -279,6 +292,7 @@ int main(int argc, char** argv) {
                     "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
+                    "                        [--guests <file>]\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
                     args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
@@ -1303,6 +1317,65 @@ int main(int argc, char** argv) {
                        TerminalCompletionOffered::zen_version);
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+
+    // ---- THE GUEST DOOR: other hosts, admitted deliberately (workshop/guest_door.hpp) --------
+    //
+    // ONLY WITH A FILE. No `--guests`, no listener: this Workshop cannot be connected to, which
+    // is the honest default for a host whose bridge carries no transport security. With one,
+    // the file's rows ARE the policy -- who may connect, as whom, with which of three powers --
+    // and the door mounted here holds the listener, services the crossing on the Timer's beat,
+    // publishes the connection inventory the Connections pane shows, and closes a guest's input
+    // session when its connection dies. Its grant is those four things and nothing else; a
+    // guest's grant is its row's, checked at the bus on every send.
+    //
+    // MOUNTED BEFORE THE PLAN RUNS, so the Timer's TimerReady finds it and it beats from the
+    // first; the Connections pane the plan loads asks it for the inventory as it arrives.
+    std::string guests_listen;
+    if (!args.guests.empty()) {
+        guests::GuestsFile file;
+        std::string complaint;
+        if (!guests::read_guests_file(args.guests, &file, &complaint)) {
+            std::printf("zengine-workshop - guests: %s\n"
+                        "zengine-workshop - nothing was mounted and nothing was loaded.\n",
+                        complaint.c_str());
+            return 7;
+        }
+        std::string listen_host;
+        std::uint16_t listen_port = 0;
+        (void)guests::split_listen(file.listen, &listen_host, &listen_port);
+        if (!loom::bridge_net_init(&complaint)) {
+            std::printf("zengine-workshop - guests: the network could not be initialised: %s\n",
+                        complaint.c_str());
+            return 7;
+        }
+        const loom::socket_t listener = loom::bridge_listen_tcp(listen_port, &complaint);
+        if (listener == loom::kInvalidSocket) {
+            std::printf("zengine-workshop - guests: cannot listen on %s: %s\n",
+                        file.listen.c_str(), complaint.c_str());
+            return 7;
+        }
+        guests_listen = "127.0.0.1:" + std::to_string(loom::bridge_socket_port(listener));
+        if (!file.port_file.empty()) {
+            // THE CHOSEN PORT, WRITTEN WHERE THE FILE SAID, for a script that launched this host
+            // with port 0 and needs to know what the OS chose.
+            std::ofstream port_out(file.port_file, std::ios::trunc);
+            port_out << loom::bridge_socket_port(listener) << '\n';
+        }
+        auto door = std::make_unique<GuestDoor>(bus, listener, guests_listen,
+                                                guests::admission_of(file));
+        GuestDoor* raw_door = door.get();
+        const loom::WeaveId door_id = bus.register_weave(std::move(door), guest_door_grant(),
+                                                         std::string(kGuestsRole));
+        raw_door->zen_set_self(door_id);
+        std::printf("zengine-workshop - guests: listening on %s for %zu guest(s) named in %s "
+                    "(door: weave #%s; the Connections pane lists them)\n",
+                    guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
+                    std::to_string(door_id.value).c_str());
+    } else {
+        std::printf("zengine-workshop - guests: none (this Workshop listens for no other host; "
+                    "--guests <file> to admit one)\n");
+    }
+    std::fflush(stdout);
 
     // ---- THE QUIT'S UNDELIVERABLE QUESTIONS (WL-SESSION-19) --------------------------------
     //
