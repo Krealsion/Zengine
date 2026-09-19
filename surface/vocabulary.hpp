@@ -45,6 +45,7 @@
 // construction. A surface-arbiter weave (multiple surfaces, negotiation) is a
 // later package's ground; V1 needs none.
 
+#include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
@@ -742,6 +743,92 @@ struct ClipboardText {
     bool readable = false;
     std::string text;
     ZEN_SHAPE(ClipboardText, 1, ZEN_FIELD(readable), ZEN_FIELD(text));
+};
+
+// ---- A CAPTURE: what the active surface actually presented, through its own medium ---------
+//
+// A picture of the screen is evidence of PRESENTATION and of nothing else: it says what the
+// medium put in front of a person at one moment, in the medium's own units. It is not proof
+// that work finished -- a pane whose answer is still queued is drawn as it was -- and it is not
+// a second renderer: the Skin's Medium reads back what IT drew (the SDL renderer's pixels, the
+// terminal's cell projection), so a capture cannot disagree with the window.
+//
+// ORDERING, SAID HONESTLY. Every painted frame counts on `SkinState::frames`, and a capture
+// carries the count it was taken at. `after_frame` lets a requester ask for a picture taken
+// once a LATER frame than the one it last saw has been painted: the answer is deferred until
+// `frames > after_frame`, and comes back on the delivery that paints that frame. Combined with
+// the bus's FIFO -- an injected moment's consumer repaints in a delivery queued before the
+// capture request that followed its answer -- that is what "a capture after this input was
+// processed and a subsequent presentation occurred" means here, and all it means: asynchronous
+// work may still be pending, and the capture says which frame it is, never that nothing else
+// was about to change.
+//
+// BOUNDED, IN BOTH DIRECTIONS. One capture is retained at a time (the newest replaces it, and
+// says so by number); a picture is fetched in chunks of `kCaptureChunkBytes` through the
+// crossing that asked, so no message carries a screen; a picture over `kMaxCaptureBytes` is
+// refused rather than cut. One capture may wait at a time.
+
+/// TAKE A PICTURE, now or once a later frame has been painted. Answered `SurfaceCaptured`.
+struct SurfaceCaptureRequested {
+    /// Capture when `frames > after_frame`. -1 (the default) means now, whatever frame stands;
+    /// a value at or beyond the current count defers the answer to the paint that passes it.
+    std::int64_t after_frame = -1;
+    ZEN_SHAPE(SurfaceCaptureRequested, 1, ZEN_FIELD(after_frame));
+};
+
+/// THE PICTURE'S IDENTITY AND SHAPE -- not its bytes, which are fetched by chunk. `format` is
+/// the medium's honest word: `image/bmp` for a window (24-bit, bottom-up, as a BMP is), or
+/// `text/cells` for a terminal (the cell projection, one row per line, `height` rows of `width`
+/// bytes plus a newline). `cell_px` is the graphical medium's cell size, so a pixel coordinate
+/// in the picture maps to the canvas lattice a pointer moment is spelled in; 0 on a terminal,
+/// where a cell IS the unit.
+struct SurfaceCaptured {
+    bool ok = false;
+    std::int64_t capture = 0; ///< this picture's number; the chunk door names it
+    std::int64_t frame = 0;   ///< the Skin's frame count when it was taken
+    std::int64_t width = 0;   ///< pixels, or cells on a terminal
+    std::int64_t height = 0;
+    std::int64_t cell_px = 0;
+    std::string format;
+    std::int64_t bytes = 0; ///< the whole picture's size, in bytes
+    std::string refusal;    ///< why not, when `ok` is false
+    ZEN_SHAPE(SurfaceCaptured, 1, ZEN_FIELD(ok), ZEN_FIELD(capture), ZEN_FIELD(frame),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px), ZEN_FIELD(format),
+              ZEN_FIELD(bytes), ZEN_FIELD(refusal));
+};
+
+/// FETCH ONE CHUNK of the retained picture, from `offset`. Answered `SurfaceCaptureChunk`, or
+/// `zen.Refused` when `capture` is no longer the one retained.
+struct SurfaceCaptureChunkRequested {
+    std::int64_t capture = 0;
+    std::int64_t offset = 0;
+    ZEN_SHAPE(SurfaceCaptureChunkRequested, 1, ZEN_FIELD(capture), ZEN_FIELD(offset));
+};
+
+struct SurfaceCaptureChunk {
+    std::int64_t capture = 0;
+    std::int64_t offset = 0;
+    std::int64_t total = 0; ///< the whole picture's size; `offset + data.size() == total` on the last
+    loom::Bytes data;
+    ZEN_SHAPE(SurfaceCaptureChunk, 1, ZEN_FIELD(capture), ZEN_FIELD(offset), ZEN_FIELD(total),
+              ZEN_FIELD(data));
+};
+
+/// The most bytes one chunk carries: small enough for any crossing's frame and any bus's
+/// decode budget, large enough that a screen is a few hundred round trips and not thousands.
+inline constexpr std::int64_t kCaptureChunkBytes = 32 * 1024;
+/// The largest picture a Skin retains. A 4K window at 24 bits is under this; a larger one is
+/// refused with its size, never silently cut.
+inline constexpr std::int64_t kMaxCaptureBytes = 32 * 1024 * 1024;
+
+/// WHAT A MEDIUM HANDS THE SHELL WHEN ASKED FOR ITS PICTURE. Plain bytes and their shape; the
+/// shell numbers and retains it.
+struct CapturedPicture {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    std::int64_t cell_px = 0;
+    std::string format;
+    std::string bytes;
 };
 
 /// The role that IS surface ownership. Singleton by the Loom's role rules, so

@@ -508,6 +508,19 @@ means: an Info image built before a pane became its subject still asks for the o
 document's picture, which this Workshop no longer publishes, so it waits, showing
 `OBJECTS (waiting)`, and nothing it sends is written; build Info from this source.
 
+## Another host driving Workshop
+
+- **No prompt per connection.** A guests-file row with `"admit": "ask"` waits for a decision
+  and can act on nothing meanwhile; the surface that shows a maker the waiting connection and
+  takes the decision is later work ([external host](external-host.md)).
+- **A credential crosses the loopback socket in the clear.** The guests file refuses any
+  listener but loopback; there is no transport security in the crossing.
+- **Injection enters at the Input weave**, below the platform edge: the console reader, the
+  SDL queue and the OS are not exercised by it.
+- **One session at a time, and no arbitration** between a hand and an agent beyond arrival
+  order.
+- **One picture retained at a time**, fetched in 32 KiB chunks; over 32 MiB is refused.
+
 ## Platforms
 
 | | state |

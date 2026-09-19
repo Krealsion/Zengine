@@ -52,6 +52,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -2158,4 +2159,306 @@ TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources
         CHECK(code.find("SDL_HasClipboardText") == std::string::npos);
         CHECK(code.find("ClipboardChanged") == std::string::npos);
     }
+}
+
+// =============================================================================
+// An input SESSION: a second source of moments for the one producer
+// =============================================================================
+//
+// vocabulary.hpp says what a session is and is not. These cases drive the doors through the
+// real weave over a fake reader, and read what an ordinary consumer (Ears) was delivered --
+// which is the whole claim: an injected moment reaches a consumer as the same shape, from the
+// same producer, in the order it was handed, and nothing downstream can tell.
+
+namespace {
+
+/// The asker of a session: opens it, injects, closes it, and keeps every answer it was given
+/// -- settled on Loom's own attestation, so an unsolicited `zen.Refused` settles nothing.
+struct AgentState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(AgentState, 1, ZEN_FIELD(asked));
+};
+
+class Agent : public loom::WeaveBase<Agent, AgentState,
+                                     loom::Accept<PumpInput, InputSessionOpened, InputInjected,
+                                                  loom::Ack, loom::Refused>,
+                                     loom::Emit<InputSessionRequested, InjectInput,
+                                                InputSessionClosed>> {
+public:
+    /// The suite kicks the agent with a PumpInput of its own (it is any shape that reaches it);
+    /// what it then does is `next_`, set by the case.
+    std::function<void(loom::Mail&)> next_;
+    std::vector<std::string> answers; ///< "opened N" / "injected a..b" / "ack" / "refused: why"
+    std::int64_t session = 0;
+
+    void on(const PumpInput&, loom::Mail& mail) {
+        if (next_) {
+            ++state_.asked;
+            next_(mail);
+        }
+    }
+    void on(const InputSessionOpened& o, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        session = o.session;
+        answers.push_back("opened " + std::to_string(o.session));
+    }
+    void on(const InputInjected& i, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        answers.push_back("injected " + std::to_string(i.first_seq) + ".." +
+                          std::to_string(i.last_seq) + " (" + std::to_string(i.admitted) + ")");
+    }
+    void on(const loom::Ack&, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            answers.push_back("ack");
+        }
+    }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            answers.push_back("refused: " + r.reason);
+        }
+    }
+};
+
+/// One rig: the weave over a silent fake reader, ears, and an agent; every gesture is a kick
+/// followed by a drain.
+struct SessionRig {
+    loom::Switchboard bus;
+    std::vector<std::vector<InputEvent>> feed;
+    loom::WeaveId weave{};
+    std::vector<InputEvent> heard;
+    Agent* agent = nullptr;
+    loom::WeaveId agent_id{};
+
+    SessionRig() {
+        // IN ITS OFFICE, because a session is asked of `zengine.input`, never of a WeaveId.
+        auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed});
+        InputWeaveT<FakeReader>* raw = w.get();
+        loom::Grant grant = loom::emit_default_grant(*raw);
+        loom::allow_poke_answers(grant);
+        loom::allow_describe_answers(grant);
+        weave = bus.register_weave(std::move(w), std::move(grant), std::string(kInputRole));
+        raw->zen_set_self(weave);
+        (void)loom::mount<Ears>(bus, heard);
+        agent_id = loom::mount<Agent>(bus);
+        agent = static_cast<Agent*>(bus.weave(agent_id));
+    }
+    /// Kick the agent into doing `act`, then drain -- the ask and its answer both land.
+    void act(std::function<void(loom::Mail&)> f) {
+        agent->next_ = std::move(f);
+        bus.send(agent_id, loom::Message(loom::to_value(PumpInput{})));
+        bus.drain_until_idle();
+        agent->next_ = nullptr;
+    }
+    void open() {
+        act([this](loom::Mail& m) {
+            (void)m.send_to_role(kInputRole, InputSessionRequested{"a suite's hand"});
+        });
+    }
+    void inject(std::vector<InjectedEvent> events) {
+        act([this, events](loom::Mail& m) {
+            InjectInput batch;
+            batch.session = agent->session;
+            batch.events = events;
+            (void)m.send_to_role(kInputRole, batch);
+        });
+    }
+    void close() {
+        act([this](loom::Mail& m) {
+            (void)m.send_to_role(kInputRole, InputSessionClosed{agent->session, 0});
+        });
+    }
+    const std::string& last() const {
+        static const std::string none = "(no answer)";
+        return agent->answers.empty() ? none : agent->answers.back();
+    }
+};
+
+InjectedEvent key_down(std::int64_t sc, std::int64_t mods = mod::kNone) {
+    InjectedEvent e;
+    e.kind = "KeyPressed";
+    e.scancode = sc;
+    e.modifiers = mods;
+    return e;
+}
+InjectedEvent key_up(std::int64_t sc, std::int64_t mods = mod::kNone) {
+    InjectedEvent e = key_down(sc, mods);
+    e.kind = "KeyReleased";
+    return e;
+}
+InjectedEvent typed(const char* text) {
+    InjectedEvent e;
+    e.kind = "TextEntered";
+    e.text = text;
+    return e;
+}
+InjectedEvent button(std::int64_t b, bool down, std::int64_t x, std::int64_t y,
+                     std::int64_t sp = space::kPixels) {
+    InjectedEvent e;
+    e.kind = "PointerButton";
+    e.button = b;
+    e.pressed = down;
+    e.x = x;
+    e.y = y;
+    e.space = sp;
+    return e;
+}
+
+} // namespace
+
+TEST_CASE("session: an agent opens one, injects a batch, and a consumer hears the same shapes in order") {
+    SessionRig r;
+    r.open();
+    REQUIRE(r.last() == "opened 1");
+    r.inject({key_down(scan::kP, mod::kCtrl), typed("p"), key_up(scan::kP, mod::kCtrl),
+              button(1, true, 40, 30), button(1, false, 40, 30)});
+    CHECK(r.last() == "injected 1..5 (5)");
+    REQUIRE(r.heard.size() == 5);
+    CHECK(as<KeyPressed>(r.heard, 0).scancode == scan::kP);
+    CHECK(as<KeyPressed>(r.heard, 0).modifiers == mod::kCtrl);
+    CHECK(as<TextEntered>(r.heard, 1).text == "p");
+    CHECK(as<KeyReleased>(r.heard, 2).scancode == scan::kP);
+    CHECK(as<PointerButton>(r.heard, 3).pressed);
+    CHECK(as<PointerButton>(r.heard, 3).x == 40);
+    CHECK(as<PointerButton>(r.heard, 3).space == space::kPixels);
+    CHECK_FALSE(as<PointerButton>(r.heard, 4).pressed);
+    // A second batch continues the session's own numbering.
+    r.inject({typed("q")});
+    CHECK(r.last() == "injected 6..6 (1)");
+    r.close();
+    CHECK(r.last() == "ack");
+}
+
+TEST_CASE("session: a batch is judged whole -- one bad moment publishes nothing, and says which") {
+    SessionRig r;
+    r.open();
+    InjectedEvent bad;
+    bad.kind = "Hover"; // not a shape this producer speaks
+    r.inject({typed("a"), bad, typed("b")});
+    CHECK(r.last() == "refused: moment 1: unknown kind 'Hover'");
+    CHECK(r.heard.empty());
+    InjectedEvent nowhere = button(1, true, 1, 1, space::kUnknown);
+    r.inject({nowhere});
+    CHECK(r.last().rfind("refused: moment 0: a pointer moment needs a known space", 0) == 0);
+    CHECK(r.heard.empty());
+    std::vector<InjectedEvent> flood(kMaxInjectedEvents + 1, typed("x"));
+    r.inject(flood);
+    CHECK(r.last().rfind("refused: a batch carries at most", 0) == 0);
+    CHECK(r.heard.empty());
+}
+
+TEST_CASE("session: one at a time, held by the sender that opened it, and refused to a stranger") {
+    SessionRig r;
+    r.open();
+    REQUIRE(r.last() == "opened 1");
+    // The SAME agent asking again is refused: the session stands until it is closed.
+    r.open();
+    CHECK(r.last().rfind("refused: busy: input session 1 is held by you", 0) == 0);
+    // A stranger: a second agent on the same bus.
+    const loom::WeaveId other_id = loom::mount<Agent>(r.bus);
+    Agent* other = static_cast<Agent*>(r.bus.weave(other_id));
+    const auto other_acts = [&](std::function<void(loom::Mail&)> f) {
+        other->next_ = std::move(f);
+        r.bus.send(other_id, loom::Message(loom::to_value(PumpInput{})));
+        r.bus.drain_until_idle();
+        other->next_ = nullptr;
+    };
+    other_acts([](loom::Mail& m) {
+        (void)m.send_to_role(kInputRole, InputSessionRequested{"a competing hand"});
+    });
+    REQUIRE_FALSE(other->answers.empty());
+    CHECK(other->answers.back().rfind("refused: busy: input session 1 is held by another", 0) == 0);
+    // The stranger cannot inject into it, nor close it by naming the holder personally.
+    other_acts([&](loom::Mail& m) {
+        InjectInput batch;
+        batch.session = 1;
+        batch.events = {typed("z")};
+        (void)m.send_to_role(kInputRole, batch);
+    });
+    CHECK(other->answers.back() == "refused: input session 1 is another participant's");
+    CHECK(r.heard.empty());
+    other_acts([&](loom::Mail& m) {
+        (void)m.send_to_role(kInputRole, InputSessionClosed{
+                                             1, static_cast<std::int64_t>(r.agent_id.value)});
+    });
+    CHECK(other->answers.back().rfind("refused: input session 1 is closed by its holder", 0) == 0);
+    // The holder closes it, and the stranger can then open one of its own.
+    r.close();
+    CHECK(r.last() == "ack");
+    other_acts([](loom::Mail& m) {
+        (void)m.send_to_role(kInputRole, InputSessionRequested{"now mine"});
+    });
+    CHECK(other->answers.back() == "opened 2");
+}
+
+TEST_CASE("session: closing releases every key and button still held, from the same producer") {
+    SessionRig r;
+    r.open();
+    r.inject({key_down(scan::kLeftBracket, mod::kShift), button(3, true, 12, 7),
+              key_down(scan::kA), key_up(scan::kA)});
+    REQUIRE(r.heard.size() == 4);
+    r.heard.clear();
+    r.close();
+    CHECK(r.last() == "ack");
+    // The bracket and the right button were still down; `a` was not.
+    REQUIRE(r.heard.size() == 2);
+    CHECK(as<KeyReleased>(r.heard, 0).scancode == scan::kLeftBracket);
+    CHECK(as<PointerButton>(r.heard, 1).button == 3);
+    CHECK_FALSE(as<PointerButton>(r.heard, 1).pressed);
+    CHECK(as<PointerButton>(r.heard, 1).x == 12);
+    CHECK(as<PointerButton>(r.heard, 1).y == 7);
+    // ...and a stale session number no longer injects.
+    r.inject({typed("late")});
+    CHECK(r.last() == "refused: no open input session numbered 1");
+}
+
+TEST_CASE("session: an office may close a session on its holder's behalf, and a stranger may not") {
+    SessionRig r;
+    r.open();
+    r.inject({button(1, true, 3, 3)});
+    r.heard.clear();
+    // A custodian holding an office -- the host's guest door -- speaks AS that office.
+    class Custodian : public loom::WeaveBase<Custodian, AgentState, loom::Accept<PumpInput, loom::Ack, loom::Refused>,
+                                             loom::Emit<InputSessionClosed>> {
+    public:
+        std::int64_t holder = 0;
+        std::string answer;
+        void on(const PumpInput&, loom::Mail& mail) {
+            (void)mail.as_role("zengine.guests")
+                .send_to_role(kInputRole, InputSessionClosed{0, holder});
+        }
+        void on(const loom::Ack&, loom::Mail& mail) {
+            if (mail.answers_ask()) {
+                answer = "ack";
+            }
+        }
+        void on(const loom::Refused& why, loom::Mail& mail) {
+            if (mail.answers_ask()) {
+                answer = "refused: " + why.reason;
+            }
+        }
+    };
+    loom::Grant may_close;
+    may_close.allow_to_role(InputSessionClosed::zen_name, InputSessionClosed::zen_version,
+                            kInputRole);
+    Custodian* custodian = nullptr;
+    loom::WeaveId custodian_id{};
+    {
+        auto c = std::make_unique<Custodian>();
+        custodian = c.get();
+        custodian_id = r.bus.register_weave(std::move(c), may_close, std::string("zengine.guests"));
+        custodian->zen_set_self(custodian_id);
+    }
+    custodian->holder = static_cast<std::int64_t>(r.agent_id.value);
+    r.bus.send(custodian_id, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    CHECK(custodian->answer == "ack");
+    // The held button came up, and the session is gone.
+    REQUIRE(r.heard.size() == 1);
+    CHECK_FALSE(as<PointerButton>(r.heard, 0).pressed);
+    r.inject({typed("x")});
+    CHECK(r.last() == "refused: no open input session numbered 1");
 }

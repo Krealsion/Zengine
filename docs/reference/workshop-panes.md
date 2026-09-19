@@ -58,6 +58,14 @@ the setup like anything else. What it shows it does not derive: Workshop publish
 condition as a value and the pane presents them — the one host-to-pane sentence this protocol
 has gained since panes began declaring their actions.
 
+⚠ **`Connections` is a loaded pane over a fact the host's guest door owns.** It arrives by a
+plan row naming `zengine-connections-pane` and shows the other hosts connected to this Workshop
+— each row what the peer *claimed*, what this host *established*, whether it is admitted,
+waiting on a decision, refused or gone — as `zengine.guests` publishes the inventory and
+answers a presenter that asks. It holds no copy, declares no actions and makes no decision;
+the admission seam a per-connection prompt will attach to is the door's
+([external host](../workshop/external-host.md)).
+
 `panel == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
 that sentence rather than asserting it: opening it sends no message, asks no office and needs
 no weave mounted anywhere, and it has no per-panel state for a close to destroy. A Workshop

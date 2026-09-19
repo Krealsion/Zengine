@@ -174,7 +174,10 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # The pane protocol's one header, installed under the directory it lives in so the stranger's
 # spelling is `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is. Nothing else
 # under workshop/ is public: the host, its seams and its doors stay this repository's.
-set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp)
+# ...and the guest seam beside it: what this Workshop says about the other hosts connected to
+# it, so a probe on another host can ask the guest door for the inventory it is in.
+set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
+                                      workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 

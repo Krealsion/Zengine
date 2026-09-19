@@ -74,6 +74,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::input {
 
@@ -313,6 +314,105 @@ struct PointerWheel {
 struct PumpInput {
     ZEN_SHAPE(PumpInput, 1);
 };
+
+// ---- An input SESSION: an agent's ordered queue into the same producer ------------------
+//
+// THE LAW ABOVE DOES NOT MOVE: exactly one Input weave produces the input shapes. What a
+// session adds is a second SOURCE of moments for that one producer -- a participant on this
+// bus (a guest's proxy, a test weave, a script) that hands the weave moments it composed, and
+// the weave PUBLISHES them as the same `KeyPressed`, `TextEntered`, `PointerButton` and the
+// rest, in the order handed, from the same identity, to the same consumers. Nothing
+// downstream can tell an injected moment from a platform one, and that is the point: the
+// consumer under test is the real one, and injection tests everything from the bus onward.
+// What it does NOT test is the platform edge -- the console reader, the SDL queue, the OS
+// translation -- which only a real hand on a real device exercises.
+//
+// ONE SESSION AT A TIME. A session belongs to the bus-stamped sender that opened it (never a
+// name in a payload); a second opener is refused `busy` and told which session stands. It is
+// closed by its holder, or ON ITS BEHALF by an office speaking deliberately (the host's
+// custodian of connections closing a guest's session when the guest is gone) -- never by a
+// stranger's personal word. Closing publishes a release for every key and button the session
+// still held down, so no held input survives a session into unrelated work.
+//
+// A SESSION IS NOT FOCUS, NOT A LEASE ON THE KEYBOARD AND NOT A CLAIM AGAINST THE PLATFORM.
+// A person at the keyboard is still heard while a session is open; the weave interleaves the
+// two sources in the order it received them, and an application that wants arbitration
+// between a human and an agent decides it there, with both sources attributable by the
+// session id a consumer can ask about. Refusals are answers; silence never is.
+
+/// OPEN A SESSION. Answered `InputSessionOpened`, or `zen.Refused` naming the session that
+/// stands in the way.
+struct InputSessionRequested {
+    std::string purpose; ///< one line, for a person reading the inventory
+    ZEN_SHAPE(InputSessionRequested, 1, ZEN_FIELD(purpose));
+};
+
+struct InputSessionOpened {
+    std::int64_t session = 0;
+    ZEN_SHAPE(InputSessionOpened, 1, ZEN_FIELD(session));
+};
+
+/// CLOSE A SESSION. By its holder, personally; or by an OFFICE speaking deliberately, naming
+/// the holder it closes on behalf of (`holder` is that holder's WeaveId as a number, read only
+/// when the closer is not the holder). An office may say `session` 0 for "whatever that holder
+/// holds" -- the door closing a dead guest's session knows the guest, not the number. Answered
+/// `zen.Ack`, or `zen.Refused`. Every key and button the session still held is released, as
+/// ordinary published moments, before the Ack.
+struct InputSessionClosed {
+    std::int64_t session = 0;
+    std::int64_t holder = 0;
+    ZEN_SHAPE(InputSessionClosed, 1, ZEN_FIELD(session), ZEN_FIELD(holder));
+};
+
+/// One moment an agent composed. `kind` says which of the published shapes it becomes and
+/// which fields are read; the rest are ignored. The kinds are the shapes' own names, so an
+/// agent that knows the Input reference knows the spelling.
+struct InjectedEvent {
+    std::string kind; ///< "KeyPressed" "KeyReleased" "TextEntered" "PointerMoved" "PointerButton" "PointerWheel"
+    std::int64_t scancode = 0;  ///< KeyPressed / KeyReleased: `scan::`
+    std::string name;           ///< KeyPressed / KeyReleased: the courtesy spelling, may be empty
+    std::int64_t modifiers = 0; ///< every kind but TextEntered: `mod::`
+    std::string text;           ///< TextEntered: UTF-8, as the platform would have committed it
+    std::int64_t button = 0;    ///< PointerButton: 1 left, 2 middle, 3 right
+    bool pressed = false;       ///< PointerButton
+    std::int64_t x = 0;         ///< pointer kinds: the position, in `space`
+    std::int64_t y = 0;
+    std::int64_t dx = 0;        ///< PointerMoved: the delta
+    std::int64_t dy = 0;
+    std::int64_t space = 0;     ///< pointer kinds: `space::kCells` or `space::kPixels`; unknown is refused
+    double wheel_dx = 0;        ///< PointerWheel: the notches
+    double wheel_dy = 0;
+    ZEN_SHAPE(InjectedEvent, 1, ZEN_FIELD(kind), ZEN_FIELD(scancode), ZEN_FIELD(name),
+              ZEN_FIELD(modifiers), ZEN_FIELD(text), ZEN_FIELD(button), ZEN_FIELD(pressed),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(dx), ZEN_FIELD(dy), ZEN_FIELD(space),
+              ZEN_FIELD(wheel_dx), ZEN_FIELD(wheel_dy));
+};
+
+/// PUBLISH THESE MOMENTS, IN THIS ORDER, through the session. Judged whole: a batch with an
+/// unknown kind, an unknown pointer space, or more than `kMaxInjectedEvents` publishes nothing
+/// and is refused with the offending index. Answered `InputInjected`.
+struct InjectInput {
+    std::int64_t session = 0;
+    std::vector<InjectedEvent> events;
+    ZEN_SHAPE(InjectInput, 1, ZEN_FIELD(session), ZEN_FIELD(events));
+};
+
+/// WHAT THE WEAVE DID WITH A BATCH: the session's own sequence numbers of the first and last
+/// moment it published. `admitted` is the count, and it equals the batch or the batch was
+/// refused. ADMITTED IS NOT PROCESSED: a moment published here is on the bus in order, and
+/// what a consumer makes of it is that consumer's, later, on its own delivery.
+struct InputInjected {
+    std::int64_t session = 0;
+    std::int64_t admitted = 0;
+    std::int64_t first_seq = 0;
+    std::int64_t last_seq = 0;
+    ZEN_SHAPE(InputInjected, 1, ZEN_FIELD(session), ZEN_FIELD(admitted), ZEN_FIELD(first_seq),
+              ZEN_FIELD(last_seq));
+};
+
+/// The most moments one `InjectInput` may carry. A bound on what one delivery can put on the
+/// bus, so an agent's batch is a batch and not a flood dressed as one message.
+inline constexpr std::size_t kMaxInjectedEvents = 64;
 
 /// The role slot the Input weave holds: the address "whoever provides input",
 /// which outlives any particular implementation being swapped in or out.

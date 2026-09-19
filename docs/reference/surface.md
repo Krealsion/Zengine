@@ -158,6 +158,27 @@ as zero: a value nobody could mean resolves to the whole-cell picture, never a g
 one publisher that earned the fineness is Workshop's pane arrangement; the prose lattice
 (rows, columns, carets, selections) and the canvas's own extent stay as coarse as they were.
 
+## A capture: what the active surface presented, through its own medium
+
+`SurfaceCaptureRequested{after_frame}` → `SurfaceCaptured{ok, capture, frame, width, height,
+cell_px, format, bytes, refusal}`, then `SurfaceCaptureChunkRequested{capture, offset}` →
+`SurfaceCaptureChunk{capture, offset, total, data}` (32 KiB a chunk) or `zen.Refused`. The
+Skin's **Medium** reads back what it drew — the SDL renderer's own pixels as a 24-bit
+`image/bmp`, re-drawn from the last canvas and read before it is presented again, so the
+picture and the window are one drawing; a terminal's cell projection as `text/cells`, one row
+per line — so a capture cannot disagree with the screen and is not a second renderer. One
+picture is retained at a time (the newest replaces it, by number); one over 32 MiB is refused,
+never cut.
+
+**What a picture proves.** Presentation at one frame, in the medium's units: `frame` is the
+Skin's own count, `cell_px` maps a window's pixels to the canvas lattice a pointer moment is
+spelled in (0 on a terminal, where a cell is the unit). It proves nothing about asynchronous
+work still pending. `after_frame` orders it: the answer is deferred until `frames >
+after_frame` and comes back on the paint that passes it (one may wait at a time), and with the
+bus's FIFO — an injected moment's consumer repaints in a delivery queued before the capture
+request that followed its answer — that is what "after this input was processed and a later
+presentation occurred" means here, and all it means.
+
 ## Current wire versions
 
 A shape's version is part of its identity at the admission gate. These compose upward: a

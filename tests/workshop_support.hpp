@@ -3062,6 +3062,11 @@ struct PaneRig {
         if (stem == "zengine-desktop-pane") {
             return WORKSHOP_SO_DESKTOP_PANE;
         }
+#ifdef WORKSHOP_SO_CONNECTIONS_PANE
+        if (stem == "zengine-connections-pane") {
+            return WORKSHOP_SO_CONNECTIONS_PANE;
+        }
+#endif
 #ifdef WORKSHOP_SO_TERMINAL_PANE
         if (stem == "zengine-terminal-pane") {
             return WORKSHOP_SO_TERMINAL_PANE;

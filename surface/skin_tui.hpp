@@ -227,11 +227,31 @@ inline char glyph_for_role(int role) noexcept {
 /// right edge on a BYTE boundary — this renderer is byte-per-cell, so a
 /// multi-byte codepoint would be split, which is why the house charset rule
 /// (plain ASCII intent) is the publisher's side of the same bargain.
-inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
+/// THE CELLS OF A CANVAS AS PLAIN TEXT -- the glyph grid `canvas_body` paints, without the
+/// ink: `height` rows of `width` bytes, each ended by a newline. The capture representation
+/// of a terminal medium (vocabulary.hpp, `text/cells`), and the same painter's order.
+/// THE FOUR GRIDS A CANVAS RASTERIZES TO, at the cell grain: what to draw, in what role, on
+/// what ground, and whether selected. Built once, read by two renderers -- the SGR body a
+/// terminal is sent, and the plain cells a capture hands back -- so a capture cannot disagree
+/// with the picture by a byte.
+struct CanvasGrids {
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+    std::size_t cells = 0;
+    std::vector<char> glyphs;
+    std::vector<signed char> roles;
+    std::vector<signed char> grounds;
+    std::vector<signed char> selected;
+};
+
+inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
+    CanvasGrids grids;
     const std::int64_t w = c.width > 0 ? c.width : 0;
     const std::int64_t h = c.height > 0 ? c.height : 0;
+    grids.w = w;
+    grids.h = h;
     if (w == 0 || h == 0) {
-        return {};
+        return grids;
     }
     // Two parallel grids: what to draw, and in what role. Painter's order falls
     // out of overwriting — later rects win, labels win over every rect.
@@ -244,28 +264,33 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     // it was asked for, so the same slip becomes a real heap overflow. The guard
     // below is the correctness; this is what lets anything prove it is still there.
     const std::size_t cells = static_cast<std::size_t>(w * h);
-    std::vector<char> glyphs(cells, ' ');
+    grids.cells = cells;
+    std::vector<char>& glyphs = grids.glyphs;
+    glyphs.assign(cells, ' ');
     // SIGNED, EXPLICITLY. These two hold a sentinel of -1 and are read back with a
     // `< 0` test; plain `char` is unsigned on some targets (ARM by default), where
     // -1 would come back as 255, the test would be false, and an untouched cell
     // would paint in the unknown-role fallback instead of resetting. Nothing this
     // repository builds on today is such a target, which is exactly why it is worth
     // spelling rather than relying on.
-    std::vector<signed char> roles(cells, static_cast<signed char>(-1)); // -1 = untouched
+    std::vector<signed char>& roles = grids.roles;
+    roles.assign(cells, static_cast<signed char>(-1)); // -1 = untouched
     // A THIRD GRID, AND ONLY A TEXT REGION'S ROWS EVER WRITE IT (HD-2). Rects and
     // labels have no ground to say -- `SurfaceRect` IS a ground and a
     // `SurfaceLabel` deliberately has none -- so every cell they touch carries
     // `role::kNone` and this grid emits nothing at all for them. That is what
     // makes the addition byte-invisible to every canvas that does not use it,
     // which the unchanged goldens are the proof of.
-    std::vector<signed char> grounds(cells, static_cast<signed char>(zengine::surface::role::kNone));
+    std::vector<signed char>& grounds = grids.grounds;
+    grounds.assign(cells, static_cast<signed char>(zengine::surface::role::kNone));
     // A FOURTH GRID, AND ONLY A TEXT REGION'S SELECTED SPAN EVER WRITES IT (TEXT-0). It is a
     // separate channel rather than a fifth ground value because a selection composes with
     // every ink and every ground a row already has: the terminal's own word for "these exact
     // cells, whatever they are wearing" is reverse video, which swaps the two attributes the
     // other grids chose instead of competing with either. Rects and labels never set it, so a
     // canvas with no selection emits not one byte of it — the goldens are the proof.
-    std::vector<signed char> selected(cells, static_cast<signed char>(0));
+    std::vector<signed char>& selected = grids.selected;
+    selected.assign(cells, static_cast<signed char>(0));
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
                          std::int64_t ground = zengine::surface::role::kNone,
@@ -345,6 +370,33 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         }
     }
 
+    return grids;
+}
+
+inline std::string canvas_cells(const zengine::surface::SurfaceCanvas& c) {
+    const CanvasGrids g = rasterize_canvas(c);
+    std::string out;
+    out.reserve(static_cast<std::size_t>((g.w + 1) * g.h));
+    for (std::int64_t y = 0; y < g.h; ++y) {
+        out.append(g.glyphs.data() + static_cast<std::size_t>(y * g.w),
+                   static_cast<std::size_t>(g.w));
+        out += '\n';
+    }
+    return out;
+}
+
+inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
+    const CanvasGrids g = rasterize_canvas(c);
+    const std::int64_t w = g.w;
+    const std::int64_t h = g.h;
+    if (w == 0 || h == 0) {
+        return {};
+    }
+    const std::size_t cells = g.cells;
+    const std::vector<char>& glyphs = g.glyphs;
+    const std::vector<signed char>& roles = g.roles;
+    const std::vector<signed char>& grounds = g.grounds;
+    const std::vector<signed char>& selected = g.selected;
     std::string out;
     out.reserve(cells * 3);
     for (std::int64_t y = 0; y < h; ++y) {
@@ -565,7 +617,24 @@ public:
             out += "\x1b[0J";
         }
         painted_rows_ = rows;
+        last_canvas_ = c;
         sink_.write(out);
+    }
+
+    /// THE CELL PROJECTION OF THE LAST CANVAS, as plain rows: what a terminal presented, less
+    /// the ink -- a byte per cell, exactly the glyphs `canvas_body` wrote, one row per line.
+    /// A medium that has painted no canvas has no picture and says so.
+    std::optional<CapturedPicture> capture() {
+        if (!last_canvas_.has_value()) {
+            return std::nullopt;
+        }
+        CapturedPicture p;
+        p.width = last_canvas_->width > 0 ? last_canvas_->width : 0;
+        p.height = last_canvas_->height > 0 ? last_canvas_->height : 0;
+        p.cell_px = 0;
+        p.format = "text/cells";
+        p.bytes = canvas_cells(*last_canvas_);
+        return p;
     }
 
     void note(std::string_view slot, std::string_view text) {
@@ -644,6 +713,9 @@ private:
     /// How many rows the canvas this medium last painted had — per incarnation, never
     /// state, and read by exactly one branch. See `canvas` above.
     std::int64_t painted_rows_ = 0;
+    /// The last canvas painted, kept for `capture`: a terminal cannot be read back, so the
+    /// medium keeps what it drew. Per incarnation, never state.
+    std::optional<zengine::surface::SurfaceCanvas> last_canvas_;
 };
 
 /// The terminal modes a TUI Skin claims, as bytes — pure, so the claim is a

@@ -365,8 +365,10 @@ endfunction()
 # A plain program with no doctest population -- today, the smoke test. The contract is that
 # the entry exists and CTest still runs the real command; there are no cases to count and
 # none are invented for it.
+# Extra arguments after the target are the program's own (the guest journey names the host it
+# launches and the plan it launches with); the record keeps the executable alone.
 function(zengine_program_test entry target)
-    add_test(NAME ${entry} COMMAND ${target})
+    add_test(NAME ${entry} COMMAND ${target} ${ARGN})
     zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
 endfunction()
 
@@ -554,6 +556,9 @@ add_subdirectory(builder-pane)
 # among the package vocabularies, it is staged beside the host, and the boot plan names its
 # artifact -- so the same ordering rule puts it here.
 add_subdirectory(attention-pane)
+# ...and the Connections pane: the other hosts connected to this Workshop, as the guest door
+# reports them. It links the Workshop vocabulary alone, like Attention, and for the same reason.
+add_subdirectory(connections-pane)
 # ...and the Desktop, which is the thinnest of all and the one whose absence a maker feels
 # first: it links zengine-workshop-vocabulary alone, it is staged beside the host, and both
 # boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application

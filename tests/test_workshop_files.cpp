@@ -2273,6 +2273,8 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         // right-presses the launcher, opens this source, changes what it declares or what its
         // floor says, builds THIS target and reloads it (WL-DESK-01).
         {"zengine-desktop-pane", "desktop-pane/pane.cpp"},
+        // ...and the Connections pane, the other hosts connected here, a pane like any other.
+        {"zengine-connections-pane", "connections-pane/pane.cpp"},
         {"zengine-editor-pane", "editor-pane/pane.cpp"},
         {"zengine-neovim-editor", "neovim-editor/pane.cpp"},
         {"zengine-files", "files/files.cpp"},

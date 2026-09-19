@@ -197,6 +197,34 @@ function(zen_find_program_in out name dir)
     unset(found CACHE)
 endfunction()
 
+# ---- 5b. the Workshop probe, the reusable consumer, as a stranger builds it -------------
+#
+# `examples/workshop-probe/` is the one loadable weave an agent's own `loom-host` mounts to
+# drive Workshop (docs/workshop/external-host.md). It reaches Loom's weave surface and link
+# envelope and Zengine's Input and Surface vocabularies by find_package alone; a header it
+# needs that is not installed fails HERE, in a copy outside both trees, rather than on the
+# first stranger's machine.
+set(probe_src "${work}/probe")
+file(REMOVE_RECURSE "${probe_src}")
+file(MAKE_DIRECTORY "${probe_src}")
+file(GLOB probe_fixture "${repo}/examples/workshop-probe/CMakeLists.txt"
+     "${repo}/examples/workshop-probe/*.cpp")
+file(COPY ${probe_fixture} DESTINATION "${probe_src}")
+set(probe_bin "${work}/probe-build")
+file(REMOVE_RECURSE "${probe_bin}")
+zen_stranger_build(probe "${probe_src}" "${probe_bin}" "${prefix};${loom_prefix}")
+if(NOT probe_rc EQUAL 0)
+    message(FATAL_ERROR
+        "package witness: the Workshop probe failed to configure or build against the "
+        "installed packages alone (exit ${probe_rc})")
+endif()
+file(GLOB probe_product "${probe_bin}/zengine-workshop-probe.*" "${probe_bin}/${ZEN_CONFIG}/zengine-workshop-probe.*")
+list(FILTER probe_product EXCLUDE REGEX "\.(a|lib|exp|pdb)$")
+if(NOT probe_product)
+    message(FATAL_ERROR "package witness: the Workshop probe built but produced no loadable weave in ${probe_bin}")
+endif()
+message(STATUS "package witness: the Workshop probe builds as a stranger, from installed headers alone ok")
+
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 
