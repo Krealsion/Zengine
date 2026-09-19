@@ -326,7 +326,8 @@ step by step; [the Builder](builder.md#load-after-build-and-reload-in-place) is 
 
 ## Which panes
 
-The development catalog holds a recipe for each pane weave Zengine ships:
+The development catalog holds a recipe for each pane weave Zengine ships, and one for the menu
+presenter:
 
 | recipe | the panes it draws | editing entry |
 |---|---|---|
@@ -340,6 +341,7 @@ The development catalog holds a recipe for each pane weave Zengine ships:
 | `zengine-terminal-pane` | Terminal | `terminal-pane/pane.cpp` |
 | `zengine-introspection` | Loaded, Project, Powers | `introspection/introspection.cpp` |
 | `zengine-composer` | Compose | `composer/composer.cpp` |
+| `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([replacing it](panes.md#replacing-the-menu-presenter)) | `menu-presenter/presenter.cpp` |
 
 **Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
 and the two operator providers are what every pane stands on, and Workshop's own panel (Layouts)
