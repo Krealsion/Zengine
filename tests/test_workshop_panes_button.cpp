@@ -7,7 +7,8 @@
 // release custody across panes, the interleavings an independent review reproduced, owner loss
 // after the release, recipient replacement, a late menu request refused where the surface
 // opens, and the presenter's whole lifecycle -- keyboard, mouse, Escape, an outside press, a
-// newer menu, a pane that leaves. The shipped guard example is loaded as an image at the end.
+// newer menu, a pane that leaves, and a withdrawal the presenter cannot be told of (WL-CTX-10).
+// The shipped guard example is loaded as an image at the end.
 
 #include "doctest.h"
 
@@ -913,6 +914,359 @@ TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's
     t.r.bus.drain_until_idle();
     REQUIRE(t.guard->answers.size() == 4);
     CHECK(t.guard->taken[3].empty());
+}
+
+// =============================================================================
+// A withdrawn menu whose presenter cannot be told
+// =============================================================================
+
+namespace {
+
+/// EVERY SENTENCE LOOM REFUSED ON THIS BUS WHILE IT IS MOUNTED, read off the tap: the shape and
+/// Loom's reason. The refusals the cases below rest on are Loom's own; this only counts them.
+class RefusalTap {
+public:
+    explicit RefusalTap(loom::Switchboard& bus) : bus_(bus) {
+        id_ = bus_.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Refused) {
+                refused_.emplace_back(ev.schema_name, loom::name_of(ev.refusal.reason));
+            }
+        });
+    }
+    RefusalTap(const RefusalTap&) = delete;
+    RefusalTap& operator=(const RefusalTap&) = delete;
+    ~RefusalTap() { bus_.remove_observer(id_); }
+
+    std::size_t count(const std::string& shape, const std::string& reason = std::string()) const {
+        std::size_t n = 0;
+        for (const std::pair<std::string, std::string>& r : refused_) {
+            if (r.first == shape && (reason.empty() || r.second == reason)) {
+                ++n;
+            }
+        }
+        return n;
+    }
+
+private:
+    loom::Switchboard& bus_;
+    loom::ObserverId id_{};
+    std::vector<std::pair<std::string, std::string>> refused_;
+};
+
+/// WORKSHOP'S VIEW OF THE BUS, WITH ONE SENTENCE THAT QUEUES NOTHING. Everything goes through the
+/// Switchboard's own gated doors as Workshop -- its grant, its office authorship, every delivery
+/// law -- except a `MenuWithdrawn`, which this door refuses at the enqueue with the invalid ticket a
+/// Loom returns when nothing was queued (an office's authorship lost, its sequence exhausted). Only
+/// that ticket is made here; the answer that follows travels Loom's real path to the real seat.
+class WithdrawalQueuesNothing : public loom::Bus {
+public:
+    WithdrawalQueuesNothing(loom::Switchboard& sb, loom::WeaveId self) : sb_(sb), self_(self) {}
+    loom::Ticket send(loom::WeaveId target, loom::Message msg) override {
+        return sb_.send_as(self_, target, std::move(msg));
+    }
+    std::size_t publish(loom::Message msg) override { return sb_.publish_as(self_, std::move(msg)); }
+    loom::Ticket send_to_role(std::string_view role, loom::Message msg) override {
+        return sb_.send_as_to_role(self_, role, std::move(msg));
+    }
+    loom::Ticket office_send(std::string_view as_role, loom::WeaveId target,
+                             loom::Message msg) override {
+        return sb_.office_send_as(self_, as_role, target, std::move(msg));
+    }
+    loom::Ticket office_send_to_role(std::string_view as_role, std::string_view to_role,
+                                     loom::Message msg) override {
+        if (msg.payload.schema().name() == MenuWithdrawn::zen_name) {
+            ++refused;
+            return loom::Ticket{};
+        }
+        return sb_.office_send_to_role_as(self_, as_role, to_role, std::move(msg));
+    }
+    loom::OfficePublication office_publish(std::string_view as_role, loom::Message msg) override {
+        return sb_.office_publish_as(self_, as_role, std::move(msg));
+    }
+
+    std::size_t refused = 0; ///< the withdrawals this door queued nothing for
+
+private:
+    loom::Switchboard& sb_;
+    loom::WeaveId self_;
+};
+
+} // namespace
+
+TEST_CASE("WL-CTX-10: a withdrawal the presenter cannot receive is answered by the host, once, under the ask's number") {
+    bool presenter_left = false;
+    SUBCASE("the presenter hears the withdrawal and answers it itself") {}
+    SUBCASE("the presenter left while its menu was open: Loom refuses the withdrawal") {
+        presenter_left = true;
+    }
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    REQUIRE(t.guard->asked.pending());
+    const std::uint64_t number = t.r.session().presented.correlation;
+    if (presenter_left) {
+        // UNLOADED THROUGH ITS CONTROL DOOR with the menu open, and nothing tells the host: the
+        // menu is still on the screen.
+        REQUIRE(t.r.unload("zengine-menu-presenter"));
+        REQUIRE(t.foreign_open());
+    }
+    RefusalTap tap(t.r.bus);
+    // THE PANE LEAVES THE DESK -- an ordinary withdrawal, and the requesting weave stays alive to
+    // hear how its ask ended.
+    t.r.pick(PaneRef{kGuardOffice, kGuardPane});
+    CHECK_FALSE(t.menu_open());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->taken[0].empty());
+    CHECK_FALSE(t.guard->pending_after[0]);
+    CHECK_FALSE(t.guard->asked.pending());
+    if (presenter_left) {
+        // LOOM'S OWN WORD, by the withdrawal's attempt: it reached nobody -- so the host answered,
+        // as its office, saying why the menu ended and what Loom said.
+        CHECK(tap.count(MenuWithdrawn::zen_name, "NoSuchTarget") == 1);
+        CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
+        CHECK(t.guard->answers[0].refusal ==
+              "the pane left the desk -- the presenter could not be told (NoSuchTarget)");
+    } else {
+        CHECK(tap.count(MenuWithdrawn::zen_name) == 0);
+        CHECK(t.guard->answer_authors[0] == kPresenterRole);
+        CHECK(t.guard->answers[0].refusal == "the pane left the desk");
+    }
+    // ...AND NOTHING IS KEPT once Loom has had its say.
+    CHECK(t.r.w->withdrawn_menus().empty());
+}
+
+TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withdrawal reaches a fresh presenter that cannot answer it") {
+    // THE MENU IS ITS WHOLE SPAN OF SENTENCES, not its withdrawal alone. The presenter is swapped
+    // by an unload and a fresh load while a key and a click are in flight: the key reaches an
+    // empty office and is refused, the click withdraws the menu, and by the time the withdrawal
+    // is dispatched the fresh presenter holds the office -- it receives it, carries no such menu,
+    // and says nothing. Loom's refusal of the key is the only word that this ask is orphaned.
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::uint64_t number = t.r.session().presented.correlation;
+    RefusalTap tap(t.r.bus);
+    // ONE TURN: the presenter unloads, and Down is forwarded to the menu it no longer shows.
+    t.r.enqueue_unload("zengine-menu-presenter");
+    (void)t.r.bus.publish(
+        loom::Message(loom::to_value(input::KeyPressed{input::scan::kDown, "", input::mod::kNone}),
+                      loom::WeaveId{}, loom::WeaveId{}, 0));
+    (void)t.r.bus.pump_pending();
+    REQUIRE_FALSE(t.r.bus.role_holder(kPresenterRole).valid());
+    REQUIRE(t.foreign_open());
+    // THE NEXT: the forwarded act is refused, a fresh presenter is loaded, and a right press on a
+    // doorless pane withdraws the menu -- queued behind the load's own work.
+    loom::Grant reach;
+    reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, t.r.manager);
+    const loom::WeaveId booter =
+        loom::mount_granted<Booter>(t.r.bus, std::move(reach), t.r.loaded, t.r.load_refusals);
+    t.r.bus.send_as(booter, t.r.manager,
+                    loom::Message(loom::to_value(loom::LoadWeave{"zengine-menu-presenter",
+                                                                 WORKSHOP_SO_MENU_PRESENTER,
+                                                                 kPresenterRole}),
+                                  booter, booter, 0));
+    const ui::Rect hello = t.hello_body();
+    queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+    (void)t.r.bus.pump_pending();
+    CHECK(tap.count(MenuInput::zen_name, "NoSuchTarget") == 1);
+    REQUIRE(t.r.w->withdrawn_menus().size() == 1);
+    t.r.bus.drain_until_idle();
+    // THE WITHDRAWAL WAS DELIVERED -- to a presenter that cannot answer it -- and the refused act
+    // is what settled the ask: once, by the host, unchosen, under its own number.
+    REQUIRE(t.r.bus.role_holder(kPresenterRole).valid());
+    CHECK(tap.count(MenuWithdrawn::zen_name) == 0);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->answers[0].refusal ==
+          "a newer press -- the presenter could not be told (NoSuchTarget)");
+    CHECK_FALSE(t.guard->asked.pending());
+    CHECK(t.r.w->withdrawn_menus().empty());
+    // ...AND THE FRESH PRESENTER PRESENTS THE NEXT MENU.
+    button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 2);
+    CHECK(t.guard->answers[1].chosen);
+    CHECK(t.guard->answers[1].id == "seat.first");
+    CHECK(t.guard->answer_authors[1] == kPresenterRole);
+}
+
+TEST_CASE("WL-CTX-10: an older menu's refused withdrawal ends and answers nothing newer; the newer menu is shown and chooses") {
+    // THE INTERLEAVING, established rather than assumed. Loom appends a refusal notice when the
+    // refused sentence is dispatched, and a requester that asks when its press reaches it asks
+    // behind every sentence the host queued about the older menu -- so the newer menu cannot be
+    // open yet when those refusals arrive. It can be when a pane asks under the number its press
+    // will carry (the host's own counter) before it hears the press, and the older withdrawal is
+    // refused while the newer grant still reaches a presenter: here the presenter is killed and
+    // revived -- Loom's crash-revival door -- around the older withdrawal's dispatch.
+    Rigged t;
+    ButtonSeat* other = nullptr;
+    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    other->rows = {{"other.first", "Other first"}, {"other.second", "Other second"}};
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::int64_t older_menu = t.r.session().presented.menu;
+    const std::uint64_t older = t.r.session().presented.correlation;
+    RefusalTap tap(t.r.bus);
+    // THE PRESENTER DIES WITH THE OLDER MENU OPEN; its state is kept to revive it from.
+    const std::string held = t.r.bus.snapshot_bytes(t.presenter);
+    t.r.bus.kill(t.presenter);
+    // THE OTHER PANE ASKS UNDER THE NUMBER ITS PRESS WILL CARRY, and the press follows the ask
+    // into the queue.
+    const std::uint64_t newer = older + 1;
+    other->next = [newer](ButtonSeat& s, loom::Mail& m) { s.ask_menu(m, newer); };
+    (void)t.r.bus.send(other_id,
+                       loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    queue_button(t.r, 3, true, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
+    // ONE TURN: the ask is queued, and the press withdraws the older menu.
+    REQUIRE(t.r.bus.pump_pending() == 2);
+    REQUIRE_FALSE(t.r.session().presented.open);
+    // THE NEXT: the ask is granted -- the newer menu is open -- and the older withdrawal meets a
+    // dead presenter. Loom's refusal of it is queued behind the newer grant.
+    (void)t.r.bus.pump_pending();
+    REQUIRE(t.r.session().presented.open);
+    const std::int64_t newer_menu = t.r.session().presented.menu;
+    REQUIRE(newer_menu > older_menu);
+    REQUIRE(t.r.session().presented.correlation == newer);
+    REQUIRE(tap.count(MenuWithdrawn::zen_name, "TargetUnavailable") == 1);
+    // REVIVED before the newer grant reaches it; then everything queued is delivered.
+    REQUIRE(t.r.bus.reload(t.presenter, held).revived);
+    t.r.bus.drain_until_idle();
+    CHECK(tap.count(MenuWithdrawn::zen_name) == 1);
+    CHECK(tap.count(MenuGranted::zen_name) == 0);
+    // THE NEWER MENU STANDS: the other pane's, shown, and its requester still waiting.
+    REQUIRE(t.foreign_open());
+    CHECK(t.r.session().presented.menu == newer_menu);
+    CHECK(t.r.session().presented.office == kGuardTwoOffice);
+    CHECK(other->answers.empty());
+    CHECK(other->asked.pending());
+    // THE OLDER ASK IS SETTLED under its own number, unchosen, whoever said it first; a second
+    // word about it takes nothing.
+    CHECK_FALSE(t.guard->asked.pending());
+    REQUIRE_FALSE(t.guard->answers.empty());
+    for (std::size_t i = 0; i < t.guard->answers.size(); ++i) {
+        CHECK_FALSE(t.guard->answers[i].chosen);
+        CHECK(t.guard->answer_correlations[i] == older);
+        CHECK(t.guard->taken[i].empty());
+    }
+    // ...AND THE NEWER MENU WORKS: Down, then Return, chooses its second row, answered by the
+    // presenter under the newer number.
+    t.r.key(input::scan::kDown);
+    t.r.key(input::scan::kReturn);
+    CHECK_FALSE(t.menu_open());
+    REQUIRE(other->answers.size() == 1);
+    CHECK(other->answers[0].chosen);
+    CHECK(other->answers[0].id == "other.second");
+    CHECK(other->answer_authors[0] == kPresenterRole);
+    CHECK(other->answer_correlations[0] == newer);
+    CHECK(other->taken[0] == "other.second");
+    CHECK(t.r.w->withdrawn_menus().empty());
+}
+
+TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and nothing is kept") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::uint64_t number = t.r.session().presented.correlation;
+    // A RIGHT PRESS INTO THE GUARD AGAIN, handled by Workshop through a view of the bus where its
+    // withdrawal of the open menu queues nothing.
+    WithdrawalQueuesNothing door(t.r.bus, t.r.workshop_id);
+    const input::PointerButton press{3,
+                                     true,
+                                     body_x(t.r, t.guard_kind, 1),
+                                     body_y(t.r, t.guard_kind, 0) + surface::kTuiCanvasTopRow,
+                                     input::space::kCells,
+                                     input::mod::kNone};
+    const loom::Message in(loom::to_value(press));
+    loom::Mail mail(door, in, t.r.workshop_id);
+    t.r.w->on(press, mail);
+    CHECK(door.refused == 1);
+    CHECK_FALSE(t.r.session().presented.open);
+    CHECK(t.r.w->withdrawn_menus().empty()); // no attempt, so nothing for Loom to say
+    t.r.bus.drain_until_idle();
+    // ANSWERED AT ONCE by the host, unchosen, under the ask's own number...
+    REQUIRE_FALSE(t.guard->answers.empty());
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->answers[0].refusal ==
+          "a newer press -- the presenter could not be told (nothing was queued)");
+    CHECK(t.guard->taken[0].empty());
+    CHECK_FALSE(t.guard->pending_after[0]);
+    // ...AND THE PRESS WENT ON AS IT WOULD HAVE: the guard heard it and asked again, and that
+    // menu opens and chooses, answered by the presenter. The presenter never heard the
+    // withdrawal, so it still held the older menu and answered it too when the newer one arrived:
+    // a second word under the older number, which takes nothing.
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.key(input::scan::kReturn);
+    std::size_t chosen = 0;
+    for (std::size_t i = 0; i < t.guard->answers.size(); ++i) {
+        if (t.guard->answer_correlations[i] == number) {
+            CHECK_FALSE(t.guard->answers[i].chosen);
+            CHECK(t.guard->taken[i].empty());
+            continue;
+        }
+        ++chosen;
+        CHECK(t.guard->answers[i].chosen);
+        CHECK(t.guard->answers[i].id == "seat.first");
+        CHECK(t.guard->answer_authors[i] == kPresenterRole);
+        CHECK(t.guard->taken[i] == "seat.first");
+    }
+    CHECK(chosen == 1);
+    CHECK(t.r.w->withdrawn_menus().empty());
+}
+
+TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and ordinary use keeps none") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    const ui::Rect hello = t.hello_body();
+    for (std::size_t round = 1; round <= 3; ++round) {
+        t.right_in_guard();
+        t.right_in_guard(false);
+        REQUIRE(t.foreign_open());
+        const std::int64_t menu = t.r.session().presented.menu;
+        const std::uint64_t number = t.r.session().presented.correlation;
+        // A RIGHT PRESS ON A DOORLESS PANE -- nothing opens there -- withdraws the menu.
+        queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+        (void)t.r.bus.pump_pending();
+        // KEPT WHILE LOOM MAY STILL SAY SOMETHING ABOUT IT: whose it was, and why it ended.
+        REQUIRE(t.r.w->withdrawn_menus().size() == 1);
+        const WithdrawnMenu kept = t.r.w->withdrawn_menus()[0];
+        CHECK(kept.menu == menu);
+        CHECK(kept.office == kGuardOffice);
+        CHECK(kept.pane == kGuardPane);
+        CHECK(kept.correlation == number);
+        CHECK(kept.why == "a newer press");
+        CHECK(kept.first_attempt != 0);
+        CHECK(kept.last_attempt > kept.first_attempt);
+        // ...THROUGH THE FENCE'S FIRST TRIP ROUND, while the withdrawal is delivered...
+        (void)t.r.bus.pump_pending();
+        CHECK(t.r.w->withdrawn_menus().size() == 1);
+        // ...AND FORGOTTEN ON ITS SECOND, the presenter's answer the only one given.
+        t.r.bus.drain_until_idle();
+        CHECK(t.r.w->withdrawn_menus().empty());
+        button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
+        REQUIRE(t.guard->answers.size() == round);
+        CHECK(t.guard->answer_authors.back() == kPresenterRole);
+        CHECK(t.guard->answers.back().refusal == "a newer press");
+        CHECK_FALSE(t.guard->asked.pending());
+    }
 }
 
 // =============================================================================

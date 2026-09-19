@@ -1254,6 +1254,10 @@ int main(int argc, char** argv) {
     speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
     speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
     speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
+    // ...and the host's own fence behind a withdrawal, to its own office alone: until it comes
+    // round, this host keeps who is owed an answer should Loom refuse the withdrawal (WL-CTX-10).
+    speak.allow_to_role(WithdrawalFence::zen_name, WithdrawalFence::zen_version,
+                        kWorkshopProvider);
     // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
     // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
     // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of

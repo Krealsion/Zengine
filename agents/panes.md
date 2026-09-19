@@ -293,10 +293,28 @@ helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protoc
   menus — the shipped desktop's policy; the host also withdraws the menu when the successor
   offers its pane again. Presenter lifetime: an image keeping `HeldMenu` reloaded in the
   presenter's place says `PresenterReady` naming the open menu and shows it again (a HANDOFF);
-  a presenter that leaves (a forwarded act Loom cannot deliver) or a holder that does not carry
-  the menu ends it, and the host answers the requester unchosen itself. With no presenter a
-  menu is refused where it would open. These are these consumers' policies, not a rule every
-  participant must follow.
+  a presenter that leaves or a holder that does not carry the menu ends it, and the host answers
+  the requester unchosen itself. With no presenter a menu is refused where it would open. These
+  are these consumers' policies, not a rule every participant must follow.
+- **The host learns a presenter left from Loom, by the exact attempt, and answers THAT menu.**
+  Every sentence the host queues to the presenter's office from a grant until that menu ends is
+  about that menu, and Loom numbers attempts in queue order, so a `zen.DispatchRefused` names
+  its menu (`end_refused_menu`): an attempt at or after the open menu's grant
+  (`PresentedMenu::first_attempt`) ends the open menu, answered; one inside a withdrawn menu's
+  span settles that one; anything older settles nothing -- an older menu's refusal never ends,
+  alters or answers a newer one. The office's name alone could not tell them apart. **Taking a
+  menu off the screen is not answering it:** the withdrawal is still the presenter's to answer,
+  so the host keeps who asked (`WithdrawnMenu`: office, pane, subject, number, why, the attempt
+  span) until Loom has had its say. A withdrawal that queues nothing, or one Loom refuses (the
+  presenter unloaded after the menu opened), is answered by the host, unchosen, under the ask's
+  number, saying why the menu ended and what Loom said. The record is forgotten when the host's
+  own `WithdrawalFence` has come round twice behind the withdrawal -- each refusal is appended
+  when its sentence is dispatched, ahead of the second hop -- so ordinary use keeps nothing. A
+  withdrawal Loom delivered and the presenter never answered stays that presenter's silence: no
+  timeout, retry or departure notice is implied. Establishing an older menu's refusal while a
+  newer menu is open took a request made under the number its press will carry, before the pane
+  heard the press, and a presenter killed and revived (Loom's crash-revival door) around the
+  older withdrawal: a requester that asks when its press arrives asks behind every such refusal.
 - **A press names its picture, or is refused.** `v3::PaneContent.picture` is the pane's own
   number for its row-to-meaning map (the desktop's `RowMap` moves it exactly when the map moves);
   the host records it at admission (`ExternalPane::picture`) but stamps a press with the picture

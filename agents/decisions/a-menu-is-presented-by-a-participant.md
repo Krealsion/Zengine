@@ -36,6 +36,15 @@ subject that moved is judged by the requester when the choice arrives.
   Modify on the press and advanced the count on the release before the keyboard request
   arrived; the request was refused as late. A release completes its press; the fixed case and a
   matrix over capture, typed spelling and delivery pin it, and a newer key still defeats a grab.
+- *Tried: forgetting the asker when the menu leaves the screen, and settling a refusal by office*
+  — replaced. The review unloaded the presenter, closed the pane, and the ask stayed pending:
+  the withdrawal's refusal found nothing to settle. A pane asking under its press's number before
+  hearing the press, with the presenter killed and revived around the older withdrawal, saw that
+  refusal end the NEWER menu. The host now keeps a withdrawn menu's asker and attempt span until
+  its own fence has come round twice, and a refusal settles only the menu its attempt names.
+- *Argued: the presenter acknowledges each withdrawal, or the host answers every one* — refused:
+  an acknowledgement a silent presenter never sends keeps its record forever, and the host
+  answering would take the answer from the party that decides it. No timeout either.
 - *Argued: the requester asks the presenter, which asks the host* — refused: the presenter would
   vouch for the requester's identity to the host, and the ask would be judged a hop later.
   Loom authenticates the requester where it asks, which is the host.
