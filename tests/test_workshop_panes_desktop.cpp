@@ -1123,10 +1123,14 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     k.r.key(input::scan::kDown);
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.text().find("press the key for") == std::string::npos); // nothing was chosen
-    // NOBODY IN THE OFFICE: the next menu is refused where it would open, and nothing opens.
+    CHECK(k.r.session().notice.find("the menu closed -- the presenter") != std::string::npos);
+    // NOBODY IN THE OFFICE: the next menu is refused where it would open, nothing opens, and the
+    // band says why -- a right-click that opened nothing unexplained would read as a dead mouse.
     k.right(row_containing(k.rows(), "desktop.terminal"));
     CHECK_FALSE(k.r.session().presented.open);
     CHECK_FALSE(k.r.session().context.open);
+    CHECK(k.r.session().notice.find("menu did not open -- no presenter holds `zengine.presenter`") !=
+          std::string::npos);
     // A PRESENTER LOADED AGAIN presents menus again...
     (void)k.r.load_presenter();
     k.right(row_containing(k.rows(), "desktop.terminal"));
@@ -1137,4 +1141,6 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     (void)k.r.load_presenter();
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.text().find("press the key for") == std::string::npos);
+    CHECK(k.r.session().notice.find("the menu closed -- the presenter was replaced") !=
+          std::string::npos);
 }
