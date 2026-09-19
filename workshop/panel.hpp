@@ -9,7 +9,9 @@
 // Workshop law: agents/workshop/maker-pane.md (+10 registers; agents/workshop.md routes)
 
 #include "pane_definition.hpp"
-#include "pane_vocabulary.hpp" // PaneActionRow -- what an offered pane declared it can do
+#include "pane_vocabulary.hpp"
+#include "pane_canvas_vocabulary.hpp"
+#include <zen/switchboard/message.hpp>
 
 #include "builder/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -525,6 +527,12 @@ struct ExternalPane {
     /// ...WHICH IS THIS: the picture the medium held when a press was read (`PictureStamp`),
     /// echoed on `v3::PanePressed` and `PaneButton` so the pane can refuse an older one.
     PictureStamp stamp;
+    struct Canvas {
+        loom::WeaveId owner{};
+        std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;
+        bool graphical = false, heard = false;
+        PaneCanvasContent content;
+    } canvas;
     /// THE PANE STARTS OVER: a re-offer (a reloaded image numbers its pictures afresh) or a close.
     /// Nothing an earlier incarnation numbered may stamp a press aimed at what comes next.
     void forget_pictures() {
