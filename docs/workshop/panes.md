@@ -233,7 +233,10 @@ it in the shipped presenter's place. The worked example is
 numbered and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
 pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
 a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
-reaching the pane that asked. The Pane Manager and Hotkeys do exactly what they did before;
+reaching the pane that asked. If the swap catches a menu mid-flight — the old image gone, the
+new one arriving with nothing to carry — the pane that asked still hears how its menu ended:
+the arriving presenter hands the interaction back, and Workshop answers it unchosen rather than
+leaving the pane waiting. The Pane Manager and Hotkeys do exactly what they did before;
 only the menu changed. The seam is
 [`workshop/presenter_vocabulary.hpp`](../../workshop/presenter_vocabulary.hpp), installed with
 the package, and the [reference](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)

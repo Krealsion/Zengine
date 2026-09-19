@@ -12,6 +12,7 @@
 //     MenuShown       presenter -> Workshop    "menu n shows these lines now (picture p)"
 //     MenuInput       Workshop  -> presenter   "the maker did this to menu n (their act #g)"
 //     MenuClosed      presenter -> Workshop    "menu n is over: chosen at act #g, or not"
+//     MenuReturned    presenter -> Workshop    "menu n is not mine to answer: take it back"
 //     MenuWithdrawn   Workshop  -> presenter   "menu n is over: the host ended it, and why"
 //     PresenterReady  presenter -> Workshop    "I hold the office now, carrying menu n (or 0)"
 //
@@ -31,9 +32,10 @@
 //                   anchor; and ends it when custody moves -- a newer press elsewhere, a newer
 //                   menu, the host's own menu, the pane leaving the desk or being offered again.
 //                   It answers a requester itself only when nothing was presented (the ask was
-//                   refused) or when the presenter can no longer answer (it left -- even after
+//                   refused), when the presenter can no longer answer (it left -- even after
 //                   the menu was withdrawn -- or the holder that replaced it does not carry the
-//                   menu), which Loom tells it by refusing one of that menu's own sentences.
+//                   menu), which Loom tells it by refusing one of that menu's own sentences, or
+//                   when the presenter GIVES THE INTERACTION BACK (`MenuReturned`).
 //   the PRESENTER   the presentation and the interaction's lifetime: whether an offer can be
 //                   shown, how its lines read, what a key or a press means on it, when it ends and
 //                   with what outcome. It answers the requester. A choice is a fact about the
@@ -56,8 +58,10 @@
 // finds the open menu -- it says `PresenterReady` naming it and shows it again, which is a
 // deliberate HANDOFF of an interaction the maker is in the middle of. A holder that does not
 // carry the open menu says `PresenterReady` with 0, and Workshop ends the menu and answers the
-// requester itself. Neither rule binds a presenter that keeps different state; it is the policy
-// these presenters ship.
+// requester itself. An interaction that reaches an image for a menu it does not hold -- an act
+// or a withdrawal that overtook the arrival -- is GIVEN BACK (`MenuReturned`) rather than left
+// in front of a maker with nobody to answer it. Neither rule binds a presenter that keeps
+// different state; it is the policy these presenters ship.
 
 #include "workshop/pane_vocabulary.hpp"
 
@@ -148,15 +152,33 @@ struct MenuInput {
               ZEN_FIELD(picture));
 };
 
-/// MENU `menu` IS OVER. Presenter -> Workshop, as `zengine.presenter`, no later than the answer it
-/// gives the requester: `chosen` when a row was chosen, at act `input` (0 when no act ended it --
-/// an offer it refused at the grant). Workshop closes the popup and, for a choice, records the
-/// continuation a requester's next request is judged against.
+/// MENU `menu` IS OVER AND ITS REQUESTER IS ANSWERED. Presenter -> Workshop, as
+/// `zengine.presenter`, no later than the answer it gives the requester: `chosen` when a row was
+/// chosen, at act `input` (0 when no act ended it -- an offer it refused at the grant). Workshop
+/// closes the popup and, for a choice, records the continuation a requester's next request is
+/// judged against; for a menu it had already taken off the screen, this word is what tells it
+/// nothing more is owed, and it stops keeping who asked. An interaction the presenter CANNOT
+/// answer is `MenuReturned`, never this one: the two are not the same fact, and a host that read
+/// them as one would either lose a requester or answer it twice.
 struct MenuClosed {
     std::int64_t menu = 0;
     bool chosen = false;
     std::int64_t input = 0;
     ZEN_SHAPE(MenuClosed, 1, ZEN_FIELD(menu), ZEN_FIELD(chosen), ZEN_FIELD(input));
+};
+
+/// MENU `menu` IS NOT MINE TO ANSWER -- TAKE IT BACK. Presenter -> Workshop, as
+/// `zengine.presenter`: this image was handed an interaction for a menu it does not hold -- one of
+/// the maker's acts, or the host's withdrawal -- so it has said nothing to that requester and
+/// never will. It is the other half of `MenuClosed`: that says "over, and answered", this says
+/// "not mine, and unanswered". Workshop settles the requester itself, unchosen, whether the menu
+/// is still on the screen or already withdrawn, and `why` is this image's own words, carried into
+/// what the requester is told. It names ONE grant: a menu that is over and settled takes nothing
+/// from it, and neither does a newer one, which is another grant with another number.
+struct MenuReturned {
+    std::int64_t menu = 0;
+    std::string why;
+    ZEN_SHAPE(MenuReturned, 1, ZEN_FIELD(menu), ZEN_FIELD(why));
 };
 
 /// MENU `menu` IS OVER, AND THE HOST ENDED IT. Workshop -> presenter, as `zengine.workshop`:

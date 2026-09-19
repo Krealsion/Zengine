@@ -233,7 +233,9 @@ struct Rigged {
     std::int64_t hello_kind = kNoPaneKind;
     loom::WeaveId presenter{};
 
-    Rigged() {
+    /// THE SHIPPED PRESENTER BY DEFAULT; a case that must show a policy is the seam's and not one
+    /// image's names the replacement example instead, and every case below reads the same.
+    explicit Rigged(const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
         r.mount_workshop();
         r.ready();
         r.extent(140, 60);
@@ -245,7 +247,7 @@ struct Rigged {
         guard_kind = kind_of(r, kGuardOffice, kGuardPane);
         // THE SHIPPED PRESENTER, loaded into its office the way a plan row loads it: every menu
         // the seats ask for is presented and answered by that image, never by a stand-in.
-        presenter = r.load_presenter();
+        presenter = r.load_presenter(presenter_image);
     }
 
     ui::Rect hello_body() { return pane_body_cells(external_panel_rect(r.session(), hello_kind)); }
@@ -1303,6 +1305,267 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         CHECK(t.guard->answer_authors.back() == kPresenterRole);
         CHECK(t.guard->answers.back().refusal == "a newer press");
         CHECK_FALSE(t.guard->asked.pending());
+    }
+}
+
+// =============================================================================
+// An interaction the holder of the office cannot carry, given back
+// =============================================================================
+
+namespace {
+
+/// A FRESH PRESENTER LOAD, QUEUED AND NOT DRAINED: the manager's own work takes its turns in FIFO
+/// order beside whatever else a case has queued, so a maker's act can land inside the arrival --
+/// after the image holds the office, before it has said what it carries.
+void enqueue_presenter_load(PaneRig& r, const char* image) {
+    loom::Grant reach;
+    reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, r.manager);
+    const loom::WeaveId booter =
+        loom::mount_granted<Booter>(r.bus, std::move(reach), r.loaded, r.load_refusals);
+    r.bus.send_as(booter, r.manager,
+                  loom::Message(loom::to_value(loom::LoadWeave{"zengine-menu-presenter", image,
+                                                               kPresenterRole}),
+                                booter, booter, 0));
+}
+
+/// A KEY AT ITS PLACE IN A BURST, not drained: `PaneRig::key` publishes and drains.
+void queue_key(PaneRig& r, std::int64_t scancode) {
+    (void)r.bus.publish(loom::Message(
+        loom::to_value(input::KeyPressed{scancode, "", input::mod::kNone}), loom::WeaveId{},
+        loom::WeaveId{}, 0));
+}
+
+} // namespace
+
+TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, and the host settles who asked") {
+    const char* image = WORKSHOP_SO_MENU_PRESENTER;
+    bool ready_first = false;
+    SUBCASE("the shipped presenter, arriving with the press") {}
+    SUBCASE("the shipped presenter, fully arrived before the press") { ready_first = true; }
+    SUBCASE("the replacement presenter, arriving with the press") {
+        image = WORKSHOP_SO_NUMBERED_PRESENTER;
+    }
+    SUBCASE("the replacement presenter, fully arrived before the press") {
+        image = WORKSHOP_SO_NUMBERED_PRESENTER;
+        ready_first = true;
+    }
+    Rigged t(image);
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::uint64_t number = t.r.session().presented.correlation;
+    REQUIRE(t.guard->asked.pending());
+    // THE HOLDER LEAVES WITH THE MENU OPEN: the requester is alive and still owed an answer.
+    REQUIRE(t.r.unload("zengine-menu-presenter"));
+    RefusalTap tap(t.r.bus);
+    const ui::Rect hello = t.hello_body();
+    std::size_t answered_at = 0;
+    std::size_t forgotten_at = 0;
+    if (ready_first) {
+        // THE CONTROL: the fresh image finishes arriving first, so its `PresenterReady{0}` ends
+        // the menu it does not carry and the host answers there. The press withdraws nothing.
+        (void)t.r.load_presenter(image);
+        REQUIRE(t.guard->answers.size() == 1);
+        queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+        t.r.bus.drain_until_idle();
+        CHECK(t.r.w->withdrawn_menus().empty());
+    } else {
+        // THE OVERLAP: the load and the maker's press are pending together. The image holds the
+        // office before the press withdraws the menu, so the withdrawal is DELIVERED -- to an
+        // image carrying no such menu, which Loom has nothing to refuse and nothing to say about.
+        enqueue_presenter_load(t.r, image);
+        queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+        // ONE TURN AT A TIME: the record is the host's while the withdrawal is in flight, and it
+        // stops being kept only when something settles it. WHICH something is what the answer's
+        // own words say below -- the fence forgetting it would leave no answer at all.
+        bool kept = false;
+        for (std::size_t turn = 1; turn <= 40; ++turn) {
+            if (t.r.bus.pump_pending() == 0) {
+                break;
+            }
+            if (!t.r.w->withdrawn_menus().empty()) {
+                kept = true;
+            } else if (kept && forgotten_at == 0) {
+                forgotten_at = turn;
+            }
+            if (answered_at == 0 && !t.guard->answers.empty()) {
+                answered_at = turn;
+            }
+        }
+        CHECK(kept);          // who asked was kept while the withdrawal was in flight
+        CHECK(forgotten_at != 0);
+        CHECK(answered_at != 0);
+        CHECK(tap.count(MenuWithdrawn::zen_name) == 0);
+    }
+    button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
+    // SETTLED ONCE, BY THE HOST, under the ask's own number and unchosen, and nothing is kept.
+    REQUIRE(t.r.bus.role_holder(kPresenterRole).valid());
+    CHECK_FALSE(t.menu_open());
+    CHECK(t.r.w->withdrawn_menus().empty());
+    CHECK_FALSE(t.guard->asked.pending());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->taken[0].empty());
+    CHECK_FALSE(t.guard->pending_after[0]);
+    CHECK(t.guard->answers[0].refusal ==
+          (ready_first ? std::string("the presenter was replaced")
+                       : std::string("a newer press -- the presenter could not answer it "
+                                     "(this image does not hold that menu)")));
+    // ...AND THE OFFICE STILL WORKS: the next menu is presented and chosen by the fresh image.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 2);
+    CHECK(t.guard->answers[1].chosen);
+    CHECK(t.guard->answers[1].id == "seat.first");
+    CHECK(t.guard->answer_authors[1] == kPresenterRole);
+}
+
+TEST_CASE("WL-CTX-10: an act reaching an image that refused the grant is given back and takes nothing") {
+    const char* image = WORKSHOP_SO_MENU_PRESENTER;
+    SUBCASE("the shipped presenter") {}
+    SUBCASE("the replacement presenter") { image = WORKSHOP_SO_NUMBERED_PRESENTER; }
+    Rigged t(image);
+    // AN OFFER NO PRESENTER WILL SHOW -- a row without an id, which the presenter owns the
+    // judgement of. It answers the requester itself and hands the menu straight back.
+    t.guard->rows = {{"", "No id"}};
+    t.guard->menu_on_press = true;
+    // TURN BY TURN, so the act lands between the grant and the image's reading of it: the press,
+    // the seat's ask, and then the key QUEUED BEHIND THAT ASK. The host grants the menu and
+    // forwards the key to it in the same turn, and the image reads the key after refusing the
+    // grant -- holding nothing, with its requester already answered.
+    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
+    (void)t.r.bus.pump_pending(); // the host reads the press
+    (void)t.r.bus.pump_pending(); // the seat hears it and asks
+    queue_key(t.r, input::scan::kDown);
+    (void)t.r.bus.pump_pending(); // the host grants, then forwards the key to the open menu
+    const std::uint64_t number = t.r.session().presented.correlation;
+    REQUIRE(number != 0);
+    REQUIRE(t.r.session().presented.open);
+    t.r.bus.drain_until_idle();
+    t.right_in_guard(false);
+    CHECK_FALSE(t.menu_open());
+    CHECK(t.r.w->withdrawn_menus().empty());
+    CHECK_FALSE(t.guard->asked.pending());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_authors[0] == kPresenterRole);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->answers[0].refusal ==
+          "a row's id is empty or too long, or its label is too long");
+}
+
+TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back behind it") {
+    const char* image = WORKSHOP_SO_MENU_PRESENTER;
+    SUBCASE("the shipped presenter") {}
+    SUBCASE("the replacement presenter") { image = WORKSHOP_SO_NUMBERED_PRESENTER; }
+    Rigged t(image);
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::uint64_t number = t.r.session().presented.correlation;
+    // ONE BURST: the maker chooses, and a press on a doorless pane withdraws the menu behind it.
+    // The image chooses and answers on the act, then meets a withdrawal for a menu it no longer
+    // holds -- work it finished, not work abandoned.
+    const ui::Rect hello = t.hello_body();
+    queue_key(t.r, input::scan::kReturn);
+    queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+    t.r.bus.drain_until_idle();
+    button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
+    CHECK_FALSE(t.menu_open());
+    CHECK(t.r.w->withdrawn_menus().empty());
+    CHECK_FALSE(t.guard->asked.pending());
+    // EXACTLY ONE ANSWER, the image's own, and it is the choice.
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id == "seat.first");
+    CHECK(t.guard->answer_authors[0] == kPresenterRole);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->taken[0] == "seat.first");
+}
+
+
+TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settles no other") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::int64_t menu = t.r.session().presented.menu;
+    const std::uint64_t number = t.r.session().presented.correlation;
+    /// THE SHAPE ITSELF, AUTHORED AS THE PRESENTER'S OFFICE -- what an image says when it is
+    /// handed an interaction it cannot carry. Sent from the image that holds the office, so Loom
+    /// authenticates the office the way it does every other sentence of this seam.
+    const auto give_back = [&t](std::int64_t which) {
+        return t.r.bus
+            .office_send_to_role_as(t.presenter, kPresenterRole, kWorkshopProvider,
+                                    loom::Message(loom::to_value(
+                                        MenuReturned{which, "this image does not hold that menu"})))
+            .valid();
+    };
+    // NOT ANYBODY'S: the same sentence through the host's root door carries no office of Loom's.
+    (void)t.r.bus.send(t.r.workshop_id,
+                       loom::Message(loom::to_value(MenuReturned{menu, "forged"})));
+    t.r.bus.drain_until_idle();
+    CHECK(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    // ...AND NOT ABOUT A MENU THIS HOST NEVER GRANTED.
+    REQUIRE(give_back(menu + 7));
+    t.r.bus.drain_until_idle();
+    CHECK(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    // THE OPEN MENU, GIVEN BACK BY THE OFFICE THAT HOLDS IT: nobody is left to answer it, so the
+    // host ends it and settles the requester itself, unchosen, under the ask's own number.
+    REQUIRE(give_back(menu));
+    t.r.bus.drain_until_idle();
+    CHECK_FALSE(t.menu_open());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
+    CHECK(t.guard->answer_correlations[0] == number);
+    CHECK(t.guard->answers[0].refusal ==
+          "the presenter could not answer it -- this image does not hold that menu");
+    CHECK_FALSE(t.guard->asked.pending());
+    // ...AND SAID AGAIN ABOUT THAT SETTLED MENU IT TAKES NOTHING FROM A NEWER ONE. The newer menu
+    // is another pane's, so what the image says about the older one -- which it was never told
+    // about and still holds, and answers when the newer grant arrives -- stays under the older
+    // number and cannot be mistaken for the newer requester's.
+    ButtonSeat* other = nullptr;
+    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
+    (void)other_id;
+    other->rows = {{"other.first", "Other first"}, {"other.second", "Other second"}};
+    other->menu_on_press = true;
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    button_cell(t.r, 3, true, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
+    button_cell(t.r, 3, false, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
+    REQUIRE(t.foreign_open());
+    const std::int64_t newer = t.r.session().presented.menu;
+    REQUIRE(newer > menu);
+    const std::size_t said_about_older = t.guard->answers.size();
+    REQUIRE(give_back(menu));
+    t.r.bus.drain_until_idle();
+    CHECK(t.foreign_open());
+    CHECK(t.r.session().presented.menu == newer);
+    CHECK(t.guard->answers.size() == said_about_older);
+    CHECK(other->answers.empty());
+    CHECK(other->asked.pending());
+    // ...AND THE NEWER MENU IS STILL THE IMAGE'S TO ANSWER, under its own requester's number.
+    t.r.key(input::scan::kReturn);
+    REQUIRE(other->answers.size() == 1);
+    CHECK(other->answers[0].chosen);
+    CHECK(other->answers[0].id == "other.first");
+    CHECK(other->answer_authors[0] == kPresenterRole);
+    CHECK_FALSE(other->asked.pending());
+    // NOTHING THE OLDER REQUESTER HEARD WAS A CHOICE, and every word of it was under its number.
+    for (std::size_t i = 0; i < t.guard->answers.size(); ++i) {
+        CHECK_FALSE(t.guard->answers[i].chosen);
+        CHECK(t.guard->answer_correlations[i] == number);
+        CHECK(t.guard->taken[i].empty());
     }
 }
 

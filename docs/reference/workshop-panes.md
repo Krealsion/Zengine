@@ -720,8 +720,8 @@ PaneMenuRequested   provider -> Workshop   present these rows (id, label) beside
                                            about `subject`, continuing the gesture by its number
 PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; once per request
                                            (Workshop answers only an ask it refused, or one
-                                           whose presenter left, was replaced, or could not be
-                                           told the menu was withdrawn)
+                                           whose presenter left, was replaced, could not be told
+                                           the menu was withdrawn, or gave it back unanswered)
 PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
                                            continues a menu answer, once
 v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
@@ -753,8 +753,10 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   right press elsewhere, the host's own menu, or the pane leaving the desk or being offered
   again. A withdrawal the presenter cannot receive — it was unloaded while the menu was open,
   and Loom refuses the message — is answered by Workshop instead, unchosen, under the request's
-  number, saying why the menu ended; a withdrawal that was delivered stays the presenter's to
-  answer. At most `kMaxPaneMenuRows` rows of ids up to `kMaxPaneMenuIdLen`; a menu taller than
+  number, saying why the menu ended. So is one a presenter received but cannot carry: an image
+  that arrived after the menu opened holds no such menu, and hands the interaction back
+  (`MenuReturned`) instead of leaving its requester waiting. A withdrawal that was delivered to
+  an image that DOES hold the menu stays that presenter's to answer. At most `kMaxPaneMenuRows` rows of ids up to `kMaxPaneMenuIdLen`; a menu taller than
   the room is windowed and says so. With no presenter loaded the ask is refused in words. A
   chosen row is a fact about the maker's gesture, never an authority grant.
 - **An answer is safe to act on only through the ask's own record.** `pane_menu::Asked` —
@@ -799,7 +801,10 @@ MenuShown       presenter -> Workshop   menu n shows these lines now, numbered a
 MenuInput       Workshop -> presenter   the maker did this to menu n: a key (with the verb the
                                         maker's contextual rows name), or a press / release on a
                                         line, or a press outside; act number g, picture p
-MenuClosed      presenter -> Workshop   menu n is over, chosen at act g or not
+MenuClosed      presenter -> Workshop   menu n is over and its requester is answered, chosen
+                                        at act g or not
+MenuReturned    presenter -> Workshop   menu n is not mine to answer: I hold no such menu, so
+                                        take the interaction back, and here is why
 MenuWithdrawn   Workshop -> presenter   menu n is over because the host ended it, and why
 PresenterReady  presenter -> Workshop   I hold the office now, carrying menu n (or 0)
 HeldMenu        state                   the open menu, as the shipped presenters keep it across
@@ -820,7 +825,12 @@ the new image says `PresenterReady` naming it, shows it its own way, and answers
 number. A holder that does not carry the menu (a presenter keeping other state, or none) ends it,
 and Workshop answers the requester itself; so does a presenter that leaves, which Workshop learns
 from Loom refusing one of that menu's own messages — never from a refusal about an older menu,
-which ends and answers nothing newer. None of this changes a requester: the Pane Manager and the
+which ends and answers nothing newer. The third way is the image's own word: an act or a
+withdrawal that overtakes an arrival reaches an image holding no such menu, which GIVES IT BACK
+(`MenuReturned`) rather than saying it closed a menu it never answered, and Workshop settles
+that requester — whether the menu is still on the screen or already withdrawn, and never a newer
+menu or one already answered. `MenuClosed` is the opposite word, and it is what tells Workshop
+to stop keeping who asked. None of this changes a requester: the Pane Manager and the
 Hotkeys pane perform the same operations whichever presenter presents their menus.
 
 **Not here yet: actions offered over a hovered item.** Hover motion does not cross the pane
