@@ -322,21 +322,25 @@ helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protoc
   `v3::PanePressed` and `PaneButton`. The consumer acts only on its current map's number, else
   says `the list moved -- press again`. `v2::PaneContent.generation` keeps its meaning. Three
   pictures are distinguished: ADMITTED (the host accepted the content), HANDED OUT (a canvas
-  showing it was published) and SEEN. The host sends its own `PictureFence` behind the canvas
-  that first hands a picture out and lets it come round twice: delivery is single-threaded FIFO
-  and input is read by a delivery (the input weave's beat), so the first hop is handled right
-  after the medium handled the canvas and the second is queued behind every press read before
-  that. A raw press queued ahead of a newer picture's admission, or read after its admission but
-  before the medium was handed it, is therefore stamped with the older picture and refused as
-  moved -- the queued-before-admission case P-WORK-25 named is closed through the real input and
-  content owners, with two numbers per pane and no frame history. What remains, precisely: the
-  medium's own latency AFTER it handled a canvas (a terminal's or compositor's paint, a vsync),
-  and a press the platform buffered before the beat read it. Closing those needs the medium to
-  say what it showed, or input to carry its own time against the frame's -- a medium
-  acknowledgement, not this host's. A re-offered pane starts over (`forget_pictures`): a reloaded
-  image numbers from one again. The subject side is closed as well: a slot's meaning carries its
-  subject (`LauncherMeaning::ref`, `KeysMeaning::ref`), so a same-length swap renumbers the
-  picture and a stale press is refused, not resolved against the row that moved in.
+  showing it was published) and HANDLED (the medium's delivery of that canvas has run) -- the
+  last this host can know; what a display showed, and when, it never sees. The host sends its
+  own `PictureFence` behind the canvas that first hands a picture out and lets it come round
+  twice: delivery is single-threaded FIFO and input is read by a delivery (the input weave's
+  beat), so the first hop is handled right after the medium handled the canvas and the second is
+  queued behind every press read before that. A raw press queued ahead of a newer picture's
+  admission, or read after its admission but before the medium was handed it, is therefore
+  stamped with the older picture and refused as moved -- the queued-before-admission case
+  P-WORK-25 named is closed through the real input and content owners, with two numbers per pane
+  and no frame history. What remains, precisely: the medium's own latency AFTER it handled a
+  canvas (a terminal's or compositor's paint, a vsync), and a press the platform buffered before
+  the beat read it. The fence orders two things on the bus -- the canvas's handoff and the input
+  queued behind it -- and is no evidence of physical display time, nor of where input the
+  platform buffered came from. Closing those needs the medium to say what it showed, or input to
+  carry its own time against the frame's -- a medium acknowledgement, not this host's. A
+  re-offered pane starts over (`forget_pictures`): a reloaded image numbers from one again. The
+  subject side is closed as well: a slot's meaning carries its subject (`LauncherMeaning::ref`,
+  `KeysMeaning::ref`), so a same-length swap renumbers the picture and a stale press is refused,
+  not resolved against the row that moved in.
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, the

@@ -718,11 +718,13 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   row-to-meaning map does, so a repaint that moves no row keeps it — and the host echoes on
   `v3::PanePressed` and `PaneButton` the number of the picture the medium held when the press
   was read: a newer picture counts only once the medium has handled the canvas that showed it,
-  so a press queued ahead of new content, or read before the medium drew it, names the older
+  so a press queued ahead of new content, or read before the medium handled it, names the older
   picture. A pane acts only when that is its current map's, else refuses in words. What this
-  does not close: the medium's own drawing latency after it handled the canvas, and a press the
-  platform buffered before the input beat read it; that residue is named, and no frame history
-  is kept.
+  orders is Workshop's handoff of the canvas against the input queued behind it; it is no
+  evidence of when a display physically showed the picture, nor of where input the platform
+  buffered came from. What it does not close: the medium's own drawing latency after it handled
+  the canvas, and a press the platform buffered before the input beat read it; that residue is
+  named, and no frame history is kept.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `pass_back`, `manage`,
