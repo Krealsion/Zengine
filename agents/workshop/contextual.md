@@ -219,5 +219,6 @@ row -- through the desktop's own launch"`, case `"WL-CTX-10: the presenter reloa
 another image while a menu is open hands the menu over -- shown again the new way with its cursor,
 answered under the same number, and the Hotkeys edit completes"`, case `"WL-CTX-10: a presenter
 that leaves ends its menu, answered by the host; with none in the office a menu is refused in
-words; one loaded afresh does not carry the old menu, which ends answered"`.
+words and the host's own menu still opens; one loaded afresh does not carry the old menu, which
+ends answered"`.
 WHY — `agents/decisions/a-menu-is-presented-by-a-participant.md`
