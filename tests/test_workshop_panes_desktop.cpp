@@ -748,7 +748,11 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
     // which composes picture B and queues it; a RAW press is queued behind it, captured while the
     // host still admits A and the medium still shows A. Nothing here supplies a picture number.
     bool shown_first = false;
+    bool handed_out = false;
     SUBCASE("the press is read before B reaches the medium: refused") {}
+    SUBCASE("the press is read after B was admitted and handed out, before the medium handled it: refused") {
+        handed_out = true;
+    }
     SUBCASE("control -- the press is read after B was handed to the medium: it acts on B") {
         shown_first = true;
     }
@@ -775,6 +779,14 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
     REQUIRE(d.r.bus.pump_pending() >= 1);
     REQUIRE(d.r.session().panels.external_pane(d.launcher)->picture == old_picture);
     REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Alpha") != std::string::npos);
+    if (handed_out) {
+        // THE HOST ADMITS B AND HANDS IT OUT: the canvas and the fence's first hop are queued, and
+        // the medium has not handled the canvas yet when the press is read. The second hop is
+        // what keeps this press on the picture the medium still held.
+        REQUIRE(d.r.bus.pump_pending() >= 1);
+        REQUIRE(d.r.session().panels.external_pane(d.launcher)->picture != old_picture);
+        REQUIRE(d.r.session().panels.external_pane(d.launcher)->stamp.aimed == old_picture);
+    }
     if (shown_first) {
         d.r.bus.drain_until_idle(); // B admitted, painted, and the fence round twice behind it
         REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);

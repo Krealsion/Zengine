@@ -757,6 +757,14 @@ and Workshop answers the requester itself; so does a presenter that leaves. None
 a requester: the Pane Manager and the Hotkeys pane perform the same operations whichever
 presenter presents their menus.
 
+**Not here yet: actions offered over a hovered item.** Hover motion does not cross the pane
+protocol, a pane's actions follow keyboard focus, and the only grant a presenter receives is a
+modal menu. An action that becomes available while the pointer rests on an item — a hint, a key
+an unfocused pane could receive — would need a hover fact with its own leave, a non-modal grant
+kind that forwards no input, and an explicit decision on keys reaching an unfocused pane; none of
+those exists, and hover never moves focus. The menu's grant, withdrawal and picture fence are
+where such an offer would connect.
+
 ## The desk comes back on its own (WUX-0)
 
 A maker can **close Workshop after arranging it and reopen it into the same desk, at the same
