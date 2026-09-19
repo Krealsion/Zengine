@@ -19,8 +19,10 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 
 **Exported capability targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
 house and a guest spell them identically: `activation`, `timer`, `surface`, `input`, `ui`,
-`component`, `operator`, `operator-consumer`, `pane` (the one header
-`workshop/pane_vocabulary.hpp`, installed under `include/zengine/workshop/`), `neovim` (the one
+`component` (the text box and the four list mechanics: `list_window`, `row_map`, `held_choice`,
+`columns`), `operator`, `operator-consumer`, `pane` (the protocol header
+`workshop/pane_vocabulary.hpp` and the optional helpers beside it, `workshop/pane_menu.hpp`,
+installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession), and
 `flow` (standalone authoring, persistence and generated-runtime support). The optional

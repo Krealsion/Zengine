@@ -165,7 +165,11 @@ set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/input_weave.hpp)
 set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
-set(zengine_public_headers_component  component/text_box.hpp)
+set(zengine_public_headers_component  component/text_box.hpp
+                                      component/list_window.hpp
+                                      component/row_map.hpp
+                                      component/held_choice.hpp
+                                      component/columns.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
                                       operator/source.hpp
@@ -178,12 +182,17 @@ set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/provider.hpp
                                       operator/provider_abi.h
                                       operator/provider_host.hpp)
-# The pane protocol's one header, installed under the directory it lives in so the stranger's
-# spelling is `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is. Nothing else
-# under workshop/ is public: the host, its seams and its doors stay this repository's.
+# The pane protocol, installed under the directory it lives in so the stranger's spelling is
+# `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is: the protocol, the optional
+# helpers a pane may use (`pane_menu.hpp`), and the presenter seam (`presenter_vocabulary.hpp`), so
+# a stranger can build the participant that presents a pane's menu as well as the pane that asks
+# for one. Nothing else under workshop/ is public: the host, its seams and its doors stay this
+# repository's.
 # ...and the guest seam beside it: what this Workshop says about the other hosts connected to
 # it, so a probe on another host can ask the guest door for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
+                                      workshop/pane_menu.hpp
+                                      workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)

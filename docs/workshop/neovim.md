@@ -157,7 +157,11 @@ file -- and it shows a notice when there is one; everything under it is Neovim's
 | `Ctrl`+`k` | still Workshop's hotkey view |
 | a press elsewhere | gives your keys back to Workshop |
 
-A press in Neovim's screen places Neovim's cursor, a drag selects, and the wheel scrolls. Resizing
+A press in Neovim's screen places Neovim's cursor, a drag selects, the wheel scrolls, and a right
+press and its release reach Neovim as its own right button — Workshop's menu does not open over
+Neovim's screen (its title row still opens it). A right *drag* does not cross, and a modifier
+held with a click is not reported on the window; that is press and release, not Neovim's whole
+mouse. Resizing
 the pane resizes Neovim.
 
 **Opening files reaches Neovim.** The Files pane, the Builder's `e` and **edit code** on a pane all

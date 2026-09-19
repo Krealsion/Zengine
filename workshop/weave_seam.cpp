@@ -50,9 +50,21 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
             pane->heard = false;
             pane->awaiting = true;
             pane->granted = false;
+            // ...AND ITS PICTURES START OVER: a re-offer is how a reloaded image arrives, and a
+            // new image numbers from one again -- a press stamped with a number the old image
+            // gave out must not match the new image's picture of the same number.
+            pane->forget_pictures();
             // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
+        }
+        // ...AND A MENU PRESENTED FOR THE PANE IT RE-OFFERED IS WITHDRAWN. A re-offer is how a
+        // reloaded requester arrives, and what its predecessor asked about is no longer anything
+        // the requester holds -- the presenter answers it unchosen, and the successor, which never
+        // asked, settles nothing on it (`pane_menu::Asked`).
+        if (session_.presented.open && session_.presented.office == office &&
+            session_.presented.pane == offer.pane) {
+            withdraw_menu("the pane was offered again", mail);
         }
     }
     // ⚠ AND A PARTY THAT HAS JUST ARRIVED HAS HEARD NOTHING, so what is currently true is
@@ -193,17 +205,76 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const PaneContent& content, loom::Mail& mail) {
-    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, mail);
+    admit_content(mail.authored_role(), content.pane, content.rows, std::nullopt, std::nullopt,
+                  mail);
+}
+
+// Content numbering its picture: v2's admission, and the number recorded for the press to echo.
+void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
+    admit_content(mail.authored_role(), content.pane, content.rows,
+                  content.generation > 0 ? std::optional<std::int64_t>(content.generation)
+                                         : std::nullopt,
+                  content.picture, mail);
+}
+
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+void WorkshopWeave::fence_pictures(loom::Mail& mail) {
+    // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME -- a pane's, and a
+    // presented menu's. A picture already in flight, or already the stamp, needs no second fence;
+    // a repaint that moved no picture sends nothing, so the bus does not carry a fence per repaint.
+    const std::int64_t number = fences_ + 1;
+    bool handed_out = false;
+    for (ExternalPane& pane : session_.panels.external) {
+        handed_out = pane.stamp.hand_out(pane.picture, number) || handed_out;
+    }
+    if (session_.presented.open) {
+        handed_out =
+            session_.presented.stamp.hand_out(session_.presented.picture, number) || handed_out;
+    }
+    if (!handed_out) {
+        return;
+    }
+    fences_ = number;
+    // AUTHORED AS THE OFFICE AND ADDRESSED TO IT, so no other participant can make one: a fence
+    // another weave could forge would let it decide which picture a maker's press names.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(kWorkshopProvider, PictureFence{number, 1});
+}
+
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
+    if (!mail.authored_from_role(kWorkshopProvider) || fence.number <= 0 ||
+        fence.number > fences_) {
+        return; // only this office's own fence, and only one it minted, moves a stamp
+    }
+    if (fence.hop == 1) {
+        // THE FIRST TIME ROUND IT IS HANDLED RIGHT AFTER THE MEDIUM HANDLED THE CANVAS; a press
+        // read before that is already queued ahead of the second hop, which is what keeps it
+        // stamped with the picture the medium was still showing.
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(kWorkshopProvider, PictureFence{fence.number, 2});
+        return;
+    }
+    if (fence.hop != 2) {
+        return;
+    }
+    for (ExternalPane& pane : session_.panels.external) {
+        pane.stamp.come_round(fence.number);
+    }
+    session_.presented.stamp.come_round(fence.number);
+    // Nothing is repainted: what a press is stamped with is not something a maker sees.
 }
 
 // Content naming its generation (WL-OPEN-03).
 void WorkshopWeave::on(const v2::PaneContent& content, loom::Mail& mail) {
-    admit_content(mail.authored_role(), content.pane, content.rows, content.generation, mail);
+    admit_content(mail.authored_role(), content.pane, content.rows, content.generation,
+                  std::nullopt, mail);
 }
 
 void WorkshopWeave::admit_content(std::string_view office, const std::string& pane_key,
                                   const std::vector<surface::SurfaceTextRow>& rows,
-                                  std::optional<std::int64_t> generation, loom::Mail& mail) {
+                                  std::optional<std::int64_t> generation,
+                                  std::optional<std::int64_t> picture, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech: no cache, no notice, no catalog change
     }
@@ -267,6 +338,11 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
     pane->clear_refusal();
     if (generation.has_value()) {
         pane->content_generation = *generation;
+    }
+    // THE PICTURE'S NUMBER, RECORDED AND NEVER JUDGED: what every press this host sends the pane
+    // from now on echoes, so the pane can refuse one aimed at an older picture (v3::PanePressed).
+    if (picture.has_value()) {
+        pane->picture = *picture;
     }
     // ⚠ AND THE CARET IS RE-JUDGED AGAINST THE ROWS THAT JUST ARRIVED. A pane sends its
     // content and its caret as two messages, in that order, so between them there is one

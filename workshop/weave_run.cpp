@@ -70,6 +70,9 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // Same beat, same rule, same silence when nothing changed.
     say_transcript(mail);
     mail.publish(paint(session_));
+    // ...AND BEHIND THE CANVAS, THE FENCE THAT MAKES A NEWLY SHOWN PICTURE THE ONE A PRESS IS
+    // STAMPED WITH -- queued after it, so no delivery can come between them (P-WORK-25).
+    fence_pictures(mail);
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md

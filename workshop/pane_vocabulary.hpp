@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// nine times since. Twenty-four shapes, five of them a second version of one declaration.
+// ten times since. Thirty-three shapes, seven of them a later version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
@@ -29,6 +29,14 @@
 //     PaneRevealAnswered     Workshop  ->  provider   "seated, and it has the keys" / "no room, and why."
 //     PaneQuitRequested      Workshop  ->  everyone   "may this Workshop end?"
 //     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
+//     PaneButton             Workshop  ->  provider   "the middle or right button went down / came up here."
+//     PanePassRequested      provider  ->  Workshop   "that press was not mine -- open your own surface."
+//     PaneKeyboardRequested  provider  ->  Workshop   "give my pane the keys -- this choice asked to edit."
+//     PaneMenuRequested      provider  ->  Workshop   "present these rows of mine beside this place."
+//     PaneMenuAnswered       presenter ->  provider   "this row was chosen" / "nothing was; here is why."
+//     PaneManageRequested    provider  ->  Workshop   "open your pane menu for THAT pane."
+//     v3::PaneContent        provider  ->  Workshop   "...and this is picture number n."
+//     v3::PanePressed        Workshop  ->  provider   "...aimed at the picture n you had shown."
 //
 // THE EDITOR'S MIGRATION ADDED FIVE, and each is a contract a built-in had and a pane
 // could not say. A drag swept a selection across a document (`PaneDragged`); a pane whose act
@@ -897,6 +905,180 @@ struct PaneQuitAnswered {
     std::string refusal;
     ZEN_SHAPE(PaneQuitAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(permitted), ZEN_FIELD(refusal));
 };
+
+// ============================================================================================
+// THE SECOND BUTTON, A PICTURE'S IDENTITY, AND A MENU A PANE ASKS THE HOST TO PRESENT
+// ============================================================================================
+//
+// A right press over a pane's body is the PANE'S FIRST: it is delivered to a holder whose accept
+// set has the `PaneButton` door, and delivery is consumption -- no menu opens, no selection or
+// keyboard moves. The pane then does one of three things, or nothing: it acts (a game blocks
+// while the button is held); it asks the host to PRESENT rows of its own beside the press
+// (`PaneMenuRequested`); or it hands the press back (`PanePassRequested`), which is the one way
+// the host's own pane menu opens for a body press. Silence is a disposition too: nothing opens.
+// A holder without the door is sent nothing, and the host's chrome answers as it always did.
+//
+// EVERY WORD A PANE SAYS ABOUT A GESTURE ECHOES THAT GESTURE'S CORRELATION (PaneEscapeUnspent's
+// discipline): the host mints one per secondary press and one per `PaneActionRequested`, and a
+// pass-back or a menu request is judged against the newest press of its button, whether it was
+// spent, and whether anything but its own release happened since. A zero, an older number and a
+// spent one move nothing. Eligibility is judged where the surface is OPENED, never only where
+// the request was sent.
+//
+// A PRESS NAMES THE PICTURE IT WAS AIMED AT, OR IS REFUSED (P-WORK-25, bounded). A pane that
+// composes with `v3::PaneContent` numbers its picture -- the identity of its row-to-meaning map,
+// unchanged by a repaint that moves no row -- and the host echoes on `v3::PanePressed` and on
+// `PaneButton` the picture the MEDIUM had been handed when the press was read: an admitted
+// picture becomes the stamp only after the host's own fence has come round twice behind the
+// canvas that first showed it, so a press queued ahead of a newer picture, or read before the
+// medium handled it, names the older one. The pane acts only when that is its current map's
+// number; otherwise it refuses in words and retargets nothing. What this does not close: the
+// medium's own latency after it handled a canvas, and a press the platform buffered before the
+// input beat read it -- that residue stays named as P-WORK-25.
+
+/// A PRESS OR RELEASE OF BUTTON 2 (MIDDLE) OR 3 (RIGHT) AT A PLACE IN THIS PANE'S ROOM, or the
+/// end of a hold the host could no longer keep (`lost`).
+///
+/// Delivered only to a holder whose accept set has this door, read off the bus at the send; the
+/// press is consumed by delivery. The release is the PRESSING pane's wherever the pointer is,
+/// resolved against its body now and UNCLAMPED as `PaneDragged` is; a `lost` release carries no
+/// place a pane may read. Never button 1: the primary press stays `PanePressed`. `picture` is
+/// the number of the `v3::PaneContent` the medium had been handed for this pane when the press
+/// was read, and 0 for a pane that never numbered one.
+struct PaneButton {
+    std::string pane;
+    std::int64_t button = 0;   ///< 2 (middle) or 3 (right)
+    bool pressed = false;      ///< down, or up
+    std::int64_t row = 0;      ///< the granted lattice (a press); unclamped (a release)
+    std::int64_t column = 0;
+    bool lost = false;         ///< a release the host sent because no hand could: owner loss, arbitration
+    std::int64_t picture = 0;  ///< the picture the medium held at the press; 0 = unnumbered
+    ZEN_SHAPE(PaneButton, 1, ZEN_FIELD(pane), ZEN_FIELD(button), ZEN_FIELD(pressed),
+              ZEN_FIELD(row), ZEN_FIELD(column), ZEN_FIELD(lost), ZEN_FIELD(picture));
+};
+
+/// "THAT PRESS WAS NOT MINE -- OPEN YOUR OWN SURFACE FOR MY PANE." Provider -> Workshop, as the
+/// office that offered `pane`, echoing in Loom's envelope the correlation the press arrived
+/// under. The host's configured fallback for a body press is its own pane menu, opened once, at
+/// the press's place, while the press is still the maker's latest act.
+struct PanePassRequested {
+    std::string pane;
+    ZEN_SHAPE(PanePassRequested, 1, ZEN_FIELD(pane));
+};
+
+/// "GIVE MY PANE THE KEYBOARD -- THIS CHOICE ASKED FOR AN EDIT." Provider -> Workshop, as the
+/// office that offered `pane`, echoing the correlation of the menu choice it continues. The host
+/// grants the keys only while that choice is still the maker's latest act (the same guard a
+/// `PaneManageRequested` meets), so a newer press or key defeats a late grab. This is the
+/// deliberate, guarded ownership transition an edit begun from a menu on an UNFOCUSED pane needs:
+/// a menu choice deliberately preserves the underlying keyboard pane, so a pane that then wants
+/// to receive a captured key or a typed spelling must ask for the keys, once, on the choice's
+/// terms -- not an unconditional delayed reveal, which a newer act could not defeat.
+struct PaneKeyboardRequested {
+    std::string pane;
+    ZEN_SHAPE(PaneKeyboardRequested, 1, ZEN_FIELD(pane));
+};
+
+/// ONE ROW A PANE OFFERS FOR PRESENTATION: an id in the pane's own namespace (what comes back
+/// chosen) and the label a maker reads. No gesture, no group, no authority: a row is a sentence
+/// the presenter shows and returns, never an operation the host performs.
+struct PaneMenuRow {
+    std::string id;
+    std::string label;
+    ZEN_SHAPE(PaneMenuRow, 1, ZEN_FIELD(id), ZEN_FIELD(label));
+};
+
+/// HOW MANY ROWS ONE MENU MAY OFFER, and how long an id and a label may be: a presentation bound,
+/// so a chatty pane cannot make a presenter hold or show without limit -- the shipped presenters
+/// refuse an offer past it in words. The id bound is a declared action's (`kMaxPaneActionIdLen`,
+/// the host's keymap law), published here so a presenter built from this header alone can judge.
+inline constexpr std::size_t kMaxPaneMenuRows = 32;
+inline constexpr std::size_t kMaxPaneMenuIdLen = 64;
+inline constexpr std::size_t kMaxPaneMenuLabelLen = 64;
+
+/// PRESENT THESE ROWS BESIDE THIS PLACE IN MY ROOM, AND TELL ME WHICH WAS CHOSEN. Provider ->
+/// Workshop, as the office that offered `pane`, echoing the correlation of the gesture it
+/// continues (a `PaneButton` press or a `PaneActionRequested`).
+///
+/// Workshop judges the ask where the menu would open -- still the maker's latest act, a pane on
+/// the desk, a presenter in `kPresenterRole` -- and grants it to the PRESENTER, the participant
+/// that shows it and answers it (`workshop/presenter_vocabulary.hpp`). `subject` is the pane's own
+/// opaque word for what the rows are about (a binding id, a pane reference); the answer echoes it,
+/// so the pane keeps no menu state but a record of the ask, and judges the choice against its
+/// current subjects when the answer arrives. `row`/`column` name the anchor in the granted
+/// lattice; the host resolves the cell. A newer menu replaces an open one, answered unchosen.
+struct PaneMenuRequested {
+    std::string pane;
+    std::string subject;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    std::vector<PaneMenuRow> rows;
+    ZEN_SHAPE(PaneMenuRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(row),
+              ZEN_FIELD(column), ZEN_FIELD(rows));
+};
+
+/// THE OFFICE THAT PRESENTS A PANE'S MENU AND ANSWERS IT. A requester authenticates a choice as
+/// authored from this office; Workshop grants menus to whoever holds it.
+inline constexpr const char* kPresenterRole = "zengine.presenter";
+
+/// WHAT THE MENU CAME TO: `chosen` with the row's `id`, or not chosen -- dismissed, replaced by a
+/// newer menu, closed because the pane left the desk, refused (`refusal` says why; empty
+/// otherwise). To the requesting office, under the request's correlation, exactly once per ask:
+/// from the PRESENTER (`kPresenterRole`) for every menu it was granted, and from WORKSHOP only for
+/// an ask it refused or a menu whose presenter left or was replaced without carrying it. A choice
+/// counts only from the presenter. A chosen row is a FACT about the maker's gesture, not an
+/// authority: the pane performs its own operation, on a subject it judges itself.
+struct PaneMenuAnswered {
+    std::string pane;
+    std::string subject;
+    bool chosen = false;
+    std::string id;
+    std::string refusal;
+    ZEN_SHAPE(PaneMenuAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(chosen),
+              ZEN_FIELD(id), ZEN_FIELD(refusal));
+};
+
+/// OPEN THE HOST'S OWN PANE MENU FOR THIS SUBJECT -- the deliberate management route for a pane
+/// that is covered, closed, or consumes every right press. Provider -> Workshop, as the office
+/// that offered `pane` (the requester), echoing the correlation of the menu answer it continues,
+/// naming `office`/`target` as a `PaneRef`'s two halves. Refused for a pair the desk's inventory
+/// does not name; judged as a pass-back is: once, while the choice is the maker's latest act.
+struct PaneManageRequested {
+    std::string pane;
+    std::string office;
+    std::string target;
+    ZEN_SHAPE(PaneManageRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(office), ZEN_FIELD(target));
+};
+
+namespace v3 {
+
+/// CONTENT THAT NUMBERS ITS PICTURE. `generation` is v2's (0 for a pane with no subject
+/// generation); `picture` is the pane's own number for this row-to-meaning map, kept across a
+/// repaint that moves no row and changed by one that does. Admitted under v2's generation rule;
+/// the picture is recorded and echoed, never judged, by the host.
+struct PaneContent {
+    std::string pane;
+    std::vector<surface::SurfaceTextRow> rows;
+    std::int64_t generation = 0;
+    std::int64_t picture = 0;
+    ZEN_SHAPE(PaneContent, 3, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
+              ZEN_FIELD(picture));
+};
+
+/// v2's press, naming the picture the medium had been handed for this pane when the press was
+/// read (0 when the pane never numbered one). Sent instead of v2/v1 exactly to a holder with this
+/// door, `v2::PanePressed`'s rule.
+struct PanePressed {
+    std::string pane;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    bool keys_went_here = false;
+    std::int64_t picture = 0;
+    ZEN_SHAPE(PanePressed, 3, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(keys_went_here), ZEN_FIELD(picture));
+};
+
+} // namespace v3
 
 } // namespace zengine::workshop
 

@@ -8,6 +8,8 @@
 // Workshop law: agents/workshop/contextual.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
+#include "pane_vocabulary.hpp"
+#include "presenter_vocabulary.hpp"
 #include "setup.hpp"
 
 #include <cstdint>
@@ -52,6 +54,60 @@ struct ContextMenu {
     bool anchored = false;   ///< a pointer opened this, at the cell below
     std::int64_t anchor_x = 0; ///< the opening press's canvas cell
     std::int64_t anchor_y = 0;
+    // ⭐ A PANE'S OWN ROWS WERE PRESENTED HERE (`foreign`, the rows, the office, the subject word,
+    // the request's number) until presentation became a participant's. This surface is the host's
+    // own menu now and nothing else; a pane's menu is `PresentedMenu`, below.
+};
+
+/// A PANE'S OWN MENU, PRESENTED BY THE PRESENTER PARTICIPANT on a popup this host granted
+/// (`workshop/presenter_vocabulary.hpp`). The host keeps what custody and display need -- the
+/// grant's number, whose menu it is and what it was about (so it can answer the requester when no
+/// presenter can), where it opens, the lines the presenter last showed, which picture a press
+/// names and which of the maker's acts the menu may name -- and NOTHING of the offer's meaning:
+/// no rows, no ids, no cursor. Those are the presenter's, and so is every decision about them.
+// WL-CTX-09 -- agents/workshop/contextual.md
+struct PresentedMenu {
+    bool open = false;
+    std::int64_t menu = 0;         ///< the grant's number, this host's
+    std::string office;            ///< the requester: the office Loom authenticated on the ask
+    std::string pane;
+    std::string subject;           ///< the ask's subject, for an answer the host gives itself
+    std::uint64_t correlation = 0; ///< the ask's number, which every answer echoes
+    bool anchored = false;         ///< beside a place in the pane, at the cell below
+    std::int64_t anchor_x = 0;
+    std::int64_t anchor_y = 0;
+    std::int64_t room_rows = 0;    ///< the room granted with it
+    std::int64_t room_columns = 0;
+    std::vector<surface::SurfaceTextRow> lines; ///< as the presenter last showed them
+    std::int64_t picture = 0;      ///< the presenter's number for those lines, as admitted
+    PictureStamp stamp;            ///< ...and the one a press names (the host's fence)
+    std::uint64_t first_input = 0; ///< the maker's act count when it was granted
+    std::uint64_t last_input = 0;  ///< the newest act forwarded to it
+    /// THE GRANT'S QUEUED ATTEMPT (Loom's `Ticket::seq`). Every sentence this host queues to the
+    /// presenter's office from the grant until the menu ends is about this menu -- one menu at a
+    /// time -- and Loom numbers attempts in the order they are queued, so a refusal naming an
+    /// attempt at or after this one is about this menu, and one before it about an older one.
+    std::uint64_t first_attempt = 0;
+};
+
+/// A MENU THE HOST TOOK OFF THE SCREEN WHOSE REQUESTER MAY STILL BE OWED AN ANSWER. Withdrawing
+/// ends the interaction here, but the answer is the presenter's, given when the withdrawal reaches
+/// it -- so who asked, about what and under which number is kept until Loom has had its say about
+/// the menu's sentences: a withdrawal that could not be queued, or one of the menu's sentences
+/// Loom refused (its grant, an act, the withdrawal itself), is answered by this host, unchosen,
+/// once. Forgotten when its fence (`WithdrawalFence`) has come round twice behind the withdrawal:
+/// every refusal of those sentences was queued ahead of that second hop, so nothing is left to
+/// hear. A withdrawal that was delivered and never answered stays the presenter's silence.
+// WL-CTX-10 -- agents/workshop/contextual.md
+struct WithdrawnMenu {
+    std::int64_t menu = 0;           ///< the grant's number
+    std::string office;              ///< the requester, as Loom authenticated it on the ask
+    std::string pane;
+    std::string subject;
+    std::uint64_t correlation = 0;   ///< the ask's number, which the answer echoes
+    std::string why;                 ///< the host's words for ending it
+    std::uint64_t first_attempt = 0; ///< its grant's queued attempt...
+    std::uint64_t last_attempt = 0;  ///< ...through its withdrawal's: every sentence about it
 };
 
 /// ONE DECLARATION: an action id, the subject kinds it is meaningful for, and the
@@ -184,6 +240,14 @@ struct ContextEntry {
 
 /// THE POPULATION AT ONE LEVEL.
 // WL-CTX-05 -- agents/workshop/contextual.md
+inline std::vector<ContextEntry> context_population(std::int64_t subject,
+                                                    std::string_view open_group);
+
+/// THE POPULATION OF THE SURFACE AS IT IS OPEN -- the host's catalog, at the open level.
+inline std::vector<ContextEntry> context_population(const ContextMenu& menu) {
+    return context_population(menu.subject, menu.group);
+}
+
 inline std::vector<ContextEntry> context_population(std::int64_t subject,
                                                     std::string_view open_group) {
     const std::int64_t bit = context_bit(subject);
