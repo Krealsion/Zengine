@@ -575,7 +575,11 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
                           correlation);
     if (!sent.valid()) {
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
+        return;
     }
+    // ...AND FROM THIS ATTEMPT ON, what this host says to the presenter's office is about this
+    // menu until it ends: a refusal Loom names by an attempt this late is this menu's own.
+    session_.presented.first_attempt = sent.seq;
 }
 
 // WL-CTX-09 -- agents/workshop/contextual.md
@@ -583,12 +587,103 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
     if (!session_.presented.open) {
         return;
     }
-    const std::int64_t menu = session_.presented.menu;
+    const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // THE PRESENTER ANSWERS ITS REQUESTER; this host only says the menu is over and why. If the
-    // presenter has left, Loom refuses this at delivery -- and there is no menu left to end.
-    (void)mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{menu, why});
+    // THE PRESENTER ANSWERS ITS REQUESTER; this host only says the menu is over and why. But the
+    // menu leaving the screen is not the ask being answered: until Loom has had its say about this
+    // sentence, this host keeps who asked, so a withdrawal the presenter cannot receive -- it left
+    // after the menu opened -- is answered here instead of by nobody.
+    const loom::Ticket sent =
+        mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{ended.menu, why});
+    WithdrawnMenu withdrawn;
+    withdrawn.menu = ended.menu;
+    withdrawn.office = ended.office;
+    withdrawn.pane = ended.pane;
+    withdrawn.subject = ended.subject;
+    withdrawn.correlation = ended.correlation;
+    withdrawn.why = why;
+    withdrawn.first_attempt = ended.first_attempt;
+    withdrawn.last_attempt = sent.seq;
+    if (!sent.valid()) {
+        // NOTHING QUEUED: no presenter will hear it, so none will answer. Answered now, and
+        // nothing is kept -- there is no attempt for Loom to say anything about.
+        answer_withdrawn(withdrawn, why + " -- the presenter could not be told (nothing was queued)",
+                         mail);
+        return;
+    }
+    withdrawn_.push_back(std::move(withdrawn));
+    // ...UNTIL THIS HAS COME ROUND TWICE: every refusal of the menu's sentences is queued ahead of
+    // the second hop (`WithdrawalFence`), so the record is forgotten with nothing left to hear.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(kWorkshopProvider, WithdrawalFence{ended.menu, 1});
 }
+
+// WL-CTX-10 -- agents/workshop/contextual.md
+void WorkshopWeave::answer_withdrawn(const WithdrawnMenu& menu, const std::string& why,
+                                     loom::Mail& mail) {
+    // THE HOST ANSWERS WHAT NO PRESENTER CAN -- unchosen, as its office, about the pane and subject
+    // asked, under the ask's own number, so the requester's record settles and nothing is chosen.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(menu.office,
+                      PaneMenuAnswered{menu.pane, menu.subject, false, std::string(), why},
+                      menu.correlation);
+}
+
+// WL-CTX-10 -- agents/workshop/contextual.md
+bool WorkshopWeave::end_refused_menu(const loom::Ticket& refused_attempt,
+                                     const std::string& reason, loom::Mail& mail) {
+    if (!refused_attempt.valid()) {
+        return false;
+    }
+    const std::uint64_t attempt = refused_attempt.seq;
+    // THE MENU ON THE SCREEN, when the refused sentence was its own -- its grant or an act
+    // forwarded to it: no presenter can answer it, so this host ends it and answers.
+    const PresentedMenu& open = session_.presented;
+    if (open.open && open.first_attempt != 0 && attempt >= open.first_attempt) {
+        end_menu_unanswered("the presenter left -- " + reason, mail);
+        return true;
+    }
+    // ...OR ONE ALREADY WITHDRAWN, whose requester the presenter would have answered had it been
+    // told: answered here, once, and forgotten.
+    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
+        if (attempt < withdrawn_[i].first_attempt || attempt > withdrawn_[i].last_attempt) {
+            continue;
+        }
+        const WithdrawnMenu refused = withdrawn_[i];
+        withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
+        answer_withdrawn(refused, refused.why + " -- the presenter could not be told (" + reason + ")",
+                         mail);
+        return true;
+    }
+    // AN OLDER MENU'S SENTENCE, whose menu ended answered: it ends, alters and answers nothing
+    // newer -- the newer menu's own sentences all come after its grant.
+    return false;
+}
+
+// WL-CTX-10 -- agents/workshop/contextual.md
+void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
+    if (!mail.authored_from_role(kWorkshopProvider) || fence.menu <= 0 || fence.menu > menus_) {
+        return; // only this office's own fence, about a menu it granted, forgets anything
+    }
+    if (fence.hop == 1) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(kWorkshopProvider, WithdrawalFence{fence.menu, 2});
+        return;
+    }
+    if (fence.hop != 2) {
+        return;
+    }
+    // EVERY REFUSAL OF THE MENU'S SENTENCES HAS BEEN HEARD: a record still here was delivered, and
+    // its answer is the presenter's to give.
+    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
+        if (withdrawn_[i].menu == fence.menu) {
+            withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
+            return;
+        }
+    }
+}
+
+const std::vector<WithdrawnMenu>& WorkshopWeave::withdrawn_menus() const { return withdrawn_; }
 
 // WL-CTX-09 -- agents/workshop/contextual.md
 void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail) {

@@ -380,6 +380,9 @@ class WorkshopWeave
                                           zengine::workshop::MenuShown,
                                           zengine::workshop::MenuClosed,
                                           zengine::workshop::PresenterReady,
+                                          // ...and the host's own fence behind a menu it
+                                          // withdrew, whose requester may still be owed
+                                          zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -423,7 +426,8 @@ class WorkshopWeave
                                         zengine::workshop::PictureFence,
                                         zengine::workshop::MenuGranted,
                                         zengine::workshop::MenuInput,
-                                        zengine::workshop::MenuWithdrawn>,
+                                        zengine::workshop::MenuWithdrawn,
+                                        zengine::workshop::WithdrawalFence>,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
@@ -889,6 +893,9 @@ public:
     /// A HOLDER OF THE PRESENTER'S OFFICE ARRIVED: it carries the open menu (a handoff across a
     /// reload), or it does not and the menu ends, answered by this host.
     void on(const PresenterReady& ready, loom::Mail& mail);
+    /// THE HOST'S OWN FENCE BEHIND A WITHDRAWAL, COMING ROUND: the first hop sends it round once
+    /// more; the second forgets the withdrawn menu's record, with no refusal of it left to hear.
+    void on(const WithdrawalFence& fence, loom::Mail& mail);
     /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
     /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation.
@@ -911,6 +918,9 @@ public:
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
     const Session& session() const;
+    /// ...and the menus withdrawn from the screen whose requesters may still be owed an answer,
+    /// for a suite that wants to see that each record is forgotten. Read-only, as above.
+    const std::vector<WithdrawnMenu>& withdrawn_menus() const;
 
 private:
     // ---- The managed pane's bookkeeping ---------------------------------------------------
@@ -1385,11 +1395,20 @@ private:
     void grant_menu(const RuntimePane& row, const PaneMenuRequested& asked,
                     std::uint64_t correlation, const PointedAt& at, loom::Mail& mail);
     /// END THE PRESENTED MENU BECAUSE CUSTODY MOVED, telling the presenter why; the presenter
-    /// answers its requester. Nothing when no menu is open.
+    /// answers its requester. Who asked is kept until Loom has had its say (`withdrawn_`); a
+    /// withdrawal that queues nothing is answered here at once. Nothing when no menu is open.
     void withdraw_menu(const std::string& why, loom::Mail& mail);
     /// END THE PRESENTED MENU WHEN NO PRESENTER CAN ANSWER IT -- it left, or the holder that
     /// replaced it does not carry the menu -- and answer the requester unchosen, as this office.
     void end_menu_unanswered(const std::string& why, loom::Mail& mail);
+    /// ANSWER A WITHDRAWN MENU'S REQUESTER, unchosen, as this office, under the ask's number: the
+    /// presenter could not be told. The menu is already off the screen, so nothing is repainted.
+    void answer_withdrawn(const WithdrawnMenu& menu, const std::string& why, loom::Mail& mail);
+    /// SETTLE THE MENU WHOSE SENTENCE LOOM REFUSED, by the attempt Loom names -- the open menu if
+    /// the attempt is its own, a withdrawn one whose attempts span it, else nothing: an older
+    /// menu's refusal ends, alters and answers no newer one. Returns whether a menu was settled.
+    bool end_refused_menu(const loom::Ticket& refused_attempt, const std::string& reason,
+                          loom::Mail& mail);
     /// FORWARD ONE OF THE MAKER'S ACTS TO THE PRESENTED MENU, numbered as the act it is.
     void forward_menu_input(std::int64_t kind, std::int64_t verb, std::int64_t scancode,
                             std::int64_t modifiers, std::int64_t button, std::int64_t line,
@@ -1518,6 +1537,10 @@ private:
     std::int64_t fences_ = 0;
     /// THE MINT FOR A PRESENTED MENU'S NUMBER: from one, one per grant, never reused.
     std::int64_t menus_ = 0;
+    /// MENUS OFF THE SCREEN WHOSE REQUESTERS MAY STILL BE OWED AN ANSWER, oldest first: each from
+    /// its withdrawal until Loom refuses one of its sentences (answered then) or its fence comes
+    /// round twice (forgotten) -- so only withdrawals that recent are ever here.
+    std::vector<WithdrawnMenu> withdrawn_;
     /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- counted, so a
     /// pane's word about one of them can be asked whether it is still about the latest. A button's
     /// release completes the gesture its press began and is not counted (`on(PointerButton)`).

@@ -192,7 +192,7 @@ LAW — The presenter's office shows a granted menu, reads its acts, ends it and
 MEANS
 - the shipped presenter chooses on the press; the numbered example on a digit or the release;
 - a requester takes a choice only from this office, under its own ask's number, once (`Asked`);
-- a presenter that leaves, or a holder not carrying the menu, ends it answered by the host.
+- one gone or not carrying the menu: the host answers it, open or withdrawn, and no newer menu.
 
 DOES NOT MEAN
 - that a presenter reads a subject or holds authority: the requester judges and acts;
@@ -202,12 +202,22 @@ PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `PresenterReady`, 
 `kMaxMenuLines`; `menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`;
 `examples/numbered-presenter/presenter.cpp` `NumberedPresenter`, `digit_row`, `line_for`;
 `workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`
-`launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`;
-`workshop/weave_code.cpp` `on(DispatchRefused)`; `workshop/weave_seam.cpp` `on(PaneOffered)`;
-`tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu with more rows than the room is
-windowed by the presenter, and every row is still reachable"`, case `"WL-CTX-10: a requester's
-record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing
-another office says under its number"`; `tests/test_workshop_panes_desktop.cpp` case
+`launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`,
+`answer_withdrawn`, `end_refused_menu`, `on(WithdrawalFence)`; `workshop/context.hpp`
+`WithdrawnMenu`, `PresentedMenu::first_attempt`; `workshop/vocabulary.hpp` `WithdrawalFence`;
+`workshop/weave.hpp` `withdrawn_`; `workshop/weave_code.cpp` `on(DispatchRefused)`;
+`workshop/weave_seam.cpp` `on(PaneOffered)`; `tests/test_workshop_panes_button.cpp` case
+`"WL-CTX-09: a menu with more rows than the room is windowed by the presenter, and every row is
+still reachable"`, case `"WL-CTX-10: a requester's record of its ask settles on the presenter's
+answer or the host's refusal -- once, and on nothing another office says under its number"`, case
+`"WL-CTX-10: a withdrawal the presenter cannot receive is answered by the host, once, under the
+ask's number"`, case `"WL-CTX-10: a refused act settles its withdrawn menu, though the
+withdrawal reaches a fresh presenter that cannot answer it"`, case `"WL-CTX-10: an older menu's
+refused withdrawal ends and answers nothing newer; the newer menu is shown and chooses"`, case
+`"WL-CTX-10: a withdrawal that queues nothing is answered at once, and nothing is kept"`, case
+`"WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and
+ordinary use keeps none"`;
+`tests/test_workshop_panes_desktop.cpp` case
 `"WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withdrawn when the successor
 offers its pane again, and a choice about it acts on nothing"`, case `"WL-CTX-10: the desktop acts
 only on the presenter's answer to an ask of this image's own -- not the host's choice, not another

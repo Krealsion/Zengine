@@ -42,6 +42,20 @@ struct PictureFence {
     ZEN_SHAPE(PictureFence, 1, ZEN_FIELD(number), ZEN_FIELD(hop));
 };
 
+/// THE HOST'S FENCE BEHIND A MENU IT WITHDREW (`WithdrawnMenu`). Workshop -> Workshop, authored as
+/// its office, and never anybody else's sentence. Loom appends a `zen.DispatchRefused` for a
+/// refused send when that send is dispatched, and every sentence about the menu -- its grant, the
+/// acts forwarded to it, the withdrawal -- was queued no later than the withdrawal, ahead of this
+/// fence's first hop. The second hop is queued when the first is handled, so it comes round behind
+/// every refusal those sentences produced: the record of who is owed an answer is forgotten then,
+/// with nothing left to hear. Ordering on the bus is all it establishes -- that a presenter
+/// received a withdrawal, not that it answered.
+struct WithdrawalFence {
+    std::int64_t menu = 0; ///< the withdrawn menu's number
+    std::int64_t hop = 0;  ///< 1 on its way round the first time, 2 the second
+    ZEN_SHAPE(WithdrawalFence, 1, ZEN_FIELD(menu), ZEN_FIELD(hop));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_VOCABULARY_HPP

@@ -31,8 +31,9 @@
 //                   anchor; and ends it when custody moves -- a newer press elsewhere, a newer
 //                   menu, the host's own menu, the pane leaving the desk or being offered again.
 //                   It answers a requester itself only when nothing was presented (the ask was
-//                   refused) or when the presenter can no longer answer (it left, or the holder
-//                   that replaced it does not carry the menu).
+//                   refused) or when the presenter can no longer answer (it left -- even after
+//                   the menu was withdrawn -- or the holder that replaced it does not carry the
+//                   menu), which Loom tells it by refusing one of that menu's own sentences.
 //   the PRESENTER   the presentation and the interaction's lifetime: whether an offer can be
 //                   shown, how its lines read, what a key or a press means on it, when it ends and
 //                   with what outcome. It answers the requester. A choice is a fact about the
@@ -160,7 +161,8 @@ struct MenuClosed {
 
 /// MENU `menu` IS OVER, AND THE HOST ENDED IT. Workshop -> presenter, as `zengine.workshop`:
 /// custody moved (`why` says how) and nothing more of the maker's reaches the menu. The presenter
-/// answers its requester unchosen, in these words.
+/// answers its requester unchosen, in these words. One Loom refuses -- no presenter holds the
+/// office, or its holder has no door for this -- Workshop answers itself, as its own office.
 struct MenuWithdrawn {
     std::int64_t menu = 0;
     std::string why;
