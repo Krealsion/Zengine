@@ -8,6 +8,9 @@
 
 #include "doctest.h"
 
+// A shared_ptr is compared through `.get()` inside these macros: doctest decomposes the
+// expression and MSVC then has no way to print a shared_ptr, which is a compile error there.
+
 #include "external-host/vocabulary_weave.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -59,7 +62,8 @@ public:
 TEST_CASE("guest vocabulary: booted, every shape Workshop's owners speak resolves -- by identity, nested ones included") {
     loom::Switchboard bus;
     for (const auto& s : guest_shapes()) {
-        CHECK_MESSAGE(bus.resolve_schema(s->name(), s->version()) == nullptr, s->name());
+        const bool known = bus.resolve_schema(s->name(), s->version()) != nullptr;
+        CHECK_MESSAGE(!known, s->name());
     }
     auto w = std::make_unique<GuestVocabulary>();
     GuestVocabulary* raw = w.get();
@@ -67,7 +71,7 @@ TEST_CASE("guest vocabulary: booted, every shape Workshop's owners speak resolve
     raw->zen_set_self(id);
     for (const auto& s : guest_shapes()) {
         const std::shared_ptr<const loom::Schema> resolved = bus.resolve_schema(s->name(), s->version());
-        REQUIRE_MESSAGE(resolved != nullptr, s->name());
+        REQUIRE_MESSAGE(resolved.get() != nullptr, s->name());
         CHECK_MESSAGE(loom::same_identity(*resolved, *s), s->name());
     }
     // It declares; it does not accept (beyond the substrate doors every weave answers).
@@ -98,9 +102,9 @@ TEST_CASE("guest vocabulary: unloaded, it takes the shapes with it -- a tool tha
     GuestVocabulary* raw = w.get();
     const loom::WeaveId id = bus.register_weave(std::move(w), loom::Grant{});
     raw->zen_set_self(id);
-    REQUIRE(bus.resolve_schema("SurfaceCaptured", 1) != nullptr);
+    REQUIRE(bus.resolve_schema("SurfaceCaptured", 1).get() != nullptr);
     std::unique_ptr<loom::Weave> gone = bus.unregister_weave(id);
     REQUIRE(gone != nullptr);
-    CHECK(bus.resolve_schema("SurfaceCaptured", 1) == nullptr);
-    CHECK(bus.resolve_schema("InjectInput", 1) == nullptr);
+    CHECK(bus.resolve_schema("SurfaceCaptured", 1).get() == nullptr);
+    CHECK(bus.resolve_schema("InjectInput", 1).get() == nullptr);
 }
