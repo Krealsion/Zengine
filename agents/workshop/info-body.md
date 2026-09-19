@@ -199,7 +199,8 @@ LAW — Info keeps each ask's ticket: nothing queued, or Loom's own `zen.Dispatc
 
 MEANS
 - the draft and its text stand, and the next Return is a fresh commit, not a second one;
-- a notice counts only with Loom's provenance, then the attempt, correlation, shape and office.
+- a notice counts only with Loom's provenance, then the attempt, correlation, shape and office;
+- "nothing queued" is the kept ticket branch, source-traced.
 
 DOES NOT MEAN
 - that a delivered, unanswered ask is released: no timeout, retry, cancellation or polling.
@@ -208,8 +209,9 @@ PROVEN BY — `info-pane/pane.cpp` `on(DispatchRefused)`, `refused_ask`, `undeli
 `ask_inspect`, `ask_commit`, `Asked::attempt`, `kCommitNotQueued`, `kCommitUndelivered`;
 `tests/test_workshop_panes_info.cpp` case `"an Info commit Loom refuses at dispatch is released:
 the draft and its text stand, the next Return is written, and a cancel's promise is replaced"`,
-case `"an Info commit nothing could queue is released at once: the draft stands, the next commit
-tries again, and it is written once the door is back"`, case `"a refusal notice anyone could send,
+case `"an Info commit a doorless office refuses at dispatch: the draft stands, the next commit
+tries again, and it is written once the door is back"`,
+case `"a refusal notice anyone could send,
 naming the Info pane's outstanding commit exactly, settles nothing"`, case `"an Info inspect Loom
 refuses at dispatch releases its own record, and the next press inspects"`.
 WHY — `agents/decisions/an-undelivered-ask-is-released.md`

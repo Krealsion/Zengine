@@ -461,9 +461,12 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   `(shape, version, target)`, so asking what is loaded is exactly that one question;
   `LoadWeave`/`SwapWeave`/`ReloadWeave`/`UnloadLibrary`/`UnloadRole` are absent from this
   weave's Emit set and from every send it makes. The suite pins that **from a bus tap**, not
-  from the declaration, because `Emit<...>` is informational in this Loom and `Kernel::load`
-  binds `allow_any()` to every library it opens — so a declaration proves nothing on its own
-  and is not quoted as though it did.
+  from the declaration, because `Emit<...>` declares vocabulary and gates no send in this Loom
+  (an undeclared shape is still sendable under a grant) and Workshop's host admits every
+  artifact its load plan names under Loom's named `trust_every_artifact(...)` policy (a Kernel
+  mints no grant of its own, and one with no policy admits nothing; `workshop/workshop.cpp`
+  states the reason) — so a declaration proves nothing on its own and is not quoted as though
+  it did.
 - **THE PANE'S ONE BEAT IS THE ROOM GRANT.** Loom gives a participant no arrival or departure
   event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads
   when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity

@@ -1132,19 +1132,26 @@ public:
 // BLD-WEAVE -- a refusal at enqueue, a refusal at dispatch, and a forgery are three facts (WL-OPEN-07)
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: a lookup nothing could queue is refused at once in words, an open queued to an office nobody holds is refused at dispatch by that attempt, and a fresh e takes once each office is present") {
-    // THE FIRST DOOR CANNOT EVEN BE ASKED: no project office is held, and with it absent
-    // nobody on this bus declares the lookup's shape, so the seam admits nothing and the
-    // pane's ticket is not valid -- the IMMEDIATE enqueue refusal, handled at once, in words
-    // naming the lookup as the stage that failed. (Not silence, and never a fabricated stage.
-    // A lookup that WAS queued and then refused at dispatch is the next case's.)
+TEST_CASE("BLD-WEAVE: a lookup queued to a project office nobody holds and an open queued to an opening office nobody holds are each refused at dispatch by that attempt, in words, and a fresh e takes once each office is present") {
+    // THE FIRST DOOR REACHES NOBODY: no project office is held. The lookup's shape still
+    // resolves -- this pane DECLARES `RecipeSourceRequested` in its `Emit<...>`, and since Loom's
+    // ABI v9 a declared shape is registered by its emitter at load, for as long as it lives --
+    // so the lookup is queued to the unheld project office and refused at dispatch, and Loom's
+    // own notice names the attempt; the pane handles it in words naming the lookup as the stage
+    // that failed. (Not silence, and never a fabricated stage. The pane's other branch -- a
+    // ticket that is not valid because nothing was queued -- is no longer reachable through a
+    // shape this pane declares, and stays source-traced: `edit_source` in builder-pane/pane.cpp.)
     BuilderRig a("bld-lookup-refused");
     a.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     a.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
+    REQUIRE(a.r.bus.resolve_schema(RecipeSourceRequested::zen_name,
+                                   RecipeSourceRequested::zen_version) != nullptr);
     a.letter(input::scan::kE, "e");
     CHECK_MESSAGE(a.text().find("`snake`") != std::string::npos, a.text());
     CHECK_MESSAGE(a.text().find("could not be looked up") != std::string::npos, a.text());
-    CHECK_MESSAGE(a.text().find("nothing was queued") != std::string::npos, a.text());
+    CHECK_MESSAGE(a.text().find("it could not reach") != std::string::npos, a.text());
+    CHECK_MESSAGE(a.text().find("NoSuchTarget") != std::string::npos, a.text());
+    CHECK_MESSAGE(a.text().find("nothing was queued") == std::string::npos, a.text());
     CHECK_FALSE(a.r.session().panels.has(a.editor_kind()));
     CHECK(a.r.opening->state().op == 0); // the manager was never asked
     // ...AND A FRESH `e` TAKES once the office is held: the same rig, the door mounted late.
