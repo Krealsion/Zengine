@@ -798,8 +798,9 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
-    // A CONTINUATION OF THE CHOICE THIS HOST LAST ANSWERED THAT PANE, and only while that choice
-    // is still the maker's latest act; once, and never for a pane the inventory does not name.
+    // A CONTINUATION OF THE CHOICE A PRESENTER LAST REPORTED FOR THAT PANE, and only while that
+    // choice is still the maker's latest act; once, and never for a pane the inventory does not
+    // name.
     if (choice_answered_.spent || choice_answered_.kind != row->kind ||
         choice_answered_.correlation != mail.correlation() ||
         choice_answered_.gesture != gestures_) {
@@ -841,10 +842,10 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
-    // A CONTINUATION OF THE CHOICE THIS HOST LAST ANSWERED THAT PANE, judged exactly as a manage
-    // request is (`choice_answered_`): once, and only while that choice is still the maker's
-    // latest act, so a newer press or key defeats a late grab. The menu deliberately left the
-    // keys where they were; a pane whose chosen row begins an edit asks for them here, and the
+    // A CONTINUATION OF THE CHOICE A PRESENTER LAST REPORTED FOR THAT PANE, judged exactly as a
+    // manage request is (`choice_answered_`): once, and only while that choice is still the
+    // maker's latest act, so a newer press or key defeats a late grab. The menu deliberately left
+    // the keys where they were; a pane whose chosen row begins an edit asks for them here, and the
     // transition is guarded -- not the unconditional delayed reveal the research once used.
     if (choice_answered_.spent || choice_answered_.kind != row->kind ||
         choice_answered_.correlation != mail.correlation() ||
