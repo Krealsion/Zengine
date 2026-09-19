@@ -630,11 +630,14 @@ console and Windows Terminal both deliver it). See
 [the context menu](docs/workshop/panes.md#the-context-menu--what-can-i-do-with-this).
 
 **The second button is the pane's first** — a right-click inside a pane's body reaches a pane
-that takes it (the Pane Manager and Hotkeys offer a menu of their own rows; the guard example
-blocks while it is held; Neovim gets its own right press and release), and Workshop's menu
-answers only where nothing took it or a pane handed it back. A pane's menu takes no keys and
-returns none. The Pane Manager's rows offer `manage...` for any pane, right-clickable or not.
-See [the second button](docs/workshop/panes.md#the-second-button--the-panes-first).
+that takes it (the Pane Manager and Hotkeys ask for a menu of their own rows, which the menu
+presenter shows; the guard example blocks while it is held; Neovim gets its own right press and
+release), and in the body of a pane that does not take it nothing happens. Workshop's own menu
+answers on a pane's title row and border, a layout tab and the empty room, or when a pane hands
+the press back. A pane's menu takes no keys and returns none. The Pane Manager's rows offer
+`manage...` for any pane, right-clickable or not. See
+[the second button](docs/workshop/panes.md#the-second-button--the-panes-first); the presenter is
+an ordinary weave ([replacing it](docs/workshop/panes.md#replacing-the-menu-presenter)).
 
 **By mouse in the Pane Manager** — click the mark to show or hide, the name to choose, the
 marked name again to open or focus; the wheel walks the marker; `m` or a right-click opens the
