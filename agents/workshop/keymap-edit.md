@@ -15,16 +15,19 @@ MEANS
 - the answer tells `applied` from `written`; a later declaration or file read is its own event.
 
 DOES NOT MEAN
-- that a presenter rebinds: the Hotkeys pane offers, captures or takes a spelling, and asks.
+- that a presenter rebinds: the Hotkeys pane offers, captures or takes a spelling, and asks;
+- that an edit begun from a menu grabs the keys: it asks on the choice's terms (WL-CTX-09).
 
 PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `KeymapEditRequested`,
 `KeymapEditAnswered`; `workshop/weave.hpp` `on(KeymapEditRequested)`;
 `workshop/weave_desktop.cpp` `on(KeymapEditRequested)`, `authored_spelling`;
 `workshop/keymap.hpp` `apply_overrides`, `join_app_rows`, `join_pane_rows`;
-`desktop-pane/pane.cpp` `ask_edit`, `keys_chose`, `keys_key`, `keys_action`, `Capture`,
-`Typing`; `desktop-pane/vocabulary.hpp` `kMenuModifyPress`, `kMenuModifyType`, `kMenuAddPress`,
-`kMenuAddType`, `kMenuRemove`, `kMenuDisable`, `kMenuReset`;
-`tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-17: right-click a binding, Modify (press a
+`workshop/pane_menu.hpp` `take_keyboard`; `desktop-pane/pane.cpp` `ask_edit`, `keys_chose`,
+`keys_key`, `keys_action`, `Capture`, `Typing`; `desktop-pane/vocabulary.hpp` `kMenuModifyPress`,
+`kMenuModifyType`, `kMenuAddPress`, `kMenuAddType`, `kMenuRemove`, `kMenuDisable`, `kMenuReset`;
+`tests/test_workshop_panes_desktop.cpp` case `"WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane
+takes the keyboard through the guarded transition and captures the key"`, case `"WL-KEY-17:
+right-click a binding, Modify (press a
 key): the change is live at once, written to the file, listed in the table, and the floor
 teaches it; the keys stayed where they were"`, case `"WL-KEY-17: Add a key, Remove one, remove
 the last (disabled, aloud), Reset -- by menu and by the same door from the keyboard; two
@@ -35,7 +38,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-18 — A write is judged against the bytes this host read, and a live change is said
 
-LAW — An accepted edit is written only to a file whose bytes this host read or last wrote; an isolated run, a refused file, a failed write or another hand's change leave it live for this run, and said.
+LAW — An accepted edit writes only to a file whose bytes this host read or last wrote; an isolated run, a failed write or another hand's change leave it live and said; a refused file refuses every edit.
 
 MEANS
 - the baseline is refreshed after every write of this host's own, so consecutive edits write;

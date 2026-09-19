@@ -83,7 +83,7 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-06 — A secondary press is the pane's first, then state-local first refusal
 
-LAW — A secondary press in a pane's body goes to a holder with the `PaneButton` door, consumed by delivery under a hold and a continuation per button; chrome, doorless holders and modes stay the host's.
+LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consumed under a hold and a continuation per button; a doorless body is empty; chrome and modes stay the host's.
 
 MEANS
 - the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`;
@@ -91,23 +91,27 @@ MEANS
 - arrangement leaves on one, consumed whole; the Terminal still means nothing by it.
 
 DOES NOT MEAN
-- that a refused send is silence: Loom's tap attributes it, and the hold stands until the release;
+- that a refused press holds: the tap attributes it; the host drops it; the release is silent;
 - that a replaced holder is promised its release: the host addresses the role, not an incarnation.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneButton`, `PanePassRequested`;
 `workshop/weave.hpp` `SecondaryHold`, `SecondaryContinuation`, `external_button`,
-`external_release`, `end_lost_holds`; `workshop/weave_external.cpp` `external_button`,
-`external_release`, `end_lost_holds`; `workshop/weave_pointer.cpp` `on(PointerButton)`;
+`external_release`, `end_lost_holds`, `end_refused_button`; `workshop/weave_external.cpp`
+`external_button`, `external_release`, `end_lost_holds`, `end_refused_button`;
+`workshop/weave_code.cpp` `on(DispatchRefused)`; `workshop/weave_pointer.cpp` `on(PointerButton)`;
 `workshop/weave_session.cpp` `apply_setup`; `workshop/pane_menu.hpp` `HeldButton`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`; `tests/test_workshop_panes_button.cpp` case
 `"WL-PRESS-06: a right press over a pane whose holder has the door is delivered, consumed, opens
-no menu, and names the admitted picture; the chrome stays the host's"`, case `"WL-PRESS-06: the
+no menu, and names the admitted picture; the chrome stays the host's"`, case `"WL-PRESS-06: a
+doorless pane's body is empty by default -- a right press there opens no menu and takes no keys;
+its chrome still opens the host's menu"`, case `"WL-PRESS-06: the
 release is the pressing pane's wherever the pointer is, and leaks into no other pane"`, case
 `"WL-PRESS-06: closing the pane AFTER the release invalidates the continuation on its own -- the
 review's first integration finding"`, case `"WL-PRESS-06: a press of a button the host believes
-is down ends the old hold aloud, never silently"`, case `"WL-PRESS-06: a holder replaced between
-the door check and the delivery -- the press is refused on Loom's tap, and the host's hold
-stands without a recipient"`; `tests/test_workshop_panels.cpp` case `"ARR-0/SC-7: one right
+is down ends the old hold aloud, never silently"`, case `"WL-PRESS-06: a press Loom refuses is
+settled -- the custody it recorded is dropped, so the physical release sends nothing and no
+second refusal follows; the failure stands on the tap"`;
+`tests/test_workshop_panels.cpp` case `"ARR-0/SC-7: one right
 press exits Arrange; only the NEXT one opens context"`, case `"CTX-0/ARR-0: a mode that owns the
 pointer answers a right press its own way"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`

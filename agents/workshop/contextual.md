@@ -122,7 +122,7 @@ MEANS
 
 DOES NOT MEAN
 - that a pane's rows reach this surface unasked: only by its request (WL-CTX-09);
-- that a doorless holder lost the host's menu: a press nobody took still opens it.
+- that a doorless body opens the host's menu: it is empty; the chrome and the Manager reach it.
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arrange.cpp`
 `keyboard_context`; `workshop/screen_attention.cpp` `context_press_at`; `workshop/screen.hpp`
@@ -150,17 +150,20 @@ MEANS
 
 DOES NOT MEAN
 - that the host performs a pane's operation, or that a row grants one: the pane acts;
-- that anything is restored after: nothing was taken; a choice may continue to `manage...`, once.
+- that anything is restored after: a choice may continue to `manage...` or the keyboard, once.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
-`PaneMenuAnswered`, `PaneManageRequested`, `kMaxPaneMenuRows`; `workshop/context.hpp`
-`ContextMenu::foreign`, `ContextMenu::rows`, `ContextEntry::foreign`, `context_population`;
-`workshop/weave.hpp` `open_foreign_menu`, `retire_foreign_menu`, `cell_of_body_place`,
-`ChoiceAnswered`, `action_sent_`; `workshop/weave_external.cpp` `on(PaneMenuRequested)`,
-`on(PaneManageRequested)`, `open_foreign_menu`, `retire_foreign_menu`, `cell_of_body_place`;
+`PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kMaxPaneMenuRows`;
+`workshop/context.hpp` `ContextMenu::foreign`, `ContextMenu::rows`, `ContextEntry::foreign`,
+`context_population`; `workshop/weave.hpp` `open_foreign_menu`, `retire_foreign_menu`,
+`cell_of_body_place`, `ChoiceAnswered`, `action_sent_`; `workshop/weave_external.cpp`
+`on(PaneMenuRequested)`, `on(PaneManageRequested)`, `on(PaneKeyboardRequested)`,
+`open_foreign_menu`, `retire_foreign_menu`, `cell_of_body_place`;
 `workshop/weave_pointer.cpp` `choose_context_row`, `context_press`, `context_key`;
 `workshop/screen_attention.cpp` `context_entry_text`, `context_bounds`; `workshop/pane_menu.hpp`
-`Offer`, `manage`, `chosen`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu
+`Offer`, `manage`, `take_keyboard`, `chosen`; `tests/test_workshop_panes_desktop.cpp` case
+`"WL-CTX-09: a printable menu shortcut and the text its own key produced are one gesture, so the
+menu opens"`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu
 requested on the press's own turn opens beside the press with the pane's rows, moves no keys and
 no selection, and Return returns the first row"`, case `"WL-CTX-09: the keyboard works the menu
 -- Down then Return chooses the second row; Escape answers it unchosen; the release under it

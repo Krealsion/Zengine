@@ -272,7 +272,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
     if (!sent.valid()) {
         return false; // nothing queued: known non-delivery, and the host's surface answers
     }
-    secondary_hold_[s] = SecondaryHold{true, kind, button, answering};
+    secondary_hold_[s] = SecondaryHold{true, kind, button, answering, sent};
     SecondaryContinuation& c = secondary_cont_[s];
     c = SecondaryContinuation{};
     c.live = true;
@@ -371,6 +371,30 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     if (choice_answered_.kind != kNoPaneKind && !session_.panels.has(choice_answered_.kind)) {
         choice_answered_ = ChoiceAnswered{};
     }
+}
+
+// WL-PRESS-06 -- agents/workshop/press-chain.md
+bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail) {
+    if (!refused_attempt.valid()) {
+        return false;
+    }
+    for (std::size_t s = 0; s < 2; ++s) {
+        SecondaryHold& h = secondary_hold_[s];
+        if (!h.active || !h.attempt.valid() || h.attempt.seq != refused_attempt.seq) {
+            continue; // not this slot's attempt (or an old one): it cancels nothing newer
+        }
+        // THE PRESS NEVER REACHED ITS RECIPIENT: there is no custody to keep and none to hand
+        // back. The hold and its continuation are dropped, so the physical release below sends
+        // nothing, and a pass-back or menu that tried to continue this press finds no record.
+        // Nothing is said to the pane -- it was never told of a press, so it holds nothing -- and
+        // no menu opens: a refused body press is not a request for the host's chrome. Loom's tap
+        // already attributes the refusal; that is the settlement's whole visible half.
+        h = SecondaryHold{};
+        secondary_cont_[s] = SecondaryContinuation{};
+        (void)mail;
+        return true;
+    }
+    return false;
 }
 
 // WL-CTX-08 -- agents/workshop/contextual.md
@@ -609,6 +633,38 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     next.subject = context_subject::kPane;
     next.pane = subject;
     session_.context = next;
+    repaint(mail);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return;
+    }
+    const RuntimePane* row = session_.panels.runtime.find(office, asked.pane);
+    if (row == nullptr || mail.correlation() == 0) {
+        return;
+    }
+    // A CONTINUATION OF THE CHOICE THIS HOST LAST ANSWERED THAT PANE, judged exactly as a manage
+    // request is (`choice_answered_`): once, and only while that choice is still the maker's
+    // latest act, so a newer press or key defeats a late grab. The menu deliberately left the
+    // keys where they were; a pane whose chosen row begins an edit asks for them here, and the
+    // transition is guarded -- not the unconditional delayed reveal the research once used.
+    if (choice_answered_.spent || choice_answered_.kind != row->kind ||
+        choice_answered_.correlation != mail.correlation() ||
+        choice_answered_.gesture != gestures_) {
+        return;
+    }
+    choice_answered_.spent = true;
+    if (!session_.panels.has(row->kind) || !kind_takes_keyboard(row->kind)) {
+        return; // a pane not on the desk, or one that takes no keys, gets none
+    }
+    // THE GUARDED TRANSITION: the pane becomes the selected, keyboard-holding pane, so the next
+    // key -- the one being captured, or the spelling being typed -- reaches it. Its own rows say
+    // what it is now showing; nothing here types anything.
+    session_.panels.selected = row->kind;
+    session_.panels.keyboard = row->kind;
     repaint(mail);
 }
 

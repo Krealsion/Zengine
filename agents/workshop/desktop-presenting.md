@@ -61,16 +61,19 @@ MEANS
 - the Hotkeys pane: a press chooses a binding and its menu edits it (WL-KEY-17); others hand back.
 
 DOES NOT MEAN
-- that an older picture's press acts (refused in words), or that a same-map repaint renumbers;
+- that an older picture's press acts, or a repaint moving no row renumbers; a subject swap does;
 - that a press read after a newer picture was admitted names the older: P-WORK-25's residue, open.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
 `workshop/panel.hpp` `ExternalPane::picture`; `workshop/weave_seam.cpp` `admit_content`,
 `on(v3::PaneContent)`; `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
 `launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,
-`keys_chose`, `LauncherMeaning`, `KeysMeaning`, `kMovedSentence`, `take_notches`;
+`keys_chose`, `LauncherMeaning`, `LauncherMeaning::ref`, `KeysMeaning`, `KeysMeaning::ref`,
+`launcher_ref`, `keys_line_ref`, `kMovedSentence`, `take_notches`;
 `component/row_map.hpp` `RowMap`, `solid_columns`; `component/columns.hpp` `layout_columns`,
-`table_line`; `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: a press on a row's mark
+`table_line`; `tests/test_workshop_panes_desktop.cpp` case `"WL-DESK-14: a same-length inventory
+swap changes the picture, so a press stamped with the old number opens nothing -- the meaning
+carries the subject, not just the slot"`, case `"WL-DESK-14: a press on a row's mark
 shows or hides that pane; a press on its name only moves the marker"`, case `"WL-DESK-14: a
 deliberate second press on the marked name, with the keys already here, opens it -- or focuses
 and lifts it when it is open and covered"`, case `"WL-DESK-14: the wheel walks the marker one

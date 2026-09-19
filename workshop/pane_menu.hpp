@@ -28,7 +28,9 @@
 //             .send(mail, kOffice);                            // continues THIS press
 //     }
 //     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
-//         if (pane_menu::chosen(a, kPane, "mine.open")) open(a.subject, mail);
+//         // `chosen_from` authenticates the presenter AND matches the row in one read, so a
+//         // forged or foreign answer cannot spend the choice; the subject is still yours to judge.
+//         if (pane_menu::chosen_from(mail, a, kPane, "mine.open")) open(a.subject, mail);
 //     }
 
 #include "workshop/pane_vocabulary.hpp"
@@ -98,6 +100,16 @@ inline loom::Ticket pass_back(loom::Mail& mail, std::string_view office, std::st
                                              mail.correlation());
 }
 
+/// ASK THE HOST FOR THE KEYBOARD, continuing the menu answer this delivery brought -- for a pane
+/// whose chosen row begins an edit (a capture, a typed spelling) and so needs the keys the menu
+/// deliberately left where they were. The host grants them only while the choice is still the
+/// maker's latest act, so a newer press or key defeats a late grab.
+inline loom::Ticket take_keyboard(loom::Mail& mail, std::string_view office, std::string pane,
+                                  std::string_view workshop = kWorkshopRole) {
+    return mail.as_role(office).send_to_role(workshop, PaneKeyboardRequested{std::move(pane)},
+                                             mail.correlation());
+}
+
 /// ASK THE HOST FOR ITS OWN PANE MENU ON `target` (a `PaneRef`'s two halves), continuing the
 /// menu answer this delivery brought -- the deliberate management route for a pane that is
 /// covered, closed, or consumes every right press.
@@ -109,16 +121,29 @@ inline loom::Ticket manage(loom::Mail& mail, std::string_view office, std::strin
         mail.correlation());
 }
 
-/// WAS THIS ROW CHOSEN, FOR THIS PANE? The one read a pane needs on an answer; the subject it
-/// was about is `answer.subject`, for the pane to judge against what it holds now.
+/// WAS THIS ROW CHOSEN, FOR THIS PANE? The payload half of the read a pane needs on an answer;
+/// the subject it was about is `answer.subject`, for the pane to judge against what it holds now.
+/// This checks the PAYLOAD only -- pair it with `from_workshop` (or use `chosen_from`, which does
+/// both) so an answer forged by another office cannot spend a choice.
 inline bool chosen(const PaneMenuAnswered& answer, std::string_view pane, std::string_view id) {
     return answer.chosen && answer.pane == pane && answer.id == id;
 }
 
-/// DOES THIS ANSWER COME FROM WORKSHOP? An answer is role speech from the host's office; a pane
-/// that checks nothing else may check this.
+/// DOES THIS ANSWER COME FROM THE PRESENTER? An answer is the presenter's role speech (Workshop
+/// by default) or Loom's answer to an ask this pane sent it; the office's holder at delivery is
+/// the only one who could have given it. A pane that checks nothing else may check this.
 inline bool from_workshop(const loom::Mail& mail, std::string_view workshop = kWorkshopRole) {
     return mail.authored_from_role(workshop);
+}
+
+/// WAS THIS ROW CHOSEN, FOR THIS PANE, BY THE PRESENTER? The safe one-call read: it authenticates
+/// the sender (`from_workshop`) AND matches the payload (`chosen`), so a pane's low-ceremony
+/// handler cannot act on a foreign or forged answer. The subject is `answer.subject`, still the
+/// pane's to judge against what it holds now.
+inline bool chosen_from(const loom::Mail& mail, const PaneMenuAnswered& answer,
+                        std::string_view pane, std::string_view id,
+                        std::string_view presenter = kWorkshopRole) {
+    return from_workshop(mail, presenter) && chosen(answer, pane, id);
 }
 
 /// A HELD SECONDARY BUTTON, FOR A PANE THAT ACTS WHILE IT IS DOWN: the whole bookkeeping is one
