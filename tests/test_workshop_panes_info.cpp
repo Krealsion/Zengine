@@ -2027,8 +2027,8 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
 
 /// AN OFFICE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer, its declared
 /// actions and its rows the way Workshop does, and says Workshop's resolved commit id to the Info
-/// pane under that office. With Workshop's weave off the bus, nothing on it declares
-/// `PaneCommitRequested`, so a commit meets Loom's seam before anything is queued.
+/// pane under that office. A commit sent to it is queued (the Info pane declares the shape, so it
+/// resolves) and refused at dispatch as NotAccepted, and Loom's own notice names the attempt.
 class DoorlessOffice
     : public loom::WeaveBase<DoorlessOffice, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
@@ -2145,12 +2145,17 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
     }
 }
 
-TEST_CASE("an Info commit nothing could queue is released at once: the draft stands, the next "
+TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stands, the next "
           "commit tries again, and it is written once the door is back") {
     // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its session untouched
-    // -- and an office with no subject door holds `zengine.workshop` meanwhile, so the commit's
-    // shape is one this bus has never heard of and Loom's seam refuses it before anything is
-    // queued. The pane's ticket is not valid; no answer and no notice can follow.
+    // -- and an office with no subject door holds `zengine.workshop` meanwhile. The commit's
+    // shape still resolves: the Info pane DECLARES `PaneCommitRequested` in its `Emit<...>`, and
+    // since Loom's ABI v9 a declared shape is registered by its emitter at load, for as long as
+    // it lives. So the commit is queued to the doorless office, refused at dispatch as
+    // NotAccepted, and Loom's own notice names that attempt -- which is what releases the
+    // record (WL-INFO-13's other half). The pane's ticket-not-valid branch is no longer
+    // reachable through a shape it declares, and stays source-traced (`ask_commit` in
+    // info-pane/pane.cpp).
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
@@ -2159,7 +2164,7 @@ TEST_CASE("an Info commit nothing could queue is released at once: the draft sta
 
     std::unique_ptr<loom::Weave> workshop = f.r.take_workshop_off();
     REQUIRE(f.r.bus.resolve_schema(PaneCommitRequested::zen_name,
-                                   PaneCommitRequested::zen_version) == nullptr);
+                                   PaneCommitRequested::zen_version) != nullptr);
     auto held = std::make_unique<DoorlessOffice>();
     DoorlessOffice* office = held.get();
     loom::Grant say;
@@ -2190,24 +2195,24 @@ TEST_CASE("an Info commit nothing could queue is released at once: the draft sta
     };
     commit_id_said();
     CHECK(seam_refusals == 1);
-    CHECK(reason == "SeamUnresolved");
+    CHECK(reason == "NotAccepted"); // queued to the doorless office, refused at dispatch
     CHECK(queued == 0);
     REQUIRE_FALSE(office->rows.empty());
-    CHECK_MESSAGE(office->rows.front().rfind("commit not submitted --", 0) == 0,
+    CHECK_MESSAGE(office->rows.front().rfind("commit not delivered --", 0) == 0,
                   office->rows.front());
-    // THE RECORD WAS RELEASED: the next commit is attempted again rather than refused as the second
-    // of two, which is what an outstanding record would have said.
+    // THE RECORD WAS RELEASED by Loom's notice: the next commit is attempted again rather than
+    // refused as the second of two, which is what an outstanding record would have said.
     commit_id_said();
     CHECK(seam_refusals == 2);
     CHECK(queued == 0);
-    CHECK(office->rows.front().rfind("commit not submitted --", 0) == 0);
+    CHECK(office->rows.front().rfind("commit not delivered --", 0) == 0);
     f.r.bus.remove_observer(tap);
 
     // THE DOOR COMES BACK: the office leaves, and the same Workshop weave holds it again.
     REQUIRE(f.r.bus.unregister_weave(office_id) != nullptr);
     f.r.put_workshop_back(std::move(workshop));
     f.regrant();
-    CHECK_MESSAGE(f.admitted_leads("commit not submitted --"), f.text());
+    CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
     CHECK(f.declared() == kDrafting);
     CHECK(value_of(f.property_row("Width")) == "77");
     CHECK(f.layouts_width() == "-");

@@ -2261,10 +2261,11 @@ struct StandInVoice {
     }
 };
 
-/// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO MAKER DOOR. With Workshop's
-/// weave off the bus, nothing on it declares `MakerPaneRequested` -- nor, with no skin mounted,
-/// `ClipboardTextRequested` -- so a make, or a paste, meets Loom's seam before anything is queued.
-/// `paste` makes the next `SeatDo` hand the name line Ctrl+V instead of saying the name id.
+/// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO MAKER DOOR. A make sent to
+/// it is queued (the desktop declares the shape, so it resolves) and refused at dispatch as
+/// NotAccepted; a paste, with no skin office held, is refused at dispatch as NoSuchTarget. Either
+/// way Loom's own notice names the attempt. `paste` makes the next `SeatDo` hand the name line
+/// Ctrl+V instead of saying the name id.
 class DoorlessDesk
     : public loom::WeaveBase<DoorlessDesk, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
@@ -2646,8 +2647,9 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     }
 }
 
-TEST_CASE("a Pane Creator make nothing could queue is released at once and tried afresh, while one "
-          "delivered and never answered stays outstanding: no timeout, no retry, no guess") {
+TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispatch is released by "
+          "Loom's notice and tried afresh, while one delivered and never answered stays "
+          "outstanding: no timeout, no retry, no guess") {
     // MUTATION (Q1): the ticket discarded -- a make nothing queued holds the slot for good, and the
     // next name is `make not sent`.
     CreatorRig c("creator-make-unqueued");
@@ -2658,24 +2660,34 @@ TEST_CASE("a Pane Creator make nothing could queue is released at once and tried
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
     // WORKSHOP'S WEAVE LEAVES THE BUS FOR AN INTERVAL, its session untouched; a stand-in holds its
     // office meanwhile and says Workshop's resolved name id to the desktop.
+    //
+    // The desktop DECLARES `MakerPaneRequested` and `ClipboardTextRequested` in its `Emit<...>`,
+    // and since Loom's ABI v9 a declared shape is registered by its emitter at load, for as long
+    // as it lives -- so with Workshop gone both shapes still resolve, the make and the paste are
+    // QUEUED, refused at dispatch (a doorless office; an unheld skin office), and released by
+    // Loom's own notice naming the attempt. The desktop's ticket-not-valid branch ("nothing was
+    // queued") is no longer reachable through a shape it declares, and stays source-traced
+    // (`ask_maker` in desktop-pane/pane.cpp).
     std::unique_ptr<loom::Weave> workshop = r.take_workshop_off();
 
-    SUBCASE("nothing queued: released at once, and made once the door is back") {
+    SUBCASE("refused at dispatch: released by Loom's notice, and made once the door is back") {
         REQUIRE(r.bus.resolve_schema(MakerPaneRequested::zen_name,
-                                     MakerPaneRequested::zen_version) == nullptr);
+                                     MakerPaneRequested::zen_version) != nullptr);
         loom::WeaveId office_id{};
         DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
         SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
         stand_in_says(r, office_id);
-        CHECK(makes.reasons == std::vector<std::string>{"SeamUnresolved"});
+        CHECK(makes.reasons == std::vector<std::string>{"NotAccepted"});
         CHECK(makes.delivered == 0);
-        CHECK(makes.notices == 0); // nothing was queued, so Loom has nothing to say later
+        CHECK(makes.notices == 1); // queued, refused at dispatch, and the desktop was told
         const std::string first = joined(office->voice.rows);
-        CHECK(first.find("make not submitted -- nothing was queued") != std::string::npos);
+        CHECK(first.find("make not delivered -- nothing changed (NotAccepted)") !=
+              std::string::npos);
         CHECK(first.find("new pane: Alpha\n") != std::string::npos);
         // THE RECORD WAS RELEASED: the next name is attempted again, not held as the second of two.
         stand_in_says(r, office_id);
         CHECK(makes.reasons.size() == 2);
+        CHECK(makes.notices == 2);
         CHECK(joined(office->voice.rows).find("not sent") == std::string::npos);
         // THE DOOR COMES BACK: the stand-in leaves, and the same Workshop weave holds the office.
         REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
@@ -2687,18 +2699,19 @@ TEST_CASE("a Pane Creator make nothing could queue is released at once and tried
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(r.session().panels.maker.definition.name == "Alpha");
     }
-    SUBCASE("a paste nothing could queue is not on its way: the next make closes its line") {
-        // MUTATION (QP): a paste left `awaiting` whatever its ticket said -- the accepted make then
-        // keeps open a line nothing will ever paste into.
+    SUBCASE("a paste refused at dispatch is not on its way: the next make closes its line") {
+        // MUTATION (QP): a paste left `awaiting` whatever Loom said of it -- the accepted make then
+        // keeps open a line nothing will ever paste into. No skin office is held, so the paste
+        // is queued to `zengine.skin` and refused at dispatch NoSuchTarget; the notice releases it.
         REQUIRE(r.bus.resolve_schema(surface::ClipboardTextRequested::zen_name,
-                                     surface::ClipboardTextRequested::zen_version) == nullptr);
+                                     surface::ClipboardTextRequested::zen_version) != nullptr);
         loom::WeaveId office_id{};
         DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
         office->paste = true;
         SendTap pastes(r.bus, desk, surface::ClipboardTextRequested::zen_name);
         stand_in_says(r, office_id);
-        CHECK(pastes.reasons == std::vector<std::string>{"SeamUnresolved"});
-        CHECK(pastes.notices == 0);
+        CHECK(pastes.reasons == std::vector<std::string>{"NoSuchTarget"});
+        CHECK(pastes.notices == 1);
         REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
         r.put_workshop_back(std::move(workshop));
         r.extent(150, 44);
