@@ -55,7 +55,7 @@ namespace component = zengine::component;
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
 /// WHAT THE OFFER MAY BE, judged by the presenter that has to show it: nullptr when it can be.
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 const char* refusal_of(const ws::MenuGranted& g) {
     if (g.rows.empty()) {
         return "nothing to present -- the request offered no rows";
@@ -89,13 +89,13 @@ std::string drawable(const std::string& text, std::int64_t columns) {
     return out;
 }
 
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 class MenuPresenter
     : public loom::WeaveBase<MenuPresenter, ws::HeldMenu,
                              loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput,
                                           ws::MenuWithdrawn>,
-                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::PresenterReady,
-                                        ws::PaneMenuAnswered>> {
+                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned,
+                                        ws::PresenterReady, ws::PaneMenuAnswered>> {
 public:
     /// EVERY ACTIVATION SAYS WHAT THIS IMAGE CARRIES -- nothing on a first load; after a reload,
     /// the menu a predecessor was presenting, shown again in this image's way.
@@ -151,8 +151,7 @@ public:
         if (in.menu != state_.menu) {
             // A MENU THIS IMAGE DOES NOT HOLD: given back, rather than left in front of a maker
             // with nobody to answer it.
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{in.menu, false, 0});
+            give_back(in.menu, mail);
             return;
         }
         switch (in.kind) {
@@ -163,9 +162,15 @@ public:
         }
     }
 
-    /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more.
+    /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more. One for a
+    /// menu this image does not hold is given back the same way an act for one is -- the maker's
+    /// act and the host's cancellation are one interaction, and an image answers both or neither.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0 || w.menu != state_.menu) {
+        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
+            return;
+        }
+        if (w.menu != state_.menu) {
+            give_back(w.menu, mail);
             return;
         }
         answer(mail, false, std::string(), w.why);
@@ -173,6 +178,15 @@ public:
     }
 
 private:
+    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK. It holds no such menu, so it has said
+    /// nothing to that requester and never will -- and the host, which knows who asked, settles
+    /// it. Never `MenuClosed`: that is this image's word that it finished the work and answered.
+    void give_back(std::int64_t menu, loom::Mail& mail) {
+        (void)mail.as_role(ws::kPresenterRole)
+            .send_to_role(kWorkshopRole,
+                          ws::MenuReturned{menu, "this image does not hold that menu"});
+    }
+
     void key(const ws::MenuInput& in, loom::Mail& mail) {
         const std::int64_t last = static_cast<std::int64_t>(state_.rows.size()) - 1;
         switch (in.verb) {

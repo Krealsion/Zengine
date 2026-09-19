@@ -342,7 +342,7 @@ PresentedAnchor presented_anchor(bool anchored, std::int64_t x, std::int64_t y, 
 }
 } // namespace
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc) {
     const PresentedAnchor at = presented_anchor(anchored, x, y, sc);
     return panel_prose_place(
@@ -350,7 +350,7 @@ PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, co
         sc);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 FineRect presented_bounds(const Session& s, const Screen& sc) {
     const PresentedMenu& menu = s.presented;
     if (!menu.open || menu.lines.empty()) {
@@ -367,7 +367,7 @@ FineRect presented_bounds(const Session& s, const Screen& sc) {
                            sc);
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
     const FineRect b = presented_bounds(s, sc);
     if (!s.presented.open || s.presented.lines.empty()) {
@@ -392,7 +392,7 @@ void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Scree
     layer.texts.push_back(std::move(region));
 }
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                     std::int64_t x, std::int64_t y, const PointedAt& at) {
     PresentedPressAt out;
