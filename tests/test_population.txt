@@ -73,6 +73,9 @@
 #           stranger lane turns it off). Absent => declared absent, never "passed".
 #   neovim  rides a real Neovim named at configure time (ZENGINE_NEOVIM_PROGRAM). Absent when
 #           none is named; naming one that is not there is a configure error, never a skip.
+#   session rides the session tooling of the INSTALLED Loom this tree consumes -- open where
+#           that package says it carries it (LOOM_SESSION_TOOLS) and a Python 3.8 or newer is
+#           found or named (ZENGINE_SESSION_PYTHON). Absent => declared absent, never "passed".
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
 # is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
@@ -1124,9 +1127,20 @@ builder                           doctest           always  59
 #   input            47 -> 50
 #   workshop_guests   6 -> 9
 #   workshop_probe   new, 14
+#
+# THE REUSABLE SESSION added one suite: the vocabulary an EXTERNAL host boots to speak Workshop's
+# guest shapes (external-host/vocabulary_weave.hpp) -- every shape resolving by identity once it
+# is registered and none before, a divergent definition refused at the wall, the shapes gone
+# with it when it leaves. And one program behind the new `session` gate: the Workshop journey
+# from a Loom session (tests/session/workshop_journey.py), whose program is the interpreter.
+#
+#   guest_vocabulary new, 3
+#   workshop_journey new, program, session
 workshop_guests                   doctest           always  9
 workshop_probe                    doctest           always  14
+guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
+workshop_journey                  program           session
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that

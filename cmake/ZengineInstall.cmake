@@ -229,7 +229,9 @@ set(zengine_installable_artifacts
     zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim
                                  # for a second terminal from a Loom with no Workshop; its one
                                  # runtime need beyond the Loom is a Neovim, found at run time
-    zengine-operators-basic)     # provider, not a weave (PROV-0)
+    zengine-operators-basic      # provider, not a weave (PROV-0)
+    zengine-guest-vocabulary)    # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
+                                 # declared there, so a session's Python tools can speak it
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)
@@ -247,6 +249,19 @@ if(NOT ZENGINE_INSTALLED_ARTIFACTS)
     message(STATUS
         "zengine: no loadable artifacts to install -- this Loom cannot host them, so the "
         "package will carry public headers and exported targets only")
+endif()
+
+# ---- The Workshop tool package, for a Loom session's run manager -------------------------------
+#
+# Python tools that run against a running Workshop from another Loom host's session (Loom's
+# `loom-host --serve` and its run manager). DATA, not a target: a session's catalog names the
+# directory, its operator approves it, and nothing here is compiled or linked. It rides the same
+# condition as the vocabulary weave it needs (a Loom that can host loadable weaves).
+if(TARGET zengine-guest-vocabulary)
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/loom-tools
+            PATTERN "__pycache__" EXCLUDE
+            PATTERN "*.pyc" EXCLUDE)
 endif()
 
 # ---- The package files -------------------------------------------------------------------
