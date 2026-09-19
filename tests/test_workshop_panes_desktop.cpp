@@ -1111,7 +1111,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
 }
 
-TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the office a menu is refused in words; one loaded afresh does not carry the old menu, which ends answered") {
+TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the office a menu is refused in words and the host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered") {
     Keys k("presenter-lost");
     const auto row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(row >= 0);
@@ -1131,6 +1131,15 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     CHECK_FALSE(k.r.session().context.open);
     CHECK(k.r.session().notice.find("menu did not open -- no presenter holds `zengine.presenter`") !=
           std::string::npos);
+    // ...AND THE HOST'S OWN MANAGEMENT ROUTE NEEDS NONE: the pane's title row still opens
+    // Workshop's menu on that pane with nobody in the presenter's office (WL-CTX-09).
+    const ui::Rect chrome = body_of(k.r, k.hotkeys);
+    button_cell(k.r, 3, true, chrome.x + 1, chrome.y);
+    button_cell(k.r, 3, false, chrome.x + 1, chrome.y);
+    CHECK(k.r.session().context.open);
+    CHECK(k.r.session().context.pane == (PaneRef{kDesktopRole, dp::kHotkeysPane}));
+    k.r.key(input::scan::kEscape);
+    CHECK_FALSE(k.r.session().context.open);
     // A PRESENTER LOADED AGAIN presents menus again...
     (void)k.r.load_presenter();
     k.right(row_containing(k.rows(), "desktop.terminal"));
