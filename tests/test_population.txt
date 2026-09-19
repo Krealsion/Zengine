@@ -1760,16 +1760,17 @@ workshop_screen                   doctest           always  129
 #                                 for this image's ask, a replacement presenter from a plan row
 #                                 and by a live reload that hands the open menu over, and a
 #                                 presenter that leaves.
-#   workshop_panes    661 -> 666  the presenter settlement: a withdrawal the presenter cannot
+#   workshop_panes    661 -> 667  the presenter settlement: a withdrawal the presenter cannot
 #                                 receive answered by the host (with the presenter-heard
 #                                 control), a refused act settling its withdrawn menu while the
 #                                 withdrawal reaches a fresh presenter, an older menu's refused
 #                                 withdrawal leaving a newer menu standing and working, a
-#                                 withdrawal that queued nothing answered at once, and the
-#                                 withdrawn menu's record forgotten when its fence comes round.
+#                                 withdrawal that queued nothing answered at once, a forged
+#                                 refusal settling nothing, and the withdrawn menu's record
+#                                 forgotten when its fence comes round.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  666
+workshop_panes                    doctest           always  667
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

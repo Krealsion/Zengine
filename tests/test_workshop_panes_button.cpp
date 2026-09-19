@@ -1232,6 +1232,43 @@ TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and 
     CHECK(t.r.w->withdrawn_menus().empty());
 }
 
+TEST_CASE("WL-CTX-10: a refusal notice anyone could send settles no menu, open or withdrawn") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // THE SHAPE ALONE IS ORDINARY SPEECH. Sent through the host's root door it names a menu's
+    // attempt exactly -- and carries no word of Loom's, which is what a refusal is.
+    const auto forge = [&t](std::uint64_t attempt, const char* shape) {
+        loom::DispatchRefused notice;
+        notice.attempt = std::to_string(attempt);
+        notice.role = kPresenterRole;
+        notice.shape = shape;
+        notice.version = 1;
+        notice.reason = "NoSuchTarget";
+        (void)t.r.bus.send(t.r.workshop_id, loom::Message(loom::to_value(notice)));
+    };
+    forge(t.r.session().presented.first_attempt, MenuGranted::zen_name);
+    t.r.bus.drain_until_idle();
+    REQUIRE(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    // ...AND ONE NAMING A WITHDRAWN MENU'S OWN WITHDRAWAL, while its record is kept.
+    const ui::Rect hello = t.hello_body();
+    queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
+    (void)t.r.bus.pump_pending();
+    REQUIRE(t.r.w->withdrawn_menus().size() == 1);
+    forge(t.r.w->withdrawn_menus()[0].last_attempt, MenuWithdrawn::zen_name);
+    t.r.bus.drain_until_idle();
+    button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);
+    // THE PRESENTER'S ANSWER IS THE ONLY ONE: neither notice settled anything.
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answer_authors[0] == kPresenterRole);
+    CHECK(t.guard->answers[0].refusal == "a newer press");
+    CHECK_FALSE(t.guard->asked.pending());
+    CHECK(t.r.w->withdrawn_menus().empty());
+}
+
 TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and ordinary use keeps none") {
     Rigged t;
     t.guard->menu_on_press = true;

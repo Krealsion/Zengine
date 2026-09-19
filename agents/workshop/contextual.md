@@ -215,6 +215,7 @@ ask's number"`, case `"WL-CTX-10: a refused act settles its withdrawn menu, thou
 withdrawal reaches a fresh presenter that cannot answer it"`, case `"WL-CTX-10: an older menu's
 refused withdrawal ends and answers nothing newer; the newer menu is shown and chooses"`, case
 `"WL-CTX-10: a withdrawal that queues nothing is answered at once, and nothing is kept"`, case
+`"WL-CTX-10: a refusal notice anyone could send settles no menu, open or withdrawn"`, case
 `"WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and
 ordinary use keeps none"`;
 `tests/test_workshop_panes_desktop.cpp` case
