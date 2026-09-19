@@ -207,6 +207,26 @@ target_link_libraries(zengine-example-tally
     PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
             zengine-activation zengine-warnings zengine-sanitize)
 
+# ...AND THE SECOND EXAMPLE, THE GUARD: the game-like consumer of the second button, which
+# blocks while the right button is held and never asks for a menu. Compiled here on Tally's
+# terms and loaded by the button suite, so the shipped helper (`workshop/pane_menu.hpp`) is
+# exercised from a pane that links only what a stranger's recipe links.
+zengine_weave(zengine-example-guard ${CMAKE_SOURCE_DIR}/examples/guard-pane/guard.cpp)
+target_link_libraries(zengine-example-guard
+    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+            zengine-activation zengine-warnings zengine-sanitize)
+
+# ...AND THE THIRD, A SECOND PRESENTER: the ordinary replacement of the shipped one. It holds
+# `zengine.presenter` in its place, presents a pane's menu its own way (numbered rows, a digit to
+# choose, a choice on the release) and keeps the same reload state, so the suites load it instead
+# of the shipped presenter and reload it in the shipped one's place while a menu is open. It
+# links only what a stranger's recipe links, so a presenter needing more fails here first.
+zengine_weave(zengine-example-numbered-presenter
+              ${CMAKE_SOURCE_DIR}/examples/numbered-presenter/presenter.cpp)
+target_link_libraries(zengine-example-numbered-presenter
+    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+            zengine-activation zengine-component zengine-warnings zengine-sanitize)
+
 # A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from
 # weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `84b6bc0` published
 # it) and deliberately NOT from zengine-workshop-vocabulary -- the whole claim is that a party
@@ -1072,6 +1092,12 @@ set(ZENGINE_WORKSHOP_DEFS
     # and open the file, so the path a recipe names is the file this tree compiled.
     "WORKSHOP_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\""
     "TALLY_SOURCE=\"${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp\""
+    "WORKSHOP_SO_GUARD=\"$<TARGET_FILE:zengine-example-guard>\""
+    "GUARD_SOURCE=\"${CMAKE_SOURCE_DIR}/examples/guard-pane/guard.cpp\""
+    # ...AND THE TWO PRESENTERS: the shipped one every menu case loads, and the example that
+    # replaces it (loaded in its place, and reloaded over it while a menu is open).
+    "WORKSHOP_SO_MENU_PRESENTER=\"$<TARGET_FILE:zengine-menu-presenter>\""
+    "WORKSHOP_SO_NUMBERED_PRESENTER=\"$<TARGET_FILE:zengine-example-numbered-presenter>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
     # ...AND THE PROJECT BROWSER, which is a loaded artifact now. It is in the SHARED
     # definitions rather than one suite's because `PaneRig::artifact_path`
@@ -1135,7 +1161,8 @@ set(ZENGINE_WORKSHOP_FIXTURES
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
-    zengine-provider-source zengine-example-tally)
+    zengine-provider-source zengine-example-tally zengine-example-guard
+    zengine-menu-presenter zengine-example-numbered-presenter)
 
 # One Workshop suite: the shared link line, the shared artifact paths, the shared
 # third_party include, plus whatever this one alone needs. It exists so the eight agree by
@@ -1301,6 +1328,8 @@ zengine_workshop_suite(panels
 zengine_workshop_suite(panes
     SOURCES test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp
+            test_workshop_panes_button.cpp
+            test_workshop_panes_desktop.cpp
             test_workshop_panes_input.cpp
             test_workshop_panes_introspection.cpp
             test_workshop_panes_sampling.cpp

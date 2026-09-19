@@ -1417,8 +1417,10 @@ TEST_CASE("MSG-0: every Workshop mode owns the keyboard above a focused pane") {
     // THE CONTEXTUAL SURFACE, opened by a right press on the focused pane itself: pointing names
     // a subject and moves no candidate (WL-CTX-01), and the surface owns the keys while it is
     // open. (The first mode here was the `p` picker, until it retired.)
-    const ui::Rect slot = pane_body_cells(external_panel_rect(r.session(), kind));
-    r.right_press_cell(slot.x + 1, slot.y + 1);
+    // THE CHROME (the title row) opens the host surface; a pane's body is empty by default now,
+    // so the host menu is reached on the title, not in the content (WL-CTX-08).
+    const ui::Rect head = external_body_rect(r.session(), kind);
+    r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
     REQUIRE(r.session().panels.keyboard == kind);
     r.key(input::scan::kDown);

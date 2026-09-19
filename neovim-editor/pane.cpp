@@ -119,6 +119,7 @@ using ws::ManagedOpenSettled;
 using ws::OpenSourceRequested;
 using ws::PaneActionRequested;
 using ws::PaneCatalogRequested;
+using ws::PaneButton;
 using ws::PaneDragged;
 using ws::PaneKey;
 using ws::PaneOffered;
@@ -309,7 +310,7 @@ using NeovimEditorBase = loom::WeaveBase<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
                  PaneCatalogRequested, PaneRoom, PanePressed, PaneDragged, PaneKey, PaneTextInput,
-                 PaneWheel, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
+                 PaneWheel, PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
                  PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled, SourceOpened,
                  loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy, surface::ClipboardText,
                  EditorHandoffJudgeRequested, EditorWarmRequested, EditorPreparationTick,
@@ -539,6 +540,40 @@ public:
         drag_.row = std::clamp<std::int64_t>(drag.row - kChromeRows, 0, ui_rows(rows_) - 1);
         drag_.col = std::clamp<std::int64_t>(drag.column, 0, ui_cols(columns_) - 1);
         mouse("left", "drag", drag_.row, drag_.col);
+        flush(mail);
+    }
+
+    /// THE SECOND BUTTON IS NEOVIM'S: a right press and its release cross as Neovim's own mouse
+    /// events (`nvim_input_mouse`), consumed whole -- nothing is handed back and no host menu
+    /// opens over Neovim's screen. A right DRAG does not cross (the seam carries no secondary
+    /// motion), the middle button is left to Neovim's default of nothing, and a `lost` release
+    /// is delivered as a release so Neovim's own state agrees with the hand. This is press and
+    /// release, not Neovim's complete mouse.
+    void on(const PaneButton& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || b.pane != nve::kEditorPane ||
+            b.button != 3) {
+            return;
+        }
+        if (held_still() || !running()) {
+            return;
+        }
+        if (b.pressed) {
+            if (b.row < kChromeRows) {
+                return; // the status row is a focus statement and moves nothing
+            }
+            release_drag();
+            right_ = Drag{true, b.row - kChromeRows, b.column < 0 ? 0 : b.column};
+            mouse("right", "press", right_.row, right_.col);
+            flush(mail);
+            return;
+        }
+        if (!right_.down) {
+            return;
+        }
+        const std::int64_t row = std::clamp<std::int64_t>(b.row - kChromeRows, 0, ui_rows(rows_) - 1);
+        const std::int64_t col = std::clamp<std::int64_t>(b.column, 0, ui_cols(columns_) - 1);
+        right_ = Drag{};
+        mouse("right", "release", row, col);
         flush(mail);
     }
 
@@ -1971,6 +2006,8 @@ private:
     Holding holding_;
     Warm warm_;
     Drag drag_;
+    /// THE RIGHT BUTTON'S OWN RECORD: down, and where it went down, so its release is said once.
+    Drag right_;
     double wheel_ = 0.0;
     bool adopted_ = false;
     std::optional<EditorTransfer> kept_;

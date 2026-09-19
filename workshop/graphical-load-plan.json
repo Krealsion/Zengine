@@ -159,6 +159,16 @@
           }
         ],
         "optional": true
+      },
+      {
+        "artifact": "zengine-menu-presenter",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.presenter"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [

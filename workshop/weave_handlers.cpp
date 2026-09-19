@@ -29,8 +29,17 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
                            "applies at the next launch";
         return;
     }
+    // READ ONCE, AND THE BYTES KEPT: they are the baseline an edit's write compares the file
+    // against, so a change by another hand since this read is seen rather than overwritten.
+    const persist::FileText read = persist::read_file(
+        host_->keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
     const keymap_persist::LoadedKeymap loaded =
-        keymap_persist::load_file(host_->keymap_path);
+        read.outcome.accepted ? keymap_persist::from_text(read.text)
+                              : keymap_persist::LoadedKeymap{read.outcome, {}};
+    if (read.outcome.accepted) {
+        keymap_bytes_ = read.text;
+        keymap_file_present_ = true;
+    }
     if (!loaded.outcome.accepted) {
         // A STANDING WALL, AND IT IS SAID AS ONE. The file is still refused
         // an hour later and every later launch meets the same wall, so this is a
@@ -296,7 +305,12 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // and deliberately not a swallow-the-next-text rule: an unmatched or absent
     // expectation eats nothing).
     swallow_text_.clear();
-    if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
+    if (ctx == KeyContext::kContext && session_.presented.open) {
+        // ⭐ EVERY KEY A PRESENTED MENU TAKES IS ITS PRESENTER'S, named or not -- a digit that
+        // chooses a row, a letter that jumps to one -- so the character the key produced is part
+        // of that act and not a second one: counted, it would make the choice it made late.
+        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+    } else if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
         Act::kNone) {
         swallow_text_ = expected_text_of(k.scancode, k.modifiers);
     } else if (session_.keymap.app_action_for(app_precedence::kAboveModes, ctx, k.scancode,

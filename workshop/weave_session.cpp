@@ -19,8 +19,11 @@ namespace zengine::workshop {
 // WL-PED-05 -- agents/workshop/pane-manager.md
 // WL-SESSION-12 -- agents/workshop/session-restore.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
-    (void)mail;
     apply_setup_now();
+    // A HOLD, A CONTINUATION OR A PRESENTED MENU ON A PANE THAT JUST LEFT THE DESK ends aloud:
+    // the hold with a `lost` release, the continuation silently (closing invalidates it whether
+    // or not the button is still down), the menu answered unchosen. (WL-PRESS-06)
+    end_lost_holds(mail);
 }
 
 void WorkshopWeave::apply_setup_now() {
