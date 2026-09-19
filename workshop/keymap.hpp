@@ -988,6 +988,8 @@ inline constexpr std::size_t kMaxPaneActionRows = 32;
 /// and a label on the band, and neither is a place for a paragraph.
 inline constexpr std::size_t kMaxPaneActionIdLen = 64;
 inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
+static_assert(kMaxPaneActionIdLen == kMaxPaneMenuIdLen,
+              "a menu row's id meets a declared action's id law, published in the pane protocol");
 
 /// THE ONE SENTENCE THE COLLISION LAW SAYS, wherever it runs -- at the keymap file's
 /// admission over the built-in rows, and at a pane's admission over the built-in rows and

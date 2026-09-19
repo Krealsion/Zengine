@@ -41,7 +41,8 @@
 // (`component::RowMap`), the list keeps its choice by identity while the population moves
 // (`component::HeldChoice`) and its window by the least motion (`component::cursor_window`),
 // the Hotkeys table lays its columns out once (`component::columns`), and a right press or the
-// menu key OFFERS rows the host presents and returns chosen (`workshop/pane_menu.hpp`). A
+// menu key OFFERS rows the presenter participant presents and answers (`workshop/pane_menu.hpp`,
+// the answer read through this image's own record of the ask). A
 // press names the PICTURE it was aimed at: every composition is numbered by its row map, the
 // host echoes the number the medium held when the press was read, and a press about an older
 // picture is refused in words rather than acted on against whatever moved into its place.
@@ -731,17 +732,23 @@ public:
         }
     }
 
-    /// WHAT A MENU CAME TO: a row chosen, about the subject the request named -- judged against
-    /// what this weave holds NOW, because the list may have moved while the menu was open -- or
-    /// nothing chosen, which changes nothing.
+    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
+    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
+    /// office, under the number of an ask this image sent and has not heard answered, about the
+    /// pane and subject it asked about, once. So a reloaded desktop, which asked nothing, CANCELS
+    /// every menu its predecessor had open: their answers match no ask here and act on nothing --
+    /// the policy this pane chooses, because a menu is about rows the predecessor was showing. The
+    /// row chosen is then judged against what this weave holds NOW, because the list may have
+    /// moved while the menu was open; nothing chosen changes nothing.
     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
-        if (!pane_menu::from_workshop(mail) || !a.chosen) {
-            return;
-        }
         if (a.pane == pane::kLauncherPane) {
-            launcher_chose(a, mail);
+            if (!launcher_asked_.take(mail, a).empty()) {
+                launcher_chose(a, mail);
+            }
         } else if (a.pane == pane::kHotkeysPane) {
-            keys_chose(a, mail);
+            if (!keys_asked_.take(mail, a).empty()) {
+                keys_chose(a, mail);
+            }
         }
     }
 
@@ -1212,7 +1219,7 @@ private:
         }
         offer.row(pane::kMenuManage, "manage...");
         offer.row(pane::kMenuInspect, "inspect in Info");
-        (void)offer.continuing(mail, pane::kDesktopRole, correlation);
+        launcher_asked_ = offer.continuing(mail, pane::kDesktopRole, correlation);
     }
 
     /// THE MENU KEY: the marked row's menu, beside the marked row.
@@ -1570,7 +1577,7 @@ private:
         }
         offer.row(pane::kMenuDisable, "Disable");
         offer.row(pane::kMenuReset, "Reset to default");
-        (void)offer.continuing(mail, pane::kDesktopRole, correlation);
+        keys_asked_ = offer.continuing(mail, pane::kDesktopRole, correlation);
     }
 
     /// WHAT A HOTKEYS MENU CAME TO. The subject names a binding, which must still be in the
@@ -1892,6 +1899,10 @@ private:
     component::HeldChoice<RefKey> choice_;
     /// THE PICTURE READ BACKWARDS, and its number: what a press is judged against.
     component::RowMap<LauncherMeaning> map_;
+    /// THE ONE MENU EACH PANE OF THIS IMAGE ASKED FOR AND HAS NOT HEARD ANSWERED. Image-local, and
+    /// never in `DesktopState`: a successor must not accept its predecessor's menu (`on(PaneMenuAnswered)`).
+    pane_menu::Asked launcher_asked_;
+    pane_menu::Asked keys_asked_;
     double wheel_ = 0.0;
     /// THIS IMAGE'S TWO DECLARATIONS AND THE ATTEMPT COUNTER THEY SHARE. Not in the state shape:
     /// a verdict answers only the incarnation that asked (Loom ANS-03), and a new image declares

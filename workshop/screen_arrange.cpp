@@ -131,7 +131,9 @@ KeyContext keyboard_context(const Session& s) {
     // own navigation keys would leak into the thing beneath it -- the first-refusal rule
     // -- and it sits above the other transient overlays because it is opened by the LATER
     // deliberate gesture whenever both are somehow open at once.
-    if (s.context.open) {
+    // ...AND A PANE'S MENU PRESENTED BY ITS PRESENTER IS THE SAME KIND OF SURFACE: its keys are
+    // read through the same contextual rows a maker can move, and forwarded to the presenter.
+    if (s.context.open || s.presented.open) {
         return KeyContext::kContext;
     }
     return keyboard_context_beneath_menu(s);

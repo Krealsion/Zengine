@@ -107,6 +107,13 @@ small menu opens beside it:
 | `Disable` | no key requests the action (the file says `none`) |
 | `Reset to default` | every row you authored for it leaves the file; the declared default stands |
 
+Choosing an edit row takes the keyboard for the capture or the spelling even when another pane
+had it — the choice asks for the keys on its own terms, whether you chose with the keys or with a
+click (its release is part of the same click). A key or a click you make before the edit begins
+is newer than the choice, and the keys stay where it put them. The menu itself is shown by the
+menu presenter ([panes](panes.md#replacing-the-menu-presenter)); another presenter shows the
+same rows its own way and the edits do not change.
+
 Press a key, and the change is **live at once** — the band's legend, the floor's hints and the
 table all say the new key — **and written to your keymap file** in the same breath. The notice
 row says both facts, or which of them did not happen. While a key is being captured, only `Esc`

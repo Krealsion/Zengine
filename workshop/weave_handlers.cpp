@@ -305,7 +305,12 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // and deliberately not a swallow-the-next-text rule: an unmatched or absent
     // expectation eats nothing).
     swallow_text_.clear();
-    if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
+    if (ctx == KeyContext::kContext && session_.presented.open) {
+        // ⭐ EVERY KEY A PRESENTED MENU TAKES IS ITS PRESENTER'S, named or not -- a digit that
+        // chooses a row, a letter that jumps to one -- so the character the key produced is part
+        // of that act and not a second one: counted, it would make the choice it made late.
+        swallow_text_ = expected_text_of(k.scancode, k.modifiers);
+    } else if (session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) !=
         Act::kNone) {
         swallow_text_ = expected_text_of(k.scancode, k.modifiers);
     } else if (session_.keymap.app_action_for(app_precedence::kAboveModes, ctx, k.scancode,

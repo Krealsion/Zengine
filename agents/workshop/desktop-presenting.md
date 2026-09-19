@@ -66,7 +66,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
 `workshop/vocabulary.hpp` `PictureFence`; `workshop/panel.hpp` `ExternalPane::picture`,
-`ExternalPane::aimed_picture`, `ExternalPane::forget_pictures`; `workshop/weave_seam.cpp`
+`ExternalPane::stamp`, `ExternalPane::forget_pictures`, `PictureStamp`; `workshop/weave_seam.cpp`
 `admit_content`, `on(v3::PaneContent)`, `fence_pictures`, `on(PictureFence)`;
 `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`
 `launcher_press`, `keys_press`, `offer_launcher_row`, `offer_keys_row`, `launcher_chose`,

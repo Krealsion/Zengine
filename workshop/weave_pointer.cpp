@@ -66,6 +66,12 @@ void WorkshopWeave::open_context_ambient() {
 void WorkshopWeave::close_context() { session_.context = ContextMenu{}; }
 
 void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    // A PANE'S MENU IS ITS PRESENTER'S TO NAVIGATE: the key is named by the same contextual rows
+    // and forwarded (`menu_key`); only the host's own menu is walked here.
+    if (session_.presented.open) {
+        menu_key(k, mail);
+        return;
+    }
     ContextMenu& menu = session_.context;
     const std::vector<ContextEntry> rows = context_population(menu);
     menu.cursor = context_cursor_bound(menu.cursor, rows.size());
@@ -84,11 +90,8 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
     case Act::kContextBack:
         // ESCAPE DOES THE APPROPRIATE SMALLER THING: out of an open group, else out
         // of the surface -- pane management's done/close pair, in a surface whose
-        // depth is presentation state rather than a submode. A pane's menu has no groups:
-        // Escape answers it unchosen and closes it.
-        if (menu.foreign) {
-            retire_foreign_menu(false, std::string(), "dismissed", mail);
-        } else if (!menu.group.empty()) {
+        // depth is presentation state rather than a submode.
+        if (!menu.group.empty()) {
             leave_context_group();
         } else {
             close_context();
@@ -98,11 +101,7 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
         // THE KEY THAT OPENED IT CLOSES IT -- the shared rule, following the
         // opener's effective binding wherever a maker moved it.
         if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
-            if (menu.foreign) {
-                retire_foreign_menu(false, std::string(), "dismissed", mail);
-            } else {
-                close_context();
-            }
+            close_context();
         }
         break;
     }
@@ -130,12 +129,8 @@ void WorkshopWeave::choose_context_row(loom::Mail& mail) {
         return; // the belt, not the door
     }
     const ContextEntry chosen = rows[menu.cursor];
-    // A PANE'S ROW IS RETURNED, NOT SPENT: the choice goes back to the office that offered the
-    // rows, subject-bound, and the host performs nothing on the strength of it (WL-CTX-09).
-    if (chosen.foreign) {
-        retire_foreign_menu(true, chosen.id, std::string(), mail);
-        return;
-    }
+    // ⭐ A PANE'S ROW WAS RETURNED FROM HERE until a presenter participant presented it: this is
+    // the host's own menu, and every row it chooses is one of the host's own operations.
     if (chosen.is_group) {
         menu.group = chosen.group;
         menu.cursor = 0;
@@ -192,13 +187,9 @@ void WorkshopWeave::context_press(const PointedAt& at, std::int64_t space, std::
     const ContextPressAt hit =
         context_press_at(session_, screen_of(session_), space, x, y, at);
     if (!hit.inside) {
-        // AN OUTSIDE PRESS DISMISSES AND IS SPENT ON DISMISSING -- a pane's menu is answered
-        // unchosen; nothing beneath the press is selected, focused or sent the press.
-        if (session_.context.foreign) {
-            retire_foreign_menu(false, std::string(), "dismissed", mail);
-        } else {
-            close_context();
-        }
+        // AN OUTSIDE PRESS DISMISSES AND IS SPENT ON DISMISSING -- nothing beneath the press is
+        // selected, focused or sent the press.
+        close_context();
         return;
     }
     if (!hit.entry) {
@@ -404,6 +395,16 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         repaint(mail);
         return;
     }
+    // A PANE'S MENU, PRESENTED BY ITS PRESENTER, HAS FIRST REFUSAL WHILE IT IS OPEN, on the
+    // contextual surface's own terms: a press inside or outside it is spent on it and forwarded,
+    // a secondary release ends its hold, and a right press withdraws it and is routed afresh below
+    // exactly as it would have been with no menu open (`menu_button`).
+    if (session_.presented.open) {
+        if (menu_button(b, mail)) {
+            repaint(mail);
+            return;
+        }
+    }
     // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN -- a mode in
     // the two above's family, below both because both existed first and neither can
     // be open at the same time as this one through any current door. A press inside
@@ -420,22 +421,9 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         }
         if (b.pressed && b.button == 3) {
             if (where.understood) {
-                // A PANE'S MENU IS ANSWERED UNCHOSEN BY THE NEWER PRESS, and the press then asks
-                // the ordinary question -- a pane under it with the door is offered it first.
-                if (session_.context.foreign) {
-                    retire_foreign_menu(false, std::string(), "a newer press", mail);
-                    const Occupancy taker = occupied_at(session_.panels, session_.setup.active,
-                                                        screen_of(session_), where);
-                    if (taker.occupied && is_runtime_kind(taker.kind)) {
-                        const ExternalPressAt aimed = external_press_at(
-                            session_.panels, session_.setup.active, screen_of(session_),
-                            taker.kind, session_.pane_titles, b.space, b.x, b.y);
-                        if (aimed.named && external_button(taker.kind, b.button, aimed, where, mail)) {
-                            repaint(mail);
-                            return;
-                        }
-                    }
-                }
+                // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the
+                // host's own menu, re-targeted. (A pane's menu -- the presenter's -- takes this
+                // path in `menu_button`, which withdraws it and routes the press afresh.)
                 open_context_at(where);
                 repaint(mail);
             }
@@ -554,7 +542,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // ⚠ THEY DESCRIBE THE GEOMETRY AS THIS HANDLER FINDS IT. Which ROW-TO-MEANING picture the
         // press names is a separate fact, and it is not read from the admitted content either:
         // `external_press` stamps the picture the medium held when the press was read
-        // (`ExternalPane::aimed_picture`, set by the host's own fence), so a press queued behind
+        // (`ExternalPane::stamp`, set by the host's own fence), so a press queued behind
         // content that moved the rows is refused by the pane as moved rather than resolved
         // against the rows that moved in.
         const std::int64_t typing_before = typing_pane(session_);
@@ -784,7 +772,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         return;
     }
     ++gestures_;
-    if (session_.arrange.open || session_.context.open) {
+    if (session_.arrange.open || session_.context.open || session_.presented.open) {
         return;
     }
     const Screen sc = screen_of(session_);

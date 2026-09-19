@@ -659,7 +659,9 @@ PanePassRequested   provider -> Workshop   "that press was not mine": the host's
                                            opens once, while the press is the latest act
 PaneMenuRequested   provider -> Workshop   present these rows (id, label) beside (row, column),
                                            about `subject`, continuing the gesture by its number
-PaneMenuAnswered    Workshop -> provider   chosen + id, or not chosen + why; once per request
+PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; once per request
+                                           (Workshop answers only an ask it refused, or one
+                                           whose presenter left or was replaced)
 PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
                                            continues a menu answer, once
 v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
@@ -671,22 +673,34 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   selection nor keys move. The release goes to the pressing pane wherever the pointer is,
   unclamped, and under an open mode too. A pane closed while a button is down hears one `lost`
   release; a press of a button the host believes down ends the old hold aloud, never silently.
-  A holder without the door, the title row, the border, a tab and the room still get the host's
-  own menu.
+  The title row, the border, a tab and the room still get the host's own menu; a body whose
+  holder lacks the door is empty — nothing is sent, nothing opens, no keys move.
 - **Every continuation echoes a number.** The host mints a correlation per secondary press and
   per `PaneActionRequested`; a pass-back or a menu request echoes it in Loom's envelope (the
   `PaneEscapeUnspent` discipline) and is judged where the host acts: newest press of its
-  button, unspent, its pane on the desk, and nothing but its own release since. Closing the pane
+  button, unspent, its pane on the desk, and no newer act since — a release completes its press
+  and is no act of its own, so a click's release never makes its choice late. Closing the pane
   invalidates the continuation whether or not the button is up. A stale, zero, spent or foreign
   number moves nothing.
-- **A menu is presented, not performed.** The host paints the offered rows beside the place the
-  pane named and returns the choice, subject-bound — `answer.subject` is the pane's own word,
-  echoed unread, so a pane keeps no menu state and judges the choice against what it holds when
-  the answer arrives. The surface takes no keys and no selection, and restores nothing after: a
-  press elsewhere is the way on. Escape, an outside press (spent on dismissing), a newer menu
-  and the pane leaving the desk each answer the open menu unchosen. At most `kMaxPaneMenuRows`
-  rows; a level taller than the room is windowed and says so. A chosen row is a fact about the
-  maker's gesture, never an authority grant.
+- **A menu is presented by a participant, not performed.** Workshop judges the ask and grants
+  it to whoever holds `zengine.presenter` — the shipped `zengine-menu-presenter`, loaded by a
+  plan row like any weave, or any replacement (next section). The presenter shows the rows,
+  reads the maker's keys and presses, ends the menu and ANSWERS it, as its office, under the
+  request's number, subject-bound — `answer.subject` is the pane's own word, echoed unread. The
+  menu takes no keys and no selection, and restores nothing after: a press elsewhere is the way
+  on. With the shipped presenter, Escape and an outside press (spent on dismissing) answer it
+  unchosen; the host withdraws it — and the presenter answers it unchosen — on a newer menu, a
+  right press elsewhere, the host's own menu, or the pane leaving the desk or being offered
+  again. At most `kMaxPaneMenuRows` rows of ids up to `kMaxPaneMenuIdLen`; a menu taller than
+  the room is windowed and says so. With no presenter loaded the ask is refused in words. A
+  chosen row is a fact about the maker's gesture, never an authority grant.
+- **An answer is safe to act on only through the ask's own record.** `pane_menu::Asked` —
+  what `Offer::send` returns — is the one read: `take(mail, answer)` returns the chosen id only
+  for an answer from the presenter's office, under this image's pending number, about the pane
+  and subject asked, once; Workshop's refusal settles an ask but never chooses; anything else
+  settles nothing. Keep the record in the image, not in reload-kept state: a reloaded pane then
+  cancels its predecessor's menus instead of acting on rows its predecessor was showing. Whether
+  the subject still applies is still the pane's to judge.
 - **A press names its picture.** A pane that composes with `v3::PaneContent` numbers each
   composition — the shipped panes use `component::RowMap`, whose number moves exactly when the
   row-to-meaning map does, so a repaint that moves no row keeps it — and the host echoes on
@@ -699,11 +713,49 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   is kept.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
-  request continuing the delivery's gesture; `pass_back`, `manage`, `chosen` and `HeldButton`
-  are the other four lines a consumer would otherwise write. A pane may write the raw shapes
-  instead. The shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane
-  Manager and the Hotkeys pane offer menus; the Neovim editor passes a right press and release
-  to Neovim and nothing more (no secondary drag crosses the seam).
+  request continuing the delivery's gesture and returns its `Asked`; `pass_back`, `manage`,
+  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write. A pane
+  may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
+  shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
+  the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and
+  nothing more (no secondary drag crosses the seam).
+
+### The menu presenter, and replacing it
+
+> **Presenting a pane's menu is an office, held by an ordinary weave.**
+
+`workshop/presenter_vocabulary.hpp`, installed beside the protocol (`zengine::pane`), is the whole
+seam between Workshop and the participant in `zengine.presenter`:
+
+```text
+MenuGranted     Workshop -> presenter   present this offer as menu n, for office/pane, in a room
+                                        of rows x columns; under the request's correlation
+MenuShown       presenter -> Workshop   menu n shows these lines now, numbered as picture p
+MenuInput       Workshop -> presenter   the maker did this to menu n: a key (with the verb the
+                                        maker's contextual rows name), or a press / release on a
+                                        line, or a press outside; act number g, picture p
+MenuClosed      presenter -> Workshop   menu n is over, chosen at act g or not
+MenuWithdrawn   Workshop -> presenter   menu n is over because the host ended it, and why
+PresenterReady  presenter -> Workshop   I hold the office now, carrying menu n (or 0)
+HeldMenu        state                   the open menu, as the shipped presenters keep it across
+                                        a reload
+```
+
+Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens,
+drawing the presenter's lines inside the granted room, which of the maker's keys and presses
+reach it, and when custody moves. The presenter decides everything about the menu itself —
+whether an offer can be shown, how its lines read, what a key or press means, when it ends — and
+answers the requester, which is why a pane authenticates a choice from `zengine.presenter`.
+
+Replacing it is ordinary: name another artifact in the load plan's `zengine.presenter` row, or
+reload another image in its place. `examples/numbered-presenter` is one — numbered rows, a digit
+chooses, up and down wrap, a click chooses on its release — and because it keeps the same
+`HeldMenu` state, a reload between it and the shipped presenter HANDS OVER a menu that is open:
+the new image says `PresenterReady` naming it, shows it its own way, and answers under the same
+number. A holder that does not carry the menu (a presenter keeping other state, or none) ends it,
+and Workshop answers the requester itself; so does a presenter that leaves. None of this changes
+a requester: the Pane Manager and the Hotkeys pane perform the same operations whichever
+presenter presents their menus.
 
 ## The desk comes back on its own (WUX-0)
 

@@ -103,7 +103,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
         // could have aimed at. Echoed here, judged by the pane.
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, v3::PanePressed{row->pane, at.row, at.column,
-                                                         keys_went_here, pane->aimed_picture});
+                                                         keys_went_here, pane->stamp.aimed});
     } else if (host_->holder_accepts &&
                host_->holder_accepts(row->provider, *loom::schema_of<v2::PanePressed>())) {
         (void)mail.as_role(kWorkshopProvider)
@@ -269,7 +269,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
         mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
                           PaneButton{row->pane, button, true, at.row, at.column, false,
-                                     pane->aimed_picture},
+                                     pane->stamp.aimed},
                           answering);
     if (!sent.valid()) {
         return false; // nothing queued: known non-delivery, and the host's surface answers
@@ -358,13 +358,14 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
             c = SecondaryContinuation{};
         }
     }
-    // ...AND A MENU PRESENTED FOR A PANE THAT LEFT closes, answered unchosen: its subject has no
-    // room on the desk any more, and a choice about it would reach a pane the maker cannot see.
-    if (session_.context.open && session_.context.foreign) {
+    // ...AND A MENU PRESENTED FOR A PANE THAT LEFT is withdrawn: its subject has no room on the
+    // desk any more, and a choice about it would reach a pane the maker cannot see. The presenter
+    // answers the requester unchosen, in these words.
+    if (session_.presented.open) {
         const RuntimePane* row =
-            session_.panels.runtime.find(session_.context.office, session_.context.pane.pane);
+            session_.panels.runtime.find(session_.presented.office, session_.presented.pane);
         if (row == nullptr || !session_.panels.has(row->kind)) {
-            retire_foreign_menu(false, std::string(), "the pane left the desk", mail);
+            withdraw_menu("the pane left the desk", mail);
         }
     }
     if (choice_answered_.kind != kNoPaneKind && !session_.panels.has(choice_answered_.kind)) {
@@ -423,9 +424,9 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     }
     c->spent = true;
     // THE HOST'S CONFIGURED FALLBACK FOR A BODY PRESS: its own pane menu, at the press's cell,
-    // on the subject the record names rather than whatever is under the hand now. A foreign
-    // menu still open is answered unchosen first -- one surface, and the newer act wins.
-    retire_foreign_menu(false, std::string(), "a newer press", mail);
+    // on the subject the record names rather than whatever is under the hand now. A pane's menu
+    // still presented is withdrawn first -- one surface, and the newer act wins.
+    withdraw_menu("a newer press", mail);
     ContextMenu next;
     next.open = true;
     next.anchored = true;
@@ -477,7 +478,10 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return; // a pane this office never offered
     }
-    const auto refuse = [&](const char* why) {
+    // THE HOST ANSWERS ONLY WHAT IT REFUSES HERE: an ask it never grants reaches no presenter, so
+    // nobody else could answer it. What the rows say -- how many, how long, whether any -- is the
+    // presenter's to judge and refuse; this handler judges custody and nothing about content.
+    const auto refuse = [&](const std::string& why) {
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
                           PaneMenuAnswered{asked.pane, asked.subject, false, std::string(), why},
@@ -487,30 +491,15 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         refuse("a menu continues a gesture, and this request echoes none");
         return;
     }
-    if (asked.rows.empty()) {
-        refuse("nothing to present -- the request offered no rows");
-        return;
-    }
-    if (asked.rows.size() > kMaxPaneMenuRows) {
-        refuse("too many rows to present");
-        return;
-    }
-    for (const PaneMenuRow& r : asked.rows) {
-        if (r.id.empty() || r.id.size() > kMaxPaneActionIdLen ||
-            r.label.size() > kMaxPaneMenuLabelLen) {
-            refuse("a row's id is empty or too long, or its label is too long");
-            return;
-        }
-    }
     if (!session_.panels.has(row->kind)) {
         refuse("the pane is not on the desk");
         return;
     }
-    // ELIGIBILITY, JUDGED HERE WHERE THE SURFACE OPENS. The request continues a secondary press
+    // ELIGIBILITY, JUDGED HERE WHERE THE MENU OPENS. The request continues a secondary press
     // -- eligible on a pass-back's exact terms -- or a declared action sent by key, eligible
     // while that keystroke is the maker's latest act. Anything newer (a click elsewhere, a key)
     // makes it late, and a late menu is refused rather than opened over what the maker did next.
-    // Nothing here moves the keys or the selection. (The review's second integration finding.)
+    // Nothing here moves the keys or the selection.
     PointedAt at;
     bool eligible = false;
     for (SecondaryContinuation& c : secondary_cont_) {
@@ -534,61 +523,269 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         refuse("late -- the maker acted since that gesture, or it was already spent");
         return;
     }
-    open_foreign_menu(*row, asked, mail.correlation(), at, mail);
+    // ...AND SOMEBODY TO PRESENT IT. The office's holder is read off the bus now; the role is
+    // resolved again at delivery, and a presenter that left in between is Loom's refusal to
+    // settle (`on(DispatchRefused)`), answered then.
+    if (!host_->holder_accepts ||
+        !host_->holder_accepts(kPresenterRole, *loom::schema_of<MenuGranted>())) {
+        const std::string why = std::string("no presenter holds `") + kPresenterRole +
+                                "` -- nothing can present this menu";
+        refuse(why);
+        // ...AND THE MAKER IS TOLD, because a missing participant is a fact about this room, and
+        // a right-click that opened nothing with nothing said would read as a dead mouse.
+        say(row->name + "'s menu did not open -- " + why, true);
+        repaint(mail);
+        return;
+    }
+    grant_menu(*row, asked, mail.correlation(), at, mail);
     repaint(mail);
 }
 
 // WL-CTX-09 -- agents/workshop/contextual.md
-void WorkshopWeave::open_foreign_menu(const RuntimePane& row, const PaneMenuRequested& asked,
-                                      std::uint64_t correlation, const PointedAt& at,
-                                      loom::Mail& mail) {
-    retire_foreign_menu(false, std::string(), "replaced by a newer menu", mail);
-    ContextMenu next;
+void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& asked,
+                               std::uint64_t correlation, const PointedAt& at, loom::Mail& mail) {
+    // ONE SURFACE AT A TIME: an older menu is withdrawn (its presenter answers it) and the host's
+    // own menu closed -- the newer, deliberate gesture wins.
+    withdraw_menu("replaced by a newer menu", mail);
+    close_context();
+    const PanelProsePlace room =
+        presented_room(at.understood, at.cell.x, at.cell.y, screen_of(session_));
+    PresentedMenu next;
     next.open = true;
-    next.subject = context_subject::kPane;
-    next.pane = PaneRef{row.provider, row.pane};
+    next.menu = ++menus_;
+    next.office = row.provider;
+    next.pane = row.pane;
+    next.subject = asked.subject;
+    next.correlation = correlation;
     next.anchored = at.understood;
     next.anchor_x = at.cell.x;
     next.anchor_y = at.cell.y;
-    next.foreign = true;
-    next.office = row.provider;
-    next.subject_word = asked.subject;
-    next.correlation = correlation;
-    next.rows = asked.rows;
-    session_.context = next;
+    next.room_rows = room.present ? room.rows : 0;
+    next.room_columns = room.present ? room.columns : 0;
+    next.first_input = gestures_;
+    next.last_input = gestures_;
+    session_.presented = next;
+    // TO THE ROLE, AS THIS OFFICE, UNDER THE REQUEST'S NUMBER: the presenter answers the requester
+    // under the same number, and authenticates this grant the way a pane authenticates a room.
+    const loom::Ticket sent =
+        mail.as_role(kWorkshopProvider)
+            .send_to_role(kPresenterRole,
+                          MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
+                                      next.room_rows, next.room_columns},
+                          correlation);
+    if (!sent.valid()) {
+        end_menu_unanswered("the menu could not be handed to a presenter", mail);
+    }
 }
 
 // WL-CTX-09 -- agents/workshop/contextual.md
-void WorkshopWeave::retire_foreign_menu(bool chosen, const std::string& id,
-                                        const std::string& why, loom::Mail& mail) {
-    if (!session_.context.open || !session_.context.foreign) {
+void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
+    if (!session_.presented.open) {
         return;
     }
-    const ContextMenu spent = session_.context;
-    session_.context = ContextMenu{};
-    PaneMenuAnswered answer;
-    answer.pane = spent.pane.pane;
-    answer.subject = spent.subject_word;
-    answer.chosen = chosen;
-    answer.id = chosen ? id : std::string();
-    answer.refusal = chosen ? std::string() : why;
-    // TO THE ROLE, under the request's number: a holder replaced while the menu was open hears
-    // an answer to a question it never asked and ignores it, which is the seam's rule for every
-    // late word. A chosen row is recorded as the maker's latest act, for a continuation.
-    (void)mail.as_role(kWorkshopProvider).send_to_role(spent.office, answer, spent.correlation);
-    if (chosen) {
-        if (const RuntimePane* row = session_.panels.runtime.find(spent.office, spent.pane.pane)) {
+    const std::int64_t menu = session_.presented.menu;
+    session_.presented = PresentedMenu{};
+    // THE PRESENTER ANSWERS ITS REQUESTER; this host only says the menu is over and why. If the
+    // presenter has left, Loom refuses this at delivery -- and there is no menu left to end.
+    (void)mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{menu, why});
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail) {
+    if (!session_.presented.open) {
+        return;
+    }
+    const PresentedMenu ended = session_.presented;
+    session_.presented = PresentedMenu{};
+    // NO PRESENTER CAN ANSWER THIS ONE, SO THIS HOST DOES -- unchosen, as its office, under the
+    // request's number: the requester settles its ask and nothing more happens. A choice never
+    // comes from here. The maker is told the menu closed and why, on the host's own line.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(ended.office,
+                      PaneMenuAnswered{ended.pane, ended.subject, false, std::string(), why},
+                      ended.correlation);
+    say("the menu closed -- " + why, true);
+    repaint(mail);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+bool WorkshopWeave::about_open_menu(std::int64_t menu, const loom::Mail& mail) const {
+    return mail.authored_from_role(kPresenterRole) && session_.presented.open && menu > 0 &&
+           menu == session_.presented.menu;
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
+                                       std::int64_t scancode, std::int64_t modifiers,
+                                       std::int64_t button, std::int64_t line, loom::Mail& mail) {
+    PresentedMenu& menu = session_.presented;
+    if (!menu.open) {
+        return;
+    }
+    // NUMBERED AS THE ACT IT IS. A release carries its press's number because it is not counted
+    // (`on(PointerButton)`), so a presenter that chooses on the release names the click's act.
+    menu.last_input = gestures_;
+    MenuInput in;
+    in.menu = menu.menu;
+    in.input = static_cast<std::int64_t>(gestures_);
+    in.kind = kind;
+    in.verb = verb;
+    in.scancode = scancode;
+    in.modifiers = modifiers;
+    in.button = button;
+    in.line = line;
+    in.picture = menu.stamp.aimed;
+    const loom::Ticket sent = mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, in);
+    if (!sent.valid()) {
+        // NOTHING QUEUED: no presenter can hear the maker's act, so none can answer the menu.
+        end_menu_unanswered("the presenter could not be reached", mail);
+    }
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    // THE MAKER'S OWN CONTEXTUAL ROWS NAME THE KEY -- wherever they moved `context.up`, the
+    // presenter hears "up" -- and the key that opens a menu closes it, the shared rule. What each
+    // verb MEANS on this menu is the presenter's; a key no row names still crosses, with its
+    // scancode, for a presenter that reads keys of its own.
+    std::int64_t verb = menu_verb::kNone;
+    switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
+    case Act::kContextUp: verb = menu_verb::kUp; break;
+    case Act::kContextDown: verb = menu_verb::kDown; break;
+    case Act::kContextChoose: verb = menu_verb::kChoose; break;
+    case Act::kContextBack: verb = menu_verb::kBack; break;
+    default:
+        if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
+            verb = menu_verb::kBack;
+        }
+        break;
+    }
+    forward_menu_input(menu_input::kKey, verb, k.scancode, k.modifiers, 0, -1, mail);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
+    // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE MENU OPENED (WL-PRESS-06): custody first.
+    if (!b.pressed && (b.button == 2 || b.button == 3)) {
+        (void)external_release(b.button, b, mail);
+        return true;
+    }
+    // A RIGHT PRESS RE-ASKS THE QUESTION ABOUT WHATEVER IS UNDER IT NOW: the menu is withdrawn
+    // and the press routed as it would have been without it -- a pane with the door is offered it
+    // first, else the host's own menu opens. Opening is re-targeting, not a toggle.
+    if (b.pressed && b.button == 3) {
+        withdraw_menu("a newer press", mail);
+        return false;
+    }
+    const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+    if (!where.understood) {
+        return true;
+    }
+    const PresentedPressAt hit =
+        presented_press_at(session_, screen_of(session_), b.space, b.x, b.y, where);
+    if (!b.pressed) {
+        // A PRIMARY RELEASE: a drag that began before the menu opened ends here (the Terminal's
+        // and management's own repair), and the presenter hears where the hand came up.
+        (void)end_held_gestures();
+        forward_menu_input(menu_input::kRelease, menu_verb::kNone, 0, 0, b.button,
+                           hit.inside ? hit.line : -1, mail);
+        return true;
+    }
+    // A PRESS INSIDE IS THE PRESENTER'S TO READ; ONE OUTSIDE IS SPENT ON THE MENU -- nothing
+    // beneath it is selected, focused or sent it -- and the presenter says what it means.
+    if (hit.inside) {
+        forward_menu_input(menu_input::kPress, menu_verb::kNone, 0, 0, b.button, hit.line, mail);
+    } else {
+        forward_menu_input(menu_input::kOutside, menu_verb::kNone, 0, 0, b.button, -1, mail);
+    }
+    return true;
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
+    if (!about_open_menu(shown.menu, mail)) {
+        return; // not the presenter, or not the menu that is open: nothing moves
+    }
+    PresentedMenu& menu = session_.presented;
+    // THE LINES ARE JUDGED AS A PANE'S ROWS ARE: within the room granted, drawable, bounded. A
+    // presenter that cannot be drawn loses the menu, in words, rather than painting past its room.
+    std::string refused;
+    if (shown.lines.size() > kMaxMenuLines ||
+        static_cast<std::int64_t>(shown.lines.size()) > menu.room_rows) {
+        refused = "the presenter showed " + std::to_string(shown.lines.size()) +
+                  " lines in a room of " + std::to_string(menu.room_rows);
+    }
+    for (const surface::SurfaceTextRow& line : shown.lines) {
+        if (!refused.empty()) {
+            break;
+        }
+        if (line.text.size() > kMaxMenuLineLen ||
+            static_cast<std::int64_t>(line.text.size()) > menu.room_columns) {
+            refused = "the presenter showed a line wider than its room";
+            break;
+        }
+        for (const char c : line.text) {
+            const unsigned char byte = static_cast<unsigned char>(c);
+            if (byte < 0x20u || byte >= 0x7Fu) {
+                refused = "the presenter showed a line carrying a byte a canvas cannot draw";
+                break;
+            }
+        }
+    }
+    if (!refused.empty()) {
+        withdraw_menu(refused, mail);
+        repaint(mail);
+        return;
+    }
+    menu.lines = shown.lines;
+    menu.picture = shown.picture;
+    repaint(mail);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
+    if (!about_open_menu(closed.menu, mail)) {
+        return;
+    }
+    const PresentedMenu ended = session_.presented;
+    session_.presented = PresentedMenu{};
+    // A CHOICE IS RECORDED AS THE CONTINUATION OF THE ACT THAT MADE IT -- the act the presenter
+    // names, and only one this host forwarded to that menu (or the ask that opened it). A
+    // requester's keyboard or management request continuing the choice is then honored exactly
+    // while that act is still the maker's latest: a newer key or press defeats it, the release of
+    // the choosing click does not (it is not a new act).
+    const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
+    if (closed.chosen && act >= ended.first_input && act <= ended.last_input) {
+        if (const RuntimePane* row = session_.panels.runtime.find(ended.office, ended.pane)) {
             ChoiceAnswered c;
             c.kind = row->kind;
-            c.gesture = gestures_;
-            c.correlation = spent.correlation;
-            c.cell.understood = spent.anchored;
-            c.cell.cell.x = spent.anchor_x;
-            c.cell.cell.y = spent.anchor_y;
+            c.gesture = act;
+            c.correlation = ended.correlation;
+            c.cell.understood = ended.anchored;
+            c.cell.cell.x = ended.anchor_x;
+            c.cell.cell.y = ended.anchor_y;
             c.spent = false;
             choice_answered_ = c;
         }
     }
+    repaint(mail);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
+    if (!mail.authored_from_role(kPresenterRole) || !session_.presented.open) {
+        return;
+    }
+    if (ready.menu == session_.presented.menu) {
+        // A HANDOFF: the holder that arrived carries the open menu (a reload that kept the
+        // presenter's state). Its pictures start over -- a new image numbers afresh -- and its
+        // next `MenuShown` draws the menu in its own way; the maker's interaction continues.
+        session_.presented.stamp.forget();
+        session_.presented.picture = 0;
+        return;
+    }
+    // A HOLDER THAT DOES NOT CARRY IT cannot answer it: the menu ends here, answered by this host.
+    end_menu_unanswered("the presenter was replaced", mail);
 }
 
 // WL-CTX-09 -- agents/workshop/contextual.md
@@ -622,6 +819,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
         repaint(mail);
         return;
     }
+    withdraw_menu("the host's own menu opened", mail);
     ContextMenu next;
     next.open = true;
     next.anchored = choice_answered_.cell.understood;

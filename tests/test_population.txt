@@ -1728,9 +1728,17 @@ workshop_screen                   doctest           always  129
 #                                 afresh while delivered silence still waits, a forged notice
 #                                 settles nothing and the host's denial is said per attempt; and
 #                                 Info keeps a lost list choice lost across its own replacement.
+#   workshop_panes    652 -> 661  the presenter continuation: a queued raw press refused as moved
+#                                 (and its shown-first control), a mouse choice keeping its own
+#                                 keyboard continuation, the requester's record of its ask, and
+#                                 the presenter's lifetime with the real desktop -- a reloaded
+#                                 desktop's cancelled menu, answers taken only from the presenter
+#                                 for this image's ask, a replacement presenter from a plan row
+#                                 and by a live reload that hands the open menu over, and a
+#                                 presenter that leaves.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  652
+workshop_panes                    doctest           always  661
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

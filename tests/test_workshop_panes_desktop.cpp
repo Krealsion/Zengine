@@ -105,10 +105,11 @@ struct Desk {
     PaneRig r;
     ProviderSeat* tools = nullptr;
     loom::WeaveId desktop{};
+    loom::WeaveId presenter{};
     std::int64_t launcher = kNoPaneKind;
 
     explicit Desk(const std::string& keymap_path = std::string(), std::int64_t width = 160,
-                  std::int64_t height = 60) {
+                  std::int64_t height = 60, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
         if (!keymap_path.empty()) {
             r.host.keymap_path = keymap_path;
         }
@@ -122,6 +123,7 @@ struct Desk {
             s.offer(m, PaneOffered{"gamma", "Gamma", "a fixture"});
         });
         desktop = load_real_desktop(r);
+        presenter = r.load_presenter(presenter_image); // the shipped one unless a case replaces it
         r.key(input::scan::kP, input::mod::kCtrl);
         launcher = kind_of(r, kDesktopRole, dp::kLauncherPane);
         REQUIRE(is_runtime_kind(launcher));
@@ -291,8 +293,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     Desk d;
     const std::int64_t beta = d.row_of("Beta");
     d.right(beta, kNameCol);
-    REQUIRE(d.r.session().context.open);
-    REQUIRE(d.r.session().context.foreign);
+    REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> painted = context_rows_on(d.r.last_canvas(), d.r.session());
     REQUIRE(painted.size() == 3);
     CHECK(painted[0] == "> open Beta");
@@ -302,20 +303,20 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     d.r.key(input::scan::kDown);
     d.r.key(input::scan::kReturn);
     REQUIRE(d.r.session().context.open);
-    CHECK_FALSE(d.r.session().context.foreign);
+    CHECK_FALSE(d.r.session().presented.open);
     CHECK(d.r.session().context.subject == context_subject::kPane);
     CHECK(d.r.session().context.pane == PaneRef{"zengine.test.tools", "beta"});
     d.r.key(input::scan::kEscape);
     // `open Beta` BY MOUSE ON THE MENU ROW.
     d.right(beta, kNameCol);
-    REQUIRE(d.r.session().context.foreign);
+    REQUIRE(menu_shown(d.r.session()));
     d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
     CHECK(d.open("beta"));
     // THE MENU KEY, on the marked row, from the keyboard: the same rows, now with close.
     d.r.press_cell(body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, d.row_of("Beta")));
     REQUIRE(d.r.session().panels.keyboard == d.launcher);
     d.r.key(input::scan::kM);
-    REQUIRE(d.r.session().context.foreign);
+    REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> again = context_rows_on(d.r.last_canvas(), d.r.session());
     REQUIRE(again.size() == 4);
     CHECK(again[0] == "> focus Beta");
@@ -326,7 +327,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     // A RIGHT PRESS ON THE HEADING IS HANDED BACK: the host's menu on the Manager itself.
     d.right(0, 2);
     REQUIRE(d.r.session().context.open);
-    CHECK_FALSE(d.r.session().context.foreign);
+    CHECK_FALSE(d.r.session().presented.open);
     CHECK(d.r.session().context.pane == PaneRef{kDesktopRole, dp::kLauncherPane});
 }
 
@@ -369,10 +370,11 @@ struct Keys {
     TempDir dir;
     std::string path;
     PaneRig r;
+    loom::WeaveId presenter{};
     std::int64_t hotkeys = kNoPaneKind;
 
     explicit Keys(const char* name, const std::string& file_text = std::string(),
-                  bool isolated = false)
+                  bool isolated = false, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER)
         : dir(name), path(dir.file("keymap.json")) {
         if (!file_text.empty()) {
             write_keymap_file(path, file_text);
@@ -384,6 +386,7 @@ struct Keys {
         r.ready();
         r.extent(200, 60);
         load_real_desktop(r);
+        presenter = r.load_presenter(presenter_image);
         r.key(input::scan::kK, input::mod::kCtrl);
         const Written tall = author_pane_size(r.session().setup.active,
                                               PaneRef{kDesktopRole, dp::kHotkeysPane},
@@ -416,16 +419,12 @@ struct Keys {
     }
     /// CHOOSE A MENU ROW BY ITS LABEL, through the keyboard.
     void choose(const std::string& label) {
-        REQUIRE(r.session().context.foreign);
-        const std::vector<ContextEntry> rows = context_population(r.session().context);
-        std::size_t at = rows.size();
-        for (std::size_t i = 0; i < rows.size(); ++i) {
-            if (rows[i].label == label) {
-                at = i;
-            }
-        }
-        REQUIRE_MESSAGE(at < rows.size(), "no menu row labelled ", label);
-        for (std::size_t i = 0; i < at; ++i) {
+        REQUIRE(menu_shown(r.session()));
+        // THE PRESENTER'S LINES, READ AS A MAKER READS THEM: the cursor starts on the first row,
+        // and Down walks it to the line that reads `label`.
+        const std::int64_t at = presented_line_of(r.session(), label);
+        REQUIRE_MESSAGE(at >= 0, "no menu line reads ", label);
+        for (std::int64_t i = 0; i < at; ++i) {
             r.key(input::scan::kDown);
         }
         r.key(input::scan::kReturn);
@@ -456,12 +455,13 @@ TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is
     REQUIRE(row >= 0);
     CHECK(k.rows()[static_cast<std::size_t>(row)].find("ctrl+t") != std::string::npos);
     k.right(row);
-    REQUIRE(k.r.session().context.foreign);
+    REQUIRE(menu_shown(k.r.session()));
     const std::vector<std::string> painted = context_rows_on(k.r.last_canvas(), k.r.session());
     REQUIRE(painted.size() == 7);
     CHECK(painted[0] == "> Modify (press a key)");
     CHECK(painted[4] == "  Remove `ctrl+t`");
     k.choose("Modify (press a key)");
+    CHECK_FALSE(k.r.session().presented.open);
     CHECK_FALSE(k.r.session().context.open);
     CHECK(k.text().find("press the key for `desktop.terminal`") != std::string::npos);
     k.r.key(input::scan::kG, input::mod::kCtrl);
@@ -682,7 +682,7 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
     // A HEADING IS HANDED BACK: the host's own menu on the Hotkeys pane.
     k.right(0, 2);
     REQUIRE(k.r.session().context.open);
-    CHECK_FALSE(k.r.session().context.foreign);
+    CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.r.session().context.pane == PaneRef{kDesktopRole, dp::kHotkeysPane});
     k.r.key(input::scan::kEscape);
     // A ROW THAT IS NOT REMAPPABLE (the text box's own keys) is handed back too.
@@ -692,7 +692,7 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
     REQUIRE(fixed >= 0);
     k.right(fixed);
     REQUIRE(k.r.session().context.open);
-    CHECK_FALSE(k.r.session().context.foreign);
+    CHECK_FALSE(k.r.session().presented.open);
     k.r.key(input::scan::kEscape);
     // A TINY ROOM: whatever the screen grants, the heading first and nothing past the budget.
     for (const std::int64_t height : {8, 10, 12}) {
@@ -755,7 +755,7 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
-    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->aimed_picture;
+    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->stamp.aimed;
     REQUIRE(old_picture == d.r.session().panels.external_pane(d.launcher)->picture);
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t alpha = inventory.panes.size();
@@ -778,7 +778,7 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
     if (shown_first) {
         d.r.bus.drain_until_idle(); // B admitted, painted, and the fence round twice behind it
         REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
-        REQUIRE(d.r.session().panels.external_pane(d.launcher)->aimed_picture !=
+        REQUIRE(d.r.session().panels.external_pane(d.launcher)->stamp.aimed !=
                 old_picture);
     }
     queue_button(d.r, 1, true, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
@@ -817,10 +817,11 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
     const auto row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(row >= 0);
     k.right(row);
-    REQUIRE(k.r.session().context.foreign);
+    REQUIRE(menu_shown(k.r.session()));
     const std::size_t entry = typed ? 1 : 0;
-    REQUIRE(k.r.session().context.rows[entry].label ==
-            (typed ? "Modify (type a spelling)" : "Modify (press a key)"));
+    REQUIRE(presented_line_of(k.r.session(), typed ? "Modify (type a spelling)"
+                                                    : "Modify (press a key)") ==
+            static_cast<std::int64_t>(entry));
     const auto x = context_cell_x(k.r.session());
     const auto y = context_entry_cell_y(k.r.session(), entry);
     // ONE ACTUAL CLICK'S TWO TRANSITIONS; nothing else a maker did comes between them.
@@ -833,7 +834,7 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
         queue_key(k.r, input::scan::kDown, input::mod::kNone); // a genuinely newer act
     }
     k.r.bus.drain_until_idle();
-    REQUIRE_FALSE(k.r.session().context.open);
+    REQUIRE_FALSE(k.r.session().presented.open);
     CHECK(k.text().find(typed ? "type the key for `desktop.terminal`"
                               : "press the key for `desktop.terminal`") != std::string::npos);
     if (newer) {
@@ -858,8 +859,7 @@ TEST_CASE("WL-CTX-09: a printable menu shortcut and the text its own key produce
     (void)d.r.bus.publish(loom::Message(loom::to_value(input::TextEntered{"m"}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
     d.r.bus.drain_until_idle();
-    CHECK(d.r.session().context.open);
-    CHECK(d.r.session().context.foreign);
+    CHECK(menu_shown(d.r.session()));
 }
 
 TEST_CASE("WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane takes the keyboard through the guarded transition and captures the key") {
@@ -875,10 +875,254 @@ TEST_CASE("WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane takes the keyboard thr
     const auto refreshed_row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(refreshed_row >= 0);
     k.right(refreshed_row);
-    REQUIRE(k.r.session().context.foreign);
+    REQUIRE(menu_shown(k.r.session()));
     k.choose("Modify (press a key)");
     k.r.key(input::scan::kG, input::mod::kCtrl);
     const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
     REQUIRE(bound != nullptr);
     CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+}
+
+// =============================================================================
+// The presenter, replaced and lost -- with the real desktop's own operations (WL-CTX-09)
+// =============================================================================
+
+namespace {
+
+/// ANOTHER PANE TAKES THE KEYS, so an edit begun from a menu has to ask for them.
+std::int64_t keys_elsewhere(PaneRig& r) {
+    ProviderSeat* other = r.mount_provider("review.other");
+    r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "the prior keyboard owner"});
+    });
+    (void)hand_launch(r, PaneRef{"review.other", "other"});
+    const std::int64_t kind = kind_of(r, "review.other", "other");
+    REQUIRE(r.session().panels.keyboard == kind);
+    return kind;
+}
+
+/// A DIGIT AS THE TERMINAL AND SDL DELIVER IT: the key and the text it made, queued together.
+void queue_digit(PaneRig& r, std::int64_t scancode, const char* text) {
+    queue_key(r, scancode, input::mod::kNone);
+    (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{text}), loom::WeaveId{},
+                                      loom::WeaveId{}, 0));
+}
+
+/// SAY SOMETHING TO THE DESKTOP AS `role`, from the weave that holds it -- a host-root forgery of
+/// office speech, so a case can put an AUTHENTICATED but wrong answer in front of the requester.
+void say_as(PaneRig& r, loom::WeaveId as, const char* role, const ws::PaneMenuAnswered& a,
+            std::uint64_t number) {
+    REQUIRE(r.bus.office_send_to_role_as(as, role, kDesktopRole,
+                                         loom::Message(loom::to_value(a), as, as, number))
+                .valid());
+    r.bus.drain_until_idle();
+}
+
+} // namespace
+
+TEST_CASE("WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withdrawn when the successor offers its pane again, and a choice about it acts on nothing") {
+    // THE REVIEW'S LIFECYCLE CASE, ON THE FINAL ARCHITECTURE: Alpha's menu open, the real desktop
+    // image reloaded through the control door, its new activation verified, then the surviving
+    // menu chosen if it survived. The policy this pane ships is CANCELLATION.
+    Desk d;
+    REQUIRE_FALSE(d.open("alpha"));
+    d.right(d.row_of("Alpha"), kNameCol);
+    REQUIRE(menu_shown(d.r.session()));
+    REQUIRE(presented_texts(d.r.session())[0] == "> open Alpha");
+    std::size_t activations = 0;
+    const auto tap = d.r.bus.add_observer([&](const loom::BusEvent& event) {
+        if (event.kind == loom::EventKind::Delivered && event.target == d.desktop &&
+            event.schema_name == loom::Activated::zen_name) {
+            ++activations;
+        }
+    });
+    d.r.enqueue_reload(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE);
+    d.r.bus.drain_until_idle();
+    d.r.bus.remove_observer(tap);
+    REQUIRE(d.r.load_refusals.empty());
+    REQUIRE(activations == 1); // the real control door activated the reloaded incarnation
+    // WITHDRAWN: the successor offered its pane again, and a menu about a pane a predecessor
+    // presented is not the successor's. Nothing is left open for a hand to choose from.
+    CHECK_FALSE(d.r.session().presented.open);
+    if (d.r.session().presented.open) {
+        d.r.key(input::scan::kReturn); // the review's own step, were the menu to have survived
+    }
+    CHECK_FALSE(d.open("alpha"));
+}
+
+TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask of this image's own -- not the host's choice, not another subject, not another number, not a predecessor's, and not twice") {
+    Desk d;
+    d.right(d.row_of("Alpha"), kNameCol);
+    REQUIRE(menu_shown(d.r.session()));
+    const std::uint64_t asked = d.r.session().presented.correlation;
+    const std::string alpha = d.r.session().presented.subject;
+    REQUIRE(alpha == std::string("zengine.test.tools\x1f") + "alpha");
+    const ws::PaneMenuAnswered open_alpha{dp::kLauncherPane, alpha, true, dp::kMenuOpen, ""};
+    // PROVENANCE: the host's office cannot choose, however well the answer is shaped.
+    say_as(d.r, d.r.workshop_id, kWorkshopProvider, open_alpha, asked);
+    CHECK_FALSE(d.open("alpha"));
+    // THE SUBJECT: an answer about a subject this ask was not about acts on nothing.
+    say_as(d.r, d.presenter, kPresenterRole,
+           ws::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "gamma",
+                                true, dp::kMenuOpen, ""},
+           asked);
+    CHECK_FALSE(d.open("gamma"));
+    // THE LIFETIME: a number this image never asked under settles nothing.
+    say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked + 1000);
+    CHECK_FALSE(d.open("alpha"));
+    // THE GENUINE ANSWER, from the presenter's office, under this image's own number: it acts.
+    say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked);
+    CHECK(d.open("alpha"));
+    // ONCE: the same answer again finds the ask settled -- close Alpha, and a duplicate does not
+    // reopen it.
+    (void)hand_close(d.r, PaneRef{"zengine.test.tools", "alpha"});
+    REQUIRE_FALSE(d.open("alpha"));
+    say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked);
+    CHECK_FALSE(d.open("alpha"));
+    // A PREDECESSOR'S ASK: a fresh ask, the desktop reloaded, and that ask's number answered by the
+    // presenter's office -- the successor never asked it, so the choice is cancelled.
+    d.r.key(input::scan::kEscape); // the real presenter's menu, still open from above, answered
+    d.right(d.row_of("Beta"), kNameCol);
+    REQUIRE(menu_shown(d.r.session()));
+    const std::uint64_t before_reload = d.r.session().presented.correlation;
+    d.r.enqueue_reload(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE);
+    d.r.bus.drain_until_idle();
+    REQUIRE(d.r.load_refusals.empty());
+    say_as(d.r, d.presenter, kPresenterRole,
+           ws::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "beta",
+                                true, dp::kMenuOpen, ""},
+           before_reload);
+    CHECK_FALSE(d.open("beta"));
+}
+
+TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the Pane Manager and Hotkeys keep their own operations while it presents their menus its way: numbered, a digit chooses, a release chooses") {
+    bool by_mouse = false;
+    bool slide_off = false;
+    SUBCASE("Hotkeys, from another focused pane: a digit and the text it made, batched") {}
+    SUBCASE("Hotkeys, from another focused pane: the press arms a row and its own release chooses it") {
+        by_mouse = true;
+    }
+    SUBCASE("Hotkeys: a hand that slides off before letting go chooses nothing") {
+        by_mouse = true;
+        slide_off = true;
+    }
+    Keys k("presenter-replaced-hotkeys", std::string(), false, WORKSHOP_SO_NUMBERED_PRESENTER);
+    const std::int64_t others = keys_elsewhere(k.r);
+    const auto row = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(row >= 0);
+    k.right(row);
+    REQUIRE(menu_shown(k.r.session()));
+    // PRESENTED ITS WAY: numbered rows, the cursor marked -- the rows are still the desktop's.
+    const std::vector<std::string> lines = presented_texts(k.r.session());
+    REQUIRE(lines.size() == 7);
+    CHECK(lines[0] == "> 1 Modify (press a key)");
+    CHECK(lines[1] == "  2 Modify (type a spelling)");
+    if (!by_mouse) {
+        queue_digit(k.r, input::scan::k1, "1");
+        k.r.bus.drain_until_idle();
+    } else {
+        const auto x = context_cell_x(k.r.session());
+        queue_button(k.r, 1, true, x, context_entry_cell_y(k.r.session(), 0));
+        queue_button(k.r, 1, false, x, context_entry_cell_y(k.r.session(), slide_off ? 1 : 0));
+        k.r.bus.drain_until_idle();
+        if (slide_off) {
+            // NOTHING CHOSEN: the press armed row 1 and the release came up on row 2. The menu is
+            // still open, and the keys are still where they were.
+            CHECK(menu_shown(k.r.session()));
+            CHECK(k.r.session().panels.keyboard == others);
+            CHECK(k.text().find("press the key for `desktop.terminal`") == std::string::npos);
+            return;
+        }
+    }
+    // THE HOTKEYS PANE'S OWN OPERATION: capture, the keyboard asked for on the choice's terms --
+    // the digit's text and the click's release are that act, not a newer one.
+    CHECK_FALSE(k.r.session().presented.open);
+    CHECK(k.text().find("press the key for `desktop.terminal`") != std::string::npos);
+    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    k.r.key(input::scan::kG, input::mod::kCtrl);
+    const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(bound != nullptr);
+    CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+}
+
+TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu too, and a digit opens the row -- through the desktop's own launch") {
+    Desk d(std::string(), 160, 60, WORKSHOP_SO_NUMBERED_PRESENTER);
+    d.right(d.row_of("Alpha"), kNameCol);
+    REQUIRE(menu_shown(d.r.session()));
+    const std::vector<std::string> lines = presented_texts(d.r.session());
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0] == "> 1 open Alpha");
+    CHECK(lines[2] == "  3 inspect in Info");
+    // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last.
+    d.r.key(input::scan::kUp);
+    CHECK(presented_texts(d.r.session())[2] == "> 3 inspect in Info");
+    queue_digit(d.r, input::scan::k1, "1");
+    d.r.bus.drain_until_idle();
+    CHECK(d.open("alpha"));
+}
+
+TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a menu is open hands the menu over -- shown again the new way with its cursor, answered under the same number, and the Hotkeys edit completes") {
+    Keys k("presenter-handoff");
+    const std::int64_t others = keys_elsewhere(k.r);
+    const auto row = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(row >= 0);
+    k.right(row);
+    REQUIRE(menu_shown(k.r.session()));
+    REQUIRE(presented_texts(k.r.session())[0] == "> Modify (press a key)");
+    k.r.key(input::scan::kDown); // the cursor on "Modify (type a spelling)"
+    const std::int64_t menu = k.r.session().presented.menu;
+    const std::uint64_t asked = k.r.session().presented.correlation;
+    // THE ORDINARY REPLACEMENT, LIVE: the numbered presenter's image reloaded through the control
+    // door in the shipped presenter's place -- the same accepted set, the same reload state.
+    k.r.enqueue_reload("zengine-menu-presenter", WORKSHOP_SO_NUMBERED_PRESENTER);
+    k.r.bus.drain_until_idle();
+    REQUIRE(k.r.load_refusals.empty());
+    // HANDED OVER: the same menu, still open, shown the new image's way, its cursor kept.
+    REQUIRE(k.r.session().presented.open);
+    CHECK(k.r.session().presented.menu == menu);
+    CHECK(k.r.session().presented.correlation == asked);
+    const std::vector<std::string> lines = presented_texts(k.r.session());
+    REQUIRE(lines.size() == 7);
+    CHECK(lines[0] == "  1 Modify (press a key)");
+    CHECK(lines[1] == "> 2 Modify (type a spelling)");
+    CHECK(k.r.session().panels.keyboard == others); // a reload moved no keys
+    // THE CHOICE, answered by the successor under the predecessor's number, is the desktop's own
+    // ask -- it acts, and the edit takes the keys on the choice's terms.
+    k.r.key(input::scan::kReturn);
+    CHECK_FALSE(k.r.session().presented.open);
+    CHECK(k.text().find("type the key for `desktop.terminal`") != std::string::npos);
+    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    k.r.text("ctrl+g");
+    k.r.key(input::scan::kReturn);
+    const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(bound != nullptr);
+    CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+}
+
+TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the office a menu is refused in words; one loaded afresh does not carry the old menu, which ends answered") {
+    Keys k("presenter-lost");
+    const auto row = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(row >= 0);
+    k.right(row);
+    REQUIRE(menu_shown(k.r.session()));
+    // LOST: the presenter unloaded while its menu is open. The host learns it when the next act it
+    // forwards cannot be delivered, ends the menu and answers the requester itself -- unchosen.
+    REQUIRE(k.r.unload("zengine-menu-presenter"));
+    k.r.key(input::scan::kDown);
+    CHECK_FALSE(k.r.session().presented.open);
+    CHECK(k.text().find("press the key for") == std::string::npos); // nothing was chosen
+    // NOBODY IN THE OFFICE: the next menu is refused where it would open, and nothing opens.
+    k.right(row_containing(k.rows(), "desktop.terminal"));
+    CHECK_FALSE(k.r.session().presented.open);
+    CHECK_FALSE(k.r.session().context.open);
+    // A PRESENTER LOADED AGAIN presents menus again...
+    (void)k.r.load_presenter();
+    k.right(row_containing(k.rows(), "desktop.terminal"));
+    REQUIRE(menu_shown(k.r.session()));
+    // ...AND ONE THAT ARRIVES WITHOUT THE OPEN MENU -- unloaded and loaded afresh, so it carries no
+    // state -- cannot answer it: the host ends it, in words, and a choice can no longer be made.
+    REQUIRE(k.r.unload("zengine-menu-presenter"));
+    (void)k.r.load_presenter();
+    CHECK_FALSE(k.r.session().presented.open);
+    CHECK(k.text().find("press the key for") == std::string::npos);
 }

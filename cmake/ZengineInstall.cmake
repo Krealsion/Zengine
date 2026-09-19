@@ -175,11 +175,15 @@ set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/provider.hpp
                                       operator/provider_abi.h
                                       operator/provider_host.hpp)
-# The pane protocol's one header, installed under the directory it lives in so the stranger's
-# spelling is `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is. Nothing else
-# under workshop/ is public: the host, its seams and its doors stay this repository's.
+# The pane protocol, installed under the directory it lives in so the stranger's spelling is
+# `#include "workshop/pane_vocabulary.hpp"` exactly as the house's is: the protocol, the optional
+# helpers a pane may use (`pane_menu.hpp`), and the presenter seam (`presenter_vocabulary.hpp`), so
+# a stranger can build the participant that presents a pane's menu as well as the pane that asks
+# for one. Nothing else under workshop/ is public: the host, its seams and its doors stay this
+# repository's.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
-                                      workshop/pane_menu.hpp)
+                                      workshop/pane_menu.hpp
+                                      workshop/presenter_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 

@@ -221,21 +221,25 @@ beside the shapes before them, and each is an ordinary optional capability any p
   solved: an accepter that IS delivered the question and never answers holds the quit open, and
   that is named rather than timed out.
 
-## The second button crosses as one shape, a menu as two, and a press names its picture
+## The second button crosses as one shape, a menu is presented by a participant, and a press names its picture
 
 `PaneButton v1` `{pane, button, pressed, row, column, lost, picture}`, Workshop → provider;
 `PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}`,
 `PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v1` `{pane, office, target}`,
 provider → Workshop as the office that offered the pane; `PaneMenuAnswered v1`
-`{pane, subject, chosen, id, refusal}`, Workshop → provider; `v3::PaneContent`
-`{pane, rows, generation, picture}` and `v3::PanePressed` `{…, picture}`. They ADDED to the
-protocol and revised nothing. Two of them NEST — `PaneMenuRequested` carries a
-`vector<PaneMenuRow>` and `v3::PaneContent` carries surface rows — and since Loom ABI v9 a nested
-component is agreed at admission like any other declared shape; these admit because Workshop and
-every pane declare them from the one installed protocol header, not because they are flat. The
-host's side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md`
-(WL-CTX-08, WL-CTX-09) and `workshop/desktop-presenting.md` (WL-DESK-14); the helpers a pane may
-use are `workshop/pane_menu.hpp`, installed beside the protocol.
+`{pane, subject, chosen, id, refusal}`, the presenter (or, for an ask it refused or one no
+presenter can answer, Workshop) → provider; `v3::PaneContent` `{pane, rows, generation,
+picture}` and `v3::PanePressed` `{…, picture}`. Between Workshop and the participant holding
+`zengine.presenter`, `workshop/presenter_vocabulary.hpp`: `MenuGranted`, `MenuInput` and
+`MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed` and `PresenterReady` presenter
+→ Workshop, and `HeldMenu`, the reload state the shipped presenters share. They ADDED to the
+protocol and revised nothing. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
+`vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
+nested component is agreed at admission like any other declared shape; these admit because
+every party declares them from the one installed header, not because they are flat. The host's
+side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08,
+WL-CTX-09), `workshop/desktop-presenting.md` (WL-DESK-14); the presenter's is WL-CTX-10; the
+helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protocol.
 
 - **The pane is first, and delivery is the disposition.** A secondary press over a pane's body
   is sent to a holder whose accept set has the door (`holder_accepts`, the same reading the
@@ -253,29 +257,50 @@ use are `workshop/pane_menu.hpp`, installed beside the protocol.
   and ends only on the release, owner loss or arbitration (a press of a button believed down:
   the old hold ends with a `lost` release before the new is recorded). A continuation is
   eligibility to be handed back or to open a menu: newest press of its button, unspent, its pane
-  on the desk, nothing but its own release since. A release never restores it; a pane that
+  on the desk, no newer act since. A release is no act of its own — it completes the one its
+  press began (`on(PointerButton)` counts presses, keys, text and the wheel, never a release) —
+  so a click's own release never makes its choice late. A release never restores it; a pane that
   leaves the desk after the release cannot be handed back or given a menu — the review's first
   finding, repaired at `end_lost_holds`. The release goes to the ROLE, so a holder replaced
   mid-hold is not promised it; the shipped helper (`HeldButton`) ignores a release of a button
   the image never held, and a holder that gives up its office ends its own hold.
-- **A menu is requested, judged where it opens, and answered once.** Every declared action now
-  goes to a pane under a number of its own (`action_sent_`, on `escape_sent_`'s terms), so a
-  request opened by key continues that keystroke and one opened by the second button continues
-  that press; the host judges eligibility in its own handler — the review's second finding:
-  a queued primary press elsewhere is a newer act, so the late request is refused and the keys
-  stay where the newer press put them. The surface (`ContextMenu::foreign`) takes no keys and no
-  selection, and gives none back; Escape, an outside press, a newer menu and the pane leaving
-  the desk answer it unchosen. The answer is role speech under the request's number, subject-
-  bound, so a pane keeps no menu state and judges the choice against what it holds when it
-  arrives. A choice may continue, once, into the host's own pane menu on a named subject
-  (`PaneManageRequested`) or into the keyboard (`PaneKeyboardRequested`) — the guarded transition
-  an edit begun from a menu on an UNFOCUSED pane needs, judged on the choice's terms so a newer
-  act defeats it (the review's third finding; not the unconditional delayed reveal it once was).
-  The reveal door keeps its own commitments and is not the menu's route.
+- **A menu is requested, judged where it opens, granted to the presenter, answered once.**
+  Every declared action goes to a pane under a number of its own (`action_sent_`), so a request
+  opened by key continues that keystroke and one opened by the second button continues that
+  press; the host judges eligibility in its own handler, and a queued primary press elsewhere is
+  a newer act, so the late request is refused and the keys stay where the newer press put them.
+  An eligible ask is GRANTED to whoever holds `zengine.presenter` (`grant_menu`): the host keeps
+  custody and place — `PresentedMenu`: whose menu, what about, where, the lines last shown, which
+  acts it may name — and no row. While it is open the maker's keys are named by the contextual
+  rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
+  with the line and the picture the medium held (`menu_button`), the character a forwarded key
+  made is part of that key's act, and the popup draws the lines the presenter shows within the
+  room the grant named (`paint_presented`; lines that overflow it lose the menu, in words). The
+  host withdraws the menu when custody moves — a newer menu, a right press, its own menu, the
+  pane leaving the desk or being offered again — and the presenter answers it unchosen in the
+  host's words. The PRESENTER owns the rest (WL-CTX-10): what can be presented (the row bounds),
+  how it reads, what each key and press means, when it ends, and the answer, as its office,
+  under the request's number. It closes the menu to the host (`MenuClosed`) naming the act that
+  chose, and the host records that act as the choice's continuation: a choice may continue,
+  once, into the host's own pane menu (`PaneManageRequested`) or the keyboard
+  (`PaneKeyboardRequested`), honored while that act is still the maker's latest — a newer key or
+  press defeats it, the choosing click's release does not. The reveal door is not the menu's route.
+- **The requester reads an answer through its own record of the ask.** `pane_menu::Asked` is
+  what `Offer::send` returns and what `take` settles: a choice counts only from the presenter's
+  office (a refusal may also be Workshop's), under this image's pending number, once, about the
+  pane and subject asked; the subject is then the pane's to judge against what it holds. Kept in
+  the image and never in reload-kept state, so a reloaded requester CANCELS its predecessor's
+  menus — the shipped desktop's policy; the host also withdraws the menu when the successor
+  offers its pane again. Presenter lifetime: an image keeping `HeldMenu` reloaded in the
+  presenter's place says `PresenterReady` naming the open menu and shows it again (a HANDOFF);
+  a presenter that leaves (a forwarded act Loom cannot deliver) or a holder that does not carry
+  the menu ends it, and the host answers the requester unchosen itself. With no presenter a
+  menu is refused where it would open. These are these consumers' policies, not a rule every
+  participant must follow.
 - **A press names its picture, or is refused.** `v3::PaneContent.picture` is the pane's own
   number for its row-to-meaning map (the desktop's `RowMap` moves it exactly when the map moves);
   the host records it at admission (`ExternalPane::picture`) but stamps a press with the picture
-  the MEDIUM held when the press was read (`ExternalPane::aimed_picture`), echoed on
+  the MEDIUM held when the press was read (`ExternalPane::stamp`), echoed on
   `v3::PanePressed` and `PaneButton`. The consumer acts only on its current map's number, else
   says `the list moved -- press again`. `v2::PaneContent.generation` keeps its meaning. Three
   pictures are distinguished: ADMITTED (the host accepted the content), HANDED OUT (a canvas
@@ -296,9 +321,13 @@ use are `workshop/pane_menu.hpp`, installed beside the protocol.
   picture and a stale press is refused, not resolved against the row that moved in.
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
-  button events (`mod::kNone` always), a host-performed pane operation from a menu row, and a
-  menu presenter held by another office (the surface is the host's; the shapes are the seam a
-  replacement would keep).
+  button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
+  host's OWN menus (chrome, room, tab, pass-back, `manage...`) presented by the presenter —
+  they stay the host's, the management route that must work with no presenter at all — and a
+  pane's actions offered on HOVER. Hover motion does not cross the seam and pane actions follow
+  keyboard focus; an item a pointer rests on, an offer that lives while it does, and a key that
+  reaches an unfocused hovered pane are later, explicit policy (the grant, the withdrawal and
+  the picture fence above are where such an offer would connect).
 
 ## Opening a source is a managed opening, jointly published (WL-OPEN)
 
