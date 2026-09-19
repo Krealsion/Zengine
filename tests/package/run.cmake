@@ -200,6 +200,9 @@ endfunction()
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 
+zen_find_program_in(pane_menu witness-pane-menu "${stranger_bin}")
+zen_run("a stranger uses the pane menu and list helpers" "${pane_menu}")
+
 zen_find_program_in(kitchen kitchen-host "${stranger_bin}")
 get_filename_component(kitchen_dir "${kitchen}" DIRECTORY)
 zen_run("a weave drives the installed Timer service" "${kitchen}" "${kitchen_dir}")
