@@ -2630,6 +2630,17 @@ struct PaneRig {
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
         speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+        // ...the press's third version, the second button and a pane's menu answered, exactly
+        // as workshop.cpp grants them.
+        speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
+        speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
+        speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
+        // ...and the host's own picture fence, to its own office alone, as workshop.cpp grants it.
+        speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
+        // ...and a pane's menu, to the presenter's office alone, as workshop.cpp grants it.
+        speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
+        speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
+        speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
         // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
         // a request for a declared row belongs to the office that declared it, and a refusal of a
         // declaration belongs to the party that made it; a broadcast of either would tell every
@@ -2640,6 +2651,8 @@ struct PaneRig {
         speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
         speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
         speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
+        speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
+        speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
         speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
         speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
         speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
@@ -2824,6 +2837,18 @@ struct PaneRig {
     /// answer. There is no direct `Kernel::load` here and no test-only door -- the
     /// artifact goes through the same path `zengine-workshop` sends its Skin through,
     /// and the activation the loaded weave receives is Loom's own, attested.
+#ifdef WORKSHOP_SO_MENU_PRESENTER
+    /// LOAD A PRESENTER INTO `zengine.presenter` THROUGH THE REAL MANAGER -- the shipped one by
+    /// default, the replacement example when a case asks -- under the plan's own stem, so a later
+    /// reload through the control door names the library the plan names.
+    loom::WeaveId load_presenter(const char* path = WORKSHOP_SO_MENU_PRESENTER) {
+        const loom::WeaveId id = load("zengine-menu-presenter", path, kPresenterRole);
+        REQUIRE(id.valid());
+        REQUIRE(load_refusals.empty());
+        return id;
+    }
+#endif
+
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
@@ -3062,6 +3087,11 @@ struct PaneRig {
         if (stem == "zengine-desktop-pane") {
             return WORKSHOP_SO_DESKTOP_PANE;
         }
+#ifdef WORKSHOP_SO_MENU_PRESENTER
+        if (stem == "zengine-menu-presenter") {
+            return WORKSHOP_SO_MENU_PRESENTER;
+        }
+#endif
 #ifdef WORKSHOP_SO_CONNECTIONS_PANE
         if (stem == "zengine-connections-pane") {
             return WORKSHOP_SO_CONNECTIONS_PANE;
@@ -3399,12 +3429,44 @@ inline bool is_permutation(const Setup& s) {
 /// population from its top with no `earlier` marker, which every case using it arranges
 /// (the pane and object populations always fit the room). The surface reserves NO heading
 /// rows now, so row `index` is the `index`'th row of the interior.
+/// THE POPUP UNDER THE HAND: a pane's menu while its presenter shows one, the host's own otherwise
+/// (at most one of the two is open).
+inline FineRect menu_bounds(const Session& s) {
+    return s.presented.open ? presented_bounds(s, screen_of(s)) : context_bounds(s, screen_of(s));
+}
 inline std::int64_t context_cell_x(const Session& s) {
-    return surface::cell_of_subs(context_bounds(s, screen_of(s)).x) + kChromeCells + 1;
+    return surface::cell_of_subs(menu_bounds(s).x) + kChromeCells + 1;
 }
 inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return surface::cell_of_subs(context_bounds(s, screen_of(s)).y) + kChromeCells +
+    return surface::cell_of_subs(menu_bounds(s).y) + kChromeCells +
            static_cast<std::int64_t>(index);
+}
+
+/// THE LINES THE PRESENTER SHOWED FOR THE OPEN MENU, as the host holds them (empty when none).
+inline std::vector<std::string> presented_texts(const Session& s) {
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& line : s.presented.lines) {
+        out.push_back(line.text);
+    }
+    return out;
+}
+
+/// THE LINE OF THE PRESENTED MENU THAT READS `label` (after whatever marks the presenter puts in
+/// front of a row), or -1.
+inline std::int64_t presented_line_of(const Session& s, const std::string& label) {
+    const std::vector<std::string> lines = presented_texts(s);
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        const std::string& t = lines[i];
+        if (t.size() >= label.size() && t.compare(t.size() - label.size(), label.size(), label) == 0) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
+}
+
+/// IS A PANE'S MENU OPEN AND SHOWN -- granted to the presenter, and its lines drawn?
+inline bool menu_shown(const Session& s) {
+    return s.presented.open && !s.presented.lines.empty();
 }
 
 /// The surface's published region, read off a canvas at exactly its bounds -- searched
@@ -3413,7 +3475,7 @@ inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
 inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
     const Screen sc = screen_of(s);
-    const FineRect popup = context_bounds(s, sc);
+    const FineRect popup = menu_bounds(s);
     const surface::SurfaceTextRegion want = panel_prose_region(panel_prose_place(popup, sc));
     for (std::size_t li = c.layers.size(); li > 0; --li) {
         const surface::SurfaceLayer& layer = c.layers[li - 1];

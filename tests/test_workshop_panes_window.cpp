@@ -1875,11 +1875,13 @@ TEST_CASE("CTX-0: a right press over a provider's pane crosses the seam not at a
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
+    const ui::Rect head = external_body_rect(r.session(), kind);
     const std::int64_t keyboard_before = r.session().panels.keyboard;
     const std::int64_t said_before = seat->said;
 
-    r.right_press_cell(panel.x + 1, panel.y + 2);
+    // THE CHROME (title row) opens the host's menu ABOUT the pane; the body is empty by default,
+    // so a right press in the content crosses the seam not at all AND opens nothing (WL-CTX-08).
+    r.right_press_cell(head.x + 1, head.y);
     CHECK(r.session().context.open);
     CHECK(r.session().context.subject == context_subject::kPane);
     CHECK(r.session().context.pane == hello_ref());
@@ -1904,8 +1906,9 @@ TEST_CASE("CTX-0: input spent on the open surface reaches no provider") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
-    r.right_press_cell(panel.x + 1, panel.y + 2);
+    // THE CHROME (title row) opens the surface; the body is empty by default (WL-CTX-08).
+    const ui::Rect head = external_body_rect(r.session(), kind);
+    r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
     const std::size_t presses_before = seat->presses.size();
 

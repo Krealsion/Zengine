@@ -358,10 +358,13 @@ struct CodeRig {
         return *kind;
     }
 
-    /// POINT AT A PANE WITH THE SECOND BUTTON -- the menu opens on it, and nothing else moves.
+    /// POINT AT A PANE WITH THE SECOND BUTTON, ON ITS CHROME -- the host's menu opens on the
+    /// pane, and nothing else moves. The chrome (the title row, `external_body_rect().y`) is the
+    /// host's always; a press in the BODY is the pane's and empty by default, so the host menu
+    /// for a doorless pane is reached here, not in its content (WL-CTX-08, empty by default).
     void point_at(const PaneRef& ref) {
         const ui::Rect body = external_body_rect(r.session(), kind_of(ref));
-        r.right_press_cell(body.x + 1, body.y + 2);
+        r.right_press_cell(body.x + 1, body.y);
         REQUIRE(r.session().context.open);
         REQUIRE(r.session().context.subject == context_subject::kPane);
         REQUIRE(r.session().context.pane == ref);

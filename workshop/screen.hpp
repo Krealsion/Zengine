@@ -845,6 +845,10 @@ struct Session {
     /// it changes no selection and no keyboard candidate; the subject it holds is spent
     /// through the owner operations at the moment a row is chosen, and nowhere else.
     ContextMenu context;
+    /// ...AND A PANE'S OWN MENU, PRESENTED BY THE PRESENTER PARTICIPANT on a popup this host
+    /// granted (context.hpp). At most one of the two is open: each is a surface the maker's next
+    /// keys and presses go to, and the later one withdraws or closes the earlier.
+    PresentedMenu presented;
     /// THE DYNAMIC PANELS a maker has opened (panel.hpp).
     Panels panels;
     /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
@@ -1299,6 +1303,8 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
 /// panes refusing content are two conditions.
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
+/// ...AND THE ONE FOR AN EDIT THAT IS LIVE BUT NOT WRITTEN: the next launch will not have it.
+inline constexpr const char* kKeymapUnwrittenKey = "workshop.keymap-unwritten";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
 /// A SESSION FILE THIS RUN COULD NOT READ, and therefore will not write over.
 /// The refusal itself is said once on the notice row, where it belongs -- it is about
@@ -1415,6 +1421,36 @@ struct ContextPressAt {
 
 ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                        std::int64_t x, std::int64_t y, const PointedAt& at);
+
+// ---- A PANE'S MENU, AS ITS PRESENTER SHOWED IT -------------------------------------------------
+//
+// The fixed display machinery a presenter participant draws through (presenter_vocabulary.hpp):
+// the popup's frame and place are this host's, what its lines say is the presenter's.
+
+/// THE MOST A PRESENTED MENU CAN SHOW AT AN ANCHOR on this screen -- the room `MenuGranted` hands
+/// the presenter: the biggest popup that fits there, read as rows and columns of prose.
+// WL-CTX-09 -- agents/workshop/contextual.md
+PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc);
+
+/// WHERE THE PRESENTED MENU OPENS: beside its anchor, sized by the lines the presenter showed;
+/// empty while it has shown none.
+// WL-CTX-09 -- agents/workshop/contextual.md
+FineRect presented_bounds(const Session& s, const Screen& sc);
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+
+/// WHERE A PRESS LANDED ON THE PRESENTED MENU -- inside it or not, and which line (-1 for none:
+/// the frame, or a line the room could not show). The painter's inverse, over the same place.
+// WL-CTX-09 -- agents/workshop/contextual.md
+struct PresentedPressAt {
+    bool inside = false;
+    std::int64_t line = -1;
+};
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
+                                    std::int64_t x, std::int64_t y, const PointedAt& at);
 
 // ---- The Info panel's BODY ----------------------------------------------------------------
 

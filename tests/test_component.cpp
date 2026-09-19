@@ -28,6 +28,10 @@
 // selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "component/columns.hpp"
+#include "component/held_choice.hpp"
+#include "component/list_window.hpp"
+#include "component/row_map.hpp"
 #include "component/text_box.hpp"
 
 #include <cstddef>
@@ -1555,4 +1559,149 @@ TEST_CASE("component: a paste is its own undo entry, however much typing precede
     CHECK(box.text() == "keepOLDX");
     CHECK(box.undo());
     CHECK(box.text() == "keepOLD");
+}
+
+// =============================================================================
+// THE FOUR LIST MECHANICS the desktop's two panes earned: a window onto a list, a composition
+// read backwards, a choice held by identity, a table's columns. Pure values, as the text box is;
+// what the Pane Manager and the Hotkeys pane make of them is the panes suite's claim.
+// =============================================================================
+
+TEST_CASE("ListWindow: the omitted counts are conserved and the reserved marker rows are seated, at every budget of every policy") {
+    using zengine::component::ListWindow;
+    for (std::size_t total = 0; total <= 9; ++total) {
+        for (std::size_t budget = 0; budget <= 6; ++budget) {
+            for (std::size_t at = 0; at < (total == 0 ? 1 : total); ++at) {
+                CAPTURE(total);
+                CAPTURE(budget);
+                CAPTURE(at);
+                const ListWindow c = zengine::component::cursor_window(total, at, 0, budget);
+                const ListWindow m = zengine::component::centred_window(total, at, budget);
+                const ListWindow s = zengine::component::scroll_window(total, at, budget);
+                for (const ListWindow& w : {c, m, s}) {
+                    CHECK(w.before + w.count + w.after == total);
+                    CHECK(w.count + w.markers <= budget);
+                    if (w.before + w.after == 0) {
+                        CHECK(w.markers == 0);
+                    }
+                    if (total <= budget) {
+                        CHECK(w.count == total);
+                    }
+                }
+                // THE CURSOR IS INSIDE A CURSOR WINDOW THAT SHOWS ANYTHING.
+                if (c.count > 0) {
+                    CHECK(c.shows(at));
+                }
+            }
+        }
+    }
+    // A ROOM TOO SMALL FOR A ROW BESIDE ITS MARKERS shows the cursor's row and says the cut is unsaid.
+    const ListWindow tiny = zengine::component::cursor_window(9, 4, 0, 1);
+    CHECK(tiny.count == 1);
+    CHECK(tiny.first == 4);
+    CHECK(tiny.markers == 0);
+    CHECK(tiny.unsaid_cut());
+    // LEAST MOTION: with the cursor still inside last time's window, the window does not move.
+    const ListWindow first = zengine::component::cursor_window(9, 0, 0, 4);
+    const ListWindow next = zengine::component::cursor_window(9, 2, first.first, 4);
+    CHECK(next.first == first.first);
+    CHECK(zengine::component::scroll_by(9, 8, 5) == 8);
+    CHECK(zengine::component::scroll_by(9, 2, -5) == 0);
+}
+
+TEST_CASE("RowMap: a control inside a row answers before the row, a cut control is no target, and the picture number moves exactly when the map moves") {
+    struct Meaning {
+        int kind = 0;
+        std::size_t index = 0;
+        bool operator==(const Meaning& o) const { return kind == o.kind && index == o.index; }
+    };
+    zengine::component::RowMap<Meaning> map;
+    map.begin();
+    map.row(0, Meaning{1, 0});
+    map.row(1, Meaning{2, 7});
+    CHECK(map.span(1, 2, 6, 40, Meaning{3, 7}));
+    CHECK_FALSE(map.span(1, 36, 6, 40, Meaning{3, 7})); // past the solid columns: not recorded
+    const std::int64_t first = map.settle();
+    CHECK(first == 1);
+    CHECK(map.current(first));
+    CHECK_FALSE(map.current(0));
+    REQUIRE(map.at(1, 3) != nullptr);
+    CHECK(map.at(1, 3)->kind == 3);
+    REQUIRE(map.at(1, 20) != nullptr);
+    CHECK(map.at(1, 20)->kind == 2);
+    CHECK(map.at(5, 0) == nullptr);
+    CHECK(map.at_row(1)->kind == 2);
+    CHECK(map.row_of(Meaning{2, 7}) == 1);
+    CHECK(map.row_of(Meaning{9, 9}) == -1);
+    // THE SAME MAP AGAIN: the picture keeps its number.
+    map.begin();
+    map.row(0, Meaning{1, 0});
+    map.row(1, Meaning{2, 7});
+    CHECK(map.span(1, 2, 6, 40, Meaning{3, 7}));
+    CHECK(map.settle() == first);
+    // A ROW MOVES: the number moves with it.
+    map.begin();
+    map.row(0, Meaning{1, 0});
+    map.row(1, Meaning{2, 8});
+    CHECK(map.settle() == first + 1);
+    CHECK_FALSE(map.current(first));
+    // solid_columns: everything when the text fit, everything but the mark when it was cut.
+    CHECK(zengine::component::solid_columns("abcdef", 6) == 6);
+    CHECK(zengine::component::solid_columns("abc...", 10) == 3);
+    CHECK(zengine::component::solid_columns("..", 10) == 0);
+}
+
+TEST_CASE("HeldChoice: a choice is kept by identity across a list that moves, a lost row is still a choice, and a cursor never given a member takes its row") {
+    zengine::component::HeldChoice<std::string> choice;
+    std::vector<std::string> list = {"a", "b", "c"};
+    const auto key_of = [](const std::string& s) { return s; };
+    choice.find(list, key_of);
+    CHECK(choice.chosen);
+    CHECK(choice.at == 0);
+    CHECK(choice.key == "a");
+    CHECK(choice.step(list, +2, key_of));
+    CHECK(choice.key == "c");
+    CHECK_FALSE(choice.step(list, +5, key_of)); // clamped: did not move
+    list = {"z", "a", "b", "c"};
+    choice.find(list, key_of);
+    CHECK(choice.at == 3);
+    CHECK(choice.actionable());
+    list = {"z", "a", "b"};
+    choice.find(list, key_of);
+    CHECK(choice.lost);
+    CHECK(choice.chosen);
+    CHECK_FALSE(choice.actionable());
+    CHECK(choice.at == 2); // where it was, clamped
+    list = {"z", "a", "b", "c"};
+    choice.find(list, key_of);
+    CHECK_FALSE(choice.lost);
+    CHECK(choice.at == 3);
+}
+
+TEST_CASE("Columns: widths come from the population within the budget, the last column is cut first and never past its minimum, and a row is laid out once") {
+    using zengine::component::Column;
+    const std::vector<Column> asks = {Column{6, 4}, Column{10, 5}, Column{20, 3}};
+    const std::vector<std::size_t> roomy = zengine::component::layout_columns(asks, 60);
+    CHECK(roomy == std::vector<std::size_t>{6, 10, 20});
+    const std::vector<std::size_t> tight = zengine::component::layout_columns(asks, 20);
+    CHECK(tight == std::vector<std::size_t>{6, 9, 3}); // 6 + 1 + 9 + 1 + 3 = 20
+    const std::vector<std::size_t> floors = zengine::component::layout_columns(asks, 5);
+    CHECK(floors == std::vector<std::size_t>{4, 5, 3}); // every minimum: the consumer's fit cuts
+    const std::vector<std::size_t> offsets = zengine::component::column_offsets(roomy);
+    CHECK(offsets == std::vector<std::size_t>{0, 7, 18});
+    const auto fit = [](const std::string& text, std::int64_t width) {
+        return text.size() <= static_cast<std::size_t>(width)
+                   ? text
+                   : text.substr(0, static_cast<std::size_t>(width));
+    };
+    const auto pad = [](std::string text, std::size_t width) {
+        if (text.size() < width) {
+            text.append(width - text.size(), ' ');
+        }
+        return text;
+    };
+    CHECK(zengine::component::table_line({"key", "label", "id"}, roomy, fit, pad) ==
+          "key    label      id");
+    const std::vector<std::string> population = {"ctrl+t", "escape", "a"};
+    CHECK(zengine::component::widest(population, [](const std::string& s) { return s; }) == 6);
 }

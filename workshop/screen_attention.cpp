@@ -157,7 +157,7 @@ std::int64_t context_label_columns(const std::vector<ContextEntry>& rows) {
 // WL-CTX-06 -- agents/workshop/contextual.md; WL-TAB-12 -- agents/workshop/tab-run.md
 std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (entry.is_group || entry.row == nullptr) {
-        return std::string(); // folders are not actions and have no gesture to teach
+        return std::string(); // folders are not actions
     }
     const KeyContext beneath = keyboard_context_beneath_menu(s);
     bool requestable = false;
@@ -205,7 +205,7 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 // WL-CTX-03 -- agents/workshop/contextual.md
 FineRect context_bounds(const Session& s, const Screen& sc) {
     const ContextMenu& menu = s.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);
     std::int64_t want_cols = 0;
     for (const ContextEntry& entry : rows) {
@@ -222,7 +222,20 @@ FineRect context_bounds(const Session& s, const Screen& sc) {
         x = slot.x;
         y = slot.y;
     }
-    return popup_bounds_at(want_cols, want_rows, x, y, sc);
+    const FineRect fitted = popup_bounds_at(want_cols, want_rows, x, y, sc);
+    // A POPUP THE ROOM CUT IS WIDE ENOUGH TO SAY SO: a level taller than the room shows
+    // `... n more`, and a marker cut to dots would say nothing. A level that fits keeps the width
+    // of its rows (WL-CTX-04).
+    const PanelProsePlace place = panel_prose_place(fitted, sc);
+    if (place.present && place.rows < want_rows) {
+        const std::int64_t marker =
+            2 + static_cast<std::int64_t>(omitted_text(rows.size(), "earlier").size());
+        if (marker > want_cols) {
+            return popup_bounds_at(marker > kContextMaxCols ? kContextMaxCols : marker, want_rows,
+                                   x, y, sc);
+        }
+    }
+    return fitted;
 }
 
 void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
@@ -243,7 +256,7 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     // contains actions, and nothing restates the two gestures the band's legend is
     // already saying in the maker's own bindings for as long as this surface is open.
     const ContextMenu& menu = s.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);
     const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
@@ -292,7 +305,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     // offset here and none in the painter -- the one arithmetic that could have made a
     // press choose a different row from the one under it is simply gone.
     const std::vector<ContextEntry> rows =
-        context_population(s.context.subject, s.context.group);
+        context_population(s.context);
     const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(s.context.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
@@ -308,6 +321,101 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     }
     out.entry = true;
     out.index = win.first + static_cast<std::size_t>(offset);
+    return out;
+}
+
+// ---- A PANE'S MENU, AS ITS PRESENTER SHOWED IT -----------------------------------------------
+
+namespace {
+/// THE ANCHOR A PRESENTED MENU OPENS AT: the cell it was granted beside, or the overlay stack's
+/// corner for a menu no place in a pane anchors (a pane with no body on this screen).
+struct PresentedAnchor {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+};
+PresentedAnchor presented_anchor(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc) {
+    if (anchored) {
+        return PresentedAnchor{x, y};
+    }
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    return PresentedAnchor{slot.x, slot.y};
+}
+} // namespace
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc) {
+    const PresentedAnchor at = presented_anchor(anchored, x, y, sc);
+    return panel_prose_place(
+        popup_bounds_at(kContextMaxCols, static_cast<std::int64_t>(kMaxMenuLines), at.x, at.y, sc),
+        sc);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+FineRect presented_bounds(const Session& s, const Screen& sc) {
+    const PresentedMenu& menu = s.presented;
+    if (!menu.open || menu.lines.empty()) {
+        return FineRect{};
+    }
+    std::int64_t want_cols = 1;
+    for (const surface::SurfaceTextRow& line : menu.lines) {
+        const std::int64_t len = static_cast<std::int64_t>(line.text.size());
+        want_cols = len > want_cols ? len : want_cols;
+    }
+    want_cols = want_cols > kContextMaxCols ? kContextMaxCols : want_cols;
+    const PresentedAnchor at = presented_anchor(menu.anchored, menu.anchor_x, menu.anchor_y, sc);
+    return popup_bounds_at(want_cols, static_cast<std::int64_t>(menu.lines.size()), at.x, at.y,
+                           sc);
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    const FineRect b = presented_bounds(s, sc);
+    if (!s.presented.open || s.presented.lines.empty()) {
+        return; // granted and not yet shown: nothing is drawn until the presenter says what
+    }
+    paint_panel_frame(layer, b, kTransientChrome);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return;
+    }
+    // THE PRESENTER'S LINES, IN ITS OWN ROLES, AS MANY AS THE ROOM HOLDS. What they say -- the
+    // highlight, a window's markers, a number beside a row -- is the presenter's; the host fits a
+    // line to the popup and draws no line the room cannot hold.
+    surface::SurfaceTextRegion region = panel_prose_region(place);
+    for (const surface::SurfaceTextRow& line : s.presented.lines) {
+        if (static_cast<std::int64_t>(region.rows.size()) >= place.rows) {
+            break;
+        }
+        region.rows.push_back(
+            surface::SurfaceTextRow{detail::fit(line.text, place.columns), line.role});
+    }
+    layer.texts.push_back(std::move(region));
+}
+
+// WL-CTX-09 -- agents/workshop/contextual.md
+PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
+                                    std::int64_t x, std::int64_t y, const PointedAt& at) {
+    PresentedPressAt out;
+    const FineRect b = presented_bounds(s, sc);
+    if (!s.presented.open || s.presented.lines.empty() ||
+        !b.contains_at(at.sub.x, at.sub.y, at.grain)) {
+        return out;
+    }
+    out.inside = true;
+    // THE SAME CALL THE PAINTER MAKES -- one place, so painted line i is the line a press on it
+    // names, and a line the room could not show names nothing.
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return out;
+    }
+    const surface::SurfaceTextRegion wire = panel_prose_region(place);
+    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
+    if (!where.understood || where.column < 0 || where.column >= place.columns ||
+        where.row < 0 || where.row >= place.rows ||
+        where.row >= static_cast<std::int64_t>(s.presented.lines.size())) {
+        return out;
+    }
+    out.line = where.row;
     return out;
 }
 

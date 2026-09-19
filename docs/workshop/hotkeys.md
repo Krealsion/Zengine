@@ -84,11 +84,69 @@ does, and the id a file names it by. A `*` marks a key your own file moved or sw
 It is an ordinary pane: arrange it, cover it, close it, and `Ctrl`+`k` brings it back. It is not
 a mode — reading it takes no keyboard away from anything, and every key it lists works while it
 is open. What it shows is what Workshop tells it: the effective keymap, re-told whenever your
-file, a pane's declaration or the desktop's own rows change. Inside any text field, the text
+file, a pane's declaration, the desktop's own rows or an edit change it. It is a table — the key
+as your file would spell it, the label, the id, and `*` for a row your file moved — with a row
+cursor: `↑` `↓` walk it, `Home` `End` jump, the wheel walks it too, and a click chooses a row.
+An action with several keys is listed once per key. Inside any text field, the text
 box's own editing keys — copy, cut, paste, select, word movement, undo — are shown for discovery
 but are **not remappable**: they belong to the editing component, in every box at once, and the
 keymap does not reach into it. A loaded pane's vocabulary beyond its declared rows is the
 pane's own, and the list says so rather than guessing.
+
+## Editing a binding
+
+**Right-click a row** of the Hotkeys pane — or put the cursor on it and press **`m`** — and a
+small menu opens beside it:
+
+| row | does |
+|---|---|
+| `Modify (press a key)` | the next key you press becomes the action's only key |
+| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+g`, `shift+h`, `[`), then `Enter` |
+| `Add a key (press)` / `Add a key (type)` | the action keeps its keys and gains this one |
+| `` Remove `key` `` | this row's key stops requesting the action; removing the last one **disables** it, and the notice says so — nothing falls back to the default you just removed |
+| `Disable` | no key requests the action (the file says `none`) |
+| `Reset to default` | every row you authored for it leaves the file; the declared default stands |
+
+Choosing an edit row takes the keyboard for the capture or the spelling even when another pane
+had it — the choice asks for the keys on its own terms, whether you chose with the keys or with a
+click (its release is part of the same click). A key or a click you make before the edit begins
+is newer than the choice, and the keys stay where it put them. The menu itself is shown by the
+menu presenter ([panes](panes.md#replacing-the-menu-presenter)); another presenter shows the
+same rows its own way and the edits do not change.
+
+Press a key, and the change is **live at once** — the band's legend, the floor's hints and the
+table all say the new key — **and written to your keymap file** in the same breath. The notice
+row says both facts, or which of them did not happen. While a key is being captured, only `Esc`
+is a key of the pane's; every other key is the one you meant. A chord that opens a tool above
+every mode — `Ctrl`+`p`, `Ctrl`+`t`, `Ctrl`+`k` — cannot be captured, because it does what it
+does before the pane sees it: type its spelling instead. A modifier pressed alone is refused as
+not a key this keymap can name; press the whole chord, or type it.
+
+**What is refused, and why nothing changes.** An edit is judged exactly as your file is judged at
+launch: the whole map — Workshop's rows, the desktop's, and every pane's rows in force — with
+your change in it. A key already answering to another action in a context that can be active at
+the same time is refused in the collision law's own sentence, naming both actions; a spelling
+outside the grammar is refused naming what would have worked; and a refusal changes nothing —
+not the live map, not the file, not any pane's rows. A pane declaring its rows later is judged on
+its own, as it always was.
+
+**The file, after an edit.** The file holds your rows as values, in the order they were
+authored; a row for an action this build does not know, or one that retired, is kept exactly.
+The layout — key order, whitespace — is the writer's own, not the one you typed, so keep a
+hand-edited file's comments elsewhere (there are none in JSON to lose). The file is written as
+**format version 2**, which allows an action on several rows; a file written by an earlier
+Workshop (version 1) is read as it is and becomes version 2 at your first edit, and an earlier
+Workshop refuses a version-2 file by its number rather than misreading it.
+
+**When the change is live but not written**, the notice says so and a standing condition names
+it, because the next launch will not have it:
+
+- `--isolated` runs have no keymap file;
+- a file that was **refused at launch** refuses every edit, until you fix it and launch again —
+  Workshop never writes over a file you have not repaired;
+- a file **changed by another hand since this Workshop read it** is not overwritten; relaunch to
+  read it, then edit again;
+- a write that fails says the writer's reason.
 
 ## The band legend
 
@@ -111,21 +169,28 @@ one keystroke away in every mode.
 
 ## The keymap file
 
-Overrides live in one hand-edited JSON file, `workshop-keymap.json` in your per-user config
+Overrides live in one JSON file, `workshop-keymap.json` in your per-user config
 folder by default — `%APPDATA%\zengine-workshop` on Windows, `$XDG_CONFIG_HOME/zengine-workshop`
 (else `~/.config/zengine-workshop`) elsewhere — so your bindings follow *you* rather than the
 directory you launched from (`--keymap <path>` chooses another file; `--isolated` reads none).
-The defaults live in the program; the file carries only your differences:
+The defaults live in the program; the file carries only your differences, written by the
+Hotkeys pane's edits or by your hand:
 
 ```json
-{"zen":"1","schema":"WorkshopKeymap","version":"1","value":{
-  "format":"zengine-workshop-keymap","format_version":"1",
+{"zen":"1","schema":"WorkshopKeymap","version":"2","value":{
+  "format":"zengine-workshop-keymap","format_version":"2",
   "legend":"default",
   "overrides":[
     {"action":"desktop.terminal","gesture":"ctrl+g"},
-    {"action":"layout.new","gesture":"n"}
+    {"action":"layout.new","gesture":"n"},
+    {"action":"layout.next","gesture":"."},
+    {"action":"layout.next","gesture":"ctrl+n"}
   ]}}
 ```
+
+**One action, several keys.** An action written on several rows answers to every one of them;
+the legend spells the first, and the Hotkeys pane lists them all. The same key twice for one
+action, or `none` beside a key, is refused.
 
 A gesture is modifier words joined to one key name with `+`: `ctrl+k`, `shift+h`, `[`, `]`.
 Modifiers are `ctrl`, `shift`, `alt`, `super`; key names are the letters and digits, the
@@ -137,13 +202,15 @@ The file is read once at startup and answered in words. A file that **applied** 
 notice line, with the override count — that happened, once, at this launch. A file that was
 **refused** is a standing condition instead: the defaults stand for the whole run and for
 every run until you change the file, so it goes to attention with the loader's own reason and
-stays there until it is no longer true ([what needs your attention](attention.md)). Either
-way the file is left exactly as you wrote it: Workshop never rewrites, trims or "fixes" it.
+stays there until it is no longer true ([what needs your attention](attention.md)). Workshop
+never trims or "fixes" it; the only thing that writes it is an edit you made in the Hotkeys
+pane, and that never touches a file that was refused or that changed under it
+([editing a binding](#editing-a-binding)).
 
 **What is refused, by name:**
 
 - a gesture outside the grammar, naming what was found and what would have worked;
-- an action authored twice;
+- the same key authored twice for one action, or `none` beside a key for one action;
 - two actions holding one gesture in contexts that can be active together — the refusal names
   both actions and the contested gesture, because a lockout must not be savable. Reusing a
   gesture across contexts that cannot coexist is fine, and the defaults already do it (`w`
@@ -185,8 +252,8 @@ newline and return; `alt` arrives only on the editing keys and `super` never. A 
 window has none of these limits. Workshop cannot see which backend feeds it, so it applies
 what you authored and tells you which terminals cannot say it.
 
-**Resetting** is deleting the file, or the rows you regret. An absent file *is* the defaults;
-nothing is stored anywhere else.
+**Resetting** is `Reset to default` on the row in the Hotkeys pane, or deleting the file, or the
+rows you regret. An absent file *is* the defaults; nothing is stored anywhere else.
 
 ## What this is not
 
