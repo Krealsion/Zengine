@@ -96,7 +96,11 @@ ordinary lane.
 The instrumentation reaches the targets **this repository authors**, not the Loom it consumes:
 an installed Loom arrives already compiled, and the Loom runs this same lane over itself. ASan's
 allocator is process-wide either way, so a Loom allocation freed and then read by Zengine code
-is still caught; a fault entirely inside Loom's compiled objects is Loom's lane's job.
+is still caught; a fault entirely inside Loom's compiled objects is Loom's lane's job. One target
+of this repository's is built without it on purpose: the guest vocabulary weave, because the
+host that loads it is an installed Loom session host, which is uninstrumented and cannot load an
+instrumented image. It only declares shapes, and Workshop on the far side of `workshop_journey`
+stays instrumented.
 
 The lane runs the **full** population, the SDL skin included — the verifier prints
 `gates active: always;sdl`, and every entry the ordinary lane declares is here at the same
