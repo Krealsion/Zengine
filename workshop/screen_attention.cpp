@@ -139,6 +139,9 @@ bool same_conditions(const std::vector<StandingCondition>& a,
 
 // WL-CTX-03, WL-CTX-04 -- agents/workshop/contextual.md
 std::string context_entry_text(const ContextEntry& entry) {
+    if (entry.foreign) {
+        return entry.label; // a pane's row says what the pane wrote, and nothing about a key
+    }
     if (entry.is_group) {
         return std::string(entry.group) + " >";
     }
@@ -156,8 +159,8 @@ std::int64_t context_label_columns(const std::vector<ContextEntry>& rows) {
 
 // WL-CTX-06 -- agents/workshop/contextual.md; WL-TAB-12 -- agents/workshop/tab-run.md
 std::string context_annotation(const Session& s, const ContextEntry& entry) {
-    if (entry.is_group || entry.row == nullptr) {
-        return std::string(); // folders are not actions and have no gesture to teach
+    if (entry.foreign || entry.is_group || entry.row == nullptr) {
+        return std::string(); // folders are not actions, and a pane's row has no host gesture
     }
     const KeyContext beneath = keyboard_context_beneath_menu(s);
     bool requestable = false;
@@ -205,7 +208,7 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 // WL-CTX-03 -- agents/workshop/contextual.md
 FineRect context_bounds(const Session& s, const Screen& sc) {
     const ContextMenu& menu = s.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);
     std::int64_t want_cols = 0;
     for (const ContextEntry& entry : rows) {
@@ -222,7 +225,20 @@ FineRect context_bounds(const Session& s, const Screen& sc) {
         x = slot.x;
         y = slot.y;
     }
-    return popup_bounds_at(want_cols, want_rows, x, y, sc);
+    const FineRect fitted = popup_bounds_at(want_cols, want_rows, x, y, sc);
+    // A POPUP THE ROOM CUT IS WIDE ENOUGH TO SAY SO: a level taller than the room shows
+    // `... n more`, and a marker cut to dots would say nothing. A level that fits keeps the width
+    // of its rows (WL-CTX-04).
+    const PanelProsePlace place = panel_prose_place(fitted, sc);
+    if (place.present && place.rows < want_rows) {
+        const std::int64_t marker =
+            2 + static_cast<std::int64_t>(omitted_text(rows.size(), "earlier").size());
+        if (marker > want_cols) {
+            return popup_bounds_at(marker > kContextMaxCols ? kContextMaxCols : marker, want_rows,
+                                   x, y, sc);
+        }
+    }
+    return fitted;
 }
 
 void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
@@ -243,7 +259,7 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     // contains actions, and nothing restates the two gestures the band's legend is
     // already saying in the maker's own bindings for as long as this surface is open.
     const ContextMenu& menu = s.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);
     const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
@@ -292,7 +308,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     // offset here and none in the painter -- the one arithmetic that could have made a
     // press choose a different row from the one under it is simply gone.
     const std::vector<ContextEntry> rows =
-        context_population(s.context.subject, s.context.group);
+        context_population(s.context);
     const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(s.context.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);

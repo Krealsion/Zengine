@@ -221,6 +221,61 @@ beside the shapes before them, and each is an ordinary optional capability any p
   solved: an accepter that IS delivered the question and never answers holds the quit open, and
   that is named rather than timed out.
 
+## The second button crosses as one shape, a menu as two, and a press names its picture
+
+`PaneButton v1` `{pane, button, pressed, row, column, lost, picture}`, Workshop → provider;
+`PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}` and
+`PaneManageRequested v1` `{pane, office, target}`, provider → Workshop as the office that offered
+the pane; `PaneMenuAnswered v1` `{pane, subject, chosen, id, refusal}`, Workshop → provider;
+`v3::PaneContent` `{pane, rows, generation, picture}` and `v3::PanePressed` `{…, picture}`. They
+ADDED to the protocol and revised nothing. The host's side is law in `workshop/press-chain.md`
+(WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08, WL-CTX-09) and
+`workshop/desktop-presenting.md` (WL-DESK-14); the helpers a pane may use are
+`workshop/pane_menu.hpp`, installed beside the protocol.
+
+- **The pane is first, and delivery is the disposition.** A secondary press over a pane's body
+  is sent to a holder whose accept set has the door (`holder_accepts`, the same reading the
+  press's version comes from) and is consumed by delivery: no menu, no selection, no keys. A
+  pane may act (the guard example blocks while the button is held), hand the press back
+  (`PanePassRequested`, echoing its correlation: the host's own pane menu opens once), or ask
+  for a menu of its own rows. Silence is a disposition too. A holder without the door is sent
+  nothing and the host's chrome answers as before; a send Loom refuses is attributed on the tap
+  and never manufactured into completion.
+- **Two records per button, and closing invalidates on its own.** A hold is release custody
+  and ends only on the release, owner loss or arbitration (a press of a button believed down:
+  the old hold ends with a `lost` release before the new is recorded). A continuation is
+  eligibility to be handed back or to open a menu: newest press of its button, unspent, its pane
+  on the desk, nothing but its own release since. A release never restores it; a pane that
+  leaves the desk after the release cannot be handed back or given a menu — the review's first
+  finding, repaired at `end_lost_holds`. The release goes to the ROLE, so a holder replaced
+  mid-hold is not promised it; the shipped helper (`HeldButton`) ignores a release of a button
+  the image never held, and a holder that gives up its office ends its own hold.
+- **A menu is requested, judged where it opens, and answered once.** Every declared action now
+  goes to a pane under a number of its own (`action_sent_`, on `escape_sent_`'s terms), so a
+  request opened by key continues that keystroke and one opened by the second button continues
+  that press; the host judges eligibility in its own handler — the review's second finding:
+  a queued primary press elsewhere is a newer act, so the late request is refused and the keys
+  stay where the newer press put them. The surface (`ContextMenu::foreign`) takes no keys and no
+  selection, and gives none back; Escape, an outside press, a newer menu and the pane leaving
+  the desk answer it unchosen. The answer is role speech under the request's number, subject-
+  bound, so a pane keeps no menu state and judges the choice against what it holds when it
+  arrives. `PaneManageRequested` continues a choice into the host's own pane menu on a named
+  subject, once. The reveal door keeps its own commitments and is not the menu's route.
+- **A press names its picture, or is refused.** `v3::PaneContent.picture` is the pane's own
+  number for its row-to-meaning map (the desktop's `RowMap` moves it exactly when the map moves);
+  the host records it at admission (`ExternalPane::picture`) and echoes it on `v3::PanePressed`
+  and `PaneButton`. The consumer acts only on its current map's number, else says `the list
+  moved -- press again`. `v2::PaneContent.generation` keeps its meaning. What remains of
+  P-WORK-25: a press the input backend read after a newer picture was admitted and published but
+  which the hand made against the older one — the poll cadence plus the medium's presentation
+  latency. No frame history is kept, and no picture identity is stamped at handling time as if it
+  identified the click.
+- **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
+  middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
+  button events (`mod::kNone` always), a host-performed pane operation from a menu row, and a
+  menu presenter held by another office (the surface is the host's; the shapes are the seam a
+  replacement would keep).
+
 ## Opening a source is a managed opening, jointly published (WL-OPEN)
 
 The Editor's document and Workshop's presentation of its pane change TOGETHER, at one

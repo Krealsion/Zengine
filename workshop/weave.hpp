@@ -333,8 +333,14 @@ class WorkshopWeave
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
                                           zengine::workshop::v2::PaneCaret,
+                                          zengine::workshop::v3::PaneContent,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::PaneEscapeUnspent,
+                                          // the second button's continuations: a press
+                                          // handed back, a menu asked for, a subject to manage
+                                          zengine::workshop::PanePassRequested,
+                                          zengine::workshop::PaneMenuRequested,
+                                          zengine::workshop::PaneManageRequested,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           // an inspector's pane subject: which pane, the
@@ -348,6 +354,8 @@ class WorkshopWeave
                                           zengine::workshop::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
                                           zengine::workshop::PaneCloseRequested,
+                                          zengine::workshop::PaneToggleRequested,
+                                          zengine::workshop::KeymapEditRequested,
                                           zengine::workshop::MakerPaneRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
@@ -373,6 +381,9 @@ class WorkshopWeave
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::v2::PanePressed,
+                                        zengine::workshop::v3::PanePressed,
+                                        zengine::workshop::PaneButton,
+                                        zengine::workshop::PaneMenuAnswered,
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
                                         zengine::workshop::PaneWheel,
@@ -383,6 +394,8 @@ class WorkshopWeave
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneCloseAnswered,
+                                        zengine::workshop::PaneToggleAnswered,
+                                        zengine::workshop::KeymapEditAnswered,
                                         zengine::workshop::MakerPaneAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
@@ -642,6 +655,14 @@ public:
     /// setup's own door; its provider and everything it holds are untouched. Answered either way.
     void on(const PaneCloseRequested& asked, loom::Mail& mail);
 
+    /// SHOW IT IF HIDDEN, HIDE IT IF SHOWN -- judged against the desk as it is NOW, through the
+    /// two doors above, so a presenter's stale reading cannot make a toggle mean the other thing.
+    void on(const PaneToggleRequested& asked, loom::Mail& mail);
+
+    /// CHANGE HOW ONE ACTION IS REQUESTED: the candidate map judged whole, applied live, then
+    /// written -- or refused with nothing changed. Answered on the delivery that asked.
+    void on(const KeymapEditRequested& asked, loom::Mail& mail);
+
     /// ONE OF THE PANE CREATOR'S THREE ACTS, asked by the office presenting them: make, save or
     /// discard, through the doors below, answered with the sentence the band says.
     void on(const MakerPaneRequested& asked, loom::Mail& mail);
@@ -706,6 +727,18 @@ public:
     /// pane down, exactly as a bare Escape in command mode would -- but only while the pane still
     /// has the desk and the keys and that Escape is still the last gesture this host handled.
     void on(const PaneEscapeUnspent& said, loom::Mail& mail);
+
+    /// A PANE HANDS A SECONDARY PRESS BACK: judged against the newest press of that button and
+    /// what happened since; acting opens this host's own pane menu, once, at the press's cell.
+    void on(const PanePassRequested& said, loom::Mail& mail);
+    /// A PANE ASKS THIS HOST TO PRESENT ROWS OF ITS OWN, beside a place in its room, continuing
+    /// a press or an action of this host's. Eligibility is judged HERE, where the surface opens;
+    /// a request that is not the maker's latest act is answered unchosen at once.
+    void on(const PaneMenuRequested& asked, loom::Mail& mail);
+    /// A PANE ASKS FOR THIS HOST'S OWN PANE MENU ON A SUBJECT it names -- the Pane Manager's
+    /// route to a pane that is covered, closed or consumes every right press; judged against
+    /// the menu answer it continues.
+    void on(const PaneManageRequested& asked, loom::Mail& mail);
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
@@ -827,6 +860,9 @@ public:
     /// has since been replaced, refused rather than painted over its replacement.
     void on(const v2::PaneContent& content, loom::Mail& mail);
     void on(const v2::PaneCaret& caret, loom::Mail& mail);
+    /// Content numbering its picture: admitted under v2's rule, the number recorded on the
+    /// pane's view and echoed on every press this host sends it (`v3::PanePressed`, `PaneButton`).
+    void on(const v3::PaneContent& content, loom::Mail& mail);
     /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
     /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation.
@@ -898,7 +934,8 @@ private:
     /// The shared admission of content, generation-aware; the v1 door passes none.
     void admit_content(std::string_view office, const std::string& pane_key,
                        const std::vector<surface::SurfaceTextRow>& rows,
-                       std::optional<std::int64_t> generation, loom::Mail& mail);
+                       std::optional<std::int64_t> generation,
+                       std::optional<std::int64_t> picture, loom::Mail& mail);
     void admit_caret(std::string_view office, const PaneCaret& caret,
                      std::optional<std::int64_t> generation, loom::Mail& mail);
 
@@ -1293,6 +1330,35 @@ private:
     void external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
                         loom::Mail& mail);
 
+    // ---- The second button: custody, continuation, and a pane's own menu -------------------
+    // (the laws WL-PRESS-06, WL-CTX-08 and WL-CTX-09)
+
+    /// DELIVER A SECONDARY PRESS to a pane whose holder has the `PaneButton` door; true iff it
+    /// was queued. Delivery is consumption: a hold (release custody) and a continuation
+    /// (eligibility to be handed back or to open a menu) are recorded, per button.
+    bool external_button(std::int64_t kind, std::int64_t button, const ExternalPressAt& at,
+                         const PointedAt& cell, loom::Mail& mail);
+    /// THE RELEASE OF A HELD SECONDARY BUTTON goes to the hold's pane wherever the pointer is;
+    /// true iff a hold ended. It never restores a continuation's eligibility.
+    bool external_release(std::int64_t button, const zengine::input::PointerButton& b,
+                          loom::Mail& mail);
+    /// A HOLD WHOSE PANE LEFT THE DESK ends with a `lost` release owed to it; a CONTINUATION
+    /// whose pane left the desk is dropped whether or not its hold is still active -- closing
+    /// invalidates the continuation independently of the physical button; and a menu presented
+    /// for a pane that left is closed and answered unchosen.
+    void end_lost_holds(loom::Mail& mail);
+    /// OPEN THE SURFACE ON A PANE'S ROWS at a cell of its body, answering an older foreign menu
+    /// unchosen first. The request was already judged eligible by the caller.
+    void open_foreign_menu(const RuntimePane& row, const PaneMenuRequested& asked,
+                           std::uint64_t correlation, const PointedAt& at, loom::Mail& mail);
+    /// ANSWER THE OPEN FOREIGN MENU, if there is one, and close the surface: chosen with an id,
+    /// or unchosen with why. Exactly one answer per admitted request.
+    void retire_foreign_menu(bool chosen, const std::string& id, const std::string& why,
+                             loom::Mail& mail);
+    /// THE ANCHOR CELL for a place in a pane's granted body, or the body's origin when the place
+    /// is outside it; `understood` false when the pane has no body on this screen.
+    PointedAt cell_of_body_place(std::int64_t kind, std::int64_t row, std::int64_t column) const;
+
     /// PUT THE SELECTED PANE DOWN -- the press-elsewhere gesture's two lines.
     void unselect_pane();
 
@@ -1412,6 +1478,49 @@ private:
         std::uint64_t answering = 0;
     };
     EscapeSent escape_sent_;
+    /// THE LAST DECLARED ACTION SENT TO A PANE (`PaneActionRequested`), on `escape_sent_`'s
+    /// terms: which pane, which gesture, which number -- the identity a menu request opened by
+    /// key must echo to be about THAT keystroke. Every action goes out under a number now, not
+    /// only an Escape; a pane that never echoes one is unchanged.
+    EscapeSent action_sent_;
+    /// THE SECOND BUTTON: release custody (a hold) and continuation eligibility are TWO records,
+    /// one pair per secondary button (2 and 3). A hold begins when the press is queued and ends
+    /// on the release, on owner loss or on arbitration -- nothing else ends it. A continuation
+    /// is the newest press of its button: eligible to be handed back or to open a menu while it
+    /// is unspent, its pane is still on the desk, and the only gesture since it is its own
+    /// release; a release never restores it, and a press of the OTHER secondary button
+    /// interrupts it. (WL-PRESS-06)
+    struct SecondaryHold {
+        bool active = false;
+        std::int64_t kind = kNoPaneKind;
+        std::int64_t button = 0;
+        std::uint64_t correlation = 0;
+    };
+    struct SecondaryContinuation {
+        bool live = false;
+        std::int64_t kind = kNoPaneKind;
+        std::int64_t button = 0;
+        std::uint64_t correlation = 0;
+        std::uint64_t gesture_at_press = 0;
+        bool released = false;
+        std::uint64_t gesture_at_release = 0;
+        bool interrupted = false;
+        bool spent = false;
+        PointedAt cell;
+    };
+    SecondaryHold secondary_hold_[2];
+    SecondaryContinuation secondary_cont_[2];
+    /// THE LAST MENU CHOICE THIS HOST ANSWERED A PANE: the number it went out under, the gesture
+    /// count then, and the pane -- what a `PaneManageRequested` must echo to be a continuation
+    /// of that choice. One record: a newer choice retires the older one.
+    struct ChoiceAnswered {
+        std::int64_t kind = kNoPaneKind;
+        std::uint64_t gesture = 0;
+        std::uint64_t correlation = 0;
+        PointedAt cell;
+        bool spent = true;
+    };
+    ChoiceAnswered choice_answered_;
     /// ⭐ THE ONE APPLICATION ROW THIS HOST IS WAITING ON AN ANSWER TO, and the keystroke it
     /// was raised by. `escape_sent_` one owner over, and for its exact reason: the desktop's
     /// reply arrives in a later delivery, by which time the maker may have pressed again, put
@@ -1426,6 +1535,9 @@ private:
     /// THE NUMBERS THOSE ESCAPES GO OUT UNDER, minted here and nowhere else. Monotonic from
     /// one, so zero is never an Escape: an answer that echoes nothing answers nothing. Gaps
     /// are meaningless -- an Escape this host answers itself burns a number and sends none.
+    /// ⭐ ONE COUNTER FOR EVERY NUMBER THIS HOST MINTS FOR A PANE'S GESTURE -- Escapes, declared
+    /// actions and secondary presses -- so a word echoing one can never match a record of
+    /// another kind by coincidence.
     std::uint64_t escape_asks_ = 0;
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
@@ -1488,6 +1600,12 @@ private:
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;
+    /// THE BYTES OF THE KEYMAP FILE AS THIS HOST LAST READ OR WROTE THEM, and whether a file was
+    /// there at all -- the comparison baseline an edit's write is judged against: a file another
+    /// hand changed since is never overwritten (WL-KEY-18). Refreshed after every write of
+    /// this host's own.
+    std::string keymap_bytes_;
+    bool keymap_file_present_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
     /// What loading the PREFS file produced, the keymap's own bookkeeping one file over.

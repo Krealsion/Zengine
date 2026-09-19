@@ -8,6 +8,7 @@
 // Workshop law: agents/workshop/contextual.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
+#include "pane_vocabulary.hpp"
 #include "setup.hpp"
 
 #include <cstdint>
@@ -52,6 +53,15 @@ struct ContextMenu {
     bool anchored = false;   ///< a pointer opened this, at the cell below
     std::int64_t anchor_x = 0; ///< the opening press's canvas cell
     std::int64_t anchor_y = 0;
+    /// A PANE'S OWN ROWS, PRESENTED BY THIS SURFACE (`PaneMenuRequested`). While `foreign`, the
+    /// population is `rows` -- flat, no group -- and a choice is ANSWERED to `office` under
+    /// `correlation` rather than spent on a host operation; closing without a choice answers
+    /// it unchosen. The host knows nothing of what an id means: it presents and returns.
+    bool foreign = false;
+    std::string office;               ///< the office that offered the pane and asked
+    std::string subject_word;         ///< the pane's own word for what the rows are about
+    std::uint64_t correlation = 0;    ///< the request's number, echoed on the answer
+    std::vector<PaneMenuRow> rows;    ///< what was explicitly offered, in the pane's order
 };
 
 /// ONE DECLARATION: an action id, the subject kinds it is meaningful for, and the
@@ -180,10 +190,36 @@ struct ContextEntry {
     bool is_group = false;
     const char* group = "";
     const ActionRow* row = nullptr;
+    /// A PANE'S ROW: its id (what the answer carries) and its label. `row` is null and
+    /// `is_group` false for one of these; a foreign menu has no groups.
+    bool foreign = false;
+    std::string id;
+    std::string label;
 };
 
 /// THE POPULATION AT ONE LEVEL.
 // WL-CTX-05 -- agents/workshop/contextual.md
+inline std::vector<ContextEntry> context_population(std::int64_t subject,
+                                                    std::string_view open_group);
+
+/// THE POPULATION OF THE SURFACE AS IT IS OPEN: a pane's offered rows while it presents them,
+/// the host's catalog otherwise.
+inline std::vector<ContextEntry> context_population(const ContextMenu& menu) {
+    if (!menu.foreign) {
+        return context_population(menu.subject, menu.group);
+    }
+    std::vector<ContextEntry> out;
+    out.reserve(menu.rows.size());
+    for (const PaneMenuRow& row : menu.rows) {
+        ContextEntry e;
+        e.foreign = true;
+        e.id = row.id;
+        e.label = row.label;
+        out.push_back(std::move(e));
+    }
+    return out;
+}
+
 inline std::vector<ContextEntry> context_population(std::int64_t subject,
                                                     std::string_view open_group) {
     const std::int64_t bit = context_bit(subject);
@@ -195,7 +231,7 @@ inline std::vector<ContextEntry> context_population(std::int64_t subject,
         const bool grouped = row.group[0] != '\0';
         if (open_group.empty()) {
             if (!grouped) {
-                out.push_back(ContextEntry{false, row.group, row_of_id(row.action)});
+                out.push_back(ContextEntry{false, row.group, row_of_id(row.action), false, {}, {}});
                 continue;
             }
             bool seen = false;
@@ -206,12 +242,12 @@ inline std::vector<ContextEntry> context_population(std::int64_t subject,
                 }
             }
             if (!seen) {
-                out.push_back(ContextEntry{true, row.group, nullptr});
+                out.push_back(ContextEntry{true, row.group, nullptr, false, {}, {}});
             }
             continue;
         }
         if (grouped && open_group == row.group) {
-            out.push_back(ContextEntry{false, row.group, row_of_id(row.action)});
+            out.push_back(ContextEntry{false, row.group, row_of_id(row.action), false, {}, {}});
         }
     }
     return out;

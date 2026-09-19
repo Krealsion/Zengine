@@ -29,8 +29,17 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
                            "applies at the next launch";
         return;
     }
+    // READ ONCE, AND THE BYTES KEPT: they are the baseline an edit's write compares the file
+    // against, so a change by another hand since this read is seen rather than overwritten.
+    const persist::FileText read = persist::read_file(
+        host_->keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
     const keymap_persist::LoadedKeymap loaded =
-        keymap_persist::load_file(host_->keymap_path);
+        read.outcome.accepted ? keymap_persist::from_text(read.text)
+                              : keymap_persist::LoadedKeymap{read.outcome, {}};
+    if (read.outcome.accepted) {
+        keymap_bytes_ = read.text;
+        keymap_file_present_ = true;
+    }
     if (!loaded.outcome.accepted) {
         // A STANDING WALL, AND IT IS SAID AS ONE. The file is still refused
         // an hour later and every later launch meets the same wall, so this is a

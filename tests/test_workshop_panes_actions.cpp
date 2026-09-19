@@ -388,10 +388,21 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         k.authored[0].gesture = "hyper+u";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)}).find("`x.up`: `hyper`") !=
               std::string::npos);
+        // ...AND TWO ROWS FOR ONE ID ARE TWO KEYS FOR ONE ACTION (WL-KEY-08): the pane's row
+        // is repeated, one per key, and both dispatch; the same key twice is what is refused.
         k.authored[0].gesture = "ctrl+u";
         k.authored.push_back(AuthoredOverride{"x.up", "ctrl+j"});
+        Keymap two = k;
+        REQUIRE(join_pane_rows(two, kSomePane, {declared("x.up", "row up", input::scan::kUp)})
+                    .accepted);
+        REQUIRE(two.pane_rows(kSomePane) != nullptr);
+        CHECK(two.pane_rows(kSomePane)->rows.size() == 2);
+        CHECK(two.pane_action_for(kSomePane, input::scan::kU, input::mod::kCtrl) != nullptr);
+        CHECK(two.pane_action_for(kSomePane, input::scan::kJ, input::mod::kCtrl) != nullptr);
+        CHECK(two.pane_action_for(kSomePane, input::scan::kUp, input::mod::kNone) == nullptr);
+        k.authored[1].gesture = "ctrl+u";
         CHECK(refused({declared("x.up", "row up", input::scan::kUp)})
-                  .find("`x.up` is authored twice") != std::string::npos);
+                  .find("`x.up` is authored twice with `ctrl+u`") != std::string::npos);
     }
     SUBCASE("a second join for the same pane replaces its rows whole; dropping forgets them") {
         Keymap twice = k;
@@ -1440,6 +1451,21 @@ std::string launcher_text(PaneRig& r) {
     return text;
 }
 
+/// THE MANAGER OPEN AND HOLDING THE KEYS. The desktop's chord is a strict visibility toggle
+/// (WL-DESK-13): it opens a closed Manager and closes an open one, so an open Manager is pressed
+/// into instead -- on its heading row, which chooses nothing and only points the keys.
+void manager_here(PaneRig& r) {
+    const PaneRef ref{kDesktopRole, dp::kLauncherPane};
+    if (!has_pane(r.session().setup.active, ref)) {
+        r.key(input::scan::kP, input::mod::kCtrl);
+        return;
+    }
+    const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
+    REQUIRE(row != nullptr);
+    const ui::Rect body = external_body_rect(r.session(), row->kind);
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
+}
+
 /// THE ROW OF THE LAUNCHER CARRYING THE MARKER, or empty.
 std::string marked_row(PaneRig& r) {
     const std::string text = launcher_text(r);
@@ -1510,7 +1536,7 @@ TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks f
     r.ready();
     r.extent(160, 48);
     load_real_desktop(r);
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     REQUIRE(launcher_text(r).find("PANES -- ") != std::string::npos);
     const std::string held = marked_row(r);
     REQUIRE_FALSE(held.empty());
@@ -1601,7 +1627,7 @@ TEST_CASE("the launcher keeps the row it will open in view, and its feedback on 
         }
     });
     load_real_desktop(r);
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     const std::vector<CatalogRow> inventory =
         inventory_rows(r.session().setup.active, r.session().panels);
     REQUIRE(inventory.size() > 8); // longer than the launcher's room, which is the point
@@ -1636,7 +1662,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     for (const char* ghost : {"g1", "g2", "g3"}) {
         REQUIRE(add_pane(s.setup.active, PaneRef{"zengine.test.ghost", ghost}));
     }
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panels);
     std::size_t g2 = inventory.size();
     for (std::size_t i = 0; i < inventory.size(); ++i) {
@@ -1650,7 +1676,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
 
     // THE ROW ABOVE LEAVES THE LIST: g2 now has g1's index, and the marker follows g2.
     REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g1"}));
-    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the changed inventory is said
+    manager_here(r); // a gesture: the changed inventory is said
     CHECK(marked_row(r).find("g2") != std::string::npos);
     CHECK(marked_row(r).find("g3") == std::string::npos);
     r.key(input::scan::kReturn);
@@ -1658,7 +1684,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
 
     // ...AND THE ROW THE MARKER HOLDS LEAVES: said, and Return waits for a choice.
     REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g2"}));
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     CHECK(marked_row(r).rfind("? ", 0) == 0);
     CHECK(launcher_text(r).find("g2 left the list") != std::string::npos);
     const std::string before = r.last_notice();
@@ -1786,12 +1812,12 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     const PaneRef info{"zengine.info", "info"};
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
 
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     CHECK(launcher_text(r).find("[open] Info") != std::string::npos);
 
     REQUIRE(r.unload("zengine-info-pane"));
     REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
-    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the reading is taken again, now
+    manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] Info") != std::string::npos);
     std::string floor;
     for (const surface::SurfaceTextRow& row : r.session().backdrop) {
@@ -1821,7 +1847,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 
     // PRESENCE COMES BACK WITH A HOLDER: loaded again, it is available again.
     REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     CHECK(launcher_text(r).find("[gone] Info") == std::string::npos);
 }
 
@@ -1849,7 +1875,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
         return floor;
     };
 
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     CHECK(launcher_text(r).find("[load] info") != std::string::npos);
     CHECK(launcher_text(r).find("[gone]") == std::string::npos);
     CHECK(floor_text().find("unavailable") == std::string::npos);
@@ -1874,7 +1900,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
 
     // ...AND ONCE THE RUN HAS SETTLED WITHOUT IT, THE VERDICT IS SAID: gone, and on the floor.
     info_to_come = false;
-    r.key(input::scan::kP, input::mod::kCtrl); // a gesture: the reading is taken again, now
+    manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] info") != std::string::npos);
     CHECK(floor_text().find("unavailable: info") != std::string::npos);
 }
@@ -1936,7 +1962,7 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
     const PaneRef info{"zengine.info", "info"};
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
 
-    r.key(input::scan::kP, input::mod::kCtrl); // the launcher, open and holding the keys
+    manager_here(r); // the launcher, open and holding the keys
     const std::vector<CatalogRow> rows =
         inventory_rows(r.session().setup.active, r.session().panels);
     std::size_t at = rows.size();
@@ -1987,7 +2013,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
 
     // THE MAKER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
@@ -2032,14 +2058,14 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     const RuntimePane* inspector = s.panels.runtime.find(info.provider, info.pane);
     REQUIRE(manager != nullptr);
     REQUIRE(inspector != nullptr);
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     REQUIRE(s.panels.keyboard == manager->kind);
     const std::vector<SetupPane> desk = s.setup.active.panes;
     r.key(input::scan::kX);
     CHECK(has_pane(s.setup.active, info));
     CHECK(s.setup.active.panes == desk);
     CHECK(launcher_text(r).find("x closed nothing") != std::string::npos);
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     REQUIRE(s.panels.keyboard == manager->kind);
     r.key(input::scan::kReturn);
     CHECK(s.panels.keyboard == manager->kind);
@@ -2097,7 +2123,7 @@ namespace {
 
 /// THE LAUNCHER, OPEN AND HOLDING THE KEYS, by the desktop's own chord.
 void open_launcher(PaneRig& r) {
-    r.key(input::scan::kP, input::mod::kCtrl);
+    manager_here(r);
     const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
     REQUIRE(r.session().panels.keyboard == row->kind);
@@ -2267,12 +2293,17 @@ struct StandInVoice {
 /// `paste` makes the next `SeatDo` hand the name line Ctrl+V instead of saying the name id.
 class DoorlessDesk
     : public loom::WeaveBase<DoorlessDesk, SeatState,
-                             loom::Accept<PaneOffered, PaneActions, PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, PaneActions, PaneContent,
+                                          v3::PaneContent, SeatDo>,
                              loom::Emit<PaneActionRequested, PaneKey>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
     void on(const PaneActions&, loom::Mail&) {}
     void on(const PaneContent& said, loom::Mail& mail) { voice.heard(said, mail); }
+    /// ...AND THE SHIPPED DESKTOP'S NUMBERED CONTENT, heard as the same rows.
+    void on(const v3::PaneContent& said, loom::Mail& mail) {
+        voice.heard(PaneContent{said.pane, said.rows}, mail);
+    }
     void on(const SeatDo&, loom::Mail& mail) {
         if (!paste) {
             StandInVoice::say_name(mail);
@@ -2289,13 +2320,16 @@ public:
 /// ...AND ONE THAT TAKES THE PANE CREATOR'S ASKS AND ANSWERS NOTHING, EVER: delivered silence.
 class SilentDesk
     : public loom::WeaveBase<SilentDesk, SeatState,
-                             loom::Accept<PaneOffered, PaneActions, PaneContent,
+                             loom::Accept<PaneOffered, PaneActions, PaneContent, v3::PaneContent,
                                           MakerPaneRequested, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
     void on(const PaneActions&, loom::Mail&) {}
     void on(const PaneContent& said, loom::Mail& mail) { voice.heard(said, mail); }
+    void on(const v3::PaneContent& said, loom::Mail& mail) {
+        voice.heard(PaneContent{said.pane, said.rows}, mail);
+    }
     void on(const MakerPaneRequested&, loom::Mail&) { ++received; }
     void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
     StandInVoice voice;
@@ -2878,6 +2912,15 @@ TEST_CASE("a Pane Creator the host's admission denies the maker door says so for
         allow(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
         allow(surface::ClipboardTextRequested::zen_name,
               surface::ClipboardTextRequested::zen_version);
+        // ...and the sentences the mouse-usable desktop says: numbered content, the toggle, an
+        // edit, a menu, a pass-back, a subject to manage, an inspection.
+        allow(v3::PaneContent::zen_name, v3::PaneContent::zen_version);
+        allow(PaneToggleRequested::zen_name, PaneToggleRequested::zen_version);
+        allow(KeymapEditRequested::zen_name, KeymapEditRequested::zen_version);
+        allow(PaneMenuRequested::zen_name, PaneMenuRequested::zen_version);
+        allow(PanePassRequested::zen_name, PanePassRequested::zen_version);
+        allow(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
+        allow(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version);
         return loom::AdmissionVerdict::admit(std::move(g), "every desktop sentence but the maker's");
     });
     load_real_desktop(r);
@@ -3020,11 +3063,28 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
     const std::string keys = hotkeys_pane_text(r);
     CAPTURE(keys);
     CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
-    CHECK(keys.find("ctrl+g         terminal  desktop.terminal *") != std::string::npos);
-    CHECK(keys.find("(no key)       panes  desktop.panes *") != std::string::npos);
+    // ...AS A TABLE: the key, the label, the id and the mark of each row in their columns.
+    const auto row_with = [&keys](const std::vector<const char*>& cells) {
+        std::size_t at = 0;
+        while (at < keys.size()) {
+            const std::size_t end = keys.find('\n', at);
+            const std::string line = keys.substr(at, end == std::string::npos ? std::string::npos : end - at);
+            bool all = true;
+            for (const char* cell : cells) {
+                all = all && line.find(cell) != std::string::npos;
+            }
+            if (all) {
+                return true;
+            }
+            at = end == std::string::npos ? keys.size() : end + 1;
+        }
+        return false;
+    };
+    CHECK(row_with({"ctrl+g", "terminal", "desktop.terminal", "*"}));
+    CHECK(row_with({"(no key)", "panes", "desktop.panes", "*"}));
     CHECK(keys.find("keymap file: " + path) != std::string::npos);
     CHECK(keys.find("applied -- 2 authored rows") != std::string::npos);
-    CHECK(keys.find("\"none\" disables it") != std::string::npos);
+    CHECK(keys.find("\"none\" disables") != std::string::npos);
 
     // ...AND IT SCROLLS: the list is longer than its room, and every cut is counted.
     r.key(input::scan::kEnd);

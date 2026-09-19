@@ -463,8 +463,9 @@ pane's rank in the front order and whether it is on the layout, which are arrang
 Pane Manager's to change, and the resolved rectangle and state. It does not author anchors,
 fill, docking, snapping, locks, sibling-relative or parent-relative placement, because no pane
 can hold those yet; it does not edit what a pane *does*, wire panes together, or reach a loaded
-weave's own state; and it has no contextual "inspect this pane" row in the right-click menu —
-its own PANES list is the door. Its default height is the stack's nine rows, which shows only a
+weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
+(`inspect in Info`), which asks Info's own door — the right-click menu on a pane itself has no
+such row. Its default height is the stack's nine rows, which shows only a
 few rows of it at a time; `=` in the desk arrangement makes it usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
 every stacked pane has.
 

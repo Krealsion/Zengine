@@ -29,11 +29,10 @@ MEANS
 - adding a gesture claim as a literal reintroduces the drift once measured in six places.
 
 PROVEN BY — `workshop/screen.hpp` `Session::keymap`; `workshop/screen_bindings.cpp`
-`hotkey_text`; `workshop/screen_layouts.cpp` `setup_hints`; `workshop/keymap.hpp` `gesture_text`;
-`tests/test_workshop_document.cpp` case `"KEY-0: an authored override changes dispatch AND every
-displayed spelling"`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is ordinary action
-vocabulary, not pane chrome"`.
+`hotkey_text`; `workshop/screen_layouts.cpp` `setup_hints`; `workshop/keymap.hpp`
+`gesture_text`; `tests/test_workshop_document.cpp` case `"KEY-0: an authored override changes
+dispatch AND every displayed spelling"`; `tests/test_workshop_panes_window.cpp` case
+`"WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-03 — `keyboard_context` is the routing chain, spelled once
@@ -60,8 +59,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — A binding matches the observed modifier bits exactly, one family spelled two ways is two declared actions, and `shift+space` is gone rather than aliased.
 
 PROVEN BY — `workshop/keymap.hpp` `Keymap`, `Gesture`, `Keymap::action_for`;
-`tests/test_workshop_document.cpp` case `"KEY-0: exact modifier matching -- the accidental subset
-aliases no longer fire"`, case `"KEY-0: a known backend gap is accepted and said, never
+`tests/test_workshop_document.cpp` case `"KEY-0: exact modifier matching -- the accidental
+subset aliases no longer fire"`, case `"KEY-0: a known backend gap is accepted and said, never
 silently rewritten"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
@@ -102,43 +101,48 @@ PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.
 `join_app_rows`; `workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp`
 case `"KEY-0: an override for an unknown action survives with its intent whole"`, case `"KEY-0:
 reusing one gesture across mutually exclusive contexts is legal"`, case `"KEY-0: a retired id in
-a maker's file is kept and said, and nothing answers it"`; `tests/test_workshop_panes_builder.cpp`
-case `"BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working"`;
-`tests/test_workshop_panes_actions.cpp` case `"a keymap row written for an id whose owner changed
-is read as its successor, once, and the load says which rename to make"`.
+a maker's file is kept and said, and nothing answers it"`;
+`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a maker's authored override for a
+retired Workshop id keeps working"`; `tests/test_workshop_panes_actions.cpp` case `"a keymap row
+written for an id whose owner changed is read as its successor, once, and the load says which
+rename to make"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-07 — The keymap file is a durable artifact of authored differences
 
-LAW — `zengine-workshop-keymap` version 1 (`--keymap`, default `workshop-keymap.json`): defaults in code, authored differences only, absent ≡ defaults, hand-edited, never rewritten.
+LAW — `zengine-workshop-keymap` version 2 (`--keymap`, default `workshop-keymap.json`): defaults in code, authored differences only, absent ≡ defaults; read once, written by the edit door alone.
 
 MEANS
-- loaded once on the first `SurfaceReady`, the session restore's own moment;
-- `Keymap::authored` is what a save writes back, so a round trip edits nothing.
+- read once at the first `SurfaceReady`, bytes kept; a version-1 file is imported, written as 2;
+- `Keymap::authored` is what a write writes back: rows as values, in order; layout not promised.
 
 PROVEN BY — `workshop/keymap_persist.hpp` `zengine-workshop-keymap`, `kFormatVersion`,
-`to_keymap`, `load_file`; `workshop/weave_handlers.cpp` `load_keymap`; `workshop/weave.hpp`
-`HostContext::keymap_path`; `workshop/workshop.cpp` `Arguments::keymap`; `workshop/keymap.hpp`
-`Keymap::authored`; `tests/test_workshop_document.cpp` case `"KEY-0: an override survives restart,
-and deleting the file restores defaults"`.
+`kFormatVersionOne`, `keymap_rows_in`, `to_keymap`, `from_text`, `load_file`;
+`workshop/weave_handlers.cpp` `load_keymap`; `workshop/weave.hpp` `HostContext::keymap_path`,
+`keymap_bytes_`; `workshop/workshop.cpp` `Arguments::keymap`; `workshop/keymap.hpp`
+`Keymap::authored`; `tests/test_workshop_document.cpp` case `"KEY-0: an override survives
+restart, and deleting the file restores defaults"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-08 — Admission refuses, naming what a maker can fix
 
-LAW — Refused: a gesture outside the grammar on a known action, an action authored twice, a same-context collision over the effective map, a bare printable or a component chord above every mode.
+LAW — Refused: a gesture outside the grammar, one gesture twice for an action, `none` beside a key, a same-context collision over every key in force, a bare printable or component chord above every mode.
 
 MEANS
+- several rows for one id are several keys: dispatch answers to any, the legend spells the first;
 - an unknown action's row is preserved unjudged;
 - a known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
 
 PROVEN BY — `workshop/keymap.hpp` `posix_gap`, `contexts_intersect`, `component_owns_gesture`,
-`apply_overrides`, `AuthoredOverride`, `join_app_rows`; `workshop/keymap_persist.hpp`
-`from_text`; `workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp`
-case `"KEY-0: a same-context collision is refused naming both actions and the gesture"`, case
-`"KEY-0: a gesture outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a
-known backend gap is accepted and said, never silently rewritten"`;
-`tests/test_workshop_panes_actions.cpp` case `"an application row answered above every mode
-cannot take a bare printable or a chord the text box owns, whoever wrote it"`.
+`apply_overrides`, `AuthoredOverride`, `AuthoredGestures`, `authored_gestures_for`,
+`Keymap::row_gestures`, `Keymap::row_answers`, `join_app_rows`, `join_pane_rows`;
+`workshop/keymap_persist.hpp` `from_text`; `workshop/screen_hotkeys.cpp` `keymap_shown`;
+`workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp` case `"KEY-0: a
+same-context collision is refused naming both actions and the gesture"`, case `"KEY-0: a gesture
+outside the grammar on a KNOWN action is refused in words"`, case `"KEY-0: a known backend gap
+is accepted and said, never silently rewritten"`; `tests/test_workshop_panes_actions.cpp` case
+`"an application row answered above every mode cannot take a bare printable or a chord the text
+box owns, whoever wrote it"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
@@ -160,8 +164,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 LAW — The key list is the desktop's Hotkeys pane, seated and arranged like any pane; nothing in this host anchors, sizes or paints a key list.
 
-PROVEN BY — `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane teach
-the application's keys as they are in force: a moved row where it moved, a disabled one as
+PROVEN BY — `tests/test_workshop_panes_actions.cpp` case `"the floor and the Hotkeys pane
+teach the application's keys as they are in force: a moved row where it moved, a disabled one as
 having no key"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
@@ -180,8 +184,8 @@ LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when t
 
 PROVEN BY — `workshop/keymap.hpp` `expected_text_of`; `workshop/weave.hpp`
 `WorkshopWeave::swallow_text_`; `workshop/weave_seam.cpp` `same_keystroke`;
-`workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_document.cpp` case `"KEY-0: a
-printable trigger's own character is swallowed, wherever it is authored"`, case `"KEY-0: the
+`workshop/weave_handlers.cpp` `on(KeyPressed)`; `tests/test_workshop_document.cpp` case `"KEY-0:
+a printable trigger's own character is swallowed, wherever it is authored"`, case `"KEY-0: the
 swallow eats only the trigger's own character, never a different one"`, case `"KEY-0: a
 shift+letter binding swallows the capital its keystroke produced"`.
 WHY — `agents/decisions/one-binding-truth.md`
@@ -233,19 +237,18 @@ PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneActionRow`, `PaneActions`,
 `PaneActionRequested`; `workshop/keymap.hpp` `PaneRow`, `PaneRows`, `kMaxPaneActionRows`,
 `collision_sentence`, `Keymap::panes`, `Keymap::pane_action_for`, `check_pane_action_text`,
 `join_pane_rows`, `drop_pane_rows`, `PaneRow::supersedes`, `Keymap::pane_supersedes`,
-`Keymap::row_active`, `Keymap::owner_of`, `superseded_here`;
-`workshop/pane_vocabulary.hpp` `v2::PaneActionRow`, `v2::PaneActions`, `kOwnableDocumentSave`;
-`workshop/weave.hpp` `declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`;
-`workshop/panel.hpp` `RuntimePane::actions`;
-`workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp` `on(PaneActions)`,
-`rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`, `rejoin_pane_rows`;
-`workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp` `help_pairs`;
-`workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp` `keymap_shown`;
-`tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration whole, in order,
-and a refusal writes nothing"`, case `"a declared gesture arrives as the resolved id and an
-undeclared one as the key; typing still crosses raw"`, case `"the keymap file wins: a pane whose
-rows its bindings collide with is refused in words, in both orders"`, case `"a pane built against
-the published version one still registers, declares and dispatches"`;
+`Keymap::row_active`, `Keymap::owner_of`, `superseded_here`; `workshop/pane_vocabulary.hpp`
+`v2::PaneActionRow`, `v2::PaneActions`, `kOwnableDocumentSave`; `workshop/weave.hpp`
+`declare_pane_actions`; `workshop/weave_seam.cpp` `declare_pane_actions`; `workshop/panel.hpp`
+`RuntimePane::actions`; `workshop/setup.hpp` `admit_pane_actions`; `workshop/weave.hpp`
+`on(PaneActions)`, `rejoin_pane_rows`; `workshop/weave_seam.cpp` `on(PaneActions)`,
+`rejoin_pane_rows`; `workshop/weave_external.cpp` `external_key`; `workshop/screen.hpp`
+`help_pairs`; `workshop/screen_bindings.cpp` `help_pairs`; `workshop/screen_hotkeys.cpp`
+`keymap_shown`; `tests/test_workshop_panes_actions.cpp` case `"the join judges a declaration
+whole, in order, and a refusal writes nothing"`, case `"a declared gesture arrives as the
+resolved id and an undeclared one as the key; typing still crosses raw"`, case `"the keymap file
+wins: a pane whose rows its bindings collide with is refused in words, in both orders"`, case
+`"a pane built against the published version one still registers, declares and dispatches"`;
 `tests/test_workshop_panes_editor.cpp` case `"EDIT-W62: an application row a pane stands in for
 belongs to every context that is not the pane's own"`, case `"EDIT-W63: a pane that owns one
 action may put its other rows on that action's key"`.

@@ -1299,6 +1299,8 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
 /// panes refusing content are two conditions.
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
+/// ...AND THE ONE FOR AN EDIT THAT IS LIVE BUT NOT WRITTEN: the next launch will not have it.
+inline constexpr const char* kKeymapUnwrittenKey = "workshop.keymap-unwritten";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
 /// A SESSION FILE THIS RUN COULD NOT READ, and therefore will not write over.
 /// The refusal itself is said once on the notice row, where it belongs -- it is about

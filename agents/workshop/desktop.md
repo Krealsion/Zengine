@@ -44,13 +44,12 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `DeselectRequested`;
 `workshop/screen_arrange.cpp` `default_row_context`; `workshop/screen.hpp`
 `default_row_context`; `workshop/weave.hpp` `request_app_action`, `on(DeselectRequested)`;
 `workshop/weave_desktop.cpp` `request_app_action`, `on(DeselectRequested)`;
-`workshop/weave_handlers.cpp` `on(KeyPressed)`;
-`workshop/weave_external.cpp` `on(PaneEscapeUnspent)`;
-`tests/test_workshop_panes_actions.cpp` case `"WL-DESK-02: the host asks the desktop for the
-default row, and only an answer that echoes the ask puts the selection down"`;
-`tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until it says
-the Escape was unspent"`, case `"an answer to an Escape that is over cannot borrow the next
-Escape's identity"`.
+`workshop/weave_handlers.cpp` `on(KeyPressed)`; `workshop/weave_external.cpp`
+`on(PaneEscapeUnspent)`; `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-02: the host
+asks the desktop for the default row, and only an answer that echoes the ask puts the selection
+down"`; `tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until
+it says the Escape was unspent"`, case `"an answer to an Escape that is over cannot borrow the
+next Escape's identity"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-03 — A launch opens or focuses; it never toggles and never loads
@@ -66,15 +65,15 @@ DOES NOT MEAN
 - that asking confers anything: an unoffered pane loads no artifact and mounts nothing;
 - that a launch changes what is inspected — choosing a subject is a different sentence.
 
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`, `PaneLaunchAnswered`;
-`workshop/weave.hpp` `launch_pane`, `on(PaneLaunchRequested)`, `provider_present`;
-`workshop/weave_desktop.cpp` `launch_pane`, `on(PaneLaunchRequested)`, `provider_present`;
-`workshop/setup.hpp` `inventory_rows`; `desktop-pane/vocabulary.hpp` `kActionTerminal`,
-`kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case `"a pane whose
-provider left is unavailable in the launcher and refused at launch, while its identity and the
-desk row naming it stay"`, case `"a pane the run is still loading is pending, not unavailable:
-the launcher marks it `[load]`, the floor names nothing to build, and a launch says it is not
-here yet"`.
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneLaunchRequested`,
+`PaneLaunchAnswered`; `workshop/weave.hpp` `launch_pane`, `on(PaneLaunchRequested)`,
+`provider_present`; `workshop/weave_desktop.cpp` `launch_pane`, `on(PaneLaunchRequested)`,
+`provider_present`; `workshop/setup.hpp` `inventory_rows`; `desktop-pane/vocabulary.hpp`
+`kActionTerminal`, `kActionPanes`, `kActionLaunch`; `tests/test_workshop_panes_actions.cpp` case
+`"a pane whose provider left is unavailable in the launcher and refused at launch, while its
+identity and the desk row naming it stay"`, case `"a pane the run is still loading is pending,
+not unavailable: the launcher marks it `[load]`, the floor names nothing to build, and a launch
+says it is not here yet"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-04 — The inventory is said out loud, and it is not a second inventory
@@ -164,14 +163,13 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `AppActionRow`, `AppActions
 `AppActionRequested`, `app_precedence`; `workshop/keymap.hpp` `AppRow`, `kMaxAppActionRows`,
 `Keymap::app`, `Keymap::app_action_for`, `Keymap::app_row_active`, `Keymap::app_row_of_id`,
 `join_app_rows`, `join_pane_rows`; `workshop/weave.hpp` `on(AppActions)`;
-`workshop/weave_desktop.cpp` `on(AppActions)`;
-`tests/test_workshop_panes_actions.cpp` case `"WL-KEY-16: an application row is joined, is
-requested above the modes, and reaches its declarer as the resolved id"`, case `"WL-KEY-16: the
-collision law is precedence-aware, and a pane may stand in by name"`, case `"an application row
-answered above every mode cannot take a bare printable or a chord the text box owns, whoever
-wrote it"`, case `"WL-KEY-16: a pane's
-row and an above-the-modes application row collide unless the pane declares it stands in, in
-both arrival orders"`.
+`workshop/weave_desktop.cpp` `on(AppActions)`; `tests/test_workshop_panes_actions.cpp` case
+`"WL-KEY-16: an application row is joined, is requested above the modes, and reaches its
+declarer as the resolved id"`, case `"WL-KEY-16: the collision law is precedence-aware, and a
+pane may stand in by name"`, case `"an application row answered above every mode cannot take a
+bare printable or a chord the text box owns, whoever wrote it"`, case `"WL-KEY-16: a pane's row
+and an above-the-modes application row collide unless the pane declares it stands in, in both
+arrival orders"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-08 — A maker may move an application default, or disable it
@@ -204,9 +202,28 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneCloseRequested`, `Pane
 `tests/test_workshop_panes_actions.cpp` case `"WL-DESK-12: a close takes a pane off the desk and
 leaves its provider holding; a close of a pane that is not there is refused and opens nothing"`,
 case `"the shipped desktop's x closes the row its marker holds, and Return opens it again: the
-mark says which, and the provider never left"`; `tests/test_workshop_panes_editor.cpp` case `"the
-Pane Manager's close takes the Editor off the desk and unloads nothing: a launch finds its unsaved
-source exactly as it was"`.
+mark says which, and the provider never left"`; `tests/test_workshop_panes_editor.cpp` case
+`"the Pane Manager's close takes the Editor off the desk and unloads nothing: a launch finds its
+unsaved source exactly as it was"`.
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
+## WL-DESK-13 — A toggle is judged by the host against the desk as it is
+
+LAW — A toggle names a pane by its keys; the host judges it against the desk when handled (on it: close; off it: open and focus) and answers which; a presenter's own reading never judges.
+
+MEANS
+- the shipped desktop's `desktop.panes` (`Ctrl+p`) is this toggle on its own Pane Manager;
+- two toggles queued before any reading reaches the presenter end where they began.
+
+DOES NOT MEAN
+- that a launch toggles: the terminal and hotkeys rows still open or focus (WL-DESK-03).
+
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `PaneToggleRequested`,
+`PaneToggleAnswered`; `workshop/weave.hpp` `on(PaneToggleRequested)`;
+`workshop/weave_desktop.cpp` `on(PaneToggleRequested)`, `launch_pane`, `close_pane`;
+`desktop-pane/vocabulary.hpp` `kActionPanes`; `tests/test_workshop_panes_desktop.cpp` case
+`"WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -- open becomes closed,
+closed becomes open and focused, whatever the desktop last heard"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## Do not assume
