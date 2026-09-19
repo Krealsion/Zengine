@@ -1730,7 +1730,7 @@ workshop_screen                   doctest           always  129
 #                                 Info keeps a lost list choice lost across its own replacement.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  649
+workshop_panes                    doctest           always  652
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
