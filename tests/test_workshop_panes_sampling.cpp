@@ -672,10 +672,10 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
         CHECK(any_row(shown, "math.max"));
         CHECK_FALSE(any_row(shown, kProjectAnchorSource));
     }
-    r.text("select");
+    r.text("select_int");
     select_power(r, kind, "logic.select_int");
     CHECK(pane_rows(r, kind)[0].find("1/1") != std::string::npos);
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 10; ++i) {
         r.key(input::scan::kBackspace);
     }
 

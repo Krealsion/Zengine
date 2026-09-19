@@ -897,6 +897,37 @@ target_compile_definitions(zengine-maker-tests PRIVATE
 
 zengine_doctest_test(maker zengine-maker-tests)
 
+# Generated native rules and the ordinary Loom weave in one artifact. These are
+# generated during the build from the same public authoring API as the workbench.
+add_executable(zengine-flow-fixture-generator flow_generate.cpp)
+target_link_libraries(zengine-flow-fixture-generator PRIVATE zengine-flow zengine-warnings zengine-sanitize)
+set(flow_generated_dir "${CMAKE_CURRENT_BINARY_DIR}/flow-generated")
+set(flow_generated_sources "")
+foreach(stem IN ITEMS thermostat boundaries high_water empty)
+    list(APPEND flow_generated_sources "${flow_generated_dir}/${stem}.cpp")
+endforeach()
+add_custom_command(OUTPUT ${flow_generated_sources}
+    COMMAND $<TARGET_FILE:zengine-flow-fixture-generator> "${flow_generated_dir}"
+    DEPENDS zengine-flow-fixture-generator
+    VERBATIM)
+foreach(stem IN ITEMS thermostat boundaries high_water empty)
+    zengine_weave(zengine-flow-${stem} "${flow_generated_dir}/${stem}.cpp")
+    target_link_libraries(zengine-flow-${stem} PRIVATE zengine-flow)
+endforeach()
+add_executable(zengine-flow-tests test_flow.cpp doctest_main.cpp)
+target_link_libraries(zengine-flow-tests PRIVATE zengine-flow loom::kernel zengine-warnings zengine-sanitize)
+target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-flow-tests PRIVATE
+    "FLOW_THERMOSTAT=\"$<TARGET_FILE:zengine-flow-thermostat>\""
+    "FLOW_BOUNDARIES=\"$<TARGET_FILE:zengine-flow-boundaries>\""
+    "FLOW_HIGH_WATER=\"$<TARGET_FILE:zengine-flow-high_water>\""
+    "FLOW_EMPTY=\"$<TARGET_FILE:zengine-flow-empty>\"")
+add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
+    zengine-flow-high_water zengine-flow-empty)
+zengine_doctest_test(flow zengine-flow-tests)
+
+
+
 # ---- The fence's compile-negative lane (owned by the UI suite) ---------------
 #
 # The authored/resolved fence is a COMPILE-TIME refusal, so a runtime suite

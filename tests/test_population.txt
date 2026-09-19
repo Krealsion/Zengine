@@ -1778,3 +1778,4 @@ package_vocabulary                script            always
 # every file under agents/ -- so no gate opens or closes over it, and its registration being
 # declared here is what makes deleting it a red rather than a quieter lane.
 law_register                      script            always
+flow                              doctest           always  21

@@ -16,7 +16,7 @@ DOES NOT MEAN
 - that anything in the Loom changed: every call is one the handoff garden already makes.
 
 PROVEN BY — `maker/succession.hpp` `begin_schema_edit`, `Begun`, `Coordinator`;
-`maker/weave.hpp` `Weave::adopt`; `maker/vocabulary.hpp` `Quiesce`, `Quiesced`, `Adopt`,
+`maker/runtime.hpp` `Runtime::adopt`; `maker/vocabulary.hpp` `Quiesce`, `Quiesced`, `Adopt`,
 `Adopted`; `tests/test_maker.cpp` case `"FC-7: a schema edit is a succession -- v2 authored with
 its conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high
 water, the predecessor is gone"`.
@@ -30,8 +30,8 @@ MEANS
 - the boundary is `Quiesce`, an ordinary message; the final value is exact, nothing moves it;
 - `Resume` un-quiesces an incumbent whose edit aborted.
 
-PROVEN BY — `maker/weave.hpp` `Weave::handle`, `Weave::refused_after_boundary`,
-`Weave::quiescing`; `maker/vocabulary.hpp` `Quiesce`, `Resume`; `tests/test_maker.cpp` case
+PROVEN BY — `maker/runtime.hpp` `Runtime::handle`, `Runtime::refused_after_boundary`,
+`Runtime::quiescing`; `maker/vocabulary.hpp` `Quiesce`, `Resume`; `tests/test_maker.cpp` case
 `"FC-7: a hw.Sample is handled before the boundary, refused by name after it while the incumbent
 holds the role, and handled by the successor after the role moves -- never lost"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`

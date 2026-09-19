@@ -144,7 +144,8 @@ TEST_CASE("discovery and invocation come from ONE record") {
 
     const std::vector<std::string> names = catalog.identities();
     CHECK(names.size() == catalog.size());
-    CHECK(names.size() == 3);
+    CHECK(names == std::vector<std::string>{op::kLessInt, op::kSelectBool,
+        op::kSelectInt, op::kMaxInt, tmr::kNormalizeDelay});
 
     // The claim is not "the list is right"; it is that a name a consumer can
     // DISCOVER is a name it can SPEND, because there is no second list to fall

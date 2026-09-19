@@ -1338,7 +1338,7 @@ TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
     REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].provider_mounted);
     CHECK(done.resolved[0].provider == "zengine.operators.basic");
-    CHECK(done.resolved[0].contributed == 2);
+    CHECK(done.resolved[0].contributed == 4);
     CHECK_FALSE(done.resolved[0].weave_loaded);
     CHECK(rig.catalog.find("math.max") != nullptr);
     // ...AND NO KERNEL WENT LOOKING FOR A WEAVE. PROV-0 proved a provider is not a
@@ -1612,7 +1612,7 @@ TEST_CASE("unmounting one record's provider drops its contributions and nothing 
     const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-timer")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
-    CHECK(rig.catalog.size() == 3);
+    CHECK(rig.catalog.size() == 5);
     CHECK(rig.executor.unmount(done.resolved[1]));
     CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
     CHECK(rig.catalog.find(tmr::kNormalizeDelay) == nullptr);
@@ -1821,7 +1821,7 @@ TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row
     CHECK(basic->authored_role.empty());
     CHECK(basic->state == std::string(workshop::kResolvedToken));
     CHECK(basic->provider == "zengine.operators.basic");
-    CHECK(basic->powers == 2);
+    CHECK(basic->powers == 4);
 
     const workshop::ArtifactParticipation* timer = row_of(said, "zengine-timer");
     REQUIRE(timer != nullptr);

@@ -64,6 +64,8 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
+| `zengine::maker` | run definitions as data-authored weaves |
+| `zengine::flow` | author, save and generate native rules; [Flow guide](guides/flow.md) |
 | `zengine::component` | a medium-independent editable text box |
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |

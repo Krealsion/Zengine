@@ -28,11 +28,13 @@
 # loom::switchboard (the weave contract, the bus, the prepared-replacement handle) and
 # zengine-operator (the catalog, the composition wire form, the migration convention). It needs
 # no loom::kernel: a definition is registered natively, never loaded, and the coordinator's
-# handle is the kernel-less constructor. Not exported this phase -- the Workshop consumes it
-# in-tree in the panel phase, which decides export.
+# handle is the kernel-less constructor. Exported as zengine::maker for independent authoring hosts and Flow consumers.
 add_library(zengine-maker INTERFACE)
 target_include_directories(zengine-maker INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 target_link_libraries(zengine-maker INTERFACE loom::core)
 target_link_libraries(zengine-maker INTERFACE loom::switchboard)
 target_link_libraries(zengine-maker INTERFACE zengine-operator)
+
+add_library(zengine::maker ALIAS zengine-maker)

@@ -1367,7 +1367,7 @@ TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved")
     CHECK(any_row(shown, "zengine.operators.basic"));
     // BOTH KINDS OF FACT, LABELLED, WHERE A MAKER READS THEM.
     CHECK(any_row(shown, "authored  provider normal"));
-    CHECK(any_row(shown, "resolved  provider zengine.operators.basic, 2 powers"));
+    CHECK(any_row(shown, "resolved  provider zengine.operators.basic, 4 powers"));
     CHECK(any_row(shown, "authored  weave " + std::string(kIntroOffice)));
     // AND THE FACT IS BOUNDED, AND ITS SOURCE NAMED.
     CHECK(any_row(shown, intro::kNotAuthored));
@@ -1414,11 +1414,11 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
         CHECK(shown[0].find("[Operators]") != std::string::npos);
-        CHECK(shown[0].find("-/2") != std::string::npos); // two operators, none chosen yet
+        CHECK(shown[0].find("-/4") != std::string::npos); // four operators, none chosen yet
         CHECK(any_row(shown, "math.max"));
         CHECK(any_row(shown, "logic.select_int"));
         CHECK_FALSE(any_row(shown, "shadowed"));
-        CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
+        CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     }
 
     // A MAKER SELECTS ONE, and the detail says whose contribution satisfies it.
@@ -1462,7 +1462,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
         REQUIRE(live >= 0);
         REQUIRE(buried >= 0);
         CHECK(live < buried);
-        CHECK(any_row(shown, "2 powers resolve here -- from 2 providers"));
+        CHECK(any_row(shown, "4 powers resolve here -- from 2 providers"));
     }
 
     // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
@@ -1473,7 +1473,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
         REQUIRE_FALSE(shown.empty());
         CHECK(any_row(shown, "active    zengine.operators.basic"));
         CHECK_FALSE(any_row(shown, "shadowed"));
-        CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
+        CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     }
     // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
 }
@@ -1489,7 +1489,7 @@ TEST_CASE("QR-4: the corrected wording reaches a maker's eye WHOLE, off the real
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
 
-    CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
+    CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     CHECK_FALSE(any_row(shown, "1 providers"));
 
     const std::int64_t bound = row_with_text(shown, intro::kHostResolution);
@@ -1514,7 +1514,7 @@ TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source ed
 
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
-    CHECK(any_row(shown, "5 powers resolve here -- from 2 providers"));
+    CHECK(any_row(shown, "7 powers resolve here -- from 2 providers"));
     for (const char* power : {"prov.function.1", "prov.function.2", "prov.function.3"}) {
         CHECK_MESSAGE(any_row(shown, power), power);
     }

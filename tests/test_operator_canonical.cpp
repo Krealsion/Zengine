@@ -371,10 +371,11 @@ TEST_CASE("the host arrangement owns ONE catalog, and it is the package's own au
     CanonRig r;
 
     // The vocabulary a host publishes is `timer::fallback_vocabulary()` and not a
-    // second definition written in a host: three identities, the two primitives
-    // and the composition over them.
+    // second definition written in a host: four primitives and the Timer
+    // composition over the integer pair.
     const std::vector<std::string> published = r.catalog.identities();
-    CHECK(published.size() == 3);
+    CHECK(published == std::vector<std::string>{op::kLessInt, op::kSelectBool,
+        op::kSelectInt, op::kMaxInt, tmr::kNormalizeDelay});
     CHECK(r.catalog.find(op::kMaxInt) != nullptr);
     CHECK(r.catalog.find(op::kSelectInt) != nullptr);
     CHECK(r.catalog.find(tmr::kNormalizeDelay) != nullptr);
@@ -434,7 +435,7 @@ TEST_CASE("the authority is chosen at construction and is fixed for the instance
     const tmr::DelayAuthority local{op::OperatorHost()};
     CHECK_FALSE(local.host_backed());
     CHECK(local.effective_delay(kAuthoredDelay, true) == kHonestAnswer);
-    CHECK(local.operators().size() == 3);
+    CHECK(local.operators().identities() == catalog.identities());
 
     const tmr::DelayAuthority defaulted;
     CHECK_FALSE(defaulted.host_backed());
