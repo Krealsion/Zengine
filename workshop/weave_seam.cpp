@@ -58,6 +58,14 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
         }
+        // ...AND A MENU PRESENTED FOR THE PANE IT RE-OFFERED IS WITHDRAWN. A re-offer is how a
+        // reloaded requester arrives, and what its predecessor asked about is no longer anything
+        // the requester holds -- the presenter answers it unchosen, and the successor, which never
+        // asked, settles nothing on it (`pane_menu::Asked`).
+        if (session_.presented.open && session_.presented.office == office &&
+            session_.presented.pane == offer.pane) {
+            withdraw_menu("the pane was offered again", mail);
+        }
     }
     // ⚠ AND A PARTY THAT HAS JUST ARRIVED HAS HEARD NOTHING, so what is currently true is
     // said again on the next repaint. `say_conditions` is silent when the reading has not
@@ -211,24 +219,17 @@ void WorkshopWeave::on(const v3::PaneContent& content, loom::Mail& mail) {
 
 // WL-DESK-14 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::fence_pictures(loom::Mail& mail) {
-    // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME. A picture already in
-    // flight, or already the one presses are stamped with, needs no second fence; a repaint that
-    // moved no picture sends nothing, so the bus is not asked to carry a fence per repaint.
+    // WHICH NUMBERED PICTURES THIS CANVAS HANDED OUT FOR THE FIRST TIME -- a pane's, and a
+    // presented menu's. A picture already in flight, or already the stamp, needs no second fence;
+    // a repaint that moved no picture sends nothing, so the bus does not carry a fence per repaint.
     const std::int64_t number = fences_ + 1;
     bool handed_out = false;
     for (ExternalPane& pane : session_.panels.external) {
-        const std::int64_t newest =
-            pane.in_flight.empty() ? pane.aimed_picture : pane.in_flight.back().picture;
-        if (pane.picture == newest) {
-            continue;
-        }
-        if (pane.in_flight.size() >= ExternalPane::kPicturesInFlight) {
-            // BOUNDED: the oldest entry goes, which leaves presses stamped with an OLDER picture
-            // for longer -- refused as moved, never resolved against a newer one.
-            pane.in_flight.erase(pane.in_flight.begin());
-        }
-        pane.in_flight.push_back(ExternalPane::InFlight{number, pane.picture});
-        handed_out = true;
+        handed_out = pane.stamp.hand_out(pane.picture, number) || handed_out;
+    }
+    if (session_.presented.open) {
+        handed_out =
+            session_.presented.stamp.hand_out(session_.presented.picture, number) || handed_out;
     }
     if (!handed_out) {
         return;
@@ -258,14 +259,9 @@ void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
         return;
     }
     for (ExternalPane& pane : session_.panels.external) {
-        std::size_t done = 0;
-        while (done < pane.in_flight.size() && pane.in_flight[done].fence <= fence.number) {
-            pane.aimed_picture = pane.in_flight[done].picture;
-            ++done;
-        }
-        pane.in_flight.erase(pane.in_flight.begin(),
-                             pane.in_flight.begin() + static_cast<std::ptrdiff_t>(done));
+        pane.stamp.come_round(fence.number);
     }
+    session_.presented.stamp.come_round(fence.number);
     // Nothing is repainted: what a press is stamped with is not something a maker sees.
 }
 

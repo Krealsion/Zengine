@@ -33,7 +33,7 @@
 //     PanePassRequested      provider  ->  Workshop   "that press was not mine -- open your own surface."
 //     PaneKeyboardRequested  provider  ->  Workshop   "give my pane the keys -- this choice asked to edit."
 //     PaneMenuRequested      provider  ->  Workshop   "present these rows of mine beside this place."
-//     PaneMenuAnswered       Workshop  ->  provider   "this row was chosen" / "nothing was; here is why."
+//     PaneMenuAnswered       presenter ->  provider   "this row was chosen" / "nothing was; here is why."
 //     PaneManageRequested    provider  ->  Workshop   "open your pane menu for THAT pane."
 //     v3::PaneContent        provider  ->  Workshop   "...and this is picture number n."
 //     v3::PanePressed        Workshop  ->  provider   "...aimed at the picture n you had shown."
@@ -988,21 +988,25 @@ struct PaneMenuRow {
     ZEN_SHAPE(PaneMenuRow, 1, ZEN_FIELD(id), ZEN_FIELD(label));
 };
 
-/// HOW MANY ROWS A PANE MAY ASK THE HOST TO PRESENT AT ONCE, and how long a label may be: a
-/// presentation bound, so a chatty pane cannot make the host hold or paint without limit. An
-/// id meets `PaneActionRow`'s length law (`kMaxPaneActionIdLen`).
+/// HOW MANY ROWS ONE MENU MAY OFFER, and how long an id and a label may be: a presentation bound,
+/// so a chatty pane cannot make a presenter hold or show without limit -- the shipped presenters
+/// refuse an offer past it in words. The id bound is a declared action's (`kMaxPaneActionIdLen`,
+/// the host's keymap law), published here so a presenter built from this header alone can judge.
 inline constexpr std::size_t kMaxPaneMenuRows = 32;
+inline constexpr std::size_t kMaxPaneMenuIdLen = 64;
 inline constexpr std::size_t kMaxPaneMenuLabelLen = 64;
 
 /// PRESENT THESE ROWS BESIDE THIS PLACE IN MY ROOM, AND TELL ME WHICH WAS CHOSEN. Provider ->
 /// Workshop, as the office that offered `pane`, echoing the correlation of the gesture it
 /// continues (a `PaneButton` press or a `PaneActionRequested`).
 ///
-/// `subject` is the pane's own opaque word for what the rows are about (a binding id, a pane
-/// reference); the answer echoes it, so the pane keeps no menu state and judges the choice
-/// against its current subjects when the answer arrives. `row`/`column` name the anchor in the
-/// granted lattice; the host resolves the cell. An empty `rows` is refused: nothing to present.
-/// A newer request from any pane replaces an open menu (the older one is answered unchosen).
+/// Workshop judges the ask where the menu would open -- still the maker's latest act, a pane on
+/// the desk, a presenter in `kPresenterRole` -- and grants it to the PRESENTER, the participant
+/// that shows it and answers it (`workshop/presenter_vocabulary.hpp`). `subject` is the pane's own
+/// opaque word for what the rows are about (a binding id, a pane reference); the answer echoes it,
+/// so the pane keeps no menu state but a record of the ask, and judges the choice against its
+/// current subjects when the answer arrives. `row`/`column` name the anchor in the granted
+/// lattice; the host resolves the cell. A newer menu replaces an open one, answered unchosen.
 struct PaneMenuRequested {
     std::string pane;
     std::string subject;
@@ -1013,11 +1017,17 @@ struct PaneMenuRequested {
               ZEN_FIELD(column), ZEN_FIELD(rows));
 };
 
-/// WHAT THE MENU CAME TO: `chosen` with the row's `id`, or not chosen -- dismissed by Escape or
-/// an outside press, replaced by a newer menu, closed because the pane left the desk, or refused
-/// at the request (`refusal` says why; empty otherwise). Workshop -> the requesting office, under
-/// the request's correlation, exactly once per request the host admitted. A chosen row is a
-/// FACT about the maker's gesture, not an authority: the pane performs its own operation.
+/// THE OFFICE THAT PRESENTS A PANE'S MENU AND ANSWERS IT. A requester authenticates a choice as
+/// authored from this office; Workshop grants menus to whoever holds it.
+inline constexpr const char* kPresenterRole = "zengine.presenter";
+
+/// WHAT THE MENU CAME TO: `chosen` with the row's `id`, or not chosen -- dismissed, replaced by a
+/// newer menu, closed because the pane left the desk, refused (`refusal` says why; empty
+/// otherwise). To the requesting office, under the request's correlation, exactly once per ask:
+/// from the PRESENTER (`kPresenterRole`) for every menu it was granted, and from WORKSHOP only for
+/// an ask it refused or a menu whose presenter left or was replaced without carrying it. A choice
+/// counts only from the presenter. A chosen row is a FACT about the maker's gesture, not an
+/// authority: the pane performs its own operation, on a subject it judges itself.
 struct PaneMenuAnswered {
     std::string pane;
     std::string subject;

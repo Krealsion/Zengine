@@ -36,14 +36,17 @@ target_link_libraries(witness-surfaces
         zengine::pane
         zengine::neovim)
 
-# ---- a stranger USES the pane menu and list helpers (review finding 5) ------------------
+# ---- a stranger USES the pane menu, the presenter seam and the list helpers, LIVE ---------
 #
-# public_surface.cpp includes the protocol header; this one CALLS the helpers -- offers two
-# actions, reads a choice, holds a button, numbers a list picture, windows a cursor, lays out a
-# table -- from `zengine::pane` and `zengine::component` alone, out of tree. A helper the package
-# stopped installing, or one that stopped compiling against the installed headers, fails here.
+# public_surface.cpp includes the protocol header; this one RUNS it: on its own Loom bus a
+# requester offers two actions and reads every answer through `pane_menu::Asked`, a presenter a
+# stranger wrote from the installed seam presents and answers, a stand-in host grants, refuses
+# and tries to choose, and a forger answers under the ask's number -- and only the presenter's
+# answer to the requester's own ask acts, once. Then the list helpers. From `zengine::pane`,
+# `zengine::component` and the Loom bus alone, out of tree: a helper the package stopped
+# installing, or one that stopped working against the installed headers, fails here.
 add_executable(witness-pane-menu pane_menu_consumer.cpp)
-target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component)
+target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component loom::switchboard)
 
 # ---- one capability, end to end: a weave that orders time ------------------------------
 #

@@ -198,25 +198,46 @@ See [setups](setups.md).
 button hears the press and, wherever your hand lets go, the release — and what it does with them
 is its own: a game-like pane blocks while you hold the button and opens nothing (the shipped
 `examples/guard-pane` does exactly that); the Neovim editor passes a right press and release to
-Neovim; the Pane Manager and the Hotkeys pane ask Workshop to present a small menu of their own
-rows beside the pointer. Nothing about a right-click moves the keyboard or the selection: pointing
-is still pointing. A pane that does not take the button, the pane's title row and border, a
-layout tab and the empty room still get Workshop's own menu, as below — and a pane may hand a
-press back to Workshop deliberately ("that row was not mine"), which opens that menu for the
-pane, once, while the press is still your latest act.
+Neovim; the Pane Manager and the Hotkeys pane ask for a small menu of their own rows beside the
+pointer. Nothing about a right-click moves the keyboard or the selection: pointing is still
+pointing. The pane's title row and border, a layout tab and the empty room still get Workshop's
+own menu, as below; a right-click in the body of a pane that does not take the button does
+nothing at all — a body is quiet unless its pane says otherwise. A pane may hand a press back to
+Workshop deliberately ("that row was not mine"), which opens that menu for the pane, once, while
+the press is still your latest act.
 
-**A pane's own menu** opens beside your pointer with the rows the pane offered — labels only, no
-key hints — and works exactly like Workshop's: `↑` `↓` and `Enter`, a click on a row, `Esc` or a
-click outside to dismiss. It takes no keys away from anything and gives none back afterwards:
-what you pressed into last still has them. A menu that arrives late — you clicked somewhere else
-first, or pressed a key — does not open at all; a newer menu replaces an older one; and a pane
-that leaves the desk takes its open menu with it. When the pane you cannot right-click into is the
+**A pane's own menu** opens beside your pointer with the rows the pane offered, shown by the
+**menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
+like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
+row, `Esc` or a click outside to dismiss. It takes no keys away from anything and gives none back
+afterwards: what you pressed into last still has them. A menu that arrives late — you clicked
+somewhere else first, or pressed a key — does not open at all; a newer menu replaces an older
+one; a pane that leaves the desk takes its open menu with it, and so does a pane that is reloaded
+(its new image never asked for that menu). If no presenter is loaded, a pane's menu does not open
+and the band says why. When the pane you cannot right-click into is the
 one you want to arrange or remove, the Pane Manager's row for it offers **`manage...`**, and the
 pane's title row is Workshop's on every medium.
 
 **What a pane can and cannot do with a menu.** It chooses the rows and what a chosen row means;
-Workshop presents the rows and returns the choice, and performs nothing on the pane's behalf. A
-menu row is not a way for a pane to gain an operation it does not otherwise have.
+the presenter shows them and returns the choice, Workshop decides when a menu may open and where,
+and neither performs anything on the pane's behalf. A menu row is not a way for a pane to gain an
+operation it does not otherwise have, and a pane acts only on the presenter's answer to a menu it
+asked for itself.
+
+### Replacing the menu presenter
+
+How every pane's menu looks and behaves is the presenter's, so replacing it is replacing one
+weave. Point the load plan's `zengine.presenter` row at another artifact, or build one and reload
+it in the shipped presenter's place. The worked example is
+[`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp): rows are
+numbered and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
+pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
+a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
+reaching the pane that asked. The Pane Manager and Hotkeys do exactly what they did before;
+only the menu changed. The seam is
+[`workshop/presenter_vocabulary.hpp`](../../workshop/presenter_vocabulary.hpp), installed with
+the package, and the [reference](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)
+lists what crosses it.
 
 **Limits, stated.** Holding a secondary button and moving does not cross to the pane (no
 secondary drag, so no middle-button scrolling in the Editor and no right-drag in Neovim); a

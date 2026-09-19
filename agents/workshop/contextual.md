@@ -139,46 +139,85 @@ stale correlation, a zero one, and a pass-back from an office that did not offer
 move nothing"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
-## WL-CTX-09 — A pane's rows are presented on request and returned chosen; nothing else moves
+## WL-CTX-09 — A pane's menu is judged where it opens and handed to the presenter
 
-LAW — A pane's rows are presented on its request, continuing a gesture by its number, judged where the surface opens; it takes no keys or selection, and one answer returns the chosen id or why not.
+LAW — A pane's menu request is judged where it would open and granted to the presenter's office; it moves no keys or selection, and the host answers only asks it refused or no presenter can.
 
 MEANS
 - a press continuation on a pass-back's terms; a key's while that keystroke is the latest act;
-- late, empty, numberless, foreign, oversized: answered unchosen, and nothing opens;
-- Escape, an outside press, a newer menu, the pane leaving the desk: answered unchosen.
+- one menu at a time: a newer one, a right press, the host's menu, the pane leaving withdraw it;
+- the host keeps custody and place -- forwards acts, draws lines in the room -- and no row.
 
 DOES NOT MEAN
-- that the host performs a pane's operation, or that a row grants one: the pane acts;
+- that the host performs a pane's operation, or that a row grants one: the requester acts;
 - that anything is restored after: a choice may continue to `manage...` or the keyboard, once.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
-`PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kMaxPaneMenuRows`;
-`workshop/context.hpp` `ContextMenu::foreign`, `ContextMenu::rows`, `ContextEntry::foreign`,
-`context_population`; `workshop/weave.hpp` `open_foreign_menu`, `retire_foreign_menu`,
-`cell_of_body_place`, `ChoiceAnswered`, `action_sent_`; `workshop/weave_external.cpp`
-`on(PaneMenuRequested)`, `on(PaneManageRequested)`, `on(PaneKeyboardRequested)`,
-`open_foreign_menu`, `retire_foreign_menu`, `cell_of_body_place`;
-`workshop/weave_pointer.cpp` `choose_context_row`, `context_press`, `context_key`;
-`workshop/screen_attention.cpp` `context_entry_text`, `context_bounds`; `workshop/pane_menu.hpp`
-`Offer`, `manage`, `take_keyboard`, `chosen`; `tests/test_workshop_panes_desktop.cpp` case
+`PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kPresenterRole`;
+`workshop/presenter_vocabulary.hpp` `MenuGranted`, `MenuShown`, `MenuInput`, `MenuClosed`,
+`MenuWithdrawn`; `workshop/context.hpp` `PresentedMenu`; `workshop/weave.hpp` `grant_menu`,
+`withdraw_menu`, `end_menu_unanswered`, `cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
+`workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `withdraw_menu`,
+`end_menu_unanswered`, `about_open_menu`, `forward_menu_input`, `menu_key`, `menu_button`,
+`on(MenuShown)`, `on(MenuClosed)`, `on(PresenterReady)`, `on(PaneManageRequested)`,
+`on(PaneKeyboardRequested)`, `cell_of_body_place`; `workshop/weave_pointer.cpp` `context_key`;
+`workshop/screen.hpp` `presented_room`, `presented_bounds`, `paint_presented`, `PresentedPressAt`,
+`presented_press_at`; `workshop/screen_attention.cpp` `presented_room`, `presented_bounds`,
+`paint_presented`, `presented_press_at`; `tests/test_workshop_panes_desktop.cpp` case
 `"WL-CTX-09: a printable menu shortcut and the text its own key produced are one gesture, so the
-menu opens"`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu
-requested on the press's own turn opens beside the press with the pane's rows, moves no keys and
-no selection, and Return returns the first row"`, case `"WL-CTX-09: the keyboard works the menu
--- Down then Return chooses the second row; Escape answers it unchosen; the release under it
-still reaches the pane"`, case `"WL-CTX-09: an outside press dismisses the menu, is spent on
-dismissing, and reaches nothing beneath it"`, case `"WL-CTX-09: a press on a presented row
-chooses it"`, case `"WL-CTX-09: a late request is refused where the surface opens -- a newer
-primary press elsewhere keeps the keys it took; the review's second integration finding"`, case
-`"WL-CTX-09: an empty offer, an offer echoing no gesture, and one from an office that never
-offered the pane are refused or dropped, and nothing opens"`, case `"WL-CTX-09: a newer menu
-replaces an open one, which is answered unchosen; one surface at a time"`, case `"WL-CTX-09: a
-pane that leaves the desk while its menu is open closes it, answered unchosen; a pane that
+menu opens"`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu requested on the
+press's own turn is granted to the presenter and opens beside the press with the pane's rows,
+moves no keys and no selection, and Return returns the first row -- answered by the presenter"`,
+case `"WL-CTX-09: the keyboard works the menu -- Down then Return chooses the second row; Escape
+answers it unchosen; the release under it still reaches the pane"`, case `"WL-CTX-09: an outside
+press dismisses the menu, is spent on dismissing, and reaches nothing beneath it"`, case
+`"WL-CTX-09: a press on a presented row chooses it"`, case `"WL-CTX-09: a late request is refused
+where the menu opens -- a newer primary press elsewhere keeps the keys it took; the review's
+second integration finding"`, case `"WL-CTX-09: an offer echoing no gesture and one from an office
+that never offered the pane are refused or dropped by the host; an empty offer is the presenter's
+to refuse, and it spends the gesture"`, case `"WL-CTX-09: a newer menu replaces an open one, which
+its presenter answers unchosen in the host's words; one menu at a time"`, case `"WL-CTX-09: a pane
+that leaves the desk while its menu is open has it withdrawn, answered unchosen; a pane that
 consumes the press opens nothing"`, case `"WL-CTX-09: a menu opened by a declared key continues
-that keystroke -- eligible on its turn, refused after a newer key, and anchored in the pane's
-own body"`, case `"WL-CTX-09: a chosen row may continue into the host's own pane menu on a
-subject the pane names -- once, while the choice is the maker's latest act, and never for a pane
-the inventory lacks"`, case `"WL-CTX-09: a menu with more rows than the room is windowed by the
-presenter, and every row is still reachable"`.
+that keystroke -- eligible on its turn, refused after a newer key, and anchored in the pane's own
+body"`, case `"WL-CTX-09: a chosen row may continue into the host's own pane menu on a subject the
+pane names -- once, while the choice is the maker's latest act, and never for a pane the inventory
+lacks"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
+
+## WL-CTX-10 — The presenter owns a menu's showing and lifetime; replacing it is ordinary
+
+LAW — The presenter's office shows a granted menu, reads its acts, ends it and answers once; any image may hold it, and a reload keeping `HeldMenu` hands an open menu to the new image.
+
+MEANS
+- the shipped presenter chooses on the press; the numbered example on a digit or the release;
+- a requester takes a choice only from this office, under its own ask's number, once (`Asked`);
+- a presenter that leaves, or a holder not carrying the menu, ends it answered by the host.
+
+DOES NOT MEAN
+- that a presenter reads a subject or holds authority: the requester judges and acts;
+- that every later participant must hand over or cancel alike: it is these consumers' policy.
+
+PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `PresenterReady`, `MenuClosed`,
+`kMaxMenuLines`; `menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`;
+`examples/numbered-presenter/presenter.cpp` `NumberedPresenter`, `digit_row`, `line_for`;
+`workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`
+`launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`;
+`workshop/weave_code.cpp` `on(DispatchRefused)`; `workshop/weave_seam.cpp` `on(PaneOffered)`;
+`tests/test_workshop_panes_button.cpp` case `"WL-CTX-09: a menu with more rows than the room is
+windowed by the presenter, and every row is still reachable"`, case `"WL-CTX-10: a requester's
+record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing
+another office says under its number"`; `tests/test_workshop_panes_desktop.cpp` case
+`"WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withdrawn when the successor
+offers its pane again, and a choice about it acts on nothing"`, case `"WL-CTX-10: the desktop acts
+only on the presenter's answer to an ask of this image's own -- not the host's choice, not another
+subject, not another number, not a predecessor's, and not twice"`, case `"WL-CTX-10: an ordinary
+replacement presenter holds the office -- the Pane Manager and Hotkeys keep their own operations
+while it presents their menus its way: numbered, a digit chooses, a release chooses"`, case
+`"WL-CTX-10: the replacement presenter presents the Pane Manager's menu too, and a digit opens the
+row -- through the desktop's own launch"`, case `"WL-CTX-10: the presenter reloaded in place by
+another image while a menu is open hands the menu over -- shown again the new way with its cursor,
+answered under the same number, and the Hotkeys edit completes"`, case `"WL-CTX-10: a presenter
+that leaves ends its menu, answered by the host; with none in the office a menu is refused in
+words; one loaded afresh does not carry the old menu, which ends answered"`.
+WHY — `agents/decisions/a-menu-is-presented-by-a-participant.md`

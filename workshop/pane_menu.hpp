@@ -10,27 +10,28 @@
 // the raw shapes, and a pane may write those lines itself or leave the helpers out.
 //
 // WHAT THEY REMOVE: the declaration of a menu row by row, the echo of the gesture's correlation
-// on every continuation (the one thing a pane MUST get right for the host to act), and the
-// bookkeeping of "which press was that" -- a request carries the pane's own `subject`, the
-// answer echoes it, and the pane keeps no menu state at all.
+// on every continuation (the one thing a pane MUST get right for the host to act), and the four
+// checks an answer needs before a pane may act on it -- in one read (`Asked::take`).
 //
 // WHAT THEY DO NOT DO: perform an operation. A chosen row is a fact about the maker's gesture;
 // what it means is the pane's, judged against the pane's current subjects when the answer
-// arrives (`chosen`). Nothing here reaches the host's authority.
+// arrives. Nothing here reaches the host's authority.
+//
+//     pane_menu::Asked asked_;   // THIS image's one outstanding menu -- never reload-kept state
 //
 //     void on(const PaneButton& b, loom::Mail& mail) {
 //         if (!b.pressed || b.button != 3) return;             // a release: nothing to do
 //         if (heading_row(b.row)) { pane_menu::pass_back(mail, kOffice, kPane); return; }
-//         pane_menu::Offer(kPane, subject_at(b.row))
-//             .at(b.row, b.column)
-//             .row("mine.open", "Open")
-//             .row("mine.forget", "Forget")
-//             .send(mail, kOffice);                            // continues THIS press
+//         asked_ = pane_menu::Offer(kPane, subject_at(b.row))
+//                      .at(b.row, b.column)
+//                      .row("mine.open", "Open")
+//                      .row("mine.forget", "Forget")
+//                      .send(mail, kOffice);                   // continues THIS press
 //     }
 //     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
-//         // `chosen_from` authenticates the presenter AND matches the row in one read, so a
-//         // forged or foreign answer cannot spend the choice; the subject is still yours to judge.
-//         if (pane_menu::chosen_from(mail, a, kPane, "mine.open")) open(a.subject, mail);
+//         const std::string id = asked_.take(mail, a);         // provenance, lifetime, once, subject
+//         if (id == "mine.open") open(a.subject, mail);        // ...and the subject is still yours
+//         else if (id == "mine.forget") forget(a.subject, mail);  // to judge against what you hold
 //     }
 
 #include "workshop/pane_vocabulary.hpp"
@@ -48,9 +49,71 @@ namespace zengine::workshop::pane_menu {
 /// need not spell it. A stranger's pane addresses Workshop by this name and no other.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
 
+/// THE OFFICE THAT PRESENTS A MENU AND ANSWERS IT (`workshop::kPresenterRole`).
+inline constexpr const char* kPresenterRole = ::zengine::workshop::kPresenterRole;
+
+/// ONE MENU THIS IMAGE ASKED FOR, UNTIL IT IS ANSWERED: the request's number, and the pane and
+/// subject it was about. What makes an answer safe to act on is checked here in one read --
+///
+///   provenance  a CHOICE counts only from the presenter's office; a refusal may also be
+///               Workshop's, which answers an ask it never presented. Anybody else's word,
+///               however it is shaped, settles nothing.
+///   lifetime    the answer settles THIS image's outstanding ask, matched by its number; an
+///               answer to an ask this image never sent -- a predecessor's, a forged one -- is
+///               nothing, and a newer ask replaces an older one whose answer then matches nothing.
+///   once        the first authenticated answer settles the ask; a duplicate finds none pending.
+///   subject     the answer must be about the pane and subject asked.
+///
+/// Whether that subject STILL applies is the pane's own question, asked after, against what it
+/// holds when the answer arrives.
+///
+/// KEEP IT IN THE IMAGE, NEVER IN RELOAD-KEPT STATE. A successor that inherited a predecessor's
+/// record would accept the predecessor's menu as its own; an image-local record means a reloaded
+/// pane CANCELS every menu its predecessor had open -- the policy the shipped panes choose. A pane
+/// that wants its menus to survive a reload would carry the record deliberately, and say so.
+class Asked {
+public:
+    /// Is there an ask this image is still waiting to hear answered?
+    bool pending() const noexcept { return correlation_ != 0; }
+    std::uint64_t correlation() const noexcept { return correlation_; }
+    const std::string& pane() const noexcept { return pane_; }
+    const std::string& subject() const noexcept { return subject_; }
+
+    /// SETTLE `answer` IF IT ANSWERS THIS ASK, and return the id of the row chosen -- empty when
+    /// nothing was chosen, or when the answer does not answer this ask (then nothing is settled).
+    std::string take(const loom::Mail& mail, const PaneMenuAnswered& answer,
+                     std::string_view presenter = kPresenterRole,
+                     std::string_view workshop = kWorkshopRole) {
+        if (!pending() || mail.correlation() != correlation_ || answer.pane != pane_ ||
+            answer.subject != subject_) {
+            return std::string(); // not this image's ask, or not about what it asked
+        }
+        const bool presented = mail.authored_from_role(presenter);
+        if (!presented && !(mail.authored_from_role(workshop) && !answer.chosen)) {
+            return std::string(); // nobody who may answer said this; the ask stays pending
+        }
+        clear(); // settled: a duplicate finds nothing pending
+        return answer.chosen ? answer.id : std::string();
+    }
+
+    /// GIVE UP ON THE ASK: its answer, when it comes, matches nothing.
+    void clear() noexcept {
+        correlation_ = 0;
+        pane_.clear();
+        subject_.clear();
+    }
+
+private:
+    friend class Offer;
+    std::uint64_t correlation_ = 0;
+    std::string pane_;
+    std::string subject_;
+};
+
 /// A MENU A PANE OFFERS, BUILT ROW BY ROW: about `subject` (the pane's own word, echoed back
 /// unread), beside a place in the granted lattice. `send` continues the gesture `mail`
-/// delivered -- its correlation is what makes the request eligible -- and returns the ticket.
+/// delivered -- its correlation is what makes the request eligible -- and returns the record
+/// of the ask (`Asked`), pending exactly when a request was queued under a nonzero number.
 class Offer {
 public:
     Offer(std::string pane, std::string subject) {
@@ -74,17 +137,24 @@ public:
 
     /// SEND AS `office`, CONTINUING THE GESTURE THIS DELIVERY BROUGHT (a `PaneButton` press or a
     /// `PaneActionRequested`): the request goes out under `mail.correlation()`.
-    loom::Ticket send(loom::Mail& mail, std::string_view office,
-                      std::string_view workshop = kWorkshopRole) const {
+    Asked send(loom::Mail& mail, std::string_view office,
+               std::string_view workshop = kWorkshopRole) const {
         return continuing(mail, office, mail.correlation(), workshop);
     }
 
     /// SEND CONTINUING A GESTURE BY ITS NUMBER -- for a pane that kept the number of a press it
     /// heard earlier in the same delivery chain, or that answers from a later delivery of its
-    /// own. Zero continues nothing and is refused by the host.
-    loom::Ticket continuing(loom::Mail& mail, std::string_view office, std::uint64_t correlation,
-                            std::string_view workshop = kWorkshopRole) const {
-        return mail.as_role(office).send_to_role(workshop, request_, correlation);
+    /// own. Zero continues nothing: the host refuses it, and the record is not pending.
+    Asked continuing(loom::Mail& mail, std::string_view office, std::uint64_t correlation,
+                     std::string_view workshop = kWorkshopRole) const {
+        Asked asked;
+        const loom::Ticket sent = mail.as_role(office).send_to_role(workshop, request_, correlation);
+        if (sent.valid() && correlation != 0) {
+            asked.correlation_ = correlation;
+            asked.pane_ = request_.pane;
+            asked.subject_ = request_.subject;
+        }
+        return asked;
     }
 
 private:
@@ -119,31 +189,6 @@ inline loom::Ticket manage(loom::Mail& mail, std::string_view office, std::strin
     return mail.as_role(office).send_to_role(
         workshop, PaneManageRequested{std::move(pane), std::move(target_office), std::move(target)},
         mail.correlation());
-}
-
-/// WAS THIS ROW CHOSEN, FOR THIS PANE? The payload half of the read a pane needs on an answer;
-/// the subject it was about is `answer.subject`, for the pane to judge against what it holds now.
-/// This checks the PAYLOAD only -- pair it with `from_workshop` (or use `chosen_from`, which does
-/// both) so an answer forged by another office cannot spend a choice.
-inline bool chosen(const PaneMenuAnswered& answer, std::string_view pane, std::string_view id) {
-    return answer.chosen && answer.pane == pane && answer.id == id;
-}
-
-/// DOES THIS ANSWER COME FROM THE PRESENTER? An answer is the presenter's role speech (Workshop
-/// by default) or Loom's answer to an ask this pane sent it; the office's holder at delivery is
-/// the only one who could have given it. A pane that checks nothing else may check this.
-inline bool from_workshop(const loom::Mail& mail, std::string_view workshop = kWorkshopRole) {
-    return mail.authored_from_role(workshop);
-}
-
-/// WAS THIS ROW CHOSEN, FOR THIS PANE, BY THE PRESENTER? The safe one-call read: it authenticates
-/// the sender (`from_workshop`) AND matches the payload (`chosen`), so a pane's low-ceremony
-/// handler cannot act on a foreign or forged answer. The subject is `answer.subject`, still the
-/// pane's to judge against what it holds now.
-inline bool chosen_from(const loom::Mail& mail, const PaneMenuAnswered& answer,
-                        std::string_view pane, std::string_view id,
-                        std::string_view presenter = kWorkshopRole) {
-    return from_workshop(mail, presenter) && chosen(answer, pane, id);
 }
 
 /// A HELD SECONDARY BUTTON, FOR A PANE THAT ACTS WHILE IT IS DOWN: the whole bookkeeping is one

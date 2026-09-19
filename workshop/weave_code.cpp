@@ -196,6 +196,13 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         repaint(mail);
         return;
     }
+    // ...AND A SENTENCE TO THE PRESENTER'S OFFICE THAT LOOM COULD NOT DELIVER means no presenter
+    // can answer the menu that is open: it left, or never held the office when the grant arrived.
+    // This host answers the requester itself, unchosen (WL-CTX-09).
+    if (refused.role == kPresenterRole) {
+        end_menu_unanswered("the presenter left -- " + refused.reason, mail);
+        return;
+    }
     if (!attempt.valid() || !code_open_.live || !code_open_.attempt.valid() ||
         attempt.seq != code_open_.attempt.seq) {
         return;

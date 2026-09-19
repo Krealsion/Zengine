@@ -1234,6 +1234,12 @@ int main(int argc, char** argv) {
     // ...AND THE HOST'S OWN FENCE BEHIND A PICTURE IT HANDED THE MEDIUM, to its own office and
     // nowhere else: which picture a press names is this host's fact alone (P-WORK-25).
     speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
+    // ...AND A PANE'S MENU, GRANTED TO THE PRESENTER'S OFFICE AND NOWHERE ELSE: the offer, the
+    // maker's acts on it, and its withdrawal. Role-scoped because the whole seam is one office's;
+    // a participant that does not hold it can be told none of this (WL-CTX-09).
+    speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
+    speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
+    speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
     // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
     // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
     // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of

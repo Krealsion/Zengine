@@ -436,6 +436,52 @@ struct RuntimeCatalog {
     }
 };
 
+// WL-DESK-14 -- agents/workshop/desktop-presenting.md
+/// WHICH PICTURE A PRESS IS STAMPED WITH (P-WORK-25): the newest numbered picture the MEDIUM had
+/// been handed when the press was read, not merely the newest one admitted. A picture is handed
+/// out with the canvas that first shows it and becomes the stamp when the host's own fence
+/// (`PictureFence`) has come round behind that canvas twice -- delivery is single-threaded FIFO
+/// and input is read by a delivery, so every press read before the medium handled the canvas is
+/// queued ahead of the second hop and keeps the older stamp. Bounded: a picture that renumbers
+/// faster than the fence comes round loses its oldest entry, which only keeps a press stamped
+/// older for longer -- refused as moved, never resolved against a newer picture.
+struct PictureStamp {
+    struct InFlight {
+        std::int64_t fence = 0;
+        std::int64_t picture = 0;
+    };
+    static constexpr std::size_t kInFlight = 8;
+    std::int64_t aimed = 0;          ///< what a press is stamped with now; 0 = none yet
+    std::vector<InFlight> in_flight; ///< handed out, not yet fenced, oldest first
+
+    /// Record `picture` as handed out behind fence `fence`; false (and nothing recorded) when it
+    /// is already the newest picture handed out.
+    bool hand_out(std::int64_t picture, std::int64_t fence) {
+        const std::int64_t newest = in_flight.empty() ? aimed : in_flight.back().picture;
+        if (picture == newest) {
+            return false;
+        }
+        if (in_flight.size() >= kInFlight) {
+            in_flight.erase(in_flight.begin());
+        }
+        in_flight.push_back(InFlight{fence, picture});
+        return true;
+    }
+    /// Fence `fence` came round the second time: every picture handed out behind it is aimed at.
+    void come_round(std::int64_t fence) {
+        std::size_t done = 0;
+        while (done < in_flight.size() && in_flight[done].fence <= fence) {
+            aimed = in_flight[done].picture;
+            ++done;
+        }
+        in_flight.erase(in_flight.begin(), in_flight.begin() + static_cast<std::ptrdiff_t>(done));
+    }
+    void forget() {
+        aimed = 0;
+        in_flight.clear();
+    }
+};
+
 /// AN OPEN EXTERNAL PANEL'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
 // WL-ATTN-04 -- agents/workshop/attention.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
@@ -476,27 +522,14 @@ struct ExternalPane {
     /// numbered a picture. Recorded, never judged -- and NOT what a press is stamped with: an
     /// admitted picture the medium has not been handed yet is not one a hand can have aimed at.
     std::int64_t picture = 0;
-    /// THE PICTURE A PRESS IS STAMPED WITH: the newest one the medium had been handed when the
-    /// press was read, established by the host's own fence (`PictureFence`) coming round twice
-    /// behind the canvas that first showed it. Echoed on `v3::PanePressed` and `PaneButton` so
-    /// the pane can refuse a press aimed at an older picture; 0 until a numbered picture is.
-    std::int64_t aimed_picture = 0;
-    /// PICTURES HANDED OUT BUT NOT YET FENCED, oldest first, as (fence number, picture). Bounded
-    /// (`kPicturesInFlight`): a pane that renumbers faster than the fence comes round loses its
-    /// oldest entry, which only keeps a press stamped with an older picture -- refused as moved,
-    /// never resolved against a newer one.
-    struct InFlight {
-        std::int64_t fence = 0;
-        std::int64_t picture = 0;
-    };
-    std::vector<InFlight> in_flight;
-    static constexpr std::size_t kPicturesInFlight = 8;
+    /// ...WHICH IS THIS: the picture the medium held when a press was read (`PictureStamp`),
+    /// echoed on `v3::PanePressed` and `PaneButton` so the pane can refuse an older one.
+    PictureStamp stamp;
     /// THE PANE STARTS OVER: a re-offer (a reloaded image numbers its pictures afresh) or a close.
     /// Nothing an earlier incarnation numbered may stamp a press aimed at what comes next.
     void forget_pictures() {
         picture = 0;
-        aimed_picture = 0;
-        in_flight.clear();
+        stamp.forget();
     }
 
     /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.

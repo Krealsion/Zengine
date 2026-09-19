@@ -559,6 +559,11 @@ add_subdirectory(attention-pane)
 # boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application
 # defaults is a Workshop a maker can still see, read and leave (agents/realization.md BOOT-1).
 add_subdirectory(desktop-pane)
+# ...and the Menu Presenter, which presents a pane's offered menu: it links the pane protocol
+# alone (the presenter seam is installed beside it), it is staged beside the host, and both boot
+# plans name its artifact -- as an OPTIONAL row: a Workshop without it still runs, and a pane's
+# menu request is refused in words (WL-CTX-09).
+add_subdirectory(menu-presenter)
 # ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
 # it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)

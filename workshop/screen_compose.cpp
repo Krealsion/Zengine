@@ -75,6 +75,11 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_context(layer, s, sc);
     });
+    // ...AND A PANE'S MENU, AS ITS PRESENTER SHOWED IT, in the same position for the same reason:
+    // it is the surface the maker's next keys and presses go to. At most one of the two is open.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_presented(layer, s, sc);
+    });
 }
 
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
