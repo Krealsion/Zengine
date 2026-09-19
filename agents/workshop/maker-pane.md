@@ -224,9 +224,10 @@ typed after Return outlives the answer, and a refusal keeps the line and all it 
 Pane Creator make and a cancel in one poll say the make was already asked for until its answer
 takes that sentence's place, and an answer closes no newer draft"`, case `"a Pane Creator make
 Loom refuses at dispatch is released: the line and the text typed since stand, the reason is said,
-and once Workshop is back the next Return makes it"`, case `"a Pane Creator make nothing could
-queue is released at once and tried afresh, while one delivered and never answered stays
-outstanding: no timeout, no retry, no guess"`, case `"only Loom's own refusal notice releases the
+and once Workshop is back the next Return makes it"`, case `"a Pane Creator make queued to a
+doorless office and refused at dispatch is released by Loom's notice and tried afresh, while
+one delivered and never answered stays outstanding: no timeout, no retry, no guess"`, case
+`"only Loom's own refusal notice releases the
 Pane Creator's act: a forgery naming it exactly settles nothing, and a refused paste releases the
 paste alone"`, case `"a Pane Creator the host's admission denies the maker door says so for every
 attempt, and each later act is attempted afresh rather than held behind the first"`.
